@@ -1,0 +1,17 @@
+# 使用 Python 官方镜像作为基础镜像
+FROM python:3.10.13-slim-bullseye
+
+RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+RUN mkdir -p /app && chown nobody:nogroup /app
+
+WORKDIR /app
+COPY . /app
+
+RUN pip install poetry -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+RUN poetry config virtualenvs.create false
+RUN poetry lock --no-update
+RUN poetry install
+
+USER nobody
+
+CMD ["bash"]

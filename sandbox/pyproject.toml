@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "nekro-agent-sandbox"
+version = "0.1.0"
+description = "Nekro Agent AI 执行沙盒环境"
+authors = ["KroMiose <li_xiangff@163.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+matplotlib = "^3.9.1"
+numpy = "^2.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[[tool.poetry.source]]
+name = "aliyun"
+url = "https://mirrors.aliyun.com/pypi/simple/"
+priority = "primary"

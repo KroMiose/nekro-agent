@@ -1,0 +1,17 @@
+version: "3"
+
+services:
+  nekro-agent:
+    image: kromiose/nekro-agent:latest
+    ports:
+      - "9960:9960" # 容器的端口:主机的端口
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      # 健康检查
+      test: ["CMD", "curl", "-f", "http://localhost:9960/ping"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    restart: always # 自动重启
