@@ -1,9 +1,13 @@
-from nekro_agent.core import logger
+from typing import List
+
+from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_message import DBChatMessage
+from nekro_agent.schemas.agent_message import AgentMessageSegment
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.services.agents.chat_agent import agent_run
 
 
-async def push_chat_message(message: ChatMessage):
+async def push_human_chat_message(message: ChatMessage):
     """推送聊天消息"""
 
     logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
@@ -27,3 +31,13 @@ async def push_chat_message(message: ChatMessage):
             DBChatMessage.send_timestamp: message.send_timestamp,
         },
     )
+
+    if config.AI_CHAT_PRESET_NAME in message.content_text and message.sender_bind_qq in config.SUPER_USERS:
+        logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
+        await agent_run(message)
+
+
+async def push_bot_chat_message(chat_key: str, agent_messages: List[AgentMessageSegment]):
+    """推送机器人消息"""
+
+    logger.info(f"Pushing Bot Message To Chat {chat_key}")

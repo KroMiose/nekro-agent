@@ -1,3 +1,4 @@
+import json
 from typing import List
 
 from nonebot.adapters.onebot.v11 import (
@@ -9,8 +10,9 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentFile,
     ChatMessageSegmentImage,
     ChatMessageSegmentType,
+    segments_from_list,
 )
-from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.common_util import download_file, get_downloaded_prompt_file_path
 
 
 async def convert_chat_message(ob_message: Message) -> List[ChatMessageSegment]:
@@ -55,3 +57,39 @@ async def convert_chat_message(ob_message: Message) -> List[ChatMessageSegment]:
             ...  # TODO: llob 传递过来的文件没有直链，待补充实现
 
     return ret_list
+
+
+def convert_chat_message_to_prompt_str(chat_message: List[ChatMessageSegment]) -> str:
+    """将 ChatMessageSegment 列表转换为提示词字符串
+
+    Args:
+        chat_message (List[ChatMessageSegment]): ChatMessageSegment 列表
+
+    Returns:
+        str: 提示词字符串
+    """
+
+    prompt_str = ""
+
+    for seg in chat_message:
+        if isinstance(seg, ChatMessageSegmentImage):
+            prompt_str += f"[图片:{get_downloaded_prompt_file_path(seg.file_name)}]"
+        elif isinstance(seg, ChatMessageSegmentFile):
+            prompt_str += f"[文件:{get_downloaded_prompt_file_path(seg.file_name)}]"
+        elif isinstance(seg, ChatMessageSegment):
+            prompt_str += seg.text
+
+    return prompt_str
+
+
+def convert_raw_msg_data_json_to_msg_prompt(json_data: str):
+    """将数据库保存的原始消息数据 JSON 转换为提示词字符串
+
+    Args:
+        json_data (str): 数据库保存的原始消息数据 JSON
+
+    Returns:
+        str: 提示词字符串
+    """
+
+    return convert_chat_message_to_prompt_str(segments_from_list(json.loads(json_data)))

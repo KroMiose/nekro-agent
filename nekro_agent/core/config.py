@@ -17,17 +17,20 @@ class PluginConfig(Config):
     APP_PORT: int = 9960
     UVICORN_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    USER_UPLOAD_DIR: str = "uploads"
+    USER_UPLOAD_DIR: str = "./uploads"
     SUPER_USERS: List[str] = ["397038005"]
 
     """OpenAI API 配置"""
     OPENAI_API_KEY: str = ""
     OPENAI_BASE_URL: Optional[str] = None
     OPENAI_PROXY: Optional[str] = None
-    CHAT_MODEL: str = "gpt-3.5-turbo"
+    CHAT_MODEL: str = "gpt-4-1106-preview"
 
     """聊天配置"""
-    AI_CHAT_PRESET: str = "你是灰羽，是一名可爱的二次元宅女，你在聊天时喜欢使用短句，风格较为被动，不会主动引起话题"
+    AI_CHAT_PRESET_NAME: str = "灰羽"
+    AI_CHAT_PRESET_SETTING: str = "你是灰羽，是一名可爱的二次元宅女，你在聊天时喜欢使用短句，风格较为被动，不会主动引起话题"
+    AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = 60 * 30  # 聊天参考上下文过期时间，默认 30 分钟
+    AI_CHAT_CONTEXT_MAX_LENGTH: int = 10  # 聊天参考上下文最大长度，默认 10 条
 
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = "localhost"

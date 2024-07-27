@@ -38,4 +38,8 @@ async def _(
 
     result: str = await limited_run_code(raw_cmd)
 
-    await matcher.finish(result)
+    if result:
+        await matcher.finish(result)
+    else:
+        pass
+        # await matcher.finish("<empty>")

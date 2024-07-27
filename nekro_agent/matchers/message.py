@@ -13,7 +13,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
 from nekro_agent.systems.message.convertor import convert_chat_message
-from nekro_agent.systems.message.push import push_chat_message
+from nekro_agent.systems.message.push import push_human_chat_message
 from nekro_agent.tools.onebot_util import gen_chat_text, get_user_name
 
 message_matcher: Type[Matcher] = on_message(priority=20, block=True)
@@ -83,4 +83,4 @@ async def _(
         send_timestamp=send_timestamp,
     )
 
-    await push_chat_message(chat_message)
+    await push_human_chat_message(chat_message)

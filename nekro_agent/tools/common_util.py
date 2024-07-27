@@ -49,7 +49,7 @@ async def download_file(
         file_path (str): 保存路径
 
     Returns:
-        str: 保存路径
+        Tuple[str, str]: 文件路径, 文件名
     """
 
     try:
@@ -68,3 +68,16 @@ async def download_file(
         raise
     else:
         return file_path, file_name
+
+
+def get_downloaded_prompt_file_path(file_name: str) -> Path:
+    """获取已下载文件路径
+
+    Args:
+        file_name (str): 文件名
+
+    Returns:
+        Path: 文件路径
+    """
+
+    return "app/uploads" / Path(file_name)

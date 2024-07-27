@@ -40,6 +40,23 @@ class ChatMessageSegmentImage(ChatMessageSegmentFile):
     """聊天消息段图片"""
 
 
+def segment_from_dict(data: Dict) -> ChatMessageSegment:
+    """根据字典数据创建聊天消息段"""
+    segment_type = ChatMessageSegmentType(data["type"])
+    if segment_type == ChatMessageSegmentType.TEXT:
+        return ChatMessageSegment.model_validate(data)
+    if segment_type == ChatMessageSegmentType.IMAGE:
+        return ChatMessageSegmentImage.model_validate(data)
+    if segment_type == ChatMessageSegmentType.FILE:
+        return ChatMessageSegmentFile.model_validate(data)
+    raise ValueError(f"Unsupported segment type: {segment_type}")
+
+
+def segments_from_list(data: List[Dict]) -> List[ChatMessageSegment]:
+    """根据列表数据创建聊天消息段列表"""
+    return [segment_from_dict(item) for item in data]
+
+
 class ChatMessage(BaseModel):
     sender_id: int  # 发送者人平台 id
     sender_real_nickname: str  # 发送者原始昵称
