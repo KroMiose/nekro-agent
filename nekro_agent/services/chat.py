@@ -28,6 +28,15 @@ class ChatService:
                 logger.info(f"Sending agent message: {content}")
                 await self.send_message(chat_key, content)
             elif agent_message.type == AgentMessageSegmentType.FILE.value:
+                if content.startswith("/app/uploads/"):
+                    content = content[len("/app/") :]
+                if content.startswith("app/uploads/"):
+                    content = content[len("app/") :]
+                if content.startswith("uploads/"):
+                    real_path = Path(config.USER_UPLOAD_DIR) / content[len("uploads/") :]
+                    logger.info(f"Sending agent file: {real_path}")
+                    message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
+
                 if content.startswith("/app/shared/"):
                     content = content[len("/app/") :]
                 if content.startswith("app/shared/"):
@@ -36,11 +45,9 @@ class ChatService:
                     real_path = Path(config.SANDBOX_SHARED_HOST_DIR) / content[len("shared/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
-                    # await self.send_message(chat_key, Message(MessageSegment.image(file=real_path)))
                 elif content.startswith(("http://", "https://")):
                     file_path, _ = await download_file(content)
                     message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
-                    # await self.send_message(chat_key, Message(MessageSegment.image(file=Path(file_path))))
                 else:
                     message.append(MessageSegment.text(f"Invalid file path: {content}"))
                     continue

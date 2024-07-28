@@ -19,6 +19,8 @@ class PluginConfig(Config):
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     USER_UPLOAD_DIR: str = "./uploads"
     SUPER_USERS: List[str] = ["397038005"]
+    BOT_QQ: str = ""
+    DEBUG_IN_CHAT: bool = False
 
     """OpenAI API 配置"""
     OPENAI_API_KEY: str = ""
@@ -31,6 +33,8 @@ class PluginConfig(Config):
     AI_CHAT_PRESET_SETTING: str = "你是灰羽，是一名可爱的二次元宅女，你在聊天时喜欢使用短句，风格较为被动，不会主动引起话题"
     AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = 60 * 30  # 聊天参考上下文过期时间，默认 30 分钟
     AI_CHAT_CONTEXT_MAX_LENGTH: int = 10  # 聊天参考上下文最大长度，默认 10 条
+    AI_SCRIPT_MAX_RETRY_TIMES: int = 3  # AI 执行脚本失败重试次数，默认 3 次
+    AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数，默认 3 次
 
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = "localhost"
@@ -54,6 +58,9 @@ class PluginConfig(Config):
     """Stable Diffusion API 配置"""
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"
     STABLE_DIFFUSION_PROXY: str = "http://127.0.0.1:7890"
+
+    """拓展配置"""
+    EXTENSION_MODULES: List[str] = ["extensions.group_manager"]
 
 
 config = PluginConfig().load_config(create_if_not_exists=True)

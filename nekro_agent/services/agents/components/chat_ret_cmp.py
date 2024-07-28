@@ -4,74 +4,64 @@ from typing import Any, Coroutine
 from miose_toolkit_llm.components import BaseComponent
 
 from nekro_agent.core import logger
+from nekro_agent.tools.doc_collector import agent_method_collector
 
 REPLY_INSTRUCTION = """
-## 回复格式
+## Response Format
 
-你的回答必须使用以下两种格式之一:
+Your response must adhere to one of the following formats:
 
-1. 文本回复(适用于简单回答): 内容文本将被直接发送到对应会话中
-2. 脚本流程回复(编写 Python 脚本解答问题) : 脚本将在预先准备的容器中执行，可以在其中调用给定 API 与会话等资源进行交互
+1. **Text Response (for simple answers):** The content text will be directly sent to the corresponding conversation.
+2. **Script Response (Python script for response):** The script will be executed in a pre-prepared container, allowing interaction with given APIs and conversation resources.
 
-## 示例回复:
+## Example Responses:
 
-1. 文本回复
+1. **Text Response**
 
 ```
-text:>你好！
+text:> Hello!
 ```
 
-2. 脚本流程回复
+2. **Script Response**
 
 ```
 script:>
 import requests
 
-requests.post(f"{CHAT_API}/send_message", )
+requests.post(CHAT_API + "/send_message", )
 ```
 
-## 容器环境与接口说明
+## Container Environment and API Documentation
 
-### Python 版本: 3.10.13
+### Python Version: 3.10.13
 
-### 目录说明
+### Directory Structure:
 
-- 你的工作目录: /app
-- 共享资源目录: /app/shared (可读写，用于与用户交互资源，需要通过接口发送的文件资源必须先保存到该目录)
-- 用户上传资源目录: /app/uploads (只读，用于获取用户上传资源)
+- Your working directory: /app
+- Shared resources directory: /app/shared (read-write, used for interacting with user resources. Files to be sent to the user must be saved in this directory first)
+- User uploaded resources directory: /app/uploads (read-only, used for accessing user uploaded resources)
 
-### 已安装依赖 (省略已被下列依赖引用的依赖):
+### Installed Dependencies (excluding dependencies referenced by the following):
 
 - requests = "^2.27.1"
 - matplotlib = "^3.9.1"
 - numpy = "^2.0.1"
+- opencv-python = "^4.10.0.84"
 
-### 预置变量说明 (不需要在脚本中声明)
+### Predefined Variables (no need to declare in the script):
 
-- CHAT_API: 聊天服务的基础 API 地址
+- CHAT_API: Base API address for the chat service
 
-### 可用接口: 请严格按照以下接口说明使用接口
+### Available APIs: Please strictly adhere to the API specifications below
 
-- /chat/send_msg: 向会话发送消息
+{AGENT_METHOD_PROMPT}
 
-Parameters:
-    chat_key: 会话 ID
+### Notes:
 
-Body:
-    message_segments(body): 消息片段
-
-Returns:
-    bool: 是否发送成功
-
-Usage:
-    requests.post(
-        f"{CHAT_API}/chat/send_msg?chat_key=group_123456",
-        json=[
-            {"type": "text", "content": "Hello!"},
-            {"type": "file", "content": "shared/output.txt"},
-            {"type": "file", "content": "https://example.com/image.jpg"},
-        ]
-    )
+- If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(1)` to exit the program. This will trigger a new program execution.
+- Please avoid excessive console output in your program to prevent exceeding the context length.
+- Your files will not be reflected in the chat conversation unless you explicitly call the API to send them.
+- 除非特殊要求，否则你应该尽可能用中文回复！
 """
 
 
@@ -88,7 +78,7 @@ class ChatResponseResolver(BaseComponent):
 
     @classmethod
     def example(cls) -> str:
-        return REPLY_INSTRUCTION.strip()
+        return REPLY_INSTRUCTION.strip().format(AGENT_METHOD_PROMPT="\n\n".join(agent_method_collector.gen_method_prompts()))
 
     def resolve_from_text(self, response_text: str) -> "ChatResponseResolver":
         """从响应文本中解析结果 处理脑瘫模型返回的各种奇怪文本"""

@@ -20,9 +20,14 @@ CONTAINER_WORK_DIR = "/app"  # 容器工作目录
 CODE_FILENAME = "run_script.py.code"  # 要执行的代码文件名
 RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
 
+CODE_RUN_ERROR_FLAG = "[CODE_RUN_ERROR]"  # 代码运行错误标记
+
 EXEC_SCRIPT = f"""
 cp {CONTAINER_SHARE_DIR}/{CODE_FILENAME} {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
 python {RUN_CODE_FILENAME}
+if [ $? -ne 0 ]; then
+    echo "{CODE_RUN_ERROR_FLAG}"
+fi
 """
 
 CODE_PREAMBLE = """

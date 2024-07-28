@@ -1,0 +1,1 @@
+from nekro_agent.tools.doc_collector import agent_method_collector

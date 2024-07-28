@@ -43,4 +43,4 @@ class DBChatMessage(MioModel):
 
     def parse_chat_history_prompt(self) -> str:
         content = convert_raw_msg_data_json_to_msg_prompt(self.content_data)
-        return f"{self.sender_nickname}[qq:{self.sender_bind_qq}]: {content}"
+        return f"{self.sender_nickname}[qq:{self.sender_bind_qq}]: {content or self.content_text}"

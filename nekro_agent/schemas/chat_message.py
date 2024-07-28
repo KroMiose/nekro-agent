@@ -8,6 +8,14 @@ class ChatType(Enum):
     PRIVATE = "private"
     GROUP = "group"
 
+    @classmethod
+    def from_chat_key(cls, chat_key: str) -> "ChatType":
+        try:
+            chat_type, _ = chat_key.split("_")
+            return cls(chat_type)
+        except ValueError as e:
+            raise ValueError(f"Invalid chat key: {chat_key}") from e
+
 
 class ChatMessageSegmentType(Enum):
     TEXT = "text"

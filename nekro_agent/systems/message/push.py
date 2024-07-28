@@ -1,9 +1,13 @@
+import time
 from typing import List
 
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_message import DBChatMessage
-from nekro_agent.schemas.agent_message import AgentMessageSegment
-from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.agent_message import (
+    AgentMessageSegment,
+    convert_agent_message_to_prompt,
+)
+from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.services.agents.chat_agent import agent_run
 
 
@@ -41,3 +45,24 @@ async def push_bot_chat_message(chat_key: str, agent_messages: List[AgentMessage
     """推送机器人消息"""
 
     logger.info(f"Pushing Bot Message To Chat {chat_key}")
+
+    send_timestamp = int(time.time() * 1000)
+    content_text = convert_agent_message_to_prompt(agent_messages)
+
+    DBChatMessage.add(
+        data={
+            DBChatMessage.sender_id: -1,
+            DBChatMessage.sender_bind_qq: config.BOT_QQ,
+            DBChatMessage.sender_real_nickname: config.AI_CHAT_PRESET_NAME,
+            DBChatMessage.sender_nickname: config.AI_CHAT_PRESET_NAME,
+            DBChatMessage.is_tome: False,
+            DBChatMessage.is_recalled: False,
+            DBChatMessage.chat_key: chat_key,
+            DBChatMessage.chat_type: ChatType.from_chat_key(chat_key),
+            DBChatMessage.content_text: content_text,
+            DBChatMessage.content_data: [],
+            DBChatMessage.raw_cq_code: "",
+            DBChatMessage.ext_data: {},
+            DBChatMessage.send_timestamp: send_timestamp,
+        },
+    )
