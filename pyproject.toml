@@ -4,7 +4,7 @@ version = "0.1.13"
 description = "Nekro-agent"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
-packages = [{ include = "nekro_agent" }]
+packages = [{ include = "nekro_agent" }, { include = "extensions" }]
 repository = "https://github.com/KroMiose/nekro-agent"
 
 [tool.poetry.scripts]

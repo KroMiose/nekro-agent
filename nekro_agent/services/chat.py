@@ -26,7 +26,6 @@ class ChatService:
             if agent_message.type == AgentMessageSegmentType.TEXT.value:
                 message.append(content)
                 logger.info(f"Sending agent message: {content}")
-                await self.send_message(chat_key, content)
             elif agent_message.type == AgentMessageSegmentType.FILE.value:
                 if content.startswith("/app/uploads/"):
                     content = content[len("/app/") :]

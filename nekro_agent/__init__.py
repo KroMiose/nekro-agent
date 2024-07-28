@@ -1,4 +1,3 @@
-import sys
 import threading
 
 from nonebot import get_app, get_driver
@@ -11,6 +10,7 @@ from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_routers
+from nekro_agent.services.extension import init_extensions
 
 from .app import start
 
@@ -20,6 +20,7 @@ class _Config(BaseModel):
 
 
 mount_routers(get_app())
+init_extensions()
 
 
 __plugin_meta__ = PluginMetadata(
@@ -36,7 +37,6 @@ global_config = get_driver().config
 
 
 # 启动 Api 服务进程
-
 # threading.Thread(target=start, daemon=True).start()
 
 if Args.LOAD_TEST:

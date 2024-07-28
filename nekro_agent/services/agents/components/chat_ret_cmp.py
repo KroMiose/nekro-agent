@@ -4,7 +4,7 @@ from typing import Any, Coroutine
 from miose_toolkit_llm.components import BaseComponent
 
 from nekro_agent.core import logger
-from nekro_agent.tools.doc_collector import agent_method_collector
+from nekro_agent.tools.collector import agent_collector
 
 REPLY_INSTRUCTION = """
 ## Response Format
@@ -26,9 +26,10 @@ text:> Hello!
 
 ```
 script:>
-import requests
+def add(a, b):
+    return a + b
 
-requests.post(CHAT_API + "/send_message", )
+... # Do anything you need
 ```
 
 ## Container Environment and API Documentation
@@ -48,11 +49,7 @@ requests.post(CHAT_API + "/send_message", )
 - numpy = "^2.0.1"
 - opencv-python = "^4.10.0.84"
 
-### Predefined Variables (no need to declare in the script):
-
-- CHAT_API: Base API address for the chat service
-
-### Available APIs: Please strictly adhere to the API specifications below
+### Predefined Variables or Methods (no need to declare in the script):
 
 {AGENT_METHOD_PROMPT}
 
@@ -78,7 +75,7 @@ class ChatResponseResolver(BaseComponent):
 
     @classmethod
     def example(cls) -> str:
-        return REPLY_INSTRUCTION.strip().format(AGENT_METHOD_PROMPT="\n\n".join(agent_method_collector.gen_method_prompts()))
+        return REPLY_INSTRUCTION.strip().format(AGENT_METHOD_PROMPT="\n\n".join(agent_collector.gen_method_prompts()))
 
     def resolve_from_text(self, response_text: str) -> "ChatResponseResolver":
         """从响应文本中解析结果 处理脑瘫模型返回的各种奇怪文本"""

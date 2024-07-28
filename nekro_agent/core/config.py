@@ -29,8 +29,10 @@ class PluginConfig(Config):
     CHAT_MODEL: str = "gpt-4-1106-preview"
 
     """聊天配置"""
-    AI_CHAT_PRESET_NAME: str = "灰羽"
-    AI_CHAT_PRESET_SETTING: str = "你是灰羽，是一名可爱的二次元宅女，你在聊天时喜欢使用短句，风格较为被动，不会主动引起话题"
+    AI_CHAT_PRESET_NAME: str = "可洛喵"
+    AI_CHAT_PRESET_SETTING: str = (
+        '你是可洛喵，是一名非常可爱的二次元宅女，你在聊天时喜欢使用短句，通常以"喵"作为结尾，你的对话风格以被动为主，通常不会主动引起或转移话题'
+    )
     AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = 60 * 30  # 聊天参考上下文过期时间，默认 30 分钟
     AI_CHAT_CONTEXT_MAX_LENGTH: int = 10  # 聊天参考上下文最大长度，默认 10 条
     AI_SCRIPT_MAX_RETRY_TIMES: int = 3  # AI 执行脚本失败重试次数，默认 3 次
@@ -60,7 +62,7 @@ class PluginConfig(Config):
     STABLE_DIFFUSION_PROXY: str = "http://127.0.0.1:7890"
 
     """拓展配置"""
-    EXTENSION_MODULES: List[str] = ["extensions.group_manager"]
+    EXTENSION_MODULES: List[str] = ["extensions.basic"]
 
 
 config = PluginConfig().load_config(create_if_not_exists=True)

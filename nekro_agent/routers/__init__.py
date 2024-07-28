@@ -8,7 +8,7 @@ from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user import user_login
 
-from .chat import router as chat_router
+from .rpc import router as exec_router
 from .tools import router as tools_router
 from .user import router as user_router
 
@@ -19,7 +19,7 @@ def mount_routers(app: FastAPI):
 
     api.include_router(user_router)
     api.include_router(tools_router)
-    api.include_router(chat_router)
+    api.include_router(exec_router)
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:

@@ -32,7 +32,7 @@ from nekro_agent.core.config import config
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat import chat_service
-from nekro_agent.services.executor import CODE_RUN_ERROR_FLAG, limited_run_code
+from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
 
 from .components.chat_history_cmp import ChatHistoryComponent
 from .components.chat_ret_cmp import ChatResponseResolver, ChatResponseType

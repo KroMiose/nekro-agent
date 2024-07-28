@@ -30,7 +30,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
             qq = seg.data.get("qq", None)
             if qq:
                 if qq == "all":
-                    msg += "@全体成员"
+                    msg += "@[全体成员]"
                     is_tome = 1
                 else:
                     user_name = await get_user_name(
@@ -39,7 +39,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
                         user_id=int(qq),
                     )
                     if user_name:
-                        msg += f"@{user_name}"  # 保持给bot看到的内容与真实用户看到的一致
+                        msg += f"@[{user_name}, qq={qq}]"  # 保持给bot看到的内容与真实用户看到的一致
     return msg, is_tome
 
 

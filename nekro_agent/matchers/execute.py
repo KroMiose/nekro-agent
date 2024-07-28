@@ -9,12 +9,12 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
 from nekro_agent.core import config, logger
-from nekro_agent.services.executor import (
+from nekro_agent.services.sandbox.executor import (
     limited_run_code,
 )
 from nekro_agent.tools.onebot_util import get_user_name
 
-execute_matcher: Type[Matcher] = on_command("exec", priority=20, block=True)
+execute_matcher: Type[Matcher] = on_command("exec", priority=10, block=True)
 
 
 @execute_matcher.handle()

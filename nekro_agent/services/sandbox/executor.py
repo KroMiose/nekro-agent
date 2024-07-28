@@ -1,15 +1,17 @@
 import asyncio
 import os
+import shutil
 from pathlib import Path
 
 import aiodocker
-import aiohttp
 from aiodocker.docker import DockerContainer
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 
-HOST_DIR = Path(config.SANDBOX_SHARED_HOST_DIR).resolve()  # 主机共享目录
+from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
+
+HOST_SHARED_DIR = Path(config.SANDBOX_SHARED_HOST_DIR).resolve()  # 主机共享目录
 USER_UPLOAD_DIR = Path(config.USER_UPLOAD_DIR).resolve()  # 用户上传目录
 
 IMAGE_NAME = "nekro-agent-sandbox"  # Docker 镜像名称
@@ -20,25 +22,25 @@ CONTAINER_WORK_DIR = "/app"  # 容器工作目录
 CODE_FILENAME = "run_script.py.code"  # 要执行的代码文件名
 RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
 
+API_CALLER_FILENAME = "api_caller.py.code"  # 外部 API 调用器文件名
+RUN_API_CALLER_FILENAME = "api_caller.py"  # 外部 API 调用器文件名
+
 CODE_RUN_ERROR_FLAG = "[CODE_RUN_ERROR]"  # 代码运行错误标记
 
 EXEC_SCRIPT = f"""
 cp {CONTAINER_SHARE_DIR}/{CODE_FILENAME} {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
+cp {CONTAINER_SHARE_DIR}/{API_CALLER_FILENAME} {CONTAINER_WORK_DIR}/{RUN_API_CALLER_FILENAME} &&
 python {RUN_CODE_FILENAME}
 if [ $? -ne 0 ]; then
     echo "{CODE_RUN_ERROR_FLAG}"
 fi
 """
 
-CODE_PREAMBLE = """
-import requests
-CHAT_API = "http://host.docker.internal:8001/api"
-"""
 
 # 设置共享目录权限
 try:
-    Path.chmod(HOST_DIR, 0o777)
-    logger.info(f"设置共享目录权限: {HOST_DIR} 777")
+    Path.chmod(HOST_SHARED_DIR, 0o777)
+    logger.info(f"设置共享目录权限: {HOST_SHARED_DIR} 777")
 except Exception as e:
     logger.error(f"设置共享目录权限失败: {e}")
 
@@ -57,13 +59,22 @@ async def limited_run_code(code_text: str, output_limit: int = 1000) -> str:
 async def run_code_in_sandbox(code_text: str, output_limit: int = 1000) -> str:
     """在沙盒容器中运行代码并获取输出"""
 
-    Path(HOST_DIR).mkdir(parents=True, exist_ok=True)
-    code_file_path = Path(HOST_DIR) / CODE_FILENAME
+    container_key = os.urandom(4).hex()
+
+    host_shared_dir = Path(HOST_SHARED_DIR / container_key)
+    host_shared_dir.mkdir(parents=True, exist_ok=True)
+
+    # 写入预置依赖代码
+    api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
+    Path.write_text(api_caller_file_path, get_api_caller_code())
+
+    # 写入要执行的代码
+    code_file_path = Path(host_shared_dir) / CODE_FILENAME
     Path.write_text(code_file_path, f"{CODE_PREAMBLE.strip()}\n\n{code_text}")
 
     # 启动容器
     docker = aiodocker.Docker()
-    container_name = f"nekro-agent-sandbox-{os.urandom(4).hex()}"
+    container_name = f"nekro-agent-sandbox-{container_key}"
     container: DockerContainer = await docker.containers.run(
         name=container_name,
         config={
@@ -71,7 +82,7 @@ async def run_code_in_sandbox(code_text: str, output_limit: int = 1000) -> str:
             "Cmd": ["bash", "-c", EXEC_SCRIPT],
             "HostConfig": {
                 "Binds": [
-                    f"{HOST_DIR}:{CONTAINER_SHARE_DIR}:rw",
+                    f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
                     f"{USER_UPLOAD_DIR}:{CONTAINER_UPLOAD_DIR}:ro",
                 ],
                 "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
@@ -94,6 +105,9 @@ async def run_code_in_sandbox(code_text: str, output_limit: int = 1000) -> str:
         container,
         config.SANDBOX_RUNNING_TIMEOUT,
     )
+    # 清理容器共享目录
+    # shutil.rmtree(host_shared_dir)
+
     return (
         output_text
         if len(output_text) <= output_limit

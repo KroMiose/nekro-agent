@@ -46,19 +46,19 @@ async def push_bot_chat_message(chat_key: str, agent_messages: List[AgentMessage
 
     logger.info(f"Pushing Bot Message To Chat {chat_key}")
 
-    send_timestamp = int(time.time() * 1000)
+    send_timestamp = int(time.time())
     content_text = convert_agent_message_to_prompt(agent_messages)
 
     DBChatMessage.add(
         data={
             DBChatMessage.sender_id: -1,
-            DBChatMessage.sender_bind_qq: config.BOT_QQ,
+            DBChatMessage.sender_bind_qq: config.BOT_QQ or "0",
             DBChatMessage.sender_real_nickname: config.AI_CHAT_PRESET_NAME,
             DBChatMessage.sender_nickname: config.AI_CHAT_PRESET_NAME,
-            DBChatMessage.is_tome: False,
+            DBChatMessage.is_tome: 0,
             DBChatMessage.is_recalled: False,
             DBChatMessage.chat_key: chat_key,
-            DBChatMessage.chat_type: ChatType.from_chat_key(chat_key),
+            DBChatMessage.chat_type: ChatType.from_chat_key(chat_key).value,
             DBChatMessage.content_text: content_text,
             DBChatMessage.content_data: [],
             DBChatMessage.raw_cq_code: "",

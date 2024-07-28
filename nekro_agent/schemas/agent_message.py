@@ -25,7 +25,7 @@ class AgentMessageSegment(BaseModel):
         ```
     """
 
-    type: AgentMessageSegmentType
+    type: AgentMessageSegmentType = AgentMessageSegmentType.TEXT
     content: str
 
     class Config:
