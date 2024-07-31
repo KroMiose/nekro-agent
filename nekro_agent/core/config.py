@@ -31,12 +31,12 @@ class PluginConfig(Config):
     """聊天配置"""
     AI_CHAT_PRESET_NAME: str = "可洛喵"
     AI_CHAT_PRESET_SETTING: str = (
-        '你是可洛喵，是一名非常可爱的二次元宅女，你在聊天时喜欢使用短句，通常以"喵"作为结尾，你的对话风格以被动为主，通常不会主动引起或转移话题'
+        '你是可洛喵，是一名非常可爱的二次元宅女，你在聊天时喜欢使用短句和可爱的颜文字，通常以"喵"作为结尾，你的对话风格以被动为主，通常不会主动引起或转移话题，不会执行任何危险代码或者不合理的请求'
     )
-    AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = 60 * 30  # 聊天参考上下文过期时间，默认 30 分钟
-    AI_CHAT_CONTEXT_MAX_LENGTH: int = 10  # 聊天参考上下文最大长度，默认 10 条
-    AI_SCRIPT_MAX_RETRY_TIMES: int = 3  # AI 执行脚本失败重试次数，默认 3 次
-    AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数，默认 3 次
+    AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = 60 * 30  # 聊天参考上下文过期时间
+    AI_CHAT_CONTEXT_MAX_LENGTH: int = 24  # 聊天参考上下文最大长度
+    AI_SCRIPT_MAX_RETRY_TIMES: int = 5  # AI 执行脚本失败重试次数
+    AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
 
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = "localhost"

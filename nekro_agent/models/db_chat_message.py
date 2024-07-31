@@ -41,6 +41,8 @@ class DBChatMessage(MioModel):
         index=True,
     )
 
-    def parse_chat_history_prompt(self) -> str:
-        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data)
-        return f"{self.sender_nickname}[qq:{self.sender_bind_qq}]: {content or self.content_text}"
+    def parse_chat_history_prompt(self, one_time_code: str) -> str:
+        """解析聊天历史记录生成提示词"""
+        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code)
+        time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        return f'[time:{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}'

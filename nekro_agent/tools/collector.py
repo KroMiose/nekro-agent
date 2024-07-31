@@ -1,6 +1,23 @@
-from typing import Callable, Dict, List, Optional, Set
+from enum import Enum
+from typing import Callable, Dict, List, Optional, Set, cast
 
 from nekro_agent.core.logger import logger
+
+
+class MethodType(str, Enum):
+    """方法类型
+
+    用于描述方法的类型，如工具方法, 行为方法等；方法类型区别主要在于对返回值的处理方式。
+
+    * TOOL: 工具方法
+        提供给 LLM 使用的工具，返回值可以是任意类型，其可获取返回值作进一步处理
+
+    * BEHAVIOR: 行为方法
+        用于描述 LLM 的行为，其返回值必须为 str 类型，描述行为的结果，返回后会被添加到上下文中参考
+    """
+
+    TOOL = "tool"
+    BEHAVIOR = "behavior"
 
 
 class DocCollector:
@@ -12,7 +29,7 @@ class DocCollector:
     def __init__(self):
         self.tag_map: Dict[str, Set[Callable]] = {}
 
-    def mount_method(self, method_tag: str = ""):
+    def mount_method(self, method_type: MethodType, method_tag: str = ""):
         """方法收集器
 
         Args:
@@ -25,12 +42,13 @@ class DocCollector:
         def decorator(func):
             if method_tag not in self.tag_map:
                 self.tag_map[method_tag] = set()
+            setattr(func, "_method_type", method_type)  # noqa: B010
             if not func.__doc__:
                 logger.warning(f"注册方法 {func.__name__} 没有可用的文档注解。")
             if method_tag == "":
-                if func not in self.tag_map[""]:
-                    self.tag_map[""].add(func)
-                    logger.success(f"注册方法 {func.__name__} 到默认标签 {method_tag}。")
+                if func not in self.tag_map[method_tag]:
+                    self.tag_map[method_tag].add(func)
+                    logger.success(f"注册方法 {func.__name__} 到默认标签。")
                 else:
                     logger.error(f"[!扩展加载冲突!] 方法 {func.__name__} 已存在于默认标签中。")
             else:
@@ -59,6 +77,19 @@ class DocCollector:
             if method.__name__ == method_name:
                 return method
         return None
+
+    def get_method_type(self, method: Callable) -> MethodType:
+        """获取方法类型
+
+        Args:
+            method (Callable): 方法
+
+        Returns:
+            Optional[MethodType]: 方法类型
+        """
+        if hasattr(method, "_method_type"):
+            return cast(MethodType, method._method_type)  # type: ignore  # noqa: SLF001
+        raise ValueError(f"方法 {method.__name__} 未注册。")
 
     def get_all_methods(self, in_tag: str = "") -> List[Callable]:
         """获取指定标签下的所有方法
@@ -90,7 +121,7 @@ class DocCollector:
             if not method.__doc__:
                 logger.warning(f"方法 {method.__name__} 没有可用的文档注解。")
                 continue
-            prompts.append(f"{method.__name__} - {method.__doc__.strip()}")
+            prompts.append(f"* {method.__name__} - {method.__doc__.strip()}")
         return prompts
 
 

@@ -5,18 +5,20 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 
 from nekro_agent.core.logger import logger
+from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.http_exception import (
     not_found_exception,
     server_error_exception,
 )
 from nekro_agent.schemas.rpc import RPCRequest
-from nekro_agent.tools.collector import agent_collector
+from nekro_agent.systems.message.push_bot_msg import push_system_message
+from nekro_agent.tools.collector import MethodType, agent_collector
 
 router = APIRouter(prefix="/ext", tags=["Tools"])
 
 
 @router.post("/rpc_exec", summary="RPC 命令执行")
-async def rpc_exec(data: Request) -> Response:
+async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Response:
     try:
         rpc_request: RPCRequest = RPCRequest.model_validate(pickle.loads(await data.body()))
     except Exception as e:
@@ -26,15 +28,22 @@ async def rpc_exec(data: Request) -> Response:
     logger.info(f"收到 RPC 执行请求: {rpc_request.method}")
 
     method = agent_collector.get_method(rpc_request.method)
+    if not method:
+        raise not_found_exception
+    method_type: MethodType = agent_collector.get_method_type(method=method)
 
     if not method:
         raise not_found_exception
 
     args = rpc_request.args or []
     kwargs = rpc_request.kwargs or {}
+    ctx = AgentCtx(container_key=container_key, from_chat_key=from_chat_key)
+    kwargs["_ctx"] = ctx
 
     if asyncio.iscoroutinefunction(method):
         result = await method(*args, **kwargs)
     else:
         result = method(*args, **kwargs)
+    if method_type is MethodType.BEHAVIOR:
+        await push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(content=pickle.dumps(result), media_type="application/octet-stream")

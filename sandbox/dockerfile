@@ -15,6 +15,20 @@ RUN poetry config virtualenvs.create false
 RUN poetry lock --no-update
 RUN poetry install
 
+# 通过代理安装 openacv 依赖
+ENV http_proxy="http://172.17.0.1:7890"
+ENV https_proxy="https://172.17.0.1:7890"
+
+RUN apt-get update && \
+    apt-get install -y libgl1-mesa-glx && \
+    apt-get install -y libglib2.0-0 && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# 清除设置的代理
+ENV http_proxy=""
+ENV https_proxy=""
+
 RUN chmod -R 777 /app/shared
 
 USER nobody

@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, cast
 
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
@@ -6,6 +6,8 @@ from nonebot.adapters.onebot.v11 import (
     GroupMessageEvent,
     MessageEvent,
 )
+
+from nekro_agent.schemas.chat_message import ChatType
 
 
 async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
@@ -67,3 +69,20 @@ async def get_user_name(
         raise ValueError("获取用户名失败")
 
     return user_name
+
+
+async def get_chat_info(event: MessageEvent) -> Tuple[str, ChatType]:
+    raw_chat_type = event.message_type
+    chat_type: ChatType
+    if raw_chat_type == "friend" or raw_chat_type == "private":
+        event = cast(MessageEvent, event)
+        chat_key: str = f"private_{event.user_id}"
+        chat_type = ChatType.PRIVATE
+    elif raw_chat_type == "group":
+        event = cast(GroupMessageEvent, event)
+        chat_key = f"group_{event.group_id}"
+        chat_type = ChatType.GROUP  # noqa: F841
+    else:
+        raise ValueError("未知的消息类型")
+
+    return chat_key, chat_type

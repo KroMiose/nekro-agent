@@ -13,8 +13,8 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
 from nekro_agent.systems.message.convertor import convert_chat_message
-from nekro_agent.systems.message.push import push_human_chat_message
-from nekro_agent.tools.onebot_util import gen_chat_text, get_user_name
+from nekro_agent.systems.message.push_human_msg import push_human_chat_message
+from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
 message_matcher: Type[Matcher] = on_message(priority=20, block=True)
 
@@ -25,16 +25,7 @@ async def _(
     event: Union[MessageEvent, GroupMessageEvent],
     bot: Bot,
 ):
-    raw_chat_type = event.message_type
-    chat_type: ChatType
-    if raw_chat_type == "friend":
-        event = cast(MessageEvent, event)
-        chat_key: str = f"friend_{event.user_id}"
-        chat_type = ChatType.PRIVATE
-    else:
-        event = cast(GroupMessageEvent, event)
-        chat_key = f"group_{event.group_id}"
-        chat_type = ChatType.GROUP
+    chat_key, chat_type = await get_chat_info(event=event)
 
     # 用户信息处理
     sender_real_nickname: Optional[str] = event.sender.nickname or event.sender.card

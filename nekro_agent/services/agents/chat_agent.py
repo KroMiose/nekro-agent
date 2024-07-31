@@ -10,7 +10,6 @@ from miose_toolkit_llm import (
 )
 from miose_toolkit_llm.clients.chat_openai import (
     OpenAIChatClient,
-    set_openai_base_url,
 )
 from miose_toolkit_llm.components import (
     TextComponent,
@@ -49,6 +48,7 @@ class ChatScene(BaseScene):
 
         chat_key: str = ""
         chat_preset: str = config.AI_CHAT_PRESET_SETTING
+        one_time_code: str = ""
 
 
 async def agent_run(
@@ -57,6 +57,8 @@ async def agent_run(
     retry_depth: int = 0,
 ):
     """代理执行函数"""
+
+    one_time_code = os.urandom(4).hex()  # 防止提示词注入，生成一次性随机码
 
     if not addition_prompt_message:
         addition_prompt_message = []
@@ -67,9 +69,14 @@ async def agent_run(
     # 1. 构造一个应用场景
     scene = ChatScene()
     scene.store.set("chat_key", chat_message.chat_key)
+    scene.store.set("one_time_code", one_time_code)
 
     # 2. 构建聊天记录组件
-    chat_history_component = ChatHistoryComponent(scene)
+    chat_history_component = ChatHistoryComponent(scene).bind(
+        param_key="one_time_code",
+        store_key="one_time_code",
+        src_store=scene.store,
+    )
     sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
     recent_chat_messages: List[DBChatMessage] = (
         DBChatMessage.sqa_query()
@@ -80,7 +87,7 @@ async def agent_run(
         .order_by(DBChatMessage.send_timestamp.desc())
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
         .all()
-    )[::-1]
+    )[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
     for db_message in recent_chat_messages:
         chat_history_component.append_chat_message(db_message)
 
@@ -91,7 +98,7 @@ async def agent_run(
                 "Character Stetting For You: {chat_preset}",
                 src_store=scene.store,
             ),
-            ChatResponseResolver.example(),  # 生成一个解析结果示例
+            ChatResponseResolver.example(one_time_code),  # 生成一个解析结果示例
             sep="\n\n",  # 自定义构建 prompt 的分隔符 默认为 "\n"
         ),
         UserMessage(
@@ -131,6 +138,7 @@ async def agent_run(
         except Exception as e:
             logger.error(f"LLM API error: {e}")
     else:
+        await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。")
 
     try:
@@ -141,16 +149,19 @@ async def agent_run(
         logger.error(f"Resolve error: {e}")
         raise
 
-    ret_type: ChatResponseType = resolved_response.ret_type
-    ret_content: str = resolved_response.ret_content
-
     # 6. 反馈与保存数据
     mr.save(
         prompt_file=".temp/chat_prompt-latest.txt",
         response_file=".temp/chat_response-latest.json",
     )
+    mr.save(
+        prompt_file=f".temp/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
+        response_file=f".temp/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
+    )
 
-    await agent_exec_result(ret_type, ret_content, chat_message, addition_prompt_message, retry_depth)
+    # 7. 执行响应结果
+    for ret_data in resolved_response.ret_list:
+        await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
 
 
 async def agent_exec_result(
@@ -162,27 +173,35 @@ async def agent_exec_result(
 ):
     if ret_type is ChatResponseType.TEXT:
         logger.info(f"解析文本回复: {ret_content} | To {chat_message.sender_nickname}")
-        await chat_service.send_message(chat_message.chat_key, ret_content)
+        await chat_service.send_agent_message(chat_message.chat_key, ret_content, record=True)
         return
 
     if ret_type is ChatResponseType.SCRIPT:
         logger.info(f"解析程式回复: 等待执行资源 | To {chat_message.sender_nickname}")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_message.chat_key, "[Debug] 执行程式...")
-        result: str = await limited_run_code(ret_content)
-        # await chat_service.send_message(chat_message.chat_key, result)
+        result: str = await limited_run_code(ret_content, from_chat_key=chat_message.chat_key)
         if result.endswith(CODE_RUN_ERROR_FLAG):  # 运行出错标记，将错误信息返回给 AI
             err_msg = result[: -len(CODE_RUN_ERROR_FLAG)]
             addition_prompt_message.append(AiMessage(f"script:>\n{ret_content}"))
-            addition_prompt_message.append(
-                UserMessage(f"Code run error: {err_msg or 'No error message'}\nPlease try again later."),
-            )
+            if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES - 1:
+                addition_prompt_message.append(
+                    UserMessage(
+                        f"Code run error: {err_msg or 'No error message'}\nPlease maintain agreed reply format and try again.",
+                    ),
+                )
+            else:
+                addition_prompt_message.append(
+                    UserMessage(
+                        f"Code run error: {err_msg or 'No error message'}\nPlease maintain agreed reply format and do final one reply",
+                    ),
+                )
             logger.info(f"程式运行出错: ...{err_msg[-100:]} | 重试次数: {retry_depth} | To {chat_message.sender_nickname}")
             if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES:
                 if config.DEBUG_IN_CHAT:
                     await chat_service.send_message(
                         chat_message.chat_key,
-                        f"[Debug] 程式运行出错，调试中...({retry_depth + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})",
+                        f"[Debug] 程式运行出错: {err_msg or 'No error message'}\n正在调试中...({retry_depth + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})",
                     )
                 await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
             else:

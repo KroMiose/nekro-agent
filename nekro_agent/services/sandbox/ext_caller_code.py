@@ -6,6 +6,8 @@ from typing import Any, Callable, Dict, Tuple
 import requests as _requests
 
 CHAT_API = "{CHAT_API}"
+CONTAINER_KEY = "{CONTAINER_KEY}"
+FROM_CHAT_KEY = "{FROM_CHAT_KEY}"
 
 
 def __extension_method_proxy(method: Callable):
@@ -17,7 +19,7 @@ def __extension_method_proxy(method: Callable):
         body = {"method": method.__name__, "args": args, "kwargs": kwargs}
         data: bytes = _pickle.dumps(body)
         response = _requests.post(
-            f"{CHAT_API}/ext/rpc_exec",
+            f"{CHAT_API}/ext/rpc_exec?container_key={CONTAINER_KEY}&from_chat_key={FROM_CHAT_KEY}",
             data=data,
             headers={"Content-Type": "application/octet-stream"},
         )

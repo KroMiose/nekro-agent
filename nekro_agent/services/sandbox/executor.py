@@ -1,6 +1,7 @@
 import asyncio
 import os
 import shutil
+import time
 from pathlib import Path
 
 import aiodocker
@@ -37,40 +38,39 @@ fi
 """
 
 
-# 设置共享目录权限
-try:
-    Path.chmod(HOST_SHARED_DIR, 0o777)
-    logger.info(f"设置共享目录权限: {HOST_SHARED_DIR} 777")
-except Exception as e:
-    logger.error(f"设置共享目录权限失败: {e}")
-
-
 # 沙盒并发限制
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
 
 
-async def limited_run_code(code_text: str, output_limit: int = 1000) -> str:
+async def limited_run_code(code_text: str, from_chat_key: str, output_limit: int = 1000) -> str:
     """限制并发运行代码"""
 
     async with semaphore:
-        return await run_code_in_sandbox(code_text, output_limit)
+        return await run_code_in_sandbox(code_text, from_chat_key, output_limit)
 
 
-async def run_code_in_sandbox(code_text: str, output_limit: int = 1000) -> str:
+async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: int) -> str:
     """在沙盒容器中运行代码并获取输出"""
 
-    container_key = os.urandom(4).hex()
+    container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
 
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
     host_shared_dir.mkdir(parents=True, exist_ok=True)
 
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
-    Path.write_text(api_caller_file_path, get_api_caller_code())
+    Path.write_text(api_caller_file_path, get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key))
 
     # 写入要执行的代码
     code_file_path = Path(host_shared_dir) / CODE_FILENAME
     Path.write_text(code_file_path, f"{CODE_PREAMBLE.strip()}\n\n{code_text}")
+
+    # 设置共享目录权限
+    try:
+        Path.chmod(host_shared_dir, 0o777)
+        logger.info(f"设置共享目录权限: {host_shared_dir} 777")
+    except Exception as e:
+        logger.error(f"设置共享目录权限失败: {e}")
 
     # 启动容器
     docker = aiodocker.Docker()
@@ -105,8 +105,15 @@ async def run_code_in_sandbox(code_text: str, output_limit: int = 1000) -> str:
         container,
         config.SANDBOX_RUNNING_TIMEOUT,
     )
-    # 清理容器共享目录
-    # shutil.rmtree(host_shared_dir)
+
+    # 五分钟后清理容器共享目录
+    def cleanup_container_shared_dir():
+        try:
+            shutil.rmtree(host_shared_dir)
+        except Exception as e:
+            logger.error(f"清理容器共享目录时发生错误: {e}")
+
+    asyncio.create_task(asyncio.sleep(300)).add_done_callback(lambda _: cleanup_container_shared_dir())
 
     return (
         output_text
