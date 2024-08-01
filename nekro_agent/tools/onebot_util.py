@@ -7,6 +7,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageEvent,
 )
 
+from nekro_agent.core.bot import get_bot
 from nekro_agent.schemas.chat_message import ChatType
 
 
@@ -69,6 +70,16 @@ async def get_user_name(
         raise ValueError("获取用户名失败")
 
     return user_name
+
+
+async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str]):
+    """获取用户所在群的群名片"""
+    user_info = await get_bot().get_group_member_info(
+        group_id=int(group_id),
+        user_id=int(user_id),
+        no_cache=False,
+    )
+    return user_info.get("card", user_info.get("nickname", "未知"))
 
 
 async def get_chat_info(event: MessageEvent) -> Tuple[str, ChatType]:

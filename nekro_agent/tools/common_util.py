@@ -70,6 +70,32 @@ async def download_file(
         return file_path, file_name
 
 
+def convert_path_to_container_path(path: str) -> Path:
+    """将路径转换为容器内路径
+
+    Args:
+        path (str): 路径
+
+    Returns:
+        Path: 容器内路径
+    """
+
+    return Path("/app/uploads") / Path(path).name
+
+
+def convert_file_name_to_container_path(file_name: str) -> Path:
+    """将文件名转换为容器内路径
+
+    Args:
+        file_name (str): 文件名
+
+    Returns:
+        Path: 容器内路径
+    """
+
+    return Path("/app/uploads") / Path(file_name)
+
+
 def get_downloaded_prompt_file_path(file_name: str) -> Path:
     """获取已下载文件路径
 

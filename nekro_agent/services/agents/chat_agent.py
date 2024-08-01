@@ -58,6 +58,7 @@ async def agent_run(
 ):
     """代理执行函数"""
 
+    sta_timestamp = time.time()
     one_time_code = os.urandom(4).hex()  # 防止提示词注入，生成一次性随机码
 
     if not addition_prompt_message:
@@ -65,7 +66,7 @@ async def agent_run(
 
     logger.info(f"正在构建对话场景: {chat_message.chat_key}")
     if config.DEBUG_IN_CHAT:
-        await chat_service.send_message(chat_message.chat_key, "[Debug] 思考中...")
+        await chat_service.send_message(chat_message.chat_key, "[Debug] 思考中🤔...")
     # 1. 构造一个应用场景
     scene = ChatScene()
     scene.store.set("chat_key", chat_message.chat_key)
@@ -145,9 +146,9 @@ async def agent_run(
         resolved_response: ChatResponseResolver = ChatResponseResolver.resolve(
             model_response=mr,
         )  # 使用指定解析器解析结果
-    except ResolveError as e:
-        logger.error(f"Resolve error: {e}")
-        raise
+    except Exception as e:
+        logger.error(f"解析结果出错: {e}")
+        raise ResolveError(f"解析结果出错: {e}") from e
 
     # 6. 反馈与保存数据
     mr.save(
@@ -155,13 +156,15 @@ async def agent_run(
         response_file=".temp/chat_response-latest.json",
     )
     mr.save(
-        prompt_file=f".temp/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
-        response_file=f".temp/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
+        prompt_file=f".temp/prompts/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
+        response_file=f".temp/prompts/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
     )
 
     # 7. 执行响应结果
     for ret_data in resolved_response.ret_list:
         await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
+    
+    logger.info(f"本轮响应耗时: {time.time() - sta_timestamp:.2f}s | To {chat_message.sender_nickname}")
 
 
 async def agent_exec_result(
@@ -179,7 +182,7 @@ async def agent_exec_result(
     if ret_type is ChatResponseType.SCRIPT:
         logger.info(f"解析程式回复: 等待执行资源 | To {chat_message.sender_nickname}")
         if config.DEBUG_IN_CHAT:
-            await chat_service.send_message(chat_message.chat_key, "[Debug] 执行程式...")
+            await chat_service.send_message(chat_message.chat_key, "[Debug] 执行程式中🖥️...")
         result: str = await limited_run_code(ret_content, from_chat_key=chat_message.chat_key)
         if result.endswith(CODE_RUN_ERROR_FLAG):  # 运行出错标记，将错误信息返回给 AI
             err_msg = result[: -len(CODE_RUN_ERROR_FLAG)]
@@ -193,7 +196,7 @@ async def agent_exec_result(
             else:
                 addition_prompt_message.append(
                     UserMessage(
-                        f"Code run error: {err_msg or 'No error message'}\nPlease maintain agreed reply format and do final one reply",
+                        f"Code run error: {err_msg or 'No error message'}\nThe number of retries has reached the limit, you should give up retries and explain the problem you are experiencing.",
                     ),
                 )
             logger.info(f"程式运行出错: ...{err_msg[-100:]} | 重试次数: {retry_depth} | To {chat_message.sender_nickname}")

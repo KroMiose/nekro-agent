@@ -118,7 +118,7 @@ class ChatResponseResolver(BaseComponent):
         response_text = response_text.strip()
 
         if response_text.startswith("```python"):
-            response_text = response_text.strip()[10:]
+            response_text = response_text[len("```python") :].strip()
             ret_type = ChatResponseType.SCRIPT
             if response_text.endswith("```"):
                 response_text = response_text.strip()[:-3]
@@ -129,19 +129,24 @@ class ChatResponseResolver(BaseComponent):
             return self
 
         if response_text.startswith("```"):
-            response_text = response_text.strip()[3:]
+            response_text = response_text.split("\n", 1)[1].strip()
         if response_text.endswith("```"):
             response_text = response_text.strip()[:-3]
 
         try:
             _ret_type, ret_content = response_text.split(":>", 1)
+            ret_type = ChatResponseType(_ret_type.strip().lower())
         except ValueError:
+            if "script:>" in response_text:
+                text_text, script_text = response_text.split("script:>", 1)
+                self.ret_list.append(ChatResponse(type=ChatResponseType.TEXT, content=text_text.strip()))
+                self.ret_list.append(ChatResponse(type=ChatResponseType.SCRIPT, content=script_text.strip()))
+                return self
             ret_type = ChatResponseType.TEXT
             ret_content = response_text.strip()
             self.ret_list.append(ChatResponse(type=ret_type, content=ret_content))
             return self
 
-        ret_type = ChatResponseType(_ret_type.strip().lower())
         ret_content = ret_content.strip()
         self.ret_list.append(ChatResponse(type=ret_type, content=ret_content))
         return self

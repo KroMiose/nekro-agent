@@ -24,6 +24,7 @@ class ChatMessageSegmentType(Enum):
     VIDEO = "video"
     FILE = "file"
     REFERENCE = "reference"
+    AT = "at"
 
 
 class ChatMessageSegment(BaseModel):
@@ -34,6 +35,13 @@ class ChatMessageSegment(BaseModel):
 
     class Config:
         use_enum_values = True
+
+
+class ChatMessageSegmentAt(ChatMessageSegment):
+    """聊天消息段 @"""
+
+    target_qq: str  # 被 @ 的人平台 id
+    target_nickname: str  # 被 @ 的人原始昵称
 
 
 class ChatMessageSegmentFile(ChatMessageSegment):
@@ -57,6 +65,8 @@ def segment_from_dict(data: Dict) -> ChatMessageSegment:
         return ChatMessageSegmentImage.model_validate(data)
     if segment_type == ChatMessageSegmentType.FILE:
         return ChatMessageSegmentFile.model_validate(data)
+    if segment_type == ChatMessageSegmentType.AT:
+        return ChatMessageSegmentAt.model_validate(data)
     raise ValueError(f"Unsupported segment type: {segment_type}")
 
 

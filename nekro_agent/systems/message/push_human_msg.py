@@ -1,3 +1,5 @@
+from miose_toolkit_llm.exceptions import ResolveError
+
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -29,6 +31,14 @@ async def push_human_chat_message(message: ChatMessage):
         },
     )
 
-    if config.AI_CHAT_PRESET_NAME in message.content_text:
+    if config.AI_CHAT_PRESET_NAME in message.content_text or message.is_tome:
         logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
-        await agent_run(message)
+        for i in range(3):
+            try:
+                await agent_run(message)
+            except ResolveError:
+                logger.error(f"Resolve Error, Retrying {i+1}/3...")
+            else:
+                break
+        else:
+            logger.error("Failed to Run Chat Agent.")

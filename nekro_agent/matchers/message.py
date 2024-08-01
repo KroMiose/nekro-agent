@@ -50,7 +50,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    content_data = await convert_chat_message(event.message)
+    content_data, msg_tome = await convert_chat_message(event)
     if not content_data:  # 忽略无法转换的消息
         return
 
@@ -63,7 +63,7 @@ async def _(
         sender_real_nickname=sender_real_nickname,
         sender_nickname=sender_nickname,
         sender_bind_qq=bind_qq,
-        is_tome=is_tome,
+        is_tome=is_tome or msg_tome or event.to_me,
         is_recalled=False,
         chat_key=chat_key,
         chat_type=chat_type,

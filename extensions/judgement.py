@@ -1,15 +1,10 @@
-from typing import List
-
 from nonebot.adapters.onebot.v11 import Bot
 
 from nekro_agent.core import logger
 from nekro_agent.core.bot import get_bot
 from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
-
-from .basic import send_msg_text
 
 __meta__ = ExtMetaData(
     name="judgement",
@@ -21,7 +16,7 @@ __meta__ = ExtMetaData(
 
 
 @agent_collector.mount_method(MethodType.BEHAVIOR)
-async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int) -> str:
+async def mute_user(chat_key: str, user_qq: str, duration: int, _ctx: AgentCtx) -> str:
     """禁言用户
 
     Args:
@@ -47,11 +42,11 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int) 
         return f"[{chat_key}] 禁言用户 [qq:{user_qq}] {duration} 秒失败: {e}"
     else:
         logger.info(f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒")
-        return f"[{chat_key}] [qq:{user_qq}] {duration} 秒"
+        return f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒"
 
 
 # @agent_collector.mount_method()   # 协议端暂不支持且 Bot 需要群主权限
-async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, special_title: str, duration: int) -> bool:
+async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, duration: int, _ctx: AgentCtx) -> bool:
     """赋予用户特殊头衔
 
     Args:

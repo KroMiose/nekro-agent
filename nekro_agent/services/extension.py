@@ -31,7 +31,7 @@ def init_extensions():
 
             if isinstance(module_meta_data, ExtMetaData):
                 logger.success(
-                    f'从 "{module_path}" 扩展模块: "{module_meta_data.name} by {module_meta_data.author or "Unknown"}" 加载验证成功',
+                    f'从 "{module_path}" 扩展模块: "{module_meta_data.name}" by "{module_meta_data.author or "Unknown"}" 加载验证成功',
                 )
 
             else:

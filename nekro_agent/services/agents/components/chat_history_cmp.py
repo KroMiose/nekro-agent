@@ -34,7 +34,6 @@ class ChatHistoryComponent(BaseComponent):
         """渲染组件"""
 
         return (
-            f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())}\n"
-            "Recent Messages:\n"
-            f"\n<{self.params.one_time_code} | message separator>\n".join(self.chat_history)
+            f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())}\nRecent Messages:\n"
+            + f"\n<{self.params.one_time_code} | message separator>\n".join(self.chat_history)
         )
