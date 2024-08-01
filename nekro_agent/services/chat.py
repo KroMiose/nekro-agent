@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
+from pydantic import BaseModel
 
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
@@ -14,6 +15,11 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.systems.message.push_bot_msg import push_bot_chat_message
 from nekro_agent.tools.common_util import download_file
+
+
+class SegAt(BaseModel):
+    qq: str
+    nickname: Optional[str]
 
 
 class ChatService:
@@ -46,7 +52,13 @@ class ChatService:
         for agent_message in messages:
             content = agent_message.content
             if agent_message.type == AgentMessageSegmentType.TEXT.value:
-                message.append(content)
+                # message.append(content)
+                seg_data = parse_at_from_text(content)
+                for seg in seg_data:
+                    if isinstance(seg, str):
+                        message.append(MessageSegment.text(seg))
+                    elif isinstance(seg, SegAt):
+                        message.append(MessageSegment.at(user_id=seg.qq))
                 logger.info(f"Sending agent message: {content}")
             elif agent_message.type == AgentMessageSegmentType.FILE.value:
                 if content.startswith("/app/uploads/"):
@@ -99,6 +111,49 @@ class ChatService:
             await bot.send_private_msg(user_id=chat_id, message=message)
         else:
             raise ValueError("Invalid chat type")
+
+
+def parse_at_from_text(text: str) -> List[Union[str, SegAt]]:
+    """从文本中解析@信息
+    需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
+
+    Args:
+        text (str): 文本
+
+    Returns:
+        List[Union[str, SegAt]]: 解析结果 (原始文本或SegAt对象)
+
+    Examples:
+        >>> parse_at_from_text("hello [@qq:123456;nickname:用户名@]")
+        ['hello ', SegAt(qq='123456', nickname='用户名')]
+        >>> parse_at_from_text("hello [@qq:123456@]")
+        ['hello ', SegAt(qq='123456', nickname=None)]
+        >>> parse_at_from_text("hello world")
+        ['hello world']
+    """
+    result = []
+    start = 0
+    while True:
+        at_index = text.find("[@", start)
+        if at_index == -1:
+            result.append(text[start:])
+            break
+        result.append(text[start:at_index])
+        end_index = text.find("@]", at_index)
+        if end_index == -1:
+            result.append(text[at_index:])
+            break
+        seg = text[at_index + 2 : end_index]
+        if "nickname:" in seg:
+            parts = seg.split(";")
+            qq = parts[0].replace("qq:", "").strip()
+            nickname = parts[1].replace("nickname:", "").strip()
+            result.append(SegAt(qq=qq, nickname=nickname))
+        else:
+            qq = seg.replace("qq:", "").strip()
+            result.append(SegAt(qq=qq, nickname=None))
+        start = end_index + 2  # 跳过 '@]' 标志
+    return result
 
 
 chat_service = ChatService()

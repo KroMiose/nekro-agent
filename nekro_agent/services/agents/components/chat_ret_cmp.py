@@ -20,8 +20,10 @@ Your response must adhere to one of the following formats:
 1. **Text Response**
 
 ```
-text:> Hello!
+text:> Hello [@qq:123456@] !
 ```
+
+Notice: You can use [@qq:123456@] to mention a user in the conversation.
 
 2. **Script Response**
 

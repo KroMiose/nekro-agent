@@ -100,7 +100,7 @@ def convert_chat_message_to_prompt_str(chat_message: List[ChatMessageSegment], o
         elif isinstance(seg, ChatMessageSegmentFile):
             prompt_str += f"<{one_time_code} | File:{get_downloaded_prompt_file_path(seg.file_name)}>"
         elif isinstance(seg, ChatMessageSegmentAt):
-            prompt_str += f"<{one_time_code} | @[qq:{seg.target_qq};nickname:{seg.target_nickname}]>"
+            prompt_str += f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
         elif isinstance(seg, ChatMessageSegment):
             prompt_str += seg.text
 
