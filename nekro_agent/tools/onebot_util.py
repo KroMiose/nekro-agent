@@ -8,6 +8,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 
 from nekro_agent.core.bot import get_bot
+from nekro_agent.core.config import config
 from nekro_agent.schemas.chat_message import ChatType
 
 
@@ -52,6 +53,9 @@ async def get_user_name(
     user_id: Union[int, str],
 ) -> str:
     """获取QQ用户名"""
+    if str(user_id) == str(config.BOT_QQ):
+        return config.AI_CHAT_PRESET_NAME
+
     if isinstance(event, GroupMessageEvent) and event.sub_type == "anonymous" and event.anonymous:  # 匿名消息
         return f"[匿名]{event.anonymous.name}"
 
@@ -74,6 +78,8 @@ async def get_user_name(
 
 async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str]):
     """获取用户所在群的群名片"""
+    if str(user_id) == str(config.BOT_QQ):
+        return config.AI_CHAT_PRESET_NAME
     user_info = await get_bot().get_group_member_info(
         group_id=int(group_id),
         user_id=int(user_id),

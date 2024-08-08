@@ -55,7 +55,7 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx) -> bool:
 
 @agent_collector.mount_method(MethodType.TOOL)
 async def send_msg_img(chat_key: str, file_path: str, _ctx: AgentCtx) -> bool:
-    """发送聊天消息图片
+    """发送聊天消息图片资源 (支持资源格式: jpg, jpeg, png, gif, bmp; 不支持的格式请先转换)
 
     Args:
         chat_key (str): 会话标识

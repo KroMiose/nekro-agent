@@ -1,3 +1,4 @@
+import asyncio
 import os
 import time
 from typing import List, Optional, Union
@@ -27,14 +28,18 @@ from miose_toolkit_llm.exceptions import (
 from miose_toolkit_llm.tools.tokenizers import TikTokenizer
 
 from nekro_agent.core import logger
-from nekro_agent.core.config import config
+from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
 
 from .components.chat_history_cmp import ChatHistoryComponent
-from .components.chat_ret_cmp import ChatResponseResolver, ChatResponseType
+from .components.chat_ret_cmp import (
+    ChatResponseResolver,
+    ChatResponseType,
+    check_negative_response,
+)
 
 OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL")
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
@@ -78,12 +83,12 @@ async def agent_run(
         store_key="one_time_code",
         src_store=scene.store,
     )
-    sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
+    record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
     recent_chat_messages: List[DBChatMessage] = (
         DBChatMessage.sqa_query()
         .filter(
+            DBChatMessage.send_timestamp >= record_sta_timestamp,
             DBChatMessage.chat_key == chat_message.chat_key,
-            DBChatMessage.send_timestamp >= sta_timestamp,
         )
         .order_by(DBChatMessage.send_timestamp.desc())
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
@@ -91,6 +96,7 @@ async def agent_run(
     )[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
     for db_message in recent_chat_messages:
         chat_history_component.append_chat_message(db_message)
+    logger.info(f"加载最近 {len(recent_chat_messages)} 条对话记录")
 
     # 3. 构造 OpenAI 提示词
     prompt_creator = OpenAIPromptCreator(
@@ -103,12 +109,23 @@ async def agent_run(
             sep="\n\n",  # 自定义构建 prompt 的分隔符 默认为 "\n"
         ),
         UserMessage(
+            ChatResponseResolver.practice_question_1(),
+        ),
+        AiMessage(
+            ChatResponseResolver.practice_response_1(),
+        ),
+        UserMessage(
+            ChatResponseResolver.practice_question_2(),
+        ),
+        AiMessage(
+            ChatResponseResolver.practice_response_2(),
+        ),
+        UserMessage(
             TextComponent(
-                "Current Chat Key: {chat_key}",
+                "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\nCurrent Chat Key: {chat_key}",
                 src_store=scene.store,
             ),
             chat_history_component,
-            "Please refer to the above information, strictly follow the reply requirements, and do not bring any irrelevant information。",
         ),
         *addition_prompt_message,
         # 生成使用的参数
@@ -118,29 +135,45 @@ async def agent_run(
     )
 
     # 4. 绑定 LLM 执行器
+    model_group: ModelConfigGroup = ModelConfigGroup.model_validate(config.MODEL_GROUPS[config.USE_MODEL_GROUP])
     scene.attach_runner(  # 为场景绑定 LLM 执行器
         Runner(
             client=OpenAIChatClient(
-                model=config.CHAT_MODEL,
-                api_key=config.OPENAI_API_KEY or OPENAI_API_KEY,
-                base_url=config.OPENAI_BASE_URL or OPENAI_BASE_URL,
+                model=model_group.CHAT_MODEL,
+                api_key=model_group.API_KEY or OPENAI_API_KEY,
+                base_url=model_group.BASE_URL or OPENAI_BASE_URL,
+                proxy=model_group.CHAT_PROXY,
             ),  # 指定聊天客户端
-            tokenizer=TikTokenizer(model=config.CHAT_MODEL),  # 指定分词器
+            tokenizer=TikTokenizer(model=model_group.CHAT_MODEL),  # 指定分词器
             prompt_creator=prompt_creator,
         ),
     )
 
     # 5. 获取结果与解析
     for _ in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
-
         try:
             mr: ModelResponse = await scene.run()
             break
         except Exception as e:
             logger.error(f"LLM API error: {e}")
+            await asyncio.sleep(1)
     else:
         await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
-        raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。")
+        raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
+
+    # 6. 消极回复检查
+    if not retry_depth and check_negative_response(mr.response_text):
+        logger.warning("检测到消极回复，拒绝结果并重试")
+        if config.DEBUG_IN_CHAT:
+            await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到消极回复，拒绝结果并重试...")
+        addition_prompt_message.append(AiMessage(mr.response_text))
+        addition_prompt_message.append(
+            UserMessage(
+                "[System Auto Detection] Suspected negative responses or invalid responses have been detected in your responses (such as asking for a meaningless wait or claim to do something but do nothing). Your answer must be consistent with your words and deeds, and no pretending behavior is allowed. If you think this is a mistake, Please ** keep the previously agreed reply format ** and try again.",
+            ),
+        )
+        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+        return
 
     try:
         resolved_response: ChatResponseResolver = ChatResponseResolver.resolve(
@@ -163,7 +196,7 @@ async def agent_run(
     # 7. 执行响应结果
     for ret_data in resolved_response.ret_list:
         await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
-    
+
     logger.info(f"本轮响应耗时: {time.time() - sta_timestamp:.2f}s | To {chat_message.sender_nickname}")
 
 
