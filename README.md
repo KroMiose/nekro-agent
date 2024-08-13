@@ -1,15 +1,15 @@
-# Nekro-Agent
+# Nekro Agent - 更智能、更优雅的代理执行 Bot
 
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
-  <a href="https://v2.nonebot.dev/store"><img src="./image/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
+  <a href="https://v2.nonebot.dev/store"><img src="./images/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
   <br>
-  <p><img src="./image/README/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
+  <p><img src="./images/README/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
 </div>
 
 <div align="center">
-    ✨ 高可扩展，高自由度的 AI 聊天插件 & 代理执行机器人! ✨<br/>
+    ✨ 高可扩展，高自由度的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
     🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
     🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
     🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
@@ -35,7 +35,7 @@
 
 ## ⚙️ 效果演示
 
-![demo](./image/README/demo.png)
+![demo](./images/README/demo.png)
 
 ## 🎁 安装命令 (仅供参考，本插件需要配套应用和服务支持，请参考 [部署/开发 指南](#-部署开发-指南))
 
