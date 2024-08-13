@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.1.13"
+version = "0.1.0"
 description = "Nekro-agent"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"

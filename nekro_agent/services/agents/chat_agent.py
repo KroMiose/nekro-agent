@@ -162,14 +162,14 @@ async def agent_run(
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
 
     # 6. 消极回复检查
-    if not retry_depth and check_negative_response(mr.response_text):
+    if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning("检测到消极回复，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到消极回复，拒绝结果并重试...")
         addition_prompt_message.append(AiMessage(mr.response_text))
         addition_prompt_message.append(
             UserMessage(
-                "[System Auto Detection] Suspected negative responses or invalid responses have been detected in your responses (such as asking for a meaningless wait or claim to do something but do nothing). Your answer must be consistent with your words and deeds, and no pretending behavior is allowed. If you think this is a mistake, Please ** keep the previously agreed reply format ** and try again.",
+                "[System Automatic Detection] A suspected negative or invalid response is detected in your reply (such as asking for a meaningless wait or claiming to do something but not do anything). Your answers must be consistent with your words and deeds, no pretending behavior, and no meaningless promises. If you think this is an error, please ** keep the previously agreed reply format ** and try again.",
             ),
         )
         await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
@@ -183,7 +183,7 @@ async def agent_run(
         logger.error(f"解析结果出错: {e}")
         raise ResolveError(f"解析结果出错: {e}") from e
 
-    # 6. 反馈与保存数据
+    # 7. 反馈与保存数据
     mr.save(
         prompt_file=".temp/chat_prompt-latest.txt",
         response_file=".temp/chat_response-latest.json",
@@ -193,7 +193,7 @@ async def agent_run(
         response_file=f".temp/prompts/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
     )
 
-    # 7. 执行响应结果
+    # 8. 执行响应结果
     for ret_data in resolved_response.ret_list:
         await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
 

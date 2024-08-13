@@ -223,7 +223,11 @@ class ChatResponseResolver(BaseComponent):
 
         if response_text.startswith("```"):
             response_text = response_text.split("\n", 1)[1].strip()
-        if response_text.endswith("```"):
+            has_start_code_block = True
+        else:
+            has_start_code_block = False
+
+        if response_text.endswith("```") and has_start_code_block:
             response_text = response_text.strip()[:-3]
 
         if "text:>" in response_text and "script:>" in response_text and response_text.strip().startswith("text:>"):
@@ -267,15 +271,20 @@ def fix_raw_response(raw_response: str) -> str:
 
 
 def check_negative_response(response_text: str) -> bool:
-    if "script" not in response_text and len(response_text) < 20:
+    if "script" not in response_text and len(response_text) < 32:
         negative_keywords = [
-            "正在努力",
+            "在努力",
+            "会努力",
             "请稍等",
             "等我一下",
             "马上就",
+            "马上开始",
+            "马上发",
             "这就去",
             "稍等片刻",
             "这就发送",
+            "要加油",
+            "会加油",
             "已经发送",
         ]
         for keyword in negative_keywords:

@@ -145,7 +145,7 @@ test
 uw_data
 
 # vscode
-.vscode
+.vscode/*
 !.vscode/launch.json
 
 # configs
