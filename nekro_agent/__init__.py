@@ -25,7 +25,7 @@ init_extensions()
 
 __plugin_meta__ = PluginMetadata(
     name="nekro-agent",
-    description="",
+    description="集代码执行/高度可扩展性为一体的聊天机器人，应用了容器化技术快速构建沙盒环境",
     usage="",
     type="application",
     homepage="https://github.com/KroMiose/nekro-agent",

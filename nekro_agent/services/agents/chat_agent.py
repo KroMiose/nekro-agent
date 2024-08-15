@@ -33,6 +33,7 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
+from nekro_agent.systems.message.push_bot_msg import push_system_message
 
 from .components.chat_history_cmp import ChatHistoryComponent
 from .components.chat_ret_cmp import (
@@ -242,4 +243,12 @@ async def agent_exec_result(
                 await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
             else:
                 await chat_service.send_message(chat_message.chat_key, "程式运行出错，达到最大重试次数，停止重试。")
+        else:
+            output_msg = result[:100] if result else "No output"
+            logger.info(f"程式执行成功: {output_msg}... | To {chat_message.sender_nickname}")
+            await push_system_message(
+                chat_message.chat_key,
+                f'"""script:>\n{ret_content}\n"""The requested program was executed successfully, and the output is: {output_msg}...',
+            )
+            return
         return

@@ -78,12 +78,12 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 
 ### Installed Dependencies in Sandbox Container (excluding dependencies referenced by the following):
 
-- requests = "^2.27.1"
-- matplotlib = "^3.9.1"
-- numpy = "^2.0.1"
-- opencv-python = "^4.10.0.84"
-- scipy = "^1.14.0"
-- scikit-learn = "^1.5.1"
+* matplotlib = "^3.9.1"
+* opencv-python = "^4.10.0.84"
+* numpy = "^1.26.4"
+* scipy = "^1.14.0"
+* scikit-learn = "^1.5.1"
+* imageio = "^2.35.0"
 
 ### Predefined Variables or Methods (no need to declare in the script):
 
@@ -271,7 +271,7 @@ def fix_raw_response(raw_response: str) -> str:
 
 
 def check_negative_response(response_text: str) -> bool:
-    if "script" not in response_text and len(response_text) < 32:
+    if "script" not in response_text and len(response_text) < 48:
         negative_keywords = [
             "在努力",
             "会努力",
@@ -286,6 +286,8 @@ def check_negative_response(response_text: str) -> bool:
             "要加油",
             "会加油",
             "已经发送",
+            "我试试",
+            "这就做",
         ]
         for keyword in negative_keywords:
             if keyword in response_text:

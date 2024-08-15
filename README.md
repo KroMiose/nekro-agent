@@ -144,12 +144,12 @@ EXTENSION_MODULES:
   - extensions.judgement # 群聊禁言扩展
 ```
 
-#### 5. 构建沙盒容器镜像
+#### 5. 拉取沙盒容器镜像
 
-构建用于沙盒环境的 Docker 镜像，如果需要修改镜像中的依赖包可修改 `sandbox/dockerfile` 和 `sandbox/pyproject.toml` 文件
+拉取用于沙盒环境的 Docker 镜像，如果需要修改镜像中的依赖包可修改 `sandbox/dockerfile` 和 `sandbox/pyproject.toml` 文件，然后使用 `sudo bash sandbox.sh --build` 重新构建镜像
 
 ```bash
-sudo bash build_sandbox_image.sh
+sudo bash sandbox.sh --pull
 ```
 
 #### 6. 运行 Bot 启动插件并启用重载监视
