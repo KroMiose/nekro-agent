@@ -56,7 +56,8 @@ class ChatService:
                 seg_data = parse_at_from_text(content)
                 for seg in seg_data:
                     if isinstance(seg, str):
-                        message.append(MessageSegment.text(seg))
+                        if seg.strip():
+                            message.append(MessageSegment.text(seg.strip()))
                     elif isinstance(seg, SegAt):
                         message.append(MessageSegment.at(user_id=seg.qq))
                 logger.info(f"Sending agent message: {content}")
@@ -90,6 +91,11 @@ class ChatService:
             else:
                 raise ValueError(f"Invalid agent message type: {agent_message.type}")
 
+        if not message:
+            logger.warning("Empty Message, skip sending")
+            if config.DEBUG_IN_CHAT:
+                await self.send_message(chat_key, "[Debug] 无消息回复")
+            return
         await self.send_message(chat_key, message)
         if record:
             await push_bot_chat_message(chat_key, messages)

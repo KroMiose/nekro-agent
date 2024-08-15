@@ -96,7 +96,7 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 - Please avoid excessive console output in your program to prevent exceeding the context length.
 - Your files will not be reflected in the chat conversation unless you explicitly call the predefined method to send them.
 - Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
-- You should not reply to duplicate content.
+- You should not reply duplicate or empty content.
 - 除非特殊要求，你应该尽可能用中文回复！
 
 !!! Strictly abide by the above rules when replying to ensure efficient communication !!!
@@ -271,9 +271,10 @@ def fix_raw_response(raw_response: str) -> str:
 
 
 def check_negative_response(response_text: str) -> bool:
-    if "script" not in response_text and len(response_text) < 48:
+    if "script" not in response_text and len(response_text) < 64:
         negative_keywords = [
             "在努力",
+            "不要催",
             "会努力",
             "请稍等",
             "等我一下",
@@ -281,12 +282,15 @@ def check_negative_response(response_text: str) -> bool:
             "马上开始",
             "马上发",
             "这就去",
+            "这就想",
             "稍等片刻",
             "这就发送",
+            "这就开始",
             "要加油",
             "会加油",
             "已经发送",
             "我试试",
+            "再试一次",
             "这就做",
         ]
         for keyword in negative_keywords:

@@ -55,6 +55,7 @@ class PluginConfig(Config):
     AI_CHAT_CONTEXT_MAX_LENGTH: int = 24  # 聊天参考上下文最大长度
     AI_SCRIPT_MAX_RETRY_TIMES: int = 5  # AI 执行脚本失败重试次数
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
+    AI_IGNORED_PREFIXES: List[str] = ["#"]  # 聊天消息中被忽略的前缀
 
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = "localhost"

@@ -3,6 +3,7 @@ import os
 import shutil
 import time
 from pathlib import Path
+from typing import Dict
 
 import aiodocker
 from aiodocker.docker import DockerContainer
@@ -29,6 +30,7 @@ RUN_API_CALLER_FILENAME = "api_caller.py"  # 外部 API 调用器文件名
 CODE_RUN_ERROR_FLAG = "[CODE_RUN_ERROR]"  # 代码运行错误标记
 
 EXEC_SCRIPT = f"""
+rm -f {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
 cp {CONTAINER_SHARE_DIR}/{CODE_FILENAME} {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
 cp {CONTAINER_SHARE_DIR}/{API_CALLER_FILENAME} {CONTAINER_WORK_DIR}/{RUN_API_CALLER_FILENAME} &&
 python {RUN_CODE_FILENAME}
@@ -37,6 +39,8 @@ if [ $? -ne 0 ]; then
 fi
 """
 
+# 会话沙盒活跃时间记录表
+chat_key_sandbox_map: Dict[str, float] = {}
 
 # 沙盒并发限制
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
@@ -52,7 +56,8 @@ async def limited_run_code(code_text: str, from_chat_key: str, output_limit: int
 async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: int) -> str:
     """在沙盒容器中运行代码并获取输出"""
 
-    container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
+    # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
+    container_key = f"sandbox_{from_chat_key}"
 
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
     host_shared_dir.mkdir(parents=True, exist_ok=True)
@@ -106,14 +111,18 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
         config.SANDBOX_RUNNING_TIMEOUT,
     )
 
-    # 五分钟后清理容器共享目录
-    def cleanup_container_shared_dir():
-        try:
-            shutil.rmtree(host_shared_dir)
-        except Exception as e:
-            logger.error(f"清理容器共享目录时发生错误: {e}")
+    # 沙盒共享目录超过 30 分钟未活动，则自动清理
+    def cleanup_container_shared_dir(box_last_active_time):
+        nonlocal from_chat_key
+        if box_last_active_time == chat_key_sandbox_map.get(from_chat_key):
+            try:
+                shutil.rmtree(host_shared_dir)
+            except Exception as e:
+                logger.error(f"清理容器共享目录时发生错误: {e}")
 
-    asyncio.create_task(asyncio.sleep(300)).add_done_callback(lambda _: cleanup_container_shared_dir())
+    box_last_active_time = time.time()
+    chat_key_sandbox_map[from_chat_key] = box_last_active_time
+    asyncio.create_task(asyncio.sleep(30 * 60)).add_done_callback(lambda _: cleanup_container_shared_dir(box_last_active_time))
 
     return (
         output_text

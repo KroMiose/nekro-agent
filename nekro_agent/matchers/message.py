@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.matcher import Matcher
 
-from nekro_agent.core import logger
+from nekro_agent.core import config, logger
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
@@ -57,6 +57,10 @@ async def _(
     sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
     content_text, is_tome = await gen_chat_text(event=event, bot=bot)
     send_timestamp: int = event.time
+
+    if any(content_text.startswith(prefix) for prefix in config.AI_IGNORED_PREFIXES):
+        logger.info(f"忽略前缀匹配的消息: {content_text[:32]}...")
+        return
 
     chat_message: ChatMessage = ChatMessage(
         sender_id=user.id,
