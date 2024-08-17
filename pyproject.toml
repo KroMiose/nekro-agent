@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.1.0.post1"
+version = "0.1.0.post2"
 description = "Nekro-agent"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -12,7 +12,7 @@ publish = "scripts.run_publish:main"
 bot = "run_bot:main"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<=3.12"
+python = ">=3.9,<3.13"
 # uvicorn = "^0.23.2"
 # python-jose = { extras = ["cryptography"], version = "^3.3.0" }
 # passlib = { extras = ["bcrypt"], version = "^1.7.4" }
