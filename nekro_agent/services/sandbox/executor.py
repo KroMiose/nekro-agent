@@ -73,13 +73,13 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     # 设置共享目录权限
     try:
         Path.chmod(host_shared_dir, 0o777)
-        logger.info(f"设置共享目录权限: {host_shared_dir} 777")
+        logger.debug(f"设置共享目录权限: {host_shared_dir} 777")
     except Exception as e:
         logger.error(f"设置共享目录权限失败: {e}")
 
     # 启动容器
     docker = aiodocker.Docker()
-    container_name = f"nekro-agent-sandbox-{container_key}"
+    container_name = f"nekro-agent-sandbox-{container_key}-{os.urandom(4).hex()}"
     container: DockerContainer = await docker.containers.run(
         name=container_name,
         config={
@@ -103,7 +103,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
             "AutoRemove": True,
         },
     )
-    logger.info(f"启动容器: {container_name} | ID: {container.id}")
+    logger.debug(f"启动容器: {container_name} | ID: {container.id}")
 
     # 等待容器执行并限制时间
     output_text = await run_container_with_timeout(
@@ -111,14 +111,21 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
         config.SANDBOX_RUNNING_TIMEOUT,
     )
 
+    logger.debug(f"容器 {container_name} 输出: {output_text}")
+
     # 沙盒共享目录超过 30 分钟未活动，则自动清理
-    def cleanup_container_shared_dir(box_last_active_time):
-        nonlocal from_chat_key
+    async def cleanup_container_shared_dir(box_last_active_time):
+        nonlocal from_chat_key, container
         if box_last_active_time == chat_key_sandbox_map.get(from_chat_key):
             try:
                 shutil.rmtree(host_shared_dir)
             except Exception as e:
                 logger.error(f"清理容器共享目录时发生错误: {e}")
+            # 清理沙盒
+            try:
+                await container.delete()
+            except Exception as e:
+                logger.error(f"清理沙盒时发生错误: {e}")
 
     box_last_active_time = time.time()
     chat_key_sandbox_map[from_chat_key] = box_last_active_time
