@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.1.0.post3"
+version = "0.1.1"
 description = "Nekro-agent"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -12,26 +12,26 @@ publish = "scripts.run_publish:main"
 bot = "run_bot:main"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
+python = ">=3.9,<3.12"
 uvicorn = "^0.23.2"
-# python-jose = { extras = ["cryptography"], version = "^3.3.0" }
-# passlib = { extras = ["bcrypt"], version = "^1.7.4" }
+python-jose = { extras = ["cryptography"], version = "^3.3.0" }
+passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 nonebot-adapter-onebot = "^2.4.2"
 nonebot2 = { extras = ["fastapi"], version = "^2.2.1" }
-# httpx = "^0.27.0"
-# openai = ">=0.27.0"
-# openpyxl = "^3.1.2"
-# pillow = "^10.4.0"
-# psycopg2-binary = "^2.9.9"
-# bcrypt = "^4.2.0"
-# docker = "^7.1.0"
+httpx = "^0.27.0"
+openai = ">=0.27.0"
+openpyxl = "^3.1.2"
+pillow = "^10.4.0"
+psycopg2-binary = "^2.9.9"
+bcrypt = "^4.2.0"
+docker = "^7.1.0"
 
-# miose-toolkit-common = "^0.3.7"
-# miose-toolkit-llm = "^0.0.2"
-# miose-toolkit-logger = "^0.0.7"
-# miose-toolkit-db = "^0.2.2"
-# aiodocker = "^0.22.2"
-# tiktoken = "^0.7.0"
+miose-toolkit-common = "^0.3.7"
+miose-toolkit-llm = "^0.0.2"
+miose-toolkit-logger = "^0.0.7"
+miose-toolkit-db = "^0.2.2"
+aiodocker = "^0.22.2"
+tiktoken = "^0.7.0"
 
 [tool.poetry.group.dev.dependencies]
 nb-cli = "^1.4.0"
