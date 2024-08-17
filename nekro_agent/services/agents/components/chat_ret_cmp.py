@@ -70,6 +70,8 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 
 ### Python Version: 3.10.13
 
+### Network Accessible: True
+
 ### Directory Structure:
 
 - Your working directory: `/app`

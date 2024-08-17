@@ -109,18 +109,10 @@ async def agent_run(
             ChatResponseResolver.example(one_time_code),  # 生成一个解析结果示例
             sep="\n\n",  # 自定义构建 prompt 的分隔符 默认为 "\n"
         ),
-        UserMessage(
-            ChatResponseResolver.practice_question_1(),
-        ),
-        AiMessage(
-            ChatResponseResolver.practice_response_1(),
-        ),
-        UserMessage(
-            ChatResponseResolver.practice_question_2(),
-        ),
-        AiMessage(
-            ChatResponseResolver.practice_response_2(),
-        ),
+        UserMessage(ChatResponseResolver.practice_question_1()),
+        AiMessage(ChatResponseResolver.practice_response_1()),
+        UserMessage(ChatResponseResolver.practice_question_2()),
+        AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
             TextComponent(
                 "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\nCurrent Chat Key: {chat_key}",
