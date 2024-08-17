@@ -278,39 +278,54 @@ def fix_raw_response(raw_response: str) -> str:
 
 
 def check_negative_response(response_text: str) -> bool:
-    if "script" not in response_text and len(response_text) < 64:
+    if "script" not in response_text and len(response_text) < 72:
         negative_keywords = [
+            # 装努力
             "在努力",
-            "不要催",
             "会努力",
             "会尽力",
+            "要加油",
+            "会加油",
+            # 无尽等待
+            "不要催",
             "请稍等",
             "等我一下",
             "稍等一下",
+            "稍等片刻",
             "马上就",
             "马上开始",
             "马上发",
-            "尽快处理",
+            "还没准备",
+            "还没做好",
+            "还没做完",
+            "还没写好",
+            "还没写完",
+            # 假装干活
+            "这就做",
+            "这就发",
+            "这就去",
+            "这就想",
+            "这就写",
+            "这就画",
+            "这就做",
+            "这就开始",
             "我再检查",
             "我再仔细检查",
             "我再认真检查",
-            "这就去",
-            "这就想",
-            "稍等片刻",
-            "这就发送",
-            "这就开始",
-            "要加油",
-            "会加油",
-            "已经发送",
-            "我试试",
-            "试试看",
-            "再试一次",
-            "给一次机会",
-            "这就做",
+            "尽快处理",
+            "在想",
             "想办法",
             "努力想想",
+            # 重试
             "再想想",
             "再试试",
+            "再试一次",
+            "给一次机会",
+            "我试试",
+            "试试看",
+            # 幻觉
+            "已经发送",
+            "已经完成",
         ]
         for keyword in negative_keywords:
             if keyword in response_text:
