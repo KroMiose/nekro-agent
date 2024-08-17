@@ -95,6 +95,20 @@ async def agent_run(
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
         .all()
     )[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
+    # 过长的系统消息过滤，只保留指定条数
+    allow_long_system_msg_cnt = 2
+    allow_long_system_length = 360
+    for db_message in recent_chat_messages:
+        if db_message.sender_bind_qq == "0" and len(db_message.content_text) > allow_long_system_length:
+            setattr(db_message, "_mark_del", True)  # noqa: B010
+    for idx in range(len(recent_chat_messages) - 1, -1, -1):
+        if getattr(recent_chat_messages[idx], "_mark_del", False):  # noqa: B010
+            allow_long_system_msg_cnt -= 1
+            setattr(recent_chat_messages[idx], "_mark_del", False)  # noqa: B010
+            if allow_long_system_msg_cnt <= 0:
+                break
+    recent_chat_messages = [m for m in recent_chat_messages if not getattr(m, "_mark_del", False)]
+
     for db_message in recent_chat_messages:
         chat_history_component.append_chat_message(db_message)
     logger.info(f"加载最近 {len(recent_chat_messages)} 条对话记录")
@@ -156,7 +170,7 @@ async def agent_run(
 
     # 6. 消极回复检查
     if (not retry_depth) and check_negative_response(mr.response_text):
-        logger.warning("检测到消极回复，拒绝结果并重试")
+        logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到消极回复，拒绝结果并重试...")
         addition_prompt_message.append(AiMessage(mr.response_text))

@@ -38,6 +38,7 @@
 > `[Debug]` 前缀的消息为调试信息，默认关闭输出
 
 ![demo](./images/README/demo.png)
+![demo2](./images/README/demo2.png)
 
 ## 🎁 安装命令
 
@@ -57,7 +58,7 @@ nb plugin install nekro-agent
 - [x] 群聊/私聊 场景的上下文智能聊天
 - [x] 自定义人设
 - [x] 容器化沙盒执行环境
-- [x] 图片资源交互 (支持 Bot 发送&接收 图片资源)
+- [x] 图片资源交互 (支持 Bot 发送&接收&处理 图片资源)
 - [x] 高度可定制的扩展开发接口 (示例扩展: [群聊禁言](./extensions/judgement.py) 更多扩展正在持续开发中...)
 - [ ] 更多多媒体资源交互 (文件/视频/音频等)
 - [ ] 容器化编排简化部署方案

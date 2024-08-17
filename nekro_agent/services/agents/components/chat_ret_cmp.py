@@ -37,6 +37,11 @@ def add(a, b):
 ... # Do anything you need
 ```
 
+Consider which one is you need:
+
+* Only send text or plaint code: Use "text:>"
+* Need to execute code: Use "script:>"
+
 ### Bad Example:
 
 ```
@@ -114,7 +119,7 @@ You can ask for help by sending a message to the administrative session in the f
 3. Serious malicious user conversation
 4. Other unforeseen situations
 
-! Admin Chat Key: {ADMIN_CHAT_KEY} (Do not share it. Use Code Execution to send message to a specific chat_key) !
+! Admin Chat Key: {ADMIN_CHAT_KEY} (Do not share it. Use `send_msg_text` method to submit your message) !
 """
 
 PRACTICE_QUESTION_1: str = """
@@ -278,11 +283,17 @@ def check_negative_response(response_text: str) -> bool:
             "在努力",
             "不要催",
             "会努力",
+            "会尽力",
             "请稍等",
             "等我一下",
+            "稍等一下",
             "马上就",
             "马上开始",
             "马上发",
+            "尽快处理",
+            "我再检查",
+            "我再仔细检查",
+            "我再认真检查",
             "这就去",
             "这就想",
             "稍等片刻",
@@ -292,8 +303,14 @@ def check_negative_response(response_text: str) -> bool:
             "会加油",
             "已经发送",
             "我试试",
+            "试试看",
             "再试一次",
+            "给一次机会",
             "这就做",
+            "想办法",
+            "努力想想",
+            "再想想",
+            "再试试",
         ]
         for keyword in negative_keywords:
             if keyword in response_text:

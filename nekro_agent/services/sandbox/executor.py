@@ -42,6 +42,12 @@ fi
 # 会话沙盒活跃时间记录表
 chat_key_sandbox_map: Dict[str, float] = {}
 
+# 会话沙盒容器记录表
+chat_key_sandbox_container_map: Dict[str, DockerContainer] = {}
+
+# 会话清理任务记录表
+chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
+
 # 沙盒并发限制
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
 
@@ -58,6 +64,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
 
     # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
     container_key = f"sandbox_{from_chat_key}"
+    container_name = f"nekro-agent-sandbox-{container_key}-{os.urandom(4).hex()}"
 
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
     host_shared_dir.mkdir(parents=True, exist_ok=True)
@@ -77,9 +84,26 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     except Exception as e:
         logger.error(f"设置共享目录权限失败: {e}")
 
+    # 清理过期任务
+    if from_chat_key in chat_key_sandbox_cleanup_task_map:
+        try:
+            chat_key_sandbox_cleanup_task_map[from_chat_key].cancel()
+            logger.debug(f"清理过期任务: {from_chat_key}")
+        except Exception as e:
+            logger.error(f"清理过期任务失败: {e}")
+        del chat_key_sandbox_cleanup_task_map[from_chat_key]
+
+    # 清理过期沙盒
+    if from_chat_key in chat_key_sandbox_container_map:
+        try:
+            await chat_key_sandbox_container_map[from_chat_key].delete()
+            logger.debug(f"清理过期沙盒: {from_chat_key} | {container_name}")
+        except Exception as e:
+            logger.error(f"清理过期沙盒失败: {e}")
+        del chat_key_sandbox_container_map[from_chat_key]
+
     # 启动容器
     docker = aiodocker.Docker()
-    container_name = f"nekro-agent-sandbox-{container_key}-{os.urandom(4).hex()}"
     container: DockerContainer = await docker.containers.run(
         name=container_name,
         config={
@@ -103,6 +127,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
             "AutoRemove": True,
         },
     )
+    chat_key_sandbox_container_map[from_chat_key] = container
     logger.debug(f"启动容器: {container_name} | ID: {container.id}")
 
     # 等待容器执行并限制时间
@@ -116,6 +141,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     # 沙盒共享目录超过 30 分钟未活动，则自动清理
     async def cleanup_container_shared_dir(box_last_active_time):
         nonlocal from_chat_key, container
+        await asyncio.sleep(30 * 60)
         if box_last_active_time == chat_key_sandbox_map.get(from_chat_key):
             try:
                 shutil.rmtree(host_shared_dir)
@@ -129,7 +155,9 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
 
     box_last_active_time = time.time()
     chat_key_sandbox_map[from_chat_key] = box_last_active_time
-    asyncio.create_task(asyncio.sleep(30 * 60)).add_done_callback(lambda _: cleanup_container_shared_dir(box_last_active_time))
+    chat_key_sandbox_cleanup_task_map[from_chat_key] = asyncio.create_task(
+        cleanup_container_shared_dir(box_last_active_time),
+    )
 
     return (
         output_text
