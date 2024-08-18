@@ -159,7 +159,9 @@ async def agent_run(
     # 5. 获取结果与解析
     for _ in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         try:
+            scene_run_sta_timestamp = time.time()
             mr: ModelResponse = await scene.run()
+            logger.debug(f"LLM 运行耗时: {time.time() - scene_run_sta_timestamp:.3f}s")
             break
         except Exception as e:
             logger.error(f"LLM API error: {e}")
@@ -186,21 +188,27 @@ async def agent_run(
         resolved_response: ChatResponseResolver = ChatResponseResolver.resolve(
             model_response=mr,
         )  # 使用指定解析器解析结果
+        logger.debug("解析完成结果完成")
     except Exception as e:
         logger.error(f"解析结果出错: {e}")
         raise ResolveError(f"解析结果出错: {e}") from e
 
     # 7. 反馈与保存数据
-    mr.save(
-        prompt_file=".temp/chat_prompt-latest.txt",
-        response_file=".temp/chat_response-latest.json",
-    )
-    mr.save(
-        prompt_file=f".temp/prompts/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
-        response_file=f".temp/prompts/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
-    )
+    if config.SAVE_PROMPTS_LOG:
+        current_strftime = time.strftime("%Y%m%d%H%M%S")
+        logger.debug(f"保存对话记录: {current_strftime}")
+        mr.save(
+            prompt_file=f".temp/prompts/chat_prompt-{current_strftime}.txt",
+            response_file=f".temp/prompts/chat_response-{current_strftime}.json",
+        )
+        logger.debug("另存最新对话记录")
+        mr.save(
+            prompt_file=".temp/chat_prompt-latest.txt",
+            response_file=".temp/chat_response-latest.json",
+        )
 
     # 8. 执行响应结果
+    logger.debug(f"开始执行 {len(resolved_response.ret_list)} 条响应结果")
     for ret_data in resolved_response.ret_list:
         await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
 
