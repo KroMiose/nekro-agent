@@ -34,6 +34,7 @@ class PluginConfig(Config):
     BOT_QQ: str = ""
     DEBUG_IN_CHAT: bool = False
     ADMIN_CHAT_KEY: str = ""
+    SAVE_PROMPTS_LOG: bool = False
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {
@@ -65,7 +66,7 @@ class PluginConfig(Config):
 
     """Stable Diffusion API 配置"""
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"
-    STABLE_DIFFUSION_PROXY: str = "http://127.0.0.1:7890"
+    STABLE_DIFFUSION_PROXY: str = ""
 
     """拓展配置"""
     EXTENSION_MODULES: List[str] = ["extensions.basic"]

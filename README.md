@@ -62,6 +62,7 @@ nb plugin install nekro-agent
 - [x] 高度可定制的扩展开发接口 (示例扩展: [群聊禁言](./extensions/judgement.py) 更多扩展正在持续开发中...)
 - [ ] 更多多媒体资源交互 (文件/视频/音频等)
 - [ ] 容器化编排简化部署方案
+- [ ] 可视化插件控制面板
 
 ## 🧑‍💻 部署/开发 指南
 
@@ -111,7 +112,7 @@ SUPER_USERS: # 管理用户
   - "12345678"
 BOT_QQ: "12345678" # 机器人 QQ 号
 DEBUG_IN_CHAT: true
-ADMIN_CHAT_KEY: group_694185447
+ADMIN_CHAT_KEY: group_12345678 # 管理会话频道标识 (AI 在场景中遇到困难可能会向此频道发送消息, 例如沙盒执行代码依赖问题等)
 DEBUG_IN_CHAT: true # 调试消息是否发送到聊天
 
 # 模型组配置
@@ -159,8 +160,11 @@ sudo bash sandbox.sh --pull
 
 #### 6. 运行 Bot 启动插件并启用重载监视
 
+由于插件工作时需要动态使用 Docker 创建沙盒执行环境以及设定容器共享目录权限等，为了确保有足够的权限运行，建议使用 `sudo` 运行 Bot
+
 ```bash
-nb run --reload
+sudo nb run
+sudo nb run --reload  # 开发调试模式下启用重载监视
 ```
 
 #### 7. OneBot 机器人配置
