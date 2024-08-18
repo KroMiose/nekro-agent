@@ -5,8 +5,6 @@ if [ "$1" == "--pull" ]; then
 fi
 
 if [ "$1" == "--build" ]; then
-    sudo rm -rf .venv
-    sudo rm -rf poetry.lock
     sudo docker build -t nekro-agent-sandbox:latest .
 fi
 

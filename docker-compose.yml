@@ -1,17 +1,50 @@
+# 请先运行 `export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent` 设定数据目录
+# 然后运行 `sudo -E docker-compose up -d` 启动服务
+
 version: "3"
 
 services:
-  nekro-agent:
-    image: kromiose/nekro-agent:latest
+  # PostgreSQL 服务
+  nekro_postgres:
+    image: postgres:14
+    container_name: nekro_postgres
+    environment:
+      POSTGRES_USER: nekro_agent
+      POSTGRES_PASSWORD: nekro_agent
+      POSTGRES_DB: nekro_agent
     ports:
-      - "9960:9960" # 容器的端口:主机的端口
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    healthcheck:
-      # 健康检查
-      test: ["CMD", "curl", "-f", "http://localhost:9960/ping"]
-      interval: 1m30s
-      timeout: 30s
-      retries: 5
-      start_period: 30s
-    restart: always # 自动重启
+      - "5432:5432"
+    volumes:
+      - nekro_postgres_data:/var/lib/postgresql/data
+    networks:
+      - nekro_network
+
+  # 主服务
+  nekro_agent:
+    image: nekro-agent:latest
+    container_name: nekro_agent
+    environment:
+      - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
+      - NEKRO_POSTGRES_HOST=nekro_postgres
+      - NEKRO_POSTGRES_PORT=5432
+      - NEKRO_POSTGRES_USER=nekro_agent
+      - NEKRO_POSTGRES_PASSWORD=nekro_agent
+      - NEKRO_POSTGRES_DATABASE=nekro_agent
+      - NEKRO_RUN_IN_DOCKER=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${NEKRO_DATA_DIR}:${NEKRO_DATA_DIR}:rw
+    depends_on:
+      - nekro_postgres
+    ports:
+      - "8021:8021"
+    networks:
+      - nekro_network
+    restart: always
+
+volumes:
+  nekro_postgres_data:
+
+networks:
+  nekro_network:
+    driver: bridge

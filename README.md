@@ -168,10 +168,10 @@ nb run --reload
 使用任意 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式，配置好连接地址
 
 ```
-示例 WebSocket 地址: ws://127.0.0.1:8001/onebot/v11/ws
+示例 WebSocket 地址: ws://127.0.0.1:8021/onebot/v11/ws
 ```
 
-注意: 这里的端口可在 `.env.prod` 中配置，默认为 `8001`
+注意: 这里的端口可在 `.env.prod` 中配置，默认为 `8021`
 
 #### 8. 调试模式
 

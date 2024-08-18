@@ -4,12 +4,12 @@ from typing import Any, Optional, Union
 from jose import jwt
 from passlib.context import CryptContext
 
-from nekro_agent.core import config
+from nekro_agent.core.os_env import OsEnv
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 24 * 60  # 1 day
-REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * config.ACCESS_TOKEN_EXPIRE_DAYS
-JWT_SECRET_KEY = config.JWT_SECRET_KEY
-JWT_REFRESH_SECRET_KEY = config.JWT_REFRESH_SECRET_KEY
+REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * OsEnv.ACCESS_TOKEN_EXPIRE_DAYS
+JWT_SECRET_KEY = OsEnv.JWT_SECRET_KEY
+JWT_REFRESH_SECRET_KEY = OsEnv.JWT_REFRESH_SECRET_KEY
 
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -38,7 +38,7 @@ def create_access_token(
         expires_delta = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)  # type: ignore
 
     to_encode = {"exp": expires_delta, "sub": str(subject)}
-    return jwt.encode(to_encode, JWT_SECRET_KEY, config.ENCRYPT_ALGORITHM)
+    return jwt.encode(to_encode, JWT_SECRET_KEY, OsEnv.ENCRYPT_ALGORITHM)
 
 
 def create_refresh_token(
@@ -53,4 +53,4 @@ def create_refresh_token(
         expires_delta = datetime.utcnow() + timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES)  # type: ignore
 
     to_encode = {"exp": expires_delta, "sub": str(subject)}
-    return jwt.encode(to_encode, JWT_REFRESH_SECRET_KEY, config.ENCRYPT_ALGORITHM)
+    return jwt.encode(to_encode, JWT_REFRESH_SECRET_KEY, OsEnv.ENCRYPT_ALGORITHM)

@@ -21,7 +21,7 @@ def get_api_caller_code(container_key: str, from_chat_key: str):
         inspect.getsource(nekro_agent.services.sandbox.ext_caller_code)
         .replace(
             "{CHAT_API}",
-            "http://host.docker.internal:8001/api",
+            "http://host.docker.internal:8021/api",
         )
         .replace(
             "{CONTAINER_KEY}",

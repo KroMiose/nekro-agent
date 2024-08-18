@@ -5,9 +5,12 @@ import miose_toolkit_common.config
 from miose_toolkit_common.config import Config, Env
 from pydantic import BaseModel
 
-miose_toolkit_common.config._config_root = Path(  # noqa: SLF001
-    "configs/nekro-agent",
-)
+from .os_env import OsEnv
+
+if OsEnv.DATA_DIR:
+    miose_toolkit_common.config._config_root = OsEnv.DATA_DIR / Path("configs")  # noqa: SLF001
+else:
+    miose_toolkit_common.config._config_root = Path("configs/nekro-agent")  # noqa: SLF001
 
 
 class ModelConfigGroup(BaseModel):
@@ -23,11 +26,10 @@ class PluginConfig(Config):
     """插件配置"""
 
     """应用配置"""
-    APP_HOST: str = "127.0.0.1"
-    APP_PORT: int = 9960
+    # APP_HOST: str = "127.0.0.1"
+    # APP_PORT: int = 9960
     UVICORN_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    USER_UPLOAD_DIR: str = "./uploads"
     SUPER_USERS: List[str] = ["123456"]
     BOT_QQ: str = ""
     DEBUG_IN_CHAT: bool = False
@@ -57,22 +59,7 @@ class PluginConfig(Config):
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
     AI_IGNORED_PREFIXES: List[str] = ["#"]  # 聊天消息中被忽略的前缀
 
-    """Postgres 数据库配置"""
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str = ""
-    POSTGRES_PASSWORD: str = ""
-    POSTGRES_DATABASE: str = ""
-
-    """JWT 配置"""
-    JWT_SECRET_KEY: str = "secret:Nekro-agent-Secret"
-    JWT_REFRESH_SECRET_KEY: str = "refresh:Nekro-agent-Secret"
-    SUPER_ACCESS_KEY: str = "Nekro-agent-Secret"
-    ACCESS_TOKEN_EXPIRE_DAYS: int = 7
-    ENCRYPT_ALGORITHM: str = "HS256"
-
     """沙盒配置"""
-    SANDBOX_SHARED_HOST_DIR: str = ".temp/sandboxes"
     SANDBOX_RUNNING_TIMEOUT: int = 60
     SANDBOX_MAX_CONCURRENT: int = 4
 

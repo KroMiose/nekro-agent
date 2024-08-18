@@ -11,7 +11,7 @@ nonebot.load_from_toml("pyproject.toml")
 
 
 def main():
-    nonebot.run(host="0.0.0.0", port=8001)
+    nonebot.run(host="0.0.0.0", port=8021)
 
 
 if __name__ == "__main__":

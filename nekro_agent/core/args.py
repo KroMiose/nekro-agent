@@ -1,4 +1,4 @@
-from nekro_agent.tools.common_util import ArgTypes
+from .utils import ArgTypes
 
 
 class Args:

@@ -10,11 +10,16 @@ from aiodocker.docker import DockerContainer
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
 
 from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
 
-HOST_SHARED_DIR = Path(config.SANDBOX_SHARED_HOST_DIR).resolve()  # 主机共享目录
-USER_UPLOAD_DIR = Path(config.USER_UPLOAD_DIR).resolve()  # 用户上传目录
+# 主机共享目录
+HOST_SHARED_DIR = (
+    Path(SANDBOX_SHARED_HOST_DIR) if SANDBOX_SHARED_HOST_DIR.startswith("/") else Path(SANDBOX_SHARED_HOST_DIR).resolve()
+)
+# 用户上传目录
+USER_UPLOAD_DIR = Path(USER_UPLOAD_DIR) if USER_UPLOAD_DIR.startswith("/") else Path(USER_UPLOAD_DIR).resolve()
 
 IMAGE_NAME = "nekro-agent-sandbox"  # Docker 镜像名称
 CONTAINER_SHARE_DIR = "/app/shared"  # 容器内共享目录 (读写)

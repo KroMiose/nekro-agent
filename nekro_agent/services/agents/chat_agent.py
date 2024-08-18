@@ -29,6 +29,7 @@ from miose_toolkit_llm.tools.tokenizers import TikTokenizer
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.os_env import PROMPT_LOG_DIR
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat import chat_service
@@ -192,12 +193,12 @@ async def agent_run(
 
     # 7. 反馈与保存数据
     mr.save(
-        prompt_file=".temp/chat_prompt-latest.txt",
-        response_file=".temp/chat_response-latest.json",
+        prompt_file=f"{PROMPT_LOG_DIR}/chat_prompt-latest.txt",
+        response_file=f"{PROMPT_LOG_DIR}/chat_response-latest.json",
     )
     mr.save(
-        prompt_file=f".temp/prompts/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
-        response_file=f".temp/prompts/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
+        prompt_file=f"{PROMPT_LOG_DIR}/prompts/chat_prompt-{time.strftime('%Y%m%d%H%M%S')}.txt",
+        response_file=f"{PROMPT_LOG_DIR}/prompts/chat_response-{time.strftime('%Y%m%d%H%M%S')}.json",
     )
 
     # 8. 执行响应结果

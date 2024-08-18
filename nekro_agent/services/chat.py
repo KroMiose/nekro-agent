@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
@@ -67,7 +68,7 @@ class ChatService:
                 if content.startswith("app/uploads/"):
                     content = content[len("app/") :]
                 if content.startswith("uploads/"):
-                    real_path = Path(config.USER_UPLOAD_DIR) / content[len("uploads/") :]
+                    real_path = Path(USER_UPLOAD_DIR) / content[len("uploads/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
 
@@ -79,7 +80,7 @@ class ChatService:
                 if content.startswith("app/shared/"):
                     content = content[len("app/") :]
                 if content.startswith("shared/"):
-                    real_path = Path(config.SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
+                    real_path = Path(SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
                 elif content.startswith(("http://", "https://")):
