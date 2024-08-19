@@ -21,7 +21,7 @@ services:
 
   # 主服务
   nekro_agent:
-    image: nekro-agent:latest
+    image: kromiose/nekro-agent:latest
     container_name: nekro_agent
     environment:
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
