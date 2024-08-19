@@ -9,7 +9,7 @@
 </div>
 
 <div align="center">
-    ✨ 高可扩展，高自由度的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
+    ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
     🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
     🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
     🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
@@ -40,16 +40,6 @@
 ![demo](./images/README/demo.png)
 ![demo2](./images/README/demo2.png)
 
-## 🎁 安装命令
-
-**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [部署/开发 指南](#-部署开发-指南)
-
-~~请在 Bot 目录下执行此命令~~ Nonebot 商店版暂未过审，目前的 PyPI 包版本非完整版，请使用 [部署/开发 指南](#-部署开发-指南) 进行安装
-
-```bash
-nb plugin install nekro-agent
-```
-
 ## 💡 功能列表
 
 > 以下未勾选功能仅表示未来可能开发的方向，不代表实际规划进度，具体开发事项可能随时变动
@@ -60,17 +50,81 @@ nb plugin install nekro-agent
 - [x] 容器化沙盒执行环境
 - [x] 图片资源交互 (支持 Bot 发送&接收&处理 图片资源)
 - [x] 高度可定制的扩展开发接口 (示例扩展: [群聊禁言](./extensions/judgement.py) 更多扩展正在持续开发中...)
+- [x] 基于 `docker-compose` 的容器编排一键部署支持
+- [ ] 基于 LLM 的自动上下文衔接触发器
 - [ ] 更多多媒体资源交互 (文件/视频/音频等)
-- [ ] 容器化编排简化部署方案
 - [ ] 可视化插件控制面板
 
-## 🧑‍💻 部署/开发 指南
+## 🎁 部署指南
+
+本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#-docker-compose-一键部署) 快速部署完整服务
+
+### 1. `nb-cli` 安装命令
+
+**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-源码部署开发指南) 继续部署相关服务并配置访问信息
+
+```bash
+nb plugin install nekro-agent
+```
+
+### 2. 🫙 Docker-Compose 一键部署 (**推荐**)
+
+> 该部署方式将自动拉取并启动所需的服务，并自动配置好相关配置项，无需手动安装环境和配置项
+
+#### 0. 准备工作
+
+请确保机器上已安装 Docker 环境，并安装了 `docker-compose`
+
+#### 1. 拉取 `docker-compose.yml` 文件
+
+挑选一个合适的目录用于存放 `docker-compose.yml` 文件 (推荐使用 `${HOME}/srv/nekro_agent` 因为我们会将该目录挂载到容器中作为应用数据目录)
+
+```bash
+mkdir -p ${HOME}/srv/nekro_agent && cd ${HOME}/srv/nekro_agent
+```
+
+拉取 docker-compose.yml 文件
+
+```bash
+wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker-compose.yml
+```
+
+#### 2. 启动服务
+
+设置临时环境变量 `NEKRO_DATA_DIR` 指向 `${HOME}/srv/nekro_agent` 数据目录
+
+```bash
+export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent
+```
+
+启动服务
+
+```bash
+sudo -E docker-compose up -d
+```
+
+#### 3. 应用配置
+
+你可以在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#-4](#-4-编辑配置文件-configsnekro-agentconfigdevyaml-配置数据库连接等信息) 中的配置说明进行编辑
+
+```bash
+vim ${HOME}/srv/nekro_agent/configs/config.dev.yaml
+
+# 在编辑后重启 `nekro-agent` 容器
+sudo docker-compose restart nekro-agent
+```
+
+#### 4. 协议端连接
+
+使用任意协议端登录机器人并使用反向 WebSocket 连接方式，请参考 [源码部署/开发指南#7](#7-onebot-机器人配置)
+
+### 3. 🧑‍💻 源码部署/开发指南
 
 > 通过以下几步操作即可开始 开发/使用 本插件
 
 #### 0. 准备工作
 
-推荐使用 [1Panel](https://1panel.cn/docs/installation/online_installation/) 部署本应用，可以快速安装好所需的环境应用
+> 推荐使用 [1Panel](https://1panel.cn/docs/installation/online_installation/) 部署本应用，可以快速安装好所需的环境应用
 
 - 一个可用的 Postgresql 数据库
 - 安装 Python 环境 (推荐 Python 3.10)
