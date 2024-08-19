@@ -13,7 +13,6 @@ bot = "run_bot:main"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
-uvicorn = "^0.23.2"
 python-jose = { extras = ["cryptography"], version = "^3.3.0" }
 passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 nonebot-adapter-onebot = "^2.4.2"
@@ -35,6 +34,7 @@ miose-toolkit-logger = "^0.0.7"
 miose-toolkit-db = "^0.2.2"
 
 [tool.poetry.group.dev.dependencies]
+uvicorn = "^0.23.2"
 nb-cli = "^1.4.0"
 
 [build-system]

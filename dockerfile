@@ -17,7 +17,7 @@ COPY . /app
 
 # 安装项目依赖项
 RUN poetry config virtualenvs.create false
-RUN poetry install
+RUN poetry install --only main
 
 # 暴露端口
 EXPOSE 8021

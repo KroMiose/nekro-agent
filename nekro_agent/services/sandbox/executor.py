@@ -10,7 +10,7 @@ from aiodocker.docker import DockerContainer
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
+from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
 
 from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
 
@@ -121,10 +121,14 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
                 ],
                 "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                 "NanoCPUs": 1000000000,  # CPU 限制 (1 core)
-                "SecurityOpt": [
-                    "no-new-privileges",  # 禁止提升权限
-                    "apparmor=unconfined",  # 可以根据需要设置 AppArmor 配置
-                ],
+                "SecurityOpt": (
+                    []
+                    if OsEnv.RUN_IN_DOCKER
+                    else [
+                        "no-new-privileges",  # 禁止提升权限
+                        "apparmor=unconfined",  # 禁止 AppArmor 配置
+                    ]
+                ),
                 "NetworkMode": "bridge",
                 "ExtraHosts": ["host.docker.internal:host-gateway"],
             },

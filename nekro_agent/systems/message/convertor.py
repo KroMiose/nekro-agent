@@ -4,6 +4,7 @@ from typing import List, Tuple, Union
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageEvent
 
 from nekro_agent.core.config import config
+from nekro_agent.core.logger import logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
@@ -45,6 +46,8 @@ async def convert_chat_message(ob_event: Union[MessageEvent, GroupMessageEvent])
                 suffix = "." + seg.data["file"].split(".")[-1].lower()
             except Exception:
                 suffix = ""
+            if "url" not in seg.data:
+                logger.warning(f"OneBot image message without url: {seg}")
             remote_url: str = seg.data["url"]
             local_path, file_name = await download_file(remote_url, use_suffix=suffix)
             ret_list.append(
