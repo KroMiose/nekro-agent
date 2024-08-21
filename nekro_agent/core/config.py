@@ -64,6 +64,13 @@ class PluginConfig(Config):
     SANDBOX_RUNNING_TIMEOUT: int = 60
     SANDBOX_MAX_CONCURRENT: int = 4
 
+    """Postgresql 配置"""
+    POSTGRES_HOST: str = "127.0.0.1"
+    POSTGRES_PORT: int = 5432
+    POSTGRES_USER: str = "db_username"
+    POSTGRES_PASSWORD: str = "db_password"
+    POSTGRES_DATABASE: str = "nekro_agent"
+
     """Stable Diffusion API 配置"""
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"
     STABLE_DIFFUSION_PROXY: str = ""
