@@ -48,6 +48,7 @@ async def convert_chat_message(ob_event: Union[MessageEvent, GroupMessageEvent])
                 suffix = ""
             if "url" not in seg.data:
                 logger.warning(f"OneBot image message without url: {seg}")
+                continue
             remote_url: str = seg.data["url"]
             local_path, file_name = await download_file(remote_url, use_suffix=suffix)
             ret_list.append(
