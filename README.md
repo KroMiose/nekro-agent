@@ -57,17 +57,17 @@
 
 ## 🎁 部署指南
 
-本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#-docker-compose-一键部署) 快速部署完整服务
+本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#方式二--docker-compose-一键部署-推荐) 快速部署完整服务
 
-### 方式一: `nb-cli` 安装命令
+### 🚀 方式一: `nb-cli` 安装命令
 
-**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
+**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#方式三--源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
 
 ```bash
 nb plugin install nekro-agent
 ```
 
-### 方式二: 🫙 Docker-Compose 一键部署 (**推荐**)
+### 🫙 方式二: Docker-Compose 一键部署 (**推荐**)
 
 > 该部署方式将自动拉取并启动所需的服务，并自动配置好相关配置项，无需手动安装环境和配置项
 
@@ -105,20 +105,32 @@ sudo -E docker-compose up -d
 
 #### 3. 应用配置
 
-你可以在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#-4](#-4-编辑配置文件-configsnekro-agentconfigdevyaml-配置数据库连接等信息) 中的配置说明进行编辑
+你可以在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#-4](#-4-配置必要信息) 中的配置说明进行编辑
 
 ```bash
 vim ${HOME}/srv/nekro_agent/configs/config.dev.yaml
 
 # 在编辑后重启 `nekro-agent` 容器
-sudo docker-compose restart nekro-agent
+sudo -E docker-compose restart nekro_agent
 ```
 
 #### 4. 协议端连接
 
 使用任意协议端登录机器人并使用反向 WebSocket 连接方式，请参考 [源码部署/开发指南#7](#7-onebot-机器人配置)
 
-### 方式三: 🧑‍💻 源码部署/开发指南
+#### 5. 更新应用
+
+当新版本发布时，你可以使用以下一键命令更新应用
+
+```bash
+# 更新 `nekro-agent` 镜像
+export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent && cd ${NEKRO_DATA_DIR} && sudo -E docker-compose pull
+
+# 然后重启 `nekro-agent` 容器
+sudo -E docker-compose restart nekro_agent
+```
+
+### 🧑‍💻 方式三: 源码部署/开发指南
 
 > 通过以下几步操作即可开始 开发/使用 本插件
 
@@ -156,9 +168,9 @@ poetry install
 nb run
 ```
 
-#### 4. 编辑配置文件 `configs/nekro-agent/config.dev.yaml` 配置数据库连接等信息
+#### 4. 配置必要信息
 
-建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html), 建议使用 `vscode` 编辑器进行编辑
+编辑配置文件 `configs/nekro-agent/config.dev.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html), 建议使用 `vscode` 编辑器进行编辑
 
 ```yaml
 # Bot 与管理信息
@@ -183,12 +195,12 @@ MODEL_GROUPS:
     BASE_URL: http://你的转发站地址/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Postgresql 数据库配置
-POSTGRES_HOST: localhost
+# Postgresql 数据库配置 (Docker 版无需配置)
+POSTGRES_HOST: 127.0.0.1
 POSTGRES_PORT: 5432
 POSTGRES_USER: db_username
 POSTGRES_PASSWORD: db_password
-POSTGRES_DATABASE: db_username
+POSTGRES_DATABASE: nekro_agent
 
 # 自定义人设 (可选)
 AI_CHAT_PRESET_NAME: 可洛喵
