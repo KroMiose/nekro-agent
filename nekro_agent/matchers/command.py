@@ -15,6 +15,7 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import limited_run_code
+from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
 
@@ -161,4 +162,32 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     lines_limit: int = 100
     container_name: str = cmd_content or "nekro_agent"
-    os.system(f"docker logs {container_name} --tail {lines_limit}")
+    logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
+    await matcher.finish(message=f"容器日志: \n{logs}")
+
+
+@on_command("sh", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    outputs = os.popen(cmd_content).read()
+    await matcher.finish(message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
+
+
+@on_command("na_info", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    version: str = get_app_version()
+    await matcher.finish(
+        message=(
+            f"[Nekro-Agent] - 更智能、更优雅的代理执行 AI\n"
+            f"Author: KroMiose\n"
+            f"Github: https://github.com/KroMiose/nekro_agent\n"
+            f"Version: {version}\n"
+            f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
+            "========会话设定========\n"
+            f"人设: {config.AI_CHAT_PRESET_NAME}\n"
+            f"当前模型组: {config.USE_MODEL_GROUP}\n"
+        ).strip(),
+    )

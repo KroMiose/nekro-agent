@@ -3,8 +3,22 @@ from pathlib import Path
 from typing import Tuple
 
 import httpx
+import toml
 
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
+
+
+def get_app_version() -> str:
+    """获取当前应用版本号
+
+    Returns:
+        str: 应用版本号
+    """
+    pyproject = toml.loads(Path("pyproject.toml").read_text())
+    try:
+        return pyproject["tool"]["poetry"]["version"]
+    except KeyError:
+        return "unknown"
 
 
 async def download_file(
