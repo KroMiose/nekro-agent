@@ -57,11 +57,11 @@
 
 ## 🎁 部署指南
 
-本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#方式二--docker-compose-一键部署-推荐) 快速部署完整服务
+本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#-方式二-docker-compose-一键部署-推荐) 快速部署完整服务
 
 ### 🚀 方式一: `nb-cli` 安装命令
 
-**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#方式三--源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
+**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-方式三-源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
 
 ```bash
 nb plugin install nekro-agent
@@ -105,7 +105,7 @@ sudo -E docker-compose up -d
 
 #### 3. 应用配置
 
-你可以在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#-4](#-4-配置必要信息) 中的配置说明进行编辑
+你可以在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#4](#4-配置必要信息) 中的配置说明进行编辑
 
 ```bash
 vim ${HOME}/srv/nekro_agent/configs/config.dev.yaml
@@ -170,32 +170,30 @@ nb run
 
 #### 4. 配置必要信息
 
-编辑配置文件 `configs/nekro-agent/config.dev.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html), 建议使用 `vscode` 编辑器进行编辑
+编辑配置文件 `configs/nekro-agent/config.dev.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html), 建议使用 `vscode` 编辑器进行编辑, 善用 `Ctrl+F` 快速定位配置项
 
 ```yaml
 # Bot 与管理信息
-SUPER_USERS: # 管理用户
+SUPER_USERS: # 管理用户 QQ 号列表
   - "12345678"
-BOT_QQ: "12345678" # 机器人 QQ 号
-DEBUG_IN_CHAT: true
+BOT_QQ: "12345678" # 机器人 QQ 号 (**必填**)
 ADMIN_CHAT_KEY: group_12345678 # 管理会话频道标识 (AI 在场景中遇到困难可能会向此频道发送消息, 例如沙盒执行代码依赖问题等)
-DEBUG_IN_CHAT: true # 调试消息是否发送到聊天
 
 # 模型组配置
-USE_MODEL_GROUP: default # 当前使用的模型组
+USE_MODEL_GROUP: default # 当前使用的模型组, 指向 `MODEL_GROUPS` 下的配置项
 MODEL_GROUPS:
-  default:
+  default:  # 默认模型组 (**USE_MODEL_GROUP 所指向的模型组为必填项**)
     CHAT_MODEL: gpt-4
     CHAT_PROXY: 127.0.0.1:7890
     BASE_URL: http://api.openai.com/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-  custom:
+  custom:   # 选填模型组 (如果有多个模型组，可以继续添加)
     CHAT_MODEL: gemini-1.5-pro
     CHAT_PROXY: ""
     BASE_URL: http://你的转发站地址/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
-# Postgresql 数据库配置 (Docker 版无需配置)
+# Postgresql 数据库配置 (Docker 部署时无需配置)
 POSTGRES_HOST: 127.0.0.1
 POSTGRES_PORT: 5432
 POSTGRES_USER: db_username
