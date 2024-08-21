@@ -1,3 +1,4 @@
+import os
 from typing import List, Tuple, Union
 
 from miose_toolkit_common import Env
@@ -9,6 +10,7 @@ from nonebot.params import CommandArg
 
 from nekro_agent.core.config import config, reload_config
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.chat import chat_service
@@ -22,13 +24,24 @@ async def command_guard(
     arg: Message,
     matcher: Matcher,
 ) -> Tuple[str, str, str, ChatType]:
+    """指令执行前处理
+
+    Args:
+        event (Union[MessageEvent, GroupMessageEvent]): 事件对象
+        bot (Bot): Bot 对象
+        arg (Message): 命令参数
+        matcher (Matcher): Matcher 对象
+
+    Returns:
+        Tuple[str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
+    """
     username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
     # 判断是否是禁止使用的用户
     if event.get_user_id() not in config.SUPER_USERS:
         logger.warning(f"用户 {username} 不在允许用户中")
         await matcher.finish(f"用户 [{event.get_user_id()}]{username} 不在允许用户中")
 
-    cmd_content: str = arg.extract_plain_text()
+    cmd_content: str = arg.extract_plain_text().strip()
     chat_key, chat_type = await get_chat_info(event=event)
     return username, cmd_content, chat_key, chat_type
 
@@ -102,6 +115,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         else:
             await matcher.finish(message=f"不支持动态修改的配置类型 `{_c_type}`")
         await matcher.finish(message=f"已设置 `{key}` 的值为 `{value}`")
+    else:
+        await matcher.finish(message=f"未知配置: `{key}`")
 
 
 @on_command("config_reload", priority=5, block=True).handle()
@@ -121,5 +136,29 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
+    await matcher.finish(message="功能未实现")
     reload_config()
     await matcher.finish(message="重载配置成功")
+
+
+@on_command("docker_restart", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await matcher.finish(message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    container_name: str = cmd_content or "nekro_agent"
+    os.system(f"docker restart {container_name}")
+
+
+@on_command("docker_logs", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await matcher.finish(message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    lines_limit: int = 100
+    container_name: str = cmd_content or "nekro_agent"
+    os.system(f"docker logs {container_name} --tail {lines_limit}")
