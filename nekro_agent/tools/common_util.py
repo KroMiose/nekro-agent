@@ -48,7 +48,7 @@ async def download_file(
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path = str(save_path)
             Path(file_path).write_bytes(response.content)
-            Path(file_path).chmod(755)
+            Path(file_path).chmod(0o755)
     except Exception:
         if retry_count > 0:
             return await download_file(url, file_path, file_name, use_suffix, retry_count=retry_count - 1)
@@ -71,8 +71,8 @@ async def move_to_upload_dir(file_path: str, file_name: str = "", use_suffix: st
         file_name = f"{hashlib.md5(Path(file_path).read_bytes()).hexdigest()}{use_suffix}"
     save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
     save_path.parent.mkdir(parents=True, exist_ok=True)
-    Path(file_path).rename(save_path)
-    Path(save_path).chmod(755)
+    Path(save_path).write_bytes(Path(file_path).read_bytes())
+    Path(save_path).chmod(0o755)
     return str(save_path), file_name
 
 
