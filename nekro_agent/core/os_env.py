@@ -1,3 +1,7 @@
+import contextlib
+import subprocess
+from pathlib import Path
+
 from .utils import OsEnvTypes
 
 
@@ -29,3 +33,9 @@ USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
 PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
 APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
+
+
+# 设置上传目录及其子目录权限
+with contextlib.suppress(Exception):
+    subprocess.run(["chmod", "-R", "755", USER_UPLOAD_DIR], check=True)
+    print(f"Set permission of {USER_UPLOAD_DIR} to 755")

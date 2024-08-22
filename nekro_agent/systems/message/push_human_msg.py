@@ -43,7 +43,7 @@ async def push_human_chat_message(message: ChatMessage):
         if message.chat_key in running_chat_task_throttle_map:
             current_time = time.time()
             running_chat_task_throttle_map[message.chat_key] = current_time
-            await asyncio.sleep(0.25)
+            await asyncio.sleep(config.AI_GENERATE_THROTTLE_SECONDS)
             if running_chat_task_throttle_map[message.chat_key] != current_time:
                 logger.warning("检测到高频触发消息，节流控制生效中，跳过本次处理...")
                 return

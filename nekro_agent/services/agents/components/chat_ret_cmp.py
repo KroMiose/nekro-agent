@@ -79,9 +79,9 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 
 ### Directory Structure:
 
-- Your working directory: `/app`
-- Shared resources directory: `/app/shared` (read-write, used for interacting with user resources. Files to be sent to the user must be saved in this directory first)
-- User uploaded resources directory: /app/uploads (read-only, used for accessing user uploaded resources)
+- Your **working directory**: `.` (absolute path: `/app`)
+- Shared resources directory: `./shared` (absolute path: `/app/shared`) (read-write, used for interacting with user resources. Files to be sent to the user must be saved in this directory first)
+- User uploaded resources directory: `./uploads` (absolute path: `/app/uploads`) (read-only, used for accessing user uploaded resources)
 
 ### Installed Dependencies in Sandbox Container (excluding dependencies referenced by the following):
 
@@ -308,6 +308,8 @@ def check_negative_response(response_text: str) -> bool:
             "这就写",
             "这就画",
             "这就做",
+            "这就改",
+            "这就修",
             "这就开始",
             "我再检查",
             "我再仔细检查",

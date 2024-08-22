@@ -13,7 +13,11 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     segments_from_list,
 )
-from nekro_agent.tools.common_util import download_file, get_downloaded_prompt_file_path
+from nekro_agent.tools.common_util import (
+    download_file,
+    get_downloaded_prompt_file_path,
+    move_to_upload_dir,
+)
 from nekro_agent.tools.onebot_util import get_user_group_card_name
 
 
@@ -46,20 +50,35 @@ async def convert_chat_message(ob_event: Union[MessageEvent, GroupMessageEvent])
                 suffix = "." + seg.data["file"].split(".")[-1].lower()
             except Exception:
                 suffix = ""
-            if "url" not in seg.data:
+            if "url" in seg.data:
+                remote_url: str = seg.data["url"]
+                local_path, file_name = await download_file(remote_url, use_suffix=suffix)
+                ret_list.append(
+                    ChatMessageSegmentImage(
+                        type=ChatMessageSegmentType.IMAGE,
+                        text="",
+                        file_name=file_name,
+                        local_path=local_path,
+                        remote_url=remote_url,
+                    ),
+                )
+            elif "file" in seg.data:
+                seg_local_path = seg.data["file"]
+                if seg_local_path.startswith("file:"):
+                    seg_local_path = seg_local_path[len("file:") :]
+                local_path, file_name = await move_to_upload_dir(seg_local_path, use_suffix=suffix)
+                ret_list.append(
+                    ChatMessageSegmentImage(
+                        type=ChatMessageSegmentType.IMAGE,
+                        text="",
+                        file_name=file_name,
+                        local_path=local_path,
+                        remote_url="",
+                    ),
+                )
+            else:
                 logger.warning(f"OneBot image message without url: {seg}")
                 continue
-            remote_url: str = seg.data["url"]
-            local_path, file_name = await download_file(remote_url, use_suffix=suffix)
-            ret_list.append(
-                ChatMessageSegmentImage(
-                    type=ChatMessageSegmentType.IMAGE,
-                    text="",
-                    file_name=file_name,
-                    local_path=local_path,
-                    remote_url=remote_url,
-                ),
-            )
 
         elif seg.type == "at":
             assert isinstance(ob_event, GroupMessageEvent)

@@ -104,7 +104,10 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
             await chat_key_sandbox_container_map[from_chat_key].delete()
             logger.debug(f"清理过期沙盒: {from_chat_key} | {container_name}")
         except Exception as e:
-            logger.error(f"清理过期沙盒失败: {e}")
+            if "404" in str(e):
+                logger.debug(f"沙盒容器已不存在: {from_chat_key} | {container_name}")
+            else:
+                logger.error(f"清理过期沙盒失败: {e}")
         del chat_key_sandbox_container_map[from_chat_key]
 
     # 启动容器
@@ -125,7 +128,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
                     []
                     if OsEnv.RUN_IN_DOCKER
                     else [
-                        "no-new-privileges",  # 禁止提升权限
+                        # "no-new-privileges",  # 禁止提升权限
                         "apparmor=unconfined",  # 禁止 AppArmor 配置
                     ]
                 ),
