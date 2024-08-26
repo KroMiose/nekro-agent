@@ -183,7 +183,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         message=(
             f"[Nekro-Agent] - 更智能、更优雅的代理执行 AI\n"
             f"Author: KroMiose\n"
-            f"Github: https://github.com/KroMiose/nekro_agent\n"
+            f"Github: https://github.com/KroMiose/nekro-agent\n"
             f"Version: {version}\n"
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             "========会话设定========\n"

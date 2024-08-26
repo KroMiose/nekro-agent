@@ -289,9 +289,12 @@ def check_negative_response(response_text: str) -> bool:
             # 无尽等待
             "不要催",
             "请稍等",
+            "稍等片刻",
             "等我一下",
             "稍等一下",
-            "稍等片刻",
+            "研究一下",
+            "尝试一下",
+            "下次一定",
             "马上就",
             "马上开始",
             "马上发",
@@ -303,6 +306,7 @@ def check_negative_response(response_text: str) -> bool:
             # 假装干活
             "这就做",
             "这就发",
+            "这就来",
             "这就去",
             "这就想",
             "这就写",
@@ -321,6 +325,7 @@ def check_negative_response(response_text: str) -> bool:
             # 重试
             "再想想",
             "再试试",
+            "努力试试",
             "再试一次",
             "给一次机会",
             "我试试",

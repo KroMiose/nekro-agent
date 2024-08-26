@@ -75,6 +75,8 @@ class ChatService:
                 if not ctx:
                     raise ValueError("Cannot send file without agent context")
 
+                if content.startswith("./"):
+                    content = content[len("./") :]
                 if content.startswith("/app/shared/"):
                     content = content[len("/app/") :]
                 if content.startswith("app/shared/"):
