@@ -1,10 +1,13 @@
 import hashlib
+import random
+import re
 from pathlib import Path
 from typing import Tuple
 
 import httpx
 import toml
 
+from nekro_agent.core.config import config
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
 
 
@@ -113,3 +116,30 @@ def get_downloaded_prompt_file_path(file_name: str) -> Path:
     """
 
     return "app/uploads" / Path(file_name)
+
+
+def random_chat_check() -> bool:
+    """随机聊天检测
+
+    Returns:
+        bool: 是否随机聊天
+    """
+
+    return random.random() < config.AI_CHAT_RANDOM_REPLY_PROBABILITY
+
+
+def check_content_trigger(content: str) -> bool:
+    """内容触发检测
+
+    Args:
+        content (str): 内容
+
+    Returns:
+        bool: 是否触发
+    """
+
+    for reg_text in config.AI_CHAT_TRIGGER_REGEX:
+        reg = re.compile(reg_text)
+        if reg.search(content):
+            return True
+    return False

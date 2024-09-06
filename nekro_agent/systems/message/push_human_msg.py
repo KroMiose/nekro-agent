@@ -1,5 +1,7 @@
 import asyncio
+import re
 import time
+from tkinter.tix import Tree
 from typing import Dict
 
 from miose_toolkit_llm.exceptions import ResolveError
@@ -8,9 +10,29 @@ from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.agents.chat_agent import agent_run
+from nekro_agent.tools.common_util import check_content_trigger, random_chat_check
 
 running_chat_task_map: Dict[str, asyncio.Task] = {}
 running_chat_task_throttle_map: Dict[str, float] = {}
+
+
+def message_validation_check(message: ChatMessage) -> bool:
+    """消息校验"""
+
+    plaint_text = message.content_text.strip().replace(" ", "").lower()
+
+    # 检查伪造消息
+    if re.match(r"<.{4,12}\|messageseparator>", plaint_text):
+        return False
+    if re.match(r"<.{4,12}\|messageseperator>", plaint_text):
+        return False
+
+    if "message" in plaint_text and "(qq:" in plaint_text:
+        return False
+    if "from_qq:" in plaint_text:
+        return False
+
+    return True
 
 
 async def push_human_chat_message(message: ChatMessage):
@@ -18,6 +40,10 @@ async def push_human_chat_message(message: ChatMessage):
     global running_chat_task_map, running_chat_task_throttle_map
 
     logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
+
+    if not message_validation_check(message):
+        logger.warning("消息校验失败，跳过本次处理...")
+        return
 
     content_data = [o.model_dump() for o in message.content_data]
 
@@ -39,7 +65,12 @@ async def push_human_chat_message(message: ChatMessage):
         },
     )
 
-    if config.AI_CHAT_PRESET_NAME in message.content_text or message.is_tome:
+    if (
+        config.AI_CHAT_PRESET_NAME in message.content_text  # 提及人设名
+        or message.is_tome  # 引用 / @ 回复
+        or random_chat_check()  # 随机聊天
+        or check_content_trigger(message.content_text)  # 触发词
+    ):
         if message.chat_key in running_chat_task_throttle_map:
             current_time = time.time()
             running_chat_task_throttle_map[message.chat_key] = current_time

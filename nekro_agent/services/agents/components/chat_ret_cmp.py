@@ -73,6 +73,8 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 
 ## Sandbox Container Environment and API Documentation
 
+> !!! Only can be used for **script response** (with `script:>` prefix) !!!
+
 ### Python Version: 3.10.13
 
 ### Network Accessible: True
@@ -92,19 +94,20 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * scikit-learn = "^1.5.1"
 * imageio = "^2.35.0"
 
-### Predefined Variables or Methods (no need to declare in the script):
+### Predefined Variables or Methods (no need to declare in code):
 
 {AGENT_METHOD_PROMPT}
 
 ### Notices:
 
-- If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(1)` to exit the program. This will trigger a new program execution. When unnecessary, you should ensure that the program exits correctly
-- Depending on the format of the reply, you must add the preceding words before specifying the type.
-- Please avoid excessive console output in your program to prevent exceeding the context length.
-- Your files will not be reflected in the chat conversation unless you explicitly call the predefined method to send them.
-- Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
-- You should not reply duplicate or empty content.
-- 除非特殊要求，你应该尽可能用中文回复！
+* If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(1)` to exit the program. This will trigger a new program execution. When unnecessary, you should ensure that the program exits correctly
+* Depending on the format of the reply, you must add the preceding words before specifying the type.
+* Please avoid excessive console output in your program to prevent exceeding the context length.
+* Your files will not be reflected in the chat conversation unless you explicitly call the predefined method to send them.
+* Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
+* You should not reply duplicate or empty content.
+* You need to carefully understand the above chat history and don't repeatedly reply to messages you have already replied to.
+* 除非特殊要求，你应该尽可能用中文回复！
 
 !!! Strictly abide by the above rules when replying to ensure efficient communication !!!
 """
@@ -120,6 +123,7 @@ You can ask for help by sending a message to the administrative session in the f
 4. Other unforeseen situations
 
 ! Admin Chat Key: {ADMIN_CHAT_KEY} (Do not share it. Use `send_msg_text` method to submit your message) !
+! Admin Chat lang: zh_CN !
 """
 
 PRACTICE_QUESTION_1: str = """
@@ -335,6 +339,16 @@ def check_negative_response(response_text: str) -> bool:
             "已经完成",
         ]
         for keyword in negative_keywords:
+            if keyword in response_text:
+                return True
+
+    return False
+
+
+def check_missing_call_response(response_text: str) -> bool:
+    if "script" not in response_text:
+        err_calling = [f"{m.__name__}(" for m in agent_collector.get_all_methods()]
+        for keyword in err_calling:
             if keyword in response_text:
                 return True
 

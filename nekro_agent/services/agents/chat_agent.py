@@ -40,6 +40,7 @@ from .components.chat_history_cmp import ChatHistoryComponent
 from .components.chat_ret_cmp import (
     ChatResponseResolver,
     ChatResponseType,
+    check_missing_call_response,
     check_negative_response,
 )
 
@@ -98,7 +99,7 @@ async def agent_run(
     )[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
     # 过长的系统消息过滤，只保留指定条数
     allow_long_system_msg_cnt = 2
-    allow_long_system_length = 360
+    allow_long_system_length = 128
     for db_message in recent_chat_messages:
         if db_message.sender_bind_qq == "0" and len(db_message.content_text) > allow_long_system_length:
             setattr(db_message, "_mark_del", True)  # noqa: B010
@@ -171,7 +172,20 @@ async def agent_run(
         await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
 
-    # 6. 消极回复检查
+    # 6. 非法回复检查
+    if (not retry_depth) and check_missing_call_response(mr.response_text):
+        logger.warning(f"检测到不正确调用回复: {mr.response_text}，拒绝结果并重试")
+        if config.DEBUG_IN_CHAT:
+            await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到不正确调用回复，拒绝结果并重试...")
+        addition_prompt_message.append(AiMessage(mr.response_text))
+        addition_prompt_message.append(
+            UserMessage(
+                "[System Automatic Detection] Content suspected to be missing the correct response type was detected in your reply, such as need for a script execution but not using the 'script:>' prefix to specify the response type. Your answer must specify the correct processing branch by response type. If you think this is an error, please ** keep the previously agreed reply format ** and try again.",
+            ),
+        )
+        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+        return
+
     if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:

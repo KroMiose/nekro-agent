@@ -60,6 +60,8 @@ class PluginConfig(Config):
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
     AI_GENERATE_THROTTLE_SECONDS: float = 0.75  # AI 聊天生成节流时长
     AI_IGNORED_PREFIXES: List[str] = ["#"]  # 聊天消息中被忽略的前缀
+    AI_CHAT_RANDOM_REPLY_PROBABILITY: float = 0.0  # AI 聊天随机回复概率
+    AI_CHAT_TRIGGER_REGEX: List[str] = []  # AI 聊天触发正则表达式
 
     """沙盒配置"""
     SANDBOX_RUNNING_TIMEOUT: int = 60
