@@ -97,10 +97,16 @@ wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker-compose.
 export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent
 ```
 
-启动服务
+启动主服务
 
 ```bash
 sudo -E docker-compose up -d
+```
+
+拉取用于代码执行环境沙盒容器镜像
+
+```bash
+sudo docker pull kromiose/nekro-agent-sandbox
 ```
 
 #### 3. 应用配置
@@ -182,12 +188,12 @@ ADMIN_CHAT_KEY: group_12345678 # 管理会话频道标识 (AI 在场景中遇到
 # 模型组配置
 USE_MODEL_GROUP: default # 当前使用的模型组, 指向 `MODEL_GROUPS` 下的配置项
 MODEL_GROUPS:
-  default:  # 默认模型组 (**USE_MODEL_GROUP 所指向的模型组为必填项**)
+  default: # 默认模型组 (**USE_MODEL_GROUP 所指向的模型组为必填项**)
     CHAT_MODEL: gpt-4
     CHAT_PROXY: 127.0.0.1:7890
     BASE_URL: http://api.openai.com/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-  custom:   # 选填模型组 (如果有多个模型组，可以继续添加)
+  custom: # 选填模型组 (如果有多个模型组，可以继续添加)
     CHAT_MODEL: gemini-1.5-pro
     CHAT_PROXY: ""
     BASE_URL: http://你的转发站地址/v1
