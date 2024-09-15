@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent-sandbox"
-version = "0.1.0"
+version = "0.1.1"
 description = "Nekro Agent AI 执行沙盒环境"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -13,6 +13,7 @@ numpy = "^1.26.4"
 scipy = "^1.14.0"
 scikit-learn = "^1.5.1"
 imageio = "^2.35.0"
+pytesseract = "^0.3.13"
 
 [build-system]
 requires = ["poetry-core"]

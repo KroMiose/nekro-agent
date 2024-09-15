@@ -5,8 +5,13 @@ FROM python:3.10.13-slim-bullseye
 RUN apt-get update && \
     apt-get install -y tzdata && \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo 'Asia/Shanghai' > /etc/timezone && \
-    apt-get clean && \
+    echo 'Asia/Shanghai' > /etc/timezone
+
+# 安装 tesseract 用于 OCR 识别
+RUN apt-get install -y tesseract-ocr tesseract-ocr-chi-sim
+
+# 清理缓存
+RUN apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /app && chown nobody:nogroup /app
