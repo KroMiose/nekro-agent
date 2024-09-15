@@ -22,7 +22,8 @@ from nekro_agent.tools.onebot_util import get_user_group_card_name
 
 
 async def convert_chat_message(
-    ob_event: Union[MessageEvent, GroupMessageEvent], msg_to_me: bool
+    ob_event: Union[MessageEvent, GroupMessageEvent],
+    msg_to_me: bool,
 ) -> Tuple[List[ChatMessageSegment], bool]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
