@@ -93,10 +93,15 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * scipy = "^1.14.0"
 * scikit-learn = "^1.5.1"
 * imageio = "^2.35.0"
+* pytesseract = "^0.3.13
 
 ### Predefined Variables or Methods (no need to declare in code):
 
 {AGENT_METHOD_PROMPT}
+
+### Some Mixed Use Tips
+
+* You can use `pyteseract` to identify the image, `print` its content, and then `exit(1)`, so that you can use the ocr result in the second reply and use the information in conjunction with the scene.
 
 ### Notices:
 
@@ -104,12 +109,13 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * Depending on the format of the reply, you must add the preceding words before specifying the type.
 * Please avoid excessive console output in your program to prevent exceeding the context length.
 * Your files will not be reflected in the chat conversation unless you explicitly call the predefined method to send them.
+* Your reply must be based on the true information in the context, and fabrication of information is prohibited.
 * Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
-* You should not reply duplicate or empty content.
+* Your reply must be consistent with the character setting and effectively promote the conversation. Do not send repeated or empty content.
 * You need to carefully understand the above chat history and don't repeatedly reply to messages you have already replied to.
 * 除非特殊要求，你应该尽可能用中文回复！
 
-!!! Strictly abide by the above rules when replying to ensure efficient communication !!!
+!!! Strictly abide by the above rules when replying to ensure efficient communication. Otherwise you will be subject to a "memory reset" !!!
 """
 
 ADMIN_HELP_PROMPT: str = """
@@ -269,6 +275,12 @@ class ChatResponseResolver(BaseComponent):
 def fix_raw_response(raw_response: str) -> str:
     """修复原始响应"""
 
+    # 修正错误起始符
+    if raw_response.startswith("text:") and not raw_response.startswith("text:>"):
+        raw_response = f"text:>{raw_response[len('text:'):]}"
+    if raw_response.startswith("script:") and not raw_response.startswith("script:>"):
+        raw_response = f"script:>{raw_response[len('script:'):]}"
+
     # 修正 at 格式
     raw_response = raw_response.replace("@[qq:", "[@qq:")
 
@@ -291,6 +303,7 @@ def check_negative_response(response_text: str) -> bool:
             "要加油",
             "会加油",
             # 无尽等待
+            "不要急",
             "不要催",
             "请稍等",
             "稍等片刻",
@@ -329,6 +342,7 @@ def check_negative_response(response_text: str) -> bool:
             # 重试
             "再想想",
             "再试试",
+            "很努力",
             "努力试试",
             "再试一次",
             "给一次机会",

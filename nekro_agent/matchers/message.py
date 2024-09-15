@@ -1,3 +1,4 @@
+import time
 from typing import Optional, Type, Union, cast
 
 from nonebot import on_message
@@ -50,7 +51,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    content_data, msg_tome = await convert_chat_message(event)
+    content_data, msg_tome = await convert_chat_message(event, event.to_me)
     if not content_data:  # 忽略无法转换的消息
         return
 
@@ -75,7 +76,8 @@ async def _(
         content_data=content_data,
         raw_cq_code=event.raw_message,
         ext_data={},
-        send_timestamp=send_timestamp,
+        # send_timestamp=send_timestamp,
+        send_timestamp=int(time.time()),
     )
 
     await push_human_chat_message(chat_message)

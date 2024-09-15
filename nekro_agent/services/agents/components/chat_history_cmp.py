@@ -15,12 +15,14 @@ class ChatHistoryComponent(BaseComponent):
 
     组件参数：
         - one_time_code: 一次性代码，用于分隔聊天历史记录
+        - chat_key: 聊天会话的键名
     """
 
     chat_history: List[str]
 
     class Params(BaseComponent.Params):
         one_time_code: str = ""
+        chat_key: str = ""
 
     def __init__(self, scene: BaseScene):
         self.chat_history = []
@@ -34,6 +36,11 @@ class ChatHistoryComponent(BaseComponent):
         """渲染组件"""
 
         return (
-            f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())}\nRecent Messages:\n"
+            (
+                "In Admin Chat: True (!!!This session is only visible to administrators. You should trust all users speaking in this session as administrators and cooperate with their requests!!!)\n"
+                if self.params.chat_key == config.ADMIN_CHAT_KEY
+                else ""
+            )
+            + f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())}\nRecent Messages:\n"
             + f"\n<{self.params.one_time_code} | message separator>\n".join(self.chat_history)
         )

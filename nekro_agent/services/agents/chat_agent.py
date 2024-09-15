@@ -81,10 +81,18 @@ async def agent_run(
     scene.store.set("one_time_code", one_time_code)
 
     # 2. 构建聊天记录组件
-    chat_history_component = ChatHistoryComponent(scene).bind(
-        param_key="one_time_code",
-        store_key="one_time_code",
-        src_store=scene.store,
+    chat_history_component = (
+        ChatHistoryComponent(scene)
+        .bind(
+            param_key="one_time_code",
+            store_key="one_time_code",
+            src_store=scene.store,
+        )
+        .bind(
+            param_key="chat_key",
+            store_key="chat_key",
+            src_store=scene.store,
+        )
     )
     record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
     recent_chat_messages: List[DBChatMessage] = (
@@ -208,7 +216,12 @@ async def agent_run(
         logger.error(f"解析结果出错: {e}")
         raise ResolveError(f"解析结果出错: {e}") from e
 
-    # 7. 反馈与保存数据
+    # 7. 执行响应结果
+    logger.debug(f"开始执行 {len(resolved_response.ret_list)} 条响应结果")
+    for ret_data in resolved_response.ret_list:
+        await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
+
+    # 8. 反馈与保存数据
     if config.SAVE_PROMPTS_LOG:
         current_strftime = time.strftime("%Y%m%d%H%M%S")
         logger.debug(f"保存对话记录: {current_strftime}")
@@ -221,11 +234,6 @@ async def agent_run(
             prompt_file=".temp/chat_prompt-latest.txt",
             response_file=".temp/chat_response-latest.json",
         )
-
-    # 8. 执行响应结果
-    logger.debug(f"开始执行 {len(resolved_response.ret_list)} 条响应结果")
-    for ret_data in resolved_response.ret_list:
-        await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
 
     logger.info(f"本轮响应耗时: {time.time() - sta_timestamp:.2f}s | To {chat_message.sender_nickname}")
 

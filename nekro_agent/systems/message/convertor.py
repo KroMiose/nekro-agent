@@ -21,7 +21,9 @@ from nekro_agent.tools.common_util import (
 from nekro_agent.tools.onebot_util import get_user_group_card_name
 
 
-async def convert_chat_message(ob_event: Union[MessageEvent, GroupMessageEvent]) -> Tuple[List[ChatMessageSegment], bool]:
+async def convert_chat_message(
+    ob_event: Union[MessageEvent, GroupMessageEvent], msg_to_me: bool
+) -> Tuple[List[ChatMessageSegment], bool]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
     Args:
@@ -101,6 +103,17 @@ async def convert_chat_message(ob_event: Union[MessageEvent, GroupMessageEvent])
 
         elif seg.type == "file":
             ...  # TODO: llob 传递过来的文件没有直链，待补充实现
+
+    if msg_to_me and not is_tome:
+        ret_list.insert(
+            0,
+            ChatMessageSegmentAt(
+                type=ChatMessageSegmentType.AT,
+                text="",
+                target_qq=str(config.BOT_QQ),
+                target_nickname=config.AI_CHAT_PRESET_NAME,
+            ),
+        )
 
     return ret_list, is_tome
 
