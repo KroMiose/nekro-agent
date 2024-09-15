@@ -37,9 +37,11 @@ async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ct
         return f"禁言功能不支持 {chat_type} 的会话类型"
 
     if config.ADMIN_CHAT_KEY:
-        await chat_service.send_message(
+        await chat_service.send_agent_message(
             config.ADMIN_CHAT_KEY,
             f"[{chat_key}] 执行禁言用户 [qq:{user_qq}] {duration} 秒: {report} (来自 {_ctx.from_chat_key})\n理由: {report}",
+            _ctx,
+            record=True,
         )
 
     if duration > 60 * 60 * 24:
