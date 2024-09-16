@@ -1,5 +1,5 @@
 import os
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 from miose_toolkit_common import Env
 from nonebot import on_command
@@ -11,10 +11,17 @@ from nonebot.params import CommandArg
 from nekro_agent.core.config import config, reload_config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
+from nekro_agent.schemas.chat_channel import (
+    MAX_PRESET_STATUS_SHOW_SIZE,
+    PresetStatus,
+    channelData,
+)
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import limited_run_code
+from nekro_agent.systems.message.push_bot_msg import push_system_message
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
@@ -54,12 +61,33 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await matcher.finish(message="请指定要清空聊天记录的会话")
+    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    db_chat_channel.reset_channel()
     msgs = DBChatMessage.filter(conditions={DBChatMessage.chat_key: target_chat_key})
     msg_cnt = len(msgs)
 
     for msg in msgs:
         msg.delete()
     await matcher.finish(message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
+
+
+@on_command("inspect", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    target_chat_key: str = cmd_content or chat_key
+    if not target_chat_key:
+        await matcher.finish(message="请指定要查询的会话")
+    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+
+    info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
+    channel_data: channelData = db_chat_channel.get_channel_data()
+    if channel_data.preset_status_list:
+        info += "人设状态历史:\n"
+    for status in channel_data.preset_status_list[-MAX_PRESET_STATUS_SHOW_SIZE:]:
+        info += f"[{status.setting_name}] - {status.description}\n"
+
+    await matcher.finish(message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
 
 
 @on_command("exec", priority=5, block=True).handle()
@@ -70,6 +98,14 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     if result:
         await matcher.finish(result)
+
+
+@on_command("system", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    await push_system_message(chat_key=chat_key, agent_messages=cmd_content)
+    await matcher.finish(message="系统消息添加成功")
 
 
 @on_command("config_show", priority=5, block=True).handle()

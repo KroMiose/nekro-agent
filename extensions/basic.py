@@ -1,9 +1,14 @@
+import time
+from typing import Optional
+
 from nekro_agent.core import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
 )
+from nekro_agent.schemas.chat_channel import PresetStatus, channelData
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
@@ -89,3 +94,38 @@ async def get_user_avatar(user_qq: str, _ctx: AgentCtx) -> str:
         return str(convert_file_name_to_container_path(file_name))
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e
+
+
+@agent_collector.mount_method(MethodType.BEHAVIOR)
+async def update_preset_status(chat_key: str, setting_name: str, description: str, _ctx: AgentCtx) -> str:
+    """更新人物设定状态
+
+    **注意**: 你必须在**当且仅当**场景发展变化导致**不符合**当前设定状态时调用此方法来更新自身状态，但不能过度频繁使用，否则会丢失较早的状态记录!
+
+    Args:
+        chat_key (str): 会话标识
+        setting_name (str): 新状态下的人设名
+        description (str): 变化状态描述与原因 (推荐格式 "由于 [事件]，转变为 [新状态的详细描述]" **事件必须基于上下文进行总结描述尽可能详细地说明人物状态、外观、动作等信息**)
+
+    Returns:
+        str: 操作结果
+
+    Example:
+        > Since the number of context items is limited, when your dynamic setting state does not match the current scene, you need to call this method to update it.
+        ```
+        # 假设新状态下的人设名为 "正在认真看书的可洛喵"
+        update_preset_status(chat_key, "正在认真看书的可洛喵", "由于 ... 可洛喵 ... 转变为 `正在认真看书的可洛喵`")
+        ```
+    """
+    db_channel: DBChatChannel = DBChatChannel.get_channel(chat_key)
+    channel_data: channelData = db_channel.get_channel_data()
+    before_status: Optional[PresetStatus] = channel_data.get_latest_preset_status()
+    new_status = PresetStatus(setting_name=setting_name, description=description, translated_timestamp=int(time.time()))
+    await channel_data.update_preset_status(new_status)
+    db_channel.save_channel_data(channel_data)
+
+    return (
+        f"Preset status updated from `{before_status.setting_name}` to `{setting_name}`"
+        if before_status
+        else f"Preset status updated to {setting_name}"
+    )
