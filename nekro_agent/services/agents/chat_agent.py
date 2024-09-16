@@ -30,6 +30,7 @@ from miose_toolkit_llm.tools.tokenizers import TikTokenizer
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.core.os_env import PROMPT_LOG_DIR
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat import chat_service
@@ -75,6 +76,10 @@ async def agent_run(
     logger.info(f"正在构建对话场景: {chat_message.chat_key}")
     if config.DEBUG_IN_CHAT:
         await chat_service.send_message(chat_message.chat_key, "[Debug] 思考中🤔...")
+
+    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=chat_message.chat_key)
+    # logger.info(f"加载对话场景配置: {db_chat_channel.get_channel_data().render_prompt()}")
+
     # 1. 构造一个应用场景
     scene = ChatScene()
     scene.store.set("chat_key", chat_message.chat_key)
@@ -127,7 +132,7 @@ async def agent_run(
     prompt_creator = OpenAIPromptCreator(
         SystemMessage(
             TextComponent(
-                "Character Stetting For You: {chat_preset}",
+                "Base Character Stetting For You: {chat_preset}",
                 src_store=scene.store,
             ),
             ChatResponseResolver.example(one_time_code),  # 生成一个解析结果示例
@@ -139,7 +144,11 @@ async def agent_run(
         AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
             TextComponent(
-                "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\nCurrent Chat Key: {chat_key}",
+                (
+                    "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n"
+                    f"{db_chat_channel.get_channel_data().render_prompt()}\n"
+                    "Current Chat Key: {chat_key}"
+                ),
                 src_store=scene.store,
             ),
             chat_history_component,
@@ -169,6 +178,7 @@ async def agent_run(
     # 5. 获取结果与解析
     for _ in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         try:
+            logger.debug("发送生成请求...")
             scene_run_sta_timestamp = time.time()
             mr: ModelResponse = await scene.run()
             logger.debug(f"LLM 运行耗时: {time.time() - scene_run_sta_timestamp:.3f}s")

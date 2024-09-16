@@ -10,14 +10,18 @@ class MethodType(str, Enum):
     用于描述方法的类型，如工具方法, 行为方法等；方法类型区别主要在于对返回值的处理方式。
 
     * TOOL: 工具方法
-        提供给 LLM 使用的工具，返回值可以是任意类型，其可获取返回值作进一步处理
+        提供给 LLM 使用的工具，返回值可以是任意类型，LLM 可获取返回值作进一步处理
 
     * BEHAVIOR: 行为方法
         用于描述 LLM 的行为，其返回值必须为 str 类型，描述行为的结果，返回后会被添加到上下文中参考
+
+    * AGENT: 代理方法
+        用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用
     """
 
     TOOL = "tool"
     BEHAVIOR = "behavior"
+    AGENT = "agent"
 
 
 class DocCollector:

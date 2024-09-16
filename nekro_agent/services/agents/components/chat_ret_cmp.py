@@ -281,8 +281,10 @@ def fix_raw_response(raw_response: str) -> str:
     if raw_response.startswith("script:") and not raw_response.startswith("script:>"):
         raw_response = f"script:>{raw_response[len('script:'):]}"
 
-    # 修正 at 格式
+    # 修正基本 at 格式
     raw_response = raw_response.replace("@[qq:", "[@qq:")
+    # 修正 [@qq:123456] -> [@qq:123456@]
+    raw_response = re.sub(r"\[@qq:\d+\]", r"[@qq:\g<0>@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"
@@ -294,6 +296,7 @@ def fix_raw_response(raw_response: str) -> str:
 
 
 def check_negative_response(response_text: str) -> bool:
+    """检查消极响应"""
     if "script" not in response_text and len(response_text) < 72:
         negative_keywords = [
             # 装努力
@@ -338,7 +341,10 @@ def check_negative_response(response_text: str) -> bool:
             "尽快处理",
             "在想",
             "想办法",
+            "在思考",
             "努力想想",
+            "努力思考",
+            "开始思考",
             # 重试
             "再想想",
             "再试试",
@@ -360,6 +366,7 @@ def check_negative_response(response_text: str) -> bool:
 
 
 def check_missing_call_response(response_text: str) -> bool:
+    """检查缺失调用前缀响应"""
     if "script" not in response_text:
         err_calling = [f"{m.__name__}(" for m in agent_collector.get_all_methods()]
         for keyword in err_calling:

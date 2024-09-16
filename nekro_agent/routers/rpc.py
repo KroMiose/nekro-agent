@@ -44,6 +44,10 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
         result = await method(*args, **kwargs)
     else:
         result = method(*args, **kwargs)
-    if method_type is MethodType.BEHAVIOR:
+    if method_type in [MethodType.BEHAVIOR, MethodType.AGENT]:
         await push_system_message(chat_key=from_chat_key, agent_messages=str(result))
-    return Response(content=pickle.dumps(result), media_type="application/octet-stream")
+    return Response(
+        content=pickle.dumps(result),
+        media_type="application/octet-stream",
+        headers={"Method-Type": method_type.value},
+    )
