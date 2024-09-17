@@ -37,5 +37,6 @@ APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
 
 # 设置上传目录及其子目录权限
 with contextlib.suppress(Exception):
+    Path(USER_UPLOAD_DIR).mkdir(parents=True, exist_ok=True)
     subprocess.run(["chmod", "-R", "755", USER_UPLOAD_DIR], check=True)
     print(f"Set permission of {USER_UPLOAD_DIR} to 755")
