@@ -42,6 +42,7 @@ ENV https_proxy=""
 
 # 权限配置
 RUN chmod -R 777 /app/shared
+RUN chmod -R 777 /app
 RUN chmod 755 /bin/bash
 
 CMD ["bash"]
