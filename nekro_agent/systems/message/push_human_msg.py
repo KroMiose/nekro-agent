@@ -1,7 +1,6 @@
 import asyncio
 import re
 import time
-from tkinter.tix import Tree
 from typing import Dict
 
 from miose_toolkit_llm.exceptions import ResolveError
