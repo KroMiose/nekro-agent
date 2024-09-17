@@ -21,7 +21,7 @@ HOST_SHARED_DIR = (
 # 用户上传目录
 USER_UPLOAD_DIR = Path(USER_UPLOAD_DIR) if USER_UPLOAD_DIR.startswith("/") else Path(USER_UPLOAD_DIR).resolve()
 
-IMAGE_NAME = "nekro-agent-sandbox"  # Docker 镜像名称
+IMAGE_NAME = config.SANDBOX_IMAGE_NAME  # Docker 镜像名称
 CONTAINER_SHARE_DIR = "/app/shared"  # 容器内共享目录 (读写)
 CONTAINER_UPLOAD_DIR = "/app/uploads"  # 容器上传目录 (只读)
 CONTAINER_WORK_DIR = "/app"  # 容器工作目录

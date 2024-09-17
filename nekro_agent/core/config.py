@@ -65,6 +65,7 @@ class PluginConfig(Config):
     AI_NAME_PREFIX: str = ""  # AI 名称前缀
 
     """沙盒配置"""
+    SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"
     SANDBOX_RUNNING_TIMEOUT: int = 60
     SANDBOX_MAX_CONCURRENT: int = 4
 
