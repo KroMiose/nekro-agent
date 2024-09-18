@@ -25,6 +25,11 @@ def __extension_method_proxy(method: Callable):
         )
         if response.status_code == 200:
             ret_data = _pickle.loads(response.content)
+            if response.headers.get("Error-Message"):
+                print(
+                    f"The method `{method.__name__}` returned an error:\n{response.headers.get('Error-Message')}",
+                )
+                exit(1)
             if response.headers.get("Method-Type") == "agent":
                 print(
                     f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease generate a new response based on the above information ",

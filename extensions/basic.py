@@ -48,6 +48,14 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx) -> bool:
     Returns:
         bool: 是否发送成功
     """
+
+    err_calling = [f"{m.__name__}" for m in agent_collector.get_all_methods()]
+    for keyword in err_calling:
+        if keyword in message:
+            raise Exception(
+                f"Incorrect usage of `{keyword}` in this message. If you need to call a method, please use in `script:>` response but not send it as a message.",
+            )
+
     try:
         message_ = [AgentMessageSegment(content=message)]
         await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)

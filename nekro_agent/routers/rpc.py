@@ -40,14 +40,23 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
     ctx = AgentCtx(container_key=container_key, from_chat_key=from_chat_key)
     kwargs["_ctx"] = ctx
 
-    if asyncio.iscoroutinefunction(method):
-        result = await method(*args, **kwargs)
+    result = None
+
+    try:
+        if asyncio.iscoroutinefunction(method):
+            result = await method(*args, **kwargs)
+        else:
+            result = method(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"执行 RPC 请求失败: {e}")
+        error_message = str(e)
     else:
-        result = method(*args, **kwargs)
+        error_message = ""
+
     if method_type in [MethodType.BEHAVIOR, MethodType.AGENT]:
         await push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(
         content=pickle.dumps(result),
         media_type="application/octet-stream",
-        headers={"Method-Type": method_type.value},
+        headers={"Method-Type": method_type.value, "Error-Message": error_message},
     )
