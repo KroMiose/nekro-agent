@@ -286,7 +286,7 @@ def fix_raw_response(raw_response: str) -> str:
     # 修正 [@qq:123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@qq:\d+\]", r"[@qq:\g<0>@]", raw_response)
     # 修正 (@qq:123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@qq:\d+\)@", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"\(@qq:\d+@\)", r"[@qq:\g<0>@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"
@@ -370,7 +370,7 @@ def check_negative_response(response_text: str) -> bool:
 def check_missing_call_response(response_text: str) -> bool:
     """检查缺失调用前缀响应"""
     if "script" not in response_text:
-        err_calling = [f"{m.__name__}(" for m in agent_collector.get_all_methods()]
+        err_calling = [f"{m.__name__}" for m in agent_collector.get_all_methods()]
         for keyword in err_calling:
             if keyword in response_text:
                 return True

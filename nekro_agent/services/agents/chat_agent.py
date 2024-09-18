@@ -191,7 +191,7 @@ async def agent_run(
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
 
     # 6. 非法回复检查
-    if (not retry_depth) and check_missing_call_response(mr.response_text):
+    if retry_depth < 2 and check_missing_call_response(mr.response_text):
         logger.warning(f"检测到不正确调用回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到不正确调用回复，拒绝结果并重试...")
@@ -261,6 +261,8 @@ async def agent_exec_result(
         return
 
     if ret_type is ChatResponseType.SCRIPT:
+        if ret_content.endswith("\n```"):
+            ret_content = ret_content[:-3]
         logger.info(f"解析程式回复: 等待执行资源 | To {chat_message.sender_nickname}")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_message.chat_key, "[Debug] 执行程式中🖥️...")
