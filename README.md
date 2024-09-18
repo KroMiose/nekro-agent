@@ -57,17 +57,25 @@
 
 ## 🎁 部署指南
 
-本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 一键部署](#-方式二-docker-compose-一键部署-推荐) 快速部署完整服务
+本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 快速部署脚本](#-方式二-docker-compose-快速部署脚本-推荐) 快速部署完整服务
 
 ### 🚀 方式一: `nb-cli` 安装命令
 
-**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-方式三-源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
+**注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-方式四-源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
 
 ```bash
 nb plugin install nekro-agent
 ```
 
-### 🫙 方式二: Docker-Compose 一键部署 (**推荐**)
+### 🪄 方式二: Docker-Compose 快速部署脚本 (**推荐**)
+
+> 该安装方式为 [Docker-Compose 自定义部署](#-方式三-docker-compose-自定义部署-推荐) 的自动化脚本版本，一行命令即可快速拉起完整服务
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
+```
+
+### 🫙 方式三: Docker-Compose 自定义部署 (**推荐**)
 
 > 该部署方式将自动拉取并启动所需的服务，并自动配置好相关配置项，无需手动安装环境和配置项
 
@@ -136,7 +144,7 @@ export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent && cd ${NEKRO_DATA_DIR} && sudo -E
 sudo -E docker-compose restart nekro_agent
 ```
 
-### 🧑‍💻 方式三: 源码部署/开发指南
+### 🧑‍💻 方式四: 源码部署/开发指南
 
 > 通过以下几步操作即可开始 开发/使用 本插件
 
