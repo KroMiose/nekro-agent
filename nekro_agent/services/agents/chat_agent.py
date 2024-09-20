@@ -146,7 +146,7 @@ async def agent_run(
             TextComponent(
                 (
                     "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n"
-                    f"{db_chat_channel.get_channel_data().render_prompt()}\n"
+                    f"{(await db_chat_channel.get_channel_data()).render_prompt()}\n"
                     "Current Chat Key: {chat_key}"
                 ),
                 src_store=scene.store,

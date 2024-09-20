@@ -9,7 +9,7 @@ from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 
 MAX_PRESET_STATUS_LIST_SIZE = 99
-MAX_PRESET_STATUS_SHOW_SIZE = 24
+MAX_PRESET_STATUS_SHOW_SIZE = 12
 
 
 class PresetStatus(BaseModel):
@@ -71,5 +71,11 @@ class channelData(BaseModel):
         )
         return f"{history_str}Current Character Setting status: {latest_preset_status.setting_name}: {latest_preset_status.description} (updated {time_diff_str} ago. {addition_str})"
 
-    def clear_preset_status_list(self):
+    async def clear_preset_status_list(self):
         self.preset_status_list = []
+        chat_type, chat_id = self.chat_key.split("_")
+        await get_bot().set_group_card(
+            group_id=int(chat_id),
+            user_id=int(config.BOT_QQ),
+            card=f"{config.AI_NAME_PREFIX}{config.AI_CHAT_PRESET_NAME}",
+        )

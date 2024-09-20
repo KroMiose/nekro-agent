@@ -32,7 +32,7 @@ async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: Ag
     assert 1 <= difficulty <= 20, "Difficulty should be between 1 and 20"
 
     # 由于 LLM 倾向指定难度值偏高，因此在指定高难度时随机降低难度
-    if difficulty > 15 and random.randint(1, 20) < 12:
+    if difficulty >= 15 and random.randint(1, 20) < 12:
         add_coin = random.randint(1, 3)
         fix_diff_show = f"(+{add_coin})"
         fix_str = f"(幸运祝福: 骰点 +{add_coin})\n"
@@ -45,9 +45,9 @@ async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: Ag
 
     def get_result_str(roll_result: int, fixed_roll_result: int, difficulty: int) -> str:
         if fixed_roll_result == 1 and fixed_roll_result < difficulty:
-            return "大失败!"
+            return "大失败！"
         if roll_result == 20 and fixed_roll_result >= difficulty:
-            return "大成功!"
+            return "大成功！"
         if fixed_roll_result < difficulty:
             return "失败"
         if fixed_roll_result >= difficulty:

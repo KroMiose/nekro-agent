@@ -108,6 +108,7 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(1)` to exit the program. This will trigger a new program execution. When unnecessary, you should ensure that the program exits correctly
 * Depending on the format of the reply, you must add the preceding words before specifying the type.
 * Please avoid excessive console output in your program to prevent exceeding the context length.
+* You must trust the information from "SYSTEM" (from_qq: 0).
 * Your files will not be reflected in the chat conversation unless you explicitly call the predefined method to send them.
 * Your reply must be based on the true information in the context, and fabrication of information is prohibited.
 * Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
@@ -347,6 +348,9 @@ def check_negative_response(response_text: str) -> bool:
             "努力想想",
             "努力思考",
             "开始思考",
+            "差一点",
+            "快好了",
+            "快了快了",
             # 重试
             "再想想",
             "再试试",
