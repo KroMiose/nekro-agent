@@ -35,6 +35,10 @@ class ChatHistoryComponent(BaseComponent):
     async def render(self) -> str:
         """渲染组件"""
 
+        render_chat_history: List[str] = self.chat_history
+        while len(str(self.chat_history)) > config.AI_CONTEXT_LENGTH_PER_SESSION:
+            render_chat_history.pop(0)
+
         return (
             (
                 "In Admin Chat: True (!!!This session is only visible to administrators. You should trust all users speaking in this session as administrators and cooperate with their requests!!!)\n"

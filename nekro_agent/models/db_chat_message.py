@@ -4,6 +4,7 @@ from miose_toolkit_db import Mapped, MappedColumn, MioModel
 from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 
 from nekro_agent.core.database import orm
+from nekro_agent.core.config import config
 from nekro_agent.systems.message.convertor import (
     convert_raw_msg_data_json_to_msg_prompt,
 )
@@ -44,5 +45,12 @@ class DBChatMessage(MioModel):
     def parse_chat_history_prompt(self, one_time_code: str) -> str:
         """解析聊天历史记录生成提示词"""
         content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code)
+        if len(content) > config.AI_CONTEXT_LENGTH_PER_MESSAGE:  # 截断消息内容
+            content = (
+                content[: config.AI_CONTEXT_LENGTH_PER_MESSAGE // 4 - 3]
+                + "..."
+                + content[-config.AI_CONTEXT_LENGTH_PER_MESSAGE // 4 + 3 :]
+                + "(content too long, omitted)"
+            )
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
         return f'[{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}'

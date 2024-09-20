@@ -63,6 +63,8 @@ class PluginConfig(Config):
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = 0.0  # AI 聊天随机回复概率
     AI_CHAT_TRIGGER_REGEX: List[str] = []  # AI 聊天触发正则表达式
     AI_NAME_PREFIX: str = ""  # AI 名称前缀
+    AI_CONTEXT_LENGTH_PER_MESSAGE: int = 512  # AI 上下文长度每条消息最大长度 超长会自动省略部分内容
+    AI_CONTEXT_LENGTH_PER_SESSION: int = 4096  # AI 上下文长度每会话最大长度 超长会自动截断
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"
