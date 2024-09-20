@@ -94,13 +94,18 @@ if ! sudo docker pull kromiose/nekro-agent-sandbox; then
     exit 1
 fi
 
-echo "部署完成！你可以通过 sudo docker logs -f nekro_agent 来查看 Nekro Agent 服务日志。"
+# 放行防火墙 8021 端口
+echo "放行防火墙 8021 端口..."
+if ! sudo ufw allow 8021/tcp; then
+    echo "Error: 无法放行防火墙 8021 端口，如服务访问受限，请检查防火墙设置。"
+
+echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
 CONFIG_FILE="${APP_DIR}/configs/config.dev.yaml"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "cd $APP_DIR && export NEKRO_DATA_DIR=$APP_DIR && sudo -E docker-compose restart nekro_agent"
+echo "\`sudo docker restart nekro_agent\`"
 
 # 提示用户连接协议端
 echo "请使用 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式。"
