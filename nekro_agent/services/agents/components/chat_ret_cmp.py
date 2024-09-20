@@ -342,6 +342,7 @@ def check_negative_response(response_text: str) -> bool:
             "我再仔细检查",
             "我再认真检查",
             "尽快处理",
+            "别催",
             "在想",
             "想办法",
             "在思考",

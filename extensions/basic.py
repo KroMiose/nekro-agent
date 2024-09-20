@@ -38,15 +38,12 @@ __meta__ = ExtMetaData(
 
 
 @agent_collector.mount_method(MethodType.TOOL)
-async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx) -> bool:
+async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
     """发送聊天消息文本
 
     Args:
         chat_key (str): 会话标识
         message (str): 消息内容
-
-    Returns:
-        bool: 是否发送成功
     """
 
     err_calling = [f"{m.__name__}" for m in agent_collector.get_all_methods()]
@@ -56,35 +53,26 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx) -> bool:
                 f"Incorrect usage of `{keyword}` in this message. If you need to call a method, please use in `script:>` response but not send it as a message.",
             )
 
+    message_ = [AgentMessageSegment(content=message)]
     try:
-        message_ = [AgentMessageSegment(content=message)]
         await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
     except Exception as e:
-        logger.exception(f"Error sending message to chat: {e}")
-        return False
-    else:
-        return True
+        raise Exception(f"Error sending text message to chat: {e}") from e
 
 
 @agent_collector.mount_method(MethodType.TOOL)
-async def send_msg_img(chat_key: str, file_path: str, _ctx: AgentCtx) -> bool:
+async def send_msg_img(chat_key: str, file_path: str, _ctx: AgentCtx):
     """发送聊天消息图片资源 (支持资源格式: jpg, jpeg, png, gif, bmp; 不支持的格式请先转换)
 
     Args:
         chat_key (str): 会话标识
         file_path (str): 图片路径或 URL
-
-    Returns:
-        bool: 是否发送成功
     """
+    message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=file_path)]
     try:
-        message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=file_path)]
         await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
     except Exception as e:
-        logger.exception(f"Error sending message to chat: {e}")
-        return False
-    else:
-        return True
+        raise Exception(f"Error sending image to chat: {e}") from e
 
 
 @agent_collector.mount_method(MethodType.TOOL)
