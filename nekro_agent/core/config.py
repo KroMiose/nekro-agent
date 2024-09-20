@@ -58,7 +58,7 @@ class PluginConfig(Config):
     AI_CHAT_CONTEXT_MAX_LENGTH: int = 24  # 聊天参考上下文最大长度
     AI_SCRIPT_MAX_RETRY_TIMES: int = 5  # AI 执行脚本失败重试次数
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
-    AI_GENERATE_THROTTLE_SECONDS: float = 0.75  # AI 聊天生成节流时长
+    AI_GENERATE_THROTTLE_SECONDS: float = 0.85  # AI 聊天生成节流时长
     AI_IGNORED_PREFIXES: List[str] = ["#"]  # 聊天消息中被忽略的前缀
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = 0.0  # AI 聊天随机回复概率
     AI_CHAT_TRIGGER_REGEX: List[str] = []  # AI 聊天触发正则表达式
@@ -81,6 +81,7 @@ class PluginConfig(Config):
     """Stable Diffusion API 配置"""
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"
     STABLE_DIFFUSION_PROXY: str = ""
+    STABLE_DIFFUSION_USE_MODEL_GROUP: str = "default"
 
     """拓展配置"""
     EXTENSION_MODULES: List[str] = ["extensions.basic"]

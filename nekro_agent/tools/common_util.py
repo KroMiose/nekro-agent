@@ -60,6 +60,32 @@ async def download_file(
         return file_path, file_name
 
 
+async def download_file_from_bytes(
+    bytes_data: bytes,
+    file_path: str = "",
+    file_name: str = "",
+    use_suffix: str = "",
+) -> Tuple[str, str]:
+    """下载文件
+
+    Args:
+        url (str): 下载链接
+        file_path (str): 保存路径
+
+    Returns:
+        Tuple[str, str]: 文件路径, 文件名
+    """
+
+    if not file_path:
+        file_name = file_name or f"{hashlib.md5(bytes_data).hexdigest()}{use_suffix}"
+        save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path = str(save_path)
+    Path(file_path).write_bytes(bytes_data)
+    Path(file_path).chmod(0o755)
+    return file_path, file_name
+
+
 async def download_file_from_base64(
     base64_str: str,
     file_path: str = "",
