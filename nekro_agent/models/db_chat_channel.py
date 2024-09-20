@@ -40,19 +40,21 @@ class DBChatChannel(MioModel):
             )
         )
 
-    def get_channel_data(self) -> channelData:
+    async def get_channel_data(self) -> channelData:
         """获取聊天频道数据"""
         try:
             return channelData.model_validate_json(self.data)
         except Exception as e:
             logger.error(f"获取聊天频道数据失败，{e} 重置使用新数据")
-            self.reset_channel()
+            await self.reset_channel()
             return channelData(chat_key=self.chat_key)
 
     def save_channel_data(self, data: channelData):
         """保存聊天频道数据"""
         self.update({DBChatChannel.data: data.model_dump_json()})
 
-    def reset_channel(self):
+    async def reset_channel(self):
         """重置聊天频道"""
+        chanel_data = await self.get_channel_data()
+        await chanel_data.clear_preset_status_list()
         self.update({DBChatChannel.data: channelData(chat_key=self.chat_key).model_dump_json()})

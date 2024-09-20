@@ -62,7 +62,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if not target_chat_key:
         await matcher.finish(message="请指定要清空聊天记录的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
-    db_chat_channel.reset_channel()
+    await db_chat_channel.reset_channel()
     msgs = DBChatMessage.filter(conditions={DBChatMessage.chat_key: target_chat_key})
     msg_cnt = len(msgs)
 
@@ -81,7 +81,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
 
     info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
-    channel_data: channelData = db_chat_channel.get_channel_data()
+    channel_data: channelData = await db_chat_channel.get_channel_data()
     if channel_data.preset_status_list:
         info += "人设状态历史:\n"
     for status in channel_data.preset_status_list[-MAX_PRESET_STATUS_SHOW_SIZE:]:
