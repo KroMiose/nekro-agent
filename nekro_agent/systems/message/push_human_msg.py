@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+from contextlib import suppress
 from typing import Dict
 
 from miose_toolkit_llm.exceptions import ResolveError
@@ -70,16 +71,22 @@ async def push_human_chat_message(message: ChatMessage):
         or random_chat_check()  # 随机聊天
         or check_content_trigger(message.content_text)  # 触发词
     ):
+        current_time = time.time()
         if message.chat_key in running_chat_task_throttle_map:
-            current_time = time.time()
             running_chat_task_throttle_map[message.chat_key] = current_time
             await asyncio.sleep(config.AI_GENERATE_THROTTLE_SECONDS)
             if running_chat_task_throttle_map[message.chat_key] != current_time:
                 logger.warning("检测到高频触发消息，节流控制生效中，跳过本次处理...")
                 return
         if message.chat_key in running_chat_task_map:
+            time_diff: float = current_time - running_chat_task_throttle_map.get(message.chat_key, 0)
+            if 5 < time_diff < 30:
+                logger.warning("检测到长响应，跳过本次触发...")
+                return
             logger.info(f"检测到正在进行的聊天任务: {message.chat_key} 取消之前的任务")
-            running_chat_task_map[message.chat_key].cancel()
+            with suppress(asyncio.CancelledError):
+                running_chat_task_map[message.chat_key].cancel()
+                await running_chat_task_map[message.chat_key]
         running_chat_task_map[message.chat_key] = asyncio.create_task(agent_task(message))
 
 
@@ -89,8 +96,11 @@ async def agent_task(message: ChatMessage):
     for i in range(3):
         try:
             await agent_run(message)
-        except ResolveError:
+        except ResolveError as e:
             logger.error(f"Resolve Error, Retrying {i+1}/3...")
+            if "list index out of range" in str(e):
+                logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
+                break  # 请求被拒绝了，不重试
         else:
             break
     else:
