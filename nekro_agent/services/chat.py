@@ -71,6 +71,7 @@ class ChatService:
                     real_path = Path(USER_UPLOAD_DIR) / content[len("uploads/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
+                    continue
 
                 if not ctx:
                     raise ValueError("Cannot send file without agent context")
@@ -85,12 +86,13 @@ class ChatService:
                     real_path = Path(SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
-                elif content.startswith(("http://", "https://")):
+                    continue
+                if content.startswith(("http://", "https://")):
                     file_path, _ = await download_file(content)
                     message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
-                else:
-                    message.append(MessageSegment.text(f"Invalid file path: {content}"))
                     continue
+
+                message.append(MessageSegment.text(f"Invalid file path: {content}"))
             else:
                 raise ValueError(f"Invalid agent message type: {agent_message.type}")
 
