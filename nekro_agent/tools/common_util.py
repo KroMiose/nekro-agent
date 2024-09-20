@@ -60,6 +60,32 @@ async def download_file(
         return file_path, file_name
 
 
+async def download_file_from_base64(
+    base64_str: str,
+    file_path: str = "",
+    file_name: str = "",
+    use_suffix: str = "",
+) -> Tuple[str, str]:
+    """下载文件(从base64字符串)
+
+    Args:
+        base64_str (str): base64字符串
+        file_path (str): 保存路径
+
+    Returns:
+        Tuple[str, str]: 文件路径, 文件名
+    """
+
+    if not file_path:
+        file_name = file_name or f"{hashlib.md5(base64_str.encode()).hexdigest()}{use_suffix}"
+        save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        file_path = str(save_path)
+    Path(file_path).write_bytes(base64_str.encode())
+    Path(file_path).chmod(0o755)
+    return file_path, file_name
+
+
 async def move_to_upload_dir(file_path: str, file_name: str = "", use_suffix: str = "") -> Tuple[str, str]:
     """复制文件到上传目录
 
