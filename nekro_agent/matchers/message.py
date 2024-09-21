@@ -40,12 +40,12 @@ async def _(
             UserCreate(
                 username=sender_real_nickname,
                 password="123456",
-                bind_qq=event.get_user_id(),
+                bind_qq=bind_qq,
             ),
         )
 
         if not ret:
-            logger.error(f"注册用户失败: {sender_real_nickname}")
+            logger.error(f"注册用户失败: {sender_real_nickname} - {bind_qq}")
             return
 
         user = await query_user_by_bind_qq(bind_qq)
@@ -55,9 +55,9 @@ async def _(
     if not content_data:  # 忽略无法转换的消息
         return
 
-    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
+    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq)
     content_text, is_tome = await gen_chat_text(event=event, bot=bot)
-    send_timestamp: int = event.time
+    # send_timestamp: int = event.time
 
     if any(content_text.startswith(prefix) for prefix in config.AI_IGNORED_PREFIXES):
         logger.info(f"忽略前缀匹配的消息: {content_text[:32]}...")

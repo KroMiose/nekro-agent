@@ -25,7 +25,7 @@ async def query_user_by_bind_qq(qq: str) -> Optional[DBUser]:
 
 async def user_register(data: UserCreate) -> Ret:
     logger.info(f"正在注册用户 {data.username} ...")
-    if DBUser.get_by_field(DBUser.username, data.username) or DBUser.get_by_field(DBUser.bind_qq, data.bind_qq):
+    if DBUser.get_by_field(DBUser.bind_qq, data.bind_qq):
         return Ret.fail("注册失败，用户已存在")
     try:
         DBUser.add(

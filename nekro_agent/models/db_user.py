@@ -11,7 +11,7 @@ class DBUser(MioModel):
     """数据库用户模型"""
 
     id: Mapped[int] = MappedColumn(Integer, primary_key=True, autoincrement=True, comment="用户ID")
-    username: Mapped[str] = MappedColumn(String(length=128), unique=True, comment="用户名")
+    username: Mapped[str] = MappedColumn(String(length=128), comment="用户名")
     password: Mapped[str] = MappedColumn(String(length=128), comment="密码")
     bind_qq: Mapped[str] = MappedColumn(String(length=32), unique=True, comment="绑定的QQ号")
 
