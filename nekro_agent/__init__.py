@@ -1,3 +1,4 @@
+import logging
 import threading
 
 from nonebot import get_app, get_driver
@@ -13,6 +14,8 @@ from nekro_agent.routers import mount_routers
 from nekro_agent.services.extension import init_extensions
 
 from .app import start
+
+logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
 class _Config(BaseModel):
