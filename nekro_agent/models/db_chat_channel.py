@@ -58,3 +58,7 @@ class DBChatChannel(MioModel):
         chanel_data = await self.get_channel_data()
         await chanel_data.clear_preset_status_list()
         self.update({DBChatChannel.data: channelData(chat_key=self.chat_key).model_dump_json()})
+
+    async def set_active(self, is_active: bool):
+        """设置频道是否激活"""
+        self.update({DBChatChannel.is_active: is_active})

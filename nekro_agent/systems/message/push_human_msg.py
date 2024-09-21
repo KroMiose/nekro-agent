@@ -7,6 +7,7 @@ from typing import Dict
 from miose_toolkit_llm.exceptions import ResolveError
 
 from nekro_agent.core import config, logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.agents.chat_agent import agent_run
@@ -47,6 +48,7 @@ async def push_human_chat_message(message: ChatMessage):
 
     content_data = [o.model_dump() for o in message.content_data]
 
+    # 添加聊天记录
     DBChatMessage.add(
         data={
             DBChatMessage.sender_id: message.sender_id,
@@ -71,6 +73,11 @@ async def push_human_chat_message(message: ChatMessage):
         or random_chat_check()  # 随机聊天
         or check_content_trigger(message.content_text)  # 触发词
     ):
+        db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=message.chat_key)
+        if not db_chat_channel.is_active:
+            logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
+            return
+
         current_time = time.time()
         if message.chat_key in running_chat_task_throttle_map:
             running_chat_task_throttle_map[message.chat_key] = current_time

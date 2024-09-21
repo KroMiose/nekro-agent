@@ -108,6 +108,30 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await matcher.finish(message="系统消息添加成功")
 
 
+@on_command("na_on", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    target_chat_key: str = cmd_content or chat_key
+    if not target_chat_key:
+        await matcher.finish(message="请指定要查询的会话")
+    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    await db_chat_channel.set_active(True)
+    await matcher.finish(message=f"已开启 {target_chat_key} 的聊天功能")
+
+
+@on_command("na_off", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    target_chat_key: str = cmd_content or chat_key
+    if not target_chat_key:
+        await matcher.finish(message="请指定要查询的会话")
+    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    await db_chat_channel.set_active(False)
+    await matcher.finish(message=f"已关闭 {target_chat_key} 的聊天功能")
+
+
 @on_command("config_show", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)

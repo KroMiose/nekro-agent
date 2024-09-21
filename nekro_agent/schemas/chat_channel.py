@@ -21,6 +21,8 @@ class PresetStatus(BaseModel):
 
 
 class channelData(BaseModel):
+    """聊天频道数据"""
+
     chat_key: str
     preset_status_list: List[PresetStatus] = []
 
