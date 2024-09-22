@@ -2,6 +2,7 @@ import os
 from typing import List, Optional, Tuple, Union
 
 from miose_toolkit_common import Env
+from miose_toolkit_db import asc, desc
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
@@ -13,6 +14,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
+from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_channel import (
     MAX_PRESET_STATUS_SHOW_SIZE,
     PresetStatus,
@@ -24,6 +26,10 @@ from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.systems.message.push_bot_msg import push_system_message
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
+
+
+async def finish_with(matcher: Matcher, message: str):
+    await matcher.finish(message=f"[Opt Output] {message}")
 
 
 async def command_guard(
@@ -47,7 +53,7 @@ async def command_guard(
     # 判断是否是禁止使用的用户
     if event.get_user_id() not in config.SUPER_USERS:
         logger.warning(f"用户 {username} 不在允许用户中")
-        await matcher.finish(f"用户 [{event.get_user_id()}]{username} 不在允许用户中")
+        await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许用户中")
 
     cmd_content: str = arg.extract_plain_text().strip()
     chat_key, chat_type = await get_chat_info(event=event)
@@ -60,7 +66,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await matcher.finish(message="请指定要清空聊天记录的会话")
+        await finish_with(matcher, message="请指定要清空聊天记录的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.reset_channel()
     msgs = DBChatMessage.filter(conditions={DBChatMessage.chat_key: target_chat_key})
@@ -68,7 +74,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     for msg in msgs:
         msg.delete()
-    await matcher.finish(message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
+    await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
 
 
 @on_command("inspect", priority=5, block=True).handle()
@@ -77,7 +83,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await matcher.finish(message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
 
     info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
@@ -93,7 +99,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if not channel_data.preset_effects:
         info += "- 暂无效果标签\n"
 
-    await matcher.finish(message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
+    await finish_with(matcher, message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
 
 
 @on_command("exec", priority=5, block=True).handle()
@@ -103,7 +109,27 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     result: str = await limited_run_code(cmd_content, from_chat_key=chat_key)
 
     if result:
-        await matcher.finish(result)
+        await finish_with(matcher, result)
+
+
+@on_command("code_log", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    idx = -1
+    if cmd_content:
+        idx = int(cmd_content)
+
+    order = asc(DBExecCode.update_time) if idx > 0 else desc(DBExecCode.update_time)
+
+    exec_codes = DBExecCode.filter(conditions={DBExecCode.chat_key: chat_key}, order_by=[order], offset=abs(idx) - 1, limit=1)
+    if not exec_codes:
+        await finish_with(matcher, message="未找到执行记录")
+    exec_code = exec_codes[0]
+    await finish_with(
+        matcher,
+        message=f"执行记录 ({idx}):\n```python\n{exec_code.code_text}\n```\n输出: \n```\n{exec_code.outputs or '<Empty>'}\n```",
+    )
 
 
 @on_command("system", priority=5, block=True).handle()
@@ -111,7 +137,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     await push_system_message(chat_key=chat_key, agent_messages=cmd_content)
-    await matcher.finish(message="系统消息添加成功")
+    await finish_with(matcher, message="系统消息添加成功")
 
 
 @on_command("na_on", priority=5, block=True).handle()
@@ -120,10 +146,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await matcher.finish(message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(True)
-    await matcher.finish(message=f"已开启 {target_chat_key} 的聊天功能")
+    await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
 
 
 @on_command("na_off", priority=5, block=True).handle()
@@ -132,10 +158,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await matcher.finish(message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(False)
-    await matcher.finish(message=f"已关闭 {target_chat_key} 的聊天功能")
+    await finish_with(matcher, message=f"已关闭 {target_chat_key} 的聊天功能")
 
 
 @on_command("config_show", priority=5, block=True).handle()
@@ -148,12 +174,12 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             if isinstance(_value, (int, float, bool, str)):
                 modifiable_config_key.append(_key)
         sep = "\n"
-        await matcher.finish(message=f"当前支持动态修改配置：\n{sep.join([f'- {k}' for k in modifiable_config_key])}")
+        await finish_with(matcher, message=f"当前支持动态修改配置：\n{sep.join([f'- {k}' for k in modifiable_config_key])}")
     else:
         if config.dump_config_template().get(cmd_content):
-            await matcher.finish(message=f"当前配置：\n{cmd_content}={getattr(config, cmd_content)}")
+            await finish_with(matcher, message=f"当前配置：\n{cmd_content}={getattr(config, cmd_content)}")
         else:
-            await matcher.finish(message=f"未知配置 `{cmd_content}`")
+            await finish_with(matcher, message=f"未知配置 `{cmd_content}`")
 
 
 @on_command("config_set", priority=5, block=True).handle()
@@ -163,7 +189,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     try:
         key, value = cmd_content.strip().split("=", 1)
     except ValueError:
-        await matcher.finish(message="参数错误，请使用 `config_set key=value` 的格式")
+        await finish_with(matcher, message="参数错误，请使用 `config_set key=value` 的格式")
 
     if config.dump_config_template().get(key):
         _c_type = type(getattr(config, key))
@@ -176,36 +202,36 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             elif value.lower() in ["false", "0", "no"]:
                 setattr(config, key, False)
             else:
-                await matcher.finish(message=f"布尔值只能是 `true` 或 `false`，请检查 `{key}` 的值")
+                await finish_with(matcher, message=f"布尔值只能是 `true` 或 `false`，请检查 `{key}` 的值")
         elif isinstance(_c_value, str):
             setattr(config, key, _c_type(value))
         else:
-            await matcher.finish(message=f"不支持动态修改的配置类型 `{_c_type}`")
-        await matcher.finish(message=f"已设置 `{key}` 的值为 `{value}`")
+            await finish_with(matcher, message=f"不支持动态修改的配置类型 `{_c_type}`")
+        await finish_with(matcher, message=f"已设置 `{key}` 的值为 `{value}`")
     else:
-        await matcher.finish(message=f"未知配置: `{key}`")
+        await finish_with(matcher, message=f"未知配置: `{key}`")
 
 
 @on_command("config_reload", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    await matcher.finish(message="功能未实现")
+    await finish_with(matcher, message="功能未实现")
     try:
         config.dump_config(envs=[Env.Default.value])
     except Exception as e:
-        await matcher.finish(message=f"保存配置失败：{e}")
+        await finish_with(matcher, message=f"保存配置失败：{e}")
     else:
-        await matcher.finish(message="已保存配置")
+        await finish_with(matcher, message="已保存配置")
 
 
 @on_command("config_save", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    await matcher.finish(message="功能未实现")
+    await finish_with(matcher, message="功能未实现")
     reload_config()
-    await matcher.finish(message="重载配置成功")
+    await finish_with(matcher, message="重载配置成功")
 
 
 @on_command("docker_restart", priority=5, block=True).handle()
@@ -213,7 +239,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if not OsEnv.RUN_IN_DOCKER:
-        await matcher.finish(message="当前环境不在 Docker 容器中，无法执行此操作")
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
 
     container_name: str = cmd_content or "nekro_agent"
     os.system(f"docker restart {container_name}")
@@ -224,12 +250,12 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if not OsEnv.RUN_IN_DOCKER:
-        await matcher.finish(message="当前环境不在 Docker 容器中，无法执行此操作")
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
 
     lines_limit: int = 100
     container_name: str = cmd_content or "nekro_agent"
     logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
-    await matcher.finish(message=f"容器日志: \n{logs}")
+    await finish_with(matcher, message=f"容器日志: \n{logs}")
 
 
 @on_command("sh", priority=5, block=True).handle()
@@ -237,7 +263,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     outputs = os.popen(cmd_content).read()
-    await matcher.finish(message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
+    await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
 
 
 @on_command("na_info", priority=5, block=True).handle()
@@ -245,7 +271,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     version: str = get_app_version()
-    await matcher.finish(
+    await finish_with(
+        matcher,
         message=(
             f"[Nekro-Agent] - 更智能、更优雅的代理执行 AI\n"
             f"Author: KroMiose\n"

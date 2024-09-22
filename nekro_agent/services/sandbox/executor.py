@@ -11,6 +11,7 @@ from aiodocker.docker import DockerContainer
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
+from nekro_agent.models.db_exec_code import DBExecCode
 
 from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
 
@@ -169,6 +170,15 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     chat_key_sandbox_map[from_chat_key] = box_last_active_time
     chat_key_sandbox_cleanup_task_map[from_chat_key] = asyncio.create_task(
         cleanup_container_shared_dir(box_last_active_time),
+    )
+
+    DBExecCode.add(
+        data={
+            DBExecCode.chat_key: from_chat_key,
+            DBExecCode.code_text: code_text,
+            DBExecCode.outputs: output_text,
+            DBExecCode.success: CODE_RUN_ERROR_FLAG not in output_text,
+        },
     )
 
     return (

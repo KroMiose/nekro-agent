@@ -59,7 +59,7 @@ class PluginConfig(Config):
     AI_SCRIPT_MAX_RETRY_TIMES: int = 5  # AI 执行脚本失败重试次数
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
     AI_GENERATE_THROTTLE_SECONDS: float = 0.85  # AI 聊天生成节流时长
-    AI_IGNORED_PREFIXES: List[str] = ["#", "＃", "[Debug]"]  # 聊天消息中被忽略的前缀
+    AI_IGNORED_PREFIXES: List[str] = ["#", "＃", "[Debug]", "[Opt Output]"]  # 聊天消息中被忽略的前缀
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = 0.0  # AI 聊天随机回复概率
     AI_CHAT_TRIGGER_REGEX: List[str] = []  # AI 聊天触发正则表达式
     AI_NAME_PREFIX: str = ""  # AI 名称前缀
@@ -70,6 +70,7 @@ class PluginConfig(Config):
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"
     SANDBOX_RUNNING_TIMEOUT: int = 60
     SANDBOX_MAX_CONCURRENT: int = 4
+    SANDBOX_CHAT_API_URL: str = "http://host.docker.internal:8021/api"
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = "127.0.0.1"
