@@ -56,7 +56,7 @@ class DBChatChannel(MioModel):
     async def reset_channel(self):
         """重置聊天频道"""
         chanel_data = await self.get_channel_data()
-        await chanel_data.clear_preset_status_list()
+        await chanel_data.clear_status()
         self.update({DBChatChannel.data: channelData(chat_key=self.chat_key).model_dump_json()})
 
     async def set_active(self, is_active: bool):

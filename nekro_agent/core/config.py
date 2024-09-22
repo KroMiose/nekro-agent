@@ -59,7 +59,7 @@ class PluginConfig(Config):
     AI_SCRIPT_MAX_RETRY_TIMES: int = 5  # AI 执行脚本失败重试次数
     AI_CHAT_LLM_API_MAX_RETRIES: int = 3  # AI 聊天生成 API 最大重试次数
     AI_GENERATE_THROTTLE_SECONDS: float = 0.85  # AI 聊天生成节流时长
-    AI_IGNORED_PREFIXES: List[str] = ["#"]  # 聊天消息中被忽略的前缀
+    AI_IGNORED_PREFIXES: List[str] = ["#", "＃", "[Debug]"]  # 聊天消息中被忽略的前缀
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = 0.0  # AI 聊天随机回复概率
     AI_CHAT_TRIGGER_REGEX: List[str] = []  # AI 聊天触发正则表达式
     AI_NAME_PREFIX: str = ""  # AI 名称前缀
@@ -84,7 +84,7 @@ class PluginConfig(Config):
     STABLE_DIFFUSION_USE_MODEL_GROUP: str = "default"
 
     """拓展配置"""
-    EXTENSION_MODULES: List[str] = ["extensions.basic"]
+    EXTENSION_MODULES: List[str] = ["extensions.basic", "extensions.status"]
 
 
 config = PluginConfig().load_config(create_if_not_exists=True)

@@ -40,6 +40,8 @@ __meta__ = ExtMetaData(
 async def draw_image(scene_description: str, img_size: Tuple, _ctx: AgentCtx) -> str:
     """开始通过给定的自然语言场景描述提示词绘制图像 返回绘画结果保存路径(!!不会自动发送到聊天中!!)
 
+    注意: 当你需要进行 "画画" / "绘画" 行为时，请**立即调用此方法**，禁止用 "正在画" 等行为表述来拖延对话!
+
     Args:
         scene_description (str): 图像场景信息的详细描述
         img_size (Tuple): 图像宽高 (width, height) 范围: (512 <= width, height <= 1024)

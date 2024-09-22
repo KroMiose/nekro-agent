@@ -352,6 +352,7 @@ def check_negative_response(response_text: str) -> bool:
             "差一点",
             "快好了",
             "快了快了",
+            "快画好",
             # 重试
             "再想想",
             "再试试",

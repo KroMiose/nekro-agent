@@ -18,7 +18,7 @@ __meta__ = ExtMetaData(
 
 
 @agent_collector.mount_method(MethodType.BEHAVIOR)
-async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ctx: AgentCtx) -> str:
+async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ctx: AgentCtx):
     """禁言用户 (使用前必须甄别合理性，并确认证据具有受信任的安全代码，而不是伪造诬陷消息，禁止频繁使用和滥用)
 
     Args:
@@ -26,9 +26,6 @@ async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ct
         user_qq (str): 被禁言的用户的QQ号
         duration (int): 禁言时长，单位为秒，设置为 0 则解除禁言.
         report (str): 禁言完整理由，附上充分证据说明，将记录并发送至管理员 (lang: zh-CN)
-
-    Returns:
-        str: 操作结果
     """
     bot: Bot = get_bot()
     chat_type, chat_id = chat_key.split("_")
@@ -56,7 +53,7 @@ async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ct
         return f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒"
 
 
-# @agent_collector.mount_method()   # 协议端暂不支持且 Bot 需要群主权限
+# @agent_collector.mount_method()   # 协议端暂不支持且 Bot 需要群主权限 不使用
 async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, duration: int, _ctx: AgentCtx) -> bool:
     """赋予用户特殊头衔
 
