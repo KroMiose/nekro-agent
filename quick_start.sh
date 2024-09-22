@@ -98,6 +98,7 @@ fi
 echo "放行防火墙 8021 端口..."
 if ! sudo ufw allow 8021/tcp; then
     echo "Error: 无法放行防火墙 8021 端口，如服务访问受限，请检查防火墙设置。"
+fi
 
 echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
 
