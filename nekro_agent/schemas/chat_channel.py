@@ -83,11 +83,12 @@ class channelData(BaseModel):
             self._append_preset_status(preset_status)
             chat_type, chat_id = self.chat_key.split("_")
             try:
-                await get_bot().set_group_card(
-                    group_id=int(chat_id),
-                    user_id=int(config.BOT_QQ),
-                    card=f"{config.AI_NAME_PREFIX}{preset_status.setting_name}",
-                )
+                if chat_type == "group":
+                    await get_bot().set_group_card(
+                        group_id=int(chat_id),
+                        user_id=int(config.BOT_QQ),
+                        card=f"{config.AI_NAME_PREFIX}{preset_status.setting_name}",
+                    )
             except Exception as e:
                 logger.warning(f"会话 {self.chat_key} 尝试更新群名片失败: {e}")
 
@@ -141,8 +142,9 @@ class channelData(BaseModel):
     async def clear_status(self):
         self.preset_status_list = []
         chat_type, chat_id = self.chat_key.split("_")
-        await get_bot().set_group_card(
-            group_id=int(chat_id),
-            user_id=int(config.BOT_QQ),
-            card=f"{config.AI_NAME_PREFIX}{config.AI_CHAT_PRESET_NAME}",
-        )
+        if chat_type == "group":
+            await get_bot().set_group_card(
+                group_id=int(chat_id),
+                user_id=int(config.BOT_QQ),
+                card=f"{config.AI_NAME_PREFIX}{config.AI_CHAT_PRESET_NAME}",
+            )
