@@ -69,11 +69,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="请指定要清空聊天记录的会话")
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.reset_channel()
-    msgs = DBChatMessage.filter(conditions={DBChatMessage.chat_key: target_chat_key})
-    msg_cnt = len(msgs)
-
-    for msg in msgs:
-        msg.delete()
+    query = DBChatMessage.sqa_query().filter(DBChatMessage.chat_key == target_chat_key)
+    msg_cnt = query.count()
+    query.delete()
     await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
 
 
@@ -188,8 +186,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     try:
         key, value = cmd_content.strip().split("=", 1)
+        assert key and value
     except ValueError:
         await finish_with(matcher, message="参数错误，请使用 `config_set key=value` 的格式")
+        return
 
     if config.dump_config_template().get(key):
         _c_type = type(getattr(config, key))
@@ -274,7 +274,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(
         matcher,
         message=(
-            f"[Nekro-Agent] - 更智能、更优雅的代理执行 AI\n"
+            f"=> [Nekro-Agent 信息]\n"
+            f"> 更智能、更优雅的代理执行 AI\n"
             f"Author: KroMiose\n"
             f"Github: https://github.com/KroMiose/nekro-agent\n"
             f"Version: {version}\n"
@@ -282,5 +283,29 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "========会话设定========\n"
             f"人设: {config.AI_CHAT_PRESET_NAME}\n"
             f"当前模型组: {config.USE_MODEL_GROUP}\n"
+        ).strip(),
+    )
+
+
+@on_command("na_help", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    await finish_with(
+        matcher,
+        (
+            "=> [Nekro-Agent 帮助]\n"
+            "====== [命令列表] ======\n"
+            "reset <chat_key?>: 清空指定会话的聊天记录\n"
+            "inspect <chat_key?>: 查询指定会话的基本信息\n"
+            "exec <code>: 执行沙盒代码\n"
+            "code_log <idx?>: 查询当前会话的执行记录\n"
+            "system <message>: 发送系统消息\n"
+            "na_on <chat_key?>: 开启指定会话的聊天功能\n"
+            "na_off <chat_key?>: 关闭指定会话的聊天功能\n"
+            "注: 未指定会话时，默认操作对象为当前会话\n"
+            "====== [更多信息] ======\n"
+            f"Version: {get_app_version()}\n"
+            "Github: https://github.com/KroMiose/nekro-agent\n"
         ).strip(),
     )
