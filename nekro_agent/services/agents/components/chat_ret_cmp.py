@@ -283,6 +283,7 @@ def fix_raw_response(raw_response: str) -> str:
         raw_response = f"script:>{raw_response[len('script:'):]}"
 
     # 修正基本 at 格式
+    raw_response = raw_response.replace("[qq:", "[@qq:")
     raw_response = raw_response.replace("@[qq:", "[@qq:")
     # 修正 [@qq:123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@qq:\d+\]", r"[@qq:\g<0>@]", raw_response)
@@ -344,6 +345,7 @@ def check_negative_response(response_text: str) -> bool:
             "尽快处理",
             "别催",
             "在想",
+            "在画",
             "想办法",
             "在思考",
             "努力想想",
