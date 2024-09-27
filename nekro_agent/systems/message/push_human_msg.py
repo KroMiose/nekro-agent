@@ -70,7 +70,7 @@ async def push_human_chat_message(message: ChatMessage):
     if (
         config.AI_CHAT_PRESET_NAME in message.content_text  # 提及人设名
         or message.is_tome  # 引用 / @ 回复
-        or random_chat_check()  # 随机聊天
+        or random_chat_check()  # 随机触发聊天
         or check_content_trigger(message.content_text)  # 触发词
     ):
         db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=message.chat_key)
@@ -78,6 +78,7 @@ async def push_human_chat_message(message: ChatMessage):
             logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
             return
 
+        # 第一层节流控制 根据触发时间是否变化判断连续触发
         current_time = time.time()
         if message.chat_key in running_chat_task_throttle_map:
             running_chat_task_throttle_map[message.chat_key] = current_time
@@ -85,20 +86,23 @@ async def push_human_chat_message(message: ChatMessage):
             if running_chat_task_throttle_map[message.chat_key] != current_time:
                 logger.warning("检测到高频触发消息，节流控制生效中，跳过本次处理...")
                 return
-        if message.chat_key in running_chat_task_map:
-            time_diff: float = current_time - running_chat_task_throttle_map.get(message.chat_key, 0)
-            if 5 < time_diff < 30:
+
+        if message.chat_key in running_chat_task_map and running_chat_task_throttle_map.get(message.chat_key):
+            time_diff: float = current_time - running_chat_task_throttle_map[message.chat_key]
+            if 5 < time_diff < 60:
                 logger.warning("检测到长响应，跳过本次触发...")
                 return
             logger.info(f"检测到正在进行的聊天任务: {message.chat_key} 取消之前的任务")
-            with suppress(asyncio.CancelledError):
+            with suppress(Exception):
                 running_chat_task_map[message.chat_key].cancel()
                 await running_chat_task_map[message.chat_key]
+
         running_chat_task_map[message.chat_key] = asyncio.create_task(agent_task(message))
+        running_chat_task_throttle_map[message.chat_key] = current_time
 
 
 async def agent_task(message: ChatMessage):
-    global running_chat_task_map
+    global running_chat_task_map, running_chat_task_throttle_map
     logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
     for i in range(3):
         try:
@@ -114,3 +118,4 @@ async def agent_task(message: ChatMessage):
         logger.error("Failed to Run Chat Agent.")
 
     del running_chat_task_map[message.chat_key]
+    del running_chat_task_throttle_map[message.chat_key]
