@@ -58,7 +58,7 @@ class ChatService:
                 for seg in seg_data:
                     if isinstance(seg, str):
                         if seg.strip():
-                            message.append(MessageSegment.text(seg.strip()))
+                            message.append(MessageSegment.text(seg))
                     elif isinstance(seg, SegAt):
                         message.append(MessageSegment.at(user_id=seg.qq))
                 logger.info(f"Sending agent message: {content}")
