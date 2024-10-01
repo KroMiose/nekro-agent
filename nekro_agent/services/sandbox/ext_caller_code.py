@@ -24,12 +24,12 @@ def __extension_method_proxy(method: Callable):
             headers={"Content-Type": "application/octet-stream"},
         )
         if response.status_code == 200:
-            ret_data = _pickle.loads(response.content)
-            if response.headers.get("Error-Message"):
+            if response.headers.get("Run-Error") and response.headers["Run-Error"].lower() == "true":
                 print(
-                    f"The method `{method.__name__}` returned an error:\n{response.headers.get('Error-Message')}",
+                    f"The method `{method.__name__}` returned an error:\n{response.text}",
                 )
                 exit(1)
+            ret_data = _pickle.loads(response.content)
             if response.headers.get("Method-Type") == "agent":
                 print(
                     f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease generate a new response based on the above information ",

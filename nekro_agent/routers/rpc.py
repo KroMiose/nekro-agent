@@ -56,7 +56,7 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
     if method_type in [MethodType.BEHAVIOR, MethodType.AGENT]:
         await push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(
-        content=pickle.dumps(result),
+        content=error_message or pickle.dumps(result),
         media_type="application/octet-stream",
-        headers={"Method-Type": method_type.value, "Error-Message": error_message},
+        headers={"Method-Type": method_type.value, "Run-Error": "True" if error_message else "False"},
     )
