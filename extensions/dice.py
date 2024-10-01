@@ -56,9 +56,11 @@ async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: Ag
 
     roll_result = random.randint(1, 20)
     result_str = get_result_str(roll_result, roll_result + add_coin, difficulty)
-    await chat_service.send_message(
+    await chat_service.send_agent_message(
         _ctx.from_chat_key,
         f"【检定事件】{event_name} ({difficulty}/20)\n> {description}\n========\n{fix_str}掷骰结果：{roll_result}{fix_diff_show} 【{result_str}】",
+        _ctx,
+        record=False,
     )
     return (
         f"[{event_name}] ({difficulty}/20) {fix_str_en} roll result: {roll_result}{fix_diff_show}【{result_str}】\n"
