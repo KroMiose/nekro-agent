@@ -1,5 +1,5 @@
 import time
-from typing import Optional
+from typing import Dict, List, Optional
 
 from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -37,6 +37,9 @@ __meta__ = ExtMetaData(
 # ========================================================================================
 
 
+SEND_MSG_CACHE: Dict[str, List[str]] = {}
+
+
 @agent_collector.mount_method(MethodType.TOOL)
 async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
     """发送聊天消息文本
@@ -45,6 +48,7 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
         chat_key (str): 会话标识
         message (str): 消息内容
     """
+    global SEND_MSG_CACHE
 
     err_calling = [f"{m.__name__}" for m in agent_collector.get_all_methods()]
     for keyword in err_calling:
@@ -53,11 +57,22 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
                 f"Incorrect usage of `{keyword}` in this message. If you need to call a method, please use in `script:>` response but not send it as a message.",
             )
 
+    if message in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
+        raise Exception(
+            f'You have sent the same message "{message}" in the last 10 seconds. If you are debugging, please note that the code up to error occurred has already been executed. Do not execute it again. keep on your work.',
+        )
+
     message_ = [AgentMessageSegment(content=message)]
     try:
         await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
     except Exception as e:
         raise Exception(f"Error sending text message to chat: {e}") from e
+
+    if _ctx.from_chat_key not in SEND_MSG_CACHE:
+        SEND_MSG_CACHE[_ctx.from_chat_key] = []
+
+    SEND_MSG_CACHE[_ctx.from_chat_key].append(message)
+    SEND_MSG_CACHE[_ctx.from_chat_key] = SEND_MSG_CACHE[_ctx.from_chat_key][-10:]
 
 
 @agent_collector.mount_method(MethodType.TOOL)
