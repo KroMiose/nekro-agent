@@ -95,10 +95,8 @@ async def push_human_chat_message(message: ChatMessage):
             logger.info(f"检测到正在进行的聊天任务: {message.chat_key} 取消之前的任务")
             with suppress(Exception):
                 running_chat_task_map[message.chat_key].cancel()
-                await running_chat_task_map[message.chat_key]
 
         running_chat_task_map[message.chat_key] = asyncio.create_task(agent_task(message))
-        running_chat_task_throttle_map[message.chat_key] = current_time
 
 
 async def agent_task(message: ChatMessage):
@@ -118,4 +116,5 @@ async def agent_task(message: ChatMessage):
         logger.error("Failed to Run Chat Agent.")
 
     del running_chat_task_map[message.chat_key]
-    del running_chat_task_throttle_map[message.chat_key]
+    with suppress(KeyError):
+        del running_chat_task_throttle_map[message.chat_key]
