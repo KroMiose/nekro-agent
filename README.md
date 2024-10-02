@@ -4,8 +4,9 @@
 
 <div align="center">
   <a href="https://v2.nonebot.dev/store"><img src="./images/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"> <img src="./images/README/NBP.svg" width="240" alt="NoneBotPluginText"><img src="./images/README/DockerLogo.png" width="240" alt="DockerLogo"></a>
-  <br>
 </div>
+
+
 
 <div align="center">
     ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
