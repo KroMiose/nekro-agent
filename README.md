@@ -272,10 +272,10 @@ sudo nb run --reload  # 开发调试模式下启用重载监视
 默认指令前缀为 `/` 如果需要修改请在 `.env.prod` 中进行配置
 
 | 指令 | 权限 | 说明 |
-|:-----:|:----:|:----:|:----:|:----:|
+|:-----:|:----:|:----:|
 | /na_help | 管理员 | 查询插件的所有命令 |
 
-![demo2](./images/README/helpdemo.png)
+![helpdemo](./images/README/helpdemo.png)
 
 `<chat_key?>` 格式为 `group_群号` `uesr_QQ号`
 
