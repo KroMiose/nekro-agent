@@ -4,7 +4,6 @@
 
 <div align="center">
   <a href="https://v2.nonebot.dev/store"><img src="./images/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
-  <br>
   <p><img src="./images/README/NBP.svg" width="240" alt="NoneBotPluginText"></p>
 </div>
 
