@@ -56,6 +56,7 @@
 ## 🎁 部署指南
 
 本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 快速部署脚本](#-方式二-docker-compose-快速部署脚本-推荐) 快速部署完整服务
+部署完成后请在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#4](#4-配置必要信息) 中的配置说明进行编辑
 
 ### 🥇 方式一: Docker-Compose 快速部署脚本 (**推荐**)
 
