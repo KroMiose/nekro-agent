@@ -3,11 +3,10 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
-  <a href="https://v2.nonebot.dev/store"><img src="./images/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
-  <br>
+    <a href="https://v2.nonebot.dev/store"><img src="./images/README/NA_logo.png" width="1024" alt="NoneBotPluginLogo"></a>
+    <br>
   <p><img src="./images/README/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
 </div>
-
 <div align="center">
     ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
     🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
@@ -57,9 +56,19 @@
 
 ## 🎁 部署指南
 
-本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 快速部署脚本](#-方式二-docker-compose-快速部署脚本-推荐) 快速部署完整服务
+本插件提供多种部署方式，如无特殊需求，建议选择 [Docker-Compose 快速部署脚本](#-方式一-docker-compose-快速部署脚本-推荐) 快速部署完整服务
 
-### 🚀 方式一: `nb-cli` 安装命令
+
+### 🥇 方式一: Docker-Compose 快速部署脚本 (**推荐**)
+
+> 该安装方式为 [Docker-Compose 自定义部署](#-方式三-docker-compose-自定义部署-推荐) 的自动化脚本版本，一行命令即可快速拉起完整服务
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
+```
+> 部署完成后请在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#4](#4-配置必要信息) 中的配置说明进行编辑
+
+### 🚀 方式二: `nb-cli` 安装命令（**不推荐**）
 
 **注意:** 该安装方式仅供参考，本插件需要配套应用环境和数据库服务支持，请参考 [源码部署/开发指南](#-方式四-源码部署开发指南) **继续部署相关服务并配置访问信息，否则无法正常工作**
 
@@ -67,15 +76,7 @@
 nb plugin install nekro-agent
 ```
 
-### 🪄 方式二: Docker-Compose 快速部署脚本 (**推荐**)
-
-> 该安装方式为 [Docker-Compose 自定义部署](#-方式三-docker-compose-自定义部署-推荐) 的自动化脚本版本，一行命令即可快速拉起完整服务
-
-```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
-```
-
-### 🫙 方式三: Docker-Compose 自定义部署 (**推荐**)
+### 🚀 方式三: Docker-Compose 自定义部署 (**推荐**)
 
 > 该部署方式将自动拉取并启动所需的服务，并自动配置好相关配置项，无需手动安装环境和配置项
 
@@ -271,11 +272,11 @@ sudo nb run --reload  # 开发调试模式下启用重载监视
 
 默认指令前缀为 `/` 如果需要修改请在 `.env.prod` 中进行配置
 
-- `/reset`: 清除当前会话聊天记录
-- `/config_show`: 查看当前配置支持动态修改的配置项
-- `/config_set`: 修改配置项
+| 指令 | 权限 | 说明 |
+|:-----:|:----:|:----:|
+| /na_help | 管理员 | 查询插件的所有命令 |
 
-配置命令使用示例: `/config_set USE_MODEL_GROUP=custom` 切换模型组为 `custom`
+`<chat_key?>` 格式为 `group_群号` `uesr_QQ号`
 
 ## 🤝 贡献列表
 
