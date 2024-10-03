@@ -275,6 +275,7 @@ sudo nb run --reload  # 开发调试模式下启用重载监视
 |:-----:|:----:|:----:|
 | /na_help | 管理员 | 查询插件的所有命令 |
 
+示例
 ![helpdemo](./images/README/helpdemo.png)
 
 `<chat_key?>` 格式为 `group_群号` `uesr_QQ号`
