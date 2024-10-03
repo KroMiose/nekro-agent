@@ -6,8 +6,6 @@
   <p><img src="./images/README/NBP.svg" width="240" alt="NoneBotPluginText"><img src="./images/README/DockerLogo.png" width="240" alt="DockerLogo"></p>
 </div>
 
-
-
 <div align="center">
     ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
     🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
