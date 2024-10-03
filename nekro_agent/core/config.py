@@ -39,9 +39,15 @@ class PluginConfig(Config):
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {
         "default": ModelConfigGroup(
-            CHAT_MODEL="gpt-4-1106-preview",
+            CHAT_MODEL="gemini-1.5.pro",
             CHAT_PROXY="",
-            BASE_URL="",
+            BASE_URL="https://one.nekro.top/v1",
+            API_KEY="",
+        ).model_dump(),
+        "openai": ModelConfigGroup(
+            CHAT_MODEL="gpt-4o",
+            CHAT_PROXY="",
+            BASE_URL="https://api.openai.com/v1",
             API_KEY="",
         ).model_dump(),
     }
