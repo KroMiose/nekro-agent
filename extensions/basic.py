@@ -58,6 +58,7 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
             )
 
     if message in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
+        return
         raise Exception(
             f'You have sent the same message "{message}" in the last 10 seconds. If you are debugging, please note that the code up to error occurred has already been executed. Do not execute it again. keep on your work.',
         )
