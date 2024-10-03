@@ -145,6 +145,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
+    if target_chat_key == "*":
+        for channel in DBChatChannel.filter():
+            await channel.set_active(True)
+        await finish_with(matcher, message="已开启所有群聊的聊天功能")
+        return
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(True)
     await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
@@ -157,6 +162,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
+    if target_chat_key == "*":
+        for channel in DBChatChannel.filter():
+            await channel.set_active(False)
+        await finish_with(matcher, message="已关闭所有群聊的聊天功能")
+        return
     db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(False)
     await finish_with(matcher, message=f"已关闭 {target_chat_key} 的聊天功能")
