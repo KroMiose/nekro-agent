@@ -3,7 +3,7 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
-  <p><img src="./images/README/NBP.svg" width="240" alt="NoneBotPluginText"><img src="./images/README/DockerLogo.png" width="240" alt="DockerLogo"></p>
+  <p><img src="./images/img/1.png" width="240" alt="NoneBotPluginText"><img src="./images/README/DockerLogo.png" width="240" alt="DockerLogo"></p>
 </div>
 
 <div align="center">
