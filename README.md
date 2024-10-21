@@ -65,7 +65,7 @@
 > 该安装方式为 [Docker-Compose 自定义部署](#-方式三-docker-compose-自定义部署-推荐) 的自动化脚本版本，一行命令即可快速拉起完整服务
 
 ```bash
-sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
+sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
 ```
 
 > 部署完成后请在 `${HOME}/srv/nekro_agent/configs/config.dev.yaml` 文件中修改配置项，具体配置项请参考 [源码部署/开发指南#4](#4-配置必要信息) 中的配置说明进行编辑
