@@ -176,6 +176,7 @@ git clone https://github.com/KroMiose/nekro-agent.git
 ```bash
 cd nekro-agent
 pip install poetry  # 需要提前安装 Python 环境: 推荐 Python 3.10
+poetry config virtualenvs.in-project true  # 将虚拟环境安装到项目目录下 (可选)
 poetry install
 ```
 
