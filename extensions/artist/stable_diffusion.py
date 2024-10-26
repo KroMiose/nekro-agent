@@ -33,7 +33,7 @@ async def text2img(prompt: str, negative_prompt: str, width: int, height: int) -
             json={
                 "prompt": DEFAULT_POSITIVE_PROMPTS + prompt,
                 "negative_prompt": DEFAULT_NEGATIVE_PROMPTS + negative_prompt,
-                "sampler_name": "DPM++ SDE",
+                "sampler_name": "DPM++ 2M",
                 "batch_size": 1,
                 "n_iter": 1,
                 "steps": 29,

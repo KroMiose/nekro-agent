@@ -1,7 +1,13 @@
 import json
 from typing import List, Tuple, Union
 
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, Message, MessageEvent
+from nonebot.adapters.onebot.v11 import (
+    Bot,
+    GroupMessageEvent,
+    GroupUploadNoticeEvent,
+    Message,
+    MessageEvent,
+)
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
@@ -22,8 +28,9 @@ from nekro_agent.tools.onebot_util import get_user_group_card_name
 
 
 async def convert_chat_message(
-    ob_event: Union[MessageEvent, GroupMessageEvent],
+    ob_event: Union[MessageEvent, GroupMessageEvent, GroupUploadNoticeEvent],
     msg_to_me: bool,
+    bot: Bot,  # noqa: ARG001
 ) -> Tuple[List[ChatMessageSegment], bool]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
@@ -36,6 +43,25 @@ async def convert_chat_message(
 
     ret_list: List[ChatMessageSegment] = []
     is_tome = False
+
+    if isinstance(ob_event, GroupUploadNoticeEvent):
+        if ob_event.file.size > config.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
+            logger.warning(f"文件过大，跳过处理: {ob_event.file.name}")
+            return ret_list, False
+        if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
+            suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
+            local_path, file_name = await download_file(ob_event.file.model_extra["url"], use_suffix=suffix)
+            ret_list.append(
+                ChatMessageSegmentFile(
+                    type=ChatMessageSegmentType.FILE,
+                    text="",
+                    file_name=file_name,
+                    local_path=local_path,
+                    remote_url="",
+                ),
+            )
+
+        return ret_list, False
 
     ob_message: Message = ob_event.message
 
@@ -93,6 +119,7 @@ async def convert_chat_message(
                 nick_name = config.AI_CHAT_PRESET_NAME
             else:
                 nick_name = await get_user_group_card_name(group_id=ob_event.group_id, user_id=at_qq)
+            logger.info(f"OneBot at message: {at_qq=} {nick_name=}")
             ret_list.append(
                 ChatMessageSegmentAt(
                     type=ChatMessageSegmentType.AT,

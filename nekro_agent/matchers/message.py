@@ -1,15 +1,17 @@
 import time
 from typing import Optional, Type, Union, cast
 
-from nonebot import on_message
-from nonebot.adapters import Bot
+from nonebot import on_message, on_notice
 from nonebot.adapters.onebot.v11 import (
+    Bot,
     GroupMessageEvent,
+    GroupUploadNoticeEvent,
     MessageEvent,
 )
 from nonebot.matcher import Matcher
 
 from nekro_agent.core import config, logger
+from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
@@ -33,7 +35,7 @@ async def _(
     assert sender_real_nickname
 
     bind_qq: str = str(event.sender.user_id)
-    user = await query_user_by_bind_qq(bind_qq)
+    user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
 
     if not user:
         ret = await user_register(
@@ -51,7 +53,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    content_data, msg_tome = await convert_chat_message(event, event.to_me)
+    content_data, msg_tome = await convert_chat_message(event, event.to_me, bot)
     if not content_data:  # 忽略无法转换的消息
         return
 
@@ -76,7 +78,51 @@ async def _(
         content_data=content_data,
         raw_cq_code=event.raw_message,
         ext_data={},
-        # send_timestamp=send_timestamp,
+        send_timestamp=int(time.time()),
+    )
+
+    await push_human_chat_message(chat_message)
+
+upload_notice_matcher: Type[Matcher] = on_notice(priority=20, block=True)
+
+
+@upload_notice_matcher.handle()
+async def _(
+    _: Matcher,
+    event: GroupUploadNoticeEvent,
+    bot: Bot,
+):
+    chat_key, chat_type = await get_chat_info(event=event)
+    bind_qq: str = str(event.user_id)
+    user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
+
+    if not user:
+        if bind_qq == config.BOT_QQ:
+            return
+        raise ValueError(f"用户 {bind_qq} 尚未注册，请先发送任意消息注册后即可上传文件") from None
+
+    # 用户信息处理
+    sender_real_nickname: Optional[str] = user.username
+
+    content_data, msg_tome = await convert_chat_message(event, False, bot)
+    if not content_data:  # 忽略无法转换的消息
+        return
+
+    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq)
+
+    chat_message: ChatMessage = ChatMessage(
+        sender_id=user.id,
+        sender_real_nickname=sender_real_nickname,
+        sender_nickname=sender_nickname,
+        sender_bind_qq=bind_qq,
+        is_tome=msg_tome,
+        is_recalled=False,
+        chat_key=chat_key,
+        chat_type=chat_type,
+        content_text="",
+        content_data=content_data,
+        raw_cq_code="",
+        ext_data={},
         send_timestamp=int(time.time()),
     )
 

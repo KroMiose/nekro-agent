@@ -35,6 +35,7 @@ class PluginConfig(Config):
     DEBUG_IN_CHAT: bool = False
     ADMIN_CHAT_KEY: str = ""
     SAVE_PROMPTS_LOG: bool = False
+    MAX_UPLOAD_SIZE_MB: int = 10
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {
@@ -77,6 +78,7 @@ class PluginConfig(Config):
     SANDBOX_RUNNING_TIMEOUT: int = 60
     SANDBOX_MAX_CONCURRENT: int = 4
     SANDBOX_CHAT_API_URL: str = "http://host.docker.internal:8021/api"
+    SANDBOX_ONEBOT_SERVER_MOUNT_DIR: str = "/app/nekro_agent_data"
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = "127.0.0.1"

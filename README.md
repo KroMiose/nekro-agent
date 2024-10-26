@@ -20,7 +20,7 @@
     <a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">
         <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
     </a> <br/>
-    📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，早期支持者和参与 Nekro 生态开发者可获得本站专属折扣和额度补贴，欢迎体验！<a href="https://one.nekro.top">→ 查看详情</a> 📢 <br/>
+    📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，早期支持者和参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
 </div>
 
 ## ⚠ !安全警告!
@@ -39,6 +39,7 @@
 
 ![demo](./images/README/demo.png)
 ![demo2](./images/README/demo2.png)
+![demo3](./images/README/demo3.png)
 
 ## 💡 功能列表
 
@@ -52,8 +53,8 @@
 - [x] 高度可定制的扩展开发接口 (示例扩展: [群聊禁言](./extensions/judgement.py) 更多扩展正在持续开发中...)
 - [x] 基于 `docker-compose` 的容器编排一键部署支持
 - [x] 接入 Stable Diffusion 实现 AI 绘图能力
+- [x] 更多文件资源交互 (文件/视频/音频等，可直接通过群文件/私聊 发送&接收&处理 任意文件资源)
 - [ ] 基于 LLM 的自动上下文衔接触发器
-- [ ] 更多多媒体资源交互 (文件/视频/音频等)
 - [ ] 可视化插件控制面板
 
 ## 🎁 部署指南

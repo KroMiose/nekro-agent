@@ -77,16 +77,21 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
 
 
 @agent_collector.mount_method(MethodType.TOOL)
-async def send_msg_img(chat_key: str, file_path: str, _ctx: AgentCtx):
-    """发送聊天消息图片资源 (支持资源格式: jpg, jpeg, png, gif, bmp; 不支持的格式请先转换)
+async def send_msg_file(chat_key: str, file_path: str, _ctx: AgentCtx):
+    """发送聊天消息图片/文件资源
 
     Args:
         chat_key (str): 会话标识
-        file_path (str): 图片路径或 URL
+        file_path (str): 图片/文件路径或 URL
     """
     message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=file_path)]
     try:
-        await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
+        suf = file_path.split(".")[-1]
+        if suf in ["jpg", "jpeg", "png", "gif", "webp"]:
+            await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
+        else:
+            await chat_service.send_agent_message(chat_key, message_, _ctx, file_mode=True, record=True)
+
     except Exception as e:
         raise Exception(f"Error sending image to chat: {e}") from e
 
