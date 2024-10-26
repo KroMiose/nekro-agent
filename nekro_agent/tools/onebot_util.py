@@ -4,6 +4,7 @@ from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
     GroupIncreaseNoticeEvent,
     GroupMessageEvent,
+    GroupUploadNoticeEvent,
     MessageEvent,
 )
 
@@ -48,7 +49,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
 
 
 async def get_user_name(
-    event: Union[MessageEvent, GroupIncreaseNoticeEvent],
+    event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent],
     bot: Bot,
     user_id: Union[int, str],
 ) -> str:
@@ -68,7 +69,7 @@ async def get_user_name(
         user_name = user_info.get("nickname", None)
         user_name = user_info.get("card", None) or user_name
     else:
-        user_name = event.sender.nickname if event.sender else event.get_user_id()
+        user_name = event.sender.nickname if not isinstance(event, GroupUploadNoticeEvent) and event.sender else event.get_user_id()
 
     if not user_name:
         raise ValueError("获取用户名失败")
@@ -76,7 +77,7 @@ async def get_user_name(
     return user_name
 
 
-async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str]):
+async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str]) -> str:
     """获取用户所在群的群名片"""
     if str(user_id) == str(config.BOT_QQ):
         return config.AI_CHAT_PRESET_NAME
@@ -85,11 +86,14 @@ async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int
         user_id=int(user_id),
         no_cache=False,
     )
-    return user_info.get("card", user_info.get("nickname", "未知"))
+    return user_info.get("card") or user_info.get("nickname", "未知")
 
 
-async def get_chat_info(event: MessageEvent) -> Tuple[str, ChatType]:
-    raw_chat_type = event.message_type
+async def get_chat_info(event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent]) -> Tuple[str, ChatType]:
+    if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent)):
+        raw_chat_type = "group"
+    else:
+        raw_chat_type = event.message_type
     chat_type: ChatType
     if raw_chat_type == "friend" or raw_chat_type == "private":
         event = cast(MessageEvent, event)
