@@ -18,6 +18,7 @@ services:
       - nekro_postgres_data:/var/lib/postgresql/data
     networks:
       - nekro_network
+    restart: unless-stopped
 
   # 主服务
   nekro_agent:
@@ -40,7 +41,7 @@ services:
       - "8021:8021"
     networks:
       - nekro_network
-    restart: always
+    restart: unless-stopped
 
 volumes:
   nekro_postgres_data:
