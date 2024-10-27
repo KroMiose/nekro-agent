@@ -27,8 +27,8 @@ jobs:
       - name: Publish Package
         run: >-
           poetry run publish
-  publish-amd64-image:
-    name: Publish amd64 Image
+  publish-nekro-amd64-image:
+    name: Publish Nekro Agent Image (amd64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -66,8 +66,10 @@ jobs:
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  publish-arm64-image:
-    name: Publish arm64 Image
+      - name: Cleanup
+        run: docker logout
+  publish-nekro-arm64-image:
+    name: Publish Nekro Agent Image (arm64)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -105,33 +107,69 @@ jobs:
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  # publish-sandbox-image:
-  #   name: Publish Sandbox Image
+      - name: Cleanup
+        run: docker logout
+
+  # publish-sandbox-amd64-image:
+  #   name: Publish Sandbox Image (amd64)
   #   runs-on: ubuntu-latest
   #   steps:
   #     - uses: actions/checkout@master
+
   #     - name: Set up QEMU
   #       uses: docker/setup-qemu-action@v1
+
   #     - name: Set up Docker Buildx
   #       id: buildx
   #       uses: docker/setup-buildx-action@v1
+
   #     - name: Login to Docker Hub
   #       uses: docker/login-action@v1
   #       with:
   #         username: ${{ secrets.DOCKER_USERNAME }}
   #         password: ${{ secrets.DOCKER_PASSWORD }}
-  #     - name: Enter Sandbox Directory
-  #       run: >-
-  #         cd sandbox
-  #     - name: Build and Push Docker Image
+
+  #     - name: Build and Push Sandbox Docker Image for amd64
   #       uses: docker/build-push-action@v2
   #       with:
-  #         context: .
-  #         file: Dockerfile
+  #         context: ./sandbox
+  #         file: sandbox/Dockerfile
   #         push: true
-  #         tags: kromiose/nekro-agent-sandbox:latest
-  #         # cache-from: type=gha
-  #         # cache-to: type=gha,mode=max
-  #     - name: cleanup
-  #       run: >-
-  #         docker logout
+  #         tags: |
+  #           kromiose/nekro-agent-sandbox:latest-amd64
+  #         platforms: linux/amd64
+
+  #     - name: Cleanup
+  #       run: docker logout
+
+  # publish-sandbox-arm64-image:
+  #   name: Publish Sandbox Image (arm64)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@master
+
+  #     - name: Set up QEMU
+  #       uses: docker/setup-qemu-action@v1
+
+  #     - name: Set up Docker Buildx
+  #       id: buildx
+  #       uses: docker/setup-buildx-action@v1
+
+  #     - name: Login to Docker Hub
+  #       uses: docker/login-action@v1
+  #       with:
+  #         username: ${{ secrets.DOCKER_USERNAME }}
+  #         password: ${{ secrets.DOCKER_PASSWORD }}
+
+  #     - name: Build and Push Sandbox Docker Image for arm64
+  #       uses: docker/build-push-action@v2
+  #       with:
+  #         context: ./sandbox
+  #         file: sandbox/Dockerfile
+  #         push: true
+  #         tags: |
+  #           kromiose/nekro-agent-sandbox:latest-arm64
+  #         platforms: linux/arm64
+
+  #     - name: Cleanup
+  #       run: docker logout
