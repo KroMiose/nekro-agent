@@ -235,6 +235,8 @@ EXTENSION_MODULES:
   - extensions.artist # 艺术扩展 (提供 AI 绘图能力 需要配置 Stable Diffusion 后端 API 地址)
 ```
 
+完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
+
 #### 5. 拉取沙盒容器镜像
 
 拉取用于沙盒环境的 Docker 镜像，如果需要修改镜像中的依赖包可修改 `sandbox/dockerfile` 和 `sandbox/pyproject.toml` 文件，然后使用 `sudo bash sandbox.sh --build` 重新构建镜像
