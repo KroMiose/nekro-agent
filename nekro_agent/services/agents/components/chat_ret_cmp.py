@@ -93,7 +93,6 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * scipy = "^1.14.0"
 * scikit-learn = "^1.5.1"
 * imageio = "^2.35.0"
-* pytesseract = "^0.3.13
 
 ### Predefined Variables or Methods (no need to declare in code):
 
@@ -114,6 +113,8 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
 * Your reply must be consistent with the character setting and effectively promote the conversation. Do not send repeated or empty content.
 * You need to carefully understand the above chat history and don't repeatedly reply to messages you have already replied to.
+* All your messages will be used directly for code execution or chat replies. Please do not generate any out-of-scene responses.
+* When your program doesn't work properly, you need to actively adjust your strategy to find other solutions and avoid running the wrong program again.
 * 除非特殊要求，你应该尽可能用中文回复！
 
 !!! Strictly abide by the above rules when replying to ensure efficient communication. Otherwise you will be subject to a "memory reset" !!!
@@ -248,8 +249,13 @@ class ChatResponseResolver(BaseComponent):
         if response_text.endswith("```") and has_start_code_block:
             response_text = response_text.strip()[:-3]
 
-        if "text:>" in response_text and "script:>" in response_text and response_text.strip().startswith("text:>"):
-            response_text = response_text.strip()[len("text:>") :].strip()
+        if "text:>" in response_text:
+            if "script:>" in response_text and response_text.strip().startswith("text:>"):
+                response_text = response_text.strip()[len("text:>") :].strip()
+            elif "script:>" not in response_text and not response_text.strip().startswith("text:>\n"):
+                response_text = "text:>\n" + response_text.strip().split("text:>\n", 1)[1].strip()
+            elif "script:>" not in response_text and not response_text.strip().startswith("text:>"):
+                response_text = "text:>" + response_text.strip().split("text:>", 1)[1].strip()
 
         try:
             _ret_type, ret_content = response_text.split(":>", 1)

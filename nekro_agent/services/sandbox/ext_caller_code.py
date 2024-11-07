@@ -14,7 +14,7 @@ def __extension_method_proxy(method: Callable):
     """扩展方法代理执行器"""
 
     def acutely_call_method(*args: Tuple[Any], **kwargs: Dict[str, Any]):
-        """Agent 执行时实际调用的方法"""
+        """Agent 执行沙盒扩展方法时实际调用的方法"""
 
         body = {"method": method.__name__, "args": args, "kwargs": kwargs}
         data: bytes = _pickle.dumps(body)
@@ -32,7 +32,7 @@ def __extension_method_proxy(method: Callable):
             ret_data = _pickle.loads(response.content)
             if response.headers.get("Method-Type") == "agent":
                 print(
-                    f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease generate a new response based on the above information ",
+                    f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease continue to generate an appropriate response based on the above information.",
                 )
                 exit(1)
             return ret_data

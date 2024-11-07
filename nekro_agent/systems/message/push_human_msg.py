@@ -107,7 +107,7 @@ async def agent_task(message: ChatMessage):
             await agent_run(message)
         except ResolveError as e:
             logger.error(f"Resolve Error, Retrying {i+1}/3...")
-            if "list index out of range" in str(e):
+            if "list index out of range" in str(e) and i > 0:
                 logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
                 break  # 请求被拒绝了，不重试
         else:
