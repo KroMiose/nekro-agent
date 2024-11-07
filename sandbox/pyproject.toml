@@ -15,6 +15,10 @@ scikit-learn = "^1.5.1"
 imageio = "^2.35.0"
 pytesseract = "^0.3.13"
 sympy = "^1.13.3"
+pymupdf = "^1.24.12"
+rarfile = "^4.2"
+markdown = "^3.7"
+pandas = "^2.2.3"
 
 [build-system]
 requires = ["poetry-core"]
