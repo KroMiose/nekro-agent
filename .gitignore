@@ -159,3 +159,6 @@ uploads
 data
 
 # End of https://www.toptal.com/developers/gitignore/api/python
+
+# wandb files
+wandb

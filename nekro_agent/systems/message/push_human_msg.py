@@ -30,7 +30,7 @@ def message_validation_check(message: ChatMessage) -> bool:
 
     if "message" in plaint_text and "(qq:" in plaint_text:
         return False
-    if "from_qq:" in plaint_text:
+    if "from_qq:" in plaint_text:  # noqa: SIM103
         return False
 
     return True

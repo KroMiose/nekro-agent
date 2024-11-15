@@ -3,6 +3,7 @@ import os
 import time
 from typing import List, Optional, Union
 
+import weave
 from miose_toolkit_llm import (
     BaseScene,
     BaseStore,
@@ -60,6 +61,7 @@ class ChatScene(BaseScene):
         one_time_code: str = ""
 
 
+@weave.op(name="agent_run")
 async def agent_run(
     chat_message: ChatMessage,
     addition_prompt_message: Optional[List[Union[UserMessage, AiMessage]]] = None,

@@ -33,6 +33,7 @@ miose-toolkit-common = "^0.3.7"
 miose-toolkit-llm = "^0.0.2"
 miose-toolkit-logger = "^0.0.7"
 miose-toolkit-db = "^0.2.2"
+weave = "^0.51.19"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"

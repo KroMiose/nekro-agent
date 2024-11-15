@@ -1,6 +1,8 @@
 import logging
+import os
 import threading
 
+import weave
 from nonebot import get_app, get_driver
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
@@ -21,6 +23,11 @@ logging.getLogger("passlib").setLevel(logging.ERROR)
 class _Config(BaseModel):
     pass
 
+
+if config.WEAVE_ENABLED:
+    logger.info("正在连接 Weave 服务...")
+    weave.init(config.WEAVE_PROJECT_NAME)
+    logger.success("Weave 服务连接成功")
 
 mount_routers(get_app())
 init_extensions()
