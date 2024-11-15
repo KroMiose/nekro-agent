@@ -38,7 +38,7 @@ class PluginConfig(Config):
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {
         "default": ModelConfigGroup(
-            CHAT_MODEL="gemini-1.5.pro",
+            CHAT_MODEL="gemini-1.5.pro-002",
             CHAT_PROXY="",
             BASE_URL="https://one.nekro.top/v1",
             API_KEY="",
@@ -94,6 +94,10 @@ class PluginConfig(Config):
 
     """拓展配置"""
     EXTENSION_MODULES: List[str] = ["extensions.basic", "extensions.status"]  # 启用的插件模块列表
+
+    """Weave 配置"""
+    WEAVE_ENABLED: bool = False  # 是否启用 Weave 追踪 LLM 调用
+    WEAVE_PROJECT_NAME: str = "nekro-agent"  # Weave 项目名称
 
 
 config = PluginConfig().load_config(create_if_not_exists=True)
