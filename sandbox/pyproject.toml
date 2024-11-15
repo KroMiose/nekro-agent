@@ -19,6 +19,8 @@ pymupdf = "^1.24.12"
 rarfile = "^4.2"
 markdown = "^3.7"
 pandas = "^2.2.3"
+openpyxl = "^3.1.5"
+docx = "^0.2.4"
 
 [build-system]
 requires = ["poetry-core"]
