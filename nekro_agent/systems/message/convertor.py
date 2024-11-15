@@ -76,7 +76,13 @@ async def convert_chat_message(
 
         elif seg.type == "image":
             try:
-                suffix = "." + seg.data["file"].split(".")[-1].lower()
+                if "filename" in seg.data:
+                    suffix = "." + seg.data["filename"].split(".")[-1].lower()
+                else:
+                    suffix = "." + seg.data["file"].split(".")[-1].lower()
+                if len(suffix) > 10:
+                    logger.warning(f"文件后缀过长: {suffix}; from: {seg=}; 取消后缀")
+                    suffix = ""
             except Exception:
                 suffix = ""
             if "url" in seg.data:
