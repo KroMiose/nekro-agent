@@ -31,6 +31,7 @@ async def convert_chat_message(
     ob_event: Union[MessageEvent, GroupMessageEvent, GroupUploadNoticeEvent],
     msg_to_me: bool,
     bot: Bot,  # noqa: ARG001
+    chat_key: str,  # noqa: ARG001
 ) -> Tuple[List[ChatMessageSegment], bool]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
@@ -50,7 +51,11 @@ async def convert_chat_message(
             return ret_list, False
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
-            local_path, file_name = await download_file(ob_event.file.model_extra["url"], use_suffix=suffix)
+            local_path, file_name = await download_file(
+                ob_event.file.model_extra["url"],
+                use_suffix=suffix,
+                from_chat_key=chat_key,
+            )
             ret_list.append(
                 ChatMessageSegmentFile(
                     type=ChatMessageSegmentType.FILE,
@@ -87,7 +92,7 @@ async def convert_chat_message(
                 suffix = ""
             if "url" in seg.data:
                 remote_url: str = seg.data["url"]
-                local_path, file_name = await download_file(remote_url, use_suffix=suffix)
+                local_path, file_name = await download_file(remote_url, use_suffix=suffix, from_chat_key=chat_key)
                 ret_list.append(
                     ChatMessageSegmentImage(
                         type=ChatMessageSegmentType.IMAGE,
@@ -101,7 +106,7 @@ async def convert_chat_message(
                 seg_local_path = seg.data["file"]
                 if seg_local_path.startswith("file:"):
                     seg_local_path = seg_local_path[len("file:") :]
-                local_path, file_name = await move_to_upload_dir(seg_local_path, use_suffix=suffix)
+                local_path, file_name = await move_to_upload_dir(seg_local_path, use_suffix=suffix, from_chat_key=chat_key)
                 ret_list.append(
                     ChatMessageSegmentImage(
                         type=ChatMessageSegmentType.IMAGE,

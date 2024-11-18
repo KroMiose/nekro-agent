@@ -39,6 +39,7 @@ EXEC_SCRIPT = f"""
 rm -f {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
 cp {CONTAINER_SHARE_DIR}/{CODE_FILENAME} {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
 cp {CONTAINER_SHARE_DIR}/{API_CALLER_FILENAME} {CONTAINER_WORK_DIR}/{RUN_API_CALLER_FILENAME} &&
+export MPLCONFIGDIR=/app/tmp/matplotlib &&
 python {RUN_CODE_FILENAME}
 if [ $? -ne 0 ]; then
     echo "{CODE_RUN_ERROR_FLAG}"
@@ -121,7 +122,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
             "HostConfig": {
                 "Binds": [
                     f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
-                    f"{USER_UPLOAD_DIR}:{CONTAINER_UPLOAD_DIR}:ro",
+                    f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
                 ],
                 "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
                 "NanoCPUs": 1000000000,  # CPU 限制 (1 core)

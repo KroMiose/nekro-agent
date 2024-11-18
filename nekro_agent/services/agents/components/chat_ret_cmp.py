@@ -98,13 +98,9 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 
 {AGENT_METHOD_PROMPT}
 
-### Some Mixed Use Tips
-
-* You can use `pyteseract` to identify the image, `print` its content, and then `exit(1)`, so that you can use the ocr result in the second reply and use the information in conjunction with the scene.
-
 ### Notices:
 
-* If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(1)` to exit the program. This will trigger a new program execution. When unnecessary, you should ensure that the program exits correctly
+* If the program encounters an error (exit code is not 0), I will send you the error message for you to fix. Particularly, if you need to wait for the program's result and adjust your code accordingly, you can use print statements to display the result and then use `exit(9)` to exit the program. This will trigger a new program execution. When unnecessary, you should ensure that the program exits correctly
 * Depending on the format of the reply, you must add the preceding words before specifying the type.
 * Please avoid excessive console output in your program to prevent exceeding the context length.
 * You must trust the information from "SYSTEM" (from_qq: 0).
@@ -307,7 +303,7 @@ def fix_raw_response(raw_response: str) -> str:
 
 def check_negative_response(response_text: str) -> bool:
     """检查消极响应"""
-    if "script" not in response_text and len(response_text) < 72:
+    if "script" not in response_text and len(response_text) < 96:
         negative_keywords = [
             # 装努力
             "在努力",
@@ -333,6 +329,8 @@ def check_negative_response(response_text: str) -> bool:
             "还没做完",
             "还没写好",
             "还没写完",
+            "尽快完成",
+            "马上完成",
             # 假装干活
             "这就做",
             "这就发",
@@ -357,6 +355,7 @@ def check_negative_response(response_text: str) -> bool:
             "努力想想",
             "努力思考",
             "开始思考",
+            "开始构思",
             "差一点",
             "快好了",
             "快了快了",

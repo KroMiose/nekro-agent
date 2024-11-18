@@ -107,7 +107,10 @@ async def get_user_avatar(user_qq: str, _ctx: AgentCtx) -> str:
         str: 头像文件路径
     """
     try:
-        file_path, file_name = await download_file(f"https://q1.qlogo.cn/g?b=qq&nk={user_qq}&s=640")
+        file_path, file_name = await download_file(
+            f"https://q1.qlogo.cn/g?b=qq&nk={user_qq}&s=640",
+            from_chat_key=_ctx.from_chat_key,
+        )
         return str(convert_file_name_to_container_path(file_name))
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e

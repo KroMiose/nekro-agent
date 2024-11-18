@@ -39,3 +39,8 @@ def __extension_method_proxy(method: Callable):
         raise Exception(f"Extension call failed: {response.status_code}")
 
     return acutely_call_method
+
+
+# def code_interrupt(reason: str):
+#     print(f'The code has been interrupted due to "{reason}", This is a manually generated error because')
+#     exit(1)

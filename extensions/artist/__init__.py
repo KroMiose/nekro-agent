@@ -52,5 +52,5 @@ async def draw_image(scene_description: str, img_size: Tuple, _ctx: AgentCtx) ->
     logger.info(f"正在绘制图像: {scene_description}")
     prompts, negative_prompts = await gen_sd_prompt_by_scene(scene_description)
     bytes_data: bytes = await text2img(prompts, negative_prompts, img_size[0], img_size[1])
-    file_path, file_name = await download_file_from_bytes(bytes_data, use_suffix=".png")
+    file_path, file_name = await download_file_from_bytes(bytes_data, use_suffix=".png", from_chat_key=_ctx.from_chat_key)
     return str(convert_file_name_to_container_path(file_name))

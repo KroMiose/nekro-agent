@@ -53,7 +53,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    content_data, msg_tome = await convert_chat_message(event, event.to_me, bot)
+    content_data, msg_tome = await convert_chat_message(event, event.to_me, bot, chat_key)
     if not content_data:  # 忽略无法转换的消息
         return
 
@@ -104,7 +104,7 @@ async def _(
     # 用户信息处理
     sender_real_nickname: Optional[str] = user.username
 
-    content_data, msg_tome = await convert_chat_message(event, False, bot)
+    content_data, msg_tome = await convert_chat_message(event, False, bot, chat_key)
     if not content_data:  # 忽略无法转换的消息
         return
 

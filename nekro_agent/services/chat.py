@@ -52,21 +52,20 @@ class ChatService:
         if isinstance(messages, str):
             messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=messages)]
 
+        file_message: List[Path] = []
         if file_mode:
-            file_message: List[Path] = []
             for agent_message in messages:
                 if agent_message.type != AgentMessageSegmentType.FILE.value:
                     raise ValueError("File mode only support file message")
                 content = agent_message.content
                 if content.startswith("./"):
                     content = content[len("./") :]
-
                 if content.startswith("/app/uploads/"):
                     content = content[len("/app/") :]
                 if content.startswith("app/uploads/"):
                     content = content[len("app/") :]
                 if content.startswith("uploads/"):
-                    real_path = Path(USER_UPLOAD_DIR) / content[len("uploads/") :]
+                    real_path = Path(USER_UPLOAD_DIR) / chat_key / content[len("uploads/") :]
                     logger.info(f"Sending agent file: {real_path}")
                     file_message.append(real_path)
                     continue
@@ -83,7 +82,7 @@ class ChatService:
                     file_message.append(real_path)
                     continue
                 if content.startswith(("http://", "https://")):
-                    file_path, _ = await download_file(content)
+                    file_path, _ = await download_file(content, from_chat_key=chat_key)
                     file_message.append(Path(file_path))
                     continue
 
@@ -103,12 +102,14 @@ class ChatService:
                             message.append(MessageSegment.at(user_id=seg.qq))
                     logger.info(f"Sending agent message: {content}")
                 elif agent_message.type == AgentMessageSegmentType.FILE.value:
+                    if content.startswith("./"):
+                        content = content[len("./") :]
                     if content.startswith("/app/uploads/"):
                         content = content[len("/app/") :]
                     if content.startswith("app/uploads/"):
                         content = content[len("app/") :]
                     if content.startswith("uploads/"):
-                        real_path = Path(USER_UPLOAD_DIR) / content[len("uploads/") :]
+                        real_path = Path(USER_UPLOAD_DIR) / chat_key / content[len("uploads/") :]
                         logger.info(f"Sending agent file: {real_path}")
                         message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
                         continue
@@ -128,7 +129,7 @@ class ChatService:
                         message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
                         continue
                     if content.startswith(("http://", "https://")):
-                        file_path, _ = await download_file(content)
+                        file_path, _ = await download_file(content, from_chat_key=chat_key)
                         message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
                         continue
 

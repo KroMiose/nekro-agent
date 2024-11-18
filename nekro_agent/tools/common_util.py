@@ -30,6 +30,7 @@ async def download_file(
     file_name: str = "",
     use_suffix: str = "",
     retry_count: int = 3,
+    from_chat_key: str = "",
 ) -> Tuple[str, str]:
     """下载文件
 
@@ -47,7 +48,10 @@ async def download_file(
             response.raise_for_status()
             if not file_path:
                 file_name = file_name or f"{hashlib.md5(response.content).hexdigest()}{use_suffix}"
-                save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+                if from_chat_key:
+                    save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+                else:
+                    save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path = str(save_path)
             Path(file_path).write_bytes(response.content)
@@ -65,6 +69,7 @@ async def download_file_from_bytes(
     file_path: str = "",
     file_name: str = "",
     use_suffix: str = "",
+    from_chat_key: str = "",
 ) -> Tuple[str, str]:
     """下载文件
 
@@ -78,7 +83,10 @@ async def download_file_from_bytes(
 
     if not file_path:
         file_name = file_name or f"{hashlib.md5(bytes_data).hexdigest()}{use_suffix}"
-        save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+        if from_chat_key:
+            save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+        else:
+            save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = str(save_path)
     Path(file_path).write_bytes(bytes_data)
@@ -91,6 +99,7 @@ async def download_file_from_base64(
     file_path: str = "",
     file_name: str = "",
     use_suffix: str = "",
+    from_chat_key: str = "",
 ) -> Tuple[str, str]:
     """下载文件(从base64字符串)
 
@@ -104,7 +113,10 @@ async def download_file_from_base64(
 
     if not file_path:
         file_name = file_name or f"{hashlib.md5(base64_str.encode()).hexdigest()}{use_suffix}"
-        save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+        if from_chat_key:
+            save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+        else:
+            save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = str(save_path)
     Path(file_path).write_bytes(base64_str.encode())
@@ -112,7 +124,12 @@ async def download_file_from_base64(
     return file_path, file_name
 
 
-async def move_to_upload_dir(file_path: str, file_name: str = "", use_suffix: str = "") -> Tuple[str, str]:
+async def move_to_upload_dir(
+    file_path: str,
+    file_name: str = "",
+    use_suffix: str = "",
+    from_chat_key: str = "",
+) -> Tuple[str, str]:
     """复制文件到上传目录
 
     Args:
@@ -124,7 +141,10 @@ async def move_to_upload_dir(file_path: str, file_name: str = "", use_suffix: st
     """
     if not file_name:
         file_name = f"{hashlib.md5(Path(file_path).read_bytes()).hexdigest()}{use_suffix}"
-    save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
+    if from_chat_key:
+        save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+    else:
+        save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
     save_path.parent.mkdir(parents=True, exist_ok=True)
     Path(save_path).write_bytes(Path(file_path).read_bytes())
     Path(save_path).chmod(0o755)
