@@ -24,10 +24,15 @@ RUN apt-get install -y libglib2.0-0
 # 安装 tesseract 用于 OCR 识别
 RUN apt-get install -y tesseract-ocr tesseract-ocr-chi-sim
 
+# 安装用于 matplotlib 绘图的依赖包
+RUN pip install -U mplfonts
+RUN mplfonts init
+
 # 清理缓存
 RUN apt-get clean
 RUN rm -rf /var/lib/apt/lists/*
 
+# 创建应用目录
 RUN mkdir -p /app && chown nobody:nogroup /app
 
 WORKDIR /app
@@ -35,6 +40,7 @@ COPY . /app
 
 RUN mkdir -p /app/shared && chown nobody:nogroup /app/shared
 
+# 安装 poetry
 RUN pip install poetry -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
 RUN poetry config virtualenvs.create false
 RUN poetry lock --no-update
