@@ -26,8 +26,11 @@ class _Config(BaseModel):
 
 if config.WEAVE_ENABLED:
     logger.info("正在连接 Weave 服务...")
-    weave.init(config.WEAVE_PROJECT_NAME)
-    logger.success("Weave 服务连接成功")
+    try:
+        weave.init(config.WEAVE_PROJECT_NAME)
+        logger.success("Weave 服务连接成功")
+    except Exception as e:
+        logger.error(f"Weave 服务连接失败: {e}")
 
 mount_routers(get_app())
 init_extensions()
