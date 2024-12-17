@@ -145,7 +145,7 @@ ok, please wait a moment, I'm trying to handle the task.
 """
 
 PRACTICE_QUESTION_2: str = """
-Invalid Response! You must respond proactively to effectively advance the task, rather than "pretend to think" or ask users to wait, because if you don't perform anything actual, the wait will never end. Try next scenario:
+Invalid Response! **YOU MUST COMPLETE THE TASK IN ONE REPLY WITH SCRIPT RESPONSE AND NEVER WAIT.** Try next scenario:
 
 Current Chat Key: group_2345678
 Current Time: 2024-08-06 09:37:22 CST Tuesday
@@ -360,6 +360,13 @@ def check_negative_response(response_text: str) -> bool:
             "努力思考",
             "开始思考",
             "开始构思",
+            "开始编写",
+            "认真思考",
+            "认真构思",
+            "认真编写",
+            "努力编写",
+            "开始画",
+            "努力画",
             "差一点",
             "快好了",
             "快了快了",

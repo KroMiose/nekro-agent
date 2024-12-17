@@ -231,6 +231,11 @@ async def agent_run(
     # 7. 执行响应结果
     logger.debug(f"开始执行 {len(resolved_response.ret_list)} 条响应结果")
     for ret_data in resolved_response.ret_list:
+        # 最终过滤一次待执行的代码
+        if ret_data.content.lower().startswith("```python"):
+            ret_data.content = ret_data.content[10:]
+        if ret_data.content.lower().endswith("```"):
+            ret_data.content = ret_data.content[:-3]
         await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
 
     # 8. 反馈与保存数据
