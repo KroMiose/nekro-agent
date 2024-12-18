@@ -4,33 +4,33 @@ import time
 from typing import List, Optional, Union
 
 import weave
-from miose_toolkit_llm import (
+
+from nekro_agent.core import logger
+from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.os_env import PROMPT_LOG_DIR
+from nekro_agent.libs.miose_llm import (
     BaseScene,
     BaseStore,
     ModelResponse,
     Runner,
 )
-from miose_toolkit_llm.clients.chat_openai import (
+from nekro_agent.libs.miose_llm.clients.chat_openai import (
     OpenAIChatClient,
 )
-from miose_toolkit_llm.components import (
+from nekro_agent.libs.miose_llm.components import (
     TextComponent,
 )
-from miose_toolkit_llm.creators.openai import (
+from nekro_agent.libs.miose_llm.creators.openai import (
     AiMessage,
     OpenAIPromptCreator,
     SystemMessage,
     UserMessage,
 )
-from miose_toolkit_llm.exceptions import (
+from nekro_agent.libs.miose_llm.exceptions import (
     ResolveError,
     SceneRuntimeError,
 )
-from miose_toolkit_llm.tools.tokenizers import TikTokenizer
-
-from nekro_agent.core import logger
-from nekro_agent.core.config import ModelConfigGroup, config
-from nekro_agent.core.os_env import PROMPT_LOG_DIR
+from nekro_agent.libs.miose_llm.tools.tokenizers import TikTokenizer
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage

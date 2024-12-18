@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.3.17"
+version = "0.3.18"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -30,7 +30,6 @@ bcrypt = "^4.2.0"
 toml = "^0.10.2"
 
 miose-toolkit-common = "^0.3.7"
-miose-toolkit-llm = "^0.0.2"
 miose-toolkit-logger = "^0.0.7"
 miose-toolkit-db = "^0.2.2"
 weave = "^0.51.19"

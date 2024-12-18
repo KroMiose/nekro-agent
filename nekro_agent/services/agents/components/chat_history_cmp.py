@@ -2,11 +2,10 @@ import json
 import time
 from typing import List
 
-from miose_toolkit_llm import BaseStore
-from miose_toolkit_llm.components import BaseComponent
-from miose_toolkit_llm.scene import BaseScene
-
 from nekro_agent.core import config
+from nekro_agent.libs.miose_llm import BaseStore
+from nekro_agent.libs.miose_llm.components import BaseComponent
+from nekro_agent.libs.miose_llm.scene import BaseScene
 from nekro_agent.models.db_chat_message import DBChatMessage
 
 

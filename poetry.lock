@@ -1605,22 +1605,6 @@ pymysql = ">=1.1.0,<2.0.0"
 sqlalchemy = ">=2.0.23,<3.0.0"
 
 [[package]]
-name = "miose-toolkit-llm"
-version = "0.0.2"
-description = "Miose Toolkit 大语言模型模块"
-optional = false
-python-versions = "<3.12,>=3.8"
-files = [
-    {file = "miose_toolkit_llm-0.0.2-py3-none-any.whl", hash = "sha256:b967445dbf1ae57a71efa71dba7c65ea125d6f0004e1bed438c48fedb4bec346"},
-    {file = "miose_toolkit_llm-0.0.2.tar.gz", hash = "sha256:96d45101078d55987075d89d784feb14b582d1578d7165876d7e53a5946234c8"},
-]
-
-[package.extras]
-all = ["openai (>=0.27.0,<2.0.0)", "tiktoken (>=0.6.0,<1.0.0)"]
-openai = ["openai (>=0.27.0,<2.0.0)"]
-tiktoken = ["tiktoken (>=0.6.0,<1.0.0)"]
-
-[[package]]
 name = "miose-toolkit-logger"
 version = "0.0.7"
 description = "Miose Toolkit 日志模块"
@@ -4209,4 +4193,4 @@ test = ["big-O", "importlib-resources", "jaraco.functools", "jaraco.itertools", 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "99bd16ddcd139f2caf94da47d93dcdaff7314f4cf36cfa4692b85210e8cd9eb2"
+content-hash = "8a84372df4813b018e309b2805a08ca864f11606891aa1f99a3993b016e1f2eb"

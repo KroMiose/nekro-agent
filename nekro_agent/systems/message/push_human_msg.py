@@ -4,7 +4,7 @@ import time
 from contextlib import suppress
 from typing import Dict
 
-from miose_toolkit_llm.exceptions import ResolveError
+from nekro_agent.libs.miose_llm.exceptions import ResolveError
 
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_channel import DBChatChannel

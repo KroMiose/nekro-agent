@@ -2,10 +2,10 @@ import re
 from enum import Enum
 from typing import Any, Coroutine, List
 
-from miose_toolkit_llm.components import BaseComponent
 from pydantic import BaseModel
 
 from nekro_agent.core import config, logger
+from nekro_agent.libs.miose_llm.components import BaseComponent
 from nekro_agent.tools.collector import agent_collector
 
 REPLY_INSTRUCTION: str = """
@@ -109,6 +109,7 @@ Attention: The marking of one-time codes is only valid within the "<" and ">" ra
 * Your job is not just to guess what follows, but to effectively use your professional knowledge and code execution capabilities to effectively complete the tasks proposed by users.
 * Your reply must be consistent with the character setting and effectively promote the conversation. Do not send repeated or empty content.
 * You need to carefully understand the above chat history and don't repeatedly reply to messages you have already replied to.
+* You must not use placeholders or omit expressions when writing any content.
 * All your messages will be used directly for code execution or chat replies. Please do not generate any out-of-scene responses.
 * When your program doesn't work properly, you need to actively adjust your strategy to find other solutions and avoid running the wrong program again.
 * 除非特殊要求，你应该尽可能用中文回复！
@@ -335,6 +336,10 @@ def check_negative_response(response_text: str) -> bool:
             "还没写完",
             "尽快完成",
             "马上完成",
+            "正在努力",
+            "努力思考",
+            "努力构思",
+            "努力编写",
             # 假装干活
             "这就做",
             "这就发",
@@ -361,6 +366,8 @@ def check_negative_response(response_text: str) -> bool:
             "开始思考",
             "开始构思",
             "开始编写",
+            "开始写作",
+            "开始在",
             "认真思考",
             "认真构思",
             "认真编写",
@@ -368,6 +375,8 @@ def check_negative_response(response_text: str) -> bool:
             "开始画",
             "努力画",
             "差一点",
+            "快写好",
+            "快写完",
             "快好了",
             "快了快了",
             "快画好",

@@ -1,6 +1,6 @@
 from typing import Dict, List
 
-from miose_toolkit_llm.clients.chat_openai import (
+from nekro_agent.libs.miose_llm.clients.chat_openai import (
     gen_openai_chat_response,
     set_openai_base_url,
 )
