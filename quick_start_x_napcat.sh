@@ -104,12 +104,9 @@ echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查�
 
 # 提示用户修改配置文件
 CONFIG_FILE="${APP_DIR}/configs/config.dev.yaml"
+echo "NekroAgent 应用本体安装完成！"
+
+echo "请使用 `sudo docker logs napcat` 查看机器人 QQ 账号二维码"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "\`sudo docker restart nekro_agent\`"
-
-# 提示用户连接协议端
-echo "请使用 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式。"
-echo "示例 WebSocket 反向连接地址: ws://127.0.0.1:8021/onebot/v11/ws"
-
-echo "安装完成！"
+echo "  \`sudo docker restart nekro_agent\`"

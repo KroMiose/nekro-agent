@@ -67,8 +67,19 @@
 
 ```bash
 export BOT_QQ=XXXXXXXXX    # 这里替换为你想用来登录机器人的 QQ 账号
+```
+
+```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start_x_napcat.sh)"
 ```
+
+运行后根据终端引导进行操作，随后使用以下命令查看 Napcat 的登录二维码
+
+```bash
+sudo docker logs napcat
+```
+
+用手机登录机器人 QQ 号，扫码确认登录即可
 
 ### 🚀 方式二: NekroAgent 一键部署脚本 (不含协议端)
 
@@ -78,9 +89,9 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
 ```
 
-## ⚙️ 配置必要信息
+## ⚙️ 配置文件
 
-使用 `vim` 编辑配置文件
+使用 `vim` 编辑配置文件填写必要信息
 
 ```bash
 vim ${HOME}/srv/nekro_agent/configs/config.dev.yaml
