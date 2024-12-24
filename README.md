@@ -65,15 +65,19 @@
 
 > 该安装方式为集成 Napcat 协议端的自动化部署版本，一行命令即可快速拉起完整服务
 
+设置机器人 QQ 账号
+
 ```bash
 export BOT_QQ=XXXXXXXXX    # 这里替换为你想用来登录机器人的 QQ 账号
 ```
+
+运行一键安装脚本
 
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start_x_napcat.sh)"
 ```
 
-运行后根据终端引导进行操作，随后使用以下命令查看 Napcat 的登录二维码
+根据终端引导进行操作，随后使用以下命令查看 Napcat 的登录二维码
 
 ```bash
 sudo docker logs napcat
@@ -83,11 +87,13 @@ sudo docker logs napcat
 
 ### 🚀 方式二: NekroAgent 一键部署脚本 (不含协议端)
 
-> 该安装方式为仅包含 NekroAgent 本体和必要运行组件的安装方式，需要另外连接 OneBot V11 协议实现端即可工作
+> 该安装方式仅包含 NekroAgent 本体和必要运行组件，需要使用任意 OneBot V11 协议实现端连接即可工作
 
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
 ```
+
+使用任意 OneBot V11 协议端连接: `ws://<你的服务ip>:8021/onebot/v11/ws`
 
 ## ⚙️ 配置文件
 
@@ -143,7 +149,7 @@ EXTENSION_MODULES:
   - extensions.artist # 艺术扩展 (提供 AI 绘图能力 需要配置 Stable Diffusion 后端 API 地址)
 ```
 
-完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
+> 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
 
 ## 🆙 更新应用
 
