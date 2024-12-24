@@ -1,0 +1,68 @@
+# 请先运行 `export BOT_QQ=你的 QQ 账号` 设定机器人 QQ 号
+# 然后运行 `export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent` 设定数据目录
+# 然后运行 `sudo -E docker-compose up -d` 启动服务
+
+version: "3"
+
+services:
+  # PostgreSQL 服务
+  nekro_postgres:
+    image: postgres:14
+    container_name: nekro_postgres
+    environment:
+      POSTGRES_USER: nekro_agent
+      POSTGRES_PASSWORD: nekro_agent
+      POSTGRES_DB: nekro_agent
+    ports:
+      - "5432:5432"
+    volumes:
+      - nekro_postgres_data:/var/lib/postgresql/data
+    networks:
+      - nekro_network
+    restart: unless-stopped
+
+  # 主服务
+  nekro_agent:
+    image: kromiose/nekro-agent:latest
+    container_name: nekro_agent
+    environment:
+      - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
+      - NEKRO_POSTGRES_HOST=nekro_postgres
+      - NEKRO_POSTGRES_PORT=5432
+      - NEKRO_POSTGRES_USER=nekro_agent
+      - NEKRO_POSTGRES_PASSWORD=nekro_agent
+      - NEKRO_POSTGRES_DATABASE=nekro_agent
+      - NEKRO_RUN_IN_DOCKER=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${NEKRO_DATA_DIR}:${NEKRO_DATA_DIR}:rw
+    depends_on:
+      - nekro_postgres
+    ports:
+      - "8021:8021"
+    networks:
+      - nekro_network
+    restart: unless-stopped
+
+  # Napcat 服务
+  napcat:
+    image: mlikiowa/napcat-docker
+    container_name: napcat
+    environment:
+      - ACCOUNT=${BOT_QQ}
+      - WSR_ENABLE=true
+      - WS_URLS=["ws://nekro_agent:8021/onebot/v11/ws"]
+    ports:
+      - "6099:6099"
+    volumes:
+      - ${NEKRO_DATA_DIR}:/app/nekro_agent_data
+    networks:
+      - nekro_network
+    restart: unless-stopped
+
+volumes:
+  nekro_postgres_data:
+
+networks:
+  nekro_network:
+    driver: bridge
