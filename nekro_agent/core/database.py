@@ -42,7 +42,10 @@ async def init_db():
         modules={"models": ["nekro_agent.models"]},  # 加载模型
     )
     # 生成数据库表
-    await Tortoise.generate_schemas()
+    try:
+        await Tortoise.generate_schemas()
+    except Exception:
+        logger.error("初始化数据表失败，如果应用行为异常，请使用 `/nekro_db_reset -y` 重建数据表")
     DB_INITED = True
     logger.success("Database initialized")
 
