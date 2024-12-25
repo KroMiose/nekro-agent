@@ -3,10 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from nekro_agent import config, logger
-from nekro_agent.models import database_init
 from nekro_agent.routers import mount_routers
-
-database_init()
 
 app = FastAPI(
     title="Nekro agent Service",
@@ -42,7 +39,7 @@ app.add_event_handler("shutdown", shutdown_event)
 def start():
     uvicorn.run(
         "nekro_agent.app:app",
-        host=config.APP_HOST,
-        port=config.APP_PORT,
+        host=config.APP_HOST, # type: ignore
+        port=config.APP_PORT, # type: ignore
         log_level=config.UVICORN_LOG_LEVEL.lower(),
     )

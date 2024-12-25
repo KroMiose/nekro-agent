@@ -76,6 +76,7 @@ def segments_from_list(data: List[Dict]) -> List[ChatMessageSegment]:
 
 
 class ChatMessage(BaseModel):
+    message_id: str  # 消息的平台 ID
     sender_id: int  # 发送者人平台 id
     sender_real_nickname: str  # 发送者原始昵称
     sender_nickname: str  # 发送者会话昵称

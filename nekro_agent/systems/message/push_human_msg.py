@@ -1,12 +1,12 @@
 import asyncio
+import datetime
 import re
 import time
 from contextlib import suppress
 from typing import Dict
 
-from nekro_agent.libs.miose_llm.exceptions import ResolveError
-
 from nekro_agent.core import config, logger
+from nekro_agent.libs.miose_llm.exceptions import ResolveError
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -48,23 +48,27 @@ async def push_human_chat_message(message: ChatMessage):
 
     content_data = [o.model_dump() for o in message.content_data]
 
+    # 确保时间戳是 naive datetime
+    current_time = datetime.datetime.fromtimestamp(message.send_timestamp)
+    if current_time.tzinfo is not None:
+        current_time = current_time.replace(tzinfo=None)
+
     # 添加聊天记录
-    DBChatMessage.add(
-        data={
-            DBChatMessage.sender_id: message.sender_id,
-            DBChatMessage.sender_bind_qq: message.sender_bind_qq,
-            DBChatMessage.sender_real_nickname: message.sender_real_nickname,
-            DBChatMessage.sender_nickname: message.sender_nickname,
-            DBChatMessage.is_tome: message.is_tome,
-            DBChatMessage.is_recalled: message.is_recalled,
-            DBChatMessage.chat_key: message.chat_key,
-            DBChatMessage.chat_type: message.chat_type,
-            DBChatMessage.content_text: message.content_text,
-            DBChatMessage.content_data: content_data,
-            DBChatMessage.raw_cq_code: message.raw_cq_code,
-            DBChatMessage.ext_data: message.ext_data,
-            DBChatMessage.send_timestamp: message.send_timestamp,
-        },
+    await DBChatMessage.create(
+        message_id=message.message_id,
+        sender_id=message.sender_id,
+        sender_bind_qq=message.sender_bind_qq,
+        sender_real_nickname=message.sender_real_nickname,
+        sender_nickname=message.sender_nickname,
+        is_tome=message.is_tome,
+        is_recalled=message.is_recalled,
+        chat_key=message.chat_key,
+        chat_type=message.chat_type,
+        content_text=message.content_text,
+        content_data=content_data,
+        raw_cq_code=message.raw_cq_code,
+        ext_data=message.ext_data,
+        send_timestamp=int(current_time.timestamp()),  # 使用处理后的时间戳
     )
 
     if (
@@ -73,7 +77,7 @@ async def push_human_chat_message(message: ChatMessage):
         or random_chat_check()  # 随机触发聊天
         or check_content_trigger(message.content_text)  # 触发词
     ):
-        db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=message.chat_key)
+        db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=message.chat_key)
         if not db_chat_channel.is_active:
             logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
             return
@@ -115,6 +119,8 @@ async def agent_task(message: ChatMessage):
     else:
         logger.error("Failed to Run Chat Agent.")
 
-    del running_chat_task_map[message.chat_key]
+
+    with suppress(KeyError):
+        del running_chat_task_map[message.chat_key]
     with suppress(KeyError):
         del running_chat_task_throttle_map[message.chat_key]

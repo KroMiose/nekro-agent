@@ -173,13 +173,11 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
         cleanup_container_shared_dir(box_last_active_time),
     )
 
-    DBExecCode.add(
-        data={
-            DBExecCode.chat_key: from_chat_key,
-            DBExecCode.code_text: code_text,
-            DBExecCode.outputs: output_text,
-            DBExecCode.success: CODE_RUN_ERROR_FLAG not in output_text,
-        },
+    await DBExecCode.create(
+        chat_key=from_chat_key,
+        code_text=code_text,
+        outputs=output_text,
+        success=CODE_RUN_ERROR_FLAG not in output_text,
     )
 
     return (

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.3.18"
+version = "0.3.20"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -28,11 +28,13 @@ psycopg2-binary = "^2.9.9"
 python-multipart = "^0.0.9"
 bcrypt = "^4.2.0"
 toml = "^0.10.2"
+weave = "^0.51.19"
+tortoise-orm = "^0.23.0"
+asyncpg = "^0.30.0"
+json5 = "^0.10.0"
 
 miose-toolkit-common = "^0.3.7"
 miose-toolkit-logger = "^0.0.7"
-miose-toolkit-db = "^0.2.2"
-weave = "^0.51.19"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"

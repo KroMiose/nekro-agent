@@ -1,29 +1,20 @@
-import datetime
-
-from miose_toolkit_db import Mapped, MappedColumn, MioModel
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
-
-from nekro_agent.core.database import orm
+from tortoise import fields
+from tortoise.models import Model
 
 
-@orm.reg_predefine_data_model(table_name="exec_code", primary_key="id")
-class DBExecCode(MioModel):
-    """数据库聊天频道模型"""
+class DBExecCode(Model):
+    """数据库执行代码模型"""
 
-    id: Mapped[int] = MappedColumn(Integer, primary_key=True, autoincrement=True, comment="ID")
+    id = fields.IntField(pk=True, generated=True, description="ID")
+    chat_key = fields.CharField(max_length=32, index=True, description="会话唯一标识")
+    trigger_user_id = fields.IntField(default=0, index=True, description="触发用户ID")
+    trigger_user_name = fields.CharField(max_length=128, default="System", description="触发用户名")
+    success = fields.BooleanField(default=False, description="是否成功")
+    code_text = fields.TextField(description="执行代码文本")
+    outputs = fields.TextField(description="输出结果")
 
-    chat_key: Mapped[str] = MappedColumn(String(32), comment="会话唯一标识", index=True)
-    trigger_user_id: Mapped[int] = MappedColumn(Integer, default=0, comment="触发用户ID", index=True)
-    trigger_user_name: Mapped[str] = MappedColumn(String(128), default="System", comment="触发用户名")
-    success: Mapped[bool] = MappedColumn(Boolean, default=False, comment="是否成功")
-    code_text: Mapped[str] = MappedColumn(Text, comment="执行代码文本")
-    outputs: Mapped[str] = MappedColumn(Text, comment="输出结果")
+    create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
+    update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
-    create_time: Mapped[datetime.datetime] = MappedColumn(DateTime, server_default=func.now(), comment="创建时间")
-    update_time: Mapped[datetime.datetime] = MappedColumn(
-        DateTime,
-        server_default=func.now(),
-        onupdate=func.now(),
-        comment="更新时间",
-        index=True,
-    )
+    class Meta:
+        table = "exec_code"

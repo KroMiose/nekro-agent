@@ -11,6 +11,7 @@ import nekro_agent.core.bot
 import nekro_agent.matchers
 from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
+from nekro_agent.core.database import init_db
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_routers
 from nekro_agent.services.extension import init_extensions
@@ -34,6 +35,11 @@ if config.WEAVE_ENABLED:
 
 mount_routers(get_app())
 init_extensions()
+
+
+@get_driver().on_startup
+async def on_startup():
+    await init_db()
 
 
 __plugin_meta__ = PluginMetadata(

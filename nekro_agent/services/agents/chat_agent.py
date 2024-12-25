@@ -78,7 +78,7 @@ async def agent_run(
     if config.DEBUG_IN_CHAT:
         await chat_service.send_message(chat_message.chat_key, "[Debug] 思考中🤔...")
 
-    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=chat_message.chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_message.chat_key)
     # logger.info(f"加载对话场景配置: {db_chat_channel.get_channel_data().render_prompt()}")
 
     # 1. 构造一个应用场景
@@ -101,29 +101,16 @@ async def agent_run(
         )
     )
     record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
-    recent_chat_messages: List[DBChatMessage] = (
-        DBChatMessage.sqa_query()
-        .filter(
-            DBChatMessage.send_timestamp >= record_sta_timestamp,
-            DBChatMessage.chat_key == chat_message.chat_key,
+    recent_chat_messages: List[DBChatMessage] = await (
+        DBChatMessage.filter(
+            send_timestamp__gte=record_sta_timestamp,
+            chat_key=chat_message.chat_key,
         )
-        .order_by(DBChatMessage.send_timestamp.desc())
+        .order_by("-send_timestamp")
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
-        .all()
-    )[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
-    # 过长的系统消息过滤，只保留指定条数
-    allow_long_system_msg_cnt = 2
-    allow_long_system_length = 128
-    for db_message in recent_chat_messages:
-        if db_message.sender_bind_qq == "0" and len(db_message.content_text) > allow_long_system_length:
-            setattr(db_message, "_mark_del", True)  # noqa: B010
-    for idx in range(len(recent_chat_messages) - 1, -1, -1):
-        if getattr(recent_chat_messages[idx], "_mark_del", False):  # noqa: B010
-            allow_long_system_msg_cnt -= 1
-            setattr(recent_chat_messages[idx], "_mark_del", False)  # noqa: B010
-            if allow_long_system_msg_cnt <= 0:
-                break
-    recent_chat_messages = [m for m in recent_chat_messages if not getattr(m, "_mark_del", False)]
+    )
+    # 反转列表顺序并确保不超过最大长度
+    recent_chat_messages = recent_chat_messages[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH:]
 
     for db_message in recent_chat_messages:
         chat_history_component.append_chat_message(db_message)

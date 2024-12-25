@@ -2,7 +2,6 @@ import os
 from typing import List, Optional, Tuple, Union
 
 from miose_toolkit_common import Env
-from miose_toolkit_db import asc, desc
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
@@ -67,11 +66,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要清空聊天记录的会话")
-    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.reset_channel()
-    query = DBChatMessage.sqa_query().filter(DBChatMessage.chat_key == target_chat_key)
-    msg_cnt = query.count()
-    query.delete()
+    query = DBChatMessage.filter(chat_key=target_chat_key)
+    msg_cnt = await query.count()
+    await query.delete()
     await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
 
 
@@ -82,7 +81,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
-    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
 
     info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
     channel_data: channelData = await db_chat_channel.get_channel_data()
@@ -118,12 +117,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if cmd_content:
         idx = int(cmd_content)
 
-    order = asc(DBExecCode.update_time) if idx > 0 else desc(DBExecCode.update_time)
+    # 使用 Tortoise ORM 的排序方式
+    if idx > 0:
+        query = DBExecCode.filter(chat_key=chat_key).order_by("update_time")
+    else:
+        query = DBExecCode.filter(chat_key=chat_key).order_by("-update_time")
 
-    exec_codes = DBExecCode.filter(conditions={DBExecCode.chat_key: chat_key}, order_by=[order], offset=abs(idx) - 1, limit=1)
-    if not exec_codes:
+    # 使用 offset 和 limit 进行分页
+    exec_code = await query.offset(abs(idx) - 1).limit(1).first()
+
+    if not exec_code:
         await finish_with(matcher, message="未找到执行记录")
-    exec_code = exec_codes[0]
+
+    assert exec_code
     await finish_with(
         matcher,
         message=f"执行记录 ({idx}):\n```python\n{exec_code.code_text}\n```\n输出: \n```\n{exec_code.outputs or '<Empty>'}\n```",
@@ -146,11 +152,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
     if target_chat_key == "*":
-        for channel in DBChatChannel.filter():
+        for channel in await DBChatChannel.all():
             await channel.set_active(True)
         await finish_with(matcher, message="已开启所有群聊的聊天功能")
         return
-    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(True)
     await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
 
@@ -163,11 +169,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
     if target_chat_key == "*":
-        for channel in DBChatChannel.filter():
+        for channel in await DBChatChannel.all():
             await channel.set_active(False)
         await finish_with(matcher, message="已关闭所有群聊的聊天功能")
         return
-    db_chat_channel: DBChatChannel = DBChatChannel.get_channel(chat_key=target_chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(False)
     await finish_with(matcher, message=f"已关闭 {target_chat_key} 的聊天功能")
 

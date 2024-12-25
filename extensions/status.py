@@ -39,12 +39,12 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
         set_effect(chat_key, "戴着帽子", "可洛喵戴着一顶可爱的帽子")  # 同时添加 "戴着帽子" 效果保持状态一致性
         ```
     """
-    db_channel: DBChatChannel = DBChatChannel.get_channel(chat_key)
+    db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
     channel_data: channelData = await db_channel.get_channel_data()
     before_status: Optional[PresetStatus] = channel_data.get_latest_preset_status()
     new_status = PresetStatus(setting_name=setting_name, description=description, translated_timestamp=int(time.time()))
     await channel_data.update_preset_status(new_status)
-    db_channel.save_channel_data(channel_data)
+    await db_channel.save_channel_data(channel_data)
 
     return (
         f"Preset status updated from `{before_status.setting_name}` to `{setting_name}` (Use `set_effect` or `remove_effect` method to maintain the scene consistency)"
@@ -69,10 +69,10 @@ async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: Ag
         # 如果 "心情愉悦" 效果已经存在，该方法将会更新它的描述
         ```
     """
-    db_channel: DBChatChannel = DBChatChannel.get_channel(chat_key)
+    db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
     channel_data: channelData = await db_channel.get_channel_data()
     await channel_data.update_preset_effect(PresetEffect.create(effect_name=effect_name, description=description))
-    db_channel.save_channel_data(channel_data)
+    await db_channel.save_channel_data(channel_data)
 
     return f"Effect `{effect_name}` added"
 
@@ -91,10 +91,10 @@ async def remove_effect(chat_key: str, effect_name: str, _ctx: AgentCtx):
             remove_effect(chat_key, "精神饱满")
             ```
     """
-    db_channel: DBChatChannel = DBChatChannel.get_channel(chat_key)
+    db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
     channel_data: channelData = await db_channel.get_channel_data()
     success: bool = await channel_data.remove_preset_effect(effect_name)
-    db_channel.save_channel_data(channel_data)
+    await db_channel.save_channel_data(channel_data)
 
     if success:
         return f"Effect `{effect_name}` removed"

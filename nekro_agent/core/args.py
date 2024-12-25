@@ -1,5 +1,6 @@
-from .utils import ArgTypes
+from .core_utils import ArgTypes
 
 
 class Args:
     LOAD_TEST: bool = ArgTypes.Bool("--load-test")
+

@@ -11,6 +11,7 @@ class OsEnv:
     """数据目录"""
     DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data")  # `~/srv/nekro_agent` In Docker
 
+
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = OsEnvTypes.Str("POSTGRES_HOST", default="localhost")
     POSTGRES_PORT: int = OsEnvTypes.Int("POSTGRES_PORT", default=5432)

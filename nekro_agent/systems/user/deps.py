@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from nekro_agent.core import config
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.http_exception import (
     credentials_exception,
@@ -25,8 +26,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(
             token,
-            config.JWT_SECRET_KEY,
-            algorithms=[config.ENCRYPT_ALGORITHM],
+            OsEnv.JWT_SECRET_KEY,
+            algorithms=[OsEnv.ENCRYPT_ALGORITHM],
         )
         username: str | None = payload.get("sub")
         if username is None:
@@ -34,7 +35,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username)
     except JWTError as e:
         raise credentials_exception from e
-    user = DBUser.get_by_field(field=DBUser.username, value=token_data.username)
+    user = await DBUser.get_or_none(username=token_data.username)
     if user is None:
         raise credentials_exception
     return user
@@ -46,7 +47,7 @@ async def get_current_active_user(
     """获取当前激活用户"""
 
     expiration_time = current_user.login_time + timedelta(
-        minutes=config.ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60,
+        minutes=OsEnv.ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60,
     )
 
     if expiration_time < datetime.now():  # type: ignore

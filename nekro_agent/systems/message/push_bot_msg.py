@@ -21,22 +21,21 @@ async def push_bot_chat_message(chat_key: str, agent_messages: Union[str, List[A
     send_timestamp = int(time.time())
     content_text = convert_agent_message_to_prompt(agent_messages)
 
-    DBChatMessage.add(
-        data={
-            DBChatMessage.sender_id: -1,
-            DBChatMessage.sender_bind_qq: config.BOT_QQ or "0",
-            DBChatMessage.sender_real_nickname: config.AI_CHAT_PRESET_NAME,
-            DBChatMessage.sender_nickname: config.AI_CHAT_PRESET_NAME,
-            DBChatMessage.is_tome: 0,
-            DBChatMessage.is_recalled: False,
-            DBChatMessage.chat_key: chat_key,
-            DBChatMessage.chat_type: ChatType.from_chat_key(chat_key).value,
-            DBChatMessage.content_text: content_text,
-            DBChatMessage.content_data: [],
-            DBChatMessage.raw_cq_code: "",
-            DBChatMessage.ext_data: {},
-            DBChatMessage.send_timestamp: send_timestamp,
-        },
+    await DBChatMessage.create(
+        message_id="",
+        sender_id=-1,
+        sender_bind_qq=config.BOT_QQ or "0",
+        sender_real_nickname=config.AI_CHAT_PRESET_NAME,
+        sender_nickname=config.AI_CHAT_PRESET_NAME,
+        is_tome=0,
+        is_recalled=False,
+        chat_key=chat_key,
+        chat_type=ChatType.from_chat_key(chat_key).value,
+        content_text=content_text,
+        content_data=[],
+        raw_cq_code="",
+        ext_data={},
+        send_timestamp=send_timestamp,
     )
 
 
@@ -50,20 +49,19 @@ async def push_system_message(chat_key: str, agent_messages: Union[str, List[Age
     send_timestamp = int(time.time())
     content_text = convert_agent_message_to_prompt(agent_messages)
 
-    DBChatMessage.add(
-        data={
-            DBChatMessage.sender_id: -1,
-            DBChatMessage.sender_bind_qq: "0",
-            DBChatMessage.sender_real_nickname: "SYSTEM",
-            DBChatMessage.sender_nickname: "SYSTEM",
-            DBChatMessage.is_tome: 0,
-            DBChatMessage.is_recalled: False,
-            DBChatMessage.chat_key: chat_key,
-            DBChatMessage.chat_type: ChatType.from_chat_key(chat_key).value,
-            DBChatMessage.content_text: content_text,
-            DBChatMessage.content_data: [],
-            DBChatMessage.raw_cq_code: "",
-            DBChatMessage.ext_data: {},
-            DBChatMessage.send_timestamp: send_timestamp,
-        },
+    await DBChatMessage.create(
+        message_id="",
+        sender_id=-1,
+        sender_bind_qq="0",
+        sender_real_nickname="SYSTEM",
+        sender_nickname="SYSTEM",
+        is_tome=0,
+        is_recalled=False,
+        chat_key=chat_key,
+        chat_type=ChatType.from_chat_key(chat_key).value,
+        content_text=content_text,
+        content_data=[],
+        raw_cq_code="",
+        ext_data={},
+        send_timestamp=send_timestamp,
     )

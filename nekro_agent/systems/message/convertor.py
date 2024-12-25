@@ -1,6 +1,6 @@
-import json
-from typing import List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union, cast
 
+import json5
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
@@ -32,7 +32,7 @@ async def convert_chat_message(
     msg_to_me: bool,
     bot: Bot,  # noqa: ARG001
     chat_key: str,  # noqa: ARG001
-) -> Tuple[List[ChatMessageSegment], bool]:
+) -> Tuple[List[ChatMessageSegment], bool, str]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
     Args:
@@ -40,6 +40,8 @@ async def convert_chat_message(
 
     Returns:
         List[ChatMessageSegment]: ChatMessageSegment 列表
+        bool: 是否为机器人发送的消息
+        str: 消息 ID
     """
 
     ret_list: List[ChatMessageSegment] = []
@@ -48,7 +50,7 @@ async def convert_chat_message(
     if isinstance(ob_event, GroupUploadNoticeEvent):
         if ob_event.file.size > config.MAX_UPLOAD_SIZE_MB * 1024 * 1024:
             logger.warning(f"文件过大，跳过处理: {ob_event.file.name}")
-            return ret_list, False
+            return ret_list, False, ""
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
             local_path, file_name = await download_file(
@@ -66,9 +68,10 @@ async def convert_chat_message(
                 ),
             )
 
-        return ret_list, False
+        return ret_list, False, ""
 
     ob_message: Message = ob_event.message
+    message_id: str = str(ob_event.message_id)
 
     for seg in ob_message:
         if seg.type == "text":
@@ -154,7 +157,7 @@ async def convert_chat_message(
             ),
         )
 
-    return ret_list, is_tome
+    return ret_list, is_tome, message_id
 
 
 def convert_chat_message_to_prompt_str(chat_message: List[ChatMessageSegment], one_time_code: str) -> str:
@@ -192,4 +195,7 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str):
         str: 提示词字符串
     """
 
-    return convert_chat_message_to_prompt_str(segments_from_list(json.loads(json_data)), one_time_code)
+    return convert_chat_message_to_prompt_str(
+        segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))),
+        one_time_code,
+    )

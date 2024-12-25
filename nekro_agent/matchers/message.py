@@ -53,7 +53,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    content_data, msg_tome = await convert_chat_message(event, event.to_me, bot, chat_key)
+    content_data, msg_tome, message_id = await convert_chat_message(event, event.to_me, bot, chat_key)
     if not content_data:  # 忽略无法转换的消息
         return
 
@@ -66,6 +66,7 @@ async def _(
         return
 
     chat_message: ChatMessage = ChatMessage(
+        message_id=message_id,
         sender_id=user.id,
         sender_real_nickname=sender_real_nickname,
         sender_nickname=sender_nickname,
@@ -104,13 +105,14 @@ async def _(
     # 用户信息处理
     sender_real_nickname: Optional[str] = user.username
 
-    content_data, msg_tome = await convert_chat_message(event, False, bot, chat_key)
+    content_data, msg_tome, message_id = await convert_chat_message(event, False, bot, chat_key)
     if not content_data:  # 忽略无法转换的消息
         return
 
     sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq)
 
     chat_message: ChatMessage = ChatMessage(
+        message_id=message_id,
         sender_id=user.id,
         sender_real_nickname=sender_real_nickname,
         sender_nickname=sender_nickname,

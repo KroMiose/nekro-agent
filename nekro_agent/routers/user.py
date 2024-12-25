@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from nekro_agent import config, logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.http_exception import (
     authorization_exception,
@@ -27,7 +28,7 @@ router = APIRouter(prefix="/user", tags=["User"])
 
 @router.post("/register", summary="用户注册")
 async def register(req_data: UserCreate) -> Ret:
-    if req_data.access_key != config.SUPER_ACCESS_KEY:
+    if req_data.access_key != OsEnv.SUPER_ACCESS_KEY:
         raise authorization_exception
     try:
         await user_register(req_data)
@@ -76,7 +77,7 @@ async def delete(_id: int, current_user: DBUser = Depends(get_current_active_use
     if int(str(current_user.perm_level)) < Role.Super:
         return Ret.fail("权限不足")
     try:
-        user = DBUser.get_by_pk(_id)
+        user = await DBUser.get_or_none(id=_id)
         if user is None:
             return Ret.fail("用户不存在")
         await user_delete(user)
