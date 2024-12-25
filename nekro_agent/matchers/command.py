@@ -8,7 +8,7 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from nekro_agent.core.config import config, reload_config
+from nekro_agent.core.config import CONFIG_PATH, config, reload_config, save_config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -178,25 +178,28 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"已关闭 {target_chat_key} 的聊天功能")
 
 
-@on_command("config_show", priority=5, block=True).handle()
+@on_command("conf_show", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if not cmd_content:
         modifiable_config_key: List[str] = []
-        for _key, _value in config.dump_config_template().items():
+        for _key, _value in config.model_dump().items():
             if isinstance(_value, (int, float, bool, str)):
                 modifiable_config_key.append(_key)
         sep = "\n"
-        await finish_with(matcher, message=f"当前支持动态修改配置：\n{sep.join([f'- {k}' for k in modifiable_config_key])}")
+        await finish_with(
+            matcher,
+            message=f"当前支持动态修改配置：\n{sep.join([f'- {k} ({str(type(getattr(config, k)))[8:-2]})' for k in modifiable_config_key])}",
+        )
     else:
-        if config.dump_config_template().get(cmd_content):
+        if config.model_dump().get(cmd_content):
             await finish_with(matcher, message=f"当前配置：\n{cmd_content}={getattr(config, cmd_content)}")
         else:
             await finish_with(matcher, message=f"未知配置 `{cmd_content}`")
 
 
-@on_command("config_set", priority=5, block=True).handle()
+@on_command("conf_set", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -204,10 +207,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         key, value = cmd_content.strip().split("=", 1)
         assert key and value
     except ValueError:
-        await finish_with(matcher, message="参数错误，请使用 `config_set key=value` 的格式")
+        await finish_with(matcher, message="参数错误，请使用 `conf_set key=value` 的格式")
         return
 
-    if config.dump_config_template().get(key):
+    if config.model_dump().get(key) is not None:
         _c_type = type(getattr(config, key))
         _c_value = getattr(config, key)
         if isinstance(_c_value, (int, float)):
@@ -228,26 +231,28 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message=f"未知配置: `{key}`")
 
 
-@on_command("config_reload", priority=5, block=True).handle()
+@on_command("conf_reload", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    await finish_with(matcher, message="功能未实现")
     try:
-        config.dump_config(envs=[Env.Default.value])
+        reload_config()
+    except Exception as e:
+        await finish_with(matcher, message=f"重载配置失败：{e}")
+    else:
+        await finish_with(matcher, message="重载配置成功")
+
+
+@on_command("conf_save", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    try:
+        save_config()
     except Exception as e:
         await finish_with(matcher, message=f"保存配置失败：{e}")
     else:
-        await finish_with(matcher, message="已保存配置")
-
-
-@on_command("config_save", priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    await finish_with(matcher, message="功能未实现")
-    reload_config()
-    await finish_with(matcher, message="重载配置成功")
+        await finish_with(matcher, message="保存配置成功")
 
 
 @on_command("docker_restart", priority=5, block=True).handle()
@@ -319,6 +324,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "system <message>: 发送系统消息\n"
             "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
+            "conf_show <key?>: 查看配置列表/配置值\n"
+            "conf_set <key=value>: 修改配置\n"
+            "conf_reload: 重载配置\n"
+            "conf_save: 保存配置\n"
             "注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"

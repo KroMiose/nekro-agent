@@ -102,10 +102,10 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 使用 `vim` 编辑配置文件填写必要信息
 
 ```bash
-vim ${HOME}/srv/nekro_agent/configs/config.dev.yaml
+vim ${HOME}/srv/nekro_agent/configs/nekro-agent.yaml
 ```
 
-编辑配置文件 `configs/nekro-agent/config.dev.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html)
+编辑配置文件 `configs/nekro-agent/nekro-agent.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html)
 
 
 ```yaml

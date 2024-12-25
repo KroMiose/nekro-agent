@@ -1,19 +1,14 @@
 from pathlib import Path
 from typing import Dict, List, Literal, Optional
 
-import miose_toolkit_common.config
-from miose_toolkit_common.config import Config, Env
-from pydantic import BaseModel
-
+from .core_utils import ConfigBase
 from .os_env import OsEnv
 
-if OsEnv.DATA_DIR:
-    miose_toolkit_common.config._config_root = OsEnv.DATA_DIR / Path("configs")  # noqa: SLF001
-else:
-    miose_toolkit_common.config._config_root = Path("configs/nekro-agent")  # noqa: SLF001
+CONFIG_PATH = Path(OsEnv.DATA_DIR) / "configs" / "nekro-agent.yaml"
+CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
-class ModelConfigGroup(BaseModel):
+class ModelConfigGroup(ConfigBase):
     """模型配置组"""
 
     CHAT_MODEL: str = ""  # 聊天模型名称
@@ -22,7 +17,7 @@ class ModelConfigGroup(BaseModel):
     API_KEY: str = ""  # 聊天模型API密钥
 
 
-class PluginConfig(Config):
+class PluginConfig(ConfigBase):
     """插件配置"""
 
     """应用配置"""
@@ -100,10 +95,18 @@ class PluginConfig(Config):
     WEAVE_PROJECT_NAME: str = "nekro-agent"  # Weave 项目名称
 
 
-config = PluginConfig().load_config(create_if_not_exists=True)
-config.dump_config(envs=[Env.Default.value])
+config = PluginConfig.load_config(file_path=CONFIG_PATH)
+config.dump_config(file_path=CONFIG_PATH)
+
+
+def save_config():
+    global config
+    config.dump_config(file_path=CONFIG_PATH)
 
 
 def reload_config():
     global config
-    config = PluginConfig().load_config(create_if_not_exists=False)
+    new_config = PluginConfig.load_config(file_path=CONFIG_PATH)
+    # 更新现有config实例的所有属性
+    for key, value in new_config.model_dump().items():
+        setattr(config, key, value)

@@ -2,7 +2,7 @@ import contextlib
 import subprocess
 from pathlib import Path
 
-from .utils import OsEnvTypes
+from .core_utils import OsEnvTypes
 
 
 class OsEnv:
@@ -10,7 +10,6 @@ class OsEnv:
 
     """数据目录"""
     DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data")  # `~/srv/nekro_agent` In Docker
-
 
     """Postgres 数据库配置"""
     POSTGRES_HOST: str = OsEnvTypes.Str("POSTGRES_HOST", default="localhost")

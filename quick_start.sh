@@ -103,7 +103,7 @@ fi
 echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
-CONFIG_FILE="${APP_DIR}/configs/config.dev.yaml"
+CONFIG_FILE="${APP_DIR}/configs/nekro-agent.yaml"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
 echo "\`sudo docker restart nekro_agent\`"

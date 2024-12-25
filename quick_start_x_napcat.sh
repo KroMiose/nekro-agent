@@ -103,7 +103,7 @@ fi
 echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
-CONFIG_FILE="${APP_DIR}/configs/config.dev.yaml"
+CONFIG_FILE="${APP_DIR}/configs/nekro-agent.yaml"
 echo "NekroAgent 应用本体安装完成！"
 
 echo "请使用 `sudo docker logs napcat` 查看机器人 QQ 账号二维码"
