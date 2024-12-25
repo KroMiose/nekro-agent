@@ -9,6 +9,7 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
 from nekro_agent.core.config import CONFIG_PATH, config, reload_config, save_config
+from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -255,38 +256,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="保存配置成功")
 
 
-@on_command("docker_restart", priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    if not OsEnv.RUN_IN_DOCKER:
-        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
-
-    container_name: str = cmd_content or "nekro_agent"
-    os.system(f"docker restart {container_name}")
-
-
-@on_command("docker_logs", priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    if not OsEnv.RUN_IN_DOCKER:
-        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
-
-    lines_limit: int = 100
-    container_name: str = cmd_content or "nekro_agent"
-    logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
-    await finish_with(matcher, message=f"容器日志: \n{logs}")
-
-
-@on_command("sh", priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    outputs = os.popen(cmd_content).read()
-    await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
-
-
 @on_command("na_info", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -334,3 +303,49 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "Github: https://github.com/KroMiose/nekro-agent\n"
         ).strip(),
     )
+
+
+# ! 高风险命令
+
+
+@on_command("docker_restart", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    container_name: str = cmd_content or "nekro_agent"
+    os.system(f"docker restart {container_name}")
+
+
+@on_command("docker_logs", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    lines_limit: int = 100
+    container_name: str = cmd_content or "nekro_agent"
+    logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
+    await finish_with(matcher, message=f"容器日志: \n{logs}")
+
+
+@on_command("sh", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    outputs = os.popen(cmd_content).read()
+    await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
+
+
+@on_command("nekro_db_reset", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if "-y" in cmd_content:
+        await reset_db()
+        await finish_with(matcher, message="数据库重置完成")
+    else:
+        await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")

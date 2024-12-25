@@ -49,5 +49,16 @@ async def init_db():
 
 async def reset_db():
     """重置数据库"""
-    await Tortoise._drop_databases()  # noqa: SLF001
+    await Tortoise.close_connections()
+
+    # 替换 Tortoise._drop_databases() 为清空表操作
+    conn = Tortoise.get_connection("default")
+    # 获取所有表名
+    tables = await conn.execute_query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+
+    # 依次清空所有表
+    for table in tables[1]:
+        await conn.execute_query(f'TRUNCATE TABLE "{table[0]}" CASCADE')
+
     await Tortoise.generate_schemas()
+    logger.success("Database reset")
