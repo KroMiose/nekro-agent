@@ -128,13 +128,6 @@ MODEL_GROUPS: # 模型组配置项: 默认预置了 Nekro 中转站和 OpenAI �
     BASE_URL: https://api.openai.com/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 请替换为你的 OpenAI 官方 API Key
 
-# Postgresql 数据库配置 (Docker 部署时无需配置)
-POSTGRES_HOST: 127.0.0.1
-POSTGRES_PORT: 5432
-POSTGRES_USER: db_username
-POSTGRES_PASSWORD: db_password
-POSTGRES_DATABASE: nekro_agent
-
 # 自定义人设 (可选)
 AI_CHAT_PRESET_NAME: 可洛喵
 AI_CHAT_PRESET_SETTING:
