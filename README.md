@@ -65,25 +65,27 @@
 
 > 该安装方式为集成 Napcat 协议端的自动化部署版本，一行命令即可快速拉起完整服务
 
-设置机器人 QQ 账号
-
-```bash
-export BOT_QQ=XXXXXXXXX    # 这里替换为你想用来登录机器人的 QQ 账号
-```
-
 运行一键安装脚本
 
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start_x_napcat.sh)"
 ```
 
-根据终端引导进行操作，随后使用以下命令查看 Napcat 的登录二维码
+根据终端引导进行操作，随后使用以下命令查看 Napcat 的 WebUI 地址
 
 ```bash
-sudo docker logs napcat
+sudo docker logs napcat | grep "WebUi Local Panel Url"
 ```
 
-用手机登录机器人 QQ 号，扫码确认登录即可
+从输出中找到 Napcat 的 WebUI 地址，例如 `http://127.0.0.1:6099/webui?token=3rxxxxxxx3b`
+
+登录 Napcat 的 WebUI (注意: 需要在服务器后台放行 6099 端口，并将 `127.0.0.1` 替换为你的服务器 IP 地址)
+
+在 `网络配置` 选项卡中选择 `添加配置` 选择 `Websocket 客户端` 类型，按照下图填写配置并确认
+
+![napcat_webui](./images/README/napcat_webui.png)
+
+随后在 `日志查看` 选项卡中查看 Napcat 的登录二维码并扫描进行登陆即可
 
 ### 🚀 方式二: NekroAgent 一键部署脚本 (不含协议端)
 
