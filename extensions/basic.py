@@ -50,18 +50,8 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
     """
     global SEND_MSG_CACHE
 
-    err_calling = [f"{m.__name__}" for m in agent_collector.get_all_methods()]
-    for keyword in err_calling:
-        if keyword in message:
-            raise Exception(
-                f"Incorrect usage of `{keyword}` in this message. If you need to call a method, please use in `script:>` response but not send it as a message.",
-            )
-
     if message in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
         return
-        raise Exception(
-            f'You have sent the same message "{message}" in the last 10 seconds. If you are debugging, please note that the code up to error occurred has already been executed. Do not execute it again. keep on your work.',
-        )
 
     message_ = [AgentMessageSegment(content=message)]
     try:

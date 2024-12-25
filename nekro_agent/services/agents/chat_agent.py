@@ -42,7 +42,6 @@ from .components.chat_history_cmp import ChatHistoryComponent
 from .components.chat_ret_cmp import (
     ChatResponseResolver,
     ChatResponseType,
-    check_missing_call_response,
     check_negative_response,
 )
 
@@ -156,10 +155,10 @@ async def agent_run(
             chat_history_component,
         ),
         *addition_prompt_message,
-        # 生成使用的参数
-        temperature=0.3,
-        presence_penalty=0.3,
-        frequency_penalty=0.4,
+        # # 文本生成使用的参数
+        # temperature=0.3,
+        # presence_penalty=0.3,
+        # frequency_penalty=0.4,
     )
 
     # 4. 绑定 LLM 执行器
@@ -191,20 +190,6 @@ async def agent_run(
     else:
         await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
-
-    # 6. 非法回复检查
-    if retry_depth < 2 and check_missing_call_response(mr.response_text):
-        logger.warning(f"检测到不正确调用回复: {mr.response_text}，拒绝结果并重试")
-        if config.DEBUG_IN_CHAT:
-            await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到不正确调用回复，拒绝结果并重试...")
-        addition_prompt_message.append(AiMessage(mr.response_text))
-        addition_prompt_message.append(
-            UserMessage(
-                "[System Automatic Detection] Content suspected to be missing the correct response type was detected in your reply, such as need for a script execution but not using the 'script:>' prefix to specify the response type. Your answer must specify the correct processing branch by response type. If you think this is an error, please ** keep the previously agreed reply format ** and try again.",
-            ),
-        )
-        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
-        return
 
     if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
@@ -276,7 +261,7 @@ async def agent_exec_result(
         result: str = await limited_run_code(ret_content, from_chat_key=chat_message.chat_key)
         if result.endswith(CODE_RUN_ERROR_FLAG):  # 运行出错标记，将错误信息返回给 AI
             err_msg = result[: -len(CODE_RUN_ERROR_FLAG)]
-            addition_prompt_message.append(AiMessage(f"script:>\n{ret_content}"))
+            addition_prompt_message.append(AiMessage(f"{ret_content}"))
             if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES - 1:
                 addition_prompt_message.append(
                     UserMessage(
@@ -304,7 +289,7 @@ async def agent_exec_result(
             logger.info(f"程式执行成功: {output_msg}... | To {chat_message.sender_nickname}")
             await push_system_message(
                 chat_message.chat_key,
-                f'"""script:>\n{ret_content}\n"""The requested program was executed successfully, and the output is: {output_msg}...',
+                f'"""python(history run)\n{ret_content}\n"""The requested program was executed successfully, and the output is: {output_msg}...',
             )
             return
         return
