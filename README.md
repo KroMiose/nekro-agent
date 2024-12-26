@@ -156,7 +156,11 @@ EXTENSION_MODULES:
 当 NekroAgent 新版本发布时，你可以使用以下一键命令更新应用
 
 ```bash
-sudo docker pull kromiose/nekro-agent:latest && sudo docker restart nekro_agent
+# 更新 `nekro-agent` 镜像
+export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent && cd ${NEKRO_DATA_DIR} && sudo -E docker-compose pull
+
+# 然后重启 `nekro-agent` 容器
+sudo -E docker-compose restart nekro_agent
 ```
 
 ## 🔨 基本命令
