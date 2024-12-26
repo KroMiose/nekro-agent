@@ -199,6 +199,10 @@ SANDBOX_ONEBOT_SERVER_MOUNT_DIR: "/app/nekro_agent_data"
   <img src="https://contrib.rocks/image?repo=KroMiose/nekro-agent&max=1000" />
 </a>
 
+## 🎉 更新日志
+
+前往 [Release 页面](https://github.com/KroMiose/nekro-agent/releases) 查看重要更新日志
+
 ## ⭐ Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)](https://star-history.com/#KroMiose/nekro-agent&Date)
