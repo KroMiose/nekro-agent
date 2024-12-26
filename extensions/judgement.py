@@ -38,6 +38,7 @@ async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ct
             config.ADMIN_CHAT_KEY,
             f"[{chat_key}] 执行禁言用户 [qq:{user_qq}] {duration} 秒: {report} (来自 {_ctx.from_chat_key})\n理由: {report}",
             _ctx,
+            file_mode=False,
             record=True,
         )
 

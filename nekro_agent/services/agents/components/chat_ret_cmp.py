@@ -196,6 +196,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = re.sub(r"\(@(\d+)@\)", r"[@qq:\g<0>@]", raw_response)
     # 修正  <7e56b348 | At:[@qq:xxx@]> -> [@qq:xxx@]
     raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\g<0>@]", raw_response)
+    # 修正 (@[@qq:123456@]) -> [@qq:123456@]
+    raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\g<0>@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"

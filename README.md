@@ -107,7 +107,6 @@ vim ${HOME}/srv/nekro_agent/configs/nekro-agent.yaml
 
 编辑配置文件 `configs/nekro-agent/nekro-agent.yaml` 配置数据库连接等信息, 建议优先配置以下信息, 关于 `yaml` 配置文件格式请参考 [Yaml 语法](https://www.runoob.com/w3cnote/yaml-intro.html)
 
-
 ```yaml
 # Bot 与管理信息
 SUPER_USERS: # 管理用户 QQ 号列表
@@ -165,6 +164,22 @@ sudo docker pull kromiose/nekro-agent:latest && sudo docker restart nekro_agent
 | /na_help | 管理员 | 查询插件的所有命令 |
 
 注: `<chat_key?>` 为会话的唯一标识符，格式为 `group_群号` `private_QQ号`
+
+## 📖 常见问题
+
+#### 为什么我的机器人无法发送 文字/图片 以外的文件内容？
+
+答: 请检查你的协议实现端是否支持文件发送，如果支持，请继续
+
+由于 OneBot V11 协议的限制，发送文件时需要协议端能够直接访问到该文件的路径，因此你需要根据实际部署情况为 NekroAgent 配置文件访问基准路径，以下是一个示例:
+
+假设你的协议端部署在容器中，你需要先挂载 NekroAgent 的数据目录到协议端容器中，即 `${HOME}/srv/nekro_agent_data:/app/nekro_agent_data`，然后为 NekroAgent 配置文件访问基准路径:
+
+```yaml
+SANDBOX_ONEBOT_SERVER_MOUNT_DIR: "/app/nekro_agent_data"
+```
+
+这样 NekroAgent 就可以访问到协议实现端的数据目录，从而发送文件内容了
 
 ## 🖥️ 开发指南
 

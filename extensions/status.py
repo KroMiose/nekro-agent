@@ -13,7 +13,7 @@ from nekro_agent.tools.common_util import (
 )
 
 __meta__ = ExtMetaData(
-    name="basic",
+    name="status",
     description="Nekro-Agent 状态控制扩展",
     version="0.1.0",
     author="KroMiose",
