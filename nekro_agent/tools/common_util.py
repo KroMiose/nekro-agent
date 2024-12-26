@@ -177,6 +177,20 @@ def convert_file_name_to_container_path(file_name: str) -> Path:
     return Path("/app/uploads") / Path(file_name)
 
 
+def convert_file_name_to_access_path(file_name: str, from_chat_key: str) -> Path:
+    """将文件名转换为访问路径
+
+    Args:
+        file_name (str): 文件名
+        from_chat_key (str): 聊天会话键名
+
+    Returns:
+        Path: 访问路径
+    """
+
+    return Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+
+
 def get_downloaded_prompt_file_path(file_name: str) -> Path:
     """获取已下载文件路径
 

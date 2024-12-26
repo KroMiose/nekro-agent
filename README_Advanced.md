@@ -72,6 +72,10 @@ POSTGRES_USER: db_username
 POSTGRES_PASSWORD: db_password
 POSTGRES_DATABASE: nekro_agent
 
+# AI 视觉功能配置
+AI_ENABLE_VISION: true # 是否启用视觉功能 (如果使用模型不支持视觉功能，请设置为 false)
+AI_VISION_IMAGE_LIMIT: 5 # 单次视觉功能图片数量限制
+
 # 自定义人设 (可选)
 AI_CHAT_PRESET_NAME: 可洛喵
 AI_CHAT_PRESET_SETTING:

@@ -53,6 +53,8 @@ async def convert_chat_message(
             return ret_list, False, ""
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
+            if not ob_event.file.model_extra["url"].startswith("http"):
+                return ret_list, False, ""
             local_path, file_name = await download_file(
                 ob_event.file.model_extra["url"],
                 use_suffix=suffix,
@@ -86,6 +88,8 @@ async def convert_chat_message(
             try:
                 if "filename" in seg.data:
                     suffix = "." + seg.data["filename"].split(".")[-1].lower()
+                elif "file_id" in seg.data:
+                    suffix = "." + seg.data["file_id"].split(".")[-1].lower()
                 else:
                     suffix = "." + seg.data["file"].split(".")[-1].lower()
                 if len(suffix) > 10:

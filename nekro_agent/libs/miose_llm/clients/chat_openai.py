@@ -1,5 +1,5 @@
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 import openai
@@ -59,7 +59,7 @@ set_openai_base_url(_OPENAI_BASE_URL)
 async def gen_openai_chat_response(
     model: str,
     messages: List[Dict],
-    temperature: Optional[float] = None ,
+    temperature: Optional[float] = None,
     frequency_penalty: Optional[float] = None,
     presence_penalty: Optional[float] = None,
     top_p: Optional[float] = None,
@@ -165,7 +165,7 @@ class OpenAIChatClient(BaseClient):
         if not isinstance(creator, self.supported_creator):
             raise TypeError("Creator not supported by this client")
 
-        messages: List[Dict[str, str]] = await creator.render()
+        messages: List[Dict[str, Any]] = await creator.render()
 
         if cr.test_output:
             cr.update_token_info(total_tokens=25565)
@@ -178,26 +178,12 @@ class OpenAIChatClient(BaseClient):
         output_str, token_consumption = await gen_openai_chat_response(
             model=self.model,
             messages=messages,
-            temperature=(
-                self.temperature if creator.temperature is None else creator.temperature
-            ),
-            frequency_penalty=(
-                self.frequency_penalty
-                if creator.frequency_penalty is None
-                else creator.frequency_penalty
-            ),
-            presence_penalty=(
-                self.presence_penalty
-                if creator.presence_penalty is None
-                else creator.presence_penalty
-            ),
+            temperature=(self.temperature if creator.temperature is None else creator.temperature),
+            frequency_penalty=(self.frequency_penalty if creator.frequency_penalty is None else creator.frequency_penalty),
+            presence_penalty=(self.presence_penalty if creator.presence_penalty is None else creator.presence_penalty),
             top_p=self.top_p if creator.top_p is None else creator.top_p,
-            stop_words=(
-                self.stop_words if creator.stop_words is None else creator.stop_words
-            ),
-            max_tokens=(
-                self.max_tokens if creator.max_tokens is None else creator.max_tokens
-            ),
+            stop_words=(self.stop_words if creator.stop_words is None else creator.stop_words),
+            max_tokens=(self.max_tokens if creator.max_tokens is None else creator.max_tokens),
             api_key=self.api_key,
         )
 

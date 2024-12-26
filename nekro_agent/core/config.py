@@ -65,6 +65,8 @@ class PluginConfig(ConfigBase):
     AI_NAME_PREFIX: str = ""  # AI 名称前缀
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = 512  # AI 上下文长度每条消息最大长度 超长会自动省略部分内容
     AI_CONTEXT_LENGTH_PER_SESSION: int = 4096  # AI 上下文长度每会话最大长度 超长会自动截断
+    AI_ENABLE_VISION: bool = True  # 是否启用视觉功能
+    AI_VISION_IMAGE_LIMIT: int = 5  # 视觉功能图片数量限制
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"  # Agent 执行的沙盒镜像名

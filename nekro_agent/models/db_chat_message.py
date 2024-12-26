@@ -1,9 +1,12 @@
 import datetime
+from typing import Dict, List, cast
 
+import json5
 from tortoise import fields
 from tortoise.models import Model
 
 from nekro_agent.core.config import config
+from nekro_agent.schemas.chat_message import ChatMessageSegment, segments_from_list
 from nekro_agent.systems.message.convertor import (
     convert_raw_msg_data_json_to_msg_prompt,
 )
@@ -49,3 +52,7 @@ class DBChatMessage(Model):
             )
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
         return f'[{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}'
+
+    def parse_content_data(self) -> List[ChatMessageSegment]:
+        """解析内容数据"""
+        return segments_from_list(cast(List[Dict], json5.loads(self.content_data)))

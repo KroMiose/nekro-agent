@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from typing import List, Optional, Union
+from typing import List, Optional, Set, Union
 
 import weave
 
@@ -22,6 +22,7 @@ from nekro_agent.libs.miose_llm.components import (
 )
 from nekro_agent.libs.miose_llm.creators.openai import (
     AiMessage,
+    ImageMessageSegment,
     OpenAIPromptCreator,
     SystemMessage,
     UserMessage,
@@ -33,10 +34,14 @@ from nekro_agent.libs.miose_llm.exceptions import (
 from nekro_agent.libs.miose_llm.tools.tokenizers import TikTokenizer
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
-from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentImage
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
 from nekro_agent.systems.message.push_bot_msg import push_system_message
+from nekro_agent.tools.common_util import (
+    convert_file_name_to_access_path,
+    get_downloaded_prompt_file_path,
+)
 
 from .components.chat_history_cmp import ChatHistoryComponent
 from .components.chat_ret_cmp import (
@@ -110,7 +115,36 @@ async def agent_run(
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
     )
     # 反转列表顺序并确保不超过最大长度
-    recent_chat_messages = recent_chat_messages[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH:]
+    recent_chat_messages = recent_chat_messages[::-1][-config.AI_CHAT_CONTEXT_MAX_LENGTH :]
+
+    # 提取并构造图片片段
+    image_segments: List[ChatMessageSegmentImage] = []
+    for db_message in recent_chat_messages:
+        for seg in db_message.parse_content_data():
+            if isinstance(seg, ChatMessageSegmentImage):
+                image_segments.append(seg)
+
+    img_seg_prompts: List[Union[str, ImageMessageSegment]] = []
+    img_seg_set: Set[str] = set()
+    if image_segments and config.AI_ENABLE_VISION:
+        img_seg_prompts.append("Here are some images in the chat history:")
+        for seg in image_segments:
+            if len(img_seg_set) >= config.AI_VISION_IMAGE_LIMIT:
+                break
+            if seg.local_path:
+                if seg.file_name in img_seg_set:
+                    continue
+                img_seg_set.add(seg.file_name)
+                img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
+                img_seg_prompts.append(
+                    ImageMessageSegment.from_path(str(convert_file_name_to_access_path(seg.file_name, chat_message.chat_key))),
+                )
+            elif seg.remote_url:
+                if seg.remote_url in img_seg_set:
+                    continue
+                img_seg_set.add(seg.remote_url)
+                img_seg_prompts.append(f"<{one_time_code} | Image:{seg.remote_url}>")
+                img_seg_prompts.append(ImageMessageSegment.from_url(seg.remote_url))
 
     for db_message in recent_chat_messages:
         chat_history_component.append_chat_message(db_message)
@@ -131,11 +165,12 @@ async def agent_run(
         UserMessage(ChatResponseResolver.practice_question_2()),
         AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
+            "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n",
+            *img_seg_prompts,
             TextComponent(
                 (
-                    "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n"
-                    f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n"
-                    "Current Chat Key: {chat_key}"
+                    f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n"  # 聊天频道配置
+                    "Current Chat Key: {chat_key}"  # 当前聊天会话键名
                 ),
                 src_store=scene.store,
             ),

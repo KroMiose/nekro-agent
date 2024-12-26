@@ -54,6 +54,8 @@
 - [x] 基于 `docker-compose` 的容器编排一键部署支持 | 一键化小白无障碍部署脚本
 - [x] 接入 Stable Diffusion 实现 AI 绘图能力
 - [x] 更多文件资源交互 (文件/视频/音频等，可直接通过群文件/私聊 发送&接收&处理 任意文件资源)
+- [x] 配置热更新与指令控制支持
+- [x] 原生多模态理解支持 (支持通用图片理解能力)
 - [ ] 基于 LLM 的自动上下文衔接触发器
 - [ ] 可视化插件控制面板
 
@@ -126,6 +128,10 @@ MODEL_GROUPS: # 模型组配置项: 默认预置了 Nekro 中转站和 OpenAI �
     CHAT_PROXY: ""
     BASE_URL: https://api.openai.com/v1
     API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 请替换为你的 OpenAI 官方 API Key
+
+# AI 视觉功能配置
+AI_ENABLE_VISION: true # 是否启用视觉功能 (如果使用模型不支持视觉功能，请设置为 false)
+AI_VISION_IMAGE_LIMIT: 5 # 单次视觉功能图片数量限制
 
 # 自定义人设 (可选)
 AI_CHAT_PRESET_NAME: 可洛喵
