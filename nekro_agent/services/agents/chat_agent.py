@@ -128,7 +128,7 @@ async def agent_run(
     img_seg_set: Set[str] = set()
     if image_segments and config.AI_ENABLE_VISION:
         img_seg_prompts.append("Here are some images in the chat history:")
-        for seg in image_segments:
+        for seg in image_segments[::-1]:
             if len(img_seg_set) >= config.AI_VISION_IMAGE_LIMIT:
                 break
             if seg.local_path:
