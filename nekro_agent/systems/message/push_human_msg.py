@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import re
 import time
+from asyncio import Task, create_task, sleep
 from contextlib import suppress
 from typing import Dict
 
@@ -12,9 +13,6 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.agents.chat_agent import agent_run
 from nekro_agent.tools.common_util import check_content_trigger, random_chat_check
-
-running_chat_task_map: Dict[str, asyncio.Task] = {}
-running_chat_task_throttle_map: Dict[str, float] = {}
 
 
 def message_validation_check(message: ChatMessage) -> bool:
@@ -36,6 +34,15 @@ def message_validation_check(message: ChatMessage) -> bool:
     return True
 
 
+# 全局状态追踪
+running_tasks: Dict[str, Task] = {}  # 记录每个会话正在执行的agent任务
+debounce_timers: Dict[str, float] = {}  # 记录每个会话的防抖计时器
+pending_messages: Dict[str, ChatMessage] = {}  # 记录每个会话待处理的最新消息
+
+# 配置参数
+TASK_TIMEOUT = 30.0  # 长时间任务阈值时间（秒）
+
+
 async def push_human_chat_message(message: ChatMessage):
     """推送聊天消息"""
     global running_chat_task_map, running_chat_task_throttle_map
@@ -47,11 +54,7 @@ async def push_human_chat_message(message: ChatMessage):
         return
 
     content_data = [o.model_dump() for o in message.content_data]
-
-    # 确保时间戳是 naive datetime
-    current_time = datetime.datetime.fromtimestamp(message.send_timestamp)
-    if current_time.tzinfo is not None:
-        current_time = current_time.replace(tzinfo=None)
+    current_time: float = time.time()
 
     # 添加聊天记录
     await DBChatMessage.create(
@@ -68,59 +71,91 @@ async def push_human_chat_message(message: ChatMessage):
         content_data=content_data,
         raw_cq_code=message.raw_cq_code,
         ext_data=message.ext_data,
-        send_timestamp=int(current_time.timestamp()),  # 使用处理后的时间戳
+        send_timestamp=int(current_time),  # 使用处理后的时间戳
     )
 
-    if (
-        config.AI_CHAT_PRESET_NAME in message.content_text  # 提及人设名
-        or message.is_tome  # 引用 / @ 回复
-        or random_chat_check()  # 随机触发聊天
-        or check_content_trigger(message.content_text)  # 触发词
-    ):
+    # 检查是否需要触发回复
+    should_trigger = (
+        config.AI_CHAT_PRESET_NAME in message.content_text
+        or message.is_tome
+        or random_chat_check()
+        or check_content_trigger(message.content_text)
+    )
+
+    if should_trigger:
         db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=message.chat_key)
         if not db_chat_channel.is_active:
             logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
             return
 
-        # 第一层节流控制 根据触发时间是否变化判断连续触发
-        current_time = time.time()
-        if message.chat_key in running_chat_task_throttle_map:
-            running_chat_task_throttle_map[message.chat_key] = current_time
-            await asyncio.sleep(config.AI_GENERATE_THROTTLE_SECONDS)
-            if running_chat_task_throttle_map[message.chat_key] != current_time:
-                logger.warning("检测到高频触发消息，节流控制生效中，跳过本次处理...")
-                return
+        await schedule_agent_task(message)
 
-        if message.chat_key in running_chat_task_map and running_chat_task_throttle_map.get(message.chat_key):
-            time_diff: float = current_time - running_chat_task_throttle_map[message.chat_key]
-            if 5 < time_diff < 60:
-                logger.warning("检测到长响应，跳过本次触发...")
-                return
-            logger.info(f"检测到正在进行的聊天任务: {message.chat_key} 取消之前的任务")
-            with suppress(Exception):
-                running_chat_task_map[message.chat_key].cancel()
 
-        running_chat_task_map[message.chat_key] = asyncio.create_task(agent_task(message))
+async def schedule_agent_task(message: ChatMessage):
+    """调度agent任务，实现防抖和任务控制"""
+    chat_key = message.chat_key
+    current_time = time.time()
+
+    # 更新待处理消息和防抖计时器
+    pending_messages[chat_key] = message
+    debounce_timers[chat_key] = current_time
+
+    # 如果已有正在执行的任务，直接返回
+    if chat_key in running_tasks and not running_tasks[chat_key].done():
+        return
+
+    # 等待防抖时间
+    await sleep(config.AI_DEBOUNCE_WAIT_SECONDS)
+
+    # 检查是否在防抖期间有新消息
+    if current_time != debounce_timers[chat_key]:
+        return
+
+    # 获取最终要处理的消息
+    final_message = pending_messages.pop(chat_key, None)
+    if not final_message:
+        return
+
+    # 创建新的agent任务
+    task = create_task(agent_task(final_message))
+    running_tasks[chat_key] = task
 
 
 async def agent_task(message: ChatMessage):
-    global running_chat_task_map, running_chat_task_throttle_map
-    logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
-    for i in range(3):
-        try:
-            await agent_run(message)
-        except ResolveError as e:
-            logger.error(f"Resolve Error, Retrying {i+1}/3...")
-            if "list index out of range" in str(e) and i > 0:
-                logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
-                break  # 请求被拒绝了，不重试
+    """执行agent任务"""
+    chat_key = message.chat_key
+    start_time = time.time()
+    is_long_running = False
+
+    try:
+        logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
+        for i in range(3):
+            try:
+                await agent_run(message)
+            except ResolveError as e:
+                logger.error(f"Resolve Error, Retrying {i+1}/3...")
+                if "list index out of range" in str(e) and i > 0:
+                    logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
+                    break
+            else:
+                break
         else:
-            break
-    else:
-        logger.error("Failed to Run Chat Agent.")
+            logger.error("Failed to Run Chat Agent.")
+    finally:
+        # 检查是否为长时间运行的任务
+        is_long_running = (time.time() - start_time) > TASK_TIMEOUT
 
+        # 清理任务状态
+        if chat_key in running_tasks:
+            del running_tasks[chat_key]
 
-    with suppress(KeyError):
-        del running_chat_task_map[message.chat_key]
-    with suppress(KeyError):
-        del running_chat_task_throttle_map[message.chat_key]
+        # 如果是长时间任务，检查是否有待处理消息
+        if is_long_running:
+            final_message = pending_messages.pop(chat_key, None)
+            debounce_timers.pop(chat_key, None)
+
+            # 如果有待处理消息，创建新的任务处理最后一条消息
+            if final_message:
+                logger.info("长时间任务结束，处理最后一条待处理消息...")
+                new_task = create_task(agent_task(final_message))
+                running_tasks[chat_key] = new_task
