@@ -39,9 +39,6 @@ running_tasks: Dict[str, Task] = {}  # 记录每个会话正在执行的agent任
 debounce_timers: Dict[str, float] = {}  # 记录每个会话的防抖计时器
 pending_messages: Dict[str, ChatMessage] = {}  # 记录每个会话待处理的最新消息
 
-# 配置参数
-TASK_TIMEOUT = 30.0  # 长时间任务阈值时间（秒）
-
 
 async def push_human_chat_message(message: ChatMessage):
     """推送聊天消息"""
@@ -124,8 +121,6 @@ async def schedule_agent_task(message: ChatMessage):
 async def agent_task(message: ChatMessage):
     """执行agent任务"""
     chat_key = message.chat_key
-    start_time = time.time()
-    is_long_running = False
 
     try:
         logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
@@ -142,20 +137,14 @@ async def agent_task(message: ChatMessage):
         else:
             logger.error("Failed to Run Chat Agent.")
     finally:
-        # 检查是否为长时间运行的任务
-        is_long_running = (time.time() - start_time) > TASK_TIMEOUT
-
         # 清理任务状态
         if chat_key in running_tasks:
             del running_tasks[chat_key]
 
-        # 如果是长时间任务，检查是否有待处理消息
-        if is_long_running:
-            final_message = pending_messages.pop(chat_key, None)
-            debounce_timers.pop(chat_key, None)
+        final_message = pending_messages.pop(chat_key, None)
+        debounce_timers.pop(chat_key, None)
 
-            # 如果有待处理消息，创建新的任务处理最后一条消息
-            if final_message:
-                logger.info("长时间任务结束，处理最后一条待处理消息...")
-                new_task = create_task(agent_task(final_message))
-                running_tasks[chat_key] = new_task
+        # 如果有待处理消息，创建新的任务处理最后一条消息
+        if final_message:
+            new_task = create_task(agent_task(final_message))
+            running_tasks[chat_key] = new_task
