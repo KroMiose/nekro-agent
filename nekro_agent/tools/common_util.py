@@ -6,6 +6,7 @@ from typing import Tuple
 
 import httpx
 import toml
+from PIL import Image
 
 from nekro_agent.core.config import config
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
@@ -229,3 +230,45 @@ def check_content_trigger(content: str) -> bool:
         if reg.search(content):
             return True
     return False
+
+
+def compress_image(image_path: Path, size_limit_kb: int) -> Path:
+    """压缩图片到指定大小以下，仅通过降低分辨率实现
+
+    Args:
+        image_path: 原图片路径
+        size_limit_kb: 目标大小（KB）
+
+    Returns:
+        压缩后的图片路径
+    """
+    compressed_suffix = "_compressed"
+    # 检查是否已经有压缩版本
+    compressed_path = image_path.parent / f"{image_path.stem}{compressed_suffix}{image_path.suffix}"
+    if compressed_path.exists():
+        return compressed_path
+
+    # 打开图片
+    img = Image.open(image_path)
+
+    # 初始缩放比例
+    scale = 1.0
+    output_path = compressed_path
+
+    while True:
+        # 计算新的尺寸
+        new_width = int(img.width * scale)
+        new_height = int(img.height * scale)
+        resized_img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+        # 保存压缩后的图片（使用最高质量）
+        resized_img.save(output_path, quality=100)
+
+        # 检查文件大小
+        if output_path.stat().st_size <= size_limit_kb * 1024 or scale < 0.1:
+            break
+
+        # 降低分辨率继续尝试
+        scale *= 0.8
+
+    return output_path

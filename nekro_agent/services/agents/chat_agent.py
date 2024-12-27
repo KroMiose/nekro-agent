@@ -39,6 +39,7 @@ from nekro_agent.services.chat import chat_service
 from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
 from nekro_agent.systems.message.push_bot_msg import push_system_message
 from nekro_agent.tools.common_util import (
+    compress_image,
     convert_file_name_to_access_path,
     get_downloaded_prompt_file_path,
 )
@@ -134,11 +135,18 @@ async def agent_run(
             if seg.local_path:
                 if seg.file_name in img_seg_set:
                     continue
+                access_path = convert_file_name_to_access_path(seg.file_name, chat_message.chat_key)
                 img_seg_set.add(seg.file_name)
-                img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
-                img_seg_prompts.append(
-                    ImageMessageSegment.from_path(str(convert_file_name_to_access_path(seg.file_name, chat_message.chat_key))),
-                )
+                # 检查图片大小
+                if access_path.stat().st_size > config.AI_VISION_IMAGE_SIZE_LIMIT_KB * 1024:
+                    # 压缩图片
+                    compressed_path = compress_image(access_path, config.AI_VISION_IMAGE_SIZE_LIMIT_KB)
+                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
+                    img_seg_prompts.append(ImageMessageSegment.from_path(str(compressed_path)))
+                    logger.info(f"压缩图片: {access_path.name} -> {compressed_path.stat().st_size / 1024}KB")
+                else:
+                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
+                    img_seg_prompts.append(ImageMessageSegment.from_path(str(access_path)))
             elif seg.remote_url:
                 if seg.remote_url in img_seg_set:
                     continue
