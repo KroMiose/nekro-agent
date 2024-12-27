@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
+from nekro_agent.schemas.chat_message import ChatType
 
 MAX_PRESET_STATUS_LIST_SIZE = 99
 MAX_PRESET_STATUS_SHOW_SIZE = 8
@@ -58,7 +59,7 @@ class PresetEffect(BaseModel):
         return f"{self.effect_name}: {self.description} (started {time_diff_str} ago. `remove_effect` if expired.)"
 
 
-class channelData(BaseModel):
+class ChannelData(BaseModel):
     """聊天频道数据"""
 
     chat_key: str
@@ -148,3 +149,8 @@ class channelData(BaseModel):
                 user_id=int(config.BOT_QQ),
                 card=f"{config.AI_NAME_PREFIX}{config.AI_CHAT_PRESET_NAME}",
             )
+
+    @property
+    def chat_type(self) -> ChatType:
+        """获取聊天频道类型"""
+        return ChatType.from_chat_key(self.chat_key)

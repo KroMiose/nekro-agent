@@ -1,7 +1,6 @@
 import os
 from typing import List, Optional, Tuple, Union
 
-from miose_toolkit_common import Env
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
@@ -17,8 +16,8 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_channel import (
     MAX_PRESET_STATUS_SHOW_SIZE,
+    ChannelData,
     PresetStatus,
-    channelData,
 )
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.chat import chat_service
@@ -85,7 +84,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
 
     info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
-    channel_data: channelData = await db_chat_channel.get_channel_data()
+    channel_data: ChannelData = await db_chat_channel.get_channel_data()
     if channel_data.preset_status_list:
         info += "人设状态历史:\n"
     for status in channel_data.preset_status_list[-MAX_PRESET_STATUS_SHOW_SIZE:]:
@@ -157,6 +156,18 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await channel.set_active(True)
         await finish_with(matcher, message="已开启所有群聊的聊天功能")
         return
+    if target_chat_key == "private_*":
+        for channel in await DBChatChannel.all():
+            if channel.chat_type == ChatType.PRIVATE:
+                await channel.set_active(True)
+        await finish_with(matcher, message="已开启所有私聊的聊天功能")
+        return
+    if target_chat_key == "group_*":
+        for channel in await DBChatChannel.all():
+            if channel.chat_type == ChatType.GROUP:
+                await channel.set_active(True)
+        await finish_with(matcher, message="已开启所有群聊的聊天功能")
+        return
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(True)
     await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
@@ -172,6 +183,21 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     if target_chat_key == "*":
         for channel in await DBChatChannel.all():
             await channel.set_active(False)
+            logger.info(f"已关闭 {channel.chat_key} 的聊天功能")
+        await finish_with(matcher, message="已关闭所有群聊的聊天功能")
+        return
+    if target_chat_key == "private_*":
+        for channel in await DBChatChannel.all():
+            if channel.chat_type == ChatType.PRIVATE:
+                await channel.set_active(False)
+                logger.info(f"已关闭 {channel.chat_key} 的聊天功能")
+        await finish_with(matcher, message="已关闭所有私聊的聊天功能")
+        return
+    if target_chat_key == "group_*":
+        for channel in await DBChatChannel.all():
+            if channel.chat_type == ChatType.GROUP:
+                await channel.set_active(False)
+                logger.info(f"已关闭 {channel.chat_key} 的聊天功能")
         await finish_with(matcher, message="已关闭所有群聊的聊天功能")
         return
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
@@ -306,8 +332,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 
 # ! 高风险命令
-
-
 @on_command("docker_restart", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)

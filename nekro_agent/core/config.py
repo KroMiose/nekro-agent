@@ -69,6 +69,10 @@ class PluginConfig(ConfigBase):
     AI_VISION_IMAGE_LIMIT: int = 3  # 视觉功能图片数量限制
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = 1024  # 视觉功能图片大小限制 (单位 KB)
 
+    """会话设置"""
+    SESSION_GROUP_ACTIVE_DEFAULT: bool = True  # 群聊会话默认是否激活
+    SESSION_PRIVATE_ACTIVE_DEFAULT: bool = True  # 私聊会话默认是否激活
+
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"  # Agent 执行的沙盒镜像名
     SANDBOX_RUNNING_TIMEOUT: int = 60  # Agent 执行沙盒超时时间
