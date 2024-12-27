@@ -82,6 +82,15 @@ Usage like this:
 * No placeholders or omissions
 * Adjust strategy if code fails
 * 除非特殊要求，你应该尽可能用中文回复！
+
+### Important:
+- ALL files MUST be saved in './shared/' directory
+- Example:
+  ```python
+  # Correct: 
+  plt.savefig('./shared/plot.png')
+  send_msg_file(chat_key, './shared/plot.png')
+  ```
 """
 
 ADMIN_HELP_PROMPT: str = """
