@@ -1,7 +1,5 @@
 import random
 
-from nonebot.adapters.onebot.v11 import Bot
-
 from nekro_agent.core import logger
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.chat import chat_service

@@ -4,13 +4,9 @@ from typing import Optional
 from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.schemas.chat_channel import PresetEffect, PresetStatus, channelData
+from nekro_agent.schemas.chat_channel import ChannelData, PresetEffect, PresetStatus
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
-from nekro_agent.tools.common_util import (
-    convert_file_name_to_container_path,
-    download_file,
-)
 
 __meta__ = ExtMetaData(
     name="status",
@@ -40,7 +36,7 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
         ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
-    channel_data: channelData = await db_channel.get_channel_data()
+    channel_data: ChannelData = await db_channel.get_channel_data()
     before_status: Optional[PresetStatus] = channel_data.get_latest_preset_status()
     new_status = PresetStatus(setting_name=setting_name, description=description, translated_timestamp=int(time.time()))
     await channel_data.update_preset_status(new_status)
@@ -70,7 +66,7 @@ async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: Ag
         ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
-    channel_data: channelData = await db_channel.get_channel_data()
+    channel_data: ChannelData = await db_channel.get_channel_data()
     await channel_data.update_preset_effect(PresetEffect.create(effect_name=effect_name, description=description))
     await db_channel.save_channel_data(channel_data)
 
@@ -92,7 +88,7 @@ async def remove_effect(chat_key: str, effect_name: str, _ctx: AgentCtx):
             ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
-    channel_data: channelData = await db_channel.get_channel_data()
+    channel_data: ChannelData = await db_channel.get_channel_data()
     success: bool = await channel_data.remove_preset_effect(effect_name)
     await db_channel.save_channel_data(channel_data)
 

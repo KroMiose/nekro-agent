@@ -1,14 +1,11 @@
-import time
 from typing import Dict, List, Optional
 
 from nekro_agent.core import logger
-from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
 )
-from nekro_agent.schemas.chat_channel import PresetStatus, channelData
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
