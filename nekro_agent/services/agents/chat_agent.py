@@ -179,11 +179,9 @@ async def agent_run(
         UserMessage(
             "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n",
             *img_seg_prompts,
+            f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n",  # 聊天频道配置
             TextComponent(
-                (
-                    f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n"  # 聊天频道配置
-                    "Current Chat Key: {chat_key}"  # 当前聊天会话键名
-                ),
+                "Current Chat Key: {chat_key}",  # 当前聊天会话键名
                 src_store=scene.store,
             ),
             chat_history_component,
