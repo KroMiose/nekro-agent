@@ -251,6 +251,10 @@ def compress_image(image_path: Path, size_limit_kb: int) -> Path:
     # 打开图片
     img = Image.open(image_path)
 
+    # 确保图片在 RGB 模式
+    if img.mode in ("RGBA", "P"):
+        img = img.convert("RGB")
+
     # 初始缩放比例
     scale = 1.0
     output_path = compressed_path

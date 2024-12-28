@@ -140,7 +140,11 @@ async def agent_run(
                 # 检查图片大小
                 if access_path.stat().st_size > config.AI_VISION_IMAGE_SIZE_LIMIT_KB * 1024:
                     # 压缩图片
-                    compressed_path = compress_image(access_path, config.AI_VISION_IMAGE_SIZE_LIMIT_KB)
+                    try:
+                        compressed_path = compress_image(access_path, config.AI_VISION_IMAGE_SIZE_LIMIT_KB)
+                    except Exception as e:
+                        logger.error(f"压缩图片时发生错误: {e} | 图片路径: {access_path} 跳过处理...")
+                        continue
                     img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
                     img_seg_prompts.append(ImageMessageSegment.from_path(str(compressed_path)))
                     logger.info(f"压缩图片: {access_path.name} -> {compressed_path.stat().st_size / 1024}KB")
