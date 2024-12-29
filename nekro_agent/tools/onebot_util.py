@@ -6,6 +6,7 @@ from nonebot.adapters.onebot.v11 import (
     GroupMessageEvent,
     GroupUploadNoticeEvent,
     MessageEvent,
+    NoticeEvent,
 )
 
 from nekro_agent.core.bot import get_bot
@@ -49,7 +50,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
 
 
 async def get_user_name(
-    event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent],
+    event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent],
     bot: Bot,
     user_id: Union[int, str],
 ) -> str:
@@ -60,12 +61,16 @@ async def get_user_name(
     if isinstance(event, GroupMessageEvent) and event.sub_type == "anonymous" and event.anonymous:  # 匿名消息
         return f"[匿名]{event.anonymous.name}"
 
-    if isinstance(event, (GroupMessageEvent, GroupIncreaseNoticeEvent)):
-        user_info = await bot.get_group_member_info(
-            group_id=event.group_id,
-            user_id=user_id,
-            no_cache=False,
-        )
+    if isinstance(event, (GroupMessageEvent, GroupIncreaseNoticeEvent, NoticeEvent)):
+        group_id = getattr(event, "group_id", None)
+        if group_id:
+            user_info = await bot.get_group_member_info(
+                group_id=group_id,
+                user_id=user_id,
+                no_cache=False,
+            )
+        else:
+            raise ValueError("获取群成员信息失败")
         user_name = user_info.get("nickname", None)
         user_name = user_info.get("card", None) or user_name
     else:
@@ -89,8 +94,8 @@ async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int
     return user_info.get("card") or user_info.get("nickname", "未知")
 
 
-async def get_chat_info(event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent]) -> Tuple[str, ChatType]:
-    if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent)):
+async def get_chat_info(event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent]) -> Tuple[str, ChatType]:
+    if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent, NoticeEvent)):
         raw_chat_type = "group"
     else:
         raw_chat_type = event.message_type

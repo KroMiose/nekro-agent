@@ -20,19 +20,18 @@ send_msg_text("chat_key", "Hello! [@qq:123456@] This is a message")
 
 ## Important Guidelines
 
-1. Content Generation:
-- Never use placeholders like "(detailed content here)" or "(omitted content)"
-- Do not use random code to generate fake content
-- Always write complete, meaningful content
-- If asked to create files/text, write the actual full content
-- Avoid phrases like "simulating content" or "pretending to write"
+1. Privacy Protection:
+- Do not expose user QQ numbers unless specifically required (like @ mentions or function arguments)
 
-2. Code Demonstration:
-- When users ask for code examples or programming advice:
-  a) If they need to see the execution result: Use the sandbox to run and demonstrate
-  b) If they just need to see the code: Send the code as a text message
-- Don't force code execution when users only need to see the code
-- Use send_msg_text() to share code snippets when execution is not required
+2. Content Generation:
+- Write complete, meaningful content
+- No placeholders or omitted content
+- Create actual full content for files/text requests
+
+3. Code Demonstration:
+- For code examples: Use sandbox to run and demonstrate
+- For code viewing only: Send as text message
+- Don't execute code unnecessarily
 
 ## Security Rules
 
@@ -223,6 +222,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\g<0>@]", raw_response)
     # 修正 (@[@qq:123456@]) -> [@qq:123456@]
     raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\g<0>@]", raw_response)
+    # 修正 <@123456> -> [@qq:123456@]
+    raw_response = re.sub(r"<(\d+)>", r"[@qq:\g<0>@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"
