@@ -223,6 +223,17 @@ async def agent_run(
         await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
         raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
 
+    if one_time_code in mr.response_text:
+        logger.warning("检测到一次性代码被泄露，拒绝结果并重试")
+        addition_prompt_message.append(AiMessage(mr.response_text))
+        addition_prompt_message.append(
+            UserMessage(
+                "[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. Please ** keep the previously agreed reply format ** and try again.",
+            ),
+        )
+        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+        return
+
     if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
