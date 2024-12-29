@@ -10,7 +10,7 @@ from nekro_agent.tools.collector import MethodType, agent_collector
 
 __meta__ = ExtMetaData(
     name="status",
-    description="Nekro-Agent 状态控制扩展",
+    description="[NA] 状态控制扩展",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",

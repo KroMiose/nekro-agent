@@ -10,7 +10,7 @@ from nekro_agent.tools.collector import MethodType, agent_collector
 
 __meta__ = ExtMetaData(
     name="judgement",
-    description="Nekro-Agent 风纪委员 (群管工具集)",
+    description="[NA] 风纪委员 (群管工具集)",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -54,15 +54,15 @@ async def mute_user(chat_key: str, user_qq: str, duration: int, report: str, _ct
         return f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒"
 
 
-# @agent_collector.mount_method()   # 协议端暂不支持且 Bot 需要群主权限 不使用
-async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, duration: int, _ctx: AgentCtx) -> bool:
+# @agent_collector.mount_method(MethodType.TOOL)
+async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, days: int, _ctx: AgentCtx) -> bool:
     """赋予用户特殊头衔
 
     Args:
         chat_key (str): 聊天的唯一标识符 (仅支持群组)
-        user_qq (str): 被赋予特殊头衔的用户的QQ号
+        user_qq (str): 被赋予用户 QQ 号
         special_title (str): 特殊头衔 (不超过6个字符, 为空则移除专属头衔)
-        duration (int): 有效时间，单位为秒
+        days (int): 有效期/天
 
     Returns:
         bool: 操作是否成功
@@ -78,11 +78,11 @@ async def set_user_special_title(chat_key: str, user_qq: str, special_title: str
             group_id=int(chat_id),
             user_id=int(user_qq),
             special_title=special_title,
-            duration=duration,
+            duration=days * 24 * 60 * 60,
         )
-        logger.info(f"[{chat_key}] 已授予用户 {user_qq} 头衔 {special_title} {duration} 秒")
+        logger.info(f"[{chat_key}] 已授予用户 {user_qq} 头衔 {special_title} {days} 天")
     except Exception as e:
-        logger.error(f"[{chat_key}] 授予用户 {user_qq} 头衔 {special_title} {duration} 秒失败: {e}")
+        logger.error(f"[{chat_key}] 授予用户 {user_qq} 头衔 {special_title} {days} 天失败: {e}")
         return False
     else:
         return True

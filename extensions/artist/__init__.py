@@ -28,8 +28,8 @@ DEFAULT_NEGATIVE_PROMPTS = (
 client = httpx.AsyncClient()
 
 __meta__ = ExtMetaData(
-    name="stable_diffusion",
-    description="Nekro-Agent 插件，用于调用 Stable Diffusion 生成图片",
+    name="artist",
+    description="[NA] 绘图姬 (SD)",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",

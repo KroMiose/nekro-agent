@@ -1,5 +1,5 @@
 from importlib import import_module
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel
 
@@ -15,6 +15,12 @@ class ExtMetaData(BaseModel):
     description: str
     url: Optional[str] = None
     license: Optional[str] = None
+
+    def gen_ext_info(self) -> str:
+        return f"+ {self.description} (v{self.version}) by {self.author}"
+
+
+ALL_EXT_META_DATA: List[ExtMetaData] = []
 
 
 def init_extensions():
@@ -33,7 +39,7 @@ def init_extensions():
                 logger.success(
                     f'从 "{module_path}" 扩展模块: "{module_meta_data.name}" by "{module_meta_data.author or "Unknown"}" 加载验证成功',
                 )
-
+                ALL_EXT_META_DATA.append(module_meta_data)
             else:
                 logger.warning(f'加载扩展模块: "{module_path}" 元数据格式错误')
 

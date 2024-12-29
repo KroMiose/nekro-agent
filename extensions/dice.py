@@ -8,7 +8,7 @@ from nekro_agent.tools.collector import MethodType, agent_collector
 
 __meta__ = ExtMetaData(
     name="dice",
-    description="Nekro-Agent 掷骰姬",
+    description="[NA] 掷骰姬",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",

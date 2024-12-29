@@ -7,24 +7,20 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from nekro_agent.core.config import CONFIG_PATH, config, reload_config, save_config
+from nekro_agent.core.config import config, reload_config, save_config
 from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
-from nekro_agent.schemas.chat_channel import (
-    MAX_PRESET_STATUS_SHOW_SIZE,
-    ChannelData,
-    PresetStatus,
-)
+from nekro_agent.schemas.chat_channel import MAX_PRESET_STATUS_SHOW_SIZE, ChannelData
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.chat import chat_service
+from nekro_agent.services.extension import ALL_EXT_META_DATA
 from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.systems.message.push_bot_msg import push_system_message
 from nekro_agent.tools.common_util import get_app_version
-from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
+from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
 
 async def finish_with(matcher: Matcher, message: str):
@@ -314,11 +310,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "====== [命令列表] ======\n"
             "reset <chat_key?>: 清空指定会话的聊天记录\n"
             "inspect <chat_key?>: 查询指定会话的基本信息\n"
-            "exec <code>: 执行沙盒代码\n"
             "code_log <idx?>: 查询当前会话的执行记录\n"
-            "system <message>: 发送系统消息\n"
             "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
+            "na_exts: 查看当前已加载的扩展模块\n"
             "conf_show <key?>: 查看配置列表/配置值\n"
             "conf_set <key=value>: 修改配置\n"
             "conf_reload: 重载配置\n"
@@ -329,6 +324,14 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "Github: https://github.com/KroMiose/nekro-agent\n"
         ).strip(),
     )
+
+
+@on_command("na_exts", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    ext_info = "\n".join([ext.gen_ext_info() for ext in ALL_EXT_META_DATA])
+    await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
 
 
 # ! 高风险命令

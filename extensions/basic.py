@@ -16,7 +16,7 @@ from nekro_agent.tools.common_util import (
 
 __meta__ = ExtMetaData(
     name="basic",
-    description="Nekro-Agent 交互基础工具集",
+    description="[NA] 基础交互工具集",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
