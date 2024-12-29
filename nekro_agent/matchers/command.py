@@ -370,9 +370,17 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 @on_command("nekro_db_reset", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    args = cmd_content.split(" ")
 
-    if "-y" in cmd_content:
-        await reset_db()
-        await finish_with(matcher, message="数据库重置完成")
+    if "-y" in args:
+        args.remove("-y")
+        if len(args) > 1:
+            await finish_with(matcher, message="参数不合法")
+        if len(args) == 1:
+            await reset_db(args[0])
+            await finish_with(matcher, message=f"数据表 `{args[0]}` 重置完成")
+        else:
+            await reset_db()
+            await finish_with(matcher, message="数据库重置完成")
     else:
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")

@@ -17,7 +17,7 @@ class DBChatMessage(Model):
 
     id = fields.IntField(pk=True, generated=True, description="ID")
     message_id = fields.CharField(max_length=32, index=True, description="消息平台 ID")
-    sender_id = fields.IntField(index=True, description="发送者 ID")
+    sender_id = fields.CharField(max_length=32, index=True, description="发送者 ID")
     sender_bind_qq = fields.CharField(max_length=32, index=True, description="发送者绑定 QQ")
     sender_real_nickname = fields.CharField(max_length=32, index=True, description="发送者真实昵称")
     sender_nickname = fields.CharField(max_length=32, index=True, description="发送者显示昵称")

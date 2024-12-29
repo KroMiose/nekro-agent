@@ -1,3 +1,5 @@
+from typing import List
+
 from tortoise import Tortoise
 
 from .args import Args
@@ -50,16 +52,25 @@ async def init_db():
     logger.success("Database initialized")
 
 
-async def reset_db():
-    """重置数据库"""
+async def reset_db(table_name: str = ""):
+    """重置数据库
+    Args:
+        table_names: 要重置的表名列表，为空时重置所有表
+    """
     await Tortoise.close_connections()
     conn = Tortoise.get_connection("default")
-    # 获取所有表名
-    tables = await conn.execute_query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
 
-    # 依次删除所有表
-    for table in tables[1]:
-        await conn.execute_query(f'DROP TABLE IF EXISTS "{table[0]}" CASCADE')
+    if table_name:
+        # 只删除指定的表
+        await conn.execute_query(f'DROP TABLE IF EXISTS "{table_name}" CASCADE')
+    else:
+        # 获取并删除所有表
+        tables = await conn.execute_query("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
+        for table in tables[1]:
+            await conn.execute_query(f'DROP TABLE IF EXISTS "{table[0]}" CASCADE')
 
     await Tortoise.generate_schemas()
-    logger.success("Database reset")
+    if table_name:
+        logger.success(f"Table {table_name} reset")
+    else:
+        logger.success("All database tables reset")
