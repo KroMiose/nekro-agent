@@ -52,6 +52,9 @@ if [ -z "$NEKRO_DATA_DIR" ]; then
     NEKRO_DATA_DIR=${NEKRO_DATA_DIR:-"${HOME}/srv/nekro_agent"}
 fi
 
+export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
+export INSTANCE_NAME=$INSTANCE_NAME
+
 # 创建应用目录
 mkdir -p $NEKRO_DATA_DIR || {
     echo "Error: 无法创建应用目录 $NEKRO_DATA_DIR，请检查您的权限配置。"
