@@ -72,11 +72,12 @@ if [ ! -f .env ]; then
         exit 1
     fi
     echo "已获取.env文件模板。"
-    read -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " answer
-    if [[ $answer == "n" || $answer == "N" ]]; then
-        echo "安装已取消"
-        exit 0
-    fi
+fi
+
+read -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " answer
+if [[ $answer == "n" || $answer == "N" ]]; then
+    echo "安装已取消"
+    exit 0
 fi
 
 # 拉取 docker-compose.yml 文件

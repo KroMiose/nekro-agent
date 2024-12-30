@@ -7,15 +7,15 @@ services:
   # PostgreSQL 服务
   nekro_postgres:
     image: postgres:14
-    container_name: nekro_postgres
+    container_name: ${INSTANCE_NAME}_postgres
     environment:
-      POSTGRES_USER: nekro_agent
-      POSTGRES_PASSWORD: nekro_agent
-      POSTGRES_DB: nekro_agent
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DATABASE}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT}:5432"
     volumes:
-      - nekro_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - nekro_network
     restart: unless-stopped
@@ -63,8 +63,10 @@ services:
     restart: unless-stopped
 
 volumes:
-  nekro_postgres_data:
+  postgres_data:
+    name: ${INSTANCE_NAME}_postgres_data
 
 networks:
   nekro_network:
+    name: ${INSTANCE_NAME}_network
     driver: bridge
