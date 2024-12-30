@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
-      - ${INSTANCE_NAME}_network
+      - nekro_network
     restart: unless-stopped
 
   # 主服务
@@ -41,7 +41,7 @@ services:
     ports:
       - "${NEKRO_EXPOSE_PORT:-8021}:8021"
     networks:
-      - ${INSTANCE_NAME}_network
+      - nekro_network
     restart: unless-stopped
 
   # Napcat 服务
