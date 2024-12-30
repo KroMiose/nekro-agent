@@ -47,25 +47,8 @@ fi
 
 # endregion
 
-# 设置应用目录
-# 如果当前目录没有.env文件，从仓库获取.env.example
-if [ ! -f .env ]; then
-    echo "未找到.env文件，正在从仓库获取.env.example..."
-    if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/.env.example -O .env; then
-        echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
-        exit 1
-    fi
-    echo "已获取.env文件模板。"
-    echo "请检查并按需修改.env文件中的配置（按Enter继续，按Ctrl+C退出）"
-    read -p "确认配置无误后按Enter继续..."
-fi
-
-# 优先使用环境变量，其次读取.env文件，最后使用默认值
+# 设置应用目录 优先使用环境变量
 if [ -z "$NEKRO_DATA_DIR" ]; then
-    if [ -f .env ]; then
-        export $(cat .env | grep NEKRO_DATA_DIR)
-    fi
-    # 如果环境变量仍然为空，使用默认值
     NEKRO_DATA_DIR=${NEKRO_DATA_DIR:-"${HOME}/srv/nekro_agent"}
 fi
 
@@ -81,15 +64,17 @@ cd $NEKRO_DATA_DIR || {
     exit 1
 }
 
-# 提前配置好沙盒目录权限
-mkdir -p $NEKRO_DATA_DIR/sandboxes || {
-    echo "Error: 无法创建沙盒目录 $NEKRO_DATA_DIR/sandboxes。"
-    exit 1
-}
-sudo chmod 777 $NEKRO_DATA_DIR/sandboxes || {
-    echo "Error: 无法设置沙盒目录权限，请检查您的权限配置。"
-    exit 1
-}
+# 如果当前目录没有.env文件，从仓库获取.env.example
+if [ ! -f .env ]; then
+    echo "未找到.env文件，正在从仓库获取.env.example..."
+    if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/.env.example -O .env; then
+        echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
+        exit 1
+    fi
+    echo "已获取.env文件模板。"
+    echo "请检查并按需修改.env文件中的配置（按Enter继续，按Ctrl+C退出）"
+    read -p "确认配置无误后按Enter继续..."
+fi
 
 # 拉取 docker-compose.yml 文件
 echo "正在拉取 docker-compose.yml 文件..."
