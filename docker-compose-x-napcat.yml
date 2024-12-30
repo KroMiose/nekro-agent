@@ -1,5 +1,4 @@
-# 请先运行 `export BOT_QQ=你的 QQ 账号` 设定机器人 QQ 号
-# 然后运行 `export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent` 设定数据目录
+# 运行 `export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent` 设定数据目录
 # 然后运行 `sudo -E docker-compose up -d` 启动服务
 
 version: "3"
@@ -48,14 +47,16 @@ services:
   napcat:
     image: mlikiowa/napcat-docker
     container_name: napcat
-    environment:
-      - ACCOUNT=${BOT_QQ}
-      - WSR_ENABLE=true
-      - WS_URLS=["ws://nekro_agent:8021/onebot/v11/ws"]
+    # environment:
+    #   - ACCOUNT=${BOT_QQ}
+    #   - WSR_ENABLE=true
+    #   - WS_URLS=["ws://nekro_agent:8021/onebot/v11/ws"]
     ports:
       - "6099:6099"
     volumes:
       - ${NEKRO_DATA_DIR}:/app/nekro_agent_data
+      - ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ
+      - ${NEKRO_DATA_DIR}/napcat_data/napcat:/app/napcat/config
     networks:
       - nekro_network
     restart: unless-stopped
