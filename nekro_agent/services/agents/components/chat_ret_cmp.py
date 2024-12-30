@@ -15,8 +15,12 @@ Your response must be a Python script that will be executed in a sandbox contain
 
 To send a message to the conversation, use the `send_msg_text` method:
 ```python
-send_msg_text("chat_key", "Hello! [@qq:123456@] This is a message")
+send_msg_text(chat_key, "Hello! [@qq:123456@] This is a message")
 ```
+
+## Chat Key Format
+- Group chat: `group_123456` (where 123456 is the group number)
+- Private chat: `private_123456` (where 123456 is the user's QQ number)
 
 ## Important Guidelines
 

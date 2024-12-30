@@ -85,7 +85,13 @@ sudo docker logs napcat | grep "WebUi Local Panel Url"
 
 登录 Napcat 的 WebUI (注意: 需要在服务器后台放行 6099 端口，并将 `127.0.0.1` 替换为你的服务器 IP 地址)
 
-在 `网络配置` 选项卡中选择 `添加配置` 选择 `Websocket 客户端` 类型，按照下图填写配置并确认
+在 `网络配置` 选项卡中选择 `添加配置` 选择 `Websocket 客户端` 类型，按照下图填写反向代理地址
+
+```plaintext
+ws://nekro_agent:8021/onebot/v11/ws
+```
+
+名称任意填写并确认
 
 ![napcat_webui](./images/README/napcat_webui.png)
 
@@ -163,7 +169,7 @@ EXTENSION_MODULES:
 # 设置数据目录
 export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent
 # 更新 `nekro-agent` 镜像并重启容器
-cd ${NEKRO_DATA_DIR} && sudo -E docker-compose pull && sudo -E docker-compose restart nekro_agent
+cd ${NEKRO_DATA_DIR} && sudo -E docker-compose --env-file .env pull && sudo -E docker-compose --env-file .env restart nekro_agent
 ```
 
 ## 🔨 基本命令
