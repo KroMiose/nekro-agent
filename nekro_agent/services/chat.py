@@ -15,6 +15,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
 )
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
 from nekro_agent.systems.message.push_bot_msg import push_bot_chat_message
 from nekro_agent.tools.common_util import download_file
 
@@ -93,6 +94,7 @@ class ChatService:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
                     # message.append(content)
+                    content = fix_raw_response(content)
                     seg_data = parse_at_from_text(content)
                     for seg in seg_data:
                         if isinstance(seg, str):
@@ -142,7 +144,7 @@ class ChatService:
             if config.DEBUG_IN_CHAT:
                 await self.send_message(chat_key, "[Debug] 无消息回复")
             return
-        
+
         if file_mode:
             try:
                 await self.send_files(chat_key, file_message)
