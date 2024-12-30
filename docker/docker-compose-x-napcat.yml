@@ -23,7 +23,7 @@ services:
   # 主服务
   nekro_agent:
     image: kromiose/nekro-agent:latest
-    container_name: nekro_agent
+    container_name: ${INSTANCE_NAME}_nekro_agent
     environment:
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
       - NEKRO_EXPOSE_PORT=${NEKRO_EXPOSE_PORT:-8021}
@@ -47,7 +47,7 @@ services:
   # Napcat 服务
   napcat:
     image: mlikiowa/napcat-docker
-    container_name: napcat
+    container_name: ${INSTANCE_NAME}_napcat
     # environment:
     #   - ACCOUNT=${BOT_QQ}
     #   - WSR_ENABLE=true
