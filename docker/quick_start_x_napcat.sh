@@ -55,7 +55,6 @@ fi
 echo "NEKRO_DATA_DIR: $NEKRO_DATA_DIR"
 
 export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
-export INSTANCE_NAME=$INSTANCE_NAME
 
 # 创建应用目录
 mkdir -p $NEKRO_DATA_DIR || {
@@ -89,6 +88,25 @@ if [ ! -f .env ]; then
     # 将修改后的文件移动为 .env
     mv .env.temp .env
     echo "已获取并修改 .env 模板。"
+fi
+
+# 从.env文件加载环境变量
+if [ -f .env ]; then
+    # 确保 INSTANCE_NAME 有值
+    INSTANCE_NAME=$(grep INSTANCE_NAME .env | cut -d '=' -f2)
+    if [ -z "$INSTANCE_NAME" ]; then
+        echo "Error: INSTANCE_NAME 未在 .env 文件中设置"
+        exit 1
+    fi
+    export INSTANCE_NAME=$INSTANCE_NAME
+
+    # 确保 NEKRO_EXPOSE_PORT 有值
+    NEKRO_EXPOSE_PORT=$(grep NEKRO_EXPOSE_PORT .env | cut -d '=' -f2)
+    if [ -z "$NEKRO_EXPOSE_PORT" ]; then
+        echo "Error: NEKRO_EXPOSE_PORT 未在 .env 文件中设置"
+        exit 1
+    fi
+    export NEKRO_EXPOSE_PORT=$NEKRO_EXPOSE_PORT
 fi
 
 read -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " answer
