@@ -87,8 +87,9 @@ if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/doc
     exit 1
 fi
 
-# 设置 NEKRO_DATA_DIR 环境变量
+# 设置环境变量
 export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
+export INSTANCE_NAME=$INSTANCE_NAME
 
 # 启动主服务
 echo "启动主服务中..."
@@ -110,13 +111,13 @@ if ! sudo ufw allow ${NEKRO_EXPOSE_PORT:-8021}/tcp; then
     echo "Error: 无法放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口，如服务访问受限，请检查防火墙设置。"
 fi
 
-echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
+echo "部署完成！你可以通过 \`sudo docker logs -f ${INSTANCE_NAME}_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
-CONFIG_FILE="${APP_DIR}/configs/nekro-agent.yaml"
+CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
 echo "NekroAgent 应用本体安装完成！"
 
-echo "请使用 $(sudo docker logs napcat) 查看机器人 QQ 账号二维码"
+echo "请使用 $(sudo docker logs ${INSTANCE_NAME}_napcat) 查看机器人 QQ 账号二维码"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "  \`sudo docker restart nekro_agent\`"
+echo "  \`sudo docker restart ${INSTANCE_NAME}_agent\`"

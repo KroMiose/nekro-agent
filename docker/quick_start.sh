@@ -87,8 +87,9 @@ if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/doc
     exit 1
 fi
 
-# 设置 NEKRO_DATA_DIR 环境变量
+# 设置环境变量
 export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
+export INSTANCE_NAME=$INSTANCE_NAME
 
 # 启动主服务
 echo "启动主服务中..."
@@ -110,16 +111,16 @@ if ! sudo ufw allow ${NEKRO_EXPOSE_PORT:-8021}/tcp; then
     echo "Error: 无法放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口，如服务访问受限，请检查防火墙设置。"
 fi
 
-echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
+echo "部署完成！你可以通过 \`sudo docker logs -f ${INSTANCE_NAME}_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
 CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "\`sudo docker restart nekro_agent\`"
+echo "\`sudo docker restart ${INSTANCE_NAME}_agent\`"
 
 # 提示用户连接协议端
 echo "请使用 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式。"
-echo "示例 WebSocket 反向连接地址: ws://127.0.0.1:8021/onebot/v11/ws"
+echo "示例 WebSocket 反向连接地址: ws://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}/onebot/v11/ws"
 
 echo "安装完成！"
