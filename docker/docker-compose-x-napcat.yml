@@ -53,7 +53,7 @@ services:
     #   - WSR_ENABLE=true
     #   - WS_URLS=["ws://nekro_agent:${NEKRO_EXPOSE_PORT:-8021}/onebot/v11/ws"]
     ports:
-      - "6099:6099"
+      - "${NAPCAT_EXPOSE_PORT:-6099}:6099"
     volumes:
       - ${NEKRO_DATA_DIR}:/app/nekro_agent_data
       - ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ
