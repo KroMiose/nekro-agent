@@ -26,11 +26,12 @@ services:
     container_name: nekro_agent
     environment:
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
-      - NEKRO_POSTGRES_HOST=nekro_postgres
-      - NEKRO_POSTGRES_PORT=5432
-      - NEKRO_POSTGRES_USER=nekro_agent
-      - NEKRO_POSTGRES_PASSWORD=nekro_agent
-      - NEKRO_POSTGRES_DATABASE=nekro_agent
+      - NEKRO_EXPOSE_PORT=${NEKRO_EXPOSE_PORT:-8021}ß
+      - NEKRO_POSTGRES_HOST=${POSTGRES_HOST:-nekro_postgres}
+      - NEKRO_POSTGRES_PORT=${POSTGRES_PORT:-5432}
+      - NEKRO_POSTGRES_USER=${POSTGRES_USER:-nekro_agent}
+      - NEKRO_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nekro_agent}
+      - NEKRO_POSTGRES_DATABASE=${POSTGRES_DATABASE:-nekro_agent}
       - NEKRO_RUN_IN_DOCKER=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -38,7 +39,7 @@ services:
     depends_on:
       - nekro_postgres
     ports:
-      - "8021:8021"
+      - "${NEKRO_EXPOSE_PORT:-8021}:8021"
     networks:
       - nekro_network
     restart: unless-stopped

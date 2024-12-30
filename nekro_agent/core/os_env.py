@@ -28,6 +28,9 @@ class OsEnv:
     """其他配置"""
     RUN_IN_DOCKER: bool = OsEnvTypes.Bool("RUN_IN_DOCKER")
 
+    """暴露端口"""
+    EXPOSE_PORT: int = OsEnvTypes.Int("EXPOSE_PORT", default=8021)
+
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"

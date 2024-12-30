@@ -2,7 +2,7 @@
 
 # 一键部署 nekro-agent 插件脚本
 
-# 更新软件源
+# region 更新软件源
 echo "正在更新软件源..."
 if ! sudo apt-get update; then
     echo "Error: 更新软件源失败，请检查您的网络连接。"
@@ -45,40 +45,61 @@ if ! command -v docker-compose &>/dev/null; then
     fi
 fi
 
+# endregion
+
 # 设置应用目录
-APP_DIR="${HOME}/srv/nekro_agent"
+# 如果当前目录没有.env文件，从仓库获取.env.example
+if [ ! -f .env ]; then
+    echo "未找到.env文件，正在从仓库获取.env.example..."
+    if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/.env.example -O .env; then
+        echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
+        exit 1
+    fi
+    echo "已获取.env文件模板。"
+    echo "请检查并按需修改.env文件中的配置（按Enter继续，按Ctrl+C退出）"
+    read -p "确认配置无误后按Enter继续..."
+fi
+
+# 优先使用环境变量，其次读取.env文件，最后使用默认值
+if [ -z "$NEKRO_DATA_DIR" ]; then
+    if [ -f .env ]; then
+        export $(cat .env | grep NEKRO_DATA_DIR)
+    fi
+    # 如果环境变量仍然为空，使用默认值
+    NEKRO_DATA_DIR=${NEKRO_DATA_DIR:-"${HOME}/srv/nekro_agent"}
+fi
 
 # 创建应用目录
-mkdir -p $APP_DIR || {
-    echo "Error: 无法创建应用目录 $APP_DIR，请检查您的权限配置。"
+mkdir -p $NEKRO_DATA_DIR || {
+    echo "Error: 无法创建应用目录 $NEKRO_DATA_DIR，请检查您的权限配置。"
     exit 1
 }
 
 # 进入应用目录
-cd $APP_DIR || {
-    echo "Error: 无法进入应用目录 $APP_DIR。"
+cd $NEKRO_DATA_DIR || {
+    echo "Error: 无法进入应用目录 $NEKRO_DATA_DIR。"
     exit 1
 }
 
 # 提前配置好沙盒目录权限
-mkdir -p $APP_DIR/sandboxes || {
-    echo "Error: 无法创建沙盒目录 $APP_DIR/sandboxes。"
+mkdir -p $NEKRO_DATA_DIR/sandboxes || {
+    echo "Error: 无法创建沙盒目录 $NEKRO_DATA_DIR/sandboxes。"
     exit 1
 }
-sudo chmod 777 $APP_DIR/sandboxes || {
+sudo chmod 777 $NEKRO_DATA_DIR/sandboxes || {
     echo "Error: 无法设置沙盒目录权限，请检查您的权限配置。"
     exit 1
 }
 
 # 拉取 docker-compose.yml 文件
 echo "正在拉取 docker-compose.yml 文件..."
-if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker-compose-x-napcat.yml -O docker-compose.yml; then
+if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/docker-compose.yml -O docker-compose.yml; then
     echo "Error: 无法拉取 docker-compose.yml 文件，请检查您的网络连接。"
     exit 1
 fi
 
 # 设置 NEKRO_DATA_DIR 环境变量
-export NEKRO_DATA_DIR=$APP_DIR
+export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
 
 # 启动主服务
 echo "启动主服务中..."
@@ -94,19 +115,22 @@ if ! sudo docker pull kromiose/nekro-agent-sandbox; then
     exit 1
 fi
 
-# 放行防火墙 8021 端口
-echo "放行防火墙 8021 端口..."
-if ! sudo ufw allow 8021/tcp; then
-    echo "Error: 无法放行防火墙 8021 端口，如服务访问受限，请检查防火墙设置。"
+# 放行防火墙端口
+echo "放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口..."
+if ! sudo ufw allow ${NEKRO_EXPOSE_PORT:-8021}/tcp; then
+    echo "Error: 无法放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口，如服务访问受限，请检查防火墙设置。"
 fi
 
 echo "部署完成！你可以通过 \`sudo docker logs -f nekro_agent\` 来查看 Nekro Agent 服务日志。"
 
 # 提示用户修改配置文件
-CONFIG_FILE="${APP_DIR}/configs/nekro-agent.yaml"
-echo "NekroAgent 应用本体安装完成！"
-
-echo "请使用 `sudo docker logs napcat` 查看机器人 QQ 账号二维码"
+CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "  \`sudo docker restart nekro_agent\`"
+echo "\`sudo docker restart nekro_agent\`"
+
+# 提示用户连接协议端
+echo "请使用 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式。"
+echo "示例 WebSocket 反向连接地址: ws://127.0.0.1:8021/onebot/v11/ws"
+
+echo "安装完成！"

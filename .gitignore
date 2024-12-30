@@ -1,4 +1,3 @@
-
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
@@ -138,6 +137,8 @@ dmypy.json
 # pytype static type analyzer
 .pytype/
 
+# End of https://www.toptal.com/developers/gitignore/api/python
+
 # vscode
 .vscode/*
 !.vscode/launch.json
@@ -158,7 +159,8 @@ uploads
 # data files
 data
 
-# End of https://www.toptal.com/developers/gitignore/api/python
+# docker
+docker/.env
 
 # wandb files
 wandb

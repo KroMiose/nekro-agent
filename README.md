@@ -70,7 +70,7 @@
 运行一键安装脚本
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start_x_napcat.sh)"
+sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start_x_napcat.sh)"
 ```
 
 根据终端引导进行操作，随后使用以下命令查看 Napcat 的 WebUI 地址
@@ -94,7 +94,7 @@ sudo docker logs napcat | grep "WebUi Local Panel Url"
 > 该安装方式仅包含 NekroAgent 本体和必要运行组件，需要使用任意 OneBot V11 协议实现端连接即可工作
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/quick_start.sh)"
+sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start.sh)"
 ```
 
 使用任意 OneBot V11 协议端连接: `ws://<你的服务ip>:8021/onebot/v11/ws`

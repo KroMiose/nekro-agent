@@ -77,7 +77,7 @@ class PluginConfig(ConfigBase):
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"  # Agent 执行的沙盒镜像名
     SANDBOX_RUNNING_TIMEOUT: int = 60  # Agent 执行沙盒超时时间
     SANDBOX_MAX_CONCURRENT: int = 4  # Agent 最大并发沙盒数量
-    SANDBOX_CHAT_API_URL: str = "http://host.docker.internal:8021/api"  # 沙盒访问主应用 RPC 的 API 地址
+    SANDBOX_CHAT_API_URL: str = f"http://host.docker.internal:{OsEnv.EXPOSE_PORT}/api"  # 沙盒访问主应用 RPC 的 API 地址
     SANDBOX_ONEBOT_SERVER_MOUNT_DIR: str = (
         "/app/nekro_agent_data"  # 沙盒挂载主应用数据目录 (如果协议实现端运行在容器中， 需要将应用数据目录挂载到容器中该目录下)
     )
