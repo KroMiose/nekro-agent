@@ -69,6 +69,8 @@
 
 运行一键安装脚本
 
+> 默认安装目录为 `~/srv/nekro_agent`，如果需要修改，请在脚本执行前执行 `export NEKRO_DATA_DIR=<你的目录>` 设置环境变量
+
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start_x_napcat.sh)"
 ```
@@ -91,7 +93,9 @@ sudo docker logs napcat | grep "WebUi Local Panel Url"
 
 ### 🚀 方式二: NekroAgent 一键部署脚本 (不含协议端)
 
-> 该安装方式仅包含 NekroAgent 本体和必要运行组件，需要使用任意 OneBot V11 协议实现端连接即可工作
+该安装方式仅包含 NekroAgent 本体和必要运行组件，需要使用任意 OneBot V11 协议实现端连接即可工作
+
+> 默认安装目录为 `~/srv/nekro_agent`，如果需要修改，请在脚本执行前执行 `export NEKRO_DATA_DIR=<你的目录>` 设置环境变量
 
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start.sh)"
@@ -156,11 +160,10 @@ EXTENSION_MODULES:
 当 NekroAgent 新版本发布时，你可以使用以下一键命令更新应用
 
 ```bash
-# 更新 `nekro-agent` 镜像
-export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent && cd ${NEKRO_DATA_DIR} && sudo -E docker-compose pull
-
-# 然后重启 `nekro-agent` 容器
-sudo -E docker-compose restart nekro_agent
+# 设置数据目录
+export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent
+# 更新 `nekro-agent` 镜像并重启容器
+cd ${NEKRO_DATA_DIR} && sudo -E docker-compose pull && sudo -E docker-compose restart nekro_agent
 ```
 
 ## 🔨 基本命令
