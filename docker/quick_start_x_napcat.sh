@@ -87,14 +87,24 @@ if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/doc
     exit 1
 fi
 
-# 设置环境变量
-export NEKRO_DATA_DIR=$NEKRO_DATA_DIR
-export INSTANCE_NAME=$INSTANCE_NAME
-
-# 启动主服务
-echo "启动主服务中..."
-if ! sudo -E docker-compose up -d; then
-    echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
+# 从.env文件加载环境变量
+if [ -f .env ]; then
+    # 确保 INSTANCE_NAME 有值
+    INSTANCE_NAME=$(grep INSTANCE_NAME .env | cut -d '=' -f2)
+    if [ -z "$INSTANCE_NAME" ]; then
+        echo "Error: INSTANCE_NAME 未在 .env 文件中设置"
+        exit 1
+    fi
+    
+    # 使用 --env-file 参数而不是 export
+    echo "使用实例名称: ${INSTANCE_NAME}"
+    echo "启动主服务中..."
+    if ! sudo docker-compose --env-file .env up -d; then
+        echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
+        exit 1
+    fi
+else
+    echo "Error: .env 文件不存在"
     exit 1
 fi
 
