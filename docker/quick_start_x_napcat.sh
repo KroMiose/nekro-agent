@@ -162,7 +162,7 @@ echo "部署完成！你可以通过 \`sudo docker logs -f ${INSTANCE_NAME}_agen
 CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
 echo "NekroAgent 应用本体安装完成！"
 
-echo "请使用 $(sudo docker logs ${INSTANCE_NAME}_napcat) 查看机器人 QQ 账号二维码"
+echo "请使用 \"sudo docker logs ${INSTANCE_NAME}_napcat\" 查看机器人 QQ 账号二维码"
 echo "请根据需要编辑配置文件: $CONFIG_FILE"
 echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "  \`sudo docker restart ${INSTANCE_NAME}_agent\`"
+echo "  \"sudo docker restart ${INSTANCE_NAME}_agent\""
