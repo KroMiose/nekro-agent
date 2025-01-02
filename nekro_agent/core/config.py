@@ -29,6 +29,7 @@ class PluginConfig(ConfigBase):
     ADMIN_CHAT_KEY: str = ""  # 管理会话标识
     SAVE_PROMPTS_LOG: bool = False  # 是否保存聊天生成 prompts 日志
     MAX_UPLOAD_SIZE_MB: int = 10  # 上传文件大小限制 (单位 MB)
+    ENABLE_COMMAND_UNAUTHORIZED_OUTPUT: bool = False  # 是否启用未授权命令输出
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {

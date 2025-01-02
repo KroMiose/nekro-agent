@@ -48,7 +48,10 @@ async def command_guard(
     # 判断是否是禁止使用的用户
     if event.get_user_id() not in config.SUPER_USERS:
         logger.warning(f"用户 {username} 不在允许用户中")
-        await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许用户中")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许用户中")
+        else:
+            await matcher.finish()
 
     cmd_content: str = arg.extract_plain_text().strip()
     chat_key, chat_type = await get_chat_info(event=event)
