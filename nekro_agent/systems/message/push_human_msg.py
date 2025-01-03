@@ -7,6 +7,7 @@ from contextlib import suppress
 from typing import Dict
 
 from nekro_agent.core import config, logger
+from nekro_agent.core.bot import get_bot
 from nekro_agent.libs.miose_llm.exceptions import ResolveError
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
@@ -122,6 +123,12 @@ async def agent_task(message: ChatMessage):
     """执行agent任务"""
     chat_key = message.chat_key
 
+    if config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
+        try:
+            await get_bot().call_api("set_msg_emoji_like", message_id=int(message.message_id), emoji_id="212")
+        except Exception as e:
+            logger.error(f"设置消息emoji失败: {e} | 如果协议端不支持该功能，请关闭配置 `SESSION_PROCESSING_WITH_EMOJI`")
+
     try:
         logger.info(f"Message From {message.sender_real_nickname} is ToMe, Running Chat Agent...")
         for i in range(3):
@@ -143,6 +150,12 @@ async def agent_task(message: ChatMessage):
 
         final_message = pending_messages.pop(chat_key, None)
         debounce_timers.pop(chat_key, None)
+
+        if config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
+            try:
+                await get_bot().call_api("set_msg_emoji_like", message_id=int(message.message_id), emoji_id="212", set="false")
+            except Exception as e:
+                logger.error(f"设置消息emoji失败: {e} | 如果协议端不支持该功能，请关闭配置 `SESSION_PROCESSING_WITH_EMOJI`")
 
         # 如果有待处理消息，创建新的任务处理最后一条消息
         if final_message:
