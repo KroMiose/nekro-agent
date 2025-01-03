@@ -302,6 +302,14 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
+@on_command("na_exts", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    ext_info = "\n".join([ext.gen_ext_info() for ext in ALL_EXT_META_DATA])
+    await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
+
+
 @on_command("na_help", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -321,6 +329,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "conf_set <key=value>: 修改配置\n"
             "conf_reload: 重载配置\n"
             "conf_save: 保存配置\n"
+            "ai_voices: 查看当前可用的 AI 声聊角色\n"
             "注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
@@ -329,12 +338,22 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-@on_command("na_exts", priority=5, block=True).handle()
+@on_command("ai_voices", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    ext_info = "\n".join([ext.gen_ext_info() for ext in ALL_EXT_META_DATA])
-    await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
+    if chat_type is ChatType.GROUP:
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[1])
+        formatted_characters = []
+        for tag in tags:
+            char_list = []
+            for char in tag["characters"]:
+                char_list.append(f"ID: {char['character_id']} - {char['character_name']}")
+            formatted_characters.append(f"=== {tag['type']} ===\n" + "\n".join(char_list))
+
+        await finish_with(matcher, message="当前可用的 AI 声聊角色: \n\n" + "\n\n".join(formatted_characters))
+    else:
+        await finish_with(matcher, message="AI 声聊功能仅支持群组")
 
 
 # ! 高风险命令
