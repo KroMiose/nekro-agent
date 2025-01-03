@@ -47,6 +47,7 @@ class PluginConfig(ConfigBase):
         ).model_dump(),
     }
     USE_MODEL_GROUP: str = "default"  # 使用的模型组名称
+    FALLBACK_MODEL_GROUP: str = "default"  # 备用模型组名称
 
     """聊天配置"""
     AI_CHAT_PRESET_NAME: str = "可洛喵"  # 聊天预设名称
@@ -69,10 +70,12 @@ class PluginConfig(ConfigBase):
     AI_ENABLE_VISION: bool = True  # 是否启用视觉功能
     AI_VISION_IMAGE_LIMIT: int = 3  # 视觉功能图片数量限制
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = 1024  # 视觉功能图片大小限制 (单位 KB)
+    AI_VOICE_CHARACTER: str = "lucy-voice-xueling"  # 语音角色
 
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = True  # 群聊会话默认是否激活
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = True  # 私聊会话默认是否激活
+    SESSION_PROCESSING_WITH_EMOJI: bool = True  # 会话中是否显示处理中表情
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = "kromiose/nekro-agent-sandbox"  # Agent 执行的沙盒镜像名
@@ -82,6 +85,9 @@ class PluginConfig(ConfigBase):
     SANDBOX_ONEBOT_SERVER_MOUNT_DIR: str = (
         "/app/nekro_agent_data"  # 沙盒挂载主应用数据目录 (如果协议实现端运行在容器中， 需要将应用数据目录挂载到容器中该目录下)
     )
+
+    """拓展配置"""
+    EXTENSION_MODULES: List[str] = ["extensions.basic", "extensions.status"]  # 启用的插件模块列表
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = "127.0.0.1"
@@ -94,9 +100,6 @@ class PluginConfig(ConfigBase):
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"  # Stable Diffusion Web UI 访问地址
     STABLE_DIFFUSION_PROXY: str = ""  # 访问 Stable Diffusion 通过的代理
     STABLE_DIFFUSION_USE_MODEL_GROUP: str = "default"  # 生成绘图提示词使用的聊天模型组名称
-
-    """拓展配置"""
-    EXTENSION_MODULES: List[str] = ["extensions.basic", "extensions.status"]  # 启用的插件模块列表
 
     """Weave 配置"""
     WEAVE_ENABLED: bool = False  # 是否启用 Weave 追踪 LLM 调用

@@ -195,21 +195,29 @@ async def agent_run(
 
     # 4. 绑定 LLM 执行器
     model_group: ModelConfigGroup = ModelConfigGroup.model_validate(config.MODEL_GROUPS[config.USE_MODEL_GROUP])
-    scene.attach_runner(  # 为场景绑定 LLM 执行器
-        Runner(
-            client=OpenAIChatClient(
-                model=model_group.CHAT_MODEL,
-                api_key=model_group.API_KEY or OPENAI_API_KEY,
-                base_url=model_group.BASE_URL or OPENAI_BASE_URL,
-                proxy=model_group.CHAT_PROXY,
-            ),  # 指定聊天客户端
-            tokenizer=TikTokenizer(model=model_group.CHAT_MODEL),  # 指定分词器
-            prompt_creator=prompt_creator,
-        ),
-    )
+    fall_back_model_group: ModelConfigGroup = ModelConfigGroup.model_validate(config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP])
 
     # 5. 获取结果与解析
-    for _ in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
+    for retry_count in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
+        # 最后一次重试时使用 fallback 模型
+        current_model = fall_back_model_group if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else model_group
+        logger.info(
+            f"使用模型: {current_model.CHAT_MODEL}{' (Fallback)' if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ''}",
+        )
+
+        scene.attach_runner(  # 为场景绑定 LLM 执行器
+            Runner(
+                client=OpenAIChatClient(
+                    model=current_model.CHAT_MODEL,
+                    api_key=current_model.API_KEY or OPENAI_API_KEY,
+                    base_url=current_model.BASE_URL or OPENAI_BASE_URL,
+                    proxy=current_model.CHAT_PROXY,
+                ),  # 指定聊天客户端
+                tokenizer=TikTokenizer(model=current_model.CHAT_MODEL),  # 指定分词器
+                prompt_creator=prompt_creator,
+            ),
+        )
+
         try:
             logger.debug("发送生成请求...")
             scene_run_sta_timestamp = time.time()
@@ -217,11 +225,12 @@ async def agent_run(
             logger.debug(f"LLM 运行耗时: {time.time() - scene_run_sta_timestamp:.3f}s")
             break
         except Exception as e:
+            if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1:
+                logger.error(f"LLM Fallback API error: {e}")
+                await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
+                raise SceneRuntimeError("LLM API error: 所有模型请求失败，停止重试。") from None
             logger.error(f"LLM API error: {e}")
             await asyncio.sleep(1)
-    else:
-        await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
-        raise SceneRuntimeError("LLM API error: 达到最大重试次数，停止重试。") from None
 
     if one_time_code in mr.response_text:
         logger.warning("检测到一次性代码被泄露，拒绝结果并重试")
