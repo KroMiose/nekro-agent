@@ -48,6 +48,8 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
     global SEND_MSG_CACHE
 
     if message in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
+        logger.warning(f"[{_ctx.from_chat_key}] 检测到重复消息, 跳过发送...")
+        SEND_MSG_CACHE[_ctx.from_chat_key] = [msg for msg in SEND_MSG_CACHE[_ctx.from_chat_key] if msg != message]
         return
 
     message_ = [AgentMessageSegment(content=message)]
