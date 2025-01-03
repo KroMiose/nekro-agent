@@ -25,7 +25,7 @@ send_msg_text(chat_key, "Hello! [@qq:123456@] This is a message")
 ## Important Guidelines
 
 1. Privacy Protection:
-- Do not expose user QQ numbers unless specifically required (like @ mentions or function arguments)
+- Do not send user QQ numbers or user_id directly unless specifically required (like @ mentions or function arguments)
 
 2. Content Generation:
 - Write complete, meaningful content
@@ -153,6 +153,7 @@ class ChatResponseType(str, Enum):
     TEXT = "text"
     SCRIPT = "script"
 
+
 class ChatResponse(BaseModel):
     type: ChatResponseType
     content: str
@@ -211,30 +212,31 @@ class ChatResponseResolver(BaseComponent):
 
 def fix_raw_response(raw_response: str) -> str:
     """修复原始响应"""
+    logger.debug(f"Raw response: {raw_response}")
     # 修正基本 at 格式
     raw_response = raw_response.replace("[qq:", "[@qq:")
     raw_response = raw_response.replace("@[qq:", "[@qq:")
     # 修正 [@qq:123456] -> [@qq:123456@]
-    raw_response = re.sub(r"\[@qq:\d+\]", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"\[@qq:(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 [@123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 (@qq:123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@qq:\d+@\)", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"\(@qq:(\d+)@\)", r"[@qq:\1@]", raw_response)
     # 修正 (@123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@(\d+)@\)", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"\(@(\d+)@\)", r"[@qq:\1@]", raw_response)
     # 修正  <7e56b348 | At:[@qq:xxx@]> -> [@qq:xxx@]
-    raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\1@]", raw_response)
     # 修正 (@[@qq:123456@]) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\1@]", raw_response)
     # 修正 <@123456> -> [@qq:123456@]
-    raw_response = re.sub(r"<(\d+)>", r"[@qq:\g<0>@]", raw_response)
+    raw_response = re.sub(r"<@(\d+)>", r"[@qq:\1@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"
     match = re.search(reg, raw_response)
     if match:
         raw_response = raw_response[: match.start()]
-
+    logger.debug(f"Fixed raw response: {raw_response}")
     return raw_response.strip()
 
 
