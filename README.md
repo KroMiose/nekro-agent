@@ -158,7 +158,7 @@ EXTENSION_MODULES:
   - extensions.status # 状态能力扩展 (增强 Bot 上下文重要信息记忆能力)
   - extensions.artist # 艺术扩展 (提供 AI 绘图能力 需要配置 Stable Diffusion 后端 API 地址)
   - extensions.group_honor # 群荣誉扩展 (允许 AI 授予群成员称号头衔)
-  - extensions.ai_voices # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
+  - extensions.ai_voice # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
 ```
 
 > 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
