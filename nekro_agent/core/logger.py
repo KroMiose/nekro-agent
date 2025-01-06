@@ -37,6 +37,14 @@ logger.configure(
         },
         {
             "sink": Path(APP_LOG_DIR) / "app.log",
+            "format": (
+                "<g>{time:MM-DD HH:mm:ss}</g> "
+                "[<lvl>{level}</lvl>] "
+                "<c><u>{name}</u></c> | "
+                "<c>{function}:{line}</c>| "
+                "{message}"
+            ),
+            "level": config.APP_LOG_LEVEL,
             "rotation": "100 MB",
             "retention": "10 days",
             "compression": "zip",
