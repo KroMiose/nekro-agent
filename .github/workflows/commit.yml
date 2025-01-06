@@ -23,8 +23,14 @@ jobs:
           poetry install
       - name: Plugin Load Test
         run: |
-          poetry run bot --load-test
+          # 设置 Python 详细错误信息
+          export PYTHONVERBOSE=1
+          # 运行测试并保存输出
+          poetry run bot --load-test 2>&1 | tee test_output.log
           if [ $? -ne 0 ]; then
             echo "Debug Mode Enabled"
+            echo "=== Error Log ==="
+            cat test_output.log
+            echo "================="
             poetry run bot --load-test --verbose
           fi
