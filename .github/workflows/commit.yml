@@ -17,6 +17,10 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-poetry
       - uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10.15"
       - name: Setup Poetry
         uses: pronovic/setup-poetry@v2
         with:
