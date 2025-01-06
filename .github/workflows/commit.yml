@@ -10,11 +10,17 @@ jobs:
     name: Run Plugin Load Test
     runs-on: ubuntu-20.04
     steps:
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pypoetry
+          key: ${{ runner.os }}-poetry
+          restore-keys: |
+            ${{ runner.os }}-poetry
       - uses: actions/checkout@v4
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10.15'
+          python-version: "3.10.15"
       - name: Install Poetry
         run: >-
           curl -sSL https://install.python-poetry.org | python3 -
