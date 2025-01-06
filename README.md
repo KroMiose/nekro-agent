@@ -3,24 +3,26 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
-    <a href="https://v2.nonebot.dev/store"><img src="./images/README/NA_logo.png" width="1024" alt="NoneBotPluginLogo"></a>
-    <br>
+  <a href="https://v2.nonebot.dev/store"><img src="./images/README/NA_logo.png" width="1024" alt="NoneBotPluginLogo"></a><br>
   <p><img src="./images/README/NoneBotPlugin.svg" width="240" alt="NoneBotPluginText"></p>
 </div>
 <div align="center">
-    ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
-    🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
-    🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
-    🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
-    💬 技术交流/答疑/讨论 -> ：<a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">加入插件交流群 -> 636925153</a> 🗨️ <br/>
-    <a href="https://pypi.python.org/pypi/nekro-agent">
-        <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
-    </a>
-    <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
-    <a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">
-        <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
-    </a> <br/>
-    📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
+  ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天插件 & 代理执行 Bot! ✨<br/>
+  🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
+  🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
+  🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
+  💬 技术交流/答疑/讨论 -> ：<a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">加入插件交流群 -> 636925153</a> 🗨️ <br/>
+  <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
+    <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
+  </a>
+  <a href="https://hub.docker.com/u/kromiose" target="_blank">
+    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?labelColor=%20%23FDB062&color=%20%23f79009">
+  </a>
+  <a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7" target="_blank">
+    <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
+  </a>
+  <br/>
+  📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
 </div>
 
 ## ⚠ !安全警告!
