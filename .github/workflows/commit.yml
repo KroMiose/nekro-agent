@@ -22,5 +22,9 @@ jobs:
         run: >-
           poetry install
       - name: Plugin Load Test
-        run: >-
+        run: |
           poetry run bot --load-test
+          if [ $? -ne 0 ]; then
+            echo "Debug Mode Enabled"
+            poetry run bot --load-test --verbose
+          fi
