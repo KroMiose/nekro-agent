@@ -8,7 +8,7 @@ on:
 jobs:
   publish-to-pypi:
     name: Publish to PyPI
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@master
       - name: Set up Python 3.10
@@ -29,7 +29,7 @@ jobs:
           poetry run publish
   publish-nekro-amd64-image:
     name: Publish Nekro Agent Image (amd64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@master
       - name: Set up QEMU
@@ -71,7 +71,7 @@ jobs:
         run: docker logout
   publish-nekro-arm64-image:
     name: Publish Nekro Agent Image (arm64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@master
       - name: Set up QEMU
@@ -113,7 +113,7 @@ jobs:
 
   publish-sandbox-amd64-image:
     name: Publish Sandbox Image (amd64 for test)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@master
 
@@ -146,7 +146,7 @@ jobs:
 
   publish-sandbox-arm64-image:
     name: Publish Sandbox Image (arm64 for test)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@master
 
