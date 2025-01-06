@@ -12,11 +12,12 @@
   🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
   🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
   💬 技术交流/答疑/讨论 -> ：<a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">加入插件交流群 -> 636925153</a> 🗨️ <br/>
+  <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
   </a>
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
-    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?labelColor=%20%23FDB062&color=%20%23f79009">
+    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
   <a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7" target="_blank">
     <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
