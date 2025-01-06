@@ -14,7 +14,7 @@ jobs:
       - name: Set up Python 3.10
         uses: actions/setup-python@v1
         with:
-          python-version: 3.10.15
+          python-version: 3.10.16
       - name: Install Poetry
         run: >-
           curl -sSL https://install.python-poetry.org | python3 -
@@ -23,14 +23,8 @@ jobs:
           poetry install
       - name: Plugin Load Test
         run: |
-          # 设置 Python 详细错误信息
-          export PYTHONVERBOSE=1
-          # 运行测试并保存输出
-          poetry run bot --load-test 2>&1 | tee test_output.log
+          poetry run bot --load-test
           if [ $? -ne 0 ]; then
             echo "Debug Mode Enabled"
-            echo "=== Error Log ==="
-            cat test_output.log
-            echo "================="
             poetry run bot --load-test --verbose
           fi
