@@ -108,7 +108,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, result)
 
 
-@on_command("code_log", priority=5, block=True).handle()
+@on_command("code_log", aliases={"code-log"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -143,7 +143,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message="系统消息添加成功")
 
 
-@on_command("na_on", priority=5, block=True).handle()
+@on_command("na_on", aliases={"na-on"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -172,7 +172,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
 
 
-@on_command("na_off", priority=5, block=True).handle()
+@on_command("na_off", aliases={"na-off"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -204,7 +204,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"已关闭 {target_chat_key} 的聊天功能")
 
 
-@on_command("conf_show", priority=5, block=True).handle()
+@on_command("conf_show", aliases={"conf-show"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -225,7 +225,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await finish_with(matcher, message=f"未知配置 `{cmd_content}`")
 
 
-@on_command("conf_set", priority=5, block=True).handle()
+@on_command("conf_set", aliases={"conf-set"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -257,7 +257,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message=f"未知配置: `{key}`")
 
 
-@on_command("conf_reload", priority=5, block=True).handle()
+@on_command("conf_reload", aliases={"conf-reload"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -269,7 +269,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="重载配置成功")
 
 
-@on_command("conf_save", priority=5, block=True).handle()
+@on_command("conf_save", aliases={"conf-save"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -281,7 +281,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="保存配置成功")
 
 
-@on_command("na_info", priority=5, block=True).handle()
+@on_command("na_info", aliases={"na-info"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -302,7 +302,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-@on_command("na_exts", priority=5, block=True).handle()
+@on_command("na_exts", aliases={"na-exts"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -310,7 +310,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
 
 
-@on_command("na_help", priority=5, block=True).handle()
+@on_command("na_help", aliases={"na-help"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -338,7 +338,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-@on_command("ai_voices", priority=5, block=True).handle()
+@on_command("ai_voices", aliases={"ai-voices"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -357,7 +357,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 
 # ! 高风险命令
-@on_command("docker_restart", priority=5, block=True).handle()
+@on_command("docker_restart", aliases={"docker-restart"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -368,7 +368,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     os.system(f"docker restart {container_name}")
 
 
-@on_command("docker_logs", priority=5, block=True).handle()
+@on_command("docker_logs", aliases={"docker-logs"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
@@ -389,7 +389,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
 
 
-@on_command("nekro_db_reset", priority=5, block=True).handle()
+@on_command("nekro_db_reset", aliases={"nekro-db-reset"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
     args = cmd_content.split(" ")
