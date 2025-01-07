@@ -8,19 +8,15 @@ on:
 jobs:
   build-n-publish:
     name: Run Plugin Load Test
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/pypoetry
-          key: ${{ runner.os }}-poetry
-          restore-keys: |
-            ${{ runner.os }}-poetry
       - uses: actions/checkout@v4
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10.15"
+
       - name: Setup Poetry
         uses: pronovic/setup-poetry@v2
         with:
@@ -28,9 +24,11 @@ jobs:
           plugins: "poetry-dynamic-versioning==1.2.0"
           cache-venv: "true"
           cache-poetry: "true"
+
       - name: Install Dependencies
         run: >-
           poetry install
+
       - name: Plugin Load Test
         run: |
           poetry run bot --load-test

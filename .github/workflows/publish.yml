@@ -10,50 +10,67 @@ jobs:
     name: Publish to PyPI
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
+
       - name: Set up Python 3.10
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.10.15
-      - name: Install Poetry
-        run: >-
-          curl -sSL https://install.python-poetry.org | python3 -
+          python-version: "3.10.15"
+
+      - name: Setup Poetry
+        uses: pronovic/setup-poetry@v2
+        with:
+          version: "1.8.0"
+          plugins: "poetry-dynamic-versioning==1.2.0"
+          cache-venv: "true"
+          cache-poetry: "true"
+
       - name: Install Dependencies
         run: >-
           poetry install
+
       - name: PyPI Setup
         run: >-
           poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+
       - name: Publish Package
         run: >-
           poetry run publish
+
   publish-nekro-amd64-image:
     name: Publish Nekro Agent Image (amd64)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
+
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v1
+
       - name: Install Python and Dependencies
         uses: actions/setup-python@v2
         with:
           python-version: "3.10"
+
       - name: Install toml
         run: |
           pip install toml
+
       - name: Get Version from pyproject.toml
         id: get_version
         run: |
           VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build and Push Docker Image for amd64
         uses: docker/build-push-action@v2
         with:
@@ -67,35 +84,44 @@ jobs:
           platforms: linux/amd64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Cleanup
         run: docker logout
+
   publish-nekro-arm64-image:
     name: Publish Nekro Agent Image (arm64)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
+
       - name: Set up Docker Buildx
         id: buildx
         uses: docker/setup-buildx-action@v1
+
       - name: Install Python and Dependencies
         uses: actions/setup-python@v2
         with:
           python-version: "3.10"
+
       - name: Install toml
         run: |
           pip install toml
+
       - name: Get Version from pyproject.toml
         id: get_version
         run: |
           VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
+
       - name: Build and Push Docker Image for arm64
         uses: docker/build-push-action@v2
         with:
@@ -108,6 +134,7 @@ jobs:
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
       - name: Cleanup
         run: docker logout
 
@@ -115,7 +142,7 @@ jobs:
     name: Publish Sandbox Image (amd64 for test)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
@@ -148,7 +175,7 @@ jobs:
     name: Publish Sandbox Image (arm64 for test)
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@master
+      - uses: actions/checkout@v4
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1

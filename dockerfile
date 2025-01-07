@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y \
     docker.io
 
 # 安装 Poetry 和 nb-cli
-RUN pip install poetry nb-cli
+RUN pip install poetry==1.8.0 nb-cli
 
 WORKDIR /app
 COPY . /app
