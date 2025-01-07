@@ -22,7 +22,7 @@ from nekro_agent.systems.message.convertor import convert_chat_message
 from nekro_agent.systems.message.push_human_msg import push_human_chat_message
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
-message_matcher: Type[Matcher] = on_message(priority=20, block=True)
+message_matcher: Type[Matcher] = on_message(priority=99999, block=False)
 
 
 @message_matcher.handle()
@@ -88,7 +88,7 @@ async def _(
     await push_human_chat_message(chat_message)
 
 
-upload_notice_matcher: Type[Matcher] = on_notice(priority=20, block=True)
+upload_notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 
 
 @upload_notice_matcher.handle()
@@ -136,7 +136,7 @@ async def _(
 
 
 """通用通知匹配器"""
-notice_matcher: Type[Matcher] = on_notice(priority=20, block=True)
+notice_matcher: Type[Matcher] = on_notice(priority=99999, block=True)
 
 
 class NoticeEventType(Enum):
