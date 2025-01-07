@@ -205,23 +205,21 @@ async def agent_run(
             f"使用模型: {current_model.CHAT_MODEL}{' (Fallback)' if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ''}",
         )
 
-        scene.attach_runner(  # 为场景绑定 LLM 执行器
-            Runner(
-                client=OpenAIChatClient(
-                    model=current_model.CHAT_MODEL,
-                    api_key=current_model.API_KEY or OPENAI_API_KEY,
-                    base_url=current_model.BASE_URL or OPENAI_BASE_URL,
-                    proxy=current_model.CHAT_PROXY,
-                ),  # 指定聊天客户端
-                tokenizer=TikTokenizer(model=current_model.CHAT_MODEL),  # 指定分词器
-                prompt_creator=prompt_creator,
-            ),
+        _runner: Runner = Runner(
+            client=OpenAIChatClient(
+                model=current_model.CHAT_MODEL,
+                api_key=current_model.API_KEY or OPENAI_API_KEY,
+                base_url=current_model.BASE_URL or OPENAI_BASE_URL,
+                proxy=current_model.CHAT_PROXY,
+            ),  # 指定聊天客户端
+            tokenizer=TikTokenizer(model=current_model.CHAT_MODEL),  # 指定分词器
+            prompt_creator=prompt_creator,
         )
 
         try:
             logger.debug("发送生成请求...")
             scene_run_sta_timestamp = time.time()
-            mr: ModelResponse = await scene.run()
+            mr: ModelResponse = await scene.run(use_runner=_runner)
             logger.debug(f"LLM 运行耗时: {time.time() - scene_run_sta_timestamp:.3f}s")
             break
         except Exception as e:
