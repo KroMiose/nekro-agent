@@ -30,6 +30,7 @@ class PluginConfig(ConfigBase):
     SAVE_PROMPTS_LOG: bool = False  # 是否保存聊天生成 prompts 日志
     MAX_UPLOAD_SIZE_MB: int = 10  # 上传文件大小限制 (单位 MB)
     ENABLE_COMMAND_UNAUTHORIZED_OUTPUT: bool = False  # 是否启用未授权命令输出
+    DEFAULT_PROXY: str = ""  # 默认代理 (仅会在必要时使用， 填写格式: http://127.0.0.1:7890)
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, Dict[str, str]] = {
@@ -100,6 +101,11 @@ class PluginConfig(ConfigBase):
     STABLE_DIFFUSION_API: str = "http://127.0.0.1:9999"  # Stable Diffusion Web UI 访问地址
     STABLE_DIFFUSION_PROXY: str = ""  # 访问 Stable Diffusion 通过的代理
     STABLE_DIFFUSION_USE_MODEL_GROUP: str = "default"  # 生成绘图提示词使用的聊天模型组名称
+
+    """Google Search API 配置"""
+    GOOGLE_SEARCH_API_KEY: str = ""  # Google Search API Key
+    GOOGLE_SEARCH_CX_KEY: str = ""  # Google Search CX Key
+    GOOGLE_SEARCH_MAX_RESULTS: int = 3  # Google Search 最大结果数
 
     """Weave 配置"""
     WEAVE_ENABLED: bool = False  # 是否启用 Weave 追踪 LLM 调用

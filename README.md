@@ -11,7 +11,7 @@
   🎉 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级续作 🌈<br/>
   🧬 <a href="https://docs.google.com/spreadsheets/d/1JQNmVH-vlDn2uEPwkjv3iN-zn0PHpQ7RGbgA5T3fxOA/edit?usp=sharing">预设收集共享表(欢迎分享各种自定义人设)</a> 🧬 <br/>
   🎆 如果喜欢请点个⭐吧！您的支持就是我持续更新的动力 🎉<br/>
-  💬 技术交流/答疑/讨论 -> ：<a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">加入插件交流群 -> 636925153</a> 🗨️ <br/>
+  💬 技术交流/答疑/讨论 -> ：<a href="https://jq.qq.com/?_wv=1027&k=71t9iCT7">加入插件交流群: 636925153</a> 🗨️ <br/>
   <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
@@ -162,6 +162,7 @@ EXTENSION_MODULES:
   - extensions.artist # 艺术扩展 (提供 AI 绘图能力 需要配置 Stable Diffusion 后端 API 地址)
   - extensions.group_honor # 群荣誉扩展 (允许 AI 授予群成员称号头衔)
   - extensions.ai_voice # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
+  - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
 ```
 
 > 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
