@@ -19,12 +19,12 @@ __meta__ = ExtMetaData(
 
 @agent_collector.mount_method(MethodType.TOOL)
 async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, days: int, _ctx: AgentCtx) -> bool:
-    """赋予用户称号头衔
+    """赋予用户头衔称号
 
     Args:
         chat_key (str): 聊天的唯一标识符 (仅支持群组)
         user_qq (str): 用户 QQ 号
-        special_title (str): 头衔称号 (不超过6个字符, 为空则移除头衔)
+        special_title (str): 头衔 (不超过6个字符, 为空则移除头衔)
         days (int): 有效期/天
 
     Returns:

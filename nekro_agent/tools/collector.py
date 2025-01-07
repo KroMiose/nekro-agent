@@ -125,7 +125,10 @@ class DocCollector:
             if not method.__doc__:
                 logger.warning(f"方法 {method.__name__} 没有可用的文档注解。")
                 continue
-            prompts.append(f"* {method.__name__} - {method.__doc__.strip()}")
+            if self.get_method_type(method) in [MethodType.AGENT]:
+                prompts.append(f"* {method.__name__} - [AGENT METHOD - STOP AFTER CALL] {method.__doc__.strip()}")
+            else:
+                prompts.append(f"* {method.__name__} - {method.__doc__.strip()}")
         return prompts
 
 
