@@ -71,4 +71,4 @@ async def google_search(keyword: str, _ctx: AgentCtx) -> str:
     _last_keyword = keyword
     _last_call_time = time.time()
 
-    return f"[Search results for {keyword}]\n{results} \nPlease continue to generate responses based on the results and DO NOT REPEAT IT!"
+    return f"[Google Search Results]\n{results}\nAnalyze and synthesize the above search results to provide insights. DO NOT directly repeat the search results - integrate them into a thoughtful response."

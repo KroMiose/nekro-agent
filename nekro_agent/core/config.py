@@ -112,7 +112,12 @@ class PluginConfig(ConfigBase):
     WEAVE_PROJECT_NAME: str = "nekro-agent"  # Weave 项目名称
 
 
-config = PluginConfig.load_config(file_path=CONFIG_PATH)
+try:
+    config = PluginConfig.load_config(file_path=CONFIG_PATH)
+except Exception as e:
+    print(f"Nekro Agent 配置文件加载失败: {e} | 请检查配置文件是否符合语法要求")
+    print("应用将退出...")
+    exit(1)
 config.dump_config(file_path=CONFIG_PATH)
 
 

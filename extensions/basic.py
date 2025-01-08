@@ -56,7 +56,7 @@ async def send_msg_text(chat_key: str, message: str, _ctx: AgentCtx):
     try:
         await chat_service.send_agent_message(chat_key, message_, _ctx, record=True)
     except Exception as e:
-        raise Exception(f"Error sending text message to chat: {e}") from e
+        raise Exception(f"Error sending text message to chat: Make sure the chat key is correct and the content is not empty or too long.") from e
 
     if _ctx.from_chat_key not in SEND_MSG_CACHE:
         SEND_MSG_CACHE[_ctx.from_chat_key] = []

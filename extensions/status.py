@@ -82,10 +82,10 @@ async def remove_effect(chat_key: str, effect_name: str, _ctx: AgentCtx):
         effect_name (str): 被移除的效果名 (e.g. "精神饱满", "正在看书")
 
     Example:
-            ```
-            # 由于某种原因，"精神饱满" 效果不再符合当前场景，需要移除
-            remove_effect(chat_key, "精神饱满")
-            ```
+        ```
+        # 由于某种原因，"精神饱满" 效果不再符合当前场景，需要移除
+        remove_effect(chat_key, "精神饱满")
+        ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
     channel_data: ChannelData = await db_channel.get_channel_data()
