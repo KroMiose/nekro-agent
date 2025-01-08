@@ -62,6 +62,8 @@
 - [ ] 基于 LLM 的自动上下文衔接触发器
 - [ ] 可视化插件控制面板
 
+> 💡 查看 [扩展列表](./README_Extensions.md) 了解所有可用扩展及其配置说明
+
 ## 🎁 部署指南
 
 本插件提供多种部署方式，选择一种部署方式并在部署完毕后补充配置信息即可正常工作
@@ -165,7 +167,7 @@ EXTENSION_MODULES:
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
 ```
 
-> 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py)
+> 💡 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py) ｜ 扩展配置请参考 [扩展列表](./README_Extensions.md)
 
 ## 🆙 更新应用
 
