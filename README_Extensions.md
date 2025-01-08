@@ -16,9 +16,11 @@
 
 ### status - 状态扩展
 
-增强 Bot 的上下文记忆能力。
+增强 Bot 的上下文状态记忆能力，动态修改自身群名片。
 
-- **功能**: 帮助 AI 记住重要的上下文信息
+- **功能**:
+  - 帮助 AI 记住自身状态变化信息
+  - 自动修改群名片描述状态
 - **配置**: 无需额外配置
 
 ## 🎨 创意扩展
@@ -46,7 +48,7 @@ STABLE_DIFFUSION_USE_MODEL_GROUP: "default" # 生成绘图提示词使用的聊�
 - **配置**:
 
 ```yaml
-AI_VOICE_CHARACTER: "lucy-voice-xueling" # 语音角色
+AI_VOICE_CHARACTER: "lucy-voice-xueling" # 语音角色 使用 `/ai_voices` 命令查看支持的语音角色
 ```
 
 ## 🎲 娱乐扩展
@@ -83,7 +85,7 @@ DEFAULT_PROXY: "" # 默认代理 (仅会在必要时使用，填写格式: http:
 允许 AI 管理群成员头衔。
 
 - **功能**: 设置群成员专属头衔
-- **要求**: Bot 需要群管理员权限
+- **要求**: Bot 需要群主权限
 
 ### judgement - 风纪委员
 
