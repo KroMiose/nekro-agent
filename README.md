@@ -177,7 +177,10 @@ EXTENSION_MODULES:
 # 设置数据目录
 export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent
 # 更新 `nekro-agent` 镜像并重启容器
-cd ${NEKRO_DATA_DIR} && sudo -E docker-compose --env-file .env down && sudo -E docker-compose --env-file .env up --build -d
+cd ${NEKRO_DATA_DIR} && \
+ sudo -E docker-compose --env-file .env down && \
+ sudo -E docker-compose --env-file .env pull && \
+ sudo -E docker-compose --env-file .env up --build -d
 ```
 
 ## 🔨 基本命令
