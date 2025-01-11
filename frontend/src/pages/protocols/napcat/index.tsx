@@ -290,16 +290,21 @@ export default function NapCatPage() {
               severity="info"
               sx={{ mb: 2 }}
               action={
-                <Button
+                <LoadingButton
                   size="small"
                   startIcon={<ContentCopyIcon />}
-                  onClick={() => {
-                    navigator.clipboard.writeText(onebotToken)
-                    setMessage({ text: '访问密钥已复制到剪贴板', severity: 'success' })
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(onebotToken)
+                      setMessage({ text: '访问密钥已复制到剪贴板', severity: 'success' })
+                    } catch (error) {
+                      console.error('复制失败:', error)
+                      setMessage({ text: '复制失败，请手动复制', severity: 'error' })
+                    }
                   }}
                 >
                   复制
-                </Button>
+                </LoadingButton>
               }
             >
               OneBot 服务访问密钥: <strong>{onebotToken}</strong>

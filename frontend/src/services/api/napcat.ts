@@ -37,7 +37,13 @@ export const napCatApi = {
     if (!apiBaseUrl) throw new Error('API 基础 URL 未配置')
 
     try {
-      const url = new URL(`${apiBaseUrl}/napcat/logs/stream`)
+      let baseUrl = apiBaseUrl
+      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
+        baseUrl = `http://${baseUrl}`
+      }
+      baseUrl = baseUrl.replace(/\/$/, '')
+
+      const url = new URL(`${baseUrl}/napcat/logs/stream`)
       url.searchParams.set('token', token)
       return new EventSource(url.toString())
     } catch (error) {
