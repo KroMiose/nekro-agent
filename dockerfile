@@ -3,16 +3,19 @@ FROM node:20-slim AS frontend-builder
 # 设置工作目录
 WORKDIR /app/frontend
 
+# 安装 pnpm
+RUN npm install -g pnpm
+
 # 首先复制依赖文件，利用缓存
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # 然后复制源代码并构建
 COPY frontend/tsconfig*.json ./
 COPY frontend/vite.config.ts ./
 COPY frontend/src ./src
 COPY frontend/public ./public
-RUN npm run build
+RUN pnpm run build
 
 # 使用更小的基础镜像来存储构建产物
 FROM busybox:1.36 AS frontend-dist
