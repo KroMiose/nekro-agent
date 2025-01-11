@@ -30,9 +30,13 @@ axiosInstance.interceptors.response.use(
     console.error('Response error:', error)
 
     if (error.response?.status === 401) {
-      // token 过期，清除登录状态
+      // 如果是登录接口，返回错误信息
+      if (error.config.url === '/user/login') {
+        return Promise.reject(new Error('用户名或密码错误'))
+      }
+      // 其他接口返回401，说明token过期
       useAuthStore.getState().logout()
-      window.location.href = '/login'
+      window.location.href = '/#/login'
       return Promise.reject(new Error('登录已过期，请重新登录'))
     }
 

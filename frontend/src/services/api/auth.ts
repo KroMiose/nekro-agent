@@ -18,6 +18,11 @@ export interface UserInfo {
   perm_role: string
 }
 
+export interface UpdatePasswordParams {
+  user_id?: number
+  password: string
+}
+
 export interface ApiResponse<T> {
   code: number
   msg: string
@@ -47,6 +52,19 @@ export const authApi = {
       return response.data.data
     } catch (error) {
       console.error('Get user info failed:', error)
+      throw error
+    }
+  },
+
+  updatePassword: async (params: UpdatePasswordParams) => {
+    try {
+      const response = await axios.put<ApiResponse<null>>('/user/password', params)
+      if (response.data.code !== 200) {
+        throw new Error(response.data.msg)
+      }
+      return response.data.data
+    } catch (error) {
+      console.error('Update password failed:', error)
       throw error
     }
   },

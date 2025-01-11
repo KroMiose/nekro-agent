@@ -31,7 +31,7 @@ class UserUpdate(BaseModel):
 
 
 class UpdatePassword(BaseModel):
-    user_id: Optional[int]
+    user_id: Optional[int] = None
     password: str
 
 

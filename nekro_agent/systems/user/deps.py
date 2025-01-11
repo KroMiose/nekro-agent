@@ -24,6 +24,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 
     class TokenData(BaseModel):
         username: str
+        bind_qq: str
 
     try:
         payload = jwt.decode(
@@ -34,10 +35,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         username: str | None = payload.get("sub")
         if username is None:
             raise credentials_exception
-        token_data = TokenData(username=username)
+        token_data = TokenData(username=username, bind_qq=username)
     except JWTError as e:
         raise credentials_exception from e
-    user = await DBUser.get_or_none(username=token_data.username)
+    user = await DBUser.get_or_none(bind_qq=token_data.bind_qq)
     if user is None:
         if token_data.username == "admin":
             await DBUser.create(

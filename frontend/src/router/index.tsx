@@ -8,6 +8,7 @@ import ModelGroupsPage from '../pages/model-groups'
 import ExtensionsPage from '../pages/extensions'
 import NapCatPage from '../pages/protocols/napcat'
 import SandboxPage from '../pages/sandbox'
+import ProfilePage from '../pages/profile'
 
 const router = createHashRouter([
   {
@@ -52,6 +53,10 @@ const router = createHashRouter([
             element: <ModelGroupsPage />,
           },
         ],
+      },
+      {
+        path: 'profile',
+        element: <ProfilePage />,
       },
     ],
   },

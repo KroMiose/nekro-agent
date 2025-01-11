@@ -52,7 +52,7 @@ async def user_login(data: UserLogin) -> UserToken:
             refresh_token=create_refresh_token(data.username),
             token_type="bearer",
         )
-    user: Optional[DBUser] = await DBUser.get_or_none(username=data.username)
+    user: Optional[DBUser] = await DBUser.get_or_none(bind_qq=data.username)
     if not user:
         raise credentials_exception
     if user.bind_qq not in config.SUPER_USERS:
@@ -63,8 +63,8 @@ async def user_login(data: UserLogin) -> UserToken:
         user.login_time = datetime.now()
         await user.save()
         return UserToken(
-            access_token=create_access_token(user.username),
-            refresh_token=create_refresh_token(user.username),
+            access_token=create_access_token(user.bind_qq),
+            refresh_token=create_refresh_token(user.bind_qq),
             token_type="bearer",
         )
     logger.info(f"用户 {data.username} 登录校验失败 ")

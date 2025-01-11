@@ -31,6 +31,7 @@ import {
   Extension as ExtensionIcon,
   Chat as ChatIcon,
   Code as CodeIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
@@ -57,6 +58,7 @@ const menuItems = [
       { text: '模型组', icon: <StorageIcon />, path: '/settings/model-groups' },
     ],
   },
+  { text: '个人中心', icon: <PersonIcon />, path: '/profile' },
 ]
 
 export default function MainLayout() {
@@ -86,6 +88,9 @@ export default function MainLayout() {
     }
     if (currentPath === '/sandbox-logs') {
       return '沙盒日志'
+    }
+    if (currentPath === '/profile') {
+      return '个人中心'
     }
     const currentMenu = menuItems.find(item => item.path && currentPath.startsWith(item.path))
     return currentMenu?.text || '管理面板'
