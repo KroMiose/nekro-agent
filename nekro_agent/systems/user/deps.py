@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
@@ -12,6 +12,8 @@ from nekro_agent.schemas.http_exception import (
     credentials_exception,
     login_expired_exception,
 )
+from nekro_agent.systems.user.auth import get_hashed_password
+from nekro_agent.systems.user.perm import Role
 
 reuseable_oauth = OAuth2PasswordBearer(tokenUrl="/login", scheme_name="JWT")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -37,6 +39,15 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         raise credentials_exception from e
     user = await DBUser.get_or_none(username=token_data.username)
     if user is None:
+        if token_data.username == "admin":
+            await DBUser.create(
+                username="admin",
+                password=get_hashed_password(""),
+                bind_qq="",
+                perm_level=Role.Super,
+                login_time=datetime.now(),
+            )
+            return user
         raise credentials_exception
     return user
 
@@ -50,6 +61,6 @@ async def get_current_active_user(
         minutes=OsEnv.ACCESS_TOKEN_EXPIRE_DAYS * 24 * 60,
     )
 
-    if expiration_time < datetime.now():  # type: ignore
+    if expiration_time < datetime.now(timezone.utc):
         raise login_expired_exception
     return current_user

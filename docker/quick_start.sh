@@ -1,5 +1,11 @@
 #!/bin/bash
 
+# 生成随机字符串的函数
+generate_random_string() {
+    local length=$1
+    cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w $length | head -n 1
+}
+
 # 一键部署 nekro-agent 插件脚本
 
 # region 更新软件源
@@ -85,6 +91,19 @@ if [ ! -f .env ]; then
         echo "NEKRO_DATA_DIR=${NEKRO_DATA_DIR}" >>.env.temp
     fi
 
+    # 生成随机的 ONEBOT_ACCESS_TOKEN 和 NEKRO_ADMIN_PASSWORD（如果它们为空）
+    ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env.temp | cut -d '=' -f2)
+    if [ -z "$ONEBOT_ACCESS_TOKEN" ]; then
+        ONEBOT_ACCESS_TOKEN=$(generate_random_string 32)
+        sed -i "s|^ONEBOT_ACCESS_TOKEN=.*|ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}|" .env.temp
+    fi
+
+    NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env.temp | cut -d '=' -f2)
+    if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
+        NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
+        sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env.temp
+    fi
+
     # 将修改后的文件移动为 .env
     mv .env.temp .env
     echo "已获取并修改 .env 模板。"
@@ -151,21 +170,38 @@ if ! sudo docker pull kromiose/nekro-agent-sandbox; then
 fi
 
 # 放行防火墙端口
-echo "放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口..."
+echo -e "\n正在配置防火墙..."
+echo "放行 NekroAgent 主服务端口 ${NEKRO_EXPOSE_PORT:-8021}/tcp..."
 if ! sudo ufw allow ${NEKRO_EXPOSE_PORT:-8021}/tcp; then
-    echo "Error: 无法放行防火墙 ${NEKRO_EXPOSE_PORT:-8021} 端口，如服务访问受限，请检查防火墙设置。"
+    echo "Warning: 无法放行防火墙端口 ${NEKRO_EXPOSE_PORT:-8021}，如服务访问受限，请检查防火墙设置。"
 fi
 
-echo "部署完成！你可以通过 'sudo docker logs -f ${INSTANCE_NAME}_agent' 来查看 Nekro Agent 服务日志。"
+echo -e "\n=== 部署完成！==="
+echo "你可以通过以下命令查看服务日志："
+echo "  NekroAgent: 'sudo docker logs -f ${INSTANCE_NAME}_agent'"
+
+# 显示重要的配置信息
+echo -e "\n=== 重要配置信息 ==="
+ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env | cut -d '=' -f2)
+NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
+echo "OneBot 访问令牌: ${ONEBOT_ACCESS_TOKEN}"
+echo "管理员账号: admin | 密码: ${NEKRO_ADMIN_PASSWORD}"
+
+echo -e "\n=== 服务访问信息 ==="
+echo "NekroAgent 主服务端口: ${NEKRO_EXPOSE_PORT:-8021}"
+echo "NekroAgent Web 访问地址: http://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}"
+echo "OneBot WebSocket 连接地址: ws://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}/onebot/v11/ws"
+
+echo -e "\n=== 注意事项 ==="
+echo "1. 如果您使用的是云服务器，请在云服务商控制台的安全组中放行以下端口："
+echo "   - ${NEKRO_EXPOSE_PORT:-8021}/tcp (NekroAgent 主服务)"
+echo "2. 如果需要从外部访问，请将上述地址中的 127.0.0.1 替换为您的服务器公网IP"
 
 # 提示用户修改配置文件
+echo -e "\n=== 配置文件 ==="
 CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
-echo "请根据需要编辑配置文件: $CONFIG_FILE"
-echo "编辑后可通过以下命令重启 nekro-agent 容器:"
-echo "'sudo docker restart ${INSTANCE_NAME}_agent'"
+echo "配置文件路径: $CONFIG_FILE"
+echo "编辑配置后可通过以下命令重启服务："
+echo "  'sudo docker restart ${INSTANCE_NAME}_agent'"
 
-# 提示用户连接协议端
-echo "请使用 OneBot 协议客户端登录机器人并使用反向 WebSocket 连接方式。"
-echo "示例 WebSocket 反向连接地址: ws://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}/onebot/v11/ws"
-
-echo "安装完成！"
+echo -e "\n安装完成！祝您使用愉快！"

@@ -1,25 +1,49 @@
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user import user_login
 
+from .config import router as config_router
+from .extensions import router as extensions_router
+from .logs import router as logs_router
+from .napcat import router as napcat_router
 from .rpc import router as exec_router
+from .sandbox import router as sandbox_router
 from .tools import router as tools_router
 from .user import router as user_router
 
 
 def mount_routers(app: FastAPI):
+    """挂载 API 路由"""
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)
     api.include_router(tools_router)
     api.include_router(exec_router)
+    api.include_router(logs_router)
+    api.include_router(config_router)
+    api.include_router(extensions_router)
+    api.include_router(napcat_router)
+    api.include_router(sandbox_router)
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:
@@ -54,3 +78,8 @@ def mount_routers(app: FastAPI):
         )
 
     app.include_router(api)
+
+    # 挂载静态文件
+    static_dir = Path(OsEnv.STATIC_DIR)
+    if static_dir.exists():
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")

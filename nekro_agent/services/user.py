@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Optional
 
-from nekro_agent.core import logger
+from nekro_agent.core import config, logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.http_exception import credentials_exception
 from nekro_agent.schemas.message import Ret
@@ -25,6 +26,8 @@ async def query_user_by_bind_qq(qq: str) -> Optional[DBUser]:
 
 async def user_register(data: UserCreate) -> Ret:
     logger.info(f"正在注册用户 {data.username} ...")
+    if data.username == "admin":
+        return Ret.fail("注册失败，管理员保留用户名无法注册")
     if await DBUser.get_or_none(bind_qq=data.bind_qq):
         return Ret.fail("注册失败，用户已存在")
     try:
@@ -42,8 +45,17 @@ async def user_register(data: UserCreate) -> Ret:
 
 
 async def user_login(data: UserLogin) -> UserToken:
+    if OsEnv.ADMIN_PASSWORD and data.username == "admin" and data.password == OsEnv.ADMIN_PASSWORD:
+        logger.info(f"管理员登录: {data} | {OsEnv.ADMIN_PASSWORD}")
+        return UserToken(
+            access_token=create_access_token(data.username),
+            refresh_token=create_refresh_token(data.username),
+            token_type="bearer",
+        )
     user: Optional[DBUser] = await DBUser.get_or_none(username=data.username)
     if not user:
+        raise credentials_exception
+    if user.bind_qq not in config.SUPER_USERS:
         raise credentials_exception
     logger.info(f"用户 {user.username if user else '未知'} 正在登录")
     if user and verify_password(data.password, user.password):

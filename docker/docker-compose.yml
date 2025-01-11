@@ -33,6 +33,8 @@ services:
       - NEKRO_POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-nekro_agent}
       - NEKRO_POSTGRES_DATABASE=${POSTGRES_DATABASE:-nekro_agent}
       - NEKRO_RUN_IN_DOCKER=true
+      - NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD:-}
+      - ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${NEKRO_DATA_DIR}:${NEKRO_DATA_DIR}:rw

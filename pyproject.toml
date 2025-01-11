@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.6.5"
+version = "0.7.0"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -32,6 +32,7 @@ weave = "^0.51.19"
 tortoise-orm = "^0.23.0"
 asyncpg = "^0.30.0"
 json5 = "^0.10.0"
+sse-starlette = "^2.2.1"
 
 miose-toolkit-common = "^0.3.7"
 miose-toolkit-logger = "^0.0.7"

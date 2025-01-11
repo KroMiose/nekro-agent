@@ -1,4 +1,5 @@
 import contextlib
+import os
 import subprocess
 from pathlib import Path
 
@@ -31,11 +32,18 @@ class OsEnv:
     """暴露端口"""
     EXPOSE_PORT: int = OsEnvTypes.Int("EXPOSE_PORT", default=8021)
 
+    """前端资源目录"""
+    STATIC_DIR: str = OsEnvTypes.Str("STATIC_DIR", default="./static")
+
+    """WebUI 管理员密码"""
+    ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
+
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
 PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
 APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
+ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
 
 # 设置上传目录及其子目录权限

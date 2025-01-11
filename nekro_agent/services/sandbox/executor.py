@@ -14,6 +14,7 @@ from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, Os
 from nekro_agent.models.db_exec_code import DBExecCode
 
 from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
+import contextlib
 
 # 主机共享目录
 HOST_SHARED_DIR = (
@@ -161,11 +162,8 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
                 shutil.rmtree(host_shared_dir)
             except Exception as e:
                 logger.error(f"清理容器共享目录时发生错误: {e}")
-            # 清理沙盒
-            try:
-                await container.delete()
-            except Exception as e:
-                logger.error(f"清理沙盒时发生错误: {e}")
+            with contextlib.suppress(Exception):
+                await container.delete()  # 清理沙盒
 
     box_last_active_time = time.time()
     chat_key_sandbox_map[from_chat_key] = box_last_active_time

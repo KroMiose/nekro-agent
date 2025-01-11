@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Any, Optional, Union
 
-from jose import jwt
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 from nekro_agent.core.os_env import OsEnv
@@ -54,3 +54,13 @@ def create_refresh_token(
 
     to_encode = {"exp": expires_delta, "sub": str(subject)}
     return jwt.encode(to_encode, JWT_REFRESH_SECRET_KEY, OsEnv.ENCRYPT_ALGORITHM)
+
+
+async def get_user_from_token(token: str) -> bool:
+    """从token验证用户"""
+    try:
+        jwt.decode(token, OsEnv.JWT_SECRET_KEY, algorithms=[OsEnv.ENCRYPT_ALGORITHM])
+    except JWTError:
+        return False
+    else:
+        return True

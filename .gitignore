@@ -146,9 +146,6 @@ dmypy.json
 # configs
 configs
 
-# logs
-logs
-
 # temp files
 temp
 .temp
