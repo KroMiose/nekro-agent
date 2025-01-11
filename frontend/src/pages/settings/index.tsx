@@ -226,9 +226,10 @@ export default function SettingsPage() {
   return (
     <Box
       sx={{
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 120px)', // 减去顶部导航和页头的高度
+        overflow: 'hidden',
       }}
     >
       {/* 顶部工具栏 */}
@@ -237,7 +238,7 @@ export default function SettingsPage() {
           display: 'flex',
           justifyContent: 'flex-end',
           mb: 2,
-          flexShrink: 0, // 防止工具栏被压缩
+          flexShrink: 0,
         }}
       >
         <Stack direction="row" spacing={2}>
@@ -262,14 +263,31 @@ export default function SettingsPage() {
       <Paper
         elevation={3}
         sx={{
-          flexGrow: 1, // 占用剩余空间
-          overflow: 'hidden', // 防止内容溢出
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
         }}
       >
-        <TableContainer sx={{ flexGrow: 1 }}>
-          <Table stickyHeader>
+        <TableContainer 
+          sx={{ 
+            flex: 1,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+              height: '8px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: 'rgba(0,0,0,0.05)',
+            },
+          }}
+        >
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell width="25%">配置项</TableCell>

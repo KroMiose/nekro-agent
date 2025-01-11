@@ -12,6 +12,7 @@ from nekro_agent.core.config import (
 )
 from nekro_agent.schemas.message import Ret
 from nekro_agent.systems.user.deps import get_current_active_user
+from nekro_agent.tools.common_util import get_app_version
 
 
 class BatchUpdateConfig(BaseModel):
@@ -243,3 +244,9 @@ async def get_config_list_with_placeholder() -> List[Dict[str, Any]]:
             "placeholder": PluginConfig.get_field_placeholder(key),
         })
     return config_list 
+
+
+@router.get("/version", summary="获取应用版本")
+async def get_version(_=Depends(get_current_active_user)) -> Ret:
+    """获取应用版本"""
+    return Ret.success(msg="获取成功", data=get_app_version()) 

@@ -61,7 +61,7 @@ COPY --from=frontend-dist /frontend-dist ${STATIC_DIR}
 EXPOSE 8021
 
 # 健康检查
-HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/ping || exit 1
+HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/health || exit 1
 
 # 启动应用
 CMD ["nb", "run"]

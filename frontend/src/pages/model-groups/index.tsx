@@ -207,9 +207,10 @@ export default function ModelGroupsPage() {
   return (
     <Box
       sx={{
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 120px)',
+        overflow: 'hidden',
       }}
     >
       {/* 顶部工具栏 */}
@@ -238,14 +239,31 @@ export default function ModelGroupsPage() {
       <Paper
         elevation={3}
         sx={{
-          flexGrow: 1,
-          overflow: 'hidden',
+          flex: 1,
           display: 'flex',
           flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
         }}
       >
-        <TableContainer sx={{ flexGrow: 1 }}>
-          <Table stickyHeader>
+        <TableContainer 
+          sx={{ 
+            flex: 1,
+            overflow: 'auto',
+            '&::-webkit-scrollbar': {
+              width: '8px',
+              height: '8px',
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: 'rgba(0,0,0,0.2)',
+              borderRadius: '4px',
+            },
+            '&::-webkit-scrollbar-track': {
+              backgroundColor: 'rgba(0,0,0,0.05)',
+            },
+          }}
+        >
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell width="15%">组名</TableCell>

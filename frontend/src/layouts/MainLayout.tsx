@@ -17,6 +17,7 @@ import {
   Alert,
   Snackbar,
   Button,
+  Chip,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -38,6 +39,7 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
 import { useColorMode } from '../stores/theme'
+import { configApi } from '../services/api/config'
 
 const drawerWidth = 240
 
@@ -74,6 +76,7 @@ export default function MainLayout() {
   const { toggleColorMode } = useColorMode()
   const [message, setMessage] = useState<string>('')
   const [starCount, setStarCount] = useState<number | null>(null)
+  const [version, setVersion] = useState('0.0.0')
 
   const getCurrentTitle = () => {
     const currentPath = location.pathname
@@ -111,26 +114,87 @@ export default function MainLayout() {
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar>
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          width: '100%', 
+          justifyContent: 'center',
+          position: 'relative',
+          overflow: 'visible',
+          ml: -0.75,
+        }}>
           <Typography
             variant="h6"
             noWrap
             sx={{
+              position: 'relative',
+              overflow: 'visible',
               fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
               fontWeight: 900,
               letterSpacing: '.2rem',
               userSelect: 'none',
               cursor: 'default',
               fontSize: '1.3rem',
+              transition: 'transform 0.3s ease',
+              '&:hover': {
+                transform: 'scale(1.05)',
+                '& .highlight': {
+                  animation: 'bounce 0.5s ease infinite alternate'
+                },
+                '& .text': {
+                  animation: 'wave 1s ease infinite'
+                },
+                '& .version-tag': {
+                  transform: 'scale(1.05) translateY(-1px)'
+                }
+              },
+              '@keyframes bounce': {
+                '0%': {
+                  transform: 'translateY(0)'
+                },
+                '100%': {
+                  transform: 'translateY(-3px)'
+                }
+              },
+              '@keyframes wave': {
+                '0%, 100%': {
+                  transform: 'rotate(-2deg)'
+                },
+                '50%': {
+                  transform: 'rotate(2deg)'
+                }
+              },
+              '& .highlight, & .text': {
+                display: 'inline-block',
+                transition: 'transform 0.3s ease-out',
+                transformOrigin: 'center',
+                willChange: 'transform'
+              },
               '& .highlight': {
                 color: theme.palette.primary.main,
                 fontWeight: 900,
                 fontSize: '1.5rem',
+                textShadow: theme.palette.mode === 'dark' 
+                  ? '0 0 10px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.1)'
+                  : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
+                '&:not(:hover)': {
+                  animation: 'none',
+                  transform: 'translateY(0)',
+                  transition: 'all 0.3s ease-out'
+                }
               },
               '& .text': {
                 fontWeight: 800,
                 fontSize: '1.2rem',
-              },
+                textShadow: theme.palette.mode === 'dark'
+                  ? '0 0 5px rgba(255,255,255,0.2)'
+                  : '0 0 5px rgba(0,0,0,0.1)',
+                '&:not(:hover)': {
+                  animation: 'none',
+                  transform: 'rotate(0)',
+                  transition: 'all 0.3s ease-out'
+                }
+              }
             }}
           >
             <span className="highlight">N</span>
@@ -138,6 +202,34 @@ export default function MainLayout() {
             {' '}
             <span className="highlight">A</span>
             <span className="text">gent</span>
+            <Chip
+              label={`v ${version}`}
+              size="small"
+              variant="outlined"
+              className="version-tag"
+              sx={{
+                position: 'absolute',
+                top: '-6px',
+                right: '-32px',
+                height: '16px',
+                fontSize: '0.65rem',
+                letterSpacing: '-0.02em',
+                backgroundColor: 'transparent',
+                borderColor: theme.palette.mode === 'dark' 
+                  ? 'rgba(255,255,255,0.2)' 
+                  : 'rgba(0,0,0,0.15)',
+                color: theme.palette.mode === 'dark'
+                  ? theme.palette.primary.light
+                  : theme.palette.primary.main,
+                transition: 'transform 0.3s ease',
+                transform: 'scale(1)',
+                '.MuiChip-label': {
+                  px: 0.5,
+                  py: 0,
+                  lineHeight: 1
+                }
+              }}
+            />
           </Typography>
         </Box>
       </Toolbar>
@@ -225,6 +317,17 @@ export default function MainLayout() {
       })
   }, [])
 
+  useEffect(() => {
+    // 获取版本信息
+    configApi.getVersion()
+      .then(version => {
+        setVersion(version)
+      })
+      .catch(() => {
+        setVersion('0.0.0')
+      })
+  }, [])
+
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
@@ -308,10 +411,16 @@ export default function MainLayout() {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
+          height: '100vh',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <Toolbar />
-        <Outlet />
+        <Toolbar sx={{ flexShrink: 0 }} />
+        <Box sx={{ flexGrow: 1, overflow: 'hidden', minHeight: 0 }}>
+          <Outlet />
+        </Box>
       </Box>
 
       <Snackbar

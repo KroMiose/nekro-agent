@@ -16,9 +16,14 @@ export default function SettingsLayout() {
   }
 
   return (
-    <Box>
+    <Box sx={{ 
+      height: '100%', 
+      display: 'flex', 
+      flexDirection: 'column',
+      overflow: 'hidden',
+    }}>
       {/* 标签页导航 */}
-      <Paper sx={{ mb: 2 }}>
+      <Paper sx={{ mb: 2, flexShrink: 0 }}>
         <Tabs value={currentTab} onChange={handleTabChange}>
           <Tab label="基本配置" />
           <Tab label="模型组" />
@@ -26,18 +31,17 @@ export default function SettingsLayout() {
       </Paper>
 
       {/* 内容区域 */}
-      <Paper
-        elevation={0}
+      <Box
         sx={{
-          minHeight: 'calc(100vh - 250px)',
-          backgroundColor: 'transparent',
-          '& > *': {
-            height: '100%',
-          },
+          flex: 1,
+          minHeight: 0,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
         <Outlet />
-      </Paper>
+      </Box>
 
       {/* 消息提示 */}
       <Snackbar
