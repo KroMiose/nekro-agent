@@ -14,7 +14,7 @@ async def get_extensions() -> Ret:
 
     # 获取所有方法及其所属的标签
     all_methods = {}
-    for tag, methods in agent_collector.tag_map.items():
+    for _tag, methods in agent_collector.tag_map.items():
         for method in methods:
             if method.__doc__:
                 try:
@@ -24,7 +24,7 @@ async def get_extensions() -> Ret:
                     if ext_name not in all_methods:
                         all_methods[ext_name] = []
                     all_methods[ext_name].append(
-                        {"name": method.__name__, "type": method_type, "description": method.__doc__.strip()}
+                        {"name": method.__name__, "type": method_type, "description": method.__doc__.strip()},
                     )
                 except ValueError:
                     continue
@@ -39,7 +39,7 @@ async def get_extensions() -> Ret:
                 "author": ext.author,
                 "methods": all_methods.get(ext.name, []),  # 获取该扩展对应的方法列表
                 "is_enabled": True,
-            }
+            },
         )
 
     return Ret.success(msg="获取扩展列表成功", data=extensions)

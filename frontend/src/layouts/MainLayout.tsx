@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -16,6 +16,7 @@ import {
   Collapse,
   Alert,
   Snackbar,
+  Button,
 } from '@mui/material'
 import {
   Menu as MenuIcon,
@@ -32,6 +33,7 @@ import {
   Chat as ChatIcon,
   Code as CodeIcon,
   Person as PersonIcon,
+  GitHub as GitHubIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
@@ -71,6 +73,7 @@ export default function MainLayout() {
   const theme = useTheme()
   const { toggleColorMode } = useColorMode()
   const [message, setMessage] = useState<string>('')
+  const [starCount, setStarCount] = useState<number | null>(null)
 
   const getCurrentTitle = () => {
     const currentPath = location.pathname
@@ -108,9 +111,35 @@ export default function MainLayout() {
   const drawer = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <Toolbar>
-        <Typography variant="h6" noWrap>
-          Nekro Agent
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+              fontWeight: 900,
+              letterSpacing: '.2rem',
+              userSelect: 'none',
+              cursor: 'default',
+              fontSize: '1.3rem',
+              '& .highlight': {
+                color: theme.palette.primary.main,
+                fontWeight: 900,
+                fontSize: '1.5rem',
+              },
+              '& .text': {
+                fontWeight: 800,
+                fontSize: '1.2rem',
+              },
+            }}
+          >
+            <span className="highlight">N</span>
+            <span className="text">ekro</span>
+            {' '}
+            <span className="highlight">A</span>
+            <span className="text">gent</span>
+          </Typography>
+        </Box>
       </Toolbar>
       <List sx={{ flexGrow: 1 }}>
         {menuItems.map(item => (
@@ -183,6 +212,19 @@ export default function MainLayout() {
     </Box>
   )
 
+  useEffect(() => {
+    fetch('https://api.github.com/repos/KroMiose/nekro-agent')
+      .then(response => response.json())
+      .then(data => {
+        if (data.stargazers_count) {
+          setStarCount(data.stargazers_count)
+        }
+      })
+      .catch(() => {
+        // 如果获取失败，保持为 null
+      })
+  }, [])
+
   return (
     <Box sx={{ display: 'flex' }}>
       <AppBar
@@ -209,6 +251,23 @@ export default function MainLayout() {
               {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
             </IconButton>
           </Tooltip>
+          <Button
+            variant="text"
+            color="inherit"
+            size="large"
+            startIcon={<GitHubIcon />}
+            onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
+            sx={{
+              mr: 1,
+              textTransform: 'none',
+              minWidth: '100px',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            Stars {starCount !== null ? starCount : '...'}
+          </Button>
         </Toolbar>
       </AppBar>
       <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>

@@ -45,6 +45,7 @@ export const napCatApi = {
 
       const url = new URL(`${baseUrl}/napcat/logs/stream`)
       url.searchParams.set('token', token)
+      
       return new EventSource(url.toString())
     } catch (error) {
       console.error('构造 URL 失败:', error)

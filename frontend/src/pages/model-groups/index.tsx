@@ -20,6 +20,7 @@ import {
   DialogContent,
   DialogActions,
   InputAdornment,
+  Link,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -27,6 +28,7 @@ import {
   Edit as EditIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
+  Launch as LaunchIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ModelGroupConfig } from '../../services/api/config'
@@ -193,23 +195,40 @@ export default function ModelGroupsPage() {
     queryClient.invalidateQueries({ queryKey: ['model-groups'] })
   }
 
+  const getBaseUrl = (url: string) => {
+    try {
+      const urlObj = new URL(url)
+      return `${urlObj.protocol}//${urlObj.host}`
+    } catch {
+      return ''
+    }
+  }
+
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 120px)', // 减去顶部导航和页头的高度
+        height: 'calc(100vh - 120px)',
       }}
     >
       {/* 顶部工具栏 */}
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
+          alignItems: 'center',
           mb: 2,
-          flexShrink: 0, // 防止工具栏被压缩
+          flexShrink: 0,
         }}
       >
+        <Alert severity="info" sx={{ mr: 2 }}>
+          需要 API 密钥？可访问{' '}
+          <Link href="https://one.nekro.top" target="_blank" rel="noopener">
+            Nekro 合作中转
+          </Link>{' '}
+          获取专属密钥喵～
+        </Alert>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           新建模型组
         </Button>
@@ -219,8 +238,8 @@ export default function ModelGroupsPage() {
       <Paper
         elevation={3}
         sx={{
-          flexGrow: 1, // 占用剩余空间
-          overflow: 'hidden', // 防止内容溢出
+          flexGrow: 1,
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -254,6 +273,14 @@ export default function ModelGroupsPage() {
                   <TableCell>{config.CHAT_PROXY || '-'}</TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={1} justifyContent="flex-end">
+                      <IconButton
+                        onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
+                        size="small"
+                        color="primary"
+                        disabled={!config.BASE_URL}
+                      >
+                        <LaunchIcon />
+                      </IconButton>
                       <IconButton onClick={() => handleEdit(name)} size="small" color="primary">
                         <EditIcon />
                       </IconButton>

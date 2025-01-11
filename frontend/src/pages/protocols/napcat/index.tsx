@@ -121,7 +121,12 @@ export default function NapCatPage() {
       const eventSource = napCatApi.streamLogs()
       eventSourceRef.current = eventSource
 
+      let reconnectAttempts = 0
+      const maxReconnectAttempts = 5
+      const reconnectDelay = 5000
+
       eventSource.onmessage = event => {
+        reconnectAttempts = 0  // 重置重连次数
         const newLog = event.data
         if (newLog.startsWith('[ERROR]')) {
           console.error(newLog)
@@ -140,21 +145,29 @@ export default function NapCatPage() {
         eventSource.close()
         setIsReconnecting(true)
 
-        if (!isRestarting) {
+        if (!isRestarting && reconnectAttempts < maxReconnectAttempts) {
+          reconnectAttempts++
+          console.log(`连接断开，${reconnectDelay / 1000}秒后尝试第 ${reconnectAttempts} 次重连...`)
+          
           if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current)
           }
-          reconnectTimeoutRef.current = setTimeout(
-            () => {
-              napCatApi.getLogs(100).then(logs => {
-                setLogs(logs || [])
-                setWebuiToken(extractWebuiToken(logs || []))
-                connectEventSource()
-              })
-            },
-            isReconnecting ? 5000 : 0
-          )
+          
+          reconnectTimeoutRef.current = setTimeout(() => {
+            napCatApi.getLogs(100).then(logs => {
+              setLogs(logs || [])
+              setWebuiToken(extractWebuiToken(logs || []))
+              connectEventSource()
+            })
+          }, reconnectDelay)
         }
+      }
+
+      return () => {
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current)
+        }
+        eventSource.close()
       }
     } catch (error) {
       console.error('Failed to connect to log stream:', error)
@@ -164,7 +177,7 @@ export default function NapCatPage() {
       })
       setIsReconnecting(true)
     }
-  }, [isRestarting, isReconnecting])
+  }, [isRestarting])
 
   // 初始化
   useEffect(() => {

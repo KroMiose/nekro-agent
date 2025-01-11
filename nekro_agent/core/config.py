@@ -116,7 +116,7 @@ class PluginConfig(ConfigBase):
     SANDBOX_MAX_CONCURRENT: int = Field(default=4, title="最大并发沙盒数")
     SANDBOX_CHAT_API_URL: str = Field(
         default=f"http://host.docker.internal:{OsEnv.EXPOSE_PORT}/api",
-        title="沙盒API地址",
+        title="沙盒访问 Nekro API 地址",
     )
     SANDBOX_ONEBOT_SERVER_MOUNT_DIR: str = Field(
         default="/app/nekro_agent_data",
