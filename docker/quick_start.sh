@@ -107,6 +107,19 @@ if [ ! -f .env ]; then
     # 将修改后的文件移动为 .env
     mv .env.temp .env
     echo "已获取并修改 .env 模板。"
+else
+    # 如果已存在 .env 文件，检查并更新密钥
+    ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env | cut -d '=' -f2)
+    if [ -z "$ONEBOT_ACCESS_TOKEN" ]; then
+        ONEBOT_ACCESS_TOKEN=$(generate_random_string 32)
+        sed -i "s|^ONEBOT_ACCESS_TOKEN=.*|ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}|" .env
+    fi
+
+    NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
+    if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
+        NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
+        sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env
+    fi
 fi
 
 # 从.env文件加载环境变量
