@@ -15,7 +15,7 @@ COPY frontend/tsconfig*.json ./
 COPY frontend/vite.config.ts ./
 COPY frontend/src ./src
 COPY frontend/public ./public
-RUN pnpm run build
+RUN pnpm build
 
 # 使用更小的基础镜像来存储构建产物
 FROM busybox:1.36 AS frontend-dist
