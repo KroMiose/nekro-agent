@@ -52,6 +52,7 @@ RUN poetry config virtualenvs.create false \
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
 COPY extensions ./extensions
+COPY .env.prod ./
 
 # 从前端构建产物复制静态文件
 COPY --from=frontend-dist /frontend-dist ${STATIC_DIR}
