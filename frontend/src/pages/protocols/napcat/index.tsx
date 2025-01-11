@@ -117,43 +117,52 @@ export default function NapCatPage() {
       eventSourceRef.current.close()
     }
 
-    const eventSource = napCatApi.streamLogs()
-    eventSourceRef.current = eventSource
+    try {
+      const eventSource = napCatApi.streamLogs()
+      eventSourceRef.current = eventSource
 
-    eventSource.onmessage = event => {
-      const newLog = event.data
-      if (newLog.startsWith('[ERROR]')) {
-        console.error(newLog)
-        return
-      }
-      setLogs(prev => {
-        const newLogs = [...(prev || []), newLog].slice(-1000)
-        setWebuiToken(extractWebuiToken(newLogs))
-        return newLogs
-      })
-      setIsReconnecting(false)
-    }
-
-    eventSource.onerror = () => {
-      console.error('EventSource failed')
-      eventSource.close()
-      setIsReconnecting(true)
-
-      if (!isRestarting) {
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
+      eventSource.onmessage = event => {
+        const newLog = event.data
+        if (newLog.startsWith('[ERROR]')) {
+          console.error(newLog)
+          return
         }
-        reconnectTimeoutRef.current = setTimeout(
-          () => {
-            napCatApi.getLogs(100).then(logs => {
-              setLogs(logs || [])
-              setWebuiToken(extractWebuiToken(logs || []))
-              connectEventSource()
-            })
-          },
-          isReconnecting ? 5000 : 0
-        )
+        setLogs(prev => {
+          const newLogs = [...(prev || []), newLog].slice(-1000)
+          setWebuiToken(extractWebuiToken(newLogs))
+          return newLogs
+        })
+        setIsReconnecting(false)
       }
+
+      eventSource.onerror = () => {
+        console.error('EventSource failed')
+        eventSource.close()
+        setIsReconnecting(true)
+
+        if (!isRestarting) {
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current)
+          }
+          reconnectTimeoutRef.current = setTimeout(
+            () => {
+              napCatApi.getLogs(100).then(logs => {
+                setLogs(logs || [])
+                setWebuiToken(extractWebuiToken(logs || []))
+                connectEventSource()
+              })
+            },
+            isReconnecting ? 5000 : 0
+          )
+        }
+      }
+    } catch (error) {
+      console.error('Failed to connect to log stream:', error)
+      setMessage({
+        text: error instanceof Error ? error.message : '连接日志流失败',
+        severity: 'error',
+      })
+      setIsReconnecting(true)
     }
   }, [isRestarting, isReconnecting])
 

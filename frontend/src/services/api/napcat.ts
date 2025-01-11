@@ -33,9 +33,17 @@ export const napCatApi = {
     const token = useAuthStore.getState().token
     if (!token) throw new Error('未登录')
 
-    const url = new URL(`${config.apiBaseUrl}/napcat/logs/stream`)
-    url.searchParams.set('token', token)
-    return new EventSource(url.toString())
+    const apiBaseUrl = config.apiBaseUrl
+    if (!apiBaseUrl) throw new Error('API 基础 URL 未配置')
+
+    try {
+      const url = new URL(`${apiBaseUrl}/napcat/logs/stream`)
+      url.searchParams.set('token', token)
+      return new EventSource(url.toString())
+    } catch (error) {
+      console.error('构造 URL 失败:', error)
+      throw new Error('无法连接到日志流服务')
+    }
   },
 
   /**
