@@ -139,6 +139,13 @@ if [ -f .env ]; then
         exit 1
     fi
     export NEKRO_EXPOSE_PORT=$NEKRO_EXPOSE_PORT
+
+    NAPCAT_EXPOSE_PORT=$(grep NAPCAT_EXPOSE_PORT .env | cut -d '=' -f2)
+    if [ -z "$NAPCAT_EXPOSE_PORT" ]; then
+        echo "Error: NAPCAT_EXPOSE_PORT 未在 .env 文件中设置"
+        exit 1
+    fi
+    export NAPCAT_EXPOSE_PORT=$NAPCAT_EXPOSE_PORT
 fi
 
 read -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " answer
