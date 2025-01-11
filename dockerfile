@@ -13,6 +13,7 @@ RUN pnpm install --frozen-lockfile
 # 然后复制源代码并构建
 COPY frontend/tsconfig*.json ./
 COPY frontend/vite.config.ts ./
+COPY frontend/index.html ./
 COPY frontend/src ./src
 COPY frontend/public ./public
 RUN pnpm build
