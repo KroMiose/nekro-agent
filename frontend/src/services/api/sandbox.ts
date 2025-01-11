@@ -35,4 +35,4 @@ export const sandboxApi = {
     const response = await axios.get<{ data: SandboxStats }>('/sandbox/stats')
     return response.data.data
   },
-} 
+}

@@ -296,23 +296,20 @@ export default function NapCatPage() {
               OneBot 服务访问密钥: <strong>{onebotToken}</strong>
             </Alert>
           )}
-          <Box sx={{ 
-            position: 'relative', 
-            height: onebotToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
-            '& iframe': {
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              opacity: iframeLoaded ? 1 : 0,
-              transition: 'opacity 0.3s',
-            }
-          }}>
-            {napCatConfig && (
-              <iframe
-                src={napCatConfig}
-                onLoad={() => setIframeLoaded(true)}
-              />
-            )}
+          <Box
+            sx={{
+              position: 'relative',
+              height: onebotToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+              '& iframe': {
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                opacity: iframeLoaded ? 1 : 0,
+                transition: 'opacity 0.3s',
+              },
+            }}
+          >
+            {napCatConfig && <iframe src={napCatConfig} onLoad={() => setIframeLoaded(true)} />}
             <Box
               sx={{
                 position: 'absolute',

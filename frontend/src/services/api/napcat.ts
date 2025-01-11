@@ -12,7 +12,7 @@ export const napCatApi = {
    * 获取容器状态
    */
   getStatus: async () => {
-    const { data } = await axios.get<{data: NapCatStatus}>('/napcat/status')
+    const { data } = await axios.get<{ data: NapCatStatus }>('/napcat/status')
     return data.data
   },
 
@@ -20,8 +20,8 @@ export const napCatApi = {
    * 获取历史日志
    */
   getLogs: async (tail = 500) => {
-    const { data } = await axios.get<{data: string[]}>('/napcat/logs', {
-      params: { tail }
+    const { data } = await axios.get<{ data: string[] }>('/napcat/logs', {
+      params: { tail },
     })
     return data.data
   },
@@ -42,12 +42,12 @@ export const napCatApi = {
    * 重启容器
    */
   restart: async () => {
-    const { data } = await axios.post<{data: boolean}>('/napcat/restart')
+    const { data } = await axios.post<{ data: boolean }>('/napcat/restart')
     return data.data
   },
 
   getOneBotToken: async () => {
-    const { data } = await axios.get<{data: string | null}>('/napcat/onebot-token')
+    const { data } = await axios.get<{ data: string | null }>('/napcat/onebot-token')
     return data.data
-  }
-} 
+  },
+}

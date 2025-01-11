@@ -30,6 +30,7 @@ import {
   Tune as TuneIcon,
   Extension as ExtensionIcon,
   Chat as ChatIcon,
+  Code as CodeIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
@@ -40,7 +41,7 @@ const drawerWidth = 240
 const menuItems = [
   { text: '系统日志', icon: <TerminalIcon />, path: '/logs' },
   { text: '扩展管理', icon: <ExtensionIcon />, path: '/extensions' },
-  // { text: '沙盒日志', icon: <CodeIcon />, path: '/sandbox-logs' },
+  { text: '沙盒日志', icon: <CodeIcon />, path: '/sandbox-logs' },
   {
     text: '协议端',
     icon: <ChatIcon />,

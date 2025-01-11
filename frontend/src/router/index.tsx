@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createHashRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import LoginPage from '../pages/login'
 import LogsPage from '../pages/logs'
@@ -9,7 +9,7 @@ import ExtensionsPage from '../pages/extensions'
 import NapCatPage from '../pages/protocols/napcat'
 import SandboxPage from '../pages/sandbox'
 
-const router = createBrowserRouter([
+const router = createHashRouter([
   {
     path: '/login',
     element: <LoginPage />,

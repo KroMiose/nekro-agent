@@ -1,13 +1,6 @@
 import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import {
-  Box,
-  Paper,
-  Tabs,
-  Tab,
-  Alert,
-  Snackbar,
-} from '@mui/material'
+import { Box, Paper, Tabs, Tab, Alert, Snackbar } from '@mui/material'
 
 export default function SettingsLayout() {
   const navigate = useNavigate()

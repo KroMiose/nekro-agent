@@ -17,6 +17,7 @@ import {
   Collapse,
   Tooltip,
   Stack,
+  CircularProgress,
 } from '@mui/material'
 import {
   ExpandMore as ExpandMoreIcon,
@@ -27,7 +28,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { sandboxApi } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 export default function SandboxPage() {
   const [page, setPage] = useState(0)
@@ -39,13 +40,18 @@ export default function SandboxPage() {
     queryFn: () => sandboxApi.getStats(),
   })
 
-  const { data: logs } = useQuery({
+  const {
+    data: logs,
+    isLoading,
+    isPlaceholderData,
+  } = useQuery({
     queryKey: ['sandbox-logs', page, rowsPerPage],
     queryFn: () =>
       sandboxApi.getLogs({
         page: page + 1,
         page_size: rowsPerPage,
       }),
+    placeholderData: logs => logs,
   })
 
   const handleChangePage = (_: unknown, newPage: number) => {
@@ -120,59 +126,103 @@ export default function SandboxPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {logs?.items.map(log => (
-                <React.Fragment key={log.id}>
-                  <TableRow hover>
-                    <TableCell padding="checkbox">
-                      <IconButton size="small" onClick={() => toggleRow(log.id)}>
-                        {expandedRows[log.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                      </IconButton>
-                    </TableCell>
-                    <TableCell>
-                      <Tooltip title={log.success ? '执行成功' : '执行失败'}>
-                        <Chip
-                          icon={log.success ? <CheckCircleIcon /> : <ErrorIcon />}
-                          label={log.success ? '成功' : '失败'}
-                          color={log.success ? 'success' : 'error'}
-                          size="small"
-                          variant="outlined"
-                        />
-                      </Tooltip>
-                    </TableCell>
-                    <TableCell>{log.trigger_user_name}</TableCell>
-                    <TableCell>{log.chat_key}</TableCell>
-                    <TableCell>{log.create_time}</TableCell>
-                  </TableRow>
-                  <TableRow>
-                    <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={6}>
-                      <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
-                        <Box sx={{ margin: 2 }}>
-                          <Typography variant="subtitle2" gutterBottom component="div">
-                            执行代码：
-                          </Typography>
-                          <SyntaxHighlighter
-                            language="python"
-                            style={oneDark}
-                            customStyle={{ margin: '0 0 16px 0' }}
-                          >
-                            {log.code_text}
-                          </SyntaxHighlighter>
-                          <Typography variant="subtitle2" gutterBottom component="div">
-                            执行输出：
-                          </Typography>
-                          <SyntaxHighlighter
-                            language="plaintext"
-                            style={oneDark}
-                            customStyle={{ margin: 0 }}
-                          >
-                            {log.outputs}
-                          </SyntaxHighlighter>
-                        </Box>
-                      </Collapse>
-                    </TableCell>
-                  </TableRow>
-                </React.Fragment>
-              ))}
+              {isLoading && !isPlaceholderData ? (
+                <TableRow>
+                  <TableCell colSpan={5} align="center" sx={{ py: 3 }}>
+                    <CircularProgress size={24} />
+                  </TableCell>
+                </TableRow>
+              ) : (
+                (isPlaceholderData ? logs?.items : logs?.items)?.map(log => (
+                  <React.Fragment key={log.id}>
+                    <TableRow hover>
+                      <TableCell padding="checkbox">
+                        <IconButton size="small" onClick={() => toggleRow(log.id)}>
+                          {expandedRows[log.id] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                        </IconButton>
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip title={log.success ? '执行成功' : '执行失败'}>
+                          <Chip
+                            icon={log.success ? <CheckCircleIcon /> : <ErrorIcon />}
+                            label={log.success ? '成功' : '失败'}
+                            color={log.success ? 'success' : 'error'}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell>{log.trigger_user_name}</TableCell>
+                      <TableCell>{log.chat_key}</TableCell>
+                      <TableCell>{log.create_time}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell
+                        style={{
+                          paddingBottom: 0,
+                          paddingTop: 0,
+                        }}
+                        colSpan={6}
+                        sx={{
+                          maxWidth: 0,
+                          width: '100%',
+                          '& pre': {
+                            maxWidth: 'none !important',
+                          },
+                        }}
+                      >
+                        <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
+                          <Box sx={{ margin: 2 }}>
+                            <Typography variant="subtitle2" gutterBottom component="div">
+                              执行代码：
+                            </Typography>
+                            <Box>
+                              <SyntaxHighlighter
+                                language="python"
+                                style={vscDarkPlus}
+                                showLineNumbers={true}
+                                customStyle={{
+                                  margin: 0,
+                                  borderRadius: '4px',
+                                  maxHeight: '400px',
+                                  fontSize: '14px',
+                                  overflow: 'auto',
+                                }}
+                              >
+                                {log.code_text}
+                              </SyntaxHighlighter>
+                            </Box>
+
+                            {log.outputs && (
+                              <>
+                                <Typography variant="subtitle2" gutterBottom component="div">
+                                  执行输出：
+                                </Typography>
+                                <Box>
+                                  <SyntaxHighlighter
+                                    language="text"
+                                    style={vscDarkPlus}
+                                    customStyle={{
+                                      margin: 0,
+                                      borderRadius: '4px',
+                                      maxHeight: '300px',
+                                      fontSize: '14px',
+                                      backgroundColor: '#1E1E1E',
+                                      overflow: 'auto',
+                                    }}
+                                  >
+                                    {log.outputs}
+                                  </SyntaxHighlighter>
+                                </Box>
+                              </>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </React.Fragment>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>
@@ -189,4 +239,4 @@ export default function SandboxPage() {
       </Paper>
     </Box>
   )
-} 
+}
