@@ -42,7 +42,7 @@ class LogInterceptHandler:
         """处理日志消息"""
         record = message.record
         log_entry = format_log_entry(record)
-        log_records.appendleft(log_entry)
+        log_records.append(log_entry)
         log_json = json.dumps(log_entry)
         for queue in subscribers:
             await queue.put(f"data: {log_json}\n\n")
