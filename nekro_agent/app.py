@@ -1,10 +1,9 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 from nekro_agent import config, logger
 from nekro_agent.routers import mount_routers
-
+from nekro_agent.schemas.message import Ret
 app = FastAPI(
     title="Nekro agent Service",
     description="Nekro agent 后端服务",

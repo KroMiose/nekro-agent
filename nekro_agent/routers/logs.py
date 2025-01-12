@@ -20,7 +20,7 @@ DEFAULT_LOG_SOURCES = ["nonebot", "nekro_agent", "uvicorn"]
 @router.get("", summary="获取历史日志")
 async def get_logs(
     page: int = 1,
-    page_size: int = 100,
+    page_size: int = 500,
     source: Optional[str] = None,
     _=Depends(get_current_active_user),
 ) -> Ret:

@@ -1,7 +1,6 @@
-import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, FastAPI
+from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
@@ -9,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
+from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
@@ -33,6 +33,15 @@ def mount_routers(app: FastAPI):
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):  # noqa: ARG001
+        """全局异常处理器"""
+        logger.exception(f"服务器错误: {exc}")
+        return JSONResponse(
+            status_code=500,
+            content=Ret.error(msg=str(exc)).model_dump(),
+        )
 
     api = APIRouter(prefix="/api")
 

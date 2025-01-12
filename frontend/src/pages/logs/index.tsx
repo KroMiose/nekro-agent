@@ -29,7 +29,7 @@ const LOG_LEVEL_COLORS = {
 } as const
 
 const MAX_REALTIME_LOGS = 1000
-const INITIAL_LOGS_COUNT = 100
+const INITIAL_LOGS_COUNT = 500
 
 export default function LogsPage() {
   const [autoScroll, setAutoScroll] = useState(true)
