@@ -38,17 +38,19 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
         token_data = TokenData(username=username, bind_qq=username)
     except JWTError as e:
         raise credentials_exception from e
-    user = await DBUser.get_or_none(bind_qq=token_data.bind_qq)
-    if user is None:
-        if token_data.username == "admin":
-            user = await DBUser.create(
+    if token_data.username == "admin":
+        user = await DBUser.get_or_none(username="admin")
+        if user is None:
+            return await DBUser.create(
                 username="admin",
                 password=get_hashed_password(""),
                 bind_qq="",
                 perm_level=Role.Super,
                 login_time=datetime.now(),
             )
-            return user
+        return user
+    user = await DBUser.get_or_none(bind_qq=token_data.bind_qq)
+    if user is None:
         raise credentials_exception
     return user
 
