@@ -41,7 +41,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
     user = await DBUser.get_or_none(bind_qq=token_data.bind_qq)
     if user is None:
         if token_data.username == "admin":
-            await DBUser.create(
+            user = await DBUser.create(
                 username="admin",
                 password=get_hashed_password(""),
                 bind_qq="",
