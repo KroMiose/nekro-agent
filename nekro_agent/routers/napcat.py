@@ -3,7 +3,8 @@ import time
 from typing import AsyncGenerator, Optional
 
 import aiodocker
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
+from jose import JWTError
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.core.config import config
@@ -85,39 +86,34 @@ async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(ge
 
 
 @router.get("/logs/stream")
-async def stream_logs(token: str) -> EventSourceResponse:
+@require_role(Role.Admin)
+async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
     """实时日志流"""
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authentication token")
+    try:
+        async def generate() -> AsyncGenerator[str, None]:
+            try:
+                container = await get_container()
+                # 先发送最近的日志
+                initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=True)
+                for log in initial_logs:
+                    if log.startswith("20"):  # 移除时间戳前缀
+                        log = log.split("Z ", 1)[1]
+                    yield f"data: {log}\n\n"
 
-    user = await get_user_from_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
+                # 然后开始实时流式传输
+                async for log in container.log(stdout=True, stderr=True, follow=True, since=int(time.time()), timestamps=True):
+                    if log.startswith("20"):
+                        log = log.split("Z ", 1)[1]
+                    yield f"data: {log}\n\n"
+                    await asyncio.sleep(0.01)  # 避免发送过快
+            except Exception as e:
+                logger.error(f"日志流异常: {e!s}")
+                yield f"data: [ERROR] 日志流发生错误: {e!s}\n\n"
 
-    if not isinstance(user, DBUser) or user.perm_level < Role.Admin:
-        raise HTTPException(status_code=403, detail="权限不足")
-
-    async def generate() -> AsyncGenerator[str, None]:
-        try:
-            container = await get_container()
-            # 先发送最近的日志
-            initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=True)
-            for log in initial_logs:
-                if log.startswith("20"):  # 移除时间戳前缀
-                    log = log.split("Z ", 1)[1]
-                yield log
-
-            # 然后开始实时流式传输
-            async for log in container.log(stdout=True, stderr=True, follow=True, since=int(time.time()), timestamps=True):
-                if log.startswith("20"):
-                    log = log.split("Z ", 1)[1]
-                yield log
-                await asyncio.sleep(0.01)  # 避免发送过快
-        except Exception as e:
-            logger.error(f"日志流异常: {e!s}")
-            yield f"[ERROR] 日志流发生错误: {e!s}"
-
-    return EventSourceResponse(generate())
+        return EventSourceResponse(generate())
+    except Exception as e:
+        logger.error(f"日志流异常: {e!s}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/restart")

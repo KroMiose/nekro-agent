@@ -1,11 +1,12 @@
+from asyncio import Queue
 from typing import AsyncGenerator, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Header
 from jose import JWTError, jwt
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import get_log_records, get_log_sources, subscribe_logs
+from nekro_agent.core.logger import get_log_records, get_log_sources, logger, subscribe_logs
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
@@ -17,6 +18,9 @@ router = APIRouter(prefix="/logs", tags=["Logs"])
 
 # 基础日志来源
 DEFAULT_LOG_SOURCES = ["nonebot", "nekro_agent", "uvicorn"]
+
+# 日志订阅者队列
+subscribers: List[Queue] = []
 
 
 @router.get("", summary="获取历史日志")
@@ -50,20 +54,21 @@ async def get_sources(_current_user: DBUser = Depends(get_current_active_user)) 
 
 
 @router.get("/stream", summary="实时日志流")
-async def stream_logs(token: Optional[str] = None) -> EventSourceResponse:
+@require_role(Role.Admin)
+async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
     """获取实时日志流"""
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing authentication token")
+    try:
+        async def event_generator() -> AsyncGenerator[str, None]:
+            queue: Queue = Queue()
+            subscribers.append(queue)
+            try:
+                while True:
+                    message = await queue.get()
+                    yield message
+            finally:
+                subscribers.remove(queue)
 
-    user = await get_user_from_token(token)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid authentication token")
-
-    if not isinstance(user, DBUser) or user.perm_level < Role.Admin:
-        raise HTTPException(status_code=403, detail="权限不足")
-
-    async def event_generator() -> AsyncGenerator[str, None]:
-        async for log in subscribe_logs():
-            yield log
-
-    return EventSourceResponse(event_generator())
+        return EventSourceResponse(event_generator())
+    except Exception as e:
+        logger.error(f"日志流异常: {e!s}")
+        raise HTTPException(status_code=500, detail=str(e))

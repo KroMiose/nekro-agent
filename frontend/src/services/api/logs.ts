@@ -1,6 +1,5 @@
 import axios from './axios'
-import { config } from '../../config/env'
-import { useAuthStore } from '../../stores/auth'
+import { createEventStream } from './utils/stream'
 
 export interface LogEntry {
   timestamp: string
@@ -27,25 +26,11 @@ export const logsApi = {
     return response.data.data
   },
 
-  streamLogs: () => {
-    // 获取认证token
-    const token = useAuthStore.getState().token
-    if (!token) {
-      throw new Error('No authentication token found')
-    }
-
-    // 创建带token的URL
-    const url = new URL(`${config.apiBaseUrl}/logs/stream`, window.location.origin)
-    url.searchParams.set('token', token)
-
-    // 创建 EventSource 连接
-    const eventSource = new EventSource(url.toString())
-
-    // 添加错误处理
-    eventSource.onerror = error => {
-      console.error('EventSource error:', error)
-    }
-
-    return eventSource
+  streamLogs: (onMessage: (data: string) => void, onError?: (error: Error) => void) => {
+    return createEventStream({
+      endpoint: '/logs/stream',
+      onMessage,
+      onError,
+    })
   },
 }

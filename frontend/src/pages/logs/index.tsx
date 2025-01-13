@@ -14,6 +14,7 @@ import {
   TextField,
   Autocomplete,
   MenuItem,
+  Alert,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { LogEntry, logsApi } from '../../services/api/logs'
@@ -35,6 +36,7 @@ export default function LogsPage() {
   const [autoScroll, setAutoScroll] = useState(true)
   const [isAdvanced, setIsAdvanced] = useState(false)
   const [realtimeLogs, setRealtimeLogs] = useState<LogEntry[]>([])
+  const [isDisconnected, setIsDisconnected] = useState(false)
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const [filters, setFilters] = useState({
     level: '',
@@ -80,42 +82,46 @@ export default function LogsPage() {
   // 实时日志订阅
   useEffect(() => {
     console.log('Starting real-time log subscription...')
-    let eventSource: EventSource
+    let cleanup: (() => void) | undefined
 
-    try {
-      eventSource = logsApi.streamLogs()
-
-      eventSource.onmessage = event => {
-        try {
-          const jsonStr = event.data.replace(/^data:\s*/, '')
-          const log = JSON.parse(jsonStr) as LogEntry
-          setRealtimeLogs(prev => {
-            const isDuplicate = prev.some(
-              existingLog =>
-                existingLog.timestamp === log.timestamp && existingLog.message === log.message
-            )
-            const sourceMatch = !filters.source || log.source === filters.source
-            if (isDuplicate || !sourceMatch) {
-              return prev
+    const connect = () => {
+      try {
+        cleanup = logsApi.streamLogs(
+          (data) => {
+            try {
+              const log = JSON.parse(data) as LogEntry
+              setRealtimeLogs(prev => {
+                const isDuplicate = prev.some(
+                  existingLog =>
+                    existingLog.timestamp === log.timestamp && existingLog.message === log.message
+                )
+                const sourceMatch = !filters.source || log.source === filters.source
+                if (isDuplicate || !sourceMatch) {
+                  return prev
+                }
+                return [...prev, log].slice(-MAX_REALTIME_LOGS)
+              })
+            } catch (error) {
+              console.error('Failed to parse log data:', error)
             }
-            return [...prev, log].slice(-MAX_REALTIME_LOGS)
-          })
-        } catch (error) {
-          console.error('Failed to parse log data:', error)
-        }
+          },
+          (error) => {
+            console.error('EventSource error:', error)
+            setIsDisconnected(true)
+          }
+        )
+        setIsDisconnected(false)
+      } catch (error) {
+        console.error('Failed to create EventSource:', error)
+        setIsDisconnected(true)
       }
-
-      eventSource.onerror = error => {
-        console.error('EventSource failed:', error)
-        eventSource.close()
-      }
-    } catch (error) {
-      console.error('Failed to create EventSource:', error)
     }
+
+    connect()
 
     return () => {
       console.log('Closing real-time log subscription...')
-      eventSource?.close()
+      cleanup?.()
     }
   }, [filters.source])
 
@@ -136,6 +142,14 @@ export default function LogsPage() {
           flexShrink: 0,
         }}
       >
+        {isDisconnected && (
+          <Alert 
+            severity="warning" 
+            sx={{ flex: 1 }}
+          >
+            日志流连接已断开，正在尝试重新连接...
+          </Alert>
+        )}
         <FormControlLabel
           control={
             <Switch

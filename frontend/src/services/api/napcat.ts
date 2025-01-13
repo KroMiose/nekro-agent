@@ -1,6 +1,5 @@
 import axios from './axios'
-import { useAuthStore } from '../../stores/auth'
-import { config } from '../../config/env'
+import { createEventStream } from './utils/stream'
 
 export interface NapCatStatus {
   running: boolean
@@ -29,28 +28,12 @@ export const napCatApi = {
   /**
    * 获取实时日志流
    */
-  streamLogs: () => {
-    const token = useAuthStore.getState().token
-    if (!token) throw new Error('未登录')
-
-    const apiBaseUrl = config.apiBaseUrl
-    if (!apiBaseUrl) throw new Error('API 基础 URL 未配置')
-
-    try {
-      let baseUrl = apiBaseUrl
-      if (!baseUrl.startsWith('http://') && !baseUrl.startsWith('https://')) {
-        baseUrl = `http://${baseUrl}`
-      }
-      baseUrl = baseUrl.replace(/\/$/, '')
-
-      const url = new URL(`${baseUrl}/napcat/logs/stream`)
-      url.searchParams.set('token', token)
-      
-      return new EventSource(url.toString())
-    } catch (error) {
-      console.error('构造 URL 失败:', error)
-      throw new Error('无法连接到日志流服务')
-    }
+  streamLogs: (onMessage: (data: string) => void, onError?: (error: Error) => void) => {
+    return createEventStream({
+      endpoint: '/napcat/logs/stream',
+      onMessage,
+      onError,
+    })
   },
 
   /**

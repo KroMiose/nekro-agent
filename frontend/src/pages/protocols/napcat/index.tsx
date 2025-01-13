@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Paper,
@@ -47,7 +47,6 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function NapCatPage() {
-  // 状态管理
   const [tabValue, setTabValue] = useState(0)
   const [autoScroll, setAutoScroll] = useState(true)
   const [logs, setLogs] = useState<string[]>([])
@@ -56,11 +55,7 @@ export default function NapCatPage() {
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [webuiToken, setWebuiToken] = useState<string>()
   const [message, setMessage] = useState<{ text: string; severity: 'success' | 'error' | 'info' }>()
-
-  // Refs
-  const logsContainerRef = useRef<HTMLDivElement>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
-  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   // 格式化时间
   const formatTime = (isoTime: string) => {
@@ -111,99 +106,59 @@ export default function NapCatPage() {
     return undefined
   }
 
-  // 日志流连接
-  const connectEventSource = useCallback(() => {
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-    }
-
-    try {
-      const eventSource = napCatApi.streamLogs()
-      eventSourceRef.current = eventSource
-
-      let reconnectAttempts = 0
-      const maxReconnectAttempts = 5
-      const reconnectDelay = 5000
-
-      eventSource.onmessage = event => {
-        reconnectAttempts = 0  // 重置重连次数
-        const newLog = event.data
-        if (newLog.startsWith('[ERROR]')) {
-          console.error(newLog)
-          return
-        }
-        setLogs(prev => {
-          const newLogs = [...(prev || []), newLog].slice(-1000)
-          setWebuiToken(extractWebuiToken(newLogs))
-          return newLogs
-        })
-        setIsReconnecting(false)
-      }
-
-      eventSource.onerror = () => {
-        console.error('EventSource failed')
-        eventSource.close()
-        setIsReconnecting(true)
-
-        if (!isRestarting && reconnectAttempts < maxReconnectAttempts) {
-          reconnectAttempts++
-          console.log(`连接断开，${reconnectDelay / 1000}秒后尝试第 ${reconnectAttempts} 次重连...`)
-          
-          if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current)
-          }
-          
-          reconnectTimeoutRef.current = setTimeout(() => {
-            napCatApi.getLogs(100).then(logs => {
-              setLogs(logs || [])
-              setWebuiToken(extractWebuiToken(logs || []))
-              connectEventSource()
-            })
-          }, reconnectDelay)
-        }
-      }
-
-      return () => {
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
-        }
-        eventSource.close()
-      }
-    } catch (error) {
-      console.error('Failed to connect to log stream:', error)
-      setMessage({
-        text: error instanceof Error ? error.message : '连接日志流失败',
-        severity: 'error',
-      })
-      setIsReconnecting(true)
-    }
-  }, [isRestarting])
-
-  // 初始化
+  // 实时日志订阅
   useEffect(() => {
+    console.log('Starting real-time log subscription...')
+    let cleanup: (() => void) | undefined
+
+    const connect = () => {
+      try {
+        cleanup = napCatApi.streamLogs(
+          (data) => {
+            setLogs(prev => {
+              const newLogs = [...prev, data].slice(-1000)
+              setWebuiToken(extractWebuiToken(newLogs))
+              return newLogs
+            })
+            setIsReconnecting(false)
+          },
+          (error) => {
+            console.error('EventSource error:', error)
+            setIsReconnecting(true)
+            // 5秒后尝试重连
+            setTimeout(() => {
+              connect()
+            }, 5000)
+          }
+        )
+      } catch (error) {
+        console.error('Failed to create EventSource:', error)
+        setMessage({ text: error instanceof Error ? error.message : '连接日志流失败', severity: 'error' })
+        setIsReconnecting(true)
+      }
+    }
+
+    // 初始化日志
     napCatApi.getLogs(500).then(logs => {
       setLogs(logs || [])
       setWebuiToken(extractWebuiToken(logs || []))
     })
-    connectEventSource()
+
+    connect()
 
     return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
+      console.log('Closing real-time log subscription...')
+      cleanup?.()
     }
-  }, [connectEventSource])
+  }, [])
 
   // 自动滚动
   useEffect(() => {
-    if (autoScroll && logsContainerRef.current) {
+    if (autoScroll && tableContainerRef.current) {
       requestAnimationFrame(() => {
-        if (logsContainerRef.current) {
-          const { scrollHeight, clientHeight } = logsContainerRef.current
-          logsContainerRef.current.scrollTop = scrollHeight - clientHeight
+        if (tableContainerRef.current) {
+          const { scrollHeight, clientHeight } = tableContainerRef.current
+          tableContainerRef.current.scrollTop = scrollHeight - clientHeight
         }
       })
     }
@@ -216,10 +171,6 @@ export default function NapCatPage() {
       setMessage({ text: '正在重启容器...', severity: 'info' })
       setLogs([])
       setWebuiToken(undefined)
-
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close()
-      }
 
       await napCatApi.restart()
 
@@ -239,7 +190,6 @@ export default function NapCatPage() {
                 const logs = await napCatApi.getLogs(100)
                 setLogs(logs || [])
                 setWebuiToken(extractWebuiToken(logs || []))
-                connectEventSource()
               } catch (error) {
                 console.error('Failed to fetch initial logs:', error)
               }
@@ -440,7 +390,7 @@ export default function NapCatPage() {
           </Stack>
 
           <Paper
-            ref={logsContainerRef}
+            ref={tableContainerRef}
             sx={{
               p: 2,
               flexGrow: 1,
