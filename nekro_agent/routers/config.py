@@ -23,15 +23,6 @@ class BatchUpdateConfig(BaseModel):
     configs: Dict[str, str]
 
 
-class ModelGroupConfig(BaseModel):
-    """模型组配置"""
-
-    CHAT_MODEL: str
-    CHAT_PROXY: str
-    BASE_URL: str
-    API_KEY: str
-
-
 router = APIRouter(prefix="/config", tags=["Config"])
 
 
@@ -96,12 +87,18 @@ async def get_model_groups(_current_user: DBUser = Depends(get_current_active_us
 @require_role(Role.Admin)
 async def update_model_group(
     group_name: str,
-    model_config: ModelGroupConfig,
+    model_config: ModelConfigGroup,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """更新或添加模型组配置"""
     try:
-        config.MODEL_GROUPS[group_name] = model_config.model_dump()
+        config.MODEL_GROUPS[group_name] = ModelConfigGroup(
+            CHAT_MODEL=model_config.CHAT_MODEL,
+            CHAT_PROXY=model_config.CHAT_PROXY,
+            BASE_URL=model_config.BASE_URL,
+            API_KEY=model_config.API_KEY,
+        )
+        save_config()
         return Ret.success(msg="更新成功")
     except Exception as e:
         return Ret.fail(msg=f"更新失败: {e!s}")
@@ -120,6 +117,7 @@ async def delete_model_group(
         if group_name == "default":
             return Ret.fail(msg="默认模型组不能删除")
         del config.MODEL_GROUPS[group_name]
+        save_config()
         return Ret.success(msg="删除成功")
     except Exception as e:
         return Ret.fail(msg=f"删除失败: {e!s}")

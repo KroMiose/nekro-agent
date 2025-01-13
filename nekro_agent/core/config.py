@@ -45,20 +45,20 @@ class PluginConfig(ConfigBase):
     DEFAULT_PROXY: str = Field(default="", title="默认代理", json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"})
 
     """OpenAI API 配置"""
-    MODEL_GROUPS: Dict[str, Dict[str, str]] = Field(
+    MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
         default={
             "default": ModelConfigGroup(
                 CHAT_MODEL="gemini-1.5.pro-002",
                 CHAT_PROXY="",
                 BASE_URL="https://one.nekro.top/v1",
                 API_KEY="",
-            ).model_dump(),
+            ),
             "openai": ModelConfigGroup(
                 CHAT_MODEL="gpt-4o",
                 CHAT_PROXY="",
                 BASE_URL="https://api.openai.com/v1",
                 API_KEY="",
-            ).model_dump(),
+            ),
         },
         title="模型组配置",
         json_schema_extra={"is_model_groups": True},

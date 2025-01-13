@@ -194,8 +194,8 @@ async def agent_run(
     )
 
     # 4. 绑定 LLM 执行器
-    model_group: ModelConfigGroup = ModelConfigGroup.model_validate(config.MODEL_GROUPS[config.USE_MODEL_GROUP])
-    fall_back_model_group: ModelConfigGroup = ModelConfigGroup.model_validate(config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP])
+    model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
+    fall_back_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP]
 
     # 5. 获取结果与解析
     for retry_count in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
