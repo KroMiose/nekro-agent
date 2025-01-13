@@ -175,7 +175,7 @@ export default function MainLayout() {
                 fontWeight: 900,
                 fontSize: '1.5rem',
                 textShadow: theme.palette.mode === 'dark' 
-                  ? '0 0 10px rgba(255,255,255,0.3), 0 0 20px rgba(255,255,255,0.2), 0 0 30px rgba(255,255,255,0.1)'
+                  ? '0 0 2px rgba(255,255,255,0.2), 0 0 2px rgba(255,255,255,0.2), 0 0 3px rgba(255,255,255,0.1)'
                   : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
@@ -187,8 +187,8 @@ export default function MainLayout() {
                 fontWeight: 800,
                 fontSize: '1.2rem',
                 textShadow: theme.palette.mode === 'dark'
-                  ? '0 0 5px rgba(255,255,255,0.2)'
-                  : '0 0 5px rgba(0,0,0,0.1)',
+                  ? '0 0 3px rgba(255,255,255,0.2)'
+                  : '0 0 3px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
                   transform: 'rotate(0)',

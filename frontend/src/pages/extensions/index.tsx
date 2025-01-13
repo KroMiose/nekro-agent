@@ -89,7 +89,10 @@ function ExtensionRow({ extension }: { extension: Extension }) {
                   {extension.methods.map(method => (
                     <TableRow key={method.name}>
                       <TableCell component="th" scope="row">
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}
+                        >
                           {method.name}
                         </Typography>
                       </TableCell>

@@ -8,7 +8,6 @@ const PRIMARY_COLOR = '#EA5252'
 // 定义全局字体
 const globalFonts = {
   sans: [
-    '"Noto Sans SC"',
     '"Microsoft YaHei"',
     '-apple-system',
     'BlinkMacSystemFont',
@@ -57,8 +56,6 @@ export default function ThemeConfig({ children }: { children: ReactNode }) {
       },
       MuiCssBaseline: {
         styleOverrides: `
-          @import url('./font.css');
-          
           body {
             fontFamily: ${globalFonts.sans};
             &::-webkit-scrollbar {
