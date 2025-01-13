@@ -1,4 +1,5 @@
 import os
+import time
 from typing import List, Optional, Tuple, Union
 
 from nonebot import on_command
@@ -389,10 +390,23 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
 
 
+DB_RESET_LATEST_TRIGGER_TIME: float = 0
+
+
 @on_command("nekro_db_reset", aliases={"nekro-db-reset"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    global DB_RESET_LATEST_TRIGGER_TIME
+
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
     args = cmd_content.split(" ")
+
+    if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:
+        DB_RESET_LATEST_TRIGGER_TIME = time.time()
+        await finish_with(
+            matcher,
+            message="正在准备执行数据库重置操作！确认继续重置请在 1 分钟内再次使用本命令并使用 `-y` 参数确认",
+        )
+        return
 
     if "-y" in args:
         args.remove("-y")

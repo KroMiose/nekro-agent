@@ -12,6 +12,7 @@ class User(BaseModel):
     password: str
     perm_level: int
     login_time: datetime
+    is_active: bool = True
 
     class Config:
         from_attributes = True

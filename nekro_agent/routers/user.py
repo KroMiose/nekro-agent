@@ -21,7 +21,7 @@ from nekro_agent.services.user import (
     user_register,
 )
 from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.perm import Role, get_perm_role
+from nekro_agent.systems.user.role import Role, get_perm_role
 
 router = APIRouter(prefix="/user", tags=["User"])
 
@@ -50,31 +50,31 @@ async def login(req_data: UserLogin) -> LoginRet:
 @router.put("/password", summary="用户更新密码")
 async def password(
     req_data: UpdatePassword,
-    current_user: DBUser = Depends(get_current_active_user),
+    _current_user: DBUser = Depends(get_current_active_user),
 ):
-    if req_data.user_id is not None and current_user.id != req_data.user_id and current_user.perm_level < Role.Super:
+    if req_data.user_id is not None and _current_user.id != req_data.user_id and _current_user.perm_level < Role.Super:
         raise permission_exception
-    return await user_change_password(current_user, req_data.password)
+    return await user_change_password(_current_user, req_data.password)
 
 
 @router.get("/me", summary="用户个人信息")
-async def info(current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    logger.info(f"用户 {current_user.username} 正在查询个人信息...")
+async def info(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    logger.info(f"用户 {_current_user.username} 正在查询个人信息...")
     return Ret.success(
         "query success",
         data={
-            "username": current_user.username,
-            "userId": current_user.id,
-            "perm_level": current_user.perm_level,
-            "perm_role": get_perm_role(current_user.perm_level),
+            "username": _current_user.username,
+            "userId": _current_user.id,
+            "perm_level": _current_user.perm_level,
+            "perm_role": get_perm_role(_current_user.perm_level),
         },
     )
 
 
 @router.delete("/delete", summary="删除用户")
-async def delete(_id: int, current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    logger.info(f"用户 {current_user.username} 正在删除用户 {_id}...")
-    if int(str(current_user.perm_level)) < Role.Super:
+async def delete(_id: int, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    logger.info(f"用户 {_current_user.username} 正在删除用户 {_id}...")
+    if int(str(_current_user.perm_level)) < Role.Super:
         return Ret.fail("权限不足")
     try:
         user = await DBUser.get_or_none(id=_id)

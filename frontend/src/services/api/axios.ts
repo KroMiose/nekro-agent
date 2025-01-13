@@ -6,6 +6,10 @@ import { config } from '../../config/env'
 const axiosInstance = axios.create({
   baseURL: config.apiBaseUrl,
   timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  },
 })
 
 // 请求拦截器

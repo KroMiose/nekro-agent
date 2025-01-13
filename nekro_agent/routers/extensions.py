@@ -1,14 +1,15 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from nekro_agent.schemas.message import Ret
 from nekro_agent.services.extension import ALL_EXT_META_DATA
+from nekro_agent.systems.user.deps import get_current_active_user
 from nekro_agent.tools.collector import MethodType, agent_collector
 
 router = APIRouter(prefix="/extensions", tags=["Extensions"])
 
 
 @router.get("", summary="获取扩展列表")
-async def get_extensions() -> Ret:
+async def get_extensions(_=Depends(get_current_active_user)) -> Ret:
     """获取所有已加载的扩展信息"""
     extensions = []
 

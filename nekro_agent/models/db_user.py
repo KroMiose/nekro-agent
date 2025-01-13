@@ -16,5 +16,10 @@ class DBUser(Model):
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
+    @property
+    def is_active(self) -> bool:
+        """用户是否激活"""
+        return True  # 默认所有用户都是激活状态
+
     class Meta:
         table = "user"

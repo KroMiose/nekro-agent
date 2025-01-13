@@ -9,9 +9,11 @@ from sse_starlette.sse import EventSourceResponse
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import ONEBOT_ACCESS_TOKEN
+from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
 from nekro_agent.systems.user.auth import get_user_from_token
 from nekro_agent.systems.user.deps import get_current_active_user
+from nekro_agent.systems.user.perm import Role, require_role
 
 router = APIRouter(prefix="/napcat", tags=["NapCat"])
 
@@ -20,7 +22,8 @@ docker = None
 
 
 @router.get("/onebot-token")
-async def get_onebot_token(_=Depends(get_current_active_user)) -> Ret:
+@require_role(Role.Admin)
+async def get_onebot_token(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取 OneBot 访问令牌"""
     if not ONEBOT_ACCESS_TOKEN:
         return Ret.success(data=None, msg="未设置 OneBot 访问令牌")
@@ -46,7 +49,8 @@ async def get_container():
 
 
 @router.get("/status")
-async def get_status(_=Depends(get_current_active_user)) -> Ret:
+@require_role(Role.Admin)
+async def get_status(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取容器状态"""
     try:
         container = await get_container()
@@ -66,7 +70,8 @@ async def get_status(_=Depends(get_current_active_user)) -> Ret:
 
 
 @router.get("/logs")
-async def get_logs(tail: Optional[int] = 100, _=Depends(get_current_active_user)) -> Ret:
+@require_role(Role.Admin)
+async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取最近的容器日志"""
     try:
         container = await get_container()
@@ -82,8 +87,15 @@ async def get_logs(tail: Optional[int] = 100, _=Depends(get_current_active_user)
 @router.get("/logs/stream")
 async def stream_logs(token: str) -> EventSourceResponse:
     """实时日志流"""
-    if not await get_user_from_token(token):
-        raise HTTPException(status_code=401, detail="Invalid token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+
+    user = await get_user_from_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    if not isinstance(user, DBUser) or user.perm_level < Role.Admin:
+        raise HTTPException(status_code=403, detail="权限不足")
 
     async def generate() -> AsyncGenerator[str, None]:
         try:
@@ -109,7 +121,8 @@ async def stream_logs(token: str) -> EventSourceResponse:
 
 
 @router.post("/restart")
-async def restart(_=Depends(get_current_active_user)) -> Ret:
+@require_role(Role.Admin)
+async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """重启容器"""
     try:
         container = await get_container()

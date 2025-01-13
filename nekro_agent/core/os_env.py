@@ -1,5 +1,6 @@
 import contextlib
 import os
+import secrets
 import subprocess
 from pathlib import Path
 
@@ -20,8 +21,8 @@ class OsEnv:
     POSTGRES_DATABASE: str = OsEnvTypes.Str("POSTGRES_DATABASE", default="nekro_agent")
 
     """JWT 配置"""
-    JWT_SECRET_KEY: str = OsEnvTypes.Str("JWT_SECRET_KEY", default="secret:Nekro-agent-Secret")
-    JWT_REFRESH_SECRET_KEY: str = OsEnvTypes.Str("JWT_REFRESH_SECRET_KEY", default="refresh:Nekro-agent-Secret")
+    JWT_SECRET_KEY: str = OsEnvTypes.Str("JWT_SECRET_KEY", default=f"secret:{secrets.token_urlsafe(32)}")
+    JWT_REFRESH_SECRET_KEY: str = OsEnvTypes.Str("JWT_REFRESH_SECRET_KEY", default=f"refresh:{secrets.token_urlsafe(32)}")
     SUPER_ACCESS_KEY: str = OsEnvTypes.Str("SUPER_ACCESS_KEY", default="Nekro-agent-Secret")
     ACCESS_TOKEN_EXPIRE_DAYS: int = OsEnvTypes.Int("ACCESS_TOKEN_EXPIRE_DAYS", default=7)
     ENCRYPT_ALGORITHM: str = OsEnvTypes.Str("ENCRYPT_ALGORITHM", default="HS256")

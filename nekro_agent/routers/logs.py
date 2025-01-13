@@ -7,9 +7,11 @@ from sse_starlette.sse import EventSourceResponse
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_log_records, get_log_sources, subscribe_logs
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
 from nekro_agent.systems.user.auth import get_user_from_token
 from nekro_agent.systems.user.deps import get_current_active_user
+from nekro_agent.systems.user.perm import Role, require_role
 
 router = APIRouter(prefix="/logs", tags=["Logs"])
 
@@ -18,11 +20,12 @@ DEFAULT_LOG_SOURCES = ["nonebot", "nekro_agent", "uvicorn"]
 
 
 @router.get("", summary="获取历史日志")
+@require_role(Role.Admin)
 async def get_logs(
     page: int = 1,
     page_size: int = 500,
     source: Optional[str] = None,
-    _=Depends(get_current_active_user),
+    _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取历史日志记录"""
     logs = await get_log_records(page, page_size, source)
@@ -37,7 +40,8 @@ async def get_logs(
 
 
 @router.get("/sources", summary="获取日志来源列表")
-async def get_sources(_=Depends(get_current_active_user)) -> Ret:
+@require_role(Role.Admin)
+async def get_sources(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取所有日志来源"""
     sources = await get_log_sources()
     # 合并默认来源和实际来源
@@ -48,8 +52,15 @@ async def get_sources(_=Depends(get_current_active_user)) -> Ret:
 @router.get("/stream", summary="实时日志流")
 async def stream_logs(token: Optional[str] = None) -> EventSourceResponse:
     """获取实时日志流"""
-    if not token or not await get_user_from_token(token):
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing authentication token")
+
+    user = await get_user_from_token(token)
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid authentication token")
+
+    if not isinstance(user, DBUser) or user.perm_level < Role.Admin:
+        raise HTTPException(status_code=403, detail="权限不足")
 
     async def event_generator() -> AsyncGenerator[str, None]:
         async for log in subscribe_logs():
