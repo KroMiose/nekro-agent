@@ -27,6 +27,9 @@ class OsEnv:
     ACCESS_TOKEN_EXPIRE_DAYS: int = OsEnvTypes.Int("ACCESS_TOKEN_EXPIRE_DAYS", default=7)
     ENCRYPT_ALGORITHM: str = OsEnvTypes.Str("ENCRYPT_ALGORITHM", default="HS256")
 
+    """RPC 配置"""
+    RPC_SECRET_KEY: str = OsEnvTypes.Str("RPC_SECRET_KEY", default=f"rpc:{secrets.token_urlsafe(32)}")
+
     """其他配置"""
     RUN_IN_DOCKER: bool = OsEnvTypes.Bool("RUN_IN_DOCKER")
 

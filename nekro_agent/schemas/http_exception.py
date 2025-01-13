@@ -22,6 +22,11 @@ permission_exception = HTTPException(
     detail="Not allowed to perform this action",
 )
 
+forbidden_exception = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="Access forbidden",
+)
+
 not_found_exception = HTTPException(
     status_code=status.HTTP_404_NOT_FOUND,
     detail="Resource not found",

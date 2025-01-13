@@ -2,11 +2,15 @@ import asyncio
 import pickle
 from typing import Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi.security import APIKeyHeader
+from starlette.exceptions import HTTPException
 
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.http_exception import (
+    forbidden_exception,
     not_found_exception,
     server_error_exception,
 )
@@ -16,8 +20,14 @@ from nekro_agent.tools.collector import MethodType, agent_collector
 
 router = APIRouter(prefix="/ext", tags=["Tools"])
 
+async def verify_rpc_token(x_rpc_token: str = Header(...)):
+    """验证 RPC 调用令牌"""
+    if not OsEnv.RPC_SECRET_KEY or x_rpc_token != OsEnv.RPC_SECRET_KEY:
+        logger.warning("非法的 RPC 调用令牌")
+        raise forbidden_exception
+    return True
 
-@router.post("/rpc_exec", summary="RPC 命令执行")
+@router.post("/rpc_exec", summary="RPC 命令执行", dependencies=[Depends(verify_rpc_token)])
 async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Response:
     try:
         rpc_request: RPCRequest = RPCRequest.model_validate(pickle.loads(await data.body()))

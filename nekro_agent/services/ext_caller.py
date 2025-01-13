@@ -3,6 +3,7 @@ import inspect
 
 import nekro_agent.services.sandbox.ext_caller_code
 from nekro_agent.core import config, logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.tools.collector import agent_collector
 
 CODE_PREAMBLE = """
@@ -22,6 +23,7 @@ def get_api_caller_code(container_key: str, from_chat_key: str):
         .replace("{CHAT_API}", config.SANDBOX_CHAT_API_URL)
         .replace("{CONTAINER_KEY}", container_key)
         .replace("{FROM_CHAT_KEY}", from_chat_key)
+        .replace("{RPC_SECRET_KEY}", OsEnv.RPC_SECRET_KEY)
     )
     methods = agent_collector.get_all_methods()
 
