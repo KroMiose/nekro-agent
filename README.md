@@ -62,7 +62,7 @@
 - [x] 可视化应用管理控制面板 (WebUI 支持)
 - [ ] 基于 LLM 的自动上下文衔接触发器
 
-> 💡 查看 [扩展列表](./README_Extensions.md) 了解所有可用扩展及其配置说明
+> 💡 查看 [扩展列表](./docs/README_Extensions.md) 了解所有可用扩展及其配置说明
 
 ## 🎁 部署指南
 
@@ -222,7 +222,7 @@ SANDBOX_ONEBOT_SERVER_MOUNT_DIR: "/app/nekro_agent_data"
 
 ## 🖥️ 开发指南
 
-如果你想为 NekroAgent 项目贡献，或者想在 NekroAgent 实现基础上定制自己的功能，请参考 [开发指南](./README_Advanced.md)
+如果你想为 NekroAgent 项目贡献，或者想在 NekroAgent 实现基础上定制自己的功能，请参考 [开发指南](./docs/README_Advanced.md)
 
 ## 🤝 贡献列表
 
