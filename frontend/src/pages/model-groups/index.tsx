@@ -59,7 +59,6 @@ function EditDialog({
   const [error, setError] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
 
-  // 当initialConfig变化时更新表单
   useEffect(() => {
     if (initialConfig) {
       setConfig(initialConfig)
@@ -90,7 +89,7 @@ function EditDialog({
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{initialConfig ? '编辑模型组' : '新建模型组'}</DialogTitle>
       <DialogContent>
-        <Stack spacing={2} sx={{ mt: 2 }}>
+        <Stack spacing={2} className="mt-4">
           <TextField
             label="组名"
             value={groupName}
@@ -120,6 +119,12 @@ function EditDialog({
             onChange={e => setConfig({ ...config, BASE_URL: e.target.value })}
             fullWidth
             autoComplete="off"
+            inputProps={{
+              autoComplete: "new-password",
+              form: {
+                autoComplete: "off",
+              },
+            }}
           />
           <TextField
             label="API密钥"
@@ -128,6 +133,12 @@ function EditDialog({
             type={showApiKey ? 'text' : 'password'}
             fullWidth
             autoComplete="off"
+            inputProps={{
+              autoComplete: "new-password",
+              form: {
+                autoComplete: "off",
+              },
+            }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
@@ -159,7 +170,6 @@ export default function ModelGroupsPage() {
     name: '',
   })
 
-  // 获取模型组列表
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
     queryFn: () => configApi.getModelGroups(),
@@ -205,25 +215,10 @@ export default function ModelGroupsPage() {
   }
 
   return (
-    <Box
-      sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-      }}
-    >
+    <Box className="h-full flex flex-col overflow-hidden">
       {/* 顶部工具栏 */}
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 2,
-          flexShrink: 0,
-        }}
-      >
-        <Alert severity="info" sx={{ mr: 2 }}>
+      <Box className="flex justify-between items-center mb-4 flex-shrink-0">
+        <Alert severity="info" className="mr-4">
           需要 API 密钥？可访问{' '}
           <Link href="https://one.nekro.top" target="_blank" rel="noopener">
             Nekro 合作中转
@@ -236,61 +231,31 @@ export default function ModelGroupsPage() {
       </Box>
 
       {/* 表格容器 */}
-      <Paper
-        elevation={3}
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 0,
-          overflow: 'hidden',
-        }}
-      >
-        <TableContainer 
-          sx={{ 
-            flex: 1,
-            overflow: 'auto',
-            '&::-webkit-scrollbar': {
-              width: '8px',
-              height: '8px',
-            },
-            '&::-webkit-scrollbar-thumb': {
-              backgroundColor: 'rgba(0,0,0,0.2)',
-              borderRadius: '4px',
-            },
-            '&::-webkit-scrollbar-track': {
-              backgroundColor: 'rgba(0,0,0,0.05)',
-            },
-          }}
-        >
+      <Paper className="flex-1 flex flex-col min-h-0 overflow-hidden" elevation={3}>
+        <TableContainer className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell width="15%">组名</TableCell>
-                <TableCell width="20%">模型名称</TableCell>
-                <TableCell width="35%">API地址</TableCell>
-                <TableCell width="20%">代理地址</TableCell>
-                <TableCell width="10%" align="right">
-                  操作
-                </TableCell>
+                <TableCell className="w-[15%]">组名</TableCell>
+                <TableCell className="w-[20%]">模型名称</TableCell>
+                <TableCell className="w-[35%]">API地址</TableCell>
+                <TableCell className="w-[20%]">代理地址</TableCell>
+                <TableCell className="w-[10%] text-right">操作</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {Object.entries(modelGroups).map(([name, config]) => (
                 <TableRow key={name}>
                   <TableCell>
-                    <Typography
-                      variant="subtitle2"
-                      sx={{ fontWeight: name === 'default' ? 'bold' : 'normal' }}
-                    >
+                    <Typography className={name === 'default' ? 'font-bold' : ''} variant="subtitle2">
                       {name}
                     </Typography>
                   </TableCell>
                   <TableCell>{config.CHAT_MODEL}</TableCell>
                   <TableCell>{config.BASE_URL}</TableCell>
                   <TableCell>{config.CHAT_PROXY || '-'}</TableCell>
-                  <TableCell align="right">
-                    <Stack direction="row" spacing={1} justifyContent="flex-end">
+                  <TableCell className="text-right">
+                    <Stack direction="row" spacing={1} className="justify-end">
                       <IconButton
                         onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
                         size="small"
@@ -319,7 +284,6 @@ export default function ModelGroupsPage() {
         </TableContainer>
       </Paper>
 
-      {/* 对话框和提示保持不变 */}
       <EditDialog
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
@@ -339,7 +303,7 @@ export default function ModelGroupsPage() {
           onClose={() => setMessage('')}
           severity="info"
           variant="filled"
-          sx={{ width: '100%' }}
+          className="w-full"
         >
           {message}
         </Alert>
