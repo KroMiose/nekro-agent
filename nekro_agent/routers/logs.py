@@ -1,12 +1,17 @@
 from asyncio import Queue
 from typing import AsyncGenerator, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from jose import JWTError, jwt
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import get_log_records, get_log_sources, logger, subscribe_logs
+from nekro_agent.core.logger import (
+    get_log_records,
+    get_log_sources,
+    logger,
+    subscribers,
+)
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
@@ -18,9 +23,6 @@ router = APIRouter(prefix="/logs", tags=["Logs"])
 
 # 基础日志来源
 DEFAULT_LOG_SOURCES = ["nonebot", "nekro_agent", "uvicorn"]
-
-# 日志订阅者队列
-subscribers: List[Queue] = []
 
 
 @router.get("", summary="获取历史日志")
