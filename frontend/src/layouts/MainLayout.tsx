@@ -20,7 +20,6 @@ import {
   Chip,
 } from '@mui/material'
 import {
-  Menu as MenuIcon,
   Terminal as TerminalIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
@@ -40,70 +39,99 @@ import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
 import { useColorMode } from '../stores/theme'
 import { configApi } from '../services/api/config'
+import { motion } from 'framer-motion'
 
-const drawerWidth = 240
+interface PageConfig {
+  path: string
+  text: string
+  icon: JSX.Element
+  parent?: string // 父菜单的 key
+}
 
-const menuItems = [
-  { text: '系统日志', icon: <TerminalIcon />, path: '/logs' },
-  { text: '扩展管理', icon: <ExtensionIcon />, path: '/extensions' },
-  { text: '沙盒日志', icon: <CodeIcon />, path: '/sandbox-logs' },
+interface MenuGroup {
+  key: string
+  text: string
+  icon: JSX.Element
+  children: PageConfig[]
+}
+
+// 集中的页面配置
+const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
+  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
+  { path: '/extensions', text: '扩展管理', icon: <ExtensionIcon /> },
+  { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
   {
+    key: 'protocols',
     text: '协议端',
     icon: <ChatIcon />,
-    path: undefined,
-    children: [{ text: 'NapCat', icon: <ChatIcon />, path: '/protocols/napcat' }],
-  },
-  {
-    text: '系统配置',
-    icon: <SettingsIcon />,
-    path: undefined,
     children: [
-      { text: '基本配置', icon: <TuneIcon />, path: '/settings' },
-      { text: '模型组', icon: <StorageIcon />, path: '/settings/model-groups' },
+      { path: '/protocols/napcat', text: 'NapCat', icon: <ChatIcon />, parent: 'protocols' },
     ],
   },
-  { text: '个人中心', icon: <PersonIcon />, path: '/profile' },
+  {
+    key: 'settings',
+    text: '系统配置',
+    icon: <SettingsIcon />,
+    children: [
+      { path: '/settings', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
+      { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
+    ],
+  },
+  { path: '/profile', text: '个人中心', icon: <PersonIcon /> },
 ]
+
+// 转换配置为菜单项
+const menuItems = PAGE_CONFIGS.map(config => {
+  if ('children' in config) {
+    return {
+      text: config.text,
+      icon: config.icon,
+      path: undefined,
+      key: config.key,
+      children: config.children.map(child => ({
+        text: child.text,
+        icon: child.icon,
+        path: child.path,
+      })),
+    }
+  }
+  return {
+    text: config.text,
+    icon: config.icon,
+    path: config.path,
+  }
+})
 
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(true)
-  const [protocolsOpen, setProtocolsOpen] = useState(true)
   const { userInfo, logout } = useAuthStore()
   const theme = useTheme()
   const { toggleColorMode } = useColorMode()
   const [message, setMessage] = useState<string>('')
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    protocols: true,
+    settings: true,
+  })
 
-  const getCurrentTitle = () => {
+  const getCurrentPage = () => {
     const currentPath = location.pathname
-    if (currentPath.startsWith('/settings/model-groups')) {
-      return '模型组'
-    }
-    if (currentPath === '/settings') {
-      return '基本配置'
-    }
-    if (currentPath === '/extensions') {
-      return '扩展管理'
-    }
-    if (currentPath === '/protocols/napcat') {
-      return 'NapCat'
-    }
-    if (currentPath === '/sandbox-logs') {
-      return '沙盒日志'
-    }
-    if (currentPath === '/profile') {
-      return '个人中心'
-    }
-    const currentMenu = menuItems.find(item => item.path && currentPath.startsWith(item.path))
-    return currentMenu?.text || '管理面板'
+    // 扁平化所有页面配置
+    const allPages = PAGE_CONFIGS.flatMap(config =>
+      'children' in config ? config.children : [config]
+    )
+    // 查找匹配的页面
+    return allPages.find(
+      page =>
+        'path' in page &&
+        (page.path === currentPath || (currentPath.startsWith(page.path) && page.path !== '/'))
+    )
   }
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen)
+  const getCurrentTitle = () => {
+    return getCurrentPage()?.text || '管理面板'
   }
 
   const handleLogout = () => {
@@ -112,174 +140,171 @@ export default function MainLayout() {
   }
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          width: '100%', 
-          justifyContent: 'center',
-          position: 'relative',
-          overflow: 'visible',
-          ml: -0.75,
-        }}>
+    <Box className="h-full flex flex-col">
+      <Toolbar sx={{ overflow: 'visible' }}>
+        <Box
+          className="flex items-center w-full justify-center relative -ml-3"
+          sx={{ overflow: 'visible' }}
+        >
           <Typography
             variant="h6"
             noWrap
+            className="relative font-sans font-black tracking-[0.2rem] select-none cursor-default text-[1.3rem] transition-transform duration-300 hover:scale-105"
             sx={{
-              position: 'relative',
               overflow: 'visible',
-              fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-              fontWeight: 900,
-              letterSpacing: '.2rem',
-              userSelect: 'none',
-              cursor: 'default',
-              fontSize: '1.3rem',
-              transition: 'transform 0.3s ease',
-              '&:hover': {
-                transform: 'scale(1.05)',
-                '& .highlight': {
-                  animation: 'bounce 0.5s ease infinite alternate'
-                },
-                '& .text': {
-                  animation: 'wave 1s ease infinite'
-                },
-                '& .version-tag': {
-                  transform: 'scale(1.05) translateY(-1px)'
-                }
-              },
               '@keyframes bounce': {
-                '0%': {
-                  transform: 'translateY(0)'
-                },
-                '100%': {
-                  transform: 'translateY(-3px)'
-                }
+                '0%': { transform: 'translateY(0)' },
+                '100%': { transform: 'translateY(-3px)' },
               },
               '@keyframes wave': {
-                '0%, 100%': {
-                  transform: 'rotate(-2deg)'
-                },
-                '50%': {
-                  transform: 'rotate(2deg)'
-                }
+                '0%, 100%': { transform: 'rotate(-2deg)' },
+                '50%': { transform: 'rotate(2deg)' },
               },
               '& .highlight, & .text': {
                 display: 'inline-block',
                 transition: 'transform 0.3s ease-out',
                 transformOrigin: 'center',
-                willChange: 'transform'
+                willChange: 'transform',
               },
               '& .highlight': {
                 color: theme.palette.primary.main,
                 fontWeight: 900,
                 fontSize: '1.5rem',
-                textShadow: theme.palette.mode === 'dark' 
-                  ? '0 0 2px rgba(255,255,255,0.2), 0 0 2px rgba(255,255,255,0.2), 0 0 3px rgba(255,255,255,0.1)'
-                  : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
+                textShadow:
+                  theme.palette.mode === 'dark'
+                    ? '0 0 2px rgba(255,255,255,0.2), 0 0 2px rgba(255,255,255,0.2), 0 0 3px rgba(255,255,255,0.1)'
+                    : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
                   transform: 'translateY(0)',
-                  transition: 'all 0.3s ease-out'
-                }
+                  transition: 'all 0.3s ease-out',
+                },
               },
               '& .text': {
                 fontWeight: 800,
                 fontSize: '1.2rem',
-                textShadow: theme.palette.mode === 'dark'
-                  ? '0 0 3px rgba(255,255,255,0.2)'
-                  : '0 0 3px rgba(0,0,0,0.1)',
+                textShadow:
+                  theme.palette.mode === 'dark'
+                    ? '0 0 3px rgba(255,255,255,0.2)'
+                    : '0 0 3px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
                   transform: 'rotate(0)',
-                  transition: 'all 0.3s ease-out'
-                }
-              }
+                  transition: 'all 0.3s ease-out',
+                },
+              },
+              '&:hover': {
+                '& .highlight': {
+                  animation: 'bounce 0.5s ease infinite alternate',
+                },
+                '& .text': {
+                  animation: 'wave 1s ease infinite',
+                },
+                '& .version-tag': {
+                  transform: 'scale(1.05) translateY(-1px)',
+                },
+              },
             }}
           >
             <span className="highlight">N</span>
-            <span className="text">ekro</span>
-            {' '}
-            <span className="highlight">A</span>
+            <span className="text">ekro</span> <span className="highlight">A</span>
             <span className="text">gent</span>
             <Chip
               label={`v ${version}`}
               size="small"
               variant="outlined"
-              className="version-tag"
+              className="version-tag absolute -top-1.5 -right-10 h-4"
               sx={{
-                position: 'absolute',
-                top: '-6px',
-                right: '-32px',
-                height: '16px',
                 fontSize: '0.65rem',
                 letterSpacing: '-0.02em',
                 backgroundColor: 'transparent',
-                borderColor: theme.palette.mode === 'dark' 
-                  ? 'rgba(255,255,255,0.2)' 
-                  : 'rgba(0,0,0,0.15)',
-                color: theme.palette.mode === 'dark'
-                  ? theme.palette.primary.light
-                  : theme.palette.primary.main,
+                borderColor:
+                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
+                color:
+                  theme.palette.mode === 'dark'
+                    ? theme.palette.primary.light
+                    : theme.palette.primary.main,
                 transition: 'transform 0.3s ease',
                 transform: 'scale(1)',
                 '.MuiChip-label': {
                   px: 0.5,
                   py: 0,
-                  lineHeight: 1
-                }
+                  lineHeight: 1,
+                },
               }}
             />
           </Typography>
         </Box>
       </Toolbar>
-      <List sx={{ flexGrow: 1 }}>
+      <List className="flex-grow">
         {menuItems.map(item => (
           <Box key={item.text}>
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => {
-                  if (item.children) {
-                    if (item.text === '系统配置') {
-                      setSettingsOpen(!settingsOpen)
-                    } else if (item.text === '协议端') {
-                      setProtocolsOpen(!protocolsOpen)
-                    }
+                  if (item.children && item.key) {
+                    setOpenMenus(prev => ({
+                      ...prev,
+                      [item.key]: !prev[item.key],
+                    }))
                   } else {
-                    navigate(item.path)
+                    navigate(item.path!)
                   }
                 }}
                 selected={!item.children && location.pathname === item.path}
+                sx={{
+                  '&.Mui-selected': {
+                    backgroundColor:
+                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    '&:hover': {
+                      backgroundColor:
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.12)'
+                          : 'rgba(0,0,0,0.08)',
+                    },
+                  },
+                  '&:hover': {
+                    backgroundColor:
+                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                  },
+                }}
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>
                 <ListItemText primary={item.text} />
                 {item.children &&
-                  (item.text === '系统配置' ? (
-                    settingsOpen ? (
-                      <ExpandLessIcon />
-                    ) : (
-                      <ExpandMoreIcon />
-                    )
-                  ) : protocolsOpen ? (
-                    <ExpandLessIcon />
-                  ) : (
-                    <ExpandMoreIcon />
-                  ))}
+                  item.key &&
+                  (openMenus[item.key] ? <ExpandLessIcon /> : <ExpandMoreIcon />)}
               </ListItemButton>
             </ListItem>
-            {item.children && (
-              <Collapse
-                in={item.text === '系统配置' ? settingsOpen : protocolsOpen}
-                timeout="auto"
-                unmountOnExit
-              >
+            {item.children && item.key && (
+              <Collapse in={openMenus[item.key]} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
                   {item.children.map(child => (
                     <ListItemButton
                       key={child.text}
-                      sx={{ pl: 4 }}
                       onClick={() => navigate(child.path)}
                       selected={location.pathname === child.path}
+                      sx={{
+                        pl: 4,
+                        '&.Mui-selected': {
+                          backgroundColor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.05)',
+                          '&:hover': {
+                            backgroundColor:
+                              theme.palette.mode === 'dark'
+                                ? 'rgba(255,255,255,0.12)'
+                                : 'rgba(0,0,0,0.08)',
+                          },
+                        },
+                        '&:hover': {
+                          backgroundColor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.05)'
+                              : 'rgba(0,0,0,0.03)',
+                        },
+                      }}
                     >
                       <ListItemIcon>{child.icon}</ListItemIcon>
                       <ListItemText primary={child.text} />
@@ -293,7 +318,15 @@ export default function MainLayout() {
       </List>
       <List>
         <ListItem disablePadding>
-          <ListItemButton onClick={handleLogout}>
+          <ListItemButton
+            onClick={handleLogout}
+            sx={{
+              '&:hover': {
+                backgroundColor:
+                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              },
+            }}
+          >
             <ListItemIcon>
               <LogoutIcon />
             </ListItemIcon>
@@ -319,7 +352,8 @@ export default function MainLayout() {
 
   useEffect(() => {
     // 获取版本信息
-    configApi.getVersion()
+    configApi
+      .getVersion()
       .then(version => {
         setVersion(version)
       })
@@ -329,26 +363,47 @@ export default function MainLayout() {
   }, [])
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box className="flex">
       <AppBar
         position="fixed"
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          width: { xs: '100%', sm: `calc(100% - 240px)` },
+          ml: { xs: 0, sm: '240px' },
+          backdropFilter: 'blur(8px)',
+          backgroundColor:
+            theme.palette.mode === 'dark'
+              ? theme.palette.background.default
+              : theme.palette.primary.main,
+          boxShadow:
+            theme.palette.mode === 'dark'
+              ? '0 1px 3px 0 rgba(0, 0, 0, 0.4)'
+              : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+          color:
+            theme.palette.mode === 'dark'
+              ? theme.palette.text.primary
+              : theme.palette.primary.contrastText,
+          zIndex: theme.zIndex.drawer + 1,
         }}
       >
         <Toolbar>
-          <IconButton
-            color="inherit"
-            edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
-            {getCurrentTitle()}
-          </Typography>
+          <Box className="flex items-center gap-2 flex-grow select-none">
+            {getCurrentPage()?.icon}
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              className="font-medium select-none"
+              sx={{
+                color: 'inherit',
+                textShadow:
+                  theme.palette.mode === 'dark'
+                    ? '0 0 2px rgba(255,255,255,0.1)'
+                    : '0 0 2px rgba(0,0,0,0.1)',
+              }}
+            >
+              {getCurrentTitle()}
+            </Typography>
+          </Box>
           <Tooltip title={theme.palette.mode === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
             <IconButton onClick={toggleColorMode} color="inherit">
               {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
@@ -360,12 +415,13 @@ export default function MainLayout() {
             size="large"
             startIcon={<GitHubIcon />}
             onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
+            className="mr-1 normal-case min-w-[100px] transition-colors"
             sx={{
-              mr: 1,
-              textTransform: 'none',
-              minWidth: '100px',
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                backgroundColor:
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(255, 255, 255, 0.1)'
+                    : 'rgba(255, 255, 255, 0.2)',
               },
             }}
           >
@@ -373,31 +429,13 @@ export default function MainLayout() {
           </Button>
         </Toolbar>
       </AppBar>
-      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
-          ModalProps={{
-            keepMounted: true,
-          }}
-          sx={{
-            display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': {
-              boxSizing: 'border-box',
-              width: drawerWidth,
-            },
-          }}
-        >
-          {drawer}
-        </Drawer>
+      <Box component="nav" sx={{ width: { sm: 240 }, flexShrink: { sm: 0 } }}>
         <Drawer
           variant="permanent"
           sx={{
-            display: { xs: 'none', sm: 'block' },
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: drawerWidth,
+              width: 240,
             },
           }}
           open
@@ -407,20 +445,21 @@ export default function MainLayout() {
       </Box>
       <Box
         component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          height: '100vh',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        className="flex-grow p-3 sm:w-[calc(100%-240px)] h-screen overflow-hidden flex flex-col"
       >
-        <Toolbar sx={{ flexShrink: 0 }} />
-        <Box sx={{ flexGrow: 1, overflow: 'hidden', minHeight: 0 }}>
+        <Toolbar className="flex-shrink-0" />
+        <motion.div
+          key={location.key}
+          initial={{ opacity: 0, x: 20, scale: 0.93 }}
+          animate={{ opacity: 1, x: 0, scale: 1 }}
+          transition={{
+            duration: 0.36,
+            ease: [0.4, 0, 0.2, 1],
+          }}
+          className="h-full flex-grow overflow-auto"
+        >
           <Outlet />
-        </Box>
+        </motion.div>
       </Box>
 
       <Snackbar
@@ -429,12 +468,7 @@ export default function MainLayout() {
         onClose={() => setMessage('')}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert
-          onClose={() => setMessage('')}
-          severity="info"
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
+        <Alert onClose={() => setMessage('')} severity="info" variant="filled" className="w-full">
           {message}
         </Alert>
       </Snackbar>

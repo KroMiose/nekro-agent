@@ -87,7 +87,10 @@ export default function LogsPage() {
     const connect = () => {
       try {
         cleanup = logsApi.streamLogs(
-          (data) => {
+          data => {
+            if (!data) {
+              return
+            }
             try {
               const log = JSON.parse(data) as LogEntry
               setRealtimeLogs(prev => {
@@ -105,7 +108,7 @@ export default function LogsPage() {
               console.error('Failed to parse log data:', error)
             }
           },
-          (error) => {
+          error => {
             console.error('EventSource error:', error)
             setIsDisconnected(true)
           }
@@ -143,10 +146,7 @@ export default function LogsPage() {
         }}
       >
         {isDisconnected && (
-          <Alert 
-            severity="warning" 
-            sx={{ flex: 1 }}
-          >
+          <Alert severity="warning" sx={{ flex: 1 }}>
             日志流连接已断开，正在尝试重新连接...
           </Alert>
         )}
