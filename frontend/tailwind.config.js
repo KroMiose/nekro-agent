@@ -8,5 +8,11 @@ export default {
     extend: {},
   },
   plugins: [],
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
+  experimental: {
+    optimizeUniversalDefaults: true
+  }
 }
 

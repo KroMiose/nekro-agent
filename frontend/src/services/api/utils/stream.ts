@@ -26,19 +26,8 @@ export const createEventStream = (options: StreamOptions) => {
   }
 
   try {
-    // 处理基础 URL
-    let normalizedBaseUrl = baseUrl
-    if (!normalizedBaseUrl.startsWith('http://') && !normalizedBaseUrl.startsWith('https://')) {
-      normalizedBaseUrl = `http://${normalizedBaseUrl}`
-    }
-    normalizedBaseUrl = normalizedBaseUrl.replace(/\/$/, '')
-
-    // 构造完整 URL
-    const url = new URL(`${normalizedBaseUrl}${endpoint}`)
-    url.searchParams.set('token', `Bearer ${token}`)
-
     // 创建 EventSource 连接
-    fetchEventSource(url.toString(), {
+    fetchEventSource(`${baseUrl}${endpoint}?token=${token}`, {
       signal: controller.signal,
       headers: {
         'Content-Type': 'text/event-stream',
