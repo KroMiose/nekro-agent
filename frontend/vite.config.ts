@@ -12,5 +12,21 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
+  },
+  build: {
+    cssMinify: true,  // CSS 压缩
+    cssCodeSplit: true,  // CSS 代码分割
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'mui-vendor': ['@mui/material', '@mui/icons-material'],
+        }
+      }
+    }
+  },
+  css: {
+    postcss: './postcss.config.js',  // 指定配置文件路径
+    devSourcemap: true,  // 开发时的 sourcemap
   }
 })
