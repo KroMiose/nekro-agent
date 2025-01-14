@@ -14,7 +14,7 @@ router = APIRouter(prefix="/tools", tags=["Tools"])
 
 
 @router.post("/sd_draw", summary="Stable Diffusion - Text2Img")
-@require_role(Role.User)
+@require_role(Role.Admin)
 async def sd_draw(
     positive_prompt: str,
     negative_prompt: str = "",

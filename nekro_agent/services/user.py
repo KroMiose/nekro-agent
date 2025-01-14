@@ -69,6 +69,8 @@ async def user_login(data: UserLogin) -> UserToken:
     logger.info(f"用户 {user.username if user else '未知'} 正在登录")
     if user and verify_password(data.password, user.password):
         logger.info(f"用户 {user.username} 登录成功")
+        if user.bind_qq in config.SUPER_USERS:
+            user.perm_level = Role.Admin.value
         user.login_time = datetime.now()
         await user.save()
         return UserToken(
