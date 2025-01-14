@@ -47,6 +47,15 @@ async def user_register(data: UserCreate) -> Ret:
 async def user_login(data: UserLogin) -> UserToken:
     if OsEnv.ADMIN_PASSWORD and data.username == "admin" and data.password == OsEnv.ADMIN_PASSWORD:
         logger.info(f"管理员登录: {data} | {OsEnv.ADMIN_PASSWORD}")
+        user = await DBUser.get_or_none(username="admin")
+        if not user:
+            await DBUser.create(
+                username="admin",
+                password=get_hashed_password(data.password),
+                bind_qq="",
+                perm_level=Role.Admin,
+                login_time=datetime.now(),
+            )
         return UserToken(
             access_token=create_access_token(data.username),
             refresh_token=create_refresh_token(data.username),

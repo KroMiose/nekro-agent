@@ -54,8 +54,9 @@ async def get_current_user(request: Request, token: Optional[str] = None) -> DBU
     except JWTError as e:
         logger.debug(f"JWT validation failed: {str(e)}")
         raise credentials_exception
-    user = await DBUser.get_or_none(username=token_data.username)
+    user = await DBUser.get_or_none(bind_qq=token_data.username)
     if user is None:
+        logger.debug(f"User '{token_data.username}' not found")
         raise credentials_exception
     return user
 
@@ -70,5 +71,6 @@ async def get_current_active_user(current_user: DBUser = Depends(get_current_use
 async def get_current_super_user(current_user: DBUser = Depends(get_current_active_user)) -> DBUser:
     """获取当前超级用户"""
     if current_user.perm_level < Role.Super:
+        logger.debug(f"User {current_user.username} is not a super user")
         raise authorization_exception
     return current_user
