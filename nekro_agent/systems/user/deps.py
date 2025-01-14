@@ -54,7 +54,10 @@ async def get_current_user(request: Request, token: Optional[str] = None) -> DBU
     except JWTError as e:
         logger.debug(f"JWT validation failed: {str(e)}")
         raise credentials_exception
-    user = await DBUser.get_or_none(bind_qq=token_data.username)
+    if token_data.username == "admin":
+        user = await DBUser.get_or_none(username="admin")
+    else:
+        user = await DBUser.get_or_none(bind_qq=token_data.username)
     if user is None:
         logger.debug(f"User '{token_data.username}' not found")
         raise credentials_exception

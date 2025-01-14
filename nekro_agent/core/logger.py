@@ -45,7 +45,7 @@ class LogInterceptHandler:
         log_records.append(log_entry)
         log_json = json.dumps(log_entry)
         for queue in subscribers:
-            await queue.put(f"data: {log_json}\n\n")
+            await queue.put(f"{log_json}\n\n")
 
 
 # 捕获未处理的异常处理
