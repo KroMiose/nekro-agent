@@ -285,12 +285,17 @@ config.dump_config(file_path=CONFIG_PATH)
 
 
 def save_config():
+    """保存配置"""
     global config
     config.dump_config(file_path=CONFIG_PATH)
 
 
 def reload_config():
+    """重新加载配置文件"""
     global config
+
     new_config = PluginConfig.load_config(file_path=CONFIG_PATH)
-    for key, value in new_config.model_dump().items():
-        setattr(config, key, value)
+    # 更新配置字段
+    for field_name in PluginConfig.model_fields:
+        value = getattr(new_config, field_name)
+        setattr(config, field_name, value)
