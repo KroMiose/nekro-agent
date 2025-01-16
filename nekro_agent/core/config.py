@@ -31,8 +31,12 @@ class PluginConfig(ConfigBase):
         default="INFO",
         title="应用日志级别",
     )
-    SUPER_USERS: List[str] = Field(default=["123456"], title="管理员列表")
-    BOT_QQ: str = Field(default="", title="机器人 QQ 号")
+    BOT_QQ: str = Field(default="", title="机器人 QQ 号", json_schema_extra={"required": True})
+    SUPER_USERS: List[str] = Field(
+        default=["123456"],
+        title="管理员列表",
+        description="此处指定的管理员用户可登陆 WebUI, 初始密码 123456",
+    )
     DEBUG_IN_CHAT: bool = Field(default=False, title="聊天调试模式")
     ADMIN_CHAT_KEY: str = Field(
         default="",
@@ -61,17 +65,19 @@ class PluginConfig(ConfigBase):
             ),
         },
         title="模型组配置",
-        json_schema_extra={"is_model_groups": True},
+        json_schema_extra={"is_hidden": True},
     )
     USE_MODEL_GROUP: str = Field(
         default="default",
         title="使用的模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "required": True},
+        description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
     FALLBACK_MODEL_GROUP: str = Field(
         default="default",
         title="备用模型组",
         json_schema_extra={"ref_model_groups": True},
+        description="当主模型组不可用时, 使用备用模型组",
     )
     STABLE_DIFFUSION_USE_MODEL_GROUP: str = Field(
         default="default",
@@ -89,21 +95,69 @@ class PluginConfig(ConfigBase):
         ),
         title="聊天设定详情",
     )
-    AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = Field(default=60 * 30, title="聊天上下文过期时间 (秒)")
-    AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(default=24, title="聊天上下文最大长度")
-    AI_SCRIPT_MAX_RETRY_TIMES: int = Field(default=5, title="AI 脚本重试次数")
-    AI_CHAT_LLM_API_MAX_RETRIES: int = Field(default=3, title="API 调用重试次数")
-    AI_DEBOUNCE_WAIT_SECONDS: float = Field(default=0.9, title="防抖等待时长 (秒)")
-    AI_IGNORED_PREFIXES: List[str] = Field(default=["#", "＃", "[Debug]", "[Opt Output]"], title="忽略的消息前缀")
+    AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = Field(
+        default=60 * 30,
+        title="聊天上下文过期时间 (秒)",
+        description="超出该时间范围的消息不会被 AI 参考",
+    )
+    AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(
+        default=24,
+        title="聊天上下文最大条数",
+        description="AI 会话上下文最大条数, 超出该条数会自动截断",
+    )
+    AI_SCRIPT_MAX_RETRY_TIMES: int = Field(
+        default=3,
+        title="AI 容器执行重试次数",
+        description="允许沙盒脚本执行失败后调试次数，增大该值可略微增加调试成功概率",
+    )
+    AI_CHAT_LLM_API_MAX_RETRIES: int = Field(
+        default=3,
+        title="模型 API 调用重试次数",
+        description="模型组调用失败后重试次数",
+    )
+    AI_DEBOUNCE_WAIT_SECONDS: float = Field(
+        default=0.9,
+        title="防抖等待时长 (秒)",
+        description="防抖等待时长中继续收到的消息只会触发最后一条",
+    )
+    AI_IGNORED_PREFIXES: List[str] = Field(
+        default=["#", "＃", "[Debug]", "[Opt Output]"],
+        title="忽略的消息前缀",
+        description="带有这些前缀的消息不会被参考或者触发",
+    )
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(default=0.0, title="随机回复概率")
     AI_CHAT_TRIGGER_REGEX: List[str] = Field(default=[], title="触发正则表达式")
-    AI_NAME_PREFIX: str = Field(default="", title="AI名称前缀")
-    AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(default=512, title="单条消息最大长度 (字符)")
-    AI_CONTEXT_LENGTH_PER_SESSION: int = Field(default=4096, title="会话最大长度 (字符)")
-    AI_ENABLE_VISION: bool = Field(default=True, title="启用视觉功能 (需要多模态模型支持)")
-    AI_VISION_IMAGE_LIMIT: int = Field(default=3, title="视觉图片数量限制")
-    AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(default=1024, title="视觉图片大小限制 (KB)")
-    AI_VOICE_CHARACTER: str = Field(default="lucy-voice-xueling", title="语音角色")
+    AI_NAME_PREFIX: str = Field(default="", title="AI名称前缀", description="状态扩展修改群名片时会自动添加该前缀")
+    AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
+        default=512,
+        title="单条消息最大长度 (字符)",
+        description="会话上下文单条消息最大长度，超出该长度会自动截取摘要",
+    )
+    AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
+        default=4096,
+        title="会话上下文最大长度 (字符)",
+        description="会话历史记录上下文最大长度，超出该长度会自动截断",
+    )
+    AI_ENABLE_VISION: bool = Field(
+        default=True,
+        title="启用视觉功能",
+        description="需要多模态模型支持，如果模型不支持，请关闭该功能，否则可能导致无法响应",
+    )
+    AI_VISION_IMAGE_LIMIT: int = Field(
+        default=3,
+        title="视觉图片数量限制",
+        description="每次参考的最大图片数量",
+    )
+    AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(
+        default=1024,
+        title="视觉图片大小限制 (KB)",
+        description="每次传递的图片大小限制，超出此大小的图片会被自动压缩到限制内传递",
+    )
+    AI_VOICE_CHARACTER: str = Field(
+        default="lucy-voice-xueling",
+        title="语音角色",
+        description="该功能使用 QQ 群中的 AI 声聊能力，使用 `/ai_voices` 命令查看所有可用角色",
+    )
 
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用")
@@ -112,7 +166,11 @@ class PluginConfig(ConfigBase):
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")
-    SANDBOX_RUNNING_TIMEOUT: int = Field(default=60, title="沙盒超时时间 (秒)")
+    SANDBOX_RUNNING_TIMEOUT: int = Field(
+        default=60,
+        title="沙盒超时时间 (秒)",
+        description="每个沙盒容器最长运行时间，超过该时间沙盒容器会被强制停止",
+    )
     SANDBOX_MAX_CONCURRENT: int = Field(default=4, title="最大并发沙盒数")
     SANDBOX_CHAT_API_URL: str = Field(
         default=f"http://host.docker.internal:{OsEnv.EXPOSE_PORT}/api",
@@ -120,13 +178,15 @@ class PluginConfig(ConfigBase):
     )
     SANDBOX_ONEBOT_SERVER_MOUNT_DIR: str = Field(
         default="/app/nekro_agent_data",
-        title="沙盒数据目录",
+        title="协议端挂载 NA 数据目录",
+        description="该目录用于 NA 向 OneBot 协议端上传资源文件时，指定文件访问的路径使用，请确保协议端能通过该目录访问到 NA 的应用数据，如果协议端运行在 Docker 容器中则需要将此目录挂载到容器中对应位置",
     )
 
     """拓展配置"""
     EXTENSION_MODULES: List[str] = Field(
         default=["extensions.basic", "extensions.status"],
         title="启用的插件模块",
+        description="暂时不支持热重载，请重启 Nekro Agent 后生效，前往 <a href='https://github.com/KroMiose/nekro-agent/blob/main/docs/README_Extensions.md' target='_blank'>插件模块列表</a>",
     )
 
     """Postgresql 配置"""
@@ -157,9 +217,16 @@ class PluginConfig(ConfigBase):
     )
 
     """Stable Diffusion API 配置"""
-    STABLE_DIFFUSION_API: str = Field(default="http://127.0.0.1:9999", title="Stable Diffusion API 地址")
+    STABLE_DIFFUSION_API: str = Field(
+        default="http://127.0.0.1:9999",
+        title="Stable Diffusion API 地址",
+        description="Stable Diffusion 的 API 地址，请确保 Stable Diffusion 已启动",
+        json_schema_extra={"placeholder": "例: http://<服务器 IP>:<Stable Diffusion 端口>"},
+    )
     STABLE_DIFFUSION_PROXY: str = Field(
-        default="", title="Stable Diffusion 访问代理", json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"}
+        default="",
+        title="Stable Diffusion 访问代理",
+        json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"},
     )
 
     """Google Search API 配置"""
@@ -167,13 +234,15 @@ class PluginConfig(ConfigBase):
         default="",
         title="Google 搜索 API 密钥",
         json_schema_extra={"is_secret": True},
+        description="Google 搜索 API 密钥 <a href='https://developers.google.com/custom-search/v1/introduction?hl=zh-cn' target='_blank'>获取地址</a>",
     )
     GOOGLE_SEARCH_CX_KEY: str = Field(
         default="",
         title="Google 搜索 CX 密钥",
         json_schema_extra={"is_secret": True},
+        description="Google 搜索 CX 密钥 <a href='https://programmablesearchengine.google.com/controlpanel/all' target='_blank'>获取地址</a>",
     )
-    GOOGLE_SEARCH_MAX_RESULTS: int = Field(default=3, title="搜索最大结果数")
+    GOOGLE_SEARCH_MAX_RESULTS: int = Field(default=3, title="Google 搜索参考最大结果数")
 
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
@@ -183,6 +252,7 @@ class PluginConfig(ConfigBase):
     NAPCAT_ACCESS_URL: str = Field(
         default="http://127.0.0.1:6099/webui",
         title="NapCat WebUI 访问地址",
+        description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
         json_schema_extra={"placeholder": "例: http://<服务器 IP>:<NapCat 端口>/webui"},
     )
     NAPCAT_CONTAINER_NAME: str = Field(

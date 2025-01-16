@@ -1,0 +1,26 @@
+# 1. 技术栈概览
+
+> 架构文档: `docs/Architecture.md` (按需自行阅读)
+
+## 后端
+
+- Python + FastAPI + NoneBot2
+- PostgreSQL + Tortoise ORM
+- Docker + Docker Compose
+- poetry
+
+## 前端
+
+- React + TypeScript + Vite
+- Material-UI + TailwindCSS
+- Zustand + React Query
+- pnpm
+
+## Agent 开发规范
+
+* 先主动审查所有依赖与相关文件，再规划实现方案
+* 禁止假定、猜测任何实现
+* 完全类型注解与字段注解化 (Pydantic)，避免使用 `Dict` 混合字段类型
+* 除非用户要求否则保持最小化修改
+* 对参考信息有困惑时主动提问
+* 保持项目工程化和整洁性，合理拆分功能模块

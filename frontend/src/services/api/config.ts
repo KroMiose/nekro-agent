@@ -2,14 +2,17 @@ import axios from './axios'
 
 export interface ConfigItem {
   key: string
-  value: string
+  value: string | number | boolean | Array<string | number | boolean>
   title: string
+  description?: string
   placeholder?: string
-  type?: string
+  type: string
+  element_type?: string  // 列表元素类型
   enum?: string[]
   is_secret?: boolean
   ref_model_groups?: boolean
   is_hidden?: boolean
+  required?: boolean  // 添加必填属性
 }
 
 export interface BatchUpdateConfigRequest {

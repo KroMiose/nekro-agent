@@ -26,6 +26,10 @@ import {
   DialogContentText,
   DialogActions,
   Button,
+  List,
+  ListItem,
+  tooltipClasses,
+  TooltipProps,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ConfigItem } from '../../services/api/config'
@@ -34,7 +38,144 @@ import {
   Refresh as RefreshIcon,
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  Tune as TuneIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material'
+import { styled } from '@mui/material/styles'
+
+// 添加自定义 Tooltip 样式
+const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
+  <Tooltip {...props} classes={{ popper: className }} />
+))(({ theme }) => ({
+  [`& .${tooltipClasses.tooltip}`]: {
+    backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f9',
+    color: theme.palette.mode === 'dark' ? '#fff' : 'rgba(0, 0, 0, 0.87)',
+    maxWidth: 300,
+    fontSize: theme.typography.pxToRem(12),
+    border: '1px solid #dadde9',
+    '& a': {
+      color: theme.palette.primary.main,
+      textDecoration: 'none',
+      '&:hover': {
+        textDecoration: 'underline',
+      },
+    },
+  },
+}))
+
+// 添加列表编辑对话框组件
+interface ListEditDialogProps {
+  open: boolean
+  onClose: () => void
+  value: Array<string | number | boolean>
+  onChange: (value: Array<string | number | boolean>) => void
+  itemType: string
+  title: string
+}
+
+function ListEditDialog({ open, onClose, value, onChange, itemType, title }: ListEditDialogProps) {
+  const [items, setItems] = useState<Array<string | number | boolean>>(value)
+  const [newItem, setNewItem] = useState<string>('')
+
+  const handleAddItem = () => {
+    if (newItem.trim()) {
+      let parsedItem: string | number | boolean
+      try {
+        switch (itemType) {
+          case 'int':
+            parsedItem = parseInt(newItem)
+            break
+          case 'float':
+            parsedItem = parseFloat(newItem)
+            break
+          case 'bool':
+            parsedItem = newItem.toLowerCase() === 'true'
+            break
+          default:
+            parsedItem = newItem
+        }
+        if (!Number.isNaN(parsedItem)) {
+          setItems([...items, parsedItem])
+          setNewItem('')
+        }
+      } catch {
+        // 忽略解析错误
+      }
+    }
+  }
+
+  const handleDeleteItem = (index: number) => {
+    setItems(items.filter((_, i) => i !== index))
+  }
+
+  const handleSave = () => {
+    onChange(items)
+    onClose()
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        <Stack spacing={2}>
+          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              placeholder={`输入${itemType === 'bool' ? 'true/false' : itemType}类型的值`}
+              onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
+            />
+            <IconButton onClick={handleAddItem} color="primary">
+              <AddIcon />
+            </IconButton>
+          </Box>
+          <List sx={{ maxHeight: 300, overflow: 'auto' }}>
+            {items.map((item, index) => (
+              <ListItem
+                key={index}
+                secondaryAction={
+                  <IconButton edge="end" onClick={() => handleDeleteItem(index)}>
+                    <DeleteIcon />
+                  </IconButton>
+                }
+              >
+                <Typography>{String(item)}</Typography>
+              </ListItem>
+            ))}
+          </List>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>取消</Button>
+        <Button onClick={handleSave} color="primary">
+          保存
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+// 添加类型颜色选择函数到组件外部
+const getTypeColor = (type: string) => {
+  switch (type) {
+    case 'str':
+      return 'warning'
+    case 'int':
+      return 'info'
+    case 'float':
+      return 'info'
+    case 'bool':
+      return 'success'
+    case 'list':
+      return 'primary'
+    default:
+      return 'default'
+  }
+}
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
@@ -42,6 +183,17 @@ export default function SettingsPage() {
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
+  const [saveWarningOpen, setSaveWarningOpen] = useState(false)
+  const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
+
+  // 将列表编辑状态提升到组件级别
+  const [listEditState, setListEditState] = useState<{
+    open: boolean
+    configKey: string | null
+  }>({
+    open: false,
+    configKey: null,
+  })
 
   // 获取配置列表
   const { data: configs = [] } = useQuery({
@@ -55,23 +207,44 @@ export default function SettingsPage() {
     queryFn: () => configApi.getModelGroups(),
   })
 
-  // 保存所有修改的配置
-  const handleSaveAllChanges = async () => {
+  // 检查必填项
+  const checkRequiredFields = () => {
+    const emptyFields = configs
+      .filter(config => {
+        if (!config.required) return false
+        const currentValue = editingValues[config.key] !== undefined 
+          ? editingValues[config.key]
+          : String(config.value)
+        return !currentValue || currentValue === '' || currentValue === '[]'
+      })
+      .map(config => config.title || config.key)
+    
+    setEmptyRequiredFields(emptyFields)
+    if (emptyFields.length > 0) {
+      setSaveWarningOpen(true)
+      return false
+    }
+    return true
+  }
+
+  // 修改保存函数
+  const handleSaveAllChanges = async (force: boolean = false) => {
+    if (!force && !checkRequiredFields()) {
+      return
+    }
+
     try {
-      // 使用批量更新API
       await configApi.batchUpdateConfig(editingValues)
-      // 同时保存到配置文件
       await configApi.saveConfig()
       setMessage('所有修改已保存并导出到配置文件')
-      // 更新本地缓存中的配置值
       queryClient.setQueryData(['configs'], (oldData: ConfigItem[] | undefined) => {
         if (!oldData) return oldData
         return oldData.map(item =>
           editingValues[item.key] !== undefined ? { ...item, value: editingValues[item.key] } : item
         )
       })
-      // 清除编辑状态
       setEditingValues({})
+      setSaveWarningOpen(false)
     } catch (error) {
       if (error instanceof Error) {
         setMessage(error.message)
@@ -116,12 +289,65 @@ export default function SettingsPage() {
     }))
   }
 
-  // 渲染配置输入框
+  // 修改配置输入渲染函数
   const renderConfigInput = (config: ConfigItem) => {
-    console.log('Config placeholder:', config.key, config.placeholder) // 添加调试日志
     const isEditing = config.key in editingValues
     const displayValue = isEditing ? editingValues[config.key] : String(config.value)
     const isSecret = config.is_secret
+
+    // 处理列表类型
+    if (config.type === 'list') {
+      const itemType = config.element_type || 'str'
+      const currentValue = Array.isArray(config.value) ? config.value : []
+      
+      return (
+        <Box sx={{ width: '100%' }}>
+          <TextField
+            value={displayValue}
+            size="small"
+            fullWidth
+            sx={{
+              '& .MuiInputBase-root': {
+                width: '100%',
+              },
+            }}
+            InputProps={{
+              readOnly: true,
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Chip 
+                    label={`${itemType}[]`} 
+                    size="small" 
+                    color={getTypeColor(itemType)}
+                    variant="outlined"
+                    sx={{ mr: 1 }}
+                  />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <Tooltip title="编辑列表">
+                    <IconButton onClick={() => setListEditState({ open: true, configKey: config.key })} edge="end">
+                      <TuneIcon />
+                    </IconButton>
+                  </Tooltip>
+                </InputAdornment>
+              ),
+            }}
+          />
+          {listEditState.configKey === config.key && (
+            <ListEditDialog
+              open={listEditState.open}
+              onClose={() => setListEditState({ open: false, configKey: null })}
+              value={isEditing ? JSON.parse(displayValue) : currentValue}
+              onChange={(newValue) => handleConfigChange(config.key, JSON.stringify(newValue))}
+              itemType={itemType}
+              title={`编辑${config.title || config.key}`}
+            />
+          )}
+        </Box>
+      )
+    }
 
     // 如果是模型组引用，显示模型组选择器
     if (config.ref_model_groups) {
@@ -168,6 +394,7 @@ export default function SettingsPage() {
       )
     }
 
+    // 根据类型渲染不同的输入控件
     switch (config.type) {
       case 'bool':
         return (
@@ -244,7 +471,7 @@ export default function SettingsPage() {
         <Stack direction="row" spacing={2}>
           <Tooltip title="保存修改">
             <IconButton
-              onClick={handleSaveAllChanges}
+              onClick={() => handleSaveAllChanges()}
               color="primary"
               disabled={Object.keys(editingValues).length === 0}
             >
@@ -302,9 +529,32 @@ export default function SettingsPage() {
                   <TableRow key={config.key}>
                     <TableCell>
                       <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-                          {config.title || config.key}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                            {config.title || config.key}
+                            {config.required && (
+                              <Typography
+                                component="span"
+                                color="error"
+                                sx={{ ml: 0.5 }}
+                              >
+                                *
+                              </Typography>
+                            )}
+                          </Typography>
+                          {config.description && (
+                            <HtmlTooltip
+                              title={
+                                <div dangerouslySetInnerHTML={{ __html: config.description }} />
+                              }
+                              placement="right"
+                            >
+                              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
+                                <HelpOutlineIcon fontSize="small" />
+                              </IconButton>
+                            </HtmlTooltip>
+                          )}
+                        </Box>
                         <Typography variant="caption" color="text.secondary">
                           {config.key}
                         </Typography>
@@ -314,13 +564,7 @@ export default function SettingsPage() {
                       <Chip
                         label={config.type}
                         size="small"
-                        color={
-                          config.type === 'bool'
-                            ? 'success'
-                            : config.type === 'int' || config.type === 'float'
-                              ? 'info'
-                              : 'default'
-                        }
+                        color={getTypeColor(config.type)}
                         variant="outlined"
                       />
                     </TableCell>
@@ -351,6 +595,30 @@ export default function SettingsPage() {
           <Button onClick={() => setReloadConfirmOpen(false)}>取消</Button>
           <Button onClick={handleReloadConfig} color="primary">
             确认
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 添加必填项警告对话框 */}
+      <Dialog open={saveWarningOpen} onClose={() => setSaveWarningOpen(false)}>
+        <DialogTitle>存在未填写的必填项</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            以下必填项未填写：
+            <List>
+              {emptyRequiredFields.map((field, index) => (
+                <ListItem key={index}>
+                  <Typography color="error">• {field}</Typography>
+                </ListItem>
+              ))}
+            </List>
+            是否仍要继续保存？
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSaveWarningOpen(false)}>取消</Button>
+          <Button onClick={() => handleSaveAllChanges(true)} color="warning">
+            继续保存
           </Button>
         </DialogActions>
       </Dialog>

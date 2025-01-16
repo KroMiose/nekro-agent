@@ -49,30 +49,46 @@ async def get_config_list(_current_user: DBUser = Depends(get_current_active_use
     """获取可修改的配置列表"""
     modifiable_configs: List[Dict[str, Any]] = []
     for key, value in config.model_dump().items():
-        if isinstance(value, (int, float, bool, str)):
-            field = PluginConfig.model_fields.get(key)
-            if field:
-                config_item = {
-                    "key": key,
-                    "value": value,
-                    "type": str(type(value).__name__),
-                    "title": PluginConfig.get_field_title(key),
-                    "placeholder": PluginConfig.get_field_placeholder(key),
-                }
-                # 添加枚举选项
-                enum_values = get_field_enum(field.annotation)
-                if enum_values:
-                    config_item["enum"] = enum_values
-                # 添加模型组引用标识
-                if get_field_extra(field, "ref_model_groups"):
-                    config_item["ref_model_groups"] = True
-                # 添加隐藏标识
-                if get_field_extra(field, "is_hidden"):
-                    config_item["is_hidden"] = True
-                # 添加密钥标识
-                if get_field_extra(field, "is_secret"):
-                    config_item["is_secret"] = True
-                modifiable_configs.append(config_item)
+        field = PluginConfig.model_fields.get(key)
+        if field:
+            # 获取基础类型
+            base_type = str(type(value).__name__)
+
+            # 处理列表类型，获取元素类型
+            element_type = None
+            if isinstance(value, list):
+                element_type = str(type(value[0]).__name__) if value else "str"
+
+            config_item = {
+                "key": key,
+                "value": value,
+                "type": base_type,
+                "element_type": element_type,  # 添加元素类型信息
+                "title": PluginConfig.get_field_title(key),
+                "description": field.description,  # 添加描述信息
+                "placeholder": PluginConfig.get_field_placeholder(key),
+                "required": get_field_extra(field, "required") or False,  # 添加必填标记
+            }
+
+            # 添加枚举选项
+            enum_values = get_field_enum(field.annotation)
+            if enum_values:
+                config_item["enum"] = enum_values
+
+            # 添加模型组引用标识
+            if get_field_extra(field, "ref_model_groups"):
+                config_item["ref_model_groups"] = True
+
+            # 添加隐藏标识
+            if get_field_extra(field, "is_hidden"):
+                config_item["is_hidden"] = True
+
+            # 添加密钥标识
+            if get_field_extra(field, "is_secret"):
+                config_item["is_secret"] = True
+
+            modifiable_configs.append(config_item)
+
     return Ret.success(msg="获取成功", data=modifiable_configs)
 
 
@@ -181,10 +197,45 @@ async def set_config(key: str, value: str, _current_user: DBUser = Depends(get_c
                 return Ret.fail(msg="布尔值只能是 true 或 false")
         elif isinstance(_c_value, str):
             setattr(config, key, value)
+        elif isinstance(_c_value, list):
+            # 处理列表类型
+            try:
+                # 将字符串转换为 Python 列表
+                import json
+
+                parsed_value = json.loads(value)
+                if not isinstance(parsed_value, list):
+                    return Ret.fail(msg="输入必须是有效的列表格式")
+
+                # 获取列表元素的类型
+                if _c_value and len(_c_value) > 0:
+                    # 尝试转换列表中的每个元素为正确的类型
+                    converted_list = []
+                    for item in parsed_value:
+                        if isinstance(_c_value[0], bool):
+                            if isinstance(item, str):
+                                if item.lower() in ["true", "1", "yes"]:
+                                    converted_list.append(True)
+                                elif item.lower() in ["false", "0", "no"]:
+                                    converted_list.append(False)
+                                else:
+                                    return Ret.fail(msg=f"列表中的布尔值格式错误: {item}")
+                            else:
+                                converted_list.append(bool(item))
+                        else:
+                            converted_list.append(type(_c_value[0])(item))
+                    setattr(config, key, converted_list)
+                else:
+                    # 如果是空列表，直接设置
+                    setattr(config, key, parsed_value)
+            except json.JSONDecodeError:
+                return Ret.fail(msg="输入必须是有效的 JSON 列表格式")
+            except (ValueError, TypeError) as e:
+                return Ret.fail(msg=f"列表元素类型转换失败: {e!s}")
         else:
             return Ret.fail(msg=f"不支持的配置类型: {type(_c_value)}")
-    except ValueError:
-        return Ret.fail(msg="配置值类型错误")
+    except ValueError as e:
+        return Ret.fail(msg=f"配置值类型错误: {e!s}")
 
     return Ret.success(msg="设置成功")
 
