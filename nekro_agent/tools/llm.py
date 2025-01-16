@@ -16,11 +16,11 @@ async def get_chat_response(messages: List[Dict[str, str]], model_group: str = "
 
     for _i in range(3):
         try:
-            set_openai_base_url(config.MODEL_GROUPS[model_group]["BASE_URL"])
+            set_openai_base_url(config.MODEL_GROUPS[model_group].BASE_URL)
             ret, tokens = await gen_openai_chat_response(
                 messages=messages,
-                model=config.MODEL_GROUPS[model_group]["CHAT_MODEL"],
-                api_key=config.MODEL_GROUPS[model_group]["API_KEY"],
+                model=config.MODEL_GROUPS[model_group].CHAT_MODEL,
+                api_key=config.MODEL_GROUPS[model_group].API_KEY,
             )
         except Exception as e:
             logger.error(f"Error while generating chat response: {e}")
