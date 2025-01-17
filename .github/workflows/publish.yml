@@ -118,18 +118,22 @@ jobs:
 
       - name: Create and Push Manifest
         run: |
-          # Inspect images before creating manifest
-          docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-amd64
-          docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-arm64
+          # Get specific digests for amd64
+          AMD64_DIGEST=$(docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-amd64 | grep "linux/amd64" -A 1 | grep "sha256:" | tr -d ' ' | cut -d'@' -f2)
+          # Get specific digests for arm64
+          ARM64_DIGEST=$(docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-arm64 | grep "linux/arm64" -A 1 | grep "sha256:" | tr -d ' ' | cut -d'@' -f2)
           
-          # Create and push latest manifest
+          echo "Using AMD64 digest: $AMD64_DIGEST"
+          echo "Using ARM64 digest: $ARM64_DIGEST"
+          
+          # Create and push latest manifest using specific digests
           docker manifest create kromiose/${{ matrix.image }}:latest \
-            kromiose/${{ matrix.image }}:latest-amd64 \
-            kromiose/${{ matrix.image }}:latest-arm64 --insecure
+            kromiose/${{ matrix.image }}:latest-amd64@$AMD64_DIGEST \
+            kromiose/${{ matrix.image }}:latest-arm64@$ARM64_DIGEST
           docker manifest push --purge kromiose/${{ matrix.image }}:latest
 
-          # Create and push version manifest
+          # Create and push version manifest using specific digests
           docker manifest create kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }} \
-            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-amd64 \
-            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-arm64 --insecure
+            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-amd64@$AMD64_DIGEST \
+            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-arm64@$ARM64_DIGEST
           docker manifest push --purge kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}
