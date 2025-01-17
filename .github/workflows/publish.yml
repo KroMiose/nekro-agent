@@ -118,22 +118,22 @@ jobs:
 
       - name: Create and Push Manifest
         run: |
-          # Get specific digests for amd64
-          AMD64_DIGEST=$(docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-amd64 | grep "linux/amd64" -A 1 | grep "sha256:" | tr -d ' ' | cut -d'@' -f2)
-          # Get specific digests for arm64
-          ARM64_DIGEST=$(docker buildx imagetools inspect kromiose/${{ matrix.image }}:latest-arm64 | grep "linux/arm64" -A 1 | grep "sha256:" | tr -d ' ' | cut -d'@' -f2)
-          
-          echo "Using AMD64 digest: $AMD64_DIGEST"
-          echo "Using ARM64 digest: $ARM64_DIGEST"
-          
-          # Create and push latest manifest using specific digests
+          # Create and push latest manifest
           docker manifest create kromiose/${{ matrix.image }}:latest \
-            kromiose/${{ matrix.image }}:latest-amd64@$AMD64_DIGEST \
-            kromiose/${{ matrix.image }}:latest-arm64@$ARM64_DIGEST
-          docker manifest push --purge kromiose/${{ matrix.image }}:latest
+            --amend kromiose/${{ matrix.image }}:latest-amd64 \
+            --amend kromiose/${{ matrix.image }}:latest-arm64
+          docker manifest annotate kromiose/${{ matrix.image }}:latest \
+            kromiose/${{ matrix.image }}:latest-amd64 --os linux --arch amd64
+          docker manifest annotate kromiose/${{ matrix.image }}:latest \
+            kromiose/${{ matrix.image }}:latest-arm64 --os linux --arch arm64
+          docker manifest push kromiose/${{ matrix.image }}:latest
 
-          # Create and push version manifest using specific digests
+          # Create and push version manifest
           docker manifest create kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }} \
-            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-amd64@$AMD64_DIGEST \
-            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-arm64@$ARM64_DIGEST
-          docker manifest push --purge kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}
+            --amend kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-amd64 \
+            --amend kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-arm64
+          docker manifest annotate kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }} \
+            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-amd64 --os linux --arch amd64
+          docker manifest annotate kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }} \
+            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-arm64 --os linux --arch arm64
+          docker manifest push kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}
