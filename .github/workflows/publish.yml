@@ -50,14 +50,11 @@ jobs:
         run: poetry build
       - name: Publish package
         run: poetry run publish
-  build-and-push-images:
-    name: Build and Push Docker Images
+
+  build-and-push-agent:
+    name: Build and Push Agent Image
     runs-on: ubuntu-22.04
-    needs: [setup-version, publish-to-pypi]
-    strategy:
-      matrix:
-        target: [amd64, arm64]
-        sandbox: [false, true]
+    needs: setup-version
     steps:
       - uses: actions/checkout@v4
       - name: Set up QEMU
@@ -71,82 +68,49 @@ jobs:
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and Push
-        id: build-push
+      - name: Build and Push Multi-arch Images
         uses: docker/build-push-action@v4
         with:
-          context: ${{ matrix.sandbox && './sandbox' || '.' }}
-          file: ${{ matrix.sandbox && 'sandbox/Dockerfile' || 'Dockerfile' }}
-          platforms: linux/${{ matrix.target }}
+          context: .
+          file: Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}-${{ matrix.target }}
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-${{ matrix.target }}
+            kromiose/nekro-agent:${{ needs.setup-version.outputs.version }}
+            kromiose/nekro-agent:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Docker Logout
         run: docker logout
 
-  create-manifests:
-    name: Create Multi-arch Manifests
+  build-and-push-sandbox:
+    name: Build and Push Sandbox Image
     runs-on: ubuntu-22.04
-    needs: [setup-version, build-and-push-images]
-    strategy:
-      matrix:
-        sandbox: [false, true]
+    needs: setup-version
     steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: image=moby/buildkit:v0.11.1-rootless
       - name: Docker Login
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Enable Docker Experimental Features
-        run: |
-          mkdir -p ~/.docker
-          echo '{"experimental": "enabled"}' > ~/.docker/config.json
-      - name: Create and Push Manifests
-        run: |
-          # 删除可能存在的旧 manifest
-          docker manifest rm kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }} || true
-          docker manifest rm kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest || true
-
-          # 创建新的 manifest lists
-          docker manifest create \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }} \
-            --amend kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}-amd64 \
-            --amend kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}-arm64
-
-          docker manifest create \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest \
-            --amend kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64 \
-            --amend kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64
-
-          # 为每个架构添加注解
-          docker manifest annotate \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }} \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}-amd64 \
-            --os linux --arch amd64
-
-          docker manifest annotate \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }} \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}-arm64 \
-            --os linux --arch arm64
-
-          docker manifest annotate \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64 \
-            --os linux --arch amd64
-
-          docker manifest annotate \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest \
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64 \
-            --os linux --arch arm64
-
-          # 推送 manifests
-          docker manifest inspect kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}
-          docker manifest push --purge kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ needs.setup-version.outputs.version }}
-
-          docker manifest inspect kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
-          docker manifest push --purge kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
+      - name: Build and Push Multi-arch Images
+        uses: docker/build-push-action@v4
+        with:
+          context: ./sandbox
+          file: sandbox/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            kromiose/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
+            kromiose/nekro-agent-sandbox:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Docker Logout
         run: docker logout
