@@ -33,8 +33,8 @@ async def google_search(keyword: str, _ctx: AgentCtx) -> str:
     global _last_keyword, _last_call_time
 
     # 防止重复搜索和频繁调用
-    if keyword == _last_keyword or time.time() - _last_call_time < 10:
-        return "搜索太频繁，请稍后再试"
+    if keyword == _last_keyword and time.time() - _last_call_time < 10:
+        return "[错误] 禁止频繁搜索相同内容，结果无变化"
 
     proxy = config.DEFAULT_PROXY
     api_key = config.GOOGLE_SEARCH_API_KEY

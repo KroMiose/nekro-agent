@@ -131,6 +131,7 @@ jobs:
           tags: |
             kromiose/nekro-agent:${{ env.VERSION }}-arm64
             kromiose/nekro-agent:latest-arm64
+            kromiose/nekro-agent:latest
           platforms: linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -139,7 +140,7 @@ jobs:
         run: docker logout
 
   publish-sandbox-amd64-image:
-    name: Publish Sandbox Image (amd64 for test)
+    name: Publish Sandbox Image (amd64)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -164,15 +165,16 @@ jobs:
           file: sandbox/Dockerfile
           push: true
           tags: |
-            kromiose/nekro-agent-sandbox-test:latest-amd64
-            kromiose/nekro-agent-sandbox-test:latest
+            kromiose/nekro-agent-sandbox:${{ env.VERSION }}-amd64
+            kromiose/nekro-agent-sandbox:latest-amd64
+            kromiose/nekro-agent-sandbox:latest
           platforms: linux/amd64
 
       - name: Cleanup
         run: docker logout
 
   publish-sandbox-arm64-image:
-    name: Publish Sandbox Image (arm64 for test)
+    name: Publish Sandbox Image (arm64)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -197,7 +199,9 @@ jobs:
           file: sandbox/Dockerfile
           push: true
           tags: |
-            kromiose/nekro-agent-sandbox-test:latest-arm64
+            kromiose/nekro-agent-sandbox:${{ env.VERSION }}-arm64
+            kromiose/nekro-agent-sandbox:latest-arm64
+            kromiose/nekro-agent-sandbox:latest
           platforms: linux/arm64
 
       - name: Cleanup
