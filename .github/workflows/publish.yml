@@ -1,4 +1,4 @@
-name: Publish to PyPI
+name: Release
 
 on:
   push:
@@ -11,189 +11,85 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10.15"
-
-      - name: Setup Poetry
+          python-version: "3.10"
+      - name: Install Poetry
         uses: pronovic/setup-poetry@v2
         with:
           version: "1.8.0"
           plugins: "poetry-dynamic-versioning==1.2.0"
-          cache-venv: "true"
-          cache-poetry: "true"
+          cache-venv: true
+          cache-poetry: true
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-ansi
+      - name: Configure PyPI credentials
+        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
+      - name: Publish package
+        run: poetry publish
 
-      - name: Install Dependencies
-        run: >-
-          poetry install
-      - name: PyPI Setup
-        run: >-
-          poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-      - name: Publish Package
-        run: >-
-          poetry run publish
-  publish-nekro-amd64-image:
-    name: Publish Nekro Agent Image (amd64)
+  build-and-push-images:
+    name: Build and Push Docker Images
     runs-on: ubuntu-22.04
+    needs: publish-to-pypi
+    strategy:
+      matrix:
+        target: [amd64, arm64]
+        sandbox: [false, true]
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
+        uses: docker/setup-qemu-action@v2
       - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Install Python and Dependencies
-        uses: actions/setup-python@v2
+        uses: docker/setup-buildx-action@v2
+        with:
+          driver-opts: image=moby/buildkit:v0.11.1-rootless # 使用特定版本
+      - name: Install Python and toml (if needed)
+        if: matrix.sandbox == false
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-
-      - name: Install toml
-        run: |
-          pip install toml
+      - name: Install toml (if needed)
+        if: matrix.sandbox == false
+        run: pip install toml
       - name: Get Version from pyproject.toml
+        if: matrix.sandbox == false
         id: get_version
         run: |
           VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
+      - name: Docker Login
+        uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push Docker Image for amd64
-        uses: docker/build-push-action@v2
+      - name: Build and Push
+        id: build-push
+        uses: docker/build-push-action@v4 # 确保使用 v4 或更高版本！
         with:
-          context: .
-          file: Dockerfile
+          context: ${{ matrix.sandbox && './sandbox' || '.' }}
+          file: ${{ matrix.sandbox && 'sandbox/Dockerfile' || 'Dockerfile' }}
+          platforms: linux/${{ matrix.target }}
           push: true
           tags: |
-            kromiose/nekro-agent:${{ env.VERSION }}-amd64
-            kromiose/nekro-agent:latest-amd64
-            kromiose/nekro-agent:latest
-          platforms: linux/amd64
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }}-${{ matrix.target }}
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-${{ matrix.target }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Cleanup
-        run: docker logout
-
-  publish-nekro-arm64-image:
-    name: Publish Nekro Agent Image (arm64)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Install Python and Dependencies
-        uses: actions/setup-python@v2
+          outputs: |
+            type=docker,dest=target/docker-manifest.json
+      - name: Create Manifest List
+        if: matrix.target == 'arm64'
+        uses: docker/build-push-action@v4
         with:
-          python-version: "3.10"
-
-      - name: Install toml
-        run: |
-          pip install toml
-      - name: Get Version from pyproject.toml
-        id: get_version
-        run: |
-          VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push Docker Image for arm64
-        uses: docker/build-push-action@v2
-        with:
-          context: .
-          file: Dockerfile
           push: true
           tags: |
-            kromiose/nekro-agent:${{ env.VERSION }}-arm64
-            kromiose/nekro-agent:latest-arm64
-            kromiose/nekro-agent:latest
-          platforms: linux/arm64
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Cleanup
-        run: docker logout
-
-  publish-sandbox-amd64-image:
-    name: Publish Sandbox Image (amd64)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push Sandbox Docker Image for amd64
-        uses: docker/build-push-action@v2
-        with:
-          context: ./sandbox
-          file: sandbox/Dockerfile
-          push: true
-          tags: |
-            kromiose/nekro-agent-sandbox:latest-amd64
-            kromiose/nekro-agent-sandbox:latest
-          platforms: linux/amd64
-
-      - name: Cleanup
-        run: docker logout
-
-  publish-sandbox-arm64-image:
-    name: Publish Sandbox Image (arm64)
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v1
-
-      - name: Set up Docker Buildx
-        id: buildx
-        uses: docker/setup-buildx-action@v1
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v1
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and Push Sandbox Docker Image for arm64
-        uses: docker/build-push-action@v2
-        with:
-          context: ./sandbox
-          file: sandbox/Dockerfile
-          push: true
-          tags: |
-            kromiose/nekro-agent-sandbox:latest-arm64
-            kromiose/nekro-agent-sandbox:latest
-          platforms: linux/arm64
-
-      - name: Cleanup
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
+          manifests: |
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
+              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
+              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64
+      - name: Docker Logout
         run: docker logout
