@@ -57,9 +57,10 @@ async def get_sources(_current_user: DBUser = Depends(get_current_active_user)) 
 
 @router.get("/stream", summary="实时日志流")
 @require_role(Role.Admin)
-async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
+async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
     """获取实时日志流"""
     try:
+
         async def event_generator() -> AsyncGenerator[str, None]:
             queue: Queue = Queue()
             subscribers.append(queue)
@@ -73,4 +74,4 @@ async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_ac
         return EventSourceResponse(event_generator())
     except Exception as e:
         logger.error(f"日志流异常: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e

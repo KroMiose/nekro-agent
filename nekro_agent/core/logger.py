@@ -111,18 +111,29 @@ async def get_log_records(
     source: Optional[str] = None,
     count_only: bool = False,
 ) -> List[Dict] | int:
-    """获取历史日志记录"""
-    # 过滤日志
-    filtered_logs = [log for log in log_records if not source or log["source"] == source]
+    """获取历史日志记录，默认返回最新的100条日志
 
+    Args:
+        page: 页码，从1开始
+        page_size: 每页记录数
+        source: 日志来源过滤
+        count_only: 是否只返回计数
+
+    Returns:
+        返回指定页的日志记录，按时间从新到旧排序
+    """
+    # 1. 转换 deque 到列表并过滤（此时是从旧到新的顺序）
+    filtered_logs = [log for log in log_records if not source or log["source"] == source]
     # 如果只需要计数
     if count_only:
         return len(filtered_logs)
+    # 2. 反转列表使其变成从新到旧的顺序
+    filtered_logs = filtered_logs[::-1]
 
-    # 分页
+    # 分页（此时分页基于从新到旧排序的列表）
     start = (page - 1) * page_size
     end = start + page_size if page_size > 0 else None
-    return filtered_logs[start:end]
+    return filtered_logs[start:end:-1]
 
 
 async def get_log_sources() -> List[str]:

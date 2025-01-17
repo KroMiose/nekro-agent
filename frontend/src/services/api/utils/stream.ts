@@ -27,12 +27,14 @@ export const createEventStream = (options: StreamOptions) => {
 
   try {
     // 创建 EventSource 连接
-    fetchEventSource(`${baseUrl}${endpoint}?token=${token}`, {
+    fetchEventSource(`${baseUrl}${endpoint}`, {
       signal: controller.signal,
       headers: {
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'text/event-stream',
         Accept: 'text/event-stream',
       },
+      openWhenHidden: true,
       onmessage(ev: EventSourceMessage) {
         onMessage(ev.data)
       },
