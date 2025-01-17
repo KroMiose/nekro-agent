@@ -1,4 +1,4 @@
-name: Publish to PyPI
+name: Publish to PyPI and Docker Hub
 
 on:
   push:
@@ -25,7 +25,7 @@ jobs:
         id: get_version
         run: |
           VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
   publish-to-pypi:
     needs: setup-version
@@ -54,23 +54,17 @@ jobs:
         run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
 
       - name: Publish Package
-        run: poetry run publish
+        run: poetry publish --build
 
   build-and-push:
     needs: setup-version
-    name: Build and Push ${{ matrix.image }} Image (${{ matrix.arch }})
+    name: Build and Push Multi-arch Docker Images
     runs-on: ubuntu-22.04
     strategy:
       matrix:
         image: [nekro-agent, nekro-agent-sandbox]
-        arch: [amd64, arm64]
-        include:
-          - image: nekro-agent
-            context: .
-            dockerfile: Dockerfile
-          - image: nekro-agent-sandbox
-            context: ./sandbox
-            dockerfile: sandbox/Dockerfile
+        context: [., ./sandbox]
+        dockerfile: [Dockerfile, sandbox/Dockerfile]
     steps:
       - uses: actions/checkout@v4
 
@@ -86,25 +80,20 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and Push Docker Image
+      - name: Build and Push Multi-arch Docker Images
         uses: docker/build-push-action@v2
         with:
           context: ${{ matrix.context }}
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}-${{ matrix.arch }}
-            kromiose/${{ matrix.image }}:latest-${{ matrix.arch }}
-          platforms: linux/${{ matrix.arch }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          no-cache: true
-          build-args: |
-            TARGETARCH=${{ matrix.arch }}
+            kromiose/${{ matrix.image }}:${{ needs.setup-version.outputs.version }}
+            kromiose/${{ matrix.image }}:latest
+          platforms: linux/amd64,linux/arm64
 
   create-manifests:
-    needs: [setup-version, build-and-push]
-    name: Create and Push Multi-arch Manifest for ${{ matrix.image }}
+    needs: build-and-push
+    name: Create and Push Multi-arch Manifest
     runs-on: ubuntu-22.04
     strategy:
       matrix:
