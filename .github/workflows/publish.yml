@@ -18,15 +18,31 @@ jobs:
       - name: Install Poetry
         uses: pronovic/setup-poetry@v2
         with:
-          version: "1.8.0"
+          version: "1.8.0" # 或 latest
           plugins: "poetry-dynamic-versioning==1.2.0"
           cache-venv: true
           cache-poetry: true
       - name: Install dependencies
         run: poetry install --no-interaction --no-ansi
+      - name: Build package
+        run: poetry build
+      - name: Check if package exists on PyPI
+        id: check_pypi
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/${{ github.event.repository.name }}/json)
+          if [ $STATUS -eq 200 ]; then
+            echo "Package exists"
+            exit 1
+          else
+            echo "Package does not exist"
+            exit 0
+          fi
+        continue-on-error: true
       - name: Configure PyPI credentials
+        if: steps.check_pypi.outcome != 'success' # 仅当包不存在时才配置凭据和发布
         run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
       - name: Publish package
+        if: steps.check_pypi.outcome != 'success'
         run: poetry publish
 
   build-and-push-images:
@@ -44,7 +60,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
         with:
-          driver-opts: image=moby/buildkit:v0.11.1-rootless # 使用特定版本
+          driver-opts: image=moby/buildkit:v0.11.1-rootless
       - name: Install Python and toml (if needed)
         if: matrix.sandbox == false
         uses: actions/setup-python@v5
@@ -66,7 +82,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - name: Build and Push
         id: build-push
-        uses: docker/build-push-action@v4 # 确保使用 v4 或更高版本！
+        uses: docker/build-push-action@v4
         with:
           context: ${{ matrix.sandbox && './sandbox' || '.' }}
           file: ${{ matrix.sandbox && 'sandbox/Dockerfile' || 'Dockerfile' }}
