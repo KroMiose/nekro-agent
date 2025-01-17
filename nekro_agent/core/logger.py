@@ -133,7 +133,7 @@ async def get_log_records(
     # 分页（此时分页基于从新到旧排序的列表）
     start = (page - 1) * page_size
     end = start + page_size if page_size > 0 else None
-    return filtered_logs[start:end:-1]
+    return filtered_logs[start:end][::-1]
 
 
 async def get_log_sources() -> List[str]:
