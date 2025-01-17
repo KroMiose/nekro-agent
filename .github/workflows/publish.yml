@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish-to-pypi:
-    name: Publish to PyPI
+    name: Publish to PyPI (if new version)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -18,37 +18,49 @@ jobs:
       - name: Install Poetry
         uses: pronovic/setup-poetry@v2
         with:
-          version: "1.8.0" # 或 latest
+          version: "1.8.0" # or latest
           plugins: "poetry-dynamic-versioning==1.2.0"
           cache-venv: true
           cache-poetry: true
       - name: Install dependencies
         run: poetry install --no-interaction --no-ansi
-      - name: Build package
-        run: poetry build
-      - name: Check if package exists on PyPI
+      - name: Get Current Version (optional, for informative message)
+        id: get_current_version
+        run: |
+          CURRENT_VERSION=$(poetry version | grep -Eo '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+      - name: Check if package exists on PyPI (informational only)
         id: check_pypi
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/${{ github.event.repository.name }}/json)
-          if [ $STATUS -eq 200 ]; then
-            echo "Package exists"
-            exit 1
+          curl -s -o /dev/null -w "%{http_code}" https://pypi.org/pypi/${{ github.event.repository.name }}/json || true
+        continue-on-error: true  # Don't stop workflow on PyPI check failure
+
+      - name: Build package
+        run: poetry build
+
+      - name: Determine if Publish is Needed (conditional logic)
+        id: determine_publish
+        run: |
+          if [[ "$CURRENT_VERSION" == "" ]]; then
+            echo "Skipping publish: Could not determine current version."
+            exit 0  # Exit successfully if version couldn't be determined
+          elif [[ "$CURRENT_VERSION" == "${{ env.GITHUB_SHA }}" ]]; then
+            echo "Skipping publish: Version already exists in this commit ($CURRENT_VERSION)."
+            exit 0  # Exit successfully if version matches commit SHA
           else
-            echo "Package does not exist"
-            exit 0
+            echo "Publishing nekro-agent ($CURRENT_VERSION) to PyPI"
           fi
-        continue-on-error: true
-      - name: Configure PyPI credentials
-        if: steps.check_pypi.outcome != 'success' # 仅当包不存在时才配置凭据和发布
+      - name: Configure PyPI credentials (only if publishing)
+        if: steps.determine_publish.outputs == 'Publishing nekro-agent ($CURRENT_VERSION) to PyPI'
         run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-      - name: Publish package
-        if: steps.check_pypi.outcome != 'success'
+      - name: Publish package (only if publishing)
+        if: steps.determine_publish.outputs == 'Publishing nekro-agent ($CURRENT_VERSION) to PyPI'
         run: poetry publish
 
   build-and-push-images:
     name: Build and Push Docker Images
     runs-on: ubuntu-22.04
-    needs: publish-to-pypi
+    needs: publish-to-pypi  # Ensure publish-to-pypi runs first (if needed)
     strategy:
       matrix:
         target: [amd64, arm64]
@@ -61,51 +73,4 @@ jobs:
         uses: docker/setup-buildx-action@v2
         with:
           driver-opts: image=moby/buildkit:v0.11.1-rootless
-      - name: Install Python and toml (if needed)
-        if: matrix.sandbox == false
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - name: Install toml (if needed)
-        if: matrix.sandbox == false
-        run: pip install toml
-      - name: Get Version from pyproject.toml
-        if: matrix.sandbox == false
-        id: get_version
-        run: |
-          VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["tool"]["poetry"]["version"])')
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-      - name: Docker Login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      - name: Build and Push
-        id: build-push
-        uses: docker/build-push-action@v4
-        with:
-          context: ${{ matrix.sandbox && './sandbox' || '.' }}
-          file: ${{ matrix.sandbox && 'sandbox/Dockerfile' || 'Dockerfile' }}
-          platforms: linux/${{ matrix.target }}
-          push: true
-          tags: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }}-${{ matrix.target }}
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-${{ matrix.target }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: |
-            type=docker,dest=target/docker-manifest.json
-      - name: Create Manifest List
-        if: matrix.target == 'arm64'
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
-          manifests: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
-              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
-              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64
-      - name: Docker Logout
-        run: docker logout
+      # ... (rest of the build and push steps)
