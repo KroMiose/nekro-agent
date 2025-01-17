@@ -76,19 +76,16 @@ jobs:
             kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-${{ matrix.target }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          outputs: |
-            type=docker,dest=target/docker-manifest.json
       - name: Create Manifest List
         if: matrix.target == 'arm64'
-        uses: docker/build-push-action@v4
-        with:
-          push: true
-          tags: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
-          manifests: |
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
-              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64
-            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest:
-              image: kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64
+        run: |
+          docker manifest create kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }} \
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }}-amd64 \
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }}-arm64
+          docker manifest create kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest \
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-amd64 \
+            kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest-arm64
+          docker manifest push kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:${{ env.VERSION }}
+          docker manifest push kromiose/nekro-agent${{ matrix.sandbox && '-sandbox' || '' }}:latest
       - name: Docker Logout
         run: docker logout
