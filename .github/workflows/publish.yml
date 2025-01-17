@@ -165,7 +165,6 @@ jobs:
           file: sandbox/Dockerfile
           push: true
           tags: |
-            kromiose/nekro-agent-sandbox:${{ env.VERSION }}-amd64
             kromiose/nekro-agent-sandbox:latest-amd64
             kromiose/nekro-agent-sandbox:latest
           platforms: linux/amd64
@@ -199,7 +198,6 @@ jobs:
           file: sandbox/Dockerfile
           push: true
           tags: |
-            kromiose/nekro-agent-sandbox:${{ env.VERSION }}-arm64
             kromiose/nekro-agent-sandbox:latest-arm64
             kromiose/nekro-agent-sandbox:latest
           platforms: linux/arm64
