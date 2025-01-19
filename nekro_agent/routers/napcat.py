@@ -3,7 +3,7 @@ import time
 from typing import AsyncGenerator, Optional
 
 import aiodocker
-from fastapi import APIRouter, Depends, HTTPException, Header
+from fastapi import APIRouter, Depends, Header, HTTPException
 from jose import JWTError
 from sse_starlette.sse import EventSourceResponse
 
@@ -86,7 +86,7 @@ async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(ge
 
 @router.get("/logs/stream")
 @require_role(Role.Admin)
-async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
+async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
     """实时日志流"""
     try:
         async def generate() -> AsyncGenerator[str, None]:
@@ -112,7 +112,7 @@ async def stream_logs(token: str, _current_user: DBUser = Depends(get_current_ac
         return EventSourceResponse(generate())
     except Exception as e:
         logger.error(f"日志流异常: {e!s}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @router.post("/restart")
