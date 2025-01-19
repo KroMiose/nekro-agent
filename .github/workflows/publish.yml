@@ -52,8 +52,6 @@ jobs:
         run: poetry build
       - name: Publish package
         run: poetry run publish
-      - name: Logout
-        run: poetry logout
 
   build-and-push-agent:
     name: Build and Push Agent Image
