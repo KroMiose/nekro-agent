@@ -1,3 +1,4 @@
+import json
 from typing import Any, Dict, List, Literal, get_args
 
 from fastapi import APIRouter, Depends
@@ -264,6 +265,38 @@ async def batch_update_config(
                     return Ret.fail(msg=f"布尔值只能是 true 或 false: {key}")
             elif isinstance(_c_value, str):
                 setattr(config, key, value)
+            elif isinstance(_c_value, list):
+                try:
+                    # 将字符串转换为 Python 列表
+                    parsed_value = json.loads(value)
+                    if not isinstance(parsed_value, list):
+                        return Ret.fail(msg=f"输入必须是有效的列表格式: {key}")
+
+                    # 获取列表元素的类型
+                    if _c_value and len(_c_value) > 0:
+                        # 尝试转换列表中的每个元素为正确的类型
+                        converted_list = []
+                        for item in parsed_value:
+                            if isinstance(_c_value[0], bool):
+                                if isinstance(item, str):
+                                    if item.lower() in ["true", "1", "yes"]:
+                                        converted_list.append(True)
+                                    elif item.lower() in ["false", "0", "no"]:
+                                        converted_list.append(False)
+                                    else:
+                                        return Ret.fail(msg=f"列表中的布尔值格式错误: {item}")
+                                else:
+                                    converted_list.append(bool(item))
+                            else:
+                                converted_list.append(type(_c_value[0])(item))
+                        setattr(config, key, converted_list)
+                    else:
+                        # 如果是空列表，直接设置
+                        setattr(config, key, parsed_value)
+                except json.JSONDecodeError:
+                    return Ret.fail(msg=f"输入必须是有效的 JSON 列表格式: {key}")
+                except (ValueError, TypeError) as e:
+                    return Ret.fail(msg=f"列表元素类型转换失败: {e!s}")
             else:
                 return Ret.fail(msg=f"不支持的配置类型: {type(_c_value)} ({key})")
     except ValueError as e:
