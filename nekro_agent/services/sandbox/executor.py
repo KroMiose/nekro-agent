@@ -14,7 +14,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
 from nekro_agent.models.db_exec_code import DBExecCode
 
-from ..ext_caller import CODE_PREAMBLE, get_api_caller_code
+from .ext_caller import CODE_PREAMBLE, get_api_caller_code
 
 # 主机共享目录
 HOST_SHARED_DIR = (

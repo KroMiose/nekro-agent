@@ -15,7 +15,7 @@ from nekro_agent.schemas.http_exception import (
     server_error_exception,
 )
 from nekro_agent.schemas.rpc import RPCRequest
-from nekro_agent.systems.message.push_bot_msg import push_system_message
+from nekro_agent.services.message.push_bot_msg import push_system_message
 from nekro_agent.tools.collector import MethodType, agent_collector
 
 router = APIRouter(prefix="/ext", tags=["Tools"])

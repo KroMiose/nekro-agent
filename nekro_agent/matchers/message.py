@@ -17,9 +17,9 @@ from nekro_agent.core import config, logger
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
+from nekro_agent.services.message.convertor import convert_chat_message
+from nekro_agent.services.message.push_human_msg import push_human_chat_message
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
-from nekro_agent.systems.message.convertor import convert_chat_message
-from nekro_agent.systems.message.push_human_msg import push_human_chat_message
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
 message_matcher: Type[Matcher] = on_message(priority=99999, block=False)

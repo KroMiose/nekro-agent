@@ -16,7 +16,7 @@ from nekro_agent.schemas.agent_message import (
 )
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
-from nekro_agent.systems.message.push_bot_msg import push_bot_chat_message
+from nekro_agent.services.message.push_bot_msg import push_bot_chat_message
 from nekro_agent.tools.common_util import download_file
 
 
