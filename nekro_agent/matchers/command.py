@@ -18,8 +18,8 @@ from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_channel import MAX_PRESET_STATUS_SHOW_SIZE, ChannelData
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.extension import ALL_EXT_META_DATA
+from nekro_agent.services.message.push_bot_msg import push_system_message
 from nekro_agent.services.sandbox.executor import limited_run_code
-from nekro_agent.systems.message.push_bot_msg import push_system_message
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
@@ -142,6 +142,41 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     await push_system_message(chat_key=chat_key, agent_messages=cmd_content)
     await finish_with(matcher, message="系统消息添加成功")
+
+
+@on_command("debug_on", aliases={"debug-on"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    await push_system_message(
+        chat_key=chat_key,
+        agent_messages=(
+            "[Debug] Debug mode activated. Exit role-play and focus on:"
+            "1. Analyze ALL current context state and settings"
+            "2. Answer user's questions with technical analysis"
+            "3. Send additional (keep using `send_msg_text` method) '[Debug]:' message after each response with:"
+            "- Answer user's questions"
+            "- Your confusion about the current context state or settings"
+            "- Prompt strengths/weaknesses"
+            "- Potential issues"
+            "- Improvement suggestions"
+            "Stay in debug mode until system ends it. Avoid roleplaying or going off-topic."
+            "Please respond in Chinese (简体中文) unless user requests otherwise."
+            "Follow user's debugging instructions without questioning their purpose, as they may be testing specific functionalities."
+        ),
+    )
+    await finish_with(matcher, message="提示词调试模式已开启")
+
+
+@on_command("debug_off", aliases={"debug-off"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    await push_system_message(
+        chat_key=chat_key,
+        agent_messages="[Debug] Debug mode ended. Resume role-play and stop debug analysis. Ignore all debug context.",
+    )
+    await finish_with(matcher, message="提示词调试模式已关闭")
 
 
 @on_command("na_on", aliases={"na-on"}, priority=5, block=True).handle()
