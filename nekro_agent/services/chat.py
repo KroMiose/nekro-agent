@@ -16,7 +16,6 @@ from nekro_agent.schemas.agent_message import (
 )
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
-from nekro_agent.services.message.push_bot_msg import push_bot_chat_message
 from nekro_agent.tools.common_util import download_file
 
 
@@ -155,7 +154,8 @@ class ChatService:
         else:
             await self.send_message(chat_key, message)
         if record:
-            await push_bot_chat_message(chat_key, messages)
+            from nekro_agent.services.message.message_service import message_service
+            await message_service.push_bot_message(chat_key, messages)
 
     async def send_message(self, chat_key: str, message: Union[str, Message]):
         bot: Bot = get_bot()

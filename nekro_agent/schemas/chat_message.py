@@ -1,3 +1,4 @@
+import time
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -98,3 +99,36 @@ class ChatMessage(BaseModel):
 
     class Config:
         use_enum_values = True
+
+    @classmethod
+    def create_empty(cls, chat_key: str) -> "ChatMessage":
+        """创建空消息"""
+        return cls(
+            message_id="",
+            sender_id="",
+            sender_real_nickname="",
+            sender_nickname="",
+            sender_bind_qq="",
+            is_tome=0,
+            is_recalled=False,
+            chat_key=chat_key,
+            chat_type=ChatType.from_chat_key(chat_key),
+            content_text="",
+            content_data=[],
+            raw_cq_code="",
+            ext_data={},
+            send_timestamp=int(time.time()),
+        )
+
+    def is_empty(self) -> bool:
+        """判断消息是否为空"""
+        return (
+            not self.message_id
+            and not self.sender_id
+            and not self.sender_real_nickname
+            and not self.sender_nickname
+            and not self.sender_bind_qq
+            and not self.content_text
+            and not self.content_data
+            and not self.raw_cq_code
+        )

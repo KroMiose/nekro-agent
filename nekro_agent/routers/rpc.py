@@ -15,10 +15,11 @@ from nekro_agent.schemas.http_exception import (
     server_error_exception,
 )
 from nekro_agent.schemas.rpc import RPCRequest
-from nekro_agent.services.message.push_bot_msg import push_system_message
+from nekro_agent.services.message.message_service import message_service
 from nekro_agent.tools.collector import MethodType, agent_collector
 
 router = APIRouter(prefix="/ext", tags=["Tools"])
+
 
 async def verify_rpc_token(x_rpc_token: str = Header(...)):
     """验证 RPC 调用令牌"""
@@ -26,6 +27,7 @@ async def verify_rpc_token(x_rpc_token: str = Header(...)):
         logger.warning("非法的 RPC 调用令牌")
         raise forbidden_exception
     return True
+
 
 @router.post("/rpc_exec", summary="RPC 命令执行", dependencies=[Depends(verify_rpc_token)])
 async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Response:
@@ -64,7 +66,7 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
         error_message = ""
 
     if method_type in [MethodType.BEHAVIOR, MethodType.AGENT]:
-        await push_system_message(chat_key=from_chat_key, agent_messages=str(result))
+        await message_service.push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(
         content=error_message or pickle.dumps(result),
         media_type="application/octet-stream",

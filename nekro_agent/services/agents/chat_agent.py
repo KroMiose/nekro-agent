@@ -14,12 +14,8 @@ from nekro_agent.libs.miose_llm import (
     ModelResponse,
     Runner,
 )
-from nekro_agent.libs.miose_llm.clients.chat_openai import (
-    OpenAIChatClient,
-)
-from nekro_agent.libs.miose_llm.components import (
-    TextComponent,
-)
+from nekro_agent.libs.miose_llm.clients.chat_openai import OpenAIChatClient
+from nekro_agent.libs.miose_llm.components import TextComponent
 from nekro_agent.libs.miose_llm.creators.openai import (
     AiMessage,
     ImageMessageSegment,
@@ -27,16 +23,12 @@ from nekro_agent.libs.miose_llm.creators.openai import (
     SystemMessage,
     UserMessage,
 )
-from nekro_agent.libs.miose_llm.exceptions import (
-    ResolveError,
-    SceneRuntimeError,
-)
+from nekro_agent.libs.miose_llm.exceptions import ResolveError, SceneRuntimeError
 from nekro_agent.libs.miose_llm.tools.tokenizers import TikTokenizer
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentImage
-from nekro_agent.services.chat import chat_service
-from nekro_agent.services.message.push_bot_msg import push_system_message
+from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.sandbox.executor import CODE_RUN_ERROR_FLAG, limited_run_code
 from nekro_agent.tools.common_util import (
     compress_image,
@@ -68,28 +60,31 @@ class ChatScene(BaseScene):
 
 @weave.op(name="agent_run")
 async def agent_run(
-    chat_message: ChatMessage,
+    chat_key: str,
     addition_prompt_message: Optional[List[Union[UserMessage, AiMessage]]] = None,
     retry_depth: int = 0,
+    chat_message: Optional[ChatMessage] = None,
 ):
     """代理执行函数"""
+    from nekro_agent.services.chat import chat_service
 
+    sender_target_str: str = f" | To {chat_message.sender_nickname}" if chat_message else ""
     sta_timestamp = time.time()
     one_time_code = os.urandom(4).hex()  # 防止提示词注入，生成一次性随机码
 
     if not addition_prompt_message:
         addition_prompt_message = []
 
-    logger.info(f"正在构建对话场景: {chat_message.chat_key}")
+    logger.info(f"正在构建对话场景: {chat_key}")
     if config.DEBUG_IN_CHAT:
-        await chat_service.send_message(chat_message.chat_key, "[Debug] 思考中🤔...")
+        await chat_service.send_message(chat_key, "[Debug] 思考中🤔...")
 
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_message.chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     # logger.info(f"加载对话场景配置: {db_chat_channel.get_channel_data().render_prompt()}")
 
     # 1. 构造一个应用场景
     scene = ChatScene()
-    scene.store.set("chat_key", chat_message.chat_key)
+    scene.store.set("chat_key", chat_key)
     scene.store.set("one_time_code", one_time_code)
 
     # 2. 构建聊天记录组件
@@ -110,7 +105,7 @@ async def agent_run(
     recent_chat_messages: List[DBChatMessage] = await (
         DBChatMessage.filter(
             send_timestamp__gte=record_sta_timestamp,
-            chat_key=chat_message.chat_key,
+            chat_key=chat_key,
         )
         .order_by("-send_timestamp")
         .limit(config.AI_CHAT_CONTEXT_MAX_LENGTH)
@@ -135,7 +130,7 @@ async def agent_run(
             if seg.local_path:
                 if seg.file_name in img_seg_set:
                     continue
-                access_path = convert_file_name_to_access_path(seg.file_name, chat_message.chat_key)
+                access_path = convert_file_name_to_access_path(seg.file_name, chat_key)
                 img_seg_set.add(seg.file_name)
                 # 检查图片大小
                 if access_path.stat().st_size > config.AI_VISION_IMAGE_SIZE_LIMIT_KB * 1024:
@@ -225,7 +220,7 @@ async def agent_run(
         except Exception as e:
             if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1:
                 logger.error(f"LLM Fallback API error: {e}")
-                await chat_service.send_agent_message(chat_message.chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
+                await chat_service.send_agent_message(chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
                 raise SceneRuntimeError("LLM API error: 所有模型请求失败，停止重试。") from None
             logger.error(f"LLM API error: {e}")
             await asyncio.sleep(1)
@@ -238,20 +233,20 @@ async def agent_run(
                 "[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. Please ** keep the previously agreed reply format ** and try again.",
             ),
         )
-        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+        await agent_run(addition_prompt_message=addition_prompt_message, retry_depth=retry_depth + 1, chat_message=chat_message)
         return
 
     if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
-            await chat_service.send_message(chat_message.chat_key, "[Debug] 检测到消极回复，拒绝结果并重试...")
+            await chat_service.send_message(chat_key, "[Debug] 检测到消极回复，拒绝结果并重试...")
         addition_prompt_message.append(AiMessage(mr.response_text))
         addition_prompt_message.append(
             UserMessage(
                 "[System Automatic Detection] A suspected negative or invalid response is detected in your reply (such as asking for a meaningless wait or claiming to do something but not do anything). Your answers must be consistent with your words and deeds, no pretending behavior, and no meaningless promises. If you think this is an error, please ** keep the previously agreed reply format ** and try again.",
             ),
         )
-        await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+        await agent_run(addition_prompt_message=addition_prompt_message, retry_depth=retry_depth + 1, chat_message=chat_message)
         return
 
     try:
@@ -271,7 +266,14 @@ async def agent_run(
             ret_data.content = ret_data.content[10:]
         if ret_data.content.lower().endswith("```"):
             ret_data.content = ret_data.content[:-3]
-        await agent_exec_result(ret_data.type, ret_data.content, chat_message, addition_prompt_message, retry_depth)
+        await agent_exec_result(
+            ret_type=ret_data.type,
+            ret_content=ret_data.content,
+            chat_key=chat_key,
+            addition_prompt_message=addition_prompt_message,
+            retry_depth=retry_depth,
+            chat_message=chat_message,
+        )
 
     # 8. 反馈与保存数据
     if config.SAVE_PROMPTS_LOG:
@@ -287,28 +289,32 @@ async def agent_run(
             response_file=".temp/chat_response-latest.json",
         )
 
-    logger.info(f"本轮响应耗时: {time.time() - sta_timestamp:.2f}s | To {chat_message.sender_nickname}")
+    logger.info(f"本轮响应耗时: {time.time() - sta_timestamp:.2f}s{sender_target_str}")
 
 
 async def agent_exec_result(
     ret_type: ChatResponseType,
     ret_content: str,
-    chat_message: ChatMessage,
+    chat_key: str,
     addition_prompt_message: List[Union[UserMessage, AiMessage]],
     retry_depth: int = 0,
+    chat_message: Optional[ChatMessage] = None,
 ):
+    from nekro_agent.services.chat import chat_service
+
+    sender_target_str: str = f" | To {chat_message.sender_nickname}" if chat_message else ""
     if ret_type is ChatResponseType.TEXT:
-        logger.info(f"解析文本回复: {ret_content} | To {chat_message.sender_nickname}")
-        await chat_service.send_agent_message(chat_message.chat_key, ret_content, record=True)
+        logger.info(f"解析文本回复: {ret_content}{sender_target_str}")
+        await chat_service.send_agent_message(chat_key, ret_content, record=True)
         return
 
     if ret_type is ChatResponseType.SCRIPT:
         if ret_content.endswith("\n```"):
             ret_content = ret_content[:-3]
-        logger.info(f"解析程式回复: 等待执行资源 | To {chat_message.sender_nickname}")
+        logger.info(f"解析程式回复: 等待执行资源{sender_target_str}")
         if config.DEBUG_IN_CHAT:
-            await chat_service.send_message(chat_message.chat_key, "[Debug] 执行程式中🖥️...")
-        result: str = await limited_run_code(ret_content, from_chat_key=chat_message.chat_key)
+            await chat_service.send_message(chat_key, "[Debug] 执行程式中🖥️...")
+        result: str = await limited_run_code(ret_content, from_chat_key=chat_key)
         if result.endswith(CODE_RUN_ERROR_FLAG):  # 运行出错标记，将错误信息返回给 AI
             err_msg = result[: -len(CODE_RUN_ERROR_FLAG)]
             addition_prompt_message.append(AiMessage(f"{ret_content}"))
@@ -324,21 +330,25 @@ async def agent_exec_result(
                         f"Code run error: {err_msg or 'No error message'}\nThe number of retries has reached the limit, you should give up retries and explain the problem you are experiencing.",
                     ),
                 )
-            logger.info(f"程式运行出错: ...{err_msg[-100:]} | 重试次数: {retry_depth} | To {chat_message.sender_nickname}")
+            logger.info(f"程式运行出错: ...{err_msg[-100:]} | 重试次数: {retry_depth}{sender_target_str}")
             if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES:
                 if config.DEBUG_IN_CHAT:
                     await chat_service.send_message(
-                        chat_message.chat_key,
+                        chat_key,
                         f"[Debug] 程式运行出错: {err_msg or 'No error message'}\n正在调试中...({retry_depth + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})",
                     )
-                await agent_run(chat_message, addition_prompt_message, retry_depth + 1)
+                await agent_run(
+                    addition_prompt_message=addition_prompt_message,
+                    retry_depth=retry_depth + 1,
+                    chat_message=chat_message,
+                )
             else:
-                await chat_service.send_message(chat_message.chat_key, "程式运行出错，达到最大重试次数，停止重试。")
+                await chat_service.send_message(chat_key, "程式运行出错，达到最大重试次数，停止重试。")
         else:
             output_msg = result[:100] if result else "No output"
-            logger.info(f"程式执行成功: {output_msg}... | To {chat_message.sender_nickname}")
-            await push_system_message(
-                chat_message.chat_key,
+            logger.info(f"程式执行成功: {output_msg}...{sender_target_str}")
+            await message_service.push_system_message(
+                chat_key,
                 f'"""python(history run)\n{ret_content}\n"""The requested program was executed successfully, and the output is: {output_msg}...',
             )
             return

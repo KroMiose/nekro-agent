@@ -13,12 +13,14 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.matcher import Matcher
 
-from nekro_agent.core import config, logger
+from nekro_agent.core.config import config
+from nekro_agent.core.logger import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.message.convertor import convert_chat_message
-from nekro_agent.services.message.push_human_msg import push_human_chat_message
+from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.user import query_user_by_bind_qq, user_register
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
@@ -85,7 +87,7 @@ async def _(
         send_timestamp=int(time.time()),
     )
 
-    await push_human_chat_message(chat_message)
+    await message_service.push_human_message(message=chat_message)
 
 
 upload_notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
@@ -132,7 +134,7 @@ async def _(
         send_timestamp=int(time.time()),
     )
 
-    await push_human_chat_message(chat_message)
+    await message_service.push_human_message(message=chat_message)
 
 
 """通用通知匹配器"""
@@ -248,4 +250,4 @@ async def _(
         send_timestamp=int(time.time()),
     )
 
-    await push_human_chat_message(chat_message)
+    await message_service.push_human_message(message=chat_message)
