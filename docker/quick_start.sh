@@ -124,12 +124,8 @@ fi
 
 # 从.env文件加载环境变量
 if [ -f .env ]; then
-    # 确保 INSTANCE_NAME 有值
+    # 设置 INSTANCE_NAME 默认值为空字符串
     INSTANCE_NAME=$(grep INSTANCE_NAME .env | cut -d '=' -f2)
-    if [ -z "$INSTANCE_NAME" ]; then
-        echo "Error: INSTANCE_NAME 未在 .env 文件中设置"
-        exit 1
-    fi
     export INSTANCE_NAME=$INSTANCE_NAME
 
     # 确保 NEKRO_EXPOSE_PORT 有值
@@ -191,7 +187,11 @@ fi
 
 echo -e "\n=== 部署完成！==="
 echo "你可以通过以下命令查看服务日志："
-echo "  NekroAgent: 'sudo docker logs -f ${INSTANCE_NAME}_agent'"
+if [ -z "$INSTANCE_NAME" ]; then
+    echo "  NekroAgent: 'sudo docker logs -f nekro_agent'"
+else
+    echo "  NekroAgent: 'sudo docker logs -f ${INSTANCE_NAME}nekro_agent'"
+fi
 
 # 显示重要的配置信息
 echo -e "\n=== 重要配置信息 ==="
@@ -215,6 +215,10 @@ echo -e "\n=== 配置文件 ==="
 CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
 echo "配置文件路径: $CONFIG_FILE"
 echo "编辑配置后可通过以下命令重启服务："
-echo "  'sudo docker restart ${INSTANCE_NAME}_agent'"
+if [ -z "$INSTANCE_NAME" ]; then
+    echo "  'sudo docker restart nekro_agent'"
+else
+    echo "  'sudo docker restart ${INSTANCE_NAME}nekro_agent'"
+fi
 
 echo -e "\n安装完成！祝您使用愉快！"

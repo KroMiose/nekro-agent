@@ -7,7 +7,7 @@ services:
   # PostgreSQL 服务
   nekro_postgres:
     image: postgres:14
-    container_name: ${INSTANCE_NAME}_postgres
+    container_name: ${INSTANCE_NAME}postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,7 +23,7 @@ services:
   # 主服务
   nekro_agent:
     image: kromiose/nekro-agent:latest
-    container_name: ${INSTANCE_NAME}_nekro_agent
+    container_name: ${INSTANCE_NAME}nekro_agent
     environment:
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
       - NEKRO_EXPOSE_PORT=${NEKRO_EXPOSE_PORT:-8021}
