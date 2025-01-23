@@ -62,11 +62,21 @@ class MessageService:
         if chat_key in self.running_tasks and not self.running_tasks[chat_key].done():
             return
 
+        # 创建防抖任务
+        asyncio.create_task(self._debounce_task(chat_key, current_time))
+
+    async def _debounce_task(self, chat_key: str, start_time: float):
+        """防抖任务处理
+
+        Args:
+            chat_key (str): 会话标识
+            start_time (float): 任务开始时间
+        """
         # 等待防抖时间
         await asyncio.sleep(config.AI_DEBOUNCE_WAIT_SECONDS)
 
         # 检查是否在防抖期间有新消息
-        if current_time != self.debounce_timers[chat_key]:
+        if start_time != self.debounce_timers[chat_key]:
             return
 
         # 获取最终要处理的消息

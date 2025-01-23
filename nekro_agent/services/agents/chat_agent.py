@@ -233,7 +233,12 @@ async def agent_run(
                 "[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. Please ** keep the previously agreed reply format ** and try again.",
             ),
         )
-        await agent_run(addition_prompt_message=addition_prompt_message, retry_depth=retry_depth + 1, chat_message=chat_message)
+        await agent_run(
+            chat_key=chat_key,
+            addition_prompt_message=addition_prompt_message,
+            retry_depth=retry_depth + 1,
+            chat_message=chat_message,
+        )
         return
 
     if (not retry_depth) and check_negative_response(mr.response_text):
@@ -246,7 +251,12 @@ async def agent_run(
                 "[System Automatic Detection] A suspected negative or invalid response is detected in your reply (such as asking for a meaningless wait or claiming to do something but not do anything). Your answers must be consistent with your words and deeds, no pretending behavior, and no meaningless promises. If you think this is an error, please ** keep the previously agreed reply format ** and try again.",
             ),
         )
-        await agent_run(addition_prompt_message=addition_prompt_message, retry_depth=retry_depth + 1, chat_message=chat_message)
+        await agent_run(
+            chat_key=chat_key,
+            addition_prompt_message=addition_prompt_message,
+            retry_depth=retry_depth + 1,
+            chat_message=chat_message,
+        )
         return
 
     try:
@@ -338,6 +348,7 @@ async def agent_exec_result(
                         f"[Debug] 程式运行出错: {err_msg or 'No error message'}\n正在调试中...({retry_depth + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})",
                     )
                 await agent_run(
+                    chat_key=chat_key,
                     addition_prompt_message=addition_prompt_message,
                     retry_depth=retry_depth + 1,
                     chat_message=chat_message,

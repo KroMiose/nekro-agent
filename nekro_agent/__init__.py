@@ -1,6 +1,4 @@
 import logging
-import os
-import threading
 
 import weave
 from nonebot import get_app, get_driver
@@ -13,8 +11,11 @@ from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
 from nekro_agent.core.logger import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.routers import mount_routers
 from nekro_agent.services.extension import init_extensions
+from nekro_agent.services.festival_service import festival_service
+from nekro_agent.services.timer_service import timer_service
 
 from .app import start
 
@@ -40,6 +41,20 @@ init_extensions()
 @get_driver().on_startup
 async def on_startup():
     await init_db()
+    await timer_service.start()
+    logger.info("Timer service initialized")
+
+    # 初始化节日提醒
+    channels = await DBChatChannel.filter(is_active=True).all()
+    chat_keys = [channel.chat_key for channel in channels]
+    await festival_service.init_festivals(chat_keys)
+    logger.info("Festival service initialized")
+
+
+@get_driver().on_shutdown
+async def on_shutdown():
+    await timer_service.stop()
+    logger.info("Timer service stopped")
 
 
 __plugin_meta__ = PluginMetadata(

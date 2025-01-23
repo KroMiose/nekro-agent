@@ -36,6 +36,7 @@ sse-starlette = "^2.2.1"
 
 miose-toolkit-common = "^0.3.7"
 miose-toolkit-logger = "^0.0.7"
+lunar-python = "^0.4.2"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
