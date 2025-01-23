@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "0.7.25"
+version = "0.8.0"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -13,6 +13,8 @@ bot = "run_bot:main"
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
+miose-toolkit-common = "^0.3.7"
+miose-toolkit-logger = "^0.0.7"
 python-jose = { extras = ["cryptography"], version = "^3.3.0" }
 passlib = { extras = ["bcrypt"], version = "^1.7.4" }
 nonebot-adapter-onebot = "^2.4.2"
@@ -33,9 +35,6 @@ tortoise-orm = "^0.23.0"
 asyncpg = "^0.30.0"
 json5 = "^0.10.0"
 sse-starlette = "^2.2.1"
-
-miose-toolkit-common = "^0.3.7"
-miose-toolkit-logger = "^0.0.7"
 lunar-python = "^0.4.2"
 
 [tool.poetry.group.dev.dependencies]

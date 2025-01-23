@@ -174,6 +174,7 @@ EXTENSION_MODULES:
   - extensions.group_honor # 群荣誉扩展 (允许 AI 授予群成员称号头衔)
   - extensions.ai_voice # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
+  - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
 ```
 
 > 💡 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py) ｜ 扩展配置请参考 [扩展列表](./README_Extensions.md)

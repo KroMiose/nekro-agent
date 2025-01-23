@@ -23,6 +23,15 @@
   - 自动修改群名片描述状态
 - **配置**: 无需额外配置
 
+### timer - 定时器扩展
+
+允许 AI 设置定时器，在指定时间触发事件。
+
+- **功能**:
+  - 设置定时器，在指定时间触发事件
+  - 支持立即触发
+- **配置**: 无需额外配置
+
 ## 🎨 创意扩展
 
 ### artist - AI 绘图扩展
@@ -115,6 +124,7 @@ EXTENSION_MODULES:
   - extensions.group_honor # 群荣誉扩展 (允许 AI 授予群成员称号头衔)
   - extensions.ai_voice # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
+  - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
 ```
 
 2. 根据扩展需求补充相应配置项
