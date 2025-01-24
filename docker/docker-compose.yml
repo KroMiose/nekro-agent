@@ -48,9 +48,9 @@ services:
 
 volumes:
   postgres_data:
-    name: ${INSTANCE_NAME}_postgres_data
+    name: ${INSTANCE_NAME}postgres_data
 
 networks:
   nekro_network:
-    name: ${INSTANCE_NAME}_network
+    name: ${INSTANCE_NAME}network
     driver: bridge
