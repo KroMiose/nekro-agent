@@ -205,11 +205,14 @@ class ChatResponseResolver(BaseComponent):
         """从响应文本中解析结果"""
         self.ret_list = []
         response_text = response_text.strip()
+
+        # 移除思维链内容
+        response_text = re.sub(r"<think>[\s\S]*?</think>", "", response_text, flags=re.MULTILINE).strip()
         response_text = fix_raw_response(response_text)
 
         # Remove any markdown code block markers
         if response_text.startswith("```python"):
-            response_text = response_text[len("```python") :].strip()
+            response_text = response_text[len("```python"):].strip()
         if response_text.startswith("```"):
             response_text = response_text.split("\n", 1)[1].strip()
         if response_text.endswith("```"):

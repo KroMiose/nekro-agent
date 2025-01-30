@@ -172,7 +172,7 @@ async def agent_run(
         UserMessage(ChatResponseResolver.practice_question_2()),
         AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
-            "Good, this is an effective response to a positive action. Next is a real user conversation scene\n\n",
+            "Good, Ignore the previous actual content, this is an effective response to a positive action. Next is a real user conversation scene\n\n",
             *img_seg_prompts,
             f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n",  # 聊天频道配置
             TextComponent(
@@ -222,7 +222,7 @@ async def agent_run(
                 logger.error(f"LLM Fallback API error: {e}")
                 await chat_service.send_agent_message(chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
                 raise SceneRuntimeError("LLM API error: 所有模型请求失败，停止重试。") from None
-            logger.error(f"LLM API error: {e}")
+            logger.exception(f"LLM API error: {e}")
             await asyncio.sleep(1)
 
     if one_time_code in mr.response_text:
