@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Literal, get_args
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from nekro_agent.core import logger
 from nekro_agent.core.config import (
     ModelConfigGroup,
     PluginConfig,
@@ -254,15 +255,17 @@ async def batch_update_config(
                 return Ret.fail(msg=f"配置项不存在: {key}")
 
             _c_value = getattr(config, key)
-            if isinstance(_c_value, (int, float)):
-                setattr(config, key, type(_c_value)(value))
-            elif isinstance(_c_value, bool):
+            logger.debug(f"更新配置: {key} = {value} | {_c_value=} | {type(_c_value)=}")
+            logger.debug(f"检查类型: isinstance(_c_value, bool) = {isinstance(_c_value, bool)}")
+            if isinstance(_c_value, bool):
                 if value.lower() in ["true", "1", "yes"]:
                     setattr(config, key, True)
                 elif value.lower() in ["false", "0", "no"]:
                     setattr(config, key, False)
                 else:
                     return Ret.fail(msg=f"布尔值只能是 true 或 false: {key}")
+            elif isinstance(_c_value, (int, float)):
+                setattr(config, key, type(_c_value)(value))
             elif isinstance(_c_value, str):
                 setattr(config, key, value)
             elif isinstance(_c_value, list):
@@ -299,6 +302,9 @@ async def batch_update_config(
                     return Ret.fail(msg=f"列表元素类型转换失败: {e!s}")
             else:
                 return Ret.fail(msg=f"不支持的配置类型: {type(_c_value)} ({key})")
+
+        # 立即保存配置到文件
+        save_config()
     except ValueError as e:
         return Ret.fail(msg=f"配置值类型错误: {e!s}")
 
