@@ -14,7 +14,7 @@ __meta__ = ExtMetaData(
 
 @agent_collector.mount_method(MethodType.TOOL)
 async def set_timer(chat_key: str, trigger_time: int, event_desc: str, _ctx: AgentCtx) -> bool:
-    """设置一个定时器，在指定时间触发回复
+    """设置一个定时器，在指定时间触发回复，注意不要重复和频繁设置定时器！
 
     Args:
         chat_key (str): 会话标识
