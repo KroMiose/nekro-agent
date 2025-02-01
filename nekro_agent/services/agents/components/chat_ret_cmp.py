@@ -123,27 +123,31 @@ You can ask for help by sending a message to the administrative session in the f
 """
 
 
-PRACTICE_QUESTION_1 = "Hello! Can you greet me?"
-
-PRACTICE_RESPONSE_1 = """
-chat_key = group_12345678 # Use actual chat_key from execution context
-send_msg_text(chat_key, "Hello! Nice to meet you!")
+PRACTICE_QUESTION_1 = """
+Current Chat Key: private_23456789
+Current Time: 2025-02-01 14:15:23 CST Saturday
+Recent Messages:
+[02-01 14:15:22 from_qq:23456789] Bob: What's 23 + 45?
 """
 
-PRACTICE_QUESTION_2 = "Please help me calculate 23 + 45"
-
-PRACTICE_RESPONSE_2 = """
-chat_key = group_12345678 # Use actual chat_key from execution context
+PRACTICE_RESPONSE_1 = """
+chat_key = "private_23456789"
 result = 23 + 45
 send_msg_text(chat_key, f"23 + 45 = {result}")
 """
 
-PRACTICE_QUESTION_3 = "Draw a simple heart shape using matplotlib"
+PRACTICE_QUESTION_2 = """
+Current Chat Key: group_12345678
+Current Time: 2025-02-01 15:20:45 CST Saturday
+Recent Messages:
+[02-01 15:20:44 from_qq:23456789] Carol: Can you draw a heart?
+"""
 
-PRACTICE_RESPONSE_3 = """
-chat_key = group_12345678 # Use actual chat_key from execution context
+PRACTICE_RESPONSE_2 = """
 import numpy as np
 import matplotlib.pyplot as plt
+
+chat_key = "group_12345678"
 
 t = np.linspace(0, 2*np.pi, 100)
 x = 16 * np.sin(t)**3
@@ -157,7 +161,7 @@ plt.savefig('./shared/heart.png')
 plt.close()
 
 send_msg_file(chat_key, './shared/heart.png')
-send_msg_text(chat_key, "Here's a heart shape for you! ❤️")
+send_msg_text(chat_key, "[@qq:23456789@] Here's your heart~ ❤️")
 """
 
 
@@ -212,7 +216,7 @@ class ChatResponseResolver(BaseComponent):
 
         # Remove any markdown code block markers
         if response_text.startswith("```python"):
-            response_text = response_text[len("```python"):].strip()
+            response_text = response_text[len("```python") :].strip()
         if response_text.startswith("```"):
             response_text = response_text.split("\n", 1)[1].strip()
         if response_text.endswith("```"):

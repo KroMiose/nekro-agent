@@ -1,12 +1,12 @@
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import Depends, HTTPException, status, Request
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-from nekro_agent.core.os_env import OsEnv
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.http_exception import (
     authorization_exception,
@@ -37,7 +37,6 @@ async def get_current_user(request: Request, token: Optional[str] = None) -> DBU
             auth_header = request.headers.get("Authorization")
             if auth_header and auth_header.startswith("Bearer "):
                 token = auth_header.split(" ")[1]
-                logger.debug(f"Using token from header: {token}")
             else:
                 logger.debug("No valid token found in header")
                 raise credentials_exception
@@ -52,8 +51,8 @@ async def get_current_user(request: Request, token: Optional[str] = None) -> DBU
             raise credentials_exception
         token_data = TokenData(username=username)
     except JWTError as e:
-        logger.debug(f"JWT validation failed: {str(e)}")
-        raise credentials_exception
+        logger.debug(f"JWT validation failed: {e!s}")
+        raise credentials_exception from e
     if token_data.username == "admin":
         user = await DBUser.get_or_none(username="admin")
     else:
