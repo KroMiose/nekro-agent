@@ -114,7 +114,7 @@ export default function NapCatPage() {
     const connect = () => {
       try {
         cleanup = napCatApi.streamLogs(
-          (data) => {
+          data => {
             setLogs(prev => {
               const newLogs = [...prev, data].slice(-1000)
               setWebuiToken(extractWebuiToken(newLogs))
@@ -122,7 +122,7 @@ export default function NapCatPage() {
             })
             setIsReconnecting(false)
           },
-          (error) => {
+          error => {
             console.error('EventSource error:', error)
             setIsReconnecting(true)
             // 5秒后尝试重连
@@ -133,7 +133,10 @@ export default function NapCatPage() {
         )
       } catch (error) {
         console.error('Failed to create EventSource:', error)
-        setMessage({ text: error instanceof Error ? error.message : '连接日志流失败', severity: 'error' })
+        setMessage({
+          text: error instanceof Error ? error.message : '连接日志流失败',
+          severity: 'error',
+        })
         setIsReconnecting(true)
       }
     }
@@ -230,10 +233,27 @@ export default function NapCatPage() {
     setMessage({ text: '日志已清空', severity: 'success' })
   }
 
-  const handleCopyToken = () => {
+  const handleCopyToken = async () => {
     if (webuiToken) {
-      navigator.clipboard.writeText(webuiToken)
-      setMessage({ text: 'Token 已复制到剪贴板', severity: 'success' })
+      try {
+        await navigator.clipboard.writeText(webuiToken)
+        setMessage({ text: 'Token 已复制到剪贴板', severity: 'success' })
+      } catch (error) {
+        console.error('复制失败:', error)
+        setMessage({ text: '复制失败，请手动复制', severity: 'error' })
+      }
+    }
+  }
+
+  const handleCopyOnebotToken = async () => {
+    if (onebotToken) {
+      try {
+        await navigator.clipboard.writeText(onebotToken)
+        setMessage({ text: '访问密钥已复制到剪贴板', severity: 'success' })
+      } catch (error) {
+        console.error('复制失败:', error)
+        setMessage({ text: '复制失败，请手动复制', severity: 'error' })
+      }
     }
   }
 
@@ -256,15 +276,7 @@ export default function NapCatPage() {
                 <LoadingButton
                   size="small"
                   startIcon={<ContentCopyIcon />}
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(onebotToken)
-                      setMessage({ text: '访问密钥已复制到剪贴板', severity: 'success' })
-                    } catch (error) {
-                      console.error('复制失败:', error)
-                      setMessage({ text: '复制失败，请手动复制', severity: 'error' })
-                    }
-                  }}
+                  onClick={handleCopyOnebotToken}
                 >
                   复制
                 </LoadingButton>
