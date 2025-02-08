@@ -128,6 +128,7 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
               onChange={(e) => setNewItem(e.target.value)}
               placeholder={`输入${itemType === 'bool' ? 'true/false' : itemType}类型的值`}
               onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
+              autoComplete="off"
             />
             <IconButton onClick={handleAddItem} color="primary">
               <AddIcon />
@@ -334,6 +335,7 @@ export default function SettingsPage() {
                 </InputAdornment>
               ),
             }}
+            autoComplete="off"
           />
           {listEditState.configKey === config.key && (
             <ListEditDialog

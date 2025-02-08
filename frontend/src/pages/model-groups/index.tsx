@@ -98,6 +98,12 @@ function EditDialog({
             fullWidth
             autoComplete="off"
             required
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
           />
           <TextField
             label="模型名称"
@@ -105,6 +111,12 @@ function EditDialog({
             onChange={e => setConfig({ ...config, CHAT_MODEL: e.target.value })}
             fullWidth
             autoComplete="off"
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
           />
           <TextField
             label="代理地址"
@@ -112,6 +124,12 @@ function EditDialog({
             onChange={e => setConfig({ ...config, CHAT_PROXY: e.target.value })}
             fullWidth
             autoComplete="off"
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
           />
           <TextField
             label="API地址"
@@ -120,9 +138,9 @@ function EditDialog({
             fullWidth
             autoComplete="off"
             inputProps={{
-              autoComplete: "new-password",
+              autoComplete: 'new-password',
               form: {
-                autoComplete: "off",
+                autoComplete: 'off',
               },
             }}
           />
@@ -134,9 +152,9 @@ function EditDialog({
             fullWidth
             autoComplete="off"
             inputProps={{
-              autoComplete: "new-password",
+              autoComplete: 'new-password',
               form: {
-                autoComplete: "off",
+                autoComplete: 'off',
               },
             }}
             InputProps={{
@@ -247,7 +265,10 @@ export default function ModelGroupsPage() {
               {Object.entries(modelGroups).map(([name, config]) => (
                 <TableRow key={name}>
                   <TableCell>
-                    <Typography className={name === 'default' ? 'font-bold' : ''} variant="subtitle2">
+                    <Typography
+                      className={name === 'default' ? 'font-bold' : ''}
+                      variant="subtitle2"
+                    >
                       {name}
                     </Typography>
                   </TableCell>
@@ -299,12 +320,7 @@ export default function ModelGroupsPage() {
         onClose={() => setMessage('')}
         anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
-        <Alert
-          onClose={() => setMessage('')}
-          severity="info"
-          variant="filled"
-          className="w-full"
-        >
+        <Alert onClose={() => setMessage('')} severity="info" variant="filled" className="w-full">
           {message}
         </Alert>
       </Snackbar>
