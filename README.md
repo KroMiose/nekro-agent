@@ -24,6 +24,7 @@
   </a>
   <br/>
   📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
+  🌟 可洛喵 & Nekro Agent 插件形象征集中，欢迎加入交流群分享你的创意！🌟<br/>
 </div>
 
 ## ⚠ !安全警告!
