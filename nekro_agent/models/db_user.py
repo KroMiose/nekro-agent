@@ -13,6 +13,9 @@ class DBUser(Model):
     perm_level = fields.IntField(description="权限等级")
     login_time = fields.DatetimeField(description="上次登录时间")
 
+    prevent_trigger_until = fields.IntField(description="禁止触发截止时间", default=0)
+    prevent_interact_until = fields.IntField(description="禁止互动截止时间", default=0)
+
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 

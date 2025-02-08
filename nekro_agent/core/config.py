@@ -256,7 +256,7 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"placeholder": "例: http://<服务器 IP>:<NapCat 端口>/webui"},
     )
     NAPCAT_CONTAINER_NAME: str = Field(
-        default="nekro_agent_napcat",
+        default="napcat",
         title="NapCat 容器名称",
     )
 
