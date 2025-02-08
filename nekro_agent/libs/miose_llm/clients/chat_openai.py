@@ -1,4 +1,6 @@
+import json
 import warnings
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -28,7 +30,7 @@ if __openai_version > "0.28.0":  # 低版本 openai 兼容
     openai.api_base = _OPENAI_BASE_URL  # type: ignore
 else:
     warnings.warn(
-        "openai 版本过低，请注意升级至 1.0.0 或以上版本，以避免兼容性问题",
+        "openai 版本过低，请升级至 1.0.0 或以上版本，以避免兼容性问题",
         stacklevel=2,
     )
 
@@ -120,6 +122,9 @@ async def gen_openai_chat_response(
 
     except httpx.TimeoutException:
         raise RequestTimeoutException from None
+    except json.JSONDecodeError:
+        # Path(".temp/messages.json").write_text(json.dumps(messages, ensure_ascii=False))
+        raise
     except Exception as e:
         if "You exceeded your current quota" in str(e):
             raise InvalidCredentialException from e  # 只有抛出该异常才会触发更换 API key 重试

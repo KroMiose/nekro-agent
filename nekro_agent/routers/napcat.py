@@ -97,17 +97,17 @@ async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) 
                 for log in initial_logs:
                     if log.startswith("20"):  # 移除时间戳前缀
                         log = log.split("Z ", 1)[1]
-                    yield f"data: {log}\n\n"
+                    yield log
 
                 # 然后开始实时流式传输
                 async for log in container.log(stdout=True, stderr=True, follow=True, since=int(time.time()), timestamps=True):
                     if log.startswith("20"):
                         log = log.split("Z ", 1)[1]
-                    yield f"data: {log}\n\n"
+                    yield log
                     await asyncio.sleep(0.01)  # 避免发送过快
             except Exception as e:
                 logger.error(f"日志流异常: {e!s}")
-                yield f"data: [ERROR] 日志流发生错误: {e!s}\n\n"
+                raise
 
         return EventSourceResponse(generate())
     except Exception as e:
