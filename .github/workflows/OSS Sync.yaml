@@ -1,0 +1,47 @@
+name: SyncToOSS
+
+on: [push]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      with:
+        path: repo
+
+    - name: Set up ossutil
+      run: |
+        # 下载 ossutil
+        curl -o ossutil64 http://gosspublic.alicdn.com/ossutil/1.6.7/ossutil64
+        chmod +x ossutil64
+        
+        # 创建 .local/bin 目录并移动 ossutil
+        mkdir -p $HOME/.local/bin
+        mv ossutil64 $HOME/.local/bin/ossutil
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Configure ossutil
+      run: |
+        ossutil config -e oss-cn-hongkong.aliyuncs.com -i ${{ secrets.ACCESS_KEY_ID }} -k ${{ secrets.ACCESS_KEY_SECRET }} -L CH
+
+    - name: Deploy To OSS
+      run: |
+        # 切换到代码目录
+        cd repo
+        # 强制删除oss中所有文件（这里要改）
+        echo "Deleting files from OSS..."
+        ossutil rm -r -f oss://githubnekro-agent/
+        
+        # 检查 OSS 中的文件（这里要改）
+        echo "Current files in OSS:"
+        ossutil ls oss://githubnekro-agent/
+        
+        # 上传仓库（这里要改）
+        echo "Uploading new files to OSS..."
+        ossutil cp . oss://githubnekro-agent/ --recursive
+        
+        # 检查上传后的文件（这里要改）
+        echo "Files in OSS after upload:"
+        ossutil ls oss://githubnekro-agent/
