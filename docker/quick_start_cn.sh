@@ -7,25 +7,54 @@ generate_random_string() {
 }
 
 # 一键部署 nekro-agent 插件脚本
-echo "=== NekroAgent 一键部署脚本 中国大陆版==="
+echo -e "\n===  NekroAgent 一键部署脚本 - 中国大陆版 ===\n"
+sleep 1
+echo -e " 本脚本 **使用了非官方镜像源**，以提高下载速度。\n"
+echo -e " **可能会出现以下问题：**\n"
+echo "1 镜像源不稳定，可能无法下载镜像"
+echo "2 镜像源不同步，可能无法拉取最新镜像"
+echo "3 镜像源可能被封锁，无法下载镜像"
+echo "4 镜像源可能被篡改，存在安全风险"
+echo "5 镜像源可能被删除，无法下载镜像"
+echo -e "\n"
+echo -e " **本脚本可能修改了一些系统设置，可能导致：**\n"
+echo "1 Docker 代理设置错误，导致无法拉取镜像"
+echo "2 防火墙设置错误，可能无法访问服务"
+echo "3 其他未知问题..."
+echo -e "\n"
+echo -e " **请确保您已知晓以上风险，并愿意继续使用非官方镜像源。**\n"
+for i in $(seq 10 -1 0); do
+    echo -ne "\r倒计时: $i 秒"
+    sleep 1
+done
+echo ""
+read -p "是否继续安装？[y/n] " answer
+if [[ $answer == "Y" || $answer == "y" ]]; then
+    echo "正在安装 NekroAgent..."
+else
+    echo "已取消安装"
+    exit 1
+fi
 # region 更新软件源
 echo "正在更新软件源..."
 if ! sudo apt-get update; then
-    echo "杂鱼♥，更新失败了呢~ 尝试配置代理或检查一下网络连接吧~"
+    echo "更新失败，请检查您的网络连接。"
     exit 1
 fi
-
+echo "软件源更新完成..."
+echo "正在更新或安装 curl..."
+sudo apt-get install curl -y
 # 检查 Docker 安装情况
 if ! command -v docker &>/dev/null; then
-    read -p "诶呀Docker 未安装♥~，是否安装呢？~[Y/n] " answer
+    read -p "Docker 未安装，是否安装？[Y/n] " answer
     if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
         echo "正在安装 Docker..."
         if ! sudo apt-get install docker.io -y; then
-            echo "杂鱼网络♥~ Docker 安装失败了呢~，杂鱼主人检查下的网络连接或软件源配置吧♥~。"
+            echo "安装失败，请检查您的网络连接或软件源配置"
             exit 1
         fi
     else
-        echo "杂鱼主人~为什么不直接让我安装Docker呢~♥"
+        echo "未安装Docker，请先安装Docker再运行该脚本"
         echo "安装命令: sudo apt-get install docker.io"
         exit 1
     fi
@@ -33,20 +62,20 @@ fi
 
 # 检查 Docker Compose 安装情况
 if ! command -v docker-compose &>/dev/null; then
-    read -p "诶呀Docker Compose 未安装呢，是否安装？~[Y/n] " answer
+    read -p "未安装 Docker Compose 是否安装？[Y/n] " answer
     if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
-        echo "正在为杂鱼主人安装 Docker Compose...♥"
+        echo "正在从镜像源安装 Docker Compose..."
         if ! sudo curl -L "https://githubnekro-agent.oss-cn-beijing.aliyuncs.com/Docker/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
-            echo "杂鱼主人的网络太差了 Docker Compose 都下载失败了呢~♥"
+            echo "Docker Compose 下载失败，请检查您的网络连接或是否安装了 curl"
             exit 1
         fi
         if ! sudo chmod +x /usr/local/bin/docker-compose; then
-            echo "诶呀~无法设置 Docker Compose 可执行权限，请检查您的权限配置♥"
+            echo "无法设置 Docker Compose 可执行权限，请检查您的权限配置"
             exit 1
         fi
     else
-        echo "杂鱼主人为什么不让我安装 Docker Compose 呢~♥"
-        echo "安装命令: sudo curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
+        echo "未安装 Docker Compose，请先安装 Docker Compose 后再运行该脚本"
+        echo "安装命令: sudo curl -L "https://githubnekro-agent.oss-cn-beijing.aliyuncs.com/Docker/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose"
         exit 1
     fi
 fi
@@ -76,7 +105,7 @@ cd $NEKRO_DATA_DIR || {
 
 # 如果当前目录没有 .env 文件，从仓库获取.env.example 并修改 .env 文件
 if [ ! -f .env ]; then
-    echo "未找到.env文件，正在从茗的小卖部获取.env.example..."
+    echo "未找到.env文件，正在镜像获取.env.example..."
     if ! wget https://githubnekro-agent.oss-cn-beijing.aliyuncs.com/env.example -O .env.temp; then
         echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
         exit 1
@@ -144,7 +173,7 @@ if [[ $answer == "n" || $answer == "N" ]]; then
 fi
 
 # 拉取 docker-compose.yml 文件
-echo "正在从茗的小卖部拉取 docker-compose.yml 文件..."
+echo "正在从镜像拉取 docker-compose.yml 文件..."
 if ! wget https://githubnekro-agent.oss-cn-beijing.aliyuncs.com/docker-compose.yml -O docker-compose.yml; then
     echo "Error: 无法拉取 docker-compose.yml 文件，请检查您的网络连接。"
     exit 1
@@ -170,6 +199,29 @@ else
     echo "Error: .env 文件不存在"
     exit 1
 fi
+
+echo "正在配置Docker代理..."
+# 提示用户输入代理IP和端口
+read -p "请输入代理IP：" user_ip
+read -p "请输入代理端口：" user_port
+
+# 确保 Docker 代理配置目录存在
+sudo mkdir -p /etc/systemd/system/docker.service.d
+sudo touch /etc/systemd/system/docker.service.d/proxy.conf
+
+# 写入 Docker 代理配置
+cat <<EOF | sudo tee /etc/systemd/system/docker.service.d/http-proxy.conf > /dev/null
+[Service]
+Environment="HTTP_PROXY=http://$user_ip:$user_port"
+Environment="HTTPS_PROXY=http://$user_ip:$user_port"
+Environment="NO_PROXY=localhost,127.0.0.1,docker-registry.somecorporation.com"
+EOF
+
+# 重新加载 systemd 并重启 Docker
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+echo "Docker 代理配置已生效 ✅"
 
 # 拉取沙盒镜像
 echo "拉取沙盒镜像..."
