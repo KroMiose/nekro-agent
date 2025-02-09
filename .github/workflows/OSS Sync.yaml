@@ -24,7 +24,7 @@ jobs:
 
     - name: Configure ossutil
       run: |
-        ossutil config -e oss-cn-hongkong.aliyuncs.com -i ${{ secrets.ACCESS_KEY_ID }} -k ${{ secrets.ACCESS_KEY_SECRET }} -L CH
+        ossutil config -e oss-cn-beijing.aliyuncs.com -i ${{ secrets.ACCESS_KEY_ID }} -k ${{ secrets.ACCESS_KEY_SECRET }} -L CH
 
     - name: Deploy To OSS
       run: |
@@ -32,7 +32,7 @@ jobs:
         cd repo
         # 强制删除oss中所有文件（这里要改）
         echo "Deleting files from OSS..."
-        ossutil rm -r -f oss://githubnekro-agent/
+        ossutil rm -r -f oss://githbunekro-agent/
         
         # 检查 OSS 中的文件（这里要改）
         echo "Current files in OSS:"
