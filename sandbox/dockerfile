@@ -41,7 +41,7 @@ COPY . /app
 RUN mkdir -p /app/shared && chown nobody:nogroup /app/shared
 
 # 安装 poetry
-RUN pip install poetry==1.8.0 -i https://mirrors.aliyun.com/pypi/simple/ --trusted-host mirrors.aliyun.com
+RUN pip install poetry==1.8.0
 RUN poetry config virtualenvs.create false
 RUN poetry lock --no-update
 RUN poetry install
