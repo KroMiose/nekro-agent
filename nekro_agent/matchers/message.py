@@ -138,7 +138,7 @@ async def _(
 
 
 """通用通知匹配器"""
-notice_matcher: Type[Matcher] = on_notice(priority=99999, block=True)
+notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 
 
 class NoticeEventType(Enum):
