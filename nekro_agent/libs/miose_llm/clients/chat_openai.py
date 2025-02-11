@@ -65,9 +65,11 @@ async def gen_openai_chat_response(
     frequency_penalty: Optional[float] = None,
     presence_penalty: Optional[float] = None,
     top_p: Optional[float] = None,
+    top_k: Optional[int] = None,  # noqa: ARG001
     stop_words: Optional[List[str]] = None,
     max_tokens: Optional[int] = None,
     api_key: Optional[str] = None,
+    extra_body: Optional[Dict[str, Any]] = None,
 ) -> Tuple[str, int]:
     """生成聊天回复内容"""
 
@@ -81,10 +83,12 @@ async def gen_openai_chat_response(
                 messages=messages,
                 temperature=temperature,
                 top_p=top_p,
+                # top_k=top_k,
                 frequency_penalty=frequency_penalty,
                 presence_penalty=presence_penalty,
                 max_tokens=max_tokens,
                 stop=stop_words,
+                extra_body=extra_body,
             )
 
             output = res.choices[0].message.content  # type: ignore
@@ -111,8 +115,10 @@ async def gen_openai_chat_response(
             frequency_penalty=frequency_penalty,
             presence_penalty=presence_penalty,
             top_p=top_p,
+            # top_k=top_k,
             max_tokens=max_tokens,
             stop=stop_words,
+            extra_body=extra_body,
         )
 
         output = res.choices[0].message.content
@@ -145,20 +151,24 @@ class OpenAIChatClient(BaseClient):
         frequency_penalty: Optional[float] = None,
         presence_penalty: Optional[float] = None,
         top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
         stop_words: Optional[List[str]] = None,
         max_tokens: Optional[int] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         proxy: Optional[str] = None,
+        extra_body: Optional[Dict[str, Any]] = None,
     ):
         self.model = model
         self.temperature = temperature
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
         self.top_p = top_p
+        self.top_k = top_k
         self.stop_words = stop_words
         self.max_tokens = max_tokens
         self.api_key = api_key
+        self.extra_body = extra_body
         if base_url is not None:
             set_openai_base_url(base_url)
         if proxy is not None:
@@ -187,9 +197,11 @@ class OpenAIChatClient(BaseClient):
             frequency_penalty=(self.frequency_penalty if creator.frequency_penalty is None else creator.frequency_penalty),
             presence_penalty=(self.presence_penalty if creator.presence_penalty is None else creator.presence_penalty),
             top_p=self.top_p if creator.top_p is None else creator.top_p,
+            top_k=self.top_k if creator.top_k is None else creator.top_k,
             stop_words=(self.stop_words if creator.stop_words is None else creator.stop_words),
             max_tokens=(self.max_tokens if creator.max_tokens is None else creator.max_tokens),
             api_key=self.api_key,
+            extra_body=self.extra_body,
         )
 
         cr.update_token_info(total_tokens=token_consumption)

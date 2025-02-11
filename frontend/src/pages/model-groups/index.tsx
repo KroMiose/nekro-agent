@@ -55,9 +55,16 @@ function EditDialog({
     CHAT_PROXY: '',
     BASE_URL: '',
     API_KEY: '',
+    TEMPERATURE: null,
+    TOP_P: null,
+    TOP_K: null,
+    PRESENCE_PENALTY: null,
+    FREQUENCY_PENALTY: null,
+    EXTRA_BODY: null,
   })
   const [error, setError] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   useEffect(() => {
     if (initialConfig) {
@@ -68,6 +75,12 @@ function EditDialog({
         CHAT_PROXY: '',
         BASE_URL: '',
         API_KEY: '',
+        TEMPERATURE: null,
+        TOP_P: null,
+        TOP_K: null,
+        PRESENCE_PENALTY: null,
+        FREQUENCY_PENALTY: null,
+        EXTRA_BODY: null,
       })
     }
   }, [initialConfig])
@@ -167,6 +180,100 @@ function EditDialog({
               ),
             }}
           />
+
+          {/* 高级选项折叠面板 */}
+          <Button
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            variant="text"
+            className="self-start"
+          >
+            {showAdvanced ? '收起高级选项 ▼' : '展开高级选项 ▶'}
+          </Button>
+
+          {showAdvanced && (
+            <Stack spacing={2} className="pl-4 border-l-2 border-gray-200">
+              <TextField
+                label="Temperature"
+                type="number"
+                value={config.TEMPERATURE ?? ''}
+                onChange={e =>
+                  setConfig({
+                    ...config,
+                    TEMPERATURE: e.target.value ? parseFloat(e.target.value) : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ step: 0.1, min: 0, max: 2 }}
+                helperText="控制输出的随机性 (0-2)"
+              />
+              <TextField
+                label="Top P"
+                type="number"
+                value={config.TOP_P ?? ''}
+                onChange={e =>
+                  setConfig({
+                    ...config,
+                    TOP_P: e.target.value ? parseFloat(e.target.value) : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ step: 0.1, min: 0, max: 1 }}
+                helperText="控制输出的多样性 (0-1)"
+              />
+              {/* <TextField
+                label="Top K"
+                type="number"
+                value={config.TOP_K ?? ''}
+                onChange={e =>
+                  setConfig({
+                    ...config,
+                    TOP_K: e.target.value ? parseFloat(e.target.value) : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ step: 1, min: 0 }}
+                helperText="控制考虑的 top tokens 数量"
+              /> */}
+              <TextField
+                label="Presence Penalty"
+                type="number"
+                value={config.PRESENCE_PENALTY ?? ''}
+                onChange={e =>
+                  setConfig({
+                    ...config,
+                    PRESENCE_PENALTY: e.target.value ? parseFloat(e.target.value) : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ step: 0.1, min: -2, max: 2 }}
+                helperText="基于生成文本中已出现的内容对新内容的惩罚，越大越倾向产生新话题 (-2 到 2)"
+              />
+              <TextField
+                label="Frequency Penalty"
+                type="number"
+                value={config.FREQUENCY_PENALTY ?? ''}
+                onChange={e =>
+                  setConfig({
+                    ...config,
+                    FREQUENCY_PENALTY: e.target.value ? parseFloat(e.target.value) : null,
+                  })
+                }
+                fullWidth
+                inputProps={{ step: 0.1, min: -2, max: 2 }}
+                helperText="基于生成文本中出现的内容频率对新内容的惩罚，越大越倾向产生多样回复 (-2 到 2)"
+              />
+              <TextField
+                label="Extra Body (JSON)"
+                value={config.EXTRA_BODY ?? ''}
+                onChange={e => setConfig({ ...config, EXTRA_BODY: e.target.value || null })}
+                fullWidth
+                multiline
+                rows={3}
+                helperText="额外的请求参数 (JSON 格式)"
+              />
+            </Stack>
+          )}
+
           {error && <Alert severity="error">{error}</Alert>}
         </Stack>
       </DialogContent>

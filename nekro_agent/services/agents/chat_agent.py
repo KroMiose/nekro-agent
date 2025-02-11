@@ -3,6 +3,7 @@ import os
 import time
 from typing import List, Optional, Set, Union
 
+import json5
 import weave
 
 from nekro_agent.core import logger
@@ -199,6 +200,15 @@ async def agent_run(
         logger.info(
             f"使用模型: {current_model.CHAT_MODEL}{' (Fallback)' if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ''}",
         )
+        if current_model.EXTRA_BODY:
+            try:
+                extra_body = json5.loads(current_model.EXTRA_BODY) if current_model.EXTRA_BODY else None
+                assert isinstance(extra_body, dict)
+            except Exception as e:
+                logger.error(f"LLM 额外参数解析出错: {e}")
+                raise
+        else:
+            extra_body = None
 
         _runner: Runner = Runner(
             client=OpenAIChatClient(
@@ -206,6 +216,12 @@ async def agent_run(
                 api_key=current_model.API_KEY or OPENAI_API_KEY,
                 base_url=current_model.BASE_URL or OPENAI_BASE_URL,
                 proxy=current_model.CHAT_PROXY,
+                temperature=current_model.TEMPERATURE,
+                top_p=current_model.TOP_P,
+                top_k=current_model.TOP_K,
+                presence_penalty=current_model.PRESENCE_PENALTY,
+                frequency_penalty=current_model.FREQUENCY_PENALTY,
+                extra_body=extra_body,
             ),  # 指定聊天客户端
             tokenizer=TikTokenizer(model=current_model.CHAT_MODEL),  # 指定分词器
             prompt_creator=prompt_creator,

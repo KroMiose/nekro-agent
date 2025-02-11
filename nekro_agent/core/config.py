@@ -17,6 +17,12 @@ class ModelConfigGroup(ConfigBase):
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
+    TEMPERATURE: Optional[float] = Field(default=None, title="温度值")
+    TOP_P: Optional[float] = Field(default=None, title="Top P")
+    TOP_K: Optional[int] = Field(default=None, title="Top K")
+    PRESENCE_PENALTY: Optional[float] = Field(default=None, title="提示重复惩罚")
+    FREQUENCY_PENALTY: Optional[float] = Field(default=None, title="补全重复惩罚")
+    EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
 
 
 class PluginConfig(ConfigBase):

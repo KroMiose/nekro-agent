@@ -100,6 +100,7 @@ class OpenAIPromptCreator(BasePromptCreator):
     messages: List[_Message]
     temperature: Optional[float]
     top_p: Optional[float]
+    top_k: Optional[int]
     presence_penalty: Optional[float]
     frequency_penalty: Optional[float]
     max_tokens: Optional[int]
@@ -110,6 +111,7 @@ class OpenAIPromptCreator(BasePromptCreator):
         *args,
         temperature: Optional[float] = None,
         top_p: Optional[float] = None,
+        top_k: Optional[int] = None,
         presence_penalty: Optional[float] = None,
         frequency_penalty: Optional[float] = None,
         max_tokens: Optional[int] = None,
@@ -123,6 +125,7 @@ class OpenAIPromptCreator(BasePromptCreator):
                 raise ArgumentTypeError("Invalid message type")
         self.temperature = temperature
         self.top_p = top_p
+        self.top_k = top_k
         self.presence_penalty = presence_penalty
         self.frequency_penalty = frequency_penalty
         self.max_tokens = max_tokens
@@ -158,7 +161,7 @@ class OpenAIPromptCreator(BasePromptCreator):
                     if item["type"] == "text":
                         processed_content.append(item["text"])
                     elif item["type"] == "image_url":
-                        url = item["image_url"]["url"] # type: ignore
+                        url = item["image_url"]["url"]  # type: ignore
                         processed_content.append(f"[Image: {truncate_base64(url)}]")
                 content = "\n".join(processed_content)
 

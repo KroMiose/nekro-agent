@@ -24,6 +24,12 @@ export interface ModelGroupConfig {
   CHAT_PROXY: string
   BASE_URL: string
   API_KEY: string
+  TEMPERATURE?: number | null
+  TOP_P?: number | null
+  TOP_K?: number | null
+  PRESENCE_PENALTY?: number | null
+  FREQUENCY_PENALTY?: number | null
+  EXTRA_BODY?: string | null
 }
 
 export const configApi = {
