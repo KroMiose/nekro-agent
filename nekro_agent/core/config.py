@@ -107,7 +107,7 @@ class PluginConfig(ConfigBase):
         description="超出该时间范围的消息不会被 AI 参考",
     )
     AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(
-        default=24,
+        default=32,
         title="聊天上下文最大条数",
         description="AI 会话上下文最大条数, 超出该条数会自动截断",
     )
@@ -135,12 +135,12 @@ class PluginConfig(ConfigBase):
     AI_CHAT_TRIGGER_REGEX: List[str] = Field(default=[], title="触发正则表达式")
     AI_NAME_PREFIX: str = Field(default="", title="AI名称前缀", description="状态扩展修改群名片时会自动添加该前缀")
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
-        default=512,
+        default=768,
         title="单条消息最大长度 (字符)",
         description="会话上下文单条消息最大长度，超出该长度会自动截取摘要",
     )
     AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
-        default=4096,
+        default=5120,
         title="会话上下文最大长度 (字符)",
         description="会话历史记录上下文最大长度，超出该长度会自动截断",
     )
