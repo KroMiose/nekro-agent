@@ -30,9 +30,10 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
 
     Example:
         ```
-        # 假设新状态下的人设名为 "正在认真看书的可洛喵" 并保持之前 "戴着帽子" 的状态
-        update_preset_status(chat_key, "正在认真看书的可洛喵", "由于 ... 可洛喵 ... 转变为 `正在认真看书的可洛喵` 且仍然戴着帽子")
-        set_effect(chat_key, "戴着帽子", "可洛喵戴着一顶可爱的帽子")  # 同时添加 "戴着帽子" 效果保持状态一致性
+        preset_name = "可洛喵" # (示例用法) 替换为实际人设名
+        # 假设新状态为 "正在认真看书" 并保持之前 "戴着帽子" 的状态
+        update_preset_status(chat_key, f"正在认真看书的{preset_name}", f'由于 ... " ... 转变为 `正在认真看书的{preset_name}` 且仍然戴着帽子')
+        set_effect(chat_key, "戴着帽子", "戴着一顶可爱的帽子")  # 添加 "戴着帽子" 效果保持状态一致性
         ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
