@@ -11,6 +11,8 @@ from nekro_agent.tools.collector import agent_collector
 REPLY_INSTRUCTION: str = """
 ## Response Format
 
+You are in a multi-user chat environment. Always be aware of who sent each message.
+
 Your response must be a Python script that will be executed in a sandbox container. All responses, including simple text messages, must be handled through code execution.
 
 To send a message to the conversation, use the `send_msg_text` method:
