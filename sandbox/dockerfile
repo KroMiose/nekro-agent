@@ -3,6 +3,8 @@ FROM python:3.10.13-slim-bullseye
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV LANG=C.UTF-8
 
 # 设置源和时区
 RUN set -eux; \
@@ -13,38 +15,17 @@ RUN set -eux; \
 
 RUN apt-get update
 
-# 安装 build-essential
-RUN apt-get install -y build-essential
-
-# 安装 make
-RUN apt-get install -y make
-
-# 安装 gcc
-RUN apt-get install -y gcc
-
-# 安装 g++
-RUN apt-get install -y g++
-
-# 安装 pkg-config
-RUN apt-get install -y pkg-config
-
-# 安装 tzdata
-RUN apt-get install -y tzdata
-
-# 安装 libgl1-mesa-glx
-RUN apt-get install -y libgl1-mesa-glx
-
-# 安装 libglib2.0-0
-RUN apt-get install -y libglib2.0-0
-
-# 安装 tesseract-ocr
-RUN apt-get install -y tesseract-ocr
-
-# 安装 tesseract-ocr-chi-sim
-RUN apt-get install -y tesseract-ocr-chi-sim
-
-# 清理缓存
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+# 安装系统依赖并清理缓存
+RUN apt-get install -y \
+    build-essential \
+    pkg-config \
+    tzdata \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    tesseract-ocr \
+    tesseract-ocr-chi-sim \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置 pip 镜像并安装 Python 依赖
 RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple && \

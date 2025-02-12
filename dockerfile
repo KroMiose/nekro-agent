@@ -45,26 +45,15 @@ RUN set -eux; \
 
 RUN apt-get update
 
-# 安装 ca-certificates
-RUN apt-get install -y ca-certificates
-
-# 安装 curl
-RUN apt-get install -y curl
-
-# 安装 gnupg
-RUN apt-get install -y gnupg
-
-# 安装 git
-RUN apt-get install -y git
-
-# 安装 gcc
-RUN apt-get install -y gcc
-
-# 安装 libpq-dev
-RUN apt-get install -y libpq-dev
-
-# 安装 docker.io
-RUN apt-get install -y docker.io
+# 安装依赖
+RUN apt-get install -y \
+    ca-certificates \
+    curl \
+    gnupg \
+    git \
+    gcc \
+    libpq-dev \
+    docker.io
 
 # 清理缓存
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
