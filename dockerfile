@@ -35,6 +35,7 @@ FROM python:3.10.13-slim-bullseye
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
+ENV QEMU_EXECVE=1
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -42,15 +43,11 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
 
 RUN apt-get update
 
-# 安装依赖
-RUN apt-get install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    git \
-    gcc \
-    libpq-dev \
-    docker.io
+# 分批安装依赖以避免 QEMU 段错误
+RUN apt-get install -y ca-certificates curl
+RUN apt-get install -y gnupg git
+RUN apt-get install -y gcc libpq-dev
+RUN apt-get install -y docker.io
 
 # 清理缓存
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
