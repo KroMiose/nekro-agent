@@ -1,4 +1,5 @@
-FROM node:20-slim AS frontend-builder
+# syntax=docker/dockerfile:1
+FROM --platform=$BUILDPLATFORM node:20-slim AS frontend-builder
 
 # 设置 npm 镜像
 RUN npm config set registry https://registry.npmmirror.com
@@ -36,8 +37,9 @@ FROM python:3.10.13-slim-bullseye
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 设置源和时区
-RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
+RUN set -eux; \
+    sed -i 's/mirrors.ustc.edu.cn/deb.debian.org/g' /etc/apt/sources.list && \
+    sed -i 's/mirrors.ustc.edu.cn/security.debian.org/g' /etc/apt/sources.list && \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
@@ -60,6 +62,9 @@ RUN apt-get install -y gcc
 
 # 安装 libpq-dev
 RUN apt-get install -y libpq-dev
+
+# 清理缓存
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # 安装 Docker CLI
 RUN install -m 0755 -d /etc/apt/keyrings && \
