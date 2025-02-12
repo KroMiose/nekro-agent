@@ -3,8 +3,6 @@ FROM python:3.10.13-slim-bullseye
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PYTHONUNBUFFERED=1
-ENV LANG=C.UTF-8
 
 # 设置源和时区
 RUN set -eux; \
