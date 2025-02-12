@@ -1,10 +1,13 @@
 FROM node:20-slim AS frontend-builder
 
+# 设置 npm 镜像
+RUN npm config set registry https://registry.npmmirror.com
+
 # 设置工作目录
 WORKDIR /app/frontend
 
 # 安装 pnpm
-RUN npm install -g pnpm
+RUN npm install -g pnpm && pnpm config set registry https://registry.npmmirror.com
 
 # 首先复制依赖文件，利用缓存
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
@@ -29,16 +32,37 @@ COPY --from=frontend-builder /app/frontend/dist /frontend-dist
 
 FROM python:3.10.13-slim-bullseye
 
-# 设置时区
-RUN /bin/cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && echo 'Asia/Shanghai' >/etc/timezone
+# 设置时区和镜像源
+RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
+    sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
+    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+    echo 'Asia/Shanghai' > /etc/timezone
 
 # 系统依赖
-RUN apt-get update && apt-get install -y \
-    gcc \
-    libpq-dev \
-    docker.io \
-    curl \
+ENV DEBIAN_FRONTEND=noninteractive
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gcc \
+        libpq-dev \
+        curl \
+        ca-certificates \
+        gnupg \
+        git \
+    && install -m 0755 -d /etc/apt/keyrings \
+    && curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg \
+    && chmod a+r /etc/apt/keyrings/docker.gpg \
+    && echo \
+        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+        tee /etc/apt/sources.list.d/docker.list > /dev/null \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends docker-ce-cli \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置 pip 镜像
+RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
 
 # 设置工作目录
 WORKDIR /app

@@ -1,68 +1,51 @@
 # 使用 Python 官方镜像作为基础镜像
 FROM python:3.10.13-slim-bullseye
 
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV LANG=C.UTF-8
+
 # 设置源
 RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
-    sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
-    sed -i 's/archive.ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
-    sed -i 's/security.ubuntu.com/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
+    sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list
 
-# 安装基本编译工具和依赖
-RUN apt-get update && \
-    apt-get install -y \
-    build-essential \
-    make \
-    gcc \
-    g++ \
-    pkg-config \
+# 一次性安装所有系统依赖
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        make \
+        gcc \
+        g++ \
+        pkg-config \
+        tzdata \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
+        tesseract-ocr \
+        tesseract-ocr-chi-sim \
+    && ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime \
+    && echo 'Asia/Shanghai' > /etc/timezone \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 安装 tzdata 并设置时区为 Asia/Shanghai
-RUN apt-get update && \
-    apt-get install -y tzdata && \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
-    echo 'Asia/Shanghai' > /etc/timezone
-
-# # 通过代理安装 openacv 依赖 (可选)
-# ENV http_proxy="http://172.17.0.1:7890"
-# ENV https_proxy="http://172.17.0.1:7890"
-
-# 安装用于 opencv 图像处理的依赖包
-RUN apt-get install -y libgl1-mesa-glx
-RUN apt-get install -y libglib2.0-0
-
-# 安装 tesseract 用于 OCR 识别
-RUN apt-get install -y tesseract-ocr tesseract-ocr-chi-sim
-
-# 安装用于 matplotlib 绘图的依赖包
-RUN pip install -U mplfonts
+# 设置 pip 镜像并安装 Python 依赖
+RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
+RUN pip install -U mplfonts poetry==1.8.0
 RUN mplfonts init
 
-# 清理缓存
-RUN apt-get clean
-RUN rm -rf /var/lib/apt/lists/*
-
-# 创建应用目录
-RUN mkdir -p /app && chown nobody:nogroup /app
+# 创建应用目录并设置权限
+RUN mkdir -p /app /app/shared && \
+    chown -R nobody:nogroup /app && \
+    chmod -R 777 /app /app/shared && \
+    chmod 755 /bin/bash
 
 WORKDIR /app
 COPY . /app
 
-RUN mkdir -p /app/shared && chown nobody:nogroup /app/shared
-
-# 安装 poetry
-RUN pip install poetry==1.8.0
-RUN poetry config virtualenvs.create false
-RUN poetry lock --no-update
-RUN poetry install
-
-# 清除设置的代理
-ENV http_proxy=""
-ENV https_proxy=""
-
-# 权限配置
-RUN chmod -R 777 /app/shared
-RUN chmod -R 777 /app
-RUN chmod 755 /bin/bash
+# 安装项目依赖
+RUN poetry config virtualenvs.create false && \
+    poetry lock --no-update && \
+    poetry install
 
 CMD ["bash"]
