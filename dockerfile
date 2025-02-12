@@ -32,39 +32,43 @@ COPY --from=frontend-builder /app/frontend/dist /frontend-dist
 
 FROM python:3.10.13-slim-bullseye
 
-# 设置时区和镜像源
+# 设置环境变量
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 设置源和时区
 RUN sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
     sed -i 's/security.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list && \
     ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-# 系统依赖
-ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update
 
-# 安装基础依赖
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        gcc \
-        libpq-dev \
-        curl \
-        ca-certificates \
-        gnupg \
-        git \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# 安装 ca-certificates
+RUN apt-get install -y ca-certificates
+
+# 安装 curl
+RUN apt-get install -y curl
+
+# 安装 gnupg
+RUN apt-get install -y gnupg
+
+# 安装 git
+RUN apt-get install -y git
+
+# 安装 gcc
+RUN apt-get install -y gcc
+
+# 安装 libpq-dev
+RUN apt-get install -y libpq-dev
 
 # 安装 Docker CLI
 RUN install -m 0755 -d /etc/apt/keyrings && \
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg && \
     chmod a+r /etc/apt/keyrings/docker.gpg && \
-    echo \
-        "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-        "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
-        tee /etc/apt/sources.list.d/docker.list > /dev/null && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends docker-ce-cli && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    echo "deb [arch="$(dpkg --print-architecture)" signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+    "$(. /etc/os-release && echo "$VERSION_CODENAME")" stable" | \
+    tee /etc/apt/sources.list.d/docker.list > /dev/null && \
+    apt-get install -y docker-ce-cli
 
 # 设置 pip 镜像
 RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
