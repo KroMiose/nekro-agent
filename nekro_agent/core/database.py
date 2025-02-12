@@ -1,6 +1,7 @@
 from typing import List
 
 from tortoise import Tortoise
+from tzlocal import get_localzone
 
 from .args import Args
 from .config import config
@@ -42,6 +43,7 @@ async def init_db():
     await Tortoise.init(
         db_url=db_url,
         modules={"models": ["nekro_agent.models"]},  # 加载模型
+        timezone=str(get_localzone()),
     )
     # 生成数据库表
     try:
