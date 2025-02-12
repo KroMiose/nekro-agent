@@ -36,11 +36,8 @@ FROM python:3.10.13-slim-bullseye
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 设置源和时区
-RUN set -eux; \
-    sed -i 's/mirrors.ustc.edu.cn/deb.debian.org/g' /etc/apt/sources.list && \
-    sed -i 's/mirrors.ustc.edu.cn/security.debian.org/g' /etc/apt/sources.list && \
-    ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
+# 设置时区
+RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
 RUN apt-get update
