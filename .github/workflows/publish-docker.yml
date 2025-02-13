@@ -1,4 +1,4 @@
-name: Release
+name: Release Docker Images
 
 on:
   push:
@@ -84,29 +84,3 @@ jobs:
           # cache-to: type=gha,mode=max
       - name: Docker Logout
         run: docker logout
-
-  publish-to-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    needs: [setup-version, build-and-push-agent, build-and-push-sandbox]
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-      - name: Install Poetry
-        uses: pronovic/setup-poetry@v2
-        with:
-          version: "1.8.0"
-          plugins: "poetry-dynamic-versioning==1.2.0"
-          cache-venv: true
-          cache-poetry: true
-      - name: PyPI Setup
-        run: poetry config pypi-token.pypi ${{ secrets.PYPI_TOKEN }}
-      - name: Install dependencies
-        run: poetry install --no-interaction --no-ansi
-      - name: Build package
-        run: poetry build
-      - name: Publish package
-        run: poetry run publish
