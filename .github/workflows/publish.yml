@@ -80,8 +80,8 @@ jobs:
           tags: |
             kromiose/nekro-agent:${{ needs.setup-version.outputs.version }}
             kromiose/nekro-agent:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
       - name: Docker Logout
         run: docker logout
 
@@ -112,7 +112,7 @@ jobs:
           tags: |
             kromiose/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
             kromiose/nekro-agent-sandbox:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
       - name: Docker Logout
         run: docker logout
