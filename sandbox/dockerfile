@@ -10,17 +10,20 @@ ENV LANG=C.UTF-8
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-RUN apt update
-
 # 分批安装系统依赖以避免 QEMU 段错误
-RUN apt install -y build-essential pkg-config tzdata && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
-
 RUN apt update && \
-    apt install -y libgl1-mesa-glx libglib2.0-0 && \
-    apt clean && \
-    rm -rf /var/lib/apt/lists/*
+    apt install -y \
+    build-essential \
+    pkg-config \
+    tzdata \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libffi-dev \
+    libssl-dev \
+    libmupdf-dev \
+    swig \
+    && apt clean \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN apt update && \
     apt install -y --no-install-recommends tesseract-ocr tesseract-ocr-chi-sim && \
@@ -44,7 +47,7 @@ COPY . /app
 
 # 安装项目依赖
 RUN poetry config virtualenvs.create false && \
-    poetry lock --no-update && \
-    poetry install
+    poetry config installer.max-workers 4 && \
+    poetry install --no-interaction --no-ansi
 
 CMD ["bash"]
