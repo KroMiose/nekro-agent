@@ -55,7 +55,7 @@ class ChatScene(BaseScene):
         """场景数据源类"""
 
         chat_key: str = ""
-        chat_preset: str = config.AI_CHAT_PRESET_SETTING
+        chat_preset: str = ""
         one_time_code: str = ""
 
 
@@ -87,6 +87,7 @@ async def agent_run(
     scene = ChatScene()
     scene.store.set("chat_key", chat_key)
     scene.store.set("one_time_code", one_time_code)
+    scene.store.set("chat_preset", config.AI_CHAT_PRESET_SETTING)
 
     # 2. 构建聊天记录组件
     chat_history_component = (
