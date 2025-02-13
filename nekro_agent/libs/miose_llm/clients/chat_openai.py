@@ -73,6 +73,18 @@ async def gen_openai_chat_response(
 ) -> Tuple[str, int]:
     """生成聊天回复内容"""
 
+    gen_kwargs = {
+        "frequency_penalty": frequency_penalty,
+        "presence_penalty": presence_penalty,
+        "top_p": top_p,
+        "max_tokens": max_tokens,
+        "stop": stop_words,
+        "extra_body": extra_body,
+    }
+
+    # 去掉所有值为None的键
+    gen_kwargs = {key: value for key, value in gen_kwargs.items() if value is not None}
+
     try:
         if __openai_version <= "0.28.0":
             openai.api_key = api_key
@@ -82,13 +94,7 @@ async def gen_openai_chat_response(
                 model=model,
                 messages=messages,
                 temperature=temperature,
-                top_p=top_p,
-                # top_k=top_k,
-                frequency_penalty=frequency_penalty,
-                presence_penalty=presence_penalty,
-                max_tokens=max_tokens,
-                stop=stop_words,
-                extra_body=extra_body,
+                **gen_kwargs,
             )
 
             output = res.choices[0].message.content  # type: ignore
@@ -99,26 +105,14 @@ async def gen_openai_chat_response(
         client: AsyncOpenAI = AsyncOpenAI(  # type: ignore
             api_key=api_key,
             base_url=_OPENAI_BASE_URL,
-            http_client=(
-                httpx.AsyncClient(
-                    proxies=_OPENAI_PROXY,
-                )
-                if _OPENAI_PROXY
-                else None
-            ),
+            http_client=(httpx.AsyncClient(proxies=_OPENAI_PROXY) if _OPENAI_PROXY else None),
         )
 
-        res: ChatCompletion = await client.chat.completions.create(  # type: ignore
+        res: ChatCompletion = await client.chat.completions.create(
             model=model,
             messages=messages,  # type: ignore
             temperature=temperature,
-            frequency_penalty=frequency_penalty,
-            presence_penalty=presence_penalty,
-            top_p=top_p,
-            # top_k=top_k,
-            max_tokens=max_tokens,
-            stop=stop_words,
-            extra_body=extra_body,
+            **gen_kwargs,
         )
 
         output = res.choices[0].message.content
