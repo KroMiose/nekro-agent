@@ -35,22 +35,21 @@ FROM python:3.10.13-slim-bullseye
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
-ENV QEMU_EXECVE=1
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-RUN apt-get update
+RUN apt update
 
 # 分批安装依赖以避免 QEMU 段错误
-RUN apt-get install -y ca-certificates curl
-RUN apt-get install -y gnupg git
-RUN apt-get install -y gcc libpq-dev
-RUN apt-get install -y docker.io
+RUN apt install -y ca-certificates curl
+RUN apt install -y gnupg git
+RUN apt install -y gcc libpq-dev
+RUN apt install -y docker.io
 
 # 清理缓存
-RUN apt-get clean && rm -rf /var/lib/apt/lists/*
+RUN apt clean && rm -rf /var/lib/apt/lists/*
 
 # 设置 pip 镜像
 RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple

@@ -5,27 +5,26 @@ FROM python:3.10.13-slim-bullseye
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 ENV LANG=C.UTF-8
-ENV QEMU_EXECVE=1
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-RUN apt-get update
+RUN apt update
 
 # 分批安装系统依赖以避免 QEMU 段错误
-RUN apt-get install -y build-essential pkg-config tzdata && \
-    apt-get clean && \
+RUN apt install -y build-essential pkg-config tzdata && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y libgl1-mesa-glx libglib2.0-0 && \
-    apt-get clean && \
+RUN apt update && \
+    apt install -y libgl1-mesa-glx libglib2.0-0 && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-chi-sim && \
-    apt-get clean && \
+RUN apt update && \
+    apt install -y --no-install-recommends tesseract-ocr tesseract-ocr-chi-sim && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 # 设置 pip 镜像并安装 Python 依赖
