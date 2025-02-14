@@ -14,7 +14,11 @@ from nekro_agent.schemas.agent_message import (
     convert_agent_message_to_prompt,
 )
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
-from nekro_agent.tools.common_util import check_content_trigger, random_chat_check
+from nekro_agent.tools.common_util import (
+    check_content_trigger,
+    check_ignore_message,
+    random_chat_check,
+)
 
 
 class MessageService:
@@ -167,6 +171,8 @@ class MessageService:
             send_timestamp=int(current_time),  # 使用处理后的时间戳
         )
 
+        should_ignore = check_ignore_message(message.content_text)
+
         # 检查是否需要触发回复
         should_trigger = (
             trigger_agent
@@ -176,7 +182,7 @@ class MessageService:
             or check_content_trigger(message.content_text)
         )
 
-        if should_trigger:
+        if not should_ignore and should_trigger:
             db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=message.chat_key)
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")

@@ -85,11 +85,6 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True},
         description="当主模型组不可用时, 使用备用模型组",
     )
-    STABLE_DIFFUSION_USE_MODEL_GROUP: str = Field(
-        default="default",
-        title="Stable Diffusion 使用模型组",
-        json_schema_extra={"ref_model_groups": True},
-    )
 
     """聊天配置"""
     AI_CHAT_PRESET_NAME: str = Field(default="可洛喵", title="聊天设定名")
@@ -131,9 +126,26 @@ class PluginConfig(ConfigBase):
         title="忽略的消息前缀",
         description="带有这些前缀的消息不会被参考或者触发",
     )
-    AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(default=0.0, title="随机回复概率")
-    AI_CHAT_TRIGGER_REGEX: List[str] = Field(default=[], title="触发正则表达式")
-    AI_NAME_PREFIX: str = Field(default="", title="AI名称前缀", description="状态扩展修改群名片时会自动添加该前缀")
+    AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
+        default=0.0,
+        title="随机回复概率",
+        description="随机回复概率，任意消息触发 AI 回复的概率，0.0 表示不启用，1.0 表示必定触发",
+    )
+    AI_CHAT_TRIGGER_REGEX: List[str] = Field(
+        default=[],
+        title="触发正则表达式",
+        description="触发正则表达式，当消息匹配到正则表达式时，会触发 AI 回复",
+    )
+    AI_CHAT_IGNORE_REGEX: List[str] = Field(
+        default=[],
+        title="忽略正则表达式",
+        description="忽略正则表达式，当消息匹配到正则表达式时，不会触发 AI 回复",
+    )
+    AI_NAME_PREFIX: str = Field(
+        default="",
+        title="AI名称前缀",
+        description="状态扩展修改群名片时会自动添加该前缀",
+    )
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
         default=768,
         title="单条消息最大长度 (字符)",
@@ -171,9 +183,21 @@ class PluginConfig(ConfigBase):
     )
 
     """会话设置"""
-    SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用")
-    SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(default=True, title="新私聊默认启用")
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(default=True, title="显示处理中表情回应")
+    SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(
+        default=True,
+        title="新群聊默认启用",
+        description="新产生的群聊会话默认启用状态",
+    )
+    SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(
+        default=True,
+        title="新私聊默认启用",
+        description="新产生的私聊会话默认启用状态",
+    )
+    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
+        default=True,
+        title="显示处理中表情回应",
+        description="当 AI 处理消息时，会显示处理中表情回应",
+    )
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")
@@ -238,6 +262,11 @@ class PluginConfig(ConfigBase):
         default="",
         title="Stable Diffusion 访问代理",
         json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"},
+    )
+    STABLE_DIFFUSION_USE_MODEL_GROUP: str = Field(
+        default="default",
+        title="Stable Diffusion 使用模型组 (注意: 该模型组是一个 LLM 模型，用于生成自然语言绘图使用的词条)",
+        json_schema_extra={"ref_model_groups": True},
     )
 
     """Google Search API 配置"""

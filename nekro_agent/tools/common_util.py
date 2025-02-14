@@ -232,6 +232,23 @@ def check_content_trigger(content: str) -> bool:
     return False
 
 
+def check_ignore_message(content: str) -> bool:
+    """忽略消息检测
+
+    Args:
+        content (str): 内容
+
+    Returns:
+        bool: 是否忽略
+    """
+
+    for reg_text in config.AI_CHAT_IGNORE_REGEX:
+        reg = re.compile(reg_text)
+        if reg.search(content):
+            return True
+    return False
+
+
 def compress_image(image_path: Path, size_limit_kb: int) -> Path:
     """压缩图片到指定大小以下，仅通过降低分辨率实现
 
