@@ -115,42 +115,30 @@ result = agent_method(args)  # Stop here!
 COT_INSTRUCTION: str = """
 ## Chain of Thought
 
-MUST analyze in <think> tags BEFORE response:
+Before responding, carefully analyze the situation in <think> tags using natural language step by step. Your analysis should cover:
+- Current context and user needs
+- Your available capabilities and limitations
+- Planned actions and their feasibility
+- Potential risks and constraints
+- Review the plan and answer "Can I Really Do This?", If you can't do it, rethink the plan.
 
-1. Intent: user needs, constraints, implicit demands
-2. Context: history, status, resources
-3. Plan: steps, methods, risks
-4. Security: safety, compliance
-
-Format:
+Example format:
 <think>
-1. Intent: xxx
-2. Context: xxx
-3. Plan: xxx
+Let me analyze this situation... [Your natural language analysis]
 </think>
 
 [Code]
 """
 
-# 示例代码组织
+# Example code organization
 EXAMPLE_CALC = {
-    "cot": """1. Intent: User asks for simple arithmetic calculation (23 + 45)
-2. Context: Direct question in private chat, no additional context needed
-3. Plan: Use basic Python arithmetic, format result clearly
-4. Security: Safe operation, no risks""",
+    "cot": """The user is asking for a 3D model in a private chat. This is a complex request that requires specialized 3D modeling capabilities. Looking at my available tools, I only have matplotlib and numpy which are limited to 2D graphics - I cannot create or manipulate 3D models. While I could try to suggest workarounds, it would be more honest and helpful to clearly explain my limitations and point them to proper tools. I'll respond with a direct but polite message explaining I can only handle 2D graphics and suggest professional 3D modeling software instead. This approach avoids making false promises and ensures clear communication about my capabilities.""",
     "code": """chat_key = "private_23456789"
-result = 23 + 45
-send_msg_text(chat_key, f"23 + 45 = {result}")""",
+send_msg_text(chat_key, "Sorry, I can only handle 2D graphics. For 3D modeling, please use professional tools like Blender or Maya.")""",
 }
 
 EXAMPLE_HEART = {
-    "cot": """1. Intent: User requests heart shape drawing, likely for aesthetic/fun purpose
-2. Context: Group chat environment, visual output required
-3. Plan: 
-   - Use matplotlib for drawing
-   - Apply heart curve equation
-   - Save as image and send
-4. Security: File operations within shared directory, safe visualization""",
+    "cot": """A user in the group chat wants a heart drawing. This is a good match for my capabilities - I have matplotlib and numpy which are perfect for 2D geometric plotting. The heart shape can be created using parametric equations, and I can ensure high quality output by using appropriate resolution and figure size. I'll need to save the plot to a shared directory first, then send both the image and a friendly message. I should also clean up resources after plotting to avoid memory leaks. This is well within my capabilities and I can execute it safely while maintaining good output quality.""",
     "code": """import numpy as np
 import matplotlib.pyplot as plt
 
@@ -175,7 +163,7 @@ PRACTICE_QUESTION_1 = """
 Current Chat Key: private_23456789
 Current Time: 2025-02-01 14:15:23 CST Saturday
 Recent Messages:
-[02-01 14:15:22 from_qq:23456789] Bob: What's 23 + 45?
+[02-01 14:15:22 from_qq:23456789] Bob: Can you create a 3D model for me?
 """
 
 PRACTICE_QUESTION_2 = """
