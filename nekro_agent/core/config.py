@@ -164,6 +164,11 @@ class PluginConfig(ConfigBase):
         title="语音角色",
         description="该功能使用 QQ 群中的 AI 声聊能力，使用 `/ai_voices` 命令查看所有可用角色",
     )
+    AI_ENABLE_COT: bool = Field(
+        default=False,
+        title="启用思维链",
+        description="启用后 AI 会在回答前详细分析提示词内容并输出思考过程，注意：如果使用的模型原生支持思维链功能，请关闭此选项以避免冲突",
+    )
 
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用")

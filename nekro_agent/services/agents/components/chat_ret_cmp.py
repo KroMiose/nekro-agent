@@ -20,6 +20,8 @@ To send a message to the conversation, use the `send_msg_text` method:
 send_msg_text(chat_key, "Hello! [@qq:123456@] This is a message")
 ```
 
+{COT_INSTRUCTION}
+
 ## Chat Key Format
 - Group chat: `group_123456` (where 123456 is the group number)
 - Private chat: `private_123456` (where 123456 is the user's QQ number)
@@ -110,43 +112,46 @@ result = agent_method(args)  # Stop here!
   ```
 """
 
-ADMIN_HELP_PROMPT: str = """
-## Need Help?
+COT_INSTRUCTION: str = """
+## Chain of Thought
 
-You can ask for help by sending a message to the administrative session in the following situations.
+MUST analyze in <think> tags BEFORE response:
 
-1. Code execution error: Need more dependencies or libraries?
-2. Incomprehensible error situation
-3. Serious malicious user conversation
-4. Other unforeseen situations
+1. Intent: user needs, constraints, implicit demands
+2. Context: history, status, resources
+3. Plan: steps, methods, risks
+4. Security: safety, compliance
 
-! Admin Chat Key: {ADMIN_CHAT_KEY} (Do not share it. Use `send_msg_text` method to submit your message) !
-! Admin Chat lang: zh_CN !
+Format:
+<think>
+1. Intent: xxx
+2. Context: xxx
+3. Plan: xxx
+</think>
+
+[Code]
 """
 
-
-PRACTICE_QUESTION_1 = """
-Current Chat Key: private_23456789
-Current Time: 2025-02-01 14:15:23 CST Saturday
-Recent Messages:
-[02-01 14:15:22 from_qq:23456789] Bob: What's 23 + 45?
-"""
-
-PRACTICE_RESPONSE_1 = """
-chat_key = "private_23456789"
+# 示例代码组织
+EXAMPLE_CALC = {
+    "cot": """1. Intent: User asks for simple arithmetic calculation (23 + 45)
+2. Context: Direct question in private chat, no additional context needed
+3. Plan: Use basic Python arithmetic, format result clearly
+4. Security: Safe operation, no risks""",
+    "code": """chat_key = "private_23456789"
 result = 23 + 45
-send_msg_text(chat_key, f"23 + 45 = {result}")
-"""
+send_msg_text(chat_key, f"23 + 45 = {result}")""",
+}
 
-PRACTICE_QUESTION_2 = """
-Current Chat Key: group_12345678
-Current Time: 2025-02-01 15:20:45 CST Saturday
-Recent Messages:
-[02-01 15:20:44 from_qq:23456789] Carol: Can you draw a heart?
-"""
-
-PRACTICE_RESPONSE_2 = """
-import numpy as np
+EXAMPLE_HEART = {
+    "cot": """1. Intent: User requests heart shape drawing, likely for aesthetic/fun purpose
+2. Context: Group chat environment, visual output required
+3. Plan: 
+   - Use matplotlib for drawing
+   - Apply heart curve equation
+   - Save as image and send
+4. Security: File operations within shared directory, safe visualization""",
+    "code": """import numpy as np
 import matplotlib.pyplot as plt
 
 chat_key = "group_12345678"
@@ -163,7 +168,35 @@ plt.savefig('./shared/heart.png')
 plt.close()
 
 send_msg_file(chat_key, './shared/heart.png')
-send_msg_text(chat_key, "[@qq:23456789@] Here's your heart~ ❤️")
+send_msg_text(chat_key, "[@qq:23456789@] Here's your heart~ ❤️")""",
+}
+
+PRACTICE_QUESTION_1 = """
+Current Chat Key: private_23456789
+Current Time: 2025-02-01 14:15:23 CST Saturday
+Recent Messages:
+[02-01 14:15:22 from_qq:23456789] Bob: What's 23 + 45?
+"""
+
+PRACTICE_QUESTION_2 = """
+Current Chat Key: group_12345678
+Current Time: 2025-02-01 15:20:45 CST Saturday
+Recent Messages:
+[02-01 15:20:44 from_qq:23456789] Carol: Can you draw a heart?
+"""
+
+ADMIN_HELP_PROMPT: str = """
+## Need Help?
+
+You can ask for help by sending a message to the administrative session in the following situations.
+
+1. Code execution error: Need more dependencies or libraries?
+2. Incomprehensible error situation
+3. Serious malicious user conversation
+4. Other unforeseen situations
+
+! Admin Chat Key: {ADMIN_CHAT_KEY} (Do not share it. Use `send_msg_text` method to submit your message) !
+! Admin Chat lang: zh_CN !
 """
 
 
@@ -180,15 +213,28 @@ class ChatResponse(BaseModel):
 class ChatResponseResolver(BaseComponent):
     ret_list: List[ChatResponse]
 
+    @staticmethod
+    def _format_example_response(example_dict: dict) -> str:
+        """格式化示例响应"""
+        if not config.AI_ENABLE_COT:
+            return example_dict["code"]
+        return f"<think>\n{example_dict['cot']}\n</think>\n\n{example_dict['code']}"
+
     @classmethod
     def example(cls, one_time_code: str) -> str:
         admin_help_prompt = (
             ADMIN_HELP_PROMPT.strip().format(ADMIN_CHAT_KEY=config.ADMIN_CHAT_KEY) if config.ADMIN_CHAT_KEY else ""
         )
+        cot_instruction = (
+            COT_INSTRUCTION.strip()
+            if config.AI_ENABLE_COT
+            else "Note: For models with native CoT, DO NOT include thinking process to avoid duplication."
+        )
         return REPLY_INSTRUCTION.strip().format(
             AGENT_METHOD_PROMPT="\n\n".join(agent_collector.gen_method_prompts()),
             ONE_TIME_CODE=one_time_code,
             ADMIN_HELP_PROMPT=admin_help_prompt,
+            COT_INSTRUCTION=cot_instruction,
         )
 
     @classmethod
@@ -197,7 +243,7 @@ class ChatResponseResolver(BaseComponent):
 
     @classmethod
     def practice_response_1(cls) -> str:
-        return PRACTICE_RESPONSE_1.strip()
+        return cls._format_example_response(EXAMPLE_CALC)
 
     @classmethod
     def practice_question_2(cls) -> str:
@@ -205,12 +251,25 @@ class ChatResponseResolver(BaseComponent):
 
     @classmethod
     def practice_response_2(cls) -> str:
-        return PRACTICE_RESPONSE_2.strip()
+        return cls._format_example_response(EXAMPLE_HEART)
 
     def resolve_from_text(self, response_text: str) -> "ChatResponseResolver":
         """从响应文本中解析结果"""
         self.ret_list = []
         response_text = response_text.strip()
+
+        # 提取并记录思维链内容（无论是否启用思维链模式都要提取）
+        cot_matches = re.finditer(r"<think>([\s\S]*?)</think>", response_text, flags=re.MULTILINE)
+        has_think_content = False
+        for match in cot_matches:
+            cot_content = match.group(1).strip()
+            if cot_content:
+                has_think_content = True
+                logger.debug(f"检测到思维链分析内容:\n{cot_content}")
+
+        # 如果启用了思维链但没有检测到思维内容，记录警告
+        if config.AI_ENABLE_COT and not has_think_content:
+            logger.warning("已启用思维链模式但未检测到思维过程内容")
 
         # 移除思维链内容
         response_text = re.sub(r"<think>[\s\S]*?</think>", "", response_text, flags=re.MULTILINE).strip()
