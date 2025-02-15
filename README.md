@@ -182,7 +182,7 @@ EXTENSION_MODULES:
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
 ```
 
-> 💡 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py) ｜ 扩展配置请参考 [扩展列表](./README_Extensions.md)
+> 💡 完整配置说明请参考 [config.py](https://github.com/KroMiose/nekro-agent/blob/main/nekro_agent/core/config.py) ｜ 扩展配置请参考 [扩展列表](./docs/README_Extensions.md)
 
 ## 🆙 更新应用
 

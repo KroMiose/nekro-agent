@@ -1,6 +1,5 @@
 # Nekro Agent - 开发指南
 
-
 ## 🖥️ 源码部署/开发指南
 
 > 通过以下几步操作即可开始 开发/使用 本插件
@@ -131,7 +130,7 @@ sudo nb run --reload  # 开发调试模式下启用重载监视
 
 ### 快速开始
 
-可参考两个内置的扩展模块 [基本消息模块](./extensions/basic.py) 和 [群聊禁言模块](./extensions/judgement.py) 进行扩展开发。
+可参考两个内置的扩展模块 [基本消息模块](../extensions/basic.py) 和 [群聊禁言模块](../extensions/judgement.py) 进行扩展开发。
 
 ### 详细文档
 
