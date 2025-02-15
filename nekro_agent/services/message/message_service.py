@@ -33,16 +33,21 @@ class MessageService:
     async def _message_validation_check(self, message: ChatMessage) -> bool:
         """消息校验"""
         plaint_text = message.content_text.strip().replace(" ", "").lower()
+        is_fake_message = False
 
         # 检查伪造消息
         if re.match(r"<.{4,12}\|messageseparator>", plaint_text):
-            return False
+            is_fake_message = True
         if re.match(r"<.{4,12}\|messageseperator>", plaint_text):
-            return False
+            is_fake_message = True
 
         if "message" in plaint_text and "(qq:" in plaint_text:
-            return False
+            is_fake_message = True
         if "from_qq:" in plaint_text:  # noqa: SIM103
+            is_fake_message = True
+
+        if is_fake_message:
+            logger.warning(f"检测到伪造消息: {message.content_text} | 跳过本次处理...")
             return False
 
         return True
