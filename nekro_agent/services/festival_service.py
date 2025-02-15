@@ -1,3 +1,4 @@
+import asyncio
 import time
 from datetime import datetime
 from datetime import time as dt_time
@@ -6,12 +7,15 @@ from typing import List, Tuple
 from lunar_python import Lunar
 
 from nekro_agent.core import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.timer_service import timer_service
 
 
 class FestivalService:
     """节日提醒服务"""
+
+    FESTIVAL_CHAT_KEY = "system_festival"  # 节日提醒专用的公共 chat_key
 
     def __init__(self):
         self.initialized = False
@@ -67,7 +71,6 @@ class FestivalService:
 
     async def _set_festival_timer(
         self,
-        chat_key: str,
         trigger_time: int,
         year: str,
         calendar_type: str,
@@ -75,12 +78,10 @@ class FestivalService:
         day: int,
         festival_name: str,
         desc: str,
-        delay_seconds: int = 0,
     ):
-        """为单个会话设置节日定时器
+        """设置节日定时器
 
         Args:
-            chat_key (str): 会话标识
             trigger_time (int): 触发时间戳
             year (str): 年份
             calendar_type (str): 历法类型
@@ -88,7 +89,6 @@ class FestivalService:
             day (int): 日期
             festival_name (str): 节日名称
             desc (str): 节日说明
-            delay_seconds (int, optional): 延迟触发时间（秒）. Defaults to 0.
         """
         event_desc = (
             f"{year}年{calendar_type}{month}月{day}日{festival_name}。\n"
@@ -97,19 +97,28 @@ class FestivalService:
             "表达你的祝福，记得加入应景的表情。"
         )
 
+        # 获取所有活跃会话并推送节日祝福
+        async def festival_callback():
+            channels = await DBChatChannel.filter(is_active=True).all()
+            for channel in channels:
+                await message_service.push_system_message(
+                    chat_key=channel.chat_key,
+                    agent_messages=event_desc,
+                    trigger_agent=True,
+                )
+                await asyncio.sleep(1)  # 每个会话间隔1秒
+
+        # 设置定时器
         await timer_service.set_timer(
-            chat_key=chat_key,
-            trigger_time=trigger_time + delay_seconds,
+            chat_key=self.FESTIVAL_CHAT_KEY,
+            trigger_time=trigger_time,
             event_desc=event_desc,
             silent=True,
+            callback=festival_callback,
         )
 
-    async def init_festivals(self, chat_keys: List[str]):
-        """初始化节日提醒
-
-        Args:
-            chat_keys (List[str]): 需要提醒的会话列表
-        """
+    async def init_festivals(self):
+        """初始化节日提醒"""
         if self.initialized:
             return
 
@@ -146,20 +155,15 @@ class FestivalService:
         for month, day, hour, minute, is_lunar, festival_name, desc in festivals:
             trigger_time, year = self._get_next_festival_time(month, day, hour, minute, is_lunar)
             calendar_type = "农历" if is_lunar else "公历"
-
-            # 为每个会话串行设置定时器，间隔1秒
-            for i, chat_key in enumerate(chat_keys):
-                await self._set_festival_timer(
-                    chat_key=chat_key,
-                    trigger_time=trigger_time,
-                    year=year,
-                    calendar_type=calendar_type,
-                    month=month,
-                    day=day,
-                    festival_name=festival_name,
-                    desc=desc,
-                    delay_seconds=i,  # 每个会话延迟1秒
-                )
+            await self._set_festival_timer(
+                trigger_time=trigger_time,
+                year=year,
+                calendar_type=calendar_type,
+                month=month,
+                day=day,
+                festival_name=festival_name,
+                desc=desc,
+            )
 
         self.initialized = True
         logger.info("Festival service initialized")

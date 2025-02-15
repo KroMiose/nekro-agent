@@ -45,9 +45,7 @@ async def on_startup():
     logger.info("Timer service initialized")
 
     # 初始化节日提醒
-    channels = await DBChatChannel.filter(is_active=True).all()
-    chat_keys = [channel.chat_key for channel in channels]
-    await festival_service.init_festivals(chat_keys)
+    await festival_service.init_festivals()
     logger.info("Festival service initialized")
 
 
