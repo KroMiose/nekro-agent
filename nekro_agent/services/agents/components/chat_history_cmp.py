@@ -1,6 +1,9 @@
 import json
 import time
+from datetime import datetime
 from typing import List
+
+from lunar_python import Lunar
 
 from nekro_agent.core import config
 from nekro_agent.libs.miose_llm import BaseStore
@@ -44,6 +47,6 @@ class ChatHistoryComponent(BaseComponent):
                 if self.params.chat_key == config.ADMIN_CHAT_KEY
                 else ""
             )
-            + f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())}\nRecent Messages:\n"
+            + f"Current Time: {time.strftime('%Y-%m-%d %H:%M:%S %Z %A', time.localtime())} | 农历: {Lunar.fromDate(datetime.now()).toString()}\nRecent Messages:\n"
             + f"\n<{self.params.one_time_code} | message separator>\n".join(self.chat_history)
         )
