@@ -1,14 +1,7 @@
-from nonebot.adapters.onebot.v11 import Bot
+from nekro_agent.api import context, core
+from nekro_agent.api.schemas import AgentCtx
 
-from nekro_agent.core import logger
-from nekro_agent.core.bot import get_bot
-from nekro_agent.core.config import config
-from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.services.chat import chat_service
-from nekro_agent.services.extension import ExtMetaData
-from nekro_agent.tools.collector import MethodType, agent_collector
-
-__meta__ = ExtMetaData(
+__meta__ = core.ExtMetaData(
     name="group_honor",
     description="[NA] 群荣誉",
     version="0.1.0",
@@ -17,7 +10,7 @@ __meta__ = ExtMetaData(
 )
 
 
-@agent_collector.mount_method(MethodType.TOOL)
+@core.agent_collector.mount_method(core.MethodType.TOOL)
 async def set_user_special_title(chat_key: str, user_qq: str, special_title: str, days: int, _ctx: AgentCtx) -> bool:
     """赋予用户头衔称号
 
@@ -30,22 +23,28 @@ async def set_user_special_title(chat_key: str, user_qq: str, special_title: str
     Returns:
         bool: 操作是否成功
     """
-    chat_type, chat_id = chat_key.split("_")
+    chat_type = context.get_chat_type(chat_key)
+    chat_id = context.get_chat_id(chat_key)
+
     if chat_type != "group":
-        logger.error(f"不支持 {chat_type} 类型")
+        core.logger.error(f"不支持 {chat_type} 类型")
         return False
 
     try:
-        await get_bot().call_api(
+        await core.get_bot().call_api(
             "set_group_special_title",
             group_id=int(chat_id),
             user_id=int(user_qq),
             special_title=special_title,
             duration=days * 24 * 60 * 60,
         )
-        logger.info(f"[{chat_key}] 已授予用户 {user_qq} 头衔 {special_title} {days} 天")
+        core.logger.info(f"[{chat_key}] 已授予用户 {user_qq} 头衔 {special_title} {days} 天")
     except Exception as e:
-        logger.error(f"[{chat_key}] 授予用户 {user_qq} 头衔 {special_title} {days} 天失败: {e}")
+        core.logger.error(f"[{chat_key}] 授予用户 {user_qq} 头衔 {special_title} {days} 天失败: {e}")
         return False
     else:
         return True
+
+
+async def clean_up():
+    """清理扩展"""

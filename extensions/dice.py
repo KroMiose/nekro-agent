@@ -1,12 +1,9 @@
 import random
 
-from nekro_agent.core import logger
-from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.services.chat import chat_service
-from nekro_agent.services.extension import ExtMetaData
-from nekro_agent.tools.collector import MethodType, agent_collector
+from nekro_agent.api import core, message
+from nekro_agent.api.schemas import AgentCtx
 
-__meta__ = ExtMetaData(
+__meta__ = core.ExtMetaData(
     name="dice",
     description="[NA] 掷骰姬",
     version="0.1.0",
@@ -15,7 +12,7 @@ __meta__ = ExtMetaData(
 )
 
 
-@agent_collector.mount_method(MethodType.AGENT)
+@core.agent_collector.mount_method(core.MethodType.AGENT)
 async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: AgentCtx) -> str:
     """对可能产生不同结果的事件发起掷骰检定请求以确认执行结果 (use lang: zh-CN)
 
@@ -54,13 +51,17 @@ async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: Ag
 
     roll_result = random.randint(1, 20)
     result_str = get_result_str(roll_result, roll_result + add_coin, difficulty)
-    await chat_service.send_agent_message(
+    await message.send_text(
         _ctx.from_chat_key,
         f"【检定事件】{event_name} ({difficulty}/20)\n> {description}\n========\n{fix_str}掷骰结果：{roll_result}{fix_diff_show} 【{result_str}】",
         _ctx,
-        record=False,
+        record=False,  # 掷骰结果不需要记录到上下文
     )
     return (
         f"[{event_name}] ({difficulty}/20) {fix_str_en} roll result: {roll_result}{fix_diff_show}【{result_str}】\n"
         "Please continue to generate responses based on the results"
     )
+
+
+async def clean_up():
+    """清理扩展"""

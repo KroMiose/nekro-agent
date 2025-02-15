@@ -1,14 +1,11 @@
 import time
 from typing import Optional
 
-from nekro_agent.core import logger
+from nekro_agent.api import core, schemas
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_channel import ChannelData, PresetEffect, PresetStatus
-from nekro_agent.services.extension import ExtMetaData
-from nekro_agent.tools.collector import MethodType, agent_collector
 
-__meta__ = ExtMetaData(
+__meta__ = core.ExtMetaData(
     name="status",
     description="[NA] 状态控制扩展",
     version="0.1.0",
@@ -17,8 +14,8 @@ __meta__ = ExtMetaData(
 )
 
 
-@agent_collector.mount_method(MethodType.BEHAVIOR)
-async def update_preset_status(chat_key: str, setting_name: str, description: str, _ctx: AgentCtx):
+@core.agent_collector.mount_method(core.MethodType.BEHAVIOR)
+async def update_preset_status(chat_key: str, setting_name: str, description: str, _ctx: schemas.AgentCtx):
     """更新人物设定基本状态
 
     **注意**: 你必须在**当且仅当**场景发展变化导致**不符合**当前设定状态时调用此方法来更新自身状态 (通常与 `set_effect` / `remove_effect` 配合使用)；由于上下文有限，你不能过度频繁使用此方法，否则会丢失较早的状态记录!
@@ -50,8 +47,8 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
     )
 
 
-@agent_collector.mount_method(MethodType.BEHAVIOR)
-async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: AgentCtx):
+@core.agent_collector.mount_method(core.MethodType.BEHAVIOR)
+async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: schemas.AgentCtx):
     """设置状态效果标签 适用于 "外观外貌"、"身体部位"、"心理状态" 等效果, 请**经常更新**你的角色的状态效果标签避免丢失记录
 
     Args:
@@ -74,8 +71,8 @@ async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: Ag
     return f"Effect `{effect_name}` added"
 
 
-@agent_collector.mount_method(MethodType.BEHAVIOR)
-async def remove_effect(chat_key: str, effect_name: str, _ctx: AgentCtx):
+@core.agent_collector.mount_method(core.MethodType.BEHAVIOR)
+async def remove_effect(chat_key: str, effect_name: str, _ctx: schemas.AgentCtx):
     """移除状态效果标签
 
     Args:
@@ -96,3 +93,7 @@ async def remove_effect(chat_key: str, effect_name: str, _ctx: AgentCtx):
     if success:
         return f"Effect `{effect_name}` removed"
     raise ValueError(f"Effect `{effect_name}` not found")
+
+
+async def clean_up():
+    """清理扩展"""

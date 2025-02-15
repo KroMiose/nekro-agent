@@ -2,7 +2,7 @@ import base64
 
 import httpx
 
-from nekro_agent.core import config, logger
+from nekro_agent.api import core
 
 DEFAULT_POSITIVE_PROMPTS = "best quality, masterpiece, anime illustration,"
 DEFAULT_NEGATIVE_PROMPTS = (
@@ -22,11 +22,11 @@ client = httpx.AsyncClient(
 
 async def text2img(prompt: str, negative_prompt: str, width: int, height: int) -> bytes:
     """通过 Stable Diffusion API 使用文本生成图像并返回图像字节数据"""
-    base_api: str = config.STABLE_DIFFUSION_API
+    base_api: str = core.config.STABLE_DIFFUSION_API
     base_api = base_api[:-1] if base_api.endswith("/") else base_api
     if not base_api.startswith("http"):
         base_api = f"http://{base_api}"
-    logger.info(f"Generating image with Stable Diffusion API: {base_api}")
+    core.logger.info(f"Generating image with Stable Diffusion API: {base_api}")
     try:
         response = await client.post(
             f"{base_api}/sdapi/v1/txt2img",
@@ -44,7 +44,7 @@ async def text2img(prompt: str, negative_prompt: str, width: int, height: int) -
         )
         response.raise_for_status()
     except Exception as e:
-        logger.error(f"Generating image failed: {e}")
+        core.logger.error(f"Generating image failed: {e}")
         raise
     else:
         try:

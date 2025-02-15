@@ -1,9 +1,7 @@
-from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.services.extension import ExtMetaData
-from nekro_agent.services.timer_service import timer_service
-from nekro_agent.tools.collector import MethodType, agent_collector
+from nekro_agent.api import core, timer
+from nekro_agent.api.schemas import AgentCtx
 
-__meta__ = ExtMetaData(
+__meta__ = core.ExtMetaData(
     name="timer",
     description="[NA] 定时器工具集",
     version="0.1.0",
@@ -12,8 +10,14 @@ __meta__ = ExtMetaData(
 )
 
 
-@agent_collector.mount_method(MethodType.TOOL)
-async def set_timer(chat_key: str, trigger_time: int, event_desc: str, _ctx: AgentCtx, *, temporary: bool) -> bool:
+@core.agent_collector.mount_method(core.MethodType.TOOL)
+async def set_timer(
+    chat_key: str,
+    trigger_time: int,
+    event_desc: str,
+    temporary: bool,
+    _ctx: AgentCtx,
+) -> bool:
     """设置一个定时器，在指定时间触发自身响应；临时定时器主要用于回复后设置短期自我唤醒来观察新消息和反馈
     !!!始终记住：定时器的本质功能是允许你自行唤醒你自己作为 LLM 的回复流程, 非必要不得反复自我唤醒!!!
 
@@ -48,4 +52,12 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str, _ctx: Age
         )
         ```
     """
-    return await timer_service.set_timer(chat_key, trigger_time, event_desc, override=temporary)
+    if trigger_time < 0:
+        return await timer.clear_timers(chat_key)
+    if temporary:
+        return await timer.set_temp_timer(chat_key, trigger_time, event_desc)
+    return await timer.set_timer(chat_key, trigger_time, event_desc)
+
+
+async def clean_up():
+    """清理扩展"""

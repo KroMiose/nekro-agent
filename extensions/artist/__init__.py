@@ -4,7 +4,7 @@ from typing import Tuple
 import httpx
 
 from nekro_agent.core import logger
-from nekro_agent.schemas.agent_ctx import AgentCtx
+from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
@@ -54,3 +54,7 @@ async def draw_image(scene_description: str, img_size: Tuple, _ctx: AgentCtx) ->
     bytes_data: bytes = await text2img(prompts, negative_prompts, img_size[0], img_size[1])
     file_path, file_name = await download_file_from_bytes(bytes_data, use_suffix=".png", from_chat_key=_ctx.from_chat_key)
     return str(convert_file_name_to_container_path(file_name))
+
+
+async def clean_up():
+    """清理扩展"""

@@ -9,7 +9,7 @@ from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
-from nekro_agent.schemas.agent_ctx import AgentCtx
+from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,

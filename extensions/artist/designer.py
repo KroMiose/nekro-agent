@@ -1,7 +1,6 @@
 from typing import Tuple
 
-from nekro_agent.core.config import config
-from nekro_agent.tools.llm import get_chat_response
+from nekro_agent.api import core, llm
 
 SYSTEM_PROMPT = """
 # Stable Diffusion prompt 助理
@@ -18,7 +17,7 @@ Stable Diffusion是一款利用深度学习的文生图模型，支持通过使�
 
 ## prompt 概念
 
-- 完整的prompt只包含“**Prompt:**”和"**Negative Prompt:**"两部分。
+- 完整的prompt只包含"**Prompt:**"和"**Negative Prompt:**"两部分。
 - prompt 用来描述图像，由普通常见的单词构成，使用英文半角","做为分隔符。
 - negative prompt用来描述你不想在生成的图像中出现的内容。
 - 以","分隔的每个单词或词组称为 tag。所以prompt和negative prompt是由系列由","分隔的tag组成的。
@@ -33,7 +32,7 @@ Stable Diffusion是一款利用深度学习的文生图模型，支持通过使�
 
 ### 1. prompt 要求
 
-- 你输出的 Stable Diffusion prompt 以“**Prompt:**”开头。
+- 你输出的 Stable Diffusion prompt 以"**Prompt:**"开头。
 - prompt 内容包含画面主体、材质、附加细节、图像质量、艺术风格、色彩色调、灯光等部分，但你输出的 prompt 不能分段，例如类似"medium:"这样的分段描述是不需要的，也不能包含":"和"."。
 - 画面主体：尽可能简短的英文描述画面主体, 如 A girl in a garden，主体细节概括（主体可以是人、事、物、景）画面核心内容。这部分根据用户每次给你的主题来生成。你可以添加更多主题相关的合理的细节。
 - 对于人物主题，你必须描述人物的眼睛、鼻子、嘴唇，例如'beautiful detailed eyes,beautiful detailed lips,extremely detailed eyes and face,longeyelashes'，以免Stable Diffusion随机生成变形的面部五官，这点非常重要。你还可以描述人物的外表、情绪、衣服、姿势、视角、动作、背景等。人物属性中，1girl表示一个女孩，2girls表示两个女孩。
@@ -132,12 +131,12 @@ Note: Unless user's scenario requires, your response should not be similar to th
 
 async def gen_sd_prompt_by_scene(scene: str) -> Tuple[str, str]:
     """根据场景生成 sd 绘画提示词"""
-    res = await get_chat_response(
+    res = await llm.get_chat_response(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT_EN.strip()},
             {"role": "user", "content": f"场景:{scene}"},
         ],
-        model_group=config.STABLE_DIFFUSION_USE_MODEL_GROUP,
+        model_group=core.config.STABLE_DIFFUSION_USE_MODEL_GROUP,
     )
     if res.startswith("```"):
         res = res[3:-3].strip()
@@ -150,12 +149,12 @@ async def gen_sd_prompt_by_scene(scene: str) -> Tuple[str, str]:
 
 async def gen_sd_prompt_by_character(character: str):
     """根据角色生成 sd 绘画提示词"""
-    res = await get_chat_response(
+    res = await llm.get_chat_response(
         messages=[
             {"role": "system", "content": SYSTEM_PROMPT.strip()},
             {"role": "user", "content": f"角色:{character}"},
         ],
-        model_group=config.STABLE_DIFFUSION_USE_MODEL_GROUP,
+        model_group=core.config.STABLE_DIFFUSION_USE_MODEL_GROUP,
     )
     if res.startswith("```"):
         res = res[3:-3].strip()
