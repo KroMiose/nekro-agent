@@ -10,6 +10,7 @@ export interface ConfigItem {
   element_type?: string  // 列表元素类型
   enum?: string[]
   is_secret?: boolean
+  is_textarea?: boolean
   ref_model_groups?: boolean
   is_hidden?: boolean
   required?: boolean  // 添加必填属性

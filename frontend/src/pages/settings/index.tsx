@@ -434,6 +434,9 @@ export default function SettingsPage() {
             type={isSecret && !visibleSecrets[config.key] ? 'password' : 'text'}
             placeholder={config.placeholder}
             autoComplete="off"
+            multiline={config.is_textarea}
+            minRows={config.is_textarea ? 3 : 1}
+            maxRows={config.is_textarea ? 8 : 1}
             InputProps={
               isSecret
                 ? {

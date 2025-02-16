@@ -21,6 +21,7 @@ import {
   DialogActions,
   InputAdornment,
   Link,
+  styled,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -287,6 +288,15 @@ function EditDialog({
   )
 }
 
+const BlurredText = styled('div')`
+  filter: blur(4px);
+  transition: filter 0.2s ease-in-out;
+
+  &:hover {
+    filter: blur(0);
+  }
+`
+
 export default function ModelGroupsPage() {
   const queryClient = useQueryClient()
   const [message, setMessage] = useState('')
@@ -380,7 +390,9 @@ export default function ModelGroupsPage() {
                     </Typography>
                   </TableCell>
                   <TableCell>{config.CHAT_MODEL}</TableCell>
-                  <TableCell>{config.BASE_URL}</TableCell>
+                  <TableCell>
+                    <BlurredText>{config.BASE_URL}</BlurredText>
+                  </TableCell>
                   <TableCell>{config.CHAT_PROXY || '-'}</TableCell>
                   <TableCell className="text-right">
                     <Stack direction="row" spacing={1} className="justify-end">

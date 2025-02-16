@@ -89,6 +89,10 @@ async def get_config_list(_current_user: DBUser = Depends(get_current_active_use
             if get_field_extra(field, "is_secret"):
                 config_item["is_secret"] = True
 
+            # 添加文本域标识
+            if get_field_extra(field, "is_textarea"):
+                config_item["is_textarea"] = True
+
             modifiable_configs.append(config_item)
 
     return Ret.success(msg="获取成功", data=modifiable_configs)
@@ -175,6 +179,10 @@ async def get_config(key: str, _current_user: DBUser = Depends(get_current_activ
     # 添加密钥标识
     if get_field_extra(field, "is_secret"):
         config_item["is_secret"] = True
+
+    # 添加文本域标识
+    if get_field_extra(field, "is_textarea"):
+        config_item["is_textarea"] = True
 
     return Ret.success(msg="获取成功", data=config_item)
 
