@@ -196,14 +196,18 @@ async def clean_up():
     pass
 
 请根据以上规范和示例生成内容。
-'''
+'''.strip()
 
-GENERATE_USER_PROMPT = r"""请生成以下扩展功能的代码：
-
-{prompt}
-
+GENERATE_USER_PROMPT = """
 {'当前代码：' + current_code if current_code else '暂无'}
-"""
+
+以下是用户需求：
+<requirement>
+{prompt}
+</requirement>
+
+请根据以上需求生成内容
+""".strip()
 
 
 async def generate_extension_code(file_path: str, prompt: str, current_code: Optional[str] = None) -> str:
@@ -258,28 +262,28 @@ async def generate_extension_code_stream(
         yield chunk
 
 
-APPLY_SYSTEM_PROMPT = r"""你是一个专门负责应用代码修改的模型。你的任务是基于生成模型的输出结果，将用户的修改需求准确地应用到现有代码中。
+APPLY_SYSTEM_PROMPT = r"""你是一个专门负责应用代码修改的模型。你的任务是基于生成模型的输出结果，将其修改需求准确地应用到现有代码中。
 
 你需要：
-1. 理解这些代码是由另一个生成模型创建的
-2. 严格按照提示词的要求进行修改
+1. 理解这些代码修改建议是由另一个生成模型创建的
+2. 严格按照提示词的要求进行修改原始代码
 3. 保持代码的整体结构和风格
-4. 不要添加任何需求中未提及的代码或者做多余的事情
-5. 确保修改后的代码仍然完整且可运行
+4. 确保给出的代码完整且可运行，不得使用任何占位符
+5. 100% 忠实地遵循修改需求并完成它
 
-请直接返回修改后的完整代码，不需要任何解释或注释。"""
+请直接返回修改后的完整代码文件，不需要任何解释"""
 
-APPLY_USER_PROMPT = r"""这是生成模型创建的现有代码：
-```python
+APPLY_USER_PROMPT = """这是现有代码：
+<code>
 {current_code}
-```
+</code>
 
 需要应用的修改需求：(可能是来自其他 LLM 的修改建议)
-```
+<suggestion>
 {prompt}
-```
+</suggestion>
 
-请严格按照上述需求修改代码。只更改必要的部分，保持其他代码不变。直接返回完整的修改后代码。"""
+请严格按照上述需求修改代码。并返回**完整的修改后代码**。"""
 
 
 async def apply_extension_code(file_path: str, prompt: str, current_code: str) -> str:

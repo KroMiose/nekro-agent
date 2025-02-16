@@ -125,6 +125,7 @@ export default function ExtensionsEditorPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [isApplying, setIsApplying] = useState(false)
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState<string>('')
   const [generatedCode, setGeneratedCode] = useState<string>('')
@@ -268,22 +269,17 @@ export default function ExtensionsEditorPage() {
 
   // 应用生成的代码
   const handleApplyCode = async () => {
-    if (!generatedCode || !selectedFile) return
-
-    setIsGenerating(true)
-    setError('')
-
+    if (!selectedFile || !generatedCode) return
+    setIsApplying(true)
     try {
-      setSuccess('正在应用代码...')
-      const appliedCode = await extensionsApi.applyGeneratedCode(selectedFile, prompt, code)
-      setCode(appliedCode)
-      setHasUnsavedChanges(true)
-      setSuccess('代码应用成功！')
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError(`应用代码失败: ${errorMessage}`)
+      const result = await extensionsApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
+      setCode(result)
+      setOriginalCode(code)
+      setSuccess('代码应用成功')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : '代码应用失败')
     } finally {
-      setIsGenerating(false)
+      setIsApplying(false)
     }
   }
 
@@ -533,6 +529,7 @@ export default function ExtensionsEditorPage() {
               formatOnPaste: true,
               formatOnType: true,
               scrollBeyondLastLine: false,
+              readOnly: isApplying,
             }}
           />
         </Box>
@@ -614,7 +611,7 @@ export default function ExtensionsEditorPage() {
           color="primary"
           startIcon={<AutoAwesomeIcon />}
           onClick={handleGenerate}
-          disabled={isGenerating}
+          disabled={isGenerating || isApplying}
           sx={{
             background: theme => theme.palette.primary.main,
             '&:hover': {
@@ -690,6 +687,24 @@ export default function ExtensionsEditorPage() {
             flexDirection: 'column',
           }}
         >
+          {isApplying && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(0, 0, 0, 0.3)',
+                zIndex: 1,
+              }}
+            >
+              <CircularProgress />
+            </Box>
+          )}
           {generatedCode ? (
             <>
               <Box

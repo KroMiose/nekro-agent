@@ -96,6 +96,8 @@ export const extensionsApi = {
         file_path: filePath,
         prompt,
         current_code: currentCode,
+      }, {
+        timeout: 60000,
       })
       return response.data.data.code
     } catch (error) {
