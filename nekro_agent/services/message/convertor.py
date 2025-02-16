@@ -1,3 +1,4 @@
+from fileinput import filename
 from typing import Any, Dict, List, Tuple, Union, cast
 
 import json5
@@ -54,6 +55,7 @@ async def convert_chat_message(
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
             if not ob_event.file.model_extra["url"].startswith("http"):
+                logger.warning(f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}")
                 return ret_list, False, ""
             local_path, file_name = await download_file(
                 ob_event.file.model_extra["url"],
@@ -69,6 +71,12 @@ async def convert_chat_message(
                     remote_url="",
                 ),
             )
+        else:
+            # file_data = await bot.get_file(file_id=ob_event.file.id)
+            # logger.debug(f"获取文件: {file_data}")
+            # TODO: 获取文件: {'file': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'url': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'file_size': '1079', 'filename': 'XXXXXX.csv'}
+            # TODO: 需要调整 NapCat 容器挂载以获取到文件
+            logger.debug(f"无法处理的文件消息: {ob_event.file}")
 
         return ret_list, False, ""
 

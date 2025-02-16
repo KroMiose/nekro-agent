@@ -161,3 +161,6 @@ docker/.env
 
 # wandb files
 wandb
+
+# Extension workdir
+ext_workdir

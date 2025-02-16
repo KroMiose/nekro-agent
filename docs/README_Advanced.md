@@ -107,7 +107,7 @@ sudo bash sandbox.sh --pull
 
 ```bash
 sudo nb run
-sudo nb run --reload  # 开发调试模式下启用重载监视
+sudo nb run --reload --reload-excludes ext_workdir # 开发调试模式下启用重载监视并排除动态扩展目录
 ```
 
 #### 7. OneBot 机器人配置

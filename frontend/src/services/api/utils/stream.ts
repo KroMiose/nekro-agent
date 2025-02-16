@@ -7,6 +7,8 @@ export interface StreamOptions {
   onError?: (error: Error) => void
   endpoint: string
   baseUrl?: string
+  method?: 'GET' | 'POST'
+  body?: Record<string, unknown>
 }
 
 /**
@@ -15,7 +17,7 @@ export interface StreamOptions {
  * @returns 取消函数
  */
 export const createEventStream = (options: StreamOptions) => {
-  const { onMessage, onError, endpoint, baseUrl = config.apiBaseUrl } = options
+  const { onMessage, onError, endpoint, baseUrl = config.apiBaseUrl, method = 'GET', body } = options
 
   if (!baseUrl) throw new Error('API 基础 URL 未配置')
 
@@ -28,12 +30,14 @@ export const createEventStream = (options: StreamOptions) => {
   try {
     // 创建 EventSource 连接
     fetchEventSource(`${baseUrl}${endpoint}`, {
+      method,
       signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
+      body: body ? JSON.stringify(body) : undefined,
       openWhenHidden: true,
       onmessage(ev: EventSourceMessage) {
         onMessage(ev.data)

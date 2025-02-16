@@ -5,7 +5,8 @@ import LogsPage from '../pages/logs'
 import SettingsPage from '../pages/settings'
 import SettingsLayout from '../pages/settings/Layout'
 import ModelGroupsPage from '../pages/model-groups'
-import ExtensionsPage from '../pages/extensions'
+import ExtensionsManagementPage from '../pages/extensions/management'
+import ExtensionsEditorPage from '../pages/extensions/editor'
 import NapCatPage from '../pages/protocols/napcat'
 import SandboxPage from '../pages/sandbox'
 import ProfilePage from '../pages/profile'
@@ -30,7 +31,16 @@ const router = createHashRouter([
       },
       {
         path: 'extensions',
-        element: <ExtensionsPage />,
+        children: [
+          {
+            path: 'management',
+            element: <ExtensionsManagementPage />,
+          },
+          {
+            path: 'editor',
+            element: <ExtensionsEditorPage />,
+          },
+        ],
       },
       {
         path: 'sandbox-logs',

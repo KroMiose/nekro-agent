@@ -17,7 +17,7 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_channel import MAX_PRESET_STATUS_SHOW_SIZE, ChannelData
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.extension import ALL_EXT_META_DATA
+from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.tools.common_util import get_app_version
@@ -342,7 +342,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    ext_info = "\n".join([ext.gen_ext_info() for ext in ALL_EXT_META_DATA])
+    ext_info = "\n".join([ext.gen_ext_info() for ext in get_all_ext_meta_data()])
     await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
 
 
@@ -455,3 +455,17 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await finish_with(matcher, message="数据库重置完成")
     else:
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
+
+
+@on_command("reload_ext", aliases={"reload-ext"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    try:
+        reloaded_modules = reload_ext_workdir()
+        if reloaded_modules:
+            await finish_with(matcher, message="重载成功！已重载以下模块:\n" + "\n".join([f"- {m}" for m in reloaded_modules]))
+        else:
+            await finish_with(matcher, message="重载完成，但没有找到任何模块")
+    except Exception as e:
+        await finish_with(matcher, message=f"重载失败: {e!s}")

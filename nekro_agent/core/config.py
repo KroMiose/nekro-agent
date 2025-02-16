@@ -224,6 +224,18 @@ class PluginConfig(ConfigBase):
         title="启用的插件模块",
         description="暂时不支持热重载，请重启 Nekro Agent 后生效，前往 <a href='https://github.com/KroMiose/nekro-agent/blob/main/docs/README_Extensions.md' target='_blank'>插件模块列表</a>",
     )
+    EXTENSION_GENERATE_MODEL_GROUP: str = Field(
+        default="default",
+        title="扩展代码生成模型组",
+        json_schema_extra={"ref_model_groups": True},
+        description="用于生成扩展代码的模型组，建议使用上下文长，逻辑推理能力强的模型",
+    )
+    EXTENSION_APPLY_MODEL_GROUP: str = Field(
+        default="default",
+        title="扩展代码应用模型组",
+        json_schema_extra={"ref_model_groups": True},
+        description="用于应用扩展代码的模型组，建议使用上下文长，响应速度快的模型",
+    )
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(

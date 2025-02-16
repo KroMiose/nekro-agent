@@ -58,7 +58,15 @@ interface MenuGroup {
 // 集中的页面配置
 const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
   { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
-  { path: '/extensions', text: '扩展管理', icon: <ExtensionIcon /> },
+  {
+    key: 'extensions',
+    text: '扩展能力',
+    icon: <ExtensionIcon />,
+    children: [
+      { path: '/extensions/management', text: '扩展管理', icon: <ExtensionIcon />, parent: 'extensions' },
+      { path: '/extensions/editor', text: '扩展编辑器', icon: <CodeIcon />, parent: 'extensions' },
+    ],
+  },
   { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
   {
     key: 'protocols',
@@ -112,6 +120,7 @@ export default function MainLayout() {
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
+    extensions: true,
     protocols: true,
     settings: true,
   })
