@@ -94,7 +94,7 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
     """群消息撤回通知处理器"""
 
     def get_notice_config(self) -> NoticeConfig:
-        return NoticeConfig(force_tome=True, use_system_sender=True)
+        return NoticeConfig(force_tome=False, use_system_sender=True)
 
     def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_recall":
