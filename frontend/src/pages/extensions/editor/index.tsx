@@ -227,6 +227,7 @@ export default function ExtensionsEditorPage() {
 
     setIsGenerating(true)
     setError('')
+    setGeneratedCode('')
 
     try {
       const cleanup = streamGenerateCode(
@@ -274,7 +275,7 @@ export default function ExtensionsEditorPage() {
     try {
       const result = await extensionsApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
       setCode(result)
-      setOriginalCode(code)
+      setHasUnsavedChanges(true)
       setSuccess('代码应用成功')
     } catch (error) {
       setError(error instanceof Error ? error.message : '代码应用失败')
@@ -495,7 +496,7 @@ export default function ExtensionsEditorPage() {
             overflow: 'hidden',
           }}
         >
-          {isLoading && (
+          {(isLoading || isApplying) && (
             <Box
               sx={{
                 position: 'absolute',
@@ -504,13 +505,17 @@ export default function ExtensionsEditorPage() {
                 right: 0,
                 bottom: 0,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme.palette.background.paper,
+                backgroundColor: theme =>
+                  `${theme.palette.background.paper}${isApplying ? '80' : 'FF'}`,
                 zIndex: 1,
+                transition: 'background-color 0.3s ease',
               }}
             >
-              <CircularProgress />
+              <CircularProgress size={40} sx={{ mb: 2 }} />
+              <Typography>{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
             </Box>
           )}
           <Editor
@@ -529,7 +534,6 @@ export default function ExtensionsEditorPage() {
               formatOnPaste: true,
               formatOnType: true,
               scrollBeyondLastLine: false,
-              readOnly: isApplying,
             }}
           />
         </Box>
@@ -574,13 +578,15 @@ export default function ExtensionsEditorPage() {
             >
               删除扩展
             </Button>
-            <Button
-              startIcon={<ExtensionIcon />}
-              onClick={() => setReloadExtDialogOpen(true)}
-              color="primary"
-            >
-              重载扩展
-            </Button>
+            <Tooltip title="修改后的扩展需要重载才能生效" arrow placement="top">
+              <Button
+                startIcon={<ExtensionIcon />}
+                onClick={() => setReloadExtDialogOpen(true)}
+                color="primary"
+              >
+                重载扩展
+              </Button>
+            </Tooltip>
           </ButtonGroup>
         </Box>
 
@@ -719,6 +725,7 @@ export default function ExtensionsEditorPage() {
                   borderRadius: 1,
                   fontFamily: 'monospace',
                   whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-all',
                   fontSize: '14px',
                   '&::-webkit-scrollbar': {
                     width: '8px',
