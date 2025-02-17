@@ -57,6 +57,7 @@ class ChatScene(BaseScene):
         chat_key: str = ""
         chat_preset: str = ""
         one_time_code: str = ""
+        bot_qq: str = ""
 
 
 @weave.op(name="agent_run")
@@ -88,6 +89,9 @@ async def agent_run(
     scene.store.set("chat_key", chat_key)
     scene.store.set("one_time_code", one_time_code)
     scene.store.set("chat_preset", config.AI_CHAT_PRESET_SETTING)
+    scene.store.set("bot_qq", config.BOT_QQ)
+    if not config.BOT_QQ:
+        logger.warning("未设置机器人 QQ 号，可能导致应用行为异常，请尽快设置")
 
     # 2. 构建聊天记录组件
     chat_history_component = (
@@ -100,6 +104,11 @@ async def agent_run(
         .bind(
             param_key="chat_key",
             store_key="chat_key",
+            src_store=scene.store,
+        )
+        .bind(
+            param_key="bot_qq",
+            store_key="bot_qq",
             src_store=scene.store,
         )
     )
@@ -163,7 +172,7 @@ async def agent_run(
     prompt_creator = OpenAIPromptCreator(
         SystemMessage(
             TextComponent(
-                "Base Character Stetting For You: {chat_preset}",
+                "Base Character Stetting For You: {chat_preset}\n\nYour QQ Number: {bot_qq} (Useful for identifying the sender of the message)",
                 src_store=scene.store,
             ),
             ChatResponseResolver.example(one_time_code),  # 生成一个解析结果示例
@@ -174,7 +183,12 @@ async def agent_run(
         UserMessage(ChatResponseResolver.practice_question_2()),
         AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
-            "Good, Ignore the previous actual content, this is an effective response to a positive action. Next is a real user conversation scene\n\n",
+            "Continue. Next is a real user conversation scene",
+            (
+                ", but this time use 中文 in thinking content and keep thinking step by step carefully and comprehensively\n\n"
+                if config.AI_ENABLE_COT
+                else "\n\n"
+            ),
             *img_seg_prompts,
             f"{(await db_chat_channel.get_channel_data()).render_prompts()}\n",  # 聊天频道配置
             TextComponent(
@@ -184,10 +198,6 @@ async def agent_run(
             chat_history_component,
         ),
         *addition_prompt_message,
-        # # 文本生成使用的参数
-        # temperature=0.3,
-        # presence_penalty=0.3,
-        # frequency_penalty=0.4,
     )
 
     # 4. 绑定 LLM 执行器
