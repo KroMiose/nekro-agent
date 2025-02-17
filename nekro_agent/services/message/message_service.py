@@ -253,6 +253,10 @@ class MessageService:
         )
 
         if trigger_agent:
+            db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+            if not db_chat_channel.is_active:
+                logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
+                return
             await self.schedule_agent_task(chat_key=chat_key)
 
 
