@@ -142,11 +142,6 @@ class PluginConfig(ConfigBase):
         title="忽略正则表达式",
         description="忽略正则表达式，当消息匹配到正则表达式时，不会触发 AI 回复",
     )
-    AI_NAME_PREFIX: str = Field(
-        default="",
-        title="AI名称前缀",
-        description="状态扩展修改群名片时会自动添加该前缀",
-    )
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
         default=768,
         title="单条消息最大长度 (字符)",
@@ -198,6 +193,16 @@ class PluginConfig(ConfigBase):
         default=True,
         title="显示处理中表情回应",
         description="当 AI 处理消息时，会显示处理中表情回应",
+    )
+    SESSION_ENABLE_CHANGE_NICKNAME: bool = Field(
+        default=True,
+        title="启用群名片修改",
+        description="启用后 AI 会根据人设状态修改群名片",
+    )
+    SESSION_NICKNAME_PREFIX: str = Field(
+        default="",
+        title="AI 群名片名称前缀",
+        description="状态扩展修改群名片时会自动添加该前缀",
     )
 
     """沙盒配置"""
