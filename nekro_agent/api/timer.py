@@ -4,6 +4,7 @@
 """
 
 from nekro_agent.services.timer_service import timer_service
+from typing import Optional
 
 __all__ = [
     "clear_timers",
@@ -70,21 +71,28 @@ async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> b
     return await timer_service.set_timer(chat_key, trigger_time, event_desc, override=True)
 
 
-async def clear_timers(chat_key: str) -> bool:
-    """清空指定会话的所有定时器
+async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
+    """清空指定会话的定时器
 
     Args:
         chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        temporary (Optional[bool], optional): 定时器类型筛选。None表示清除所有定时器，True只清除临时定时器，False只清除非临时定时器。
 
     Returns:
         bool: 是否清空成功
 
     Example:
         ```python
-        from nekro_agent.api.timer import clear_timers
+        from nekro_agent.api import timer
 
         # 清空群组的所有定时器
-        clear_timers("group_123456")
+        timer.clear_timers("group_123456")
+
+        # 只清空临时定时器
+        timer.clear_timers("group_123456", temporary=True)
+
+        # 只清空非临时定时器
+        timer.clear_timers("group_123456", temporary=False)
         ```
     """
-    return await timer_service.set_timer(chat_key, -1, "", override=False)
+    return await timer_service.set_timer(chat_key, -1, "", override=False, temporary=temporary)

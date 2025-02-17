@@ -23,18 +23,16 @@ async def set_timer(
 
     Args:
         chat_key (str): 会话标识
-        trigger_time (int): 触发时间戳。若 trigger_time == 0 则立即触发会话；若 trigger_time < 0 则清空当前会话所有定时器
+        trigger_time (int): 触发时间戳。若 trigger_time == 0 则立即触发会话；若 trigger_time < 0 则清空当前会话指定类型的定时器
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
         temporary (bool): 是否临时定时器。用于设置短期自我唤醒检查新消息，同一会话只会保留最后一个临时定时器。
+                         当 trigger_time < 0 时，此参数用于指定要清除的定时器类型。
 
     Returns:
         bool: 是否设置成功
 
     Example:
         ```python
-        # 清空定时器
-        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=False)
-
         # 临时定时器（自我唤醒）
         set_timer(
             chat_key="group_123",
@@ -42,6 +40,12 @@ async def set_timer(
             event_desc="我刚才建议用户重启，需要观察反馈。",
             temporary=True
         )
+
+        # 清空临时定时器
+        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=True)
+
+        # 清空非临时定时器
+        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=False)
 
         # 普通定时器（常规提醒）
         set_timer(
@@ -53,7 +57,7 @@ async def set_timer(
         ```
     """
     if trigger_time < 0:
-        return await timer.clear_timers(chat_key)
+        return await timer.clear_timers(chat_key, temporary=temporary)
     if temporary:
         return await timer.set_temp_timer(chat_key, trigger_time, event_desc)
     return await timer.set_timer(chat_key, trigger_time, event_desc)

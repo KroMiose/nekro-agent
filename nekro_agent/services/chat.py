@@ -1,15 +1,14 @@
-from io import BytesIO
 from pathlib import Path
-from typing import List, Literal, Optional, Union
+from typing import List, Optional, Union
 
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from pydantic import BaseModel
 
+from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
-from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -155,6 +154,7 @@ class ChatService:
             await self.send_message(chat_key, message)
         if record:
             from nekro_agent.services.message.message_service import message_service
+
             await message_service.push_bot_message(chat_key, messages)
 
     async def send_message(self, chat_key: str, message: Union[str, Message]):

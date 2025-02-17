@@ -52,27 +52,36 @@ class TimerService:
         event_desc: str,
         silent: bool = False,
         override: bool = False,
+        temporary: Optional[bool] = None,
         callback: Optional[Callable[[], Awaitable[None]]] = None,
     ) -> bool:
         """设置定时器
 
         Args:
             chat_key (str): 会话标识
-            trigger_time (int): 触发时间戳。如果为0则立即触发会话;如果小于0则清空当前会话的所有定时器。
+            trigger_time (int): 触发时间戳。如果为0则立即触发会话;如果小于0则清空当前会话的定时器。
             event_desc (str): 详细事件描述
             silent (bool, optional): 是否静默设置. Defaults to False.
             override (bool): 是否为临时定时器，每个会话只能存在一个临时定时器，新设置的临时定时器会自动覆盖同一会话中已存在的临时定时器。
+            temporary (Optional[bool], optional): 清除定时器时的类型筛选。None表示清除所有定时器，True只清除临时定时器，False只清除非临时定时器。仅在 trigger_time < 0 时生效。
             callback (Optional[Callable[[], Awaitable[None]]], optional): 定时器触发时执行的回调函数. Defaults to None.
 
         Returns:
             bool: 是否设置成功
         """
-        # 如果触发时间小于0，清空当前会话的所有定时器
+        # 如果触发时间小于0，清空当前会话的定时器
         if trigger_time < 0:
             if chat_key in self.tasks:
-                del self.tasks[chat_key]
+                if temporary is None:
+                    # 清空所有定时器
+                    del self.tasks[chat_key]
+                else:
+                    # 根据 temporary 参数筛选要保留的定时器
+                    self.tasks[chat_key] = [task for task in self.tasks[chat_key] if task.temporary != temporary]
+                    if not self.tasks[chat_key]:
+                        del self.tasks[chat_key]
                 if not silent:
-                    logger.info(f"已清空会话 {chat_key} 的所有定时器")
+                    logger.info(f"已清空会话 {chat_key} 的{'所有' if temporary is None else '临时' if temporary else '非临时'}定时器")
             return True
 
         # 如果触发时间为0，立即触发会话

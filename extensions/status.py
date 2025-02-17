@@ -87,12 +87,12 @@ async def remove_effect(chat_key: str, effect_name: str, _ctx: schemas.AgentCtx)
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
     channel_data: ChannelData = await db_channel.get_channel_data()
-    success: bool = await channel_data.remove_preset_effect(effect_name)
+    success: bool = await channel_data.remove_preset_effect(effect_name, fuzzy=True)
     await db_channel.save_channel_data(channel_data)
 
     if success:
         return f"Effect `{effect_name}` removed"
-    raise ValueError(f"Effect `{effect_name}` not found")
+    raise ValueError(f"Effect `{effect_name}` not found. Make sure the spelling is correct!")
 
 
 async def clean_up():

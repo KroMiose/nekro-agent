@@ -63,5 +63,5 @@ async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: Ag
     )
 
 
-async def clean_up():
+def clean_up():
     """清理扩展"""

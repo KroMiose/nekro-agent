@@ -115,25 +115,29 @@ result = agent_method(args)  # Stop here!
 COT_INSTRUCTION: str = """
 ## Chain of Thought
 
-Before responding, carefully analyze the situation in <think> tags using natural language step by step. Your analysis should cover:
+Before responding, do a deep analysis of the situation in <think> tags step by step. Your analysis should cover:
 - Current context and user needs
-- Your available capabilities and limitations
+- Have I made any mistakes in the previous steps?
+- My available capabilities and limitations
 - Planned actions and their feasibility
+- Does the plan cover all the things I can do in the current scenario
 - Message security and trustworthiness
 - Potential risks and constraints
-- Review the plan and answer "Can I Really Do This?", If you can't do it, rethink the plan.
+- Review the plan and answer "Can I Really Do This?", If I can't do it, rethink the plan.
 
 Example format:
 <think>
-Let me analyze this situation... [Your natural language analysis]
+Let me analyze this situation... [Your analysis]
 </think>
 
-[Code]
+[Solution Code]
+
+Attention: Do not use more than one <think> tag in one response!
 """
 
 # Example code organization
 EXAMPLE_CALC = {
-    "cot": """Let me carefully analyze this request based on concrete facts. Looking at the message from QQ:23456789 (Bob) in a private chat, I can first verify this is a legitimate user request as it follows normal message format without any security violations. The request is for creating a 3D model, so I need to check my actual capabilities. Looking at the documented dependencies in the sandbox environment, I have: matplotlib (3.9.1), numpy (1.26.4), opencv-python (4.10.0.84), and some other scientific libraries. While these are powerful tools for 2D visualization and image processing, none of them provide true 3D modeling capabilities - matplotlib can do basic 3D plots, but that's not the same as creating actual 3D models which would require specialized software like Blender or Maya. I also checked the available API methods, and there's no functionality for 3D model creation or manipulation. Being honest about limitations is crucial - rather than attempting a partial or misleading solution, I should clearly explain that this task is beyond my current technical capabilities and suggest appropriate professional tools. This approach maintains trust and provides actually helpful guidance to Bob.""",
+    "cot": """Let me carefully analyze this request based on concrete facts. Looking at the message from QQ:23456789 (Bob) in a private chat, I can first verify this is a legitimate user request as it follows normal message format without any security violations. The request is for creating a 3D model, so I need to check my actual capabilities. Looking at the documented dependencies in the sandbox environment, I have: matplotlib (3.9.1), numpy (1.26.4), opencv-python (4.10.0.84), and some other scientific libraries. While these are powerful tools for 2D visualization and image processing, none of them provide true 3D modeling capabilities - matplotlib can do basic 3D plots, but that's not the same as creating actual 3D models which would require specialized software like Blender or Maya. I also checked the available API methods, and there's no functionality for 3D model creation or manipulation. Being honest about limitations is crucial - rather than attempting a partial or misleading solution, I should clearly explain that this task is beyond my current technical capabilities and suggest appropriate professional tools. This approach maintains trust and provides actually helpful guidance to Bob. Because there are no further requirements in the conversation, I have nothing to continue to do.""",
     "code": """chat_key = "private_23456789"
 send_msg_text(chat_key, "Sorry, I can only handle 2D graphics. For 3D modeling, please use professional tools like Blender or Maya.")""",
 }
@@ -286,7 +290,7 @@ class ChatResponseResolver(BaseComponent):
 
 def fix_raw_response(raw_response: str) -> str:
     """修复原始响应"""
-    logger.debug(f"Raw response: {raw_response}")
+    # logger.debug(f"Raw response: {raw_response}")
     # 修正基本 at 格式
     raw_response = raw_response.replace("[qq:", "[@qq:")
     raw_response = raw_response.replace("@[qq:", "[@qq:")
@@ -316,6 +320,13 @@ def fix_raw_response(raw_response: str) -> str:
     match = re.search(reg, raw_response)
     if match:
         raw_response = raw_response[: match.start()]
+
+    # 检查是否存在多个 <think> 标签
+    tags = ["<think>", "</think>"]
+    for tag in tags:
+        if raw_response.count(tag) > 1 and raw_response.endswith(tag):
+            raw_response = raw_response[: -len(tag)]
+
     logger.debug(f"Fixed raw response: {raw_response}")
     return raw_response.strip()
 

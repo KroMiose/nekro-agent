@@ -84,6 +84,8 @@ def reload_ext_workdir() -> List[str]:
                 # 尝试导入并重载模块
                 if module_path in sys.modules:
                     module = reload(sys.modules[module_path])
+                    if hasattr(module, "clean_up") and callable(module.clean_up):
+                        module.clean_up()
                 else:
                     module = import_module(module_path)
                 reloaded_modules.append(module_path)
@@ -100,8 +102,6 @@ def reload_ext_workdir() -> List[str]:
                         logger.warning(f'扩展工作目录模块: "{module_path}" 元数据格式错误')
                 else:
                     logger.warning(f'工作目录扩展模块: "{module_path}" 缺少元数据')
-
-                logger.success(f"重载模块成功: {module_path}")
             except Exception as e:
                 logger.error(f"重载模块失败 {module_path}: {e!s}")
                 continue

@@ -48,7 +48,7 @@ async def your_function(param1: str, param2: int, _ctx: AgentCtx):
     # 实现你的功能
     pass
 
-async def clean_up():
+def clean_up():
     """清理扩展 (模块卸载时调用，用于重置全局变量等状态信息)"""
     pass
 ```
@@ -209,16 +209,37 @@ async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> b
 #### clear_timers
 
 ```python
-async def clear_timers(chat_key: str) -> bool:
-    """清空指定会话的所有定时器
+async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
+    """清空指定会话的定时器
 
     Args:
         chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        temporary (Optional[bool], optional): 定时器类型筛选。None表示清除所有定时器，True只清除临时定时器，False只清除非临时定时器。
 
     Returns:
         bool: 是否清空成功
+
+    Example:
+        ```python
+        from nekro_agent.api import timer
+
+        # 清空群组的所有定时器
+        timer.clear_timers("group_123456")
+
+        # 只清空临时定时器
+        timer.clear_timers("group_123456", temporary=True)
+
+        # 只清空非临时定时器
+        timer.clear_timers("group_123456", temporary=False)
+        ```
     """
 ```
+
+定时器使用说明：
+1. 普通定时器用于设置常规的定时提醒，如用户请求的提醒事项
+2. 临时定时器主要用于 AI 自我唤醒，观察用户反馈，每个会话只保留最后一个临时定时器
+3. 清除定时器时可以选择清除所有定时器、只清除临时定时器或只清除非临时定时器
+4. 定时器的本质功能是允许 AI 自行唤醒自己的回复流程，非必要不应反复自我唤醒
 
 ### 上下文 API
 

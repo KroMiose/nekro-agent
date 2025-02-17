@@ -52,13 +52,13 @@ class DocCollector:
             if method_tag == "":
                 if func not in self.tag_map[method_tag]:
                     self.tag_map[method_tag].add(func)
-                    logger.success(f"注册方法 {func.__name__} 到默认标签。")
+                    logger.debug(f"注册方法 {func.__name__} 到默认标签。")
                 else:
                     logger.error(f"[!扩展加载冲突!] 方法 {func.__name__} 已存在于默认标签中。")
             else:
                 if func not in self.tag_map[method_tag]:
                     self.tag_map[method_tag].add(func)
-                    logger.success(f"注册方法 {func.__name__} 到标签 {method_tag}。")
+                    logger.debug(f"注册方法 {func.__name__} 到标签 {method_tag}。")
                 else:
                     logger.error(f"[!扩展加载冲突!] 方法 {func.__name__} 已存在于标签 {method_tag} 中。")
             return func

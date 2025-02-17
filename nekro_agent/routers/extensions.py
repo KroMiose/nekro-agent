@@ -1,23 +1,24 @@
+import json
+from typing import AsyncGenerator, Dict, List
+
 from fastapi import APIRouter, Body, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
-from typing import AsyncGenerator, List, Dict
-import json
 
 from nekro_agent.core import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
-from nekro_agent.services.extension.manager import get_all_ext_meta_data
 from nekro_agent.services.extension import (
-    generate_extension_code,
-    get_ext_workdir_files,
-    read_ext_file,
-    save_ext_file,
-    generate_extension_template,
-    generate_extension_code_stream,
     apply_extension_code,
     delete_ext_file,
+    generate_extension_code,
+    generate_extension_code_stream,
+    generate_extension_template,
+    get_ext_workdir_files,
+    read_ext_file,
     reload_ext_workdir,
+    save_ext_file,
 )
+from nekro_agent.services.extension.manager import get_all_ext_meta_data
 from nekro_agent.systems.user.deps import get_current_active_user
 from nekro_agent.tools.collector import MethodType, agent_collector
 
@@ -170,9 +171,10 @@ async def delete_extension_file(file_path: str) -> Dict[str, str]:
     """删除扩展文件"""
     try:
         delete_ext_file(file_path)
-        return {"message": "文件删除成功"}
     except (ValueError, FileNotFoundError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    else:
+        return {"message": "文件删除成功"}
 
 
 @router.get("/files/{file_path:path}")
@@ -181,7 +183,7 @@ async def read_extension_file(file_path: str) -> str:
     try:
         return read_ext_file(file_path)
     except (ValueError, FileNotFoundError) as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 
 @router.post("/reload", summary="重载所有扩展")

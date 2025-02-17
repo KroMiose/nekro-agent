@@ -1,5 +1,6 @@
 import time
 from typing import Optional
+
 from httpx import AsyncClient
 
 from nekro_agent.api import core
@@ -70,7 +71,7 @@ async def google_search(keyword: str, _ctx: AgentCtx) -> str:
     return f"[Google Search Results]\n{results}\nAnalyze and synthesize the above search results to provide insights. DO NOT directly repeat the search results - integrate them into a thoughtful response."
 
 
-async def clean_up():
+def clean_up():
     """清理扩展"""
     global _last_keyword, _last_call_time
     _last_keyword = None

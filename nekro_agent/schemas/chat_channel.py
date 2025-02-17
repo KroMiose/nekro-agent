@@ -102,11 +102,16 @@ class ChannelData(BaseModel):
         """更新预设效果"""
         self.preset_effects[effect.effect_name] = effect
 
-    async def remove_preset_effect(self, effect_name: str) -> bool:
+    async def remove_preset_effect(self, effect_name: str, fuzzy: bool = False) -> bool:
         """移除预设效果"""
         if effect_name in self.preset_effects:
             del self.preset_effects[effect_name]
             return True
+        if fuzzy:
+            for effect in self.preset_effects:
+                if effect_name.replace(" ", "") in effect.replace(" ", ""):
+                    del self.preset_effects[effect]
+                    return True
         return False
 
     def render_prompts(self) -> str:
