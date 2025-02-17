@@ -3,7 +3,7 @@
 负责生成扩展代码和模板。
 """
 
-from typing import Optional, AsyncGenerator, Dict, Any
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from nekro_agent.core.config import config
 from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
@@ -125,9 +125,9 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
       - get_bot(): 获取机器人实例
 
    b) 消息 API (nekro_agent.api.message):
-      - send_text(chat_key: str, message: str, ctx: AgentCtx, record: bool = True)
-      - send_image(chat_key: str, image_path: str, ctx: AgentCtx, record: bool = True)
-      - send_file(chat_key: str, file_path: str, ctx: AgentCtx, record: bool = True)
+      - send_text(chat_key: str, message: str, record: bool = True, ctx: AgentCtx)
+      - send_image(chat_key: str, image_path: str, record: bool = True, ctx: AgentCtx)
+      - send_file(chat_key: str, file_path: str, record: bool = True, ctx: AgentCtx)
       - download_from_url(url: str, ctx: AgentCtx) -> str
 
    c) 定时器 API (nekro_agent.api.timer):
@@ -210,7 +210,7 @@ GENERATE_USER_PROMPT = """
 """.strip()
 
 
-async def generate_extension_code(file_path: str, prompt: str, current_code: Optional[str] = None) -> str:
+async def generate_extension_code(file_path: str, prompt: str, current_code: Optional[str] = None) -> str:  # noqa: ARG001
     """生成扩展代码
 
     Args:
@@ -234,7 +234,9 @@ async def generate_extension_code(file_path: str, prompt: str, current_code: Opt
 
 
 async def generate_extension_code_stream(
-    file_path: str, prompt: str, current_code: Optional[str] = None
+    file_path: str,  # noqa: ARG001
+    prompt: str,
+    current_code: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
     """流式生成扩展代码
 
@@ -286,7 +288,7 @@ APPLY_USER_PROMPT = """这是现有代码：
 请严格按照上述需求修改代码。并返回**完整的修改后代码**。"""
 
 
-async def apply_extension_code(file_path: str, prompt: str, current_code: str) -> str:
+async def apply_extension_code(file_path: str, prompt: str, current_code: str) -> str:  # noqa: ARG001
     """应用生成的代码
 
     Args:
