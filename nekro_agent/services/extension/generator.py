@@ -172,7 +172,7 @@ from nekro_agent.api.schemas import AgentCtx
 __meta__ = core.ExtMetaData(
     name="weather",
     version="1.0.0",
-    author="喵喵助手",
+    author="喵喵小助手",
     description="天气查询扩展",
 )
 
@@ -324,14 +324,12 @@ def _clean_code_format(code: str) -> str:
     Returns:
         str: 清理后的代码
     """
+    code = code.strip()
     # 移除开头的 ```python 或 ``` 标记
-    if code.startswith("```python"):
+    if code.lower().startswith("```python"):
         code = code[10:]
-    elif code.startswith("```"):
-        code = code[3:]
-
     # 移除结尾的 ``` 标记
-    if code.endswith("```"):
+    if code.endswith("\n```"):
         code = code[:-3]
 
-    return code.strip()
+    return code.strip() + "\n"
