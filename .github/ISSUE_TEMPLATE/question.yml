@@ -23,7 +23,7 @@ body:
     id: version
     attributes:
       label: 版本信息
-      description: 您正在使用的 Nekro Agent 版本
+      description: 您正在使用的 Nekro Agent 版本 (可在 WebUI 左上角 or 使用 `/na-info` 命令查看)
       placeholder: 例如：v0.7.0
     validations:
       required: true

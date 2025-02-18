@@ -183,7 +183,7 @@ async def agent_run(
         UserMessage(ChatResponseResolver.practice_question_2()),
         AiMessage(ChatResponseResolver.practice_response_2()),
         UserMessage(
-            "Continue. Next is a real user conversation scene",
+            "Continue. Next is a real user conversation scene. Note that the sandbox before this has been cleaned up, and do not use the previously generated resources.",
             (
                 ", but this time use 中文 in thinking content and keep thinking step by step carefully and comprehensively\n\n"
                 if config.AI_ENABLE_COT

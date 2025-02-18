@@ -123,18 +123,34 @@ async def get_chat_response_stream(
                 timeout=60,
             ) as response:
                 response.raise_for_status()
-                async for line in response.aiter_lines():
-                    if line.strip():
-                        if line.startswith("data: "):
-                            line = line[6:]  # 移除 "data: " 前缀
-                        if line == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(line)
-                            if chunk.get("choices") and chunk["choices"][0].get("delta", {}).get("content"):
-                                yield chunk["choices"][0]["delta"]["content"]
-                        except json.JSONDecodeError:
-                            continue
+                buffer = ""
+                async for chunk in response.aiter_bytes():
+                    buffer += chunk.decode()
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        line = line.strip()
+                        if line:
+                            if line.startswith("data: "):
+                                line = line[6:]  # 移除 "data: " 前缀
+                            if line == "[DONE]":
+                                return
+                            try:
+                                chunk_data = json.loads(line)
+                                if chunk_data.get("choices") and chunk_data["choices"][0].get("delta", {}).get("content"):
+                                    yield chunk_data["choices"][0]["delta"]["content"]
+                            except json.JSONDecodeError:
+                                continue
+                # 处理最后可能剩余的数据
+                if buffer.strip():
+                    try:
+                        if buffer.startswith("data: "):
+                            buffer = buffer[6:]
+                        if buffer != "[DONE]":
+                            chunk_data = json.loads(buffer)
+                            if chunk_data.get("choices") and chunk_data["choices"][0].get("delta", {}).get("content"):
+                                yield chunk_data["choices"][0]["delta"]["content"]
+                    except json.JSONDecodeError:
+                        pass
     except Exception as e:
         logger.error(f"调用 LLM API 失败: {e}")
         raise

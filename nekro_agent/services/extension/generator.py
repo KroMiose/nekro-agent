@@ -29,7 +29,7 @@ from nekro_agent.api.schemas import AgentCtx
 __meta__ = core.ExtMetaData(
     name="{name}",
     version="0.1.0",
-    author="",
+    author="喵喵小助手",
     description="{description}",
 )
 
@@ -53,7 +53,7 @@ async def example_method(text: str, _ctx: AgentCtx) -> str:
 
 
 GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生成 Nekro Agent 的扩展代码。
-请根据用户的需求，生成符合以下规范的完整代码：
+请根据用户的需求，生成符合以下规范的代码修改建议：
 
 1. 代码规范：
    - 使用 Python 3.8+ 语法
@@ -162,7 +162,8 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
    - 必须生成完整代码，不要省略内容
    - 必须包含所有必要的导入语句
    - 必须正确处理所有可能的异常
-   - 不使用 Optional 类型的扩展方法参数，要求 AI 必须提供参数
+   - 不使用 Optional 类型的扩展方法参数，不要为任何参数设定默认值，要求 AI 必须提供参数
+   - 修改代码时对于原代码中重复的内容可以使用 "\# ... existing code ..." 占位
 
 示例扩展结构：
 
@@ -275,28 +276,45 @@ async def generate_extension_code_stream(
         yield chunk
 
 
-APPLY_SYSTEM_PROMPT = r"""你是一个专门负责应用代码修改的模型。你的任务是基于生成模型的输出结果，将其修改需求准确地应用到现有代码中。
+APPLY_SYSTEM_PROMPT = r"""You are a specialized model responsible for applying code modifications. Your task is to accurately and completely apply modification suggestions from a generation model to existing code.
 
-你需要：
-1. 理解这些代码修改建议是由另一个生成模型创建的
-2. 严格按照提示词的要求进行修改原始代码
-3. 保持代码的整体结构和风格
-4. 确保给出的代码完整且可运行，不得使用任何占位符
-5. 100% 忠实地遵循修改需求并完成它
+Requirements:
+1. Understand that these modification suggestions come from another generation model
+2. Strictly follow the modification requirements while working with the original code
+3. Maintain the code's overall structure and style
+4. Ensure the output code is complete and executable, without any placeholder content
+5. Follow the modification requirements with 100% fidelity
+6. When encountering "... existing code ..." or similar placeholders in modification suggestions:
+   - You MUST locate the corresponding content in the original code
+   - Replace placeholders with the actual content from the original code
+   - Ensure the final output code is complete and executable
+7. NEVER use any form of placeholders or omission symbols in your output
+8. Output the complete code even for unchanged sections
 
-请直接返回修改后的完整代码文件，不需要任何解释"""
+Return the complete modified code file directly, without any explanations."""
 
-APPLY_USER_PROMPT = """这是现有代码：
+APPLY_USER_PROMPT = """Here is the existing code:
 <code>
 {current_code}
 </code>
 
-需要应用的修改需求：(可能是来自其他 LLM 的修改建议)
+Modification requirements (potentially from another LLM's suggestions):
 <suggestion>
 {prompt}
 </suggestion>
 
-请严格按照上述需求修改代码。并返回**完整的修改后代码**。"""
+Please strictly follow these requirements and return the complete, modified, usable code.
+
+Important Notes:
+1. Your output has no length restrictions
+2. The modified code MUST be complete, without any placeholders or omitted content
+3. NEVER use expressions like "... same as before ..." or any other placeholders
+4. When encountering "... existing code ..." placeholders:
+   - You MUST locate and replace them with the complete content from the original code
+   - Ensure proper context alignment before and after the replaced content
+5. ALL code sections MUST be included in the output, even if unchanged
+6. The output MUST be complete, executable, and functionally intact Python code
+"""
 
 
 async def apply_extension_code(file_path: str, prompt: str, current_code: str) -> str:  # noqa: ARG001
@@ -314,6 +332,14 @@ async def apply_extension_code(file_path: str, prompt: str, current_code: str) -
         {
             "role": "system",
             "content": APPLY_SYSTEM_PROMPT,
+        },
+        {
+            "role": "user",
+            "content": "Please confirm that you understand your responsibilities as an application model: You need to output complete, executable code based on the original code and modification suggestions. Even when the suggestions contain placeholders or omitted content, you must locate and fully replace them with the corresponding original code. You cannot use any form of placeholders or omissions. Do you agree to these requirements?",
+        },
+        {
+            "role": "assistant",
+            "content": "Yes, I fully understand my responsibilities:\n1. I am an application model responsible for accurately applying modification suggestions to the original code\n2. I will ensure the output code is complete and executable, without any placeholders\n3. When encountering placeholders in suggestions, I will locate and fully replace them with content from the original code\n4. I will maintain the code's structure and style while ensuring functional completeness\n5. I will include all code sections in the output, even if they remain unchanged\nI am now ready to perform the code modification task.",
         },
         {
             "role": "user",

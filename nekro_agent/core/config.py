@@ -283,7 +283,8 @@ class PluginConfig(ConfigBase):
     )
     STABLE_DIFFUSION_USE_MODEL_GROUP: str = Field(
         default="default",
-        title="Stable Diffusion 使用模型组 (注意: 该模型组是一个 LLM 模型，用于生成自然语言绘图使用的词条)",
+        title="Stable Diffusion 使用模型组",
+        description="Stable Diffusion 使用模型组，注意: 该模型组是一个 LLM 模型，用于生成自然语言绘图使用的词条",
         json_schema_extra={"ref_model_groups": True},
     )
 

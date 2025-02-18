@@ -10,7 +10,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.schemas.chat_message import ChatType
 
 MAX_PRESET_STATUS_LIST_SIZE = 99
-MAX_PRESET_STATUS_SHOW_SIZE = 8
+MAX_PRESET_STATUS_SHOW_SIZE = 6
 
 
 class PresetStatus(BaseModel):
