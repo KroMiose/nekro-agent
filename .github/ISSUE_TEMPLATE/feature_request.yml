@@ -1,0 +1,57 @@
+name: 🚀 功能请求
+description: 提出一个新功能建议
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢您的功能建议！请详细描述您期望的新功能，这将帮助我们更好地理解和评估您的需求。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 相关问题
+      description: 这个功能请求是否与某个具体使用场景问题相关？
+      placeholder: |
+        例如：我在使用时总是感到困扰...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的解决方案
+      description: 您希望看到什么样的解决方案？
+      placeholder: |
+        例如：我希望能够...
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 替代方案
+      description: 您考虑过哪些替代方案？
+      placeholder: |
+        例如：我尝试过...但是...
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级
+      description: 您认为这个功能的优先级如何？
+      options:
+        - 高（迫切需要）
+        - 中（对使用体验有改善）
+        - 低（有空再做）
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 补充信息
+      description: 其他信息需要补充或建议吗？
+      placeholder: |
+        例如：使用场景、技术建议等...

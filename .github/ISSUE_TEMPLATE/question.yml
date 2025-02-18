@@ -1,0 +1,35 @@
+name: 💡 问题咨询
+description: 提出一个使用相关的问题
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        在提问之前，请确保您已经查看过项目文档和常见问题（FAQ）。
+        
+  - type: textarea
+    id: question
+    attributes:
+      label: 您的问题
+      description: 请描述您遇到的问题
+      placeholder: |
+        1. 遇到了什么问题？
+        2. 已经尝试过什么方法？
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: 版本信息
+      description: 您正在使用的 Nekro Agent 版本
+      placeholder: 例如：v0.7.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: 补充信息
+      description: 还有什么其他信息需要补充的吗？
