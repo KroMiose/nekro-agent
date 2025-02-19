@@ -61,6 +61,12 @@ async def set_effect(chat_key: str, effect_name: str, description: str, _ctx: sc
         # 假设由于某种原因，你需要添加 "心情愉悦" 效果
         set_effect(chat_key, "心情愉悦", "因为 ...(事件发生) 而感到心情愉悦, ...(更多效果描述)")
         # 如果 "心情愉悦" 效果已经存在，该方法将会更新它的描述
+
+        # 该方法还能用来维护一些自己或他人的状态变量
+        last_money_yuan = 50
+        spend_money_yuan = 10
+        if last_money_yuan - spend_money_yuan > 0:
+            set_effect(chat_key, "xxx的财务状况", f"剩余 {last_money_yuan - spend_money_yuan} 元")
         ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)

@@ -34,21 +34,22 @@ __meta__ = core.ExtMetaData(
 )
 
 @core.agent_collector.mount_method(core.MethodType.TOOL)
-async def example_method(text: str, _ctx: AgentCtx) -> str:
+async def example_add_method(a: int, b: int, _ctx: AgentCtx) -> int:
     """示例方法
 
     Args:
-        text (str): 输入文本
+        a (int): 参数 a
+        b (int): 参数 b
 
     Returns:
-        str: 处理结果
+        int: 处理结果
     """
-    try:
-        # 在这里实现你的功能
-        return f"你输入了: {{text}}"
-    except Exception as e:
-        core.logger.error(f"处理失败: {{e}}")
-        return f"处理失败: {{e!s}}"
+    # 在这里实现你的功能
+    return a + b
+
+def clean_up():
+    """清理扩展资源"""
+    # 如有必要，在此实现清理资源的逻辑
 '''
 
 
@@ -113,7 +114,6 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
 6. 性能考虑：
    - 避免重复计算
    - 合理使用缓存
-   - 注意资源释放
    - 避免阻塞操作
 
 7. 可用的 API：
@@ -156,9 +156,10 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
       - get_avatar(user_qq: str, ctx: AgentCtx) -> str
 
 8. 注意事项：
-   - 所有方法必须是异步的(async def), 网络请求使用 httpx 库
+   - 所有注册方法必须是异步的(async def), 网络请求使用 httpx 库
    - _ctx 参数必须放在参数最后且不在方法文档中提及
-   - 代码文档中不要出现 await 关键字
+   - 注册方法的代码文档中不要出现 await 关键字
+   - 认真考虑注册方法文档对 LLM 的参考价值
    - 必须生成完整代码，不要省略内容
    - 必须包含所有必要的导入语句
    - 必须正确处理所有可能的异常
@@ -182,9 +183,9 @@ from nekro_agent.api.schemas import AgentCtx
 
 # 扩展元数据
 __meta__ = core.ExtMetaData(
-    name="weather",
+    name="weather",  # Do not modify when generating code for user
     version="1.0.0",
-    author="喵喵小助手",
+    author="喵喵小助手", # Do not modify when generating code for user
     description="天气查询扩展",
 )
 
@@ -205,7 +206,7 @@ async def query_weather(city: str, _ctx: AgentCtx) -> str:
 
 def clean_up():
     """清理扩展资源"""
-    pass
+    # 如有必要，在此实现清理资源的逻辑
 
 请根据以上规范和示例生成内容。
 '''.strip()
