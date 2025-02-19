@@ -300,6 +300,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 (@qq:123456@) -> [@qq:123456@]
     raw_response = re.sub(r"\(@qq:(\d+)@\)", r"[@qq:\1@]", raw_response)
+    # 修正 (@qq:123456) -> [@qq:123456@]
+    raw_response = re.sub(r"\(@qq:(\d+)\)", r"[@qq:\1@]", raw_response)
     # 修正 (@123456@) -> [@qq:123456@]
     raw_response = re.sub(r"\( ?@(\d+)@ ?\)", r"[@qq:\1@]", raw_response)
     # 修正  <7e56b348 | At:[@qq:xxx@]> -> [@qq:xxx@]

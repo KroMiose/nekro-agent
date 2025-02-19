@@ -34,7 +34,7 @@ RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
 API_CALLER_FILENAME = "api_caller.py.code"  # 外部 API 调用器文件名
 RUN_API_CALLER_FILENAME = "api_caller.py"  # 外部 API 调用器文件名
 
-CODE_RUN_ERROR_FLAG = "[CODE_RUN_ERROR]"  # 代码运行错误标记
+CODE_RUN_END_FLAG = "[CODE_RUN_END]"  # 代码运行结束标记
 
 EXEC_SCRIPT = f"""
 rm -f {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
@@ -43,7 +43,7 @@ cp {CONTAINER_SHARE_DIR}/{API_CALLER_FILENAME} {CONTAINER_WORK_DIR}/{RUN_API_CAL
 export MPLCONFIGDIR=/app/tmp/matplotlib &&
 python {RUN_CODE_FILENAME}
 if [ $? -ne 0 ]; then
-    echo "{CODE_RUN_ERROR_FLAG}"
+    echo "{CODE_RUN_END_FLAG}"
 fi
 """
 
@@ -175,7 +175,7 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
         chat_key=from_chat_key,
         code_text=code_text,
         outputs=output_text,
-        success=CODE_RUN_ERROR_FLAG not in output_text,
+        success=CODE_RUN_END_FLAG not in output_text,
     )
 
     return (
