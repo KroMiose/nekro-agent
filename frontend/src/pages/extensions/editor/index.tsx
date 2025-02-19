@@ -730,59 +730,151 @@ export default function ExtensionsEditorPage() {
           onClick={handleGenerate}
           disabled={!prompt.trim() || isApplying}
           sx={{
+            position: 'relative',
+            overflow: 'hidden',
             background: theme => theme.palette.primary.main,
-            '&:hover': {
-              background: theme => theme.palette.primary.dark,
+            color: 'white !important',
+            '& .MuiButton-startIcon': {
+              color: 'white',
+            },
+            '&::before': {
+              content: '""',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: `linear-gradient(45deg, 
+                #FF6B6B, 
+                #4ECDC4,
+                #45B7D1,
+                #96C93D,
+                #FF6B6B
+              )`,
+              backgroundSize: '400% 400%',
+              opacity: 0.7,
+              transition: 'opacity 0.3s ease',
+              animation: isGenerating 
+                ? 'gradient-fast 3s ease infinite'
+                : 'gradient 10s ease infinite',
+            },
+            '&:hover::before': {
+              opacity: 1,
+            },
+            '& > *': {
+              position: 'relative',
+              zIndex: 1,
+              color: 'white',
+            },
+            '@keyframes gradient': {
+              '0%': {
+                backgroundPosition: '0% 50%',
+              },
+              '50%': {
+                backgroundPosition: '100% 50%',
+              },
+              '100%': {
+                backgroundPosition: '0% 50%',
+              },
+            },
+            '@keyframes gradient-fast': {
+              '0%': {
+                backgroundPosition: '0% 50%',
+                transform: 'scale(1)',
+              },
+              '50%': {
+                backgroundPosition: '100% 50%',
+                transform: 'scale(1.02)',
+              },
+              '100%': {
+                backgroundPosition: '0% 50%',
+                transform: 'scale(1)',
+              },
+            },
+            '&:disabled': {
+              '&::before': {
+                opacity: 0.2,
+              },
+              '& > *': {
+                color: 'rgba(255, 255, 255, 0.7)',
+              },
             },
           }}
         >
           {isGenerating ? (
             <>
               <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
-              点击中断生成
+              <Box
+                component="span"
+                sx={{
+                  color: 'white',
+                  fontWeight: 'bold',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
+                  fontSize: '1rem',
+                }}
+              >
+                点击中断生成
+              </Box>
             </>
           ) : (
             <>
-              AI 生成
+              <Box
+                component="span"
+                sx={{
+                  color: 'white',
+                  fontWeight: 'bold',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
+                  fontSize: '1rem',
+                }}
+              >
+                AI 生成
+              </Box>
               <Box
                 component="span"
                 sx={{
                   ml: 1,
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '2px',
+                  gap: '4px',
                   opacity: 0.8,
-                  fontSize: '0.75em',
+                  fontSize: '0.85em',
+                  color: 'rgba(255,255,255,0.8)',
                 }}
               >
-                <Box
-                  component="span"
-                  sx={{
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '1px 4px',
-                    lineHeight: 1,
-                    fontFamily: 'monospace',
-                    background: 'rgba(255,255,255,0.1)',
-                  }}
-                >
-                  {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}
+                <Box component="span" sx={{
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  background: 'rgba(255,255,255,0.1)',
+                  fontFamily: '"Segoe UI", system-ui, sans-serif',
+                }}>
+                  {navigator.platform.includes('Mac') ? '⌘' : (
+                    <Box component="span" sx={{ 
+                      '& > span:first-of-type': { fontSize: '0.9em' },
+                      '& > span:last-of-type': { fontSize: '0.85em' },
+                    }}>
+                      <span>c</span>
+                      <span>trl</span>
+                    </Box>
+                  )}
                 </Box>
-                <Box component="span" sx={{ mx: '2px' }}>
+                <Box component="span" sx={{ 
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.6,
+                  px: 0.5,
+                }}>
                   +
                 </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '1px 4px',
-                    lineHeight: 1,
-                    fontFamily: 'monospace',
-                    background: 'rgba(255,255,255,0.1)',
-                  }}
-                >
-                  Enter
+                <Box component="span" sx={{
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '4px',
+                  padding: '2px 6px',
+                  background: 'rgba(255,255,255,0.1)',
+                  fontFamily: '"Segoe UI", system-ui, sans-serif',
+                }}>
+                  ↵
                 </Box>
               </Box>
             </>
@@ -909,9 +1001,82 @@ export default function ExtensionsEditorPage() {
               color="success"
               onClick={handleApplyCode}
               startIcon={<SaveIcon />}
-              disabled={!generatedCode}
+              disabled={!generatedCode || isGenerating}
+              sx={{
+                position: 'relative',
+                overflow: 'hidden',
+                background: theme => theme.palette.success.main,
+                color: 'white !important',
+                '& .MuiButton-startIcon': {
+                  color: 'white',
+                },
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  background: `linear-gradient(45deg, 
+                    #4CAF50,
+                    #81C784,
+                    #66BB6A,
+                    #43A047,
+                    #4CAF50
+                  )`,
+                  backgroundSize: '400% 400%',
+                  opacity: 0.7,
+                  transition: 'opacity 0.3s ease',
+                  animation: 'gradient 10s ease infinite',
+                },
+                '&:hover::before': {
+                  opacity: 1,
+                },
+                '& > *': {
+                  position: 'relative',
+                  zIndex: 1,
+                  color: 'white',
+                },
+                '&:disabled': {
+                  '&::before': {
+                    opacity: 0.2,
+                  },
+                  '& > *': {
+                    color: 'rgba(255, 255, 255, 0.7)',
+                  },
+                },
+              }}
             >
-              应用到编辑器
+              {isApplying ? (
+                <>
+                  <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
+                  <Box
+                    component="span"
+                    sx={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
+                      fontSize: '1rem',
+                    }}
+                  >
+                    正在应用...
+                  </Box>
+                </>
+              ) : (
+                <>
+                  <Box
+                    component="span"
+                    sx={{
+                      color: 'white',
+                      fontWeight: 'bold',
+                      textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
+                      fontSize: '1rem',
+                    }}
+                  >
+                    应用到编辑器
+                  </Box>
+                </>
+              )}
             </Button>
           </Box>
         </Box>
