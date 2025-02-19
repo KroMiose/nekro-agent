@@ -346,6 +346,13 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
 
 
+@on_command("na_ext_gen", aliases={"na-ext-gen"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    await finish_with(matcher, message="扩展模块生成中...")
+
+
 @on_command("na_help", aliases={"na-help"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)

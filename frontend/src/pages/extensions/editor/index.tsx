@@ -22,6 +22,7 @@ import {
   Snackbar,
   DialogContentText,
   ButtonGroup,
+  Menu,
 } from '@mui/material'
 import {
   Save as SaveIcon,
@@ -31,6 +32,10 @@ import {
   Refresh as RefreshIcon,
   Extension as ExtensionIcon,
   AutoAwesome as AutoAwesomeIcon,
+  MoreVert as MoreVertIcon,
+  PowerSettingsNew as PowerIcon,
+  ContentCopy as ContentCopyIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
 import { useTheme } from '@mui/material/styles'
@@ -135,8 +140,13 @@ export default function ExtensionsEditorPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [fileToDelete, setFileToDelete] = useState<string | null>(null)
   const [reloadExtDialogOpen, setReloadExtDialogOpen] = useState(false)
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
+  const open = Boolean(anchorEl)
   const theme = useTheme()
   const generatedCodeRef = useRef<HTMLDivElement>(null)
+  const [isCopied, setIsCopied] = useState(false)
+  const [abortController, setAbortController] = useState<AbortController | null>(null)
 
   // 加载文件列表
   useEffect(() => {
@@ -225,11 +235,22 @@ export default function ExtensionsEditorPage() {
       return
     }
 
+    if (isGenerating) {
+      // 如果正在生成，则中断当前生成过程
+      abortController?.abort()
+      setIsGenerating(false)
+      setAbortController(null)
+      return
+    }
+
     setIsGenerating(true)
     setError('')
     setGeneratedCode('')
 
     try {
+      const controller = new AbortController()
+      setAbortController(controller)
+
       const cleanup = streamGenerateCode(
         selectedFile,
         prompt,
@@ -246,27 +267,44 @@ export default function ExtensionsEditorPage() {
             } else if (jsonData.type === 'error') {
               setError(jsonData.error)
               setIsGenerating(false)
+              setAbortController(null)
             } else if (jsonData.type === 'done') {
               setIsGenerating(false)
+              setAbortController(null)
             }
           } catch (err) {
             console.error('解析消息失败:', err)
           }
         },
         error => {
-          console.error('生成代码失败:', error)
-          setError(`生成代码失败: ${error.message}`)
+          if (error.name !== 'AbortError') {
+            console.error('生成代码失败:', error)
+            setError(`生成代码失败: ${error.message}`)
+          }
           setIsGenerating(false)
-        }
+          setAbortController(null)
+        },
+        controller.signal
       )
 
-      return cleanup
+      return () => {
+        cleanup()
+        controller.abort()
+      }
     } catch (err) {
       console.error('启动代码生成失败:', err)
       setError('启动代码生成失败')
       setIsGenerating(false)
+      setAbortController(null)
     }
   }
+
+  // 组件卸载时中断生成
+  useEffect(() => {
+    return () => {
+      abortController?.abort()
+    }
+  }, [abortController])
 
   // 应用生成的代码
   const handleApplyCode = async () => {
@@ -401,12 +439,56 @@ export default function ExtensionsEditorPage() {
     }
   }
 
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget)
+  }
+
+  const handleMenuClose = () => {
+    setAnchorEl(null)
+  }
+
+  const handleToggleExtension = async () => {
+    if (!selectedFile) return
+
+    try {
+      const isDisabled = selectedFile.endsWith('.disabled')
+      const newFileName = isDisabled
+        ? selectedFile.replace('.disabled', '')
+        : `${selectedFile}.disabled`
+
+      await extensionsApi.saveExtensionFile(newFileName, code)
+      await deleteExtensionFile(selectedFile)
+
+      // 更新文件列表和选中文件
+      const files = (await extensionsApi.getExtensionFiles()) as string[]
+      setFiles(files)
+      setSelectedFile(newFileName)
+
+      setSuccess(`扩展${isDisabled ? '启用' : '禁用'}成功，请重载扩展使更改生效`)
+      setIsDisableDialogOpen(false)
+    } catch (err) {
+      setError(`${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}扩展失败: ${err}`)
+    }
+  }
+
+  const handleCopyCode = () => {
+    if (generatedCode) {
+      navigator.clipboard.writeText(generatedCode)
+      setIsCopied(true)
+      setTimeout(() => setIsCopied(false), 2000)
+    }
+  }
+
+  const handleClearCode = () => {
+    setGeneratedCode('')
+  }
+
   return (
     <Box
       sx={{
         display: 'flex',
         gap: 2,
-        height: 'calc(100vh - 120px)',
+        height: 'calc(100vh - 90px)',
       }}
     >
       {/* 左侧编辑器区域 */}
@@ -548,7 +630,7 @@ export default function ExtensionsEditorPage() {
           flexDirection: 'column',
           gap: 2,
           p: 2,
-          minWidth: 0,
+          minWidth: '420px',
         }}
       >
         {/* 操作区 */}
@@ -563,20 +645,7 @@ export default function ExtensionsEditorPage() {
               disabled={!hasUnsavedChanges}
               color="warning"
             >
-              重载代码
-            </Button>
-            <Button
-              startIcon={<DeleteIcon />}
-              onClick={() => {
-                if (selectedFile) {
-                  setFileToDelete(selectedFile)
-                  setDeleteDialogOpen(true)
-                }
-              }}
-              color="error"
-              disabled={!selectedFile}
-            >
-              删除扩展
+              重置代码
             </Button>
             <Tooltip title="修改后的扩展需要重载才能生效" arrow placement="top">
               <Button
@@ -587,7 +656,49 @@ export default function ExtensionsEditorPage() {
                 重载扩展
               </Button>
             </Tooltip>
+            <Button
+              startIcon={<PowerIcon />}
+              onClick={() => setIsDisableDialogOpen(true)}
+              disabled={!selectedFile}
+              color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
+            >
+              {selectedFile?.endsWith('.disabled') ? '启用扩展' : '禁用扩展'}
+            </Button>
+            <Button
+              id="more-button"
+              aria-controls={open ? 'more-menu' : undefined}
+              aria-haspopup="true"
+              aria-expanded={open ? 'true' : undefined}
+              onClick={handleMenuClick}
+              sx={{ maxWidth: '50px' }}
+            >
+              <MoreVertIcon />
+            </Button>
           </ButtonGroup>
+          <Menu
+            id="more-menu"
+            anchorEl={anchorEl}
+            open={open}
+            onClose={handleMenuClose}
+            MenuListProps={{
+              'aria-labelledby': 'more-button',
+            }}
+          >
+            <MenuItem
+              onClick={() => {
+                if (selectedFile) {
+                  setFileToDelete(selectedFile)
+                  setDeleteDialogOpen(true)
+                }
+                handleMenuClose()
+              }}
+              disabled={!selectedFile}
+              sx={{ color: theme => theme.palette.error.main }}
+            >
+              <DeleteIcon sx={{ mr: 1 }} />
+              删除扩展
+            </MenuItem>
+          </Menu>
         </Box>
 
         <Divider />
@@ -615,9 +726,9 @@ export default function ExtensionsEditorPage() {
         <Button
           variant="contained"
           color="primary"
-          startIcon={<AutoAwesomeIcon />}
+          startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
           onClick={handleGenerate}
-          disabled={isGenerating || isApplying}
+          disabled={!prompt.trim() || isApplying}
           sx={{
             background: theme => theme.palette.primary.main,
             '&:hover': {
@@ -626,7 +737,10 @@ export default function ExtensionsEditorPage() {
           }}
         >
           {isGenerating ? (
-            <CircularProgress size={24} />
+            <>
+              <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
+              点击中断生成
+            </>
           ) : (
             <>
               AI 生成
@@ -676,8 +790,6 @@ export default function ExtensionsEditorPage() {
         </Button>
 
         <Divider />
-        <Typography variant="h6">生成结果</Typography>
-
         {/* 生成结果区域 */}
         <Box
           sx={{
@@ -686,9 +798,8 @@ export default function ExtensionsEditorPage() {
             border: 1,
             borderColor: 'divider',
             borderRadius: 1,
-            overflow: 'auto',
+            overflow: 'hidden',
             position: 'relative',
-            p: 2,
             display: 'flex',
             flexDirection: 'column',
           }}
@@ -711,22 +822,28 @@ export default function ExtensionsEditorPage() {
               <CircularProgress />
             </Box>
           )}
-          {generatedCode ? (
-            <>
-              <Box
+          <Box
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'auto',
+              position: 'relative',
+            }}
+          >
+            {generatedCode ? (
+              <Paper
                 ref={generatedCodeRef}
+                elevation={0}
                 sx={{
-                  flex: 1,
-                  minHeight: 0,
-                  maxHeight: '100%',
+                  p: 2,
+                  height: '100%',
                   overflow: 'auto',
                   bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
-                  p: 2,
-                  borderRadius: 1,
-                  fontFamily: 'monospace',
+                  fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                  fontSize: '14px',
+                  lineHeight: '1.5',
                   whiteSpace: 'pre-wrap',
                   wordBreak: 'break-all',
-                  fontSize: '14px',
                   '&::-webkit-scrollbar': {
                     width: '8px',
                   },
@@ -740,38 +857,63 @@ export default function ExtensionsEditorPage() {
                 }}
               >
                 {generatedCode}
+              </Paper>
+            ) : (
+              <Box
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'text.secondary',
+                }}
+              >
+                {isGenerating ? (
+                  <Box sx={{ textAlign: 'center' }}>
+                    <CircularProgress size={40} sx={{ mb: 2 }} />
+                    <Typography>正在生成代码...</Typography>
+                  </Box>
+                ) : (
+                  <Typography>生成的代码将在这里显示...</Typography>
+                )}
               </Box>
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
+            )}
+          </Box>
+          <Divider />
+          <Box
+            sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
+            <ButtonGroup size="small" variant="outlined">
+              <Tooltip title={isCopied ? '已复制！' : '复制代码'}>
                 <Button
-                  variant="contained"
-                  color="success"
-                  onClick={handleApplyCode}
-                  startIcon={<SaveIcon />}
+                  startIcon={<ContentCopyIcon />}
+                  onClick={handleCopyCode}
+                  disabled={!generatedCode}
                 >
-                  应用到编辑器
+                  {isCopied ? '已复制' : '复制'}
                 </Button>
-              </Box>
-            </>
-          ) : (
-            <Box
-              sx={{
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'text.secondary',
-              }}
+              </Tooltip>
+              <Tooltip title="清空生成结果">
+                <Button
+                  startIcon={<ClearIcon />}
+                  onClick={handleClearCode}
+                  disabled={!generatedCode}
+                  color="warning"
+                >
+                  清空
+                </Button>
+              </Tooltip>
+            </ButtonGroup>
+            <Button
+              variant="contained"
+              color="success"
+              onClick={handleApplyCode}
+              startIcon={<SaveIcon />}
+              disabled={!generatedCode}
             >
-              {isGenerating ? (
-                <Box sx={{ textAlign: 'center' }}>
-                  <CircularProgress size={40} sx={{ mb: 2 }} />
-                  <Typography>正在生成代码...</Typography>
-                </Box>
-              ) : (
-                <Typography>生成的代码将在这里显示...</Typography>
-              )}
-            </Box>
-          )}
+              应用到编辑器
+            </Button>
+          </Box>
         </Box>
       </Paper>
 
@@ -822,6 +964,30 @@ export default function ExtensionsEditorPage() {
           <Button onClick={() => setReloadExtDialogOpen(false)}>取消</Button>
           <Button onClick={handleReloadExt} color="primary" variant="contained">
             重载
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add new disable extension dialog */}
+      <Dialog open={isDisableDialogOpen} onClose={() => setIsDisableDialogOpen(false)}>
+        <DialogTitle>
+          {selectedFile?.endsWith('.disabled') ? '确认启用扩展' : '确认禁用扩展'}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {selectedFile?.endsWith('.disabled')
+              ? '这将启用当前扩展，启用后需要重载扩展才能生效。确定要继续吗？'
+              : '这将禁用当前扩展，禁用后需要重载扩展才能生效。确定要继续吗？'}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsDisableDialogOpen(false)}>取消</Button>
+          <Button
+            onClick={handleToggleExtension}
+            color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
+            variant="contained"
+          >
+            {selectedFile?.endsWith('.disabled') ? '启用' : '禁用'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -9,6 +9,7 @@ export interface StreamOptions {
   baseUrl?: string
   method?: 'GET' | 'POST'
   body?: Record<string, unknown>
+  signal?: AbortSignal
 }
 
 /**
@@ -17,7 +18,15 @@ export interface StreamOptions {
  * @returns 取消函数
  */
 export const createEventStream = (options: StreamOptions) => {
-  const { onMessage, onError, endpoint, baseUrl = config.apiBaseUrl, method = 'GET', body } = options
+  const {
+    onMessage,
+    onError,
+    endpoint,
+    baseUrl = config.apiBaseUrl,
+    method = 'GET',
+    body,
+    signal,
+  } = options
 
   if (!baseUrl) throw new Error('API 基础 URL 未配置')
 
@@ -31,9 +40,9 @@ export const createEventStream = (options: StreamOptions) => {
     // 创建 EventSource 连接
     fetchEventSource(`${baseUrl}${endpoint}`, {
       method,
-      signal: controller.signal,
+      signal: signal || controller.signal,
       headers: {
-        'Authorization': `Bearer ${token}`,
+        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
         Accept: 'text/event-stream',
       },
@@ -51,7 +60,9 @@ export const createEventStream = (options: StreamOptions) => {
 
     // 返回取消函数
     return () => {
-      controller.abort()
+      if (!signal) {
+        controller.abort()
+      }
     }
   } catch (error) {
     console.error('构造 URL 失败:', error)

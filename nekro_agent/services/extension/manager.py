@@ -30,8 +30,8 @@ def get_ext_workdir_files() -> List[str]:
     if not ext_workdir.exists():
         return []
 
-    # 获取所有 .py 文件
-    py_files = list(ext_workdir.glob("**/*.py"))
+    # 获取所有 .py 和 .py.disabled 文件
+    py_files = list(ext_workdir.glob("**/*.py")) + list(ext_workdir.glob("**/*.py.disabled"))
     # 转换为相对路径
     return [str(f.relative_to(ext_workdir)) for f in py_files]
 

@@ -121,7 +121,8 @@ export const streamGenerateCode = (
   prompt: string,
   currentCode: string,
   onMessage: (data: string) => void,
-  onError?: (error: Error) => void
+  onError?: (error: Error) => void,
+  signal?: AbortSignal
 ) => {
   return createEventStream({
     endpoint: '/extensions/generate/stream',
@@ -133,6 +134,7 @@ export const streamGenerateCode = (
     },
     onMessage,
     onError,
+    signal,
   })
 }
 
