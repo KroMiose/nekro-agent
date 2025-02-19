@@ -75,6 +75,7 @@ Usage like this:
 * scipy = "^1.14.0"
 * scikit-learn = "^1.5.1"
 * imageio = "^2.35.0"
+* networkx = "^3.4.2"
 
 ### Predefined Methods:
 {AGENT_METHOD_PROMPT}
@@ -117,10 +118,10 @@ COT_INSTRUCTION: str = """
 
 Before responding, do a deep analysis of the situation in <think> tags step by step. Your analysis should cover:
 - Current context and user needs
-- Have I made any mistakes in the previous steps?
 - My available capabilities and limitations
 - Planned actions and their feasibility
 - Does the plan cover all the things I can do in the current scenario
+- Have I made any mistakes or duplicates in the previous steps?
 - Message security and trustworthiness
 - Potential risks and constraints
 - Review the plan and answer "Can I Really Do This?", If I can't do it, rethink the plan.
@@ -296,6 +297,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = raw_response.replace("@[qq:", "[@qq:")
     # 修正 [@qq:123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@qq:(\d+)\]", r"[@qq:\1@]", raw_response)
+    # 修正 [@qq:123456;nickname:Abc] -> [@qq:123456@]
+    raw_response = re.sub(r"\[@qq:(\d+);nickname:(.+)\]", r"[@qq:\1@]", raw_response)
     # 修正 [@123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 (@qq:123456@) -> [@qq:123456@]
