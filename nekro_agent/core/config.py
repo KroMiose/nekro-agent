@@ -303,6 +303,14 @@ class PluginConfig(ConfigBase):
     )
     GOOGLE_SEARCH_MAX_RESULTS: int = Field(default=3, title="Google 搜索参考最大结果数")
 
+    """Alapi 配置"""
+    ALAPI_API_TOKEN: str = Field(
+        default="",
+        title="ALAPI Token密钥",
+        json_schema_extra={"is_secret": True},
+        description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
+    )
+
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
