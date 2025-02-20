@@ -36,9 +36,9 @@ async def get_emoticon(keyword: str, _ctx: AgentCtx) -> str:
     Example:
         get_emoticon("猫咪")
     """
-    
-    api_token = core.config.ALAPI_API_TOKEN
+    #构建请求
     url = "https://v3.alapi.cn/api/doutu"
+    api_token = core.config.ALAPI_API_TOKEN
     querystring = {"token": api_token, "keyword": keyword, "page": "1"}
     headers = {'Content-Type': 'application/json'}
     
@@ -52,9 +52,13 @@ async def get_emoticon(keyword: str, _ctx: AgentCtx) -> str:
 
             if alapi_response.code == 200:
                 if alapi_response.data:
-                    # 随机选择一个 URL 并在前面加上字符串
-                    selected_url = random.choice(alapi_response.data)
-                    return f"[表情包直链需下载发送] {selected_url}"
+                    # 过滤掉后缀不是 .jpg 或 .png 的 URL
+                    valid_urls = [url for url in alapi_response.data if url.endswith(('.jpg', '.png'))]
+                    if valid_urls:
+                        selected_url = random.choice(valid_urls)
+                        return f"[图片直链] {selected_url}"
+                    else:
+                        return "未找到有效的表情包链接，请更换关键词重试。"
                 else:
                     return "未找到相关表情包，请更换关键词重试。"
             else:
