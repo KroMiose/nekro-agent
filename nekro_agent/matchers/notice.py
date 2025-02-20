@@ -28,8 +28,9 @@ class PokeNoticeHandler(BaseNoticeHandler):
         }
 
     def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:  # 添加 event_dict 参数
-        poke_style = event_dict.get("raw_info", [])[2].get("txt", "戳一戳") if len(event_dict.get("raw_info", [])) > 2 else "戳一戳"
-        poke_style_suffix = event_dict.get("raw_info", [])[4].get("txt", "") if len(event_dict.get("raw_info", [])) > 4 else ""
+        raw_info = event_dict.get("raw_info", [])
+        poke_style = raw_info[2].get("txt", "戳一戳") if len(raw_info) > 2 else "戳一戳"
+        poke_style_suffix = raw_info[4].get("txt", "") if len(raw_info) > 4 else ""
         if str(info["target_id"]) == str(config.BOT_QQ):
             return f"( {poke_style} {config.AI_CHAT_PRESET_NAME} {poke_style_suffix})"
         return f"({poke_style} {info['target_id']} {poke_style_suffix})"
