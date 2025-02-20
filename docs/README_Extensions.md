@@ -113,13 +113,16 @@ ADMIN_CHAT_KEY: "" # 管理会话标识，用于接收管理通知
 
 ### emo - 表情包获取
 
-提供表情包获取功能，基于 ALAPI。
+提供表情包获取功能。
 
-- **功能**: 让AI获取表情包
+- **功能**: 让 AI 获取表情包
 - **配置**:
 
 ```yaml
-ALAPI_API_TOKEN: "" # ALAPI Token密钥
+EMO_API_URL: "https://v3.alapi.cn/api/doutu" # API的URL配置可填写其他API(需更改默认API设置)
+EMO_API_API_TOKEN: "" # API Token密钥
+EMO_API_TYPE: 5 # API type配置(对表情包内容有影响)
+EMO_API_PAGE: 1 # API page配置(API分页，默认1)
 ```
 
 ## 💡 使用说明
