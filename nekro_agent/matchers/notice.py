@@ -27,10 +27,12 @@ class PokeNoticeHandler(BaseNoticeHandler):
             "target_id": str(event_dict["target_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:  # 添加 event_dict 参数
+        poke_style = event_dict.get("raw_info", [])[2].get("txt", "戳一戳") if len(event_dict.get("raw_info", [])) > 2 else "戳一戳"
+        poke_style_suffix = event_dict.get("raw_info", [])[4].get("txt", "") if len(event_dict.get("raw_info", [])) > 4 else ""
         if str(info["target_id"]) == str(config.BOT_QQ):
-            return f"(戳了戳 {config.AI_CHAT_PRESET_NAME})"
-        return f"(戳了戳 {info['target_id']})"
+            return f"( {poke_style} {config.AI_CHAT_PRESET_NAME} {poke_style_suffix})"
+        return f"({poke_style} {info['target_id']} {poke_style_suffix})"
 
 
 class GroupIncreaseNoticeHandler(BaseNoticeHandler):
@@ -46,7 +48,7 @@ class GroupIncreaseNoticeHandler(BaseNoticeHandler):
             "user_id": str(event_dict["user_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:
         return f"(新成员 (qq:{info['user_id']}) 加入群聊)"
 
 
@@ -63,7 +65,7 @@ class GroupDecreaseNoticeHandler(BaseNoticeHandler):
             "user_id": str(event_dict["user_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:
         return f"(成员 (qq:{info['user_id']}) 退出群聊)"
 
 
@@ -82,7 +84,7 @@ class GroupBanNoticeHandler(BaseNoticeHandler):
             "duration": str(event_dict["duration"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:
         duration = int(info["duration"])
         if duration == 0:
             return f"(成员 (qq:{info['user_id']}) 被管理员 (qq:{info['operator_id']}) 解除禁言)"
@@ -105,7 +107,7 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
             "message_id": str(event_dict["message_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:
         # 如果是自己撤回
         if info["user_id"] == info["operator_id"]:
             return f"(成员 (qq:{info['user_id']}) 撤回了一条消息，但该消息仍然对你可见)"
@@ -132,9 +134,9 @@ async def _(
     bot: Bot,
 ):
     # 处理通知事件
+    event_dict = dict(event)
     result = await notice_manager.handle(event, bot)
     if not result:
-        event_dict = dict(event)
         logger.debug(
             f"收到未处理的通知类型: {event_dict}\n"
             f"notice_type: {event_dict.get('notice_type')}\n"
@@ -147,7 +149,7 @@ async def _(
     chat_key, chat_type = await get_chat_info(event=event)
 
     # 格式化消息
-    content_text = handler.format_message(info)
+    content_text = handler.format_message(info, event_dict)
 
     if handler.config.use_system_sender:
         # 使用系统消息

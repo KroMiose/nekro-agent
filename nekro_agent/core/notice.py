@@ -34,7 +34,7 @@ class BaseNoticeHandler:
         """
         raise NotImplementedError
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    def format_message(self, info: Dict[str, str], event_dict: Dict[str, Any]) -> str:
         """格式化消息
         
         Args:
