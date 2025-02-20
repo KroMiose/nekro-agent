@@ -303,13 +303,20 @@ class PluginConfig(ConfigBase):
     )
     GOOGLE_SEARCH_MAX_RESULTS: int = Field(default=3, title="Google 搜索参考最大结果数")
 
-    """Alapi 配置"""
-    ALAPI_API_TOKEN: str = Field(
+    """emo表情包扩展 配置"""
+    EMO_API_URL: str = Field(
+        default="https://v3.alapi.cn/api/doutu",
+        title="API的URL配置可填写其他API(需更改默认API设置)",
+        json_schema_extra={"is_hidden": True},
+    )
+    EMO_API_API_TOKEN: str = Field(
         default="",
         title="ALAPI Token密钥",
         json_schema_extra={"is_secret": True},
         description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
     )
+    EMO_API_TYPE: int = Field(default=5, title="ALAPI type配置(对表情包内容有影响)")
+    EMO_API_PAGE: int = Field(default=1, title="ALAPI page配置(API分页，默认1)")
 
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
