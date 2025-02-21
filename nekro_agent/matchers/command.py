@@ -58,19 +58,62 @@ async def command_guard(
     chat_key, chat_type = await get_chat_info(event=event)
     return username, cmd_content, chat_key, chat_type
 
+async def reset_command_guard(
+    event: Union[MessageEvent, GroupMessageEvent],
+    bot: Bot,
+    arg: Message,
+    matcher: Matcher,
+) -> Tuple[str, str, str, ChatType]:
+    """Reset指令鉴权"""
+    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
+    cmd_content: str = arg.extract_plain_text().strip()
+    chat_key, chat_type = await get_chat_info(event=event)
+
+    if event.get_user_id() in config.SUPER_USERS:
+        return username, cmd_content, chat_key, chat_type
+
+    # 非超级用户
+    if cmd_content and chat_key != cmd_content:
+        logger.warning(f"用户 {username} 尝试越权操作其他会话")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, "您只能操作当前会话")
+        else:
+            await matcher.finish()
+
+    # 私聊用户允许操作
+    if chat_type == ChatType.PRIVATE:
+        return username, cmd_content, chat_key, chat_type
+
+    # 群聊检查管理员权限
+    if chat_type == ChatType.GROUP and isinstance(event, GroupMessageEvent):
+        if event.sender.role in ["admin", "owner"]:
+            return username, cmd_content, chat_key, chat_type
+
+    # 无权限情况处理
+    logger.warning(f"用户 {username} 不在允许的管理用户中")
+    if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+        await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中")
+    else:
+        await matcher.finish()
 
 @on_command("reset", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    target_chat_key: str = cmd_content or chat_key
+    username, cmd_content, chat_key, chat_type = await reset_command_guard(event, bot, arg, matcher)
+    
+    target_chat_key = cmd_content if cmd_content and event.get_user_id() in config.SUPER_USERS else chat_key
+    
     if not target_chat_key:
-        await finish_with(matcher, message="请指定要清空聊天记录的会话")
+        logger.warning(f"会话标识获取失败")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, message="会话标识获取失败")
+        else:
+            await matcher.finish()
+        
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.reset_channel()
-    query = DBChatMessage.filter(chat_key=target_chat_key)
-    msg_cnt = await query.count()
-    await query.delete()
+    msg_cnt = await DBChatMessage.filter(chat_key=target_chat_key).count()
+    await DBChatMessage.filter(chat_key=target_chat_key).delete()
+    
     await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
 
 
