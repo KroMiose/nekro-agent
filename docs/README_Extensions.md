@@ -116,7 +116,7 @@ ADMIN_CHAT_KEY: "" # 管理会话标识，用于接收管理通知
 提供表情包获取功能。
 
 - **功能**: 让 AI 获取表情包
-- **配置**:
+- **配置**: 
 
 ```yaml
 EMO_API_URL: "https://v3.alapi.cn/api/doutu" # API的URL配置可填写其他API(需更改默认API设置)
@@ -124,6 +124,14 @@ EMO_API_API_TOKEN: "" # API Token密钥
 EMO_API_TYPE: 5 # API type配置(对表情包内容有影响)
 EMO_API_PAGE: 1 # API page配置(API分页，默认1)
 ```
+
+### anime_image_search - 二次元图片搜索
+
+提供二次元图片搜索功能。
+
+- **功能**: 让 AI 搜索二次元图片
+- **配置**: 无需额外配置
+
 
 ## 💡 使用说明
 
@@ -140,6 +148,7 @@ EXTENSION_MODULES:
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
   - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
+  - extensions.anime_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
 ```
 
 2. 根据扩展需求补充相应配置项
