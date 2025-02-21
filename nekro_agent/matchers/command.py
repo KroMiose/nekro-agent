@@ -43,7 +43,7 @@ async def command_guard(
         matcher (Matcher): Matcher 对象
 
     Returns:
-        Tuple[str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
+        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
     """
     username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
     # 判断是否是禁止使用的用户
