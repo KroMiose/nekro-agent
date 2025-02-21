@@ -116,8 +116,30 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
         # 如果是被管理员撤回
         return f"(成员 (qq:{info['user_id']}) 的一条消息被管理员 (qq:{info['operator_id']}) 撤回，但该消息仍然对你可见)"
 
+class GroupAdminNoticeHandler(BaseNoticeHandler):
+    """群管理员变动通知处理器"""
+
+    def get_notice_config(self) -> NoticeConfig:
+        return NoticeConfig(force_tome=True, use_system_sender=True)
+
+    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+        if event_dict["notice_type"] != "group_admin":
+            return None
+        return {
+            "user_id": str(event_dict["user_id"]),
+            "group_id": str(event_dict["group_id"]),
+            "action": event_dict["sub_type"]  # set/unset
+        }
+
+    def format_message(self, info: Dict[str, str]) -> str:
+        action_map = {
+            "set": "被设置为管理员",
+            "unset": "被取消管理员身份"
+        }
+        return f"(成员 (qq:{info['user_id']}) {action_map[info['action']]})"
 
 # 注册所有通知处理器
+notice_manager.register(GroupAdminNoticeHandler())
 notice_manager.register(PokeNoticeHandler())
 notice_manager.register(GroupIncreaseNoticeHandler())
 notice_manager.register(GroupDecreaseNoticeHandler())
