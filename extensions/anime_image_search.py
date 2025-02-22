@@ -7,6 +7,7 @@ from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
 from nekro_agent.services.chat import chat_service
+from nekro_agent.core import config
 
 __meta__ = ExtMetaData(
     name="lolicon_image",
@@ -27,9 +28,20 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
         bytes: 二次元图片的字节流，如果失败则返回错误消息
     """
     # 合并配置参数
-    params = {
-        "r18": 0,
+    r18_config = config.R18_CONFIG
+    if r18_config:
+        r18 = True
+        params = {
+        "r18": 2,
         "num": 1,
+        "tag": tags,
+        "size": "original"
+        }
+    else:
+        r18 = False
+    params = {
+        "r18": r18,
+        "num": 0,
         "tag": tags,
         "size": "original"
     }

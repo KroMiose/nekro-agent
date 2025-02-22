@@ -321,6 +321,8 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"is_hidden": True},
         description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
     )
+    """二次元图片扩展 配置"""  
+    R18_CONFIG: bool = Field(default=False, title="是否启用 R18 图片 开启后，图片会包含R18的图片")
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
