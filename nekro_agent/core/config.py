@@ -309,7 +309,7 @@ class PluginConfig(ConfigBase):
         title="API的URL配置可填写其他API(需更改默认API设置)",
         json_schema_extra={"is_hidden": True},
     )
-    EMO_API_API_TOKEN: str = Field(
+    EMO_API_TOKEN: str = Field(
         default="",
         title="ALAPI Token密钥",
         json_schema_extra={"is_secret": True},

@@ -3,7 +3,8 @@ import httpx
 from typing import Optional, List
 from pydantic import BaseModel, Field
 
-from nekro_agent.core import config, logger
+from nekro_agent.core import config
+from nekro_agent.api import core
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
@@ -24,12 +25,12 @@ __meta__ = ExtMetaData(
 )
 
 @core.agent_collector.mount_method(core.MethodType.TOOL)
-async def get_emoticon(keyword: str, _ctx: AgentCtx) -> bytes:
+async def get_emoticon(keyword: str, _ctx: AgentCtx) -> Optional[bytes]:
     """根据关键词获取表情包 URL 并返回字节流
     **在任何表达情绪的时候使用**
     Args:
-        keyword (str): 搜索关键词，如 "猫咪"、"搞笑"
-
+        keyword (str): 搜索tag，如 "猫咪"、"搞笑"
+        仅支持每次单个tag搜索
     Returns:
         bytes: 表情包图片的字节流，如果获取失败则返回错误消息
 
@@ -38,7 +39,7 @@ async def get_emoticon(keyword: str, _ctx: AgentCtx) -> bytes:
     """
     # 自定义请求方便自定义API
     url = config.EMO_API_URL
-    api_token = config.EMO_API_API_TOKEN
+    api_token = config.EMO_API_TOKEN
     api_type = config.EMO_API_TYPE
     api_page = config.EMO_API_PAGE
     
@@ -46,10 +47,11 @@ async def get_emoticon(keyword: str, _ctx: AgentCtx) -> bytes:
     querystring = {"keyword": keyword}
     if api_token:
         querystring["token"] = api_token
+    # 将 int 类型转换为 str 类型
     if api_page:
-        querystring["page"] = api_page
+        querystring["page"] = str(api_page)  # 确保 page 是字符串
     if api_type:
-        querystring["type"] = api_type
+        querystring["type"] = str(api_type)  # 确保 type 是字符串
 
     headers = {'Content-Type': 'application/json'}
     

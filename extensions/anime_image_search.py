@@ -2,7 +2,7 @@ import httpx
 
 
 from typing import List, Optional
-from nekro_agent.core import config, logger
+from nekro_agent.core import logger
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
@@ -43,7 +43,7 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
             )
             
             if response.status_code != 200:
-                error_msg = f"API 返回异常状态码: {response.status_code}"
+                error_msg = f"API returned status code: {response.status_code}"
                 if error_data := response.json().get("error"):
                     error_msg += f" | {error_data}"
                 return f"[Lolicon] {error_msg}"
@@ -52,21 +52,21 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
             
             # 检查错误信息
             if data.get("error"):
-                return f"[Lolicon] API 错误: {data['error']}"
+                return f"[Lolicon] API error: {data['error']}"
                 
             if not data.get("data"):
-                return "[Lolicon] 未找到匹配的图片"
+                return "[Lolicon] No matching images found"
 
             # 提取第一个结果的原始图片地址
             first_item = data["data"][0]
-            return first_item["urls"].get("original", "[Lolicon] 无效的图片规格")
+            return first_item["urls"].get("original", "[Lolicon] Invalid image specification")
 
     except httpx.NetworkError as e:
-        logger.error(f"网络连接失败 | {str(e)}")
-        return f"[Lolicon] 网络错误: {str(e)}"
+        logger.error(f"Network connection failed | {str(e)}")
+        return f"[Lolicon] Network error: {str(e)}"
     except Exception as e:
-        logger.exception("图片获取失败")
-        return f"[Lolicon] 请求失败: {str(e)}"
+        logger.exception("Image retrieval failed")
+        return f"[Lolicon] Request failed: {str(e)}"
 
 @agent_collector.mount_method(MethodType.TOOL)
 async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
@@ -82,11 +82,11 @@ async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
     # 空标签过滤
     clean_tags = [t.strip() for t in tags if t.strip()]
     if not clean_tags:
-        return "[错误] 至少需要提供一个有效标签"
+        return b"[Error] At least one valid tag is required"
 
     # 限制标签数量
     if len(clean_tags) > 3:
-        return "[错误] 最多支持 3 个标签组合"
+        return b"[Error] A maximum of 3 tag combinations is supported"
     
     # 执行搜索
     result = await get_lolicon_image(clean_tags, _ctx)
@@ -97,4 +97,4 @@ async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
             image_result = await client.get(result)
             image_result.raise_for_status()
             return image_result.content
-    return result
+    return result.encode()
