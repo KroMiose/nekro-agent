@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Paper,
@@ -209,7 +209,7 @@ export default function SettingsPage() {
   })
 
   // 检查必填项
-  const checkRequiredFields = () => {
+  const checkRequiredFields = useCallback(() => {
     const emptyFields = configs
       .filter(config => {
         if (!config.required) return false
@@ -226,10 +226,10 @@ export default function SettingsPage() {
       return false
     }
     return true
-  }
+  }, [configs, editingValues])
 
   // 修改保存函数
-  const handleSaveAllChanges = async (force: boolean = false) => {
+  const handleSaveAllChanges = useCallback(async (force: boolean = false) => {
     if (!force && !checkRequiredFields()) {
       return
     }
@@ -253,7 +253,27 @@ export default function SettingsPage() {
         setMessage('保存失败')
       }
     }
-  }
+  }, [
+    checkRequiredFields, 
+    configApi, 
+    editingValues, 
+    queryClient, 
+    setEditingValues, 
+    setMessage, 
+    setSaveWarningOpen
+  ])
+
+  //监听保存快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        handleSaveAllChanges(false) // 明确传递参数
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleSaveAllChanges])
 
   // 重载配置
   const handleReloadConfig = async () => {
