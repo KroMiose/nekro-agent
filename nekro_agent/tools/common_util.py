@@ -18,7 +18,7 @@ def get_app_version() -> str:
     Returns:
         str: 应用版本号
     """
-    pyproject = toml.loads(Path("pyproject.toml").read_text())
+    pyproject = toml.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     try:
         return pyproject["tool"]["poetry"]["version"]
     except KeyError:
