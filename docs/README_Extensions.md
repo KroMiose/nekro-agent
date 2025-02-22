@@ -120,7 +120,7 @@ ADMIN_CHAT_KEY: "" # 管理会话标识，用于接收管理通知
 
 ```yaml
 EMO_API_URL: "https://v3.alapi.cn/api/doutu" # API的URL配置可填写其他API(需更改默认API设置)
-EMO_API_API_TOKEN: "" # API Token密钥
+EMO_API_TOKEN: "" # API Token密钥
 EMO_API_TYPE: 5 # API type配置(对表情包内容有影响)
 EMO_API_PAGE: 1 # API page配置(API分页，默认1)
 ```
