@@ -111,6 +111,31 @@ DEFAULT_PROXY: "" # 默认代理 (仅会在必要时使用，填写格式: http:
 ADMIN_CHAT_KEY: "" # 管理会话标识，用于接收管理通知
 ```
 
+### emo - 表情包获取
+
+提供表情包获取功能。
+
+- **功能**: 让 AI 获取表情包
+- **配置**: 
+
+```yaml
+EMO_API_URL: "https://v3.alapi.cn/api/doutu" # API的URL配置可填写其他API(需更改默认API设置)
+EMO_API_TOKEN: "" # API Token密钥
+EMO_API_KEYWORD: "" # 表情包类型
+```
+
+### anime_image_search - 二次元图片搜索
+
+提供二次元图片搜索功能。
+
+- **功能**: 让 AI 搜索二次元图片
+- **配置**: 
+
+```yaml
+R18_CONFIG: false # 是否启用 R18 图片 开启后，图片会包含R18的图片
+```
+
+
 ## 💡 使用说明
 
 1. 在配置文件中启用需要的扩展：
@@ -125,6 +150,8 @@ EXTENSION_MODULES:
   - extensions.ai_voice # AI 声聊扩展 (允许 AI 使用 QQ 声聊角色发送语音)
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
+  - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
+  - extensions.anime_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
 ```
 
 2. 根据扩展需求补充相应配置项
