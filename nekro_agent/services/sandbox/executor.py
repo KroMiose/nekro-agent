@@ -79,11 +79,17 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
 
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
-    Path.write_text(api_caller_file_path, get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key))
+    api_caller_file_path.write_text(
+        get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key),
+        encoding='utf-8'
+    )
 
     # 写入要执行的代码
     code_file_path = Path(host_shared_dir) / CODE_FILENAME
-    Path.write_text(code_file_path, f"{CODE_PREAMBLE.strip()}\n\n{code_text}")
+    code_file_path.write_text(
+        f"{CODE_PREAMBLE.strip()}\n\n{code_text}",
+        encoding='utf-8'
+    )
 
     # 设置共享目录权限
     try:
