@@ -30,9 +30,12 @@ async def get_emoticon(keyword: str, _ctx: AgentCtx) -> Optional[bytes]:
     **在任何表达情绪的时候使用**
     Args:
         keyword (str): 情绪，如 "开心"、"生气"
-        仅支持每次单个tag搜索
+        ！！只能填写情绪，如开心，生气，伤心，震惊！！
+        不可以填写具体内容，如"害怕的xxx""生气的xxx"
+        仅支持每次单个情绪搜索
     Returns:
         bytes: 表情包图片的字节流
+        传回的字节流只存在jpg类型的图片
 
     Example:
         get_emoticon("生气")
