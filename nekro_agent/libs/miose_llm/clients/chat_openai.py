@@ -105,7 +105,9 @@ async def gen_openai_chat_response(
         client: AsyncOpenAI = AsyncOpenAI(  # type: ignore
             api_key=api_key,
             base_url=_OPENAI_BASE_URL,
-            http_client=(httpx.AsyncClient(proxies=_OPENAI_PROXY) if _OPENAI_PROXY else None),
+            http_client=(
+                httpx.AsyncClient(proxies=_OPENAI_PROXY, timeout=httpx.Timeout(connect=10)) if _OPENAI_PROXY else None
+            ),
         )
 
         res: ChatCompletion = await client.chat.completions.create(
