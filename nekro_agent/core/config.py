@@ -307,7 +307,7 @@ class PluginConfig(ConfigBase):
     EMO_API_URL: str = Field(
         default="https://v3.alapi.cn/api/doutu",
         title="表情包 API URL 配置，可以填写其他的API（自建）",
-        json_schema_extra={"is_secret": True},
+        json_schema_extra={"placeholder": "例: http:// API URL /请求地址"},
     )
     EMO_API_TOKEN: str = Field(
         default="",
@@ -318,7 +318,7 @@ class PluginConfig(ConfigBase):
     EMO_API_KEYWORD: str = Field(
         default="",
         title="表情包类型",
-        json_schema_extra={"is_secret": True},
+       json_schema_extra={"placeholder": "例: 猫猫"},
         description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
     )
     """二次元图片扩展 配置"""  
