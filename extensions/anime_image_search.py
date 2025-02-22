@@ -16,7 +16,7 @@ __meta__ = ExtMetaData(
     url="https://github.com/zxjwzn",
 )
 
-
+#给人看的
 async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
     """获取二次元图片字节流
     
@@ -41,53 +41,28 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
                 "https://api.lolicon.app/setu/v2",
                 json=params
             )
-            
-            if response.status_code != 200:
-                error_msg = f"API returned status code: {response.status_code}"
-                if error_data := response.json().get("error"):
-                    error_msg += f" | {error_data}"
-                return f"[Lolicon] {error_msg}"
-
             data = response.json()
-            
-            # 检查错误信息
-            if data.get("error"):
-                return f"[Lolicon] API error: {data['error']}"
-                
-            if not data.get("data"):
-                return "[Lolicon] No matching images found"
-
             # 提取第一个结果的原始图片地址
             first_item = data["data"][0]
             return first_item["urls"].get("original", "[Lolicon] Invalid image specification")
-
-    except httpx.NetworkError as e:
-        logger.error(f"Network connection failed | {str(e)}")
-        return f"[Lolicon] Network error: {str(e)}"
     except Exception as e:
-        logger.exception("Image retrieval failed")
-        return f"[Lolicon] Request failed: {str(e)}"
+        logger.error(f"获取图片时发生未知错误: {e}")
+        return "未知错误"
 
+#给AI看的
 @agent_collector.mount_method(MethodType.TOOL)
 async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
     """二次元图片搜索
     获取二次元图片并返回字节流
     
     Args:
-        tags (List[str]): 搜索标签列表
+        tags (List[str]): 搜索标签列表，只能同时3个标签
     Returns:
-        bytes: 二次元图片的字节流，如果失败则返回错误消息
+        bytes: 二次元图片的字节流
     """
 
-    # 空标签过滤
     clean_tags = [t.strip() for t in tags if t.strip()]
-    if not clean_tags:
-        return b"[Error] At least one valid tag is required"
 
-    # 限制标签数量
-    if len(clean_tags) > 3:
-        return b"[Error] A maximum of 3 tag combinations is supported"
-    
     # 执行搜索
     result = await get_lolicon_image(clean_tags, _ctx)
     
@@ -98,3 +73,5 @@ async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
             image_result.raise_for_status()
             return image_result.content
     return result.encode()
+async def clean_up():
+    """清理扩展"""

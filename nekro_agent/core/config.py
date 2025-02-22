@@ -306,18 +306,21 @@ class PluginConfig(ConfigBase):
     """emo表情包扩展 配置"""
     EMO_API_URL: str = Field(
         default="https://v3.alapi.cn/api/doutu",
-        title="API的URL配置可填写其他API(需更改默认API设置)",
+        title="表情包 API URL 配置，可以填写其他的API（自建）",
         json_schema_extra={"is_hidden": True},
     )
     EMO_API_TOKEN: str = Field(
         default="",
-        title="ALAPI Token密钥",
+        title="表情包 API Token 密钥",
         json_schema_extra={"is_secret": True},
         description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
     )
-    EMO_API_TYPE: int = Field(default=5, title="ALAPI type配置(对表情包内容有影响)")
-    EMO_API_PAGE: int = Field(default=1, title="ALAPI page配置(API分页，默认1)")
-
+    EMO_API_KEYWORD: str = Field(
+        default="",
+        title="表情包类型",
+        json_schema_extra={"is_hidden": True},
+        description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
+    )
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
