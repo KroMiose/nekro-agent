@@ -22,7 +22,7 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
 
     Args:
         chat_key (str): 会话标识
-        setting_name (str): 新状态下的人设名
+        setting_name (str): 新状态的人设名 (less than 20 characters)
         description (str): 变化状态描述与原因 (推荐格式 "由于 [事件]，转变为 [新状态的详细描述] [且仍然...(旧状态仍有效信息 可选)]" **事件必须基于上下文进行总结描述尽可能详细地说明人物当前状态、外观、动作等信息**)
 
     Example:

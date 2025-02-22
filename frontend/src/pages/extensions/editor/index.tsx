@@ -43,6 +43,7 @@ import {
   extensionsApi,
   streamGenerateCode,
   deleteExtensionFile,
+  exportExtensionFile,
 } from '../../../services/api/extensions'
 
 // 新建扩展对话框组件
@@ -685,6 +686,24 @@ export default function ExtensionsEditorPage() {
             }}
           >
             <MenuItem
+              onClick={async () => {
+                if (selectedFile) {
+                  try {
+                    await exportExtensionFile(selectedFile)
+                    setSuccess('文件导出成功')
+                  } catch (err) {
+                    setError('文件导出失败: ' + (err instanceof Error ? err.message : String(err)))
+                  }
+                }
+                handleMenuClose()
+              }}
+              disabled={!selectedFile}
+              sx={{ color: theme => theme.palette.success.main }}
+            >
+              <UploadIcon sx={{ mr: 1, transform: 'rotate(180deg)', color: theme => theme.palette.success.main }} />
+              导出文件
+            </MenuItem>
+            <MenuItem
               onClick={() => {
                 if (selectedFile) {
                   setFileToDelete(selectedFile)
@@ -754,7 +773,7 @@ export default function ExtensionsEditorPage() {
               backgroundSize: '400% 400%',
               opacity: 0.7,
               transition: 'opacity 0.3s ease',
-              animation: isGenerating 
+              animation: isGenerating
                 ? 'gradient-fast 3s ease infinite'
                 : 'gradient 10s ease infinite',
             },
@@ -841,39 +860,53 @@ export default function ExtensionsEditorPage() {
                   color: 'rgba(255,255,255,0.8)',
                 }}
               >
-                <Box component="span" sx={{
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
-                  background: 'rgba(255,255,255,0.1)',
-                  fontFamily: '"Segoe UI", system-ui, sans-serif',
-                }}>
-                  {navigator.platform.includes('Mac') ? '⌘' : (
-                    <Box component="span" sx={{ 
-                      '& > span:first-of-type': { fontSize: '0.9em' },
-                      '& > span:last-of-type': { fontSize: '0.85em' },
-                    }}>
+                <Box
+                  component="span"
+                  sx={{
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    background: 'rgba(255,255,255,0.1)',
+                    fontFamily: '"Segoe UI", system-ui, sans-serif',
+                  }}
+                >
+                  {navigator.platform.includes('Mac') ? (
+                    '⌘'
+                  ) : (
+                    <Box
+                      component="span"
+                      sx={{
+                        '& > span:first-of-type': { fontSize: '0.9em' },
+                        '& > span:last-of-type': { fontSize: '0.85em' },
+                      }}
+                    >
                       <span>c</span>
                       <span>trl</span>
                     </Box>
                   )}
                 </Box>
-                <Box component="span" sx={{ 
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: 0.6,
-                  px: 0.5,
-                }}>
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: 0.6,
+                    px: 0.5,
+                  }}
+                >
                   +
                 </Box>
-                <Box component="span" sx={{
-                  border: '1px solid rgba(255,255,255,0.3)',
-                  borderRadius: '4px',
-                  padding: '2px 6px',
-                  background: 'rgba(255,255,255,0.1)',
-                  fontFamily: '"Segoe UI", system-ui, sans-serif',
-                }}>
+                <Box
+                  component="span"
+                  sx={{
+                    border: '1px solid rgba(255,255,255,0.3)',
+                    borderRadius: '4px',
+                    padding: '2px 6px',
+                    background: 'rgba(255,255,255,0.1)',
+                    fontFamily: '"Segoe UI", system-ui, sans-serif',
+                  }}
+                >
                   ↵
                 </Box>
               </Box>

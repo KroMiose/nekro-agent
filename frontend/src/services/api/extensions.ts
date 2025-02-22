@@ -92,13 +92,17 @@ export const extensionsApi = {
 
   async applyGeneratedCode(filePath: string, prompt: string, currentCode: string): Promise<string> {
     try {
-      const response = await axios.post<{ data: { code: string } }>('/extensions/apply', {
-        file_path: filePath,
-        prompt,
-        current_code: currentCode,
-      }, {
-        timeout: 60000,
-      })
+      const response = await axios.post<{ data: { code: string } }>(
+        '/extensions/apply',
+        {
+          file_path: filePath,
+          prompt,
+          current_code: currentCode,
+        },
+        {
+          timeout: 60000,
+        }
+      )
       return response.data.data.code
     } catch (error) {
       console.error('Failed to apply generated code:', error)
@@ -158,4 +162,35 @@ export async function listExtensionFiles(): Promise<string[]> {
 export async function readExtensionFile(filePath: string): Promise<string> {
   const response = await axios.get(`/extensions/files/${filePath}`)
   return response.data
+}
+
+export const exportExtensionFile = async (filePath: string) => {
+  try {
+    // 获取文件内容
+    const content = (await extensionsApi.getExtensionFiles(filePath)) as string
+
+    // 创建 Blob 对象
+    const blob = new Blob([content], { type: 'text/x-python' })
+
+    // 创建下载链接
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+
+    // 设置文件名（如果是禁用状态的扩展，去掉 .disabled 后缀）
+    link.download = filePath.endsWith('.disabled')
+      ? filePath.replace('.disabled', '')
+      : filePath.split('/').pop() || filePath
+
+    // 触发下载
+    document.body.appendChild(link)
+    link.click()
+
+    // 清理
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Failed to export extension file:', error)
+    throw error
+  }
 }

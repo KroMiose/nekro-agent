@@ -318,14 +318,17 @@ class PluginConfig(ConfigBase):
     EMO_API_KEYWORD: str = Field(
         default="",
         title="表情包类型",
-       json_schema_extra={"placeholder": "例: 猫猫"},
+        json_schema_extra={"placeholder": "例: 猫猫"},
         description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
     )
-    """二次元图片扩展 配置"""  
+
+    """二次元图片扩展 配置"""
     R18_CONFIG: bool = Field(
-        default=False, 
-        title="是否启用 R18 图片 开启后，图片会包含R18的图片"
+        default=False,
+        title="二次元搜图扩展允许限制内容",
+        description="开启后，搜图扩展返回的结果可能会包含R18的图片",
     )
+
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
