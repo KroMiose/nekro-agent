@@ -15,7 +15,7 @@
 
 ---
 
-## 1. 基础环境配置 🖥️
+## 1 基础环境配置
 
 ### 1.1 Python 环境 🐍
 ```bash
@@ -27,7 +27,7 @@ python --version
 
 ---
 
-## 2. 项目初始化 📥
+## 2 项目初始化
 
 ### 2.1 克隆仓库 📂
 ```bash
@@ -49,7 +49,7 @@ poetry install
 
 ---
 
-## 3. 数据库配置 🐘
+## 3 数据库配置
 
 ### 3.1 安装 PostgreSQL
 1. 访问 [PostgreSQL 官网](https://www.postgresql.org/download/windows/) 🌍
@@ -79,7 +79,7 @@ POSTGRES_DATABASE: nekro_db
 
 ---
 
-## 4. 前端环境配置 🌐
+## 4 前端环境配置
 
 ### 4.1 安装 Node.js
 1. 访问 [Node.js 官网](https://nodejs.org/) 🌍
@@ -105,7 +105,7 @@ pnpm install
 
 ---
 
-## 5. Docker 沙盒环境 🐳
+## 5 Docker 沙盒环境
 
 ### 5.1 安装 Docker Desktop
 1. 访问 [Docker 官网](https://www.docker.com/products/docker-desktop/) 🌍
@@ -124,10 +124,10 @@ docker images | findstr "nekro-agent-sandbox"
 
 ---
 
-## 6. 启动项目 🚀
+## 6 启动项目
 
 ## 设置WebUI密码
-> **⚠️ 提示**  
+> **⚠️ 提示**
 > 由于nekro_agent的webui密码是被存放在环境变量而非数据库，需要在环境变量中设置密码
 
 1.打开文件资源管理器找到"此电脑", 右键点击 "属性", 找到"高级系统设置", 并点击"环境变量", 在环境变量中添加以下内容:
@@ -153,7 +153,7 @@ pnpm dev
 ```
 当看到如下日志时，即可在浏览器访问 🌐 👉 `http://localhost:xxxx`
 ```
-  VITE v6.0.7  ready in 262 ms
+  VITE vx.x.x  ready in xxx ms
 
   ➜  Local:   http://localhost:xxxx/ <-这里是端口号
   ➜  Network: use --host to expose
