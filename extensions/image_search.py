@@ -66,7 +66,7 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
 async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
     """二次元图片搜索
     获取二次元图片并返回字节流
-    
+    *返回图片只包含.jpg格式*
     Args:
         tags (List[str]): 搜索标签列表，只能同时3个标签
     Returns:
