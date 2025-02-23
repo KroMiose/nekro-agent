@@ -11,7 +11,7 @@ from nekro_agent.core import config
 __meta__ = ExtMetaData(
     name="lolicon_image",
     description="[NA] 二次元图片获取插件",
-    version="0.1.0",
+    version="0.2.0",
     author="Zaxpris, wess09",
     url="https://github.com/zxjwzn",
 )
