@@ -8,6 +8,11 @@
 5. [Docker 沙盒环境](#5-docker-沙盒环境) 🐳
 6. [启动项目](#6-启动项目) 🚀
 
+> **📌 注意事项**  
+> 1. 所有命令行操作建议在 PowerShell 中执行 💻
+> 2. 若遇到端口冲突，请检查 8021/5432 端口占用 🔍
+> 3. 遇到问题欢迎 [加群](https://jq.qq.com/?_wv=1027&k=71t9iCT7) 讨论📚
+
 ---
 
 ## 1. 基础环境配置 🖥️
@@ -16,21 +21,9 @@
 ```bash
 # 检查 Python 版本（需 3.9+）
 python --version
-
-# 安装 pipx 📦
-python -m pip install --user pipx
-python -m pipx ensurepath
-
-# 安装 nb-cli
-pipx install nb-cli
-
-# 验证安装（出现版本号即成功）✅
-nb --version
 ```
-
-> **📝 Note**  
-> 若出现`command not found`，需重启终端或检查环境变量  
-> 路径参考：`C:\Users\<用户名>\.local\bin`
+> **⚠️ 推荐版本**  
+> 建议使用 Python 3.10
 
 ---
 
@@ -54,9 +47,6 @@ poetry config virtualenvs.in-project true
 poetry install
 ```
 
-> **⚠️ Warning**  
-> 建议使用 Python 3.10
-
 ---
 
 ## 3. 数据库配置 🐘
@@ -75,10 +65,6 @@ poetry install
 ```sql
 -- 创建数据库 📂
 CREATE DATABASE nekro_db;
--- 创建用户 👤
-CREATE USER nekro_user WITH PASSWORD 'your_password';
--- 授权 🔒
-GRANT ALL PRIVILEGES ON DATABASE nekro_db TO nekro_user;
 ```
 
 ### 3.3 修改项目配置 ⚙️
@@ -86,7 +72,7 @@ GRANT ALL PRIVILEGES ON DATABASE nekro_db TO nekro_user;
 ```yaml
 POSTGRES_HOST: localhost
 POSTGRES_PORT: 5432
-POSTGRES_USER: nekro_user
+POSTGRES_USER: postgres
 POSTGRES_PASSWORD: your_password
 POSTGRES_DATABASE: nekro_db
 ```
@@ -109,18 +95,12 @@ npm install -g pnpm
 pnpm config set registry https://registry.npmmirror.com
 ```
 
-### 4.3 编译前端 🛠️
+### 4.3 安装前端依赖 🛠️
 ```powershell
 cd frontend
 
 # 安装依赖 🧩
 pnpm install
-
-# 构建项目（生成到 dist/）📦
-pnpm build
-
-# 复制产物到 static 目录 📂
-xcopy /E /I dist ..\static\
 ```
 
 ---
@@ -146,21 +126,41 @@ docker images | findstr "nekro-agent-sandbox"
 
 ## 6. 启动项目 🚀
 
+## 设置WebUI密码
+> **⚠️ 提示**  
+> 由于nekro_agent的webui密码是被存放在环境变量而非数据库，需要在环境变量中设置密码
+
+1.打开文件资源管理器找到"此电脑", 右键点击 "属性", 找到"高级系统设置", 并点击"环境变量", 在环境变量中添加以下内容:
+名称:NEKRO_ADMIN_PASSWORD
+值:你想要设置的密码
+2.点击"确定"保存设置并退出
+
 ### VS Code 调试
 1. 打开项目根目录 📂
 2. 按 `F5` 启动调试 ⚡
 3. 观察终端输出是否正常 👀
 
-### 或命令行启动
+#### 或命令行启动
 ```bash
-poetry run nb run
+poetry run bot
 ```
 
-当看到 `Application startup complete` 日志时，即可在浏览器访问 🌐  
-👉 `http://localhost:8021`
+### 启动前端
+1.使用pnpm dev启动
+```bash
+cd ./frontend
+pnpm dev
+```
+当看到如下日志时，即可在浏览器访问 🌐 👉 `http://localhost:xxxx`
+```
+  VITE v6.0.7  ready in 262 ms
 
-> **📌 注意事项**  
-> 1. 所有命令行操作建议在 PowerShell 中执行 💻  
-> 2. 若遇到端口冲突，请检查 8021/5432 端口占用 🔍  
-> 3. 首次启动会进行数据库迁移，请勿中断进程 ⚠️  
-> 4. 遇到问题欢迎 [加群](https://jq.qq.com/?_wv=1027&k=71t9iCT7) 讨论📚
+  ➜  Local:   http://localhost:xxxx/ <-这里是端口号
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help
+```
+---
+## 结束
+
+至此教程已结束，请自行选用合适的协议端进行连接
+
