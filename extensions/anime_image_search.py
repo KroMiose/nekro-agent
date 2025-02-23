@@ -1,6 +1,5 @@
 import httpx
 
-
 from typing import List, Optional
 from nekro_agent.core import logger
 from nekro_agent.schemas.agent_ctx import AgentCtx
@@ -29,19 +28,9 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
     """
     # 合并配置参数
     r18_config = config.R18_CONFIG
-    if r18_config:
-        r18 = True
-        params = {
-        "r18": 2,
-        "num": 1,
-        "tag": tags,
-        "size": "original"
-        }
-    else:
-        r18 = False
     params = {
-        "r18": r18,
-        "num": 0,
+        "r18": 2 if r18_config else 0,
+        "num": 1,
         "tag": tags,
         "size": "original"
     }
@@ -85,5 +74,6 @@ async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
             image_result.raise_for_status()
             return image_result.content
     return result.encode()
+
 async def clean_up():
     """清理扩展"""
