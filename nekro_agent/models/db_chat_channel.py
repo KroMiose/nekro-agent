@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from tortoise import fields
 from tortoise.models import Model
 
@@ -15,10 +17,14 @@ class DBChatChannel(Model):
     is_active = fields.BooleanField(default=True, description="是否激活")
     data = fields.TextField(description="频道数据")
 
+    # 新增字段
+    channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
+    conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
+
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
-    class Meta:
+    class Meta: # type: ignore
         table = "chat_channel"
 
     @classmethod
@@ -58,6 +64,7 @@ class DBChatChannel(Model):
         chanel_data = await self.get_channel_data()
         await chanel_data.clear_status()
         self.data = ChannelData(chat_key=self.chat_key).model_dump_json()
+        self.conversation_start_time = datetime.now()  # 重置对话起始时间
         await self.save()
 
     async def set_active(self, is_active: bool):

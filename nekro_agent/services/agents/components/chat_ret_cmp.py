@@ -207,6 +207,7 @@ class ChatResponseType(str, Enum):
 class ChatResponse(BaseModel):
     type: ChatResponseType
     content: str
+    thought_chain: str
 
 
 class ChatResponseResolver(BaseComponent):
@@ -258,13 +259,14 @@ class ChatResponseResolver(BaseComponent):
         response_text = response_text.strip()
 
         # 提取并记录思维链内容（无论是否启用思维链模式都要提取）
-        cot_matches = re.finditer(r"<think>([\s\S]*?)</think>", response_text, flags=re.MULTILINE)
+        cot_match = re.search(r"<think>([\s\S]*?)</think>", response_text, flags=re.MULTILINE)
         has_think_content = False
-        for match in cot_matches:
-            cot_content = match.group(1).strip()
+        cot_content: str = ""
+        if cot_match:
+            cot_content = cot_match.group(1).strip()
             if cot_content:
                 has_think_content = True
-                logger.debug(f"检测到思维链分析内容:\n{cot_content}")
+                # logger.debug(f"检测到思维链分析内容:\n{cot_content}")
 
         # 如果启用了思维链但没有检测到思维内容，记录警告
         if config.AI_ENABLE_COT and not has_think_content:
@@ -279,10 +281,12 @@ class ChatResponseResolver(BaseComponent):
             response_text = response_text[len("```python") :].strip()
         if response_text.startswith("```"):
             response_text = response_text.split("\n", 1)[1].strip()
+        if response_text.endswith("</think>"):
+            response_text = response_text[: -len("</think>")].strip()
         if response_text.endswith("```"):
             response_text = response_text[:-3].strip()
 
-        self.ret_list.append(ChatResponse(type=ChatResponseType.SCRIPT, content=response_text))
+        self.ret_list.append(ChatResponse(type=ChatResponseType.SCRIPT, content=response_text, thought_chain=cot_content))
         return self
 
     def render(self, *args, **kwargs) -> Coroutine[Any, Any, str]:
@@ -332,7 +336,7 @@ def fix_raw_response(raw_response: str) -> str:
         if raw_response.count(tag) > 1 and raw_response.endswith(tag):
             raw_response = raw_response[: -len(tag)]
 
-    logger.debug(f"Fixed raw response: {raw_response}")
+    # logger.debug(f"Fixed raw response: {raw_response}")
     return raw_response.strip()
 
 

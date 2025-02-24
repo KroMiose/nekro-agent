@@ -38,7 +38,7 @@ def __extension_method_proxy(method: Callable):
                 print(
                     f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease continue to generate an appropriate response based on the above information.",
                 )
-                exit(1)
+                exit(8)
             return ret_data
         raise Exception(f"Extension call failed: {response.status_code}")
 

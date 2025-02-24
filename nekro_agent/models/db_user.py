@@ -13,8 +13,10 @@ class DBUser(Model):
     perm_level = fields.IntField(description="权限等级")
     login_time = fields.DatetimeField(description="上次登录时间")
 
-    # prevent_trigger_until = fields.IntField(description="禁止触发截止时间", default=0)
-    # prevent_interact_until = fields.IntField(description="禁止互动截止时间", default=0)
+    # 新增字段
+    ban_until = fields.DatetimeField(null=True, description="封禁截止时间")
+    prevent_trigger_until = fields.DatetimeField(null=True, description="禁止触发截止时间")
+    ext_data = fields.JSONField(default=dict, description="扩展数据")
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
@@ -22,7 +24,18 @@ class DBUser(Model):
     @property
     def is_active(self) -> bool:
         """用户是否激活"""
-        return True  # 默认所有用户都是激活状态
+        from datetime import datetime
 
-    class Meta:
+        now = datetime.now()
+        return self.ban_until is None or now > self.ban_until  # 检查是否在封禁期
+
+    @property
+    def is_prevent_trigger(self) -> bool:
+        """用户是否禁止触发"""
+        from datetime import datetime
+
+        now = datetime.now()
+        return self.prevent_trigger_until is None or now > self.prevent_trigger_until  # 检查是否在禁止触发期
+
+    class Meta: # type: ignore
         table = "user"

@@ -4,7 +4,7 @@ import os
 import shutil
 import time
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional, Tuple
 
 import aiodocker
 from aiodocker.docker import DockerContainer
@@ -12,7 +12,8 @@ from aiodocker.docker import DockerContainer
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
-from nekro_agent.models.db_exec_code import DBExecCode
+from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
+from nekro_agent.schemas.chat_message import ChatMessage
 
 from .ext_caller import CODE_PREAMBLE, get_api_caller_code
 
@@ -34,7 +35,14 @@ RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
 API_CALLER_FILENAME = "api_caller.py.code"  # 外部 API 调用器文件名
 RUN_API_CALLER_FILENAME = "api_caller.py"  # 外部 API 调用器文件名
 
-CODE_RUN_END_FLAG = "[CODE_RUN_END]"  # 代码运行结束标记
+# 代码运行结束标记
+CODE_RUN_END_FLAGS = {
+    ExecStopType.NORMAL: "[SANDBOX_RUN_ENDS_WITH_NORMAL]",  # 正常结束 (exit code 0)
+    ExecStopType.ERROR: "[SANDBOX_RUN_ENDS_WITH_ERROR]",  # 错误停止 (exit code 非0)
+    ExecStopType.TIMEOUT: "[SANDBOX_RUN_ENDS_WITH_TIMEOUT]",  # 超时停止
+    ExecStopType.AGENT: "[SANDBOX_RUN_ENDS_WITH_AGENT]",  # 代理停止 (exit code 8)
+    ExecStopType.MANUAL: "[SANDBOX_RUN_ENDS_WITH_MANUAL]",  # 手动停止 (exit code 9)
+}
 
 EXEC_SCRIPT = f"""
 rm -f {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME} &&
@@ -42,8 +50,15 @@ cp {CONTAINER_SHARE_DIR}/{CODE_FILENAME} {CONTAINER_WORK_DIR}/{RUN_CODE_FILENAME
 cp {CONTAINER_SHARE_DIR}/{API_CALLER_FILENAME} {CONTAINER_WORK_DIR}/{RUN_API_CALLER_FILENAME} &&
 export MPLCONFIGDIR=/app/tmp/matplotlib &&
 python {RUN_CODE_FILENAME}
-if [ $? -ne 0 ]; then
-    echo "{CODE_RUN_END_FLAG}"
+exit_code=$?
+if [ $exit_code -eq 0 ]; then
+    echo "{CODE_RUN_END_FLAGS[ExecStopType.NORMAL]}"
+elif [ $exit_code -eq 8 ]; then
+    echo "{CODE_RUN_END_FLAGS[ExecStopType.AGENT]}"
+elif [ $exit_code -eq 9 ]; then
+    echo "{CODE_RUN_END_FLAGS[ExecStopType.MANUAL]}"
+else
+    echo "{CODE_RUN_END_FLAGS[ExecStopType.ERROR]}"
 fi
 """
 
@@ -60,15 +75,39 @@ chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
 semaphore = asyncio.Semaphore(config.SANDBOX_MAX_CONCURRENT)
 
 
-async def limited_run_code(code_text: str, from_chat_key: str, output_limit: int = 1000) -> str:
+async def limited_run_code(
+    code_text: str,
+    cot_content: str,
+    from_chat_key: str,
+    output_limit: int = 1000,
+    generation_time: int = 0,
+    chat_message: Optional[ChatMessage] = None,
+) -> Tuple[str, int]:
     """限制并发运行代码"""
 
     async with semaphore:
-        return await run_code_in_sandbox(code_text, from_chat_key, output_limit)
+        return await run_code_in_sandbox(
+            code_text,
+            cot_content,
+            from_chat_key,
+            output_limit,
+            generation_time,
+            chat_message,
+        )
 
 
-async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: int) -> str:
+async def run_code_in_sandbox(
+    code_text: str,
+    cot_content: str,
+    from_chat_key: str,
+    output_limit: int,
+    generation_time: int = 0,
+    chat_message: Optional[ChatMessage] = None,
+) -> Tuple[str, int]:
     """在沙盒容器中运行代码并获取输出"""
+
+    # 记录开始时间
+    start_time = time.time()
 
     # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
     container_key = f"sandbox_{from_chat_key}"
@@ -81,15 +120,12 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
     api_caller_file_path.write_text(
         get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key),
-        encoding='utf-8'
+        encoding="utf-8",
     )
 
     # 写入要执行的代码
     code_file_path = Path(host_shared_dir) / CODE_FILENAME
-    code_file_path.write_text(
-        f"{CODE_PREAMBLE.strip()}\n\n{code_text}",
-        encoding='utf-8'
-    )
+    code_file_path.write_text(f"{CODE_PREAMBLE.strip()}\n\n{code_text}", encoding="utf-8")
 
     # 设置共享目录权限
     try:
@@ -151,13 +187,18 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     chat_key_sandbox_container_map[from_chat_key] = container
     logger.debug(f"启动容器: {container_name} | ID: {container.id}")
 
-    # 等待容器执行并限制时间
-    output_text = await run_container_with_timeout(
+    # 获取输出和退出类型
+    output_text, stop_type = await run_container_with_timeout(
         container,
         config.SANDBOX_RUNNING_TIMEOUT,
     )
 
-    logger.debug(f"容器 {container_name} 输出: {output_text}")
+    # 记录执行耗时
+    exec_time = int((time.time() - start_time) * 1000)  # 转换为毫秒
+    # 记录总耗时（生成耗时 + 执行耗时）
+    total_time = generation_time + exec_time
+
+    logger.debug(f"容器 {container_name} 输出: {output_text} | 退出类型: {stop_type}")
 
     # 沙盒共享目录超过 30 分钟未活动，则自动清理
     async def cleanup_container_shared_dir(box_last_active_time):
@@ -180,33 +221,58 @@ async def run_code_in_sandbox(code_text: str, from_chat_key: str, output_limit: 
     await DBExecCode.create(
         chat_key=from_chat_key,
         code_text=code_text,
+        thought_chain=cot_content,
         outputs=output_text,
-        success=CODE_RUN_END_FLAG not in output_text,
+        success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT],  # AGENT 状态也视为成功
+        stop_type=stop_type,
+        exec_time_ms=exec_time,
+        generation_time_ms=generation_time,
+        total_time_ms=total_time,
+        trigger_user_id=int(chat_message.sender_id) if chat_message else 0,
+        trigger_user_name=chat_message.sender_real_nickname if chat_message else "System",
     )
 
-    return (
+    final_output = (
         output_text
         if len(output_text) <= output_limit
         else f"(output too long, hidden {len(output_text) - output_limit} characters)...{output_text[-output_limit:]}"
     )
+    return final_output, stop_type.value
 
 
-async def run_container_with_timeout(container: DockerContainer, timeout: int) -> str:
+async def run_container_with_timeout(container: DockerContainer, timeout: int) -> Tuple[str, ExecStopType]:
+    """运行容器并返回输出结果和退出类型"""
     try:
         task = asyncio.create_task(asyncio.wait_for(container.wait(), timeout=timeout))
         await asyncio.wait_for(task, timeout=timeout)
         outputs = await container.log(stdout=True, stderr=True)
         await container.delete()
         logger.info(f"容器 {container.id} 运行结束退出")
+
+        # 检查输出中的结束标记来确定退出类型
+        output_text = "".join(outputs).strip()
+        stop_type = ExecStopType.ERROR  # 默认为错误退出
+
+        # 移除所有结束标记并确定退出类型
+        for _type, end_flag in CODE_RUN_END_FLAGS.items():
+            if end_flag in output_text:
+                stop_type = _type
+                output_text = output_text.replace(end_flag, "").strip()
+                break
+
     except asyncio.TimeoutError:
         logger.warning(f"容器 {container.id} 运行超过 {timeout} 秒，强制停止容器")
         outputs = await container.log(stdout=True, stderr=True)
         outputs.append(f"# This container has been killed because it exceeded the {timeout} seconds limit.")
         await container.kill()
         await container.delete()
-
-    # 获取容器输出
-    return "".join(outputs).strip()
+        output_text = "".join(outputs).strip()
+        # 移除所有可能的结束标记
+        for end_flag in CODE_RUN_END_FLAGS.values():
+            output_text = output_text.replace(end_flag, "").strip()
+        return output_text, ExecStopType.TIMEOUT
+    else:
+        return output_text, stop_type
 
 
 async def cleanup_sandbox_containers():

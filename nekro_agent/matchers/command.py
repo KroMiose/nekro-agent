@@ -58,6 +58,7 @@ async def command_guard(
     chat_key, chat_type = await get_chat_info(event=event)
     return username, cmd_content, chat_key, chat_type
 
+
 async def reset_command_guard(
     event: Union[MessageEvent, GroupMessageEvent],
     bot: Bot,
@@ -85,9 +86,8 @@ async def reset_command_guard(
         return username, cmd_content, chat_key, chat_type
 
     # 群聊检查管理员权限
-    if chat_type == ChatType.GROUP and isinstance(event, GroupMessageEvent):
-        if event.sender.role in ["admin", "owner"]:
-            return username, cmd_content, chat_key, chat_type
+    if chat_type == ChatType.GROUP and isinstance(event, GroupMessageEvent) and event.sender.role in ["admin", "owner"]:
+        return username, cmd_content, chat_key, chat_type
 
     # 无权限情况处理
     logger.warning(f"用户 {username} 不在允许的管理用户中")
@@ -95,26 +95,28 @@ async def reset_command_guard(
         await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中")
     else:
         await matcher.finish()
+    raise
+
 
 @on_command("reset", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await reset_command_guard(event, bot, arg, matcher)
-    
+
     target_chat_key = cmd_content if cmd_content and event.get_user_id() in config.SUPER_USERS else chat_key
-    
+
     if not target_chat_key:
-        logger.warning(f"会话标识获取失败")
+        logger.warning("会话标识获取失败")
         if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
             await finish_with(matcher, message="会话标识获取失败")
         else:
             await matcher.finish()
-        
+
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.reset_channel()
     query = DBChatMessage.filter(chat_key=target_chat_key)
     msg_cnt = await query.count()
     await query.delete()
-    
+
     await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
 
 
@@ -147,7 +149,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    result: str = await limited_run_code(cmd_content, from_chat_key=chat_key)
+    result, _ = await limited_run_code(cmd_content, cot_content="", from_chat_key=chat_key)
 
     if result:
         await finish_with(matcher, result)

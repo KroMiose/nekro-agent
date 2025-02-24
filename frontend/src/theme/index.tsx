@@ -29,6 +29,10 @@ export default function ThemeConfig({ children }: { children: ReactNode }) {
         main: PRIMARY_COLOR,
         contrastText: '#fff',
       },
+      background: {
+        default: mode === 'dark' ? '#1A1A1A' : '#f5f5f5',
+        paper: mode === 'dark' ? '#161616' : '#fff',
+      },
     },
     typography: {
       fontFamily: globalFonts.sans,

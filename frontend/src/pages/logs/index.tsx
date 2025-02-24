@@ -133,7 +133,7 @@ export default function LogsPage() {
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 120px)',
+        height: 'calc(100vh - 90px)',
       }}
     >
       {/* 顶部工具栏 */}
@@ -142,6 +142,7 @@ export default function LogsPage() {
           display: 'flex',
           gap: 2,
           mb: 2,
+          pl: 1,
           flexShrink: 0,
         }}
       >

@@ -8,11 +8,11 @@ from jose import JWTError, jwt
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.auth_token import TokenData
 from nekro_agent.schemas.http_exception import (
     authorization_exception,
     credentials_exception,
 )
-from nekro_agent.schemas.token import TokenData
 from nekro_agent.systems.user.role import Role
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")

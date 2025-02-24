@@ -110,7 +110,7 @@ async def gen_openai_chat_response(
             ),
         )
 
-        res: ChatCompletion = await client.chat.completions.create(
+        res: ChatCompletion = await client.chat.completions.create( # type: ignore
             model=model,
             messages=messages,  # type: ignore
             temperature=temperature,

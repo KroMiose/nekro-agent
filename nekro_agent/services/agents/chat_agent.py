@@ -8,7 +8,6 @@ import weave
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
-from nekro_agent.core.os_env import PROMPT_LOG_DIR
 from nekro_agent.libs.miose_llm import (
     BaseScene,
     BaseStore,
@@ -28,9 +27,10 @@ from nekro_agent.libs.miose_llm.exceptions import ResolveError, SceneRuntimeErro
 from nekro_agent.libs.miose_llm.tools.tokenizers import TikTokenizer
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
+from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentImage
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.sandbox.executor import CODE_RUN_END_FLAG, limited_run_code
+from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.tools.common_util import (
     compress_image,
     convert_file_name_to_access_path,
@@ -115,7 +115,7 @@ async def agent_run(
     record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
     recent_chat_messages: List[DBChatMessage] = await (
         DBChatMessage.filter(
-            send_timestamp__gte=record_sta_timestamp,
+            send_timestamp__gte=max(record_sta_timestamp, db_chat_channel.conversation_start_time.timestamp()),
             chat_key=chat_key,
         )
         .order_by("-send_timestamp")
@@ -205,6 +205,7 @@ async def agent_run(
     fall_back_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP]
 
     # 5. 获取结果与解析
+    mr: Optional[ModelResponse] = None
     for retry_count in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         # 最后一次重试时使用 fallback 模型
         current_model = fall_back_model_group if retry_count == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else model_group
@@ -241,7 +242,7 @@ async def agent_run(
         try:
             logger.debug("发送生成请求...")
             scene_run_sta_timestamp = time.time()
-            mr: ModelResponse = await scene.run(use_runner=_runner)
+            mr = await scene.run(use_runner=_runner)
             logger.debug(f"LLM 运行耗时: {time.time() - scene_run_sta_timestamp:.3f}s")
             break
         except Exception as e:
@@ -252,6 +253,12 @@ async def agent_run(
             logger.exception(f"LLM API error: {e}")
             await asyncio.sleep(1)
 
+    if mr is None:
+        logger.error("LLM API error: 所有模型请求失败")
+        await chat_service.send_agent_message(chat_key, "哎呀，请求模型发生了未知错误，等会儿再试试吧 ~")
+        raise SceneRuntimeError("LLM API error: 所有模型请求失败，停止重试。") from None
+
+    assert mr is not None  # 确保 mr 不为 None
     if (not retry_depth) and check_negative_response(mr.response_text):
         logger.warning(f"检测到消极回复: {mr.response_text}，拒绝结果并重试")
         if config.DEBUG_IN_CHAT:
@@ -278,6 +285,9 @@ async def agent_run(
     except Exception as e:
         logger.error(f"解析结果出错: {e}")
         raise ResolveError(f"解析结果出错: {e}") from e
+
+    # 计算生成耗时
+    generation_time = int((time.time() - sta_timestamp) * 1000)  # 转换为毫秒
 
     # 7. 执行响应结果
     logger.debug(f"开始执行 {len(resolved_response.ret_list)} 条响应结果")
@@ -306,10 +316,12 @@ async def agent_run(
         await agent_exec_result(
             ret_type=ret_data.type,
             ret_content=ret_data.content,
+            cot_content=ret_data.thought_chain,
             chat_key=chat_key,
             addition_prompt_message=addition_prompt_message,
             retry_depth=retry_depth,
             chat_message=chat_message,
+            generation_time=generation_time,  # 传递生成耗时
         )
 
     # 8. 反馈与保存数据
@@ -332,10 +344,12 @@ async def agent_run(
 async def agent_exec_result(
     ret_type: ChatResponseType,
     ret_content: str,
+    cot_content: str,
     chat_key: str,
     addition_prompt_message: List[Union[UserMessage, AiMessage]],
     retry_depth: int = 0,
     chat_message: Optional[ChatMessage] = None,
+    generation_time: int = 0,  # 添加生成耗时参数
 ):
     from nekro_agent.services.chat import chat_service
 
@@ -351,9 +365,40 @@ async def agent_exec_result(
         logger.info(f"解析程式回复: 等待执行资源{sender_target_str}")
         if config.DEBUG_IN_CHAT:
             await chat_service.send_message(chat_key, "[Debug] 执行程式中🖥️...")
-        result: str = await limited_run_code(ret_content, from_chat_key=chat_key)
-        if result.endswith(CODE_RUN_END_FLAG):  # 运行出错标记，将错误信息返回给 AI
-            err_msg = result[: -len(CODE_RUN_END_FLAG)]
+
+        output_text, stop_type_value = await limited_run_code(
+            ret_content,
+            cot_content,
+            from_chat_key=chat_key,
+            generation_time=generation_time,
+            chat_message=chat_message,
+        )
+        stop_type = ExecStopType(stop_type_value)
+
+        if stop_type != ExecStopType.NORMAL:
+            # 处理不同类型的退出
+            if stop_type == ExecStopType.TIMEOUT:
+                err_msg = "Program execution timed out"
+            elif stop_type == ExecStopType.AGENT:
+                # Agent 停止时，将输出作为上下文传递给 AI 继续对话
+                addition_prompt_message.append(AiMessage(f"{ret_content}"))
+                addition_prompt_message.append(
+                    UserMessage(
+                        f"[Agent Response] {output_text}\nPlease continue based on this agent response.",
+                    ),
+                )
+                await agent_run(
+                    chat_key=chat_key,
+                    addition_prompt_message=addition_prompt_message,
+                    retry_depth=retry_depth,
+                    chat_message=chat_message,
+                )
+                return
+            elif stop_type == ExecStopType.MANUAL:
+                err_msg = "Program was manually stopped"
+            else:  # ERROR
+                err_msg = output_text
+
             addition_prompt_message.append(AiMessage(f"{ret_content}"))
             if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES - 1:
                 addition_prompt_message.append(
@@ -383,11 +428,10 @@ async def agent_exec_result(
             else:
                 await chat_service.send_message(chat_key, "程式运行出错，达到最大重试次数，停止重试。")
         else:
-            output_msg = result[:100] if result else "No output"
+            output_msg = output_text[:100] if output_text else "No output"
             logger.info(f"程式执行成功: {output_msg}...{sender_target_str}")
             await message_service.push_system_message(
                 chat_key,
                 f'"""python(history run)\n{ret_content}\n"""The requested program was executed successfully, and the output is: {output_msg}...',
             )
-            return
         return

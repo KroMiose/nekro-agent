@@ -1,8 +1,9 @@
-from typing import AsyncGenerator, Dict, List, Optional, Union
-import httpx
 import json
+from typing import AsyncGenerator, Dict, List, Optional, Union
 
-from nekro_agent.core.config import config, ModelConfigGroup
+import httpx
+
+from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.core.logger import logger
 from nekro_agent.libs.miose_llm.clients.chat_openai import (
     gen_openai_chat_response,
@@ -114,43 +115,45 @@ async def get_chat_response_stream(
     headers = {"Authorization": f"Bearer {model_config.API_KEY}"}
 
     try:
-        async with httpx.AsyncClient(proxies=proxies) as client:
-            async with client.stream(
+        async with (
+            httpx.AsyncClient(proxies=proxies) as client,
+            client.stream(
                 "POST",
                 f"{model_config.BASE_URL}/chat/completions",
                 json=body,
                 headers=headers,
                 timeout=60,
-            ) as response:
-                response.raise_for_status()
-                buffer = ""
-                async for chunk in response.aiter_bytes():
-                    buffer += chunk.decode()
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        line = line.strip()
-                        if line:
-                            if line.startswith("data: "):
-                                line = line[6:]  # 移除 "data: " 前缀
-                            if line == "[DONE]":
-                                return
-                            try:
-                                chunk_data = json.loads(line)
-                                if chunk_data.get("choices") and chunk_data["choices"][0].get("delta", {}).get("content"):
-                                    yield chunk_data["choices"][0]["delta"]["content"]
-                            except json.JSONDecodeError:
-                                continue
-                # 处理最后可能剩余的数据
-                if buffer.strip():
-                    try:
-                        if buffer.startswith("data: "):
-                            buffer = buffer[6:]
-                        if buffer != "[DONE]":
-                            chunk_data = json.loads(buffer)
+            ) as response,
+        ):
+            response.raise_for_status()
+            buffer = ""
+            async for chunk in response.aiter_bytes():
+                buffer += chunk.decode()
+                while "\n" in buffer:
+                    line, buffer = buffer.split("\n", 1)
+                    line = line.strip()
+                    if line:
+                        if line.startswith("data: "):
+                            line = line[6:]  # 移除 "data: " 前缀
+                        if line == "[DONE]":
+                            return
+                        try:
+                            chunk_data = json.loads(line)
                             if chunk_data.get("choices") and chunk_data["choices"][0].get("delta", {}).get("content"):
                                 yield chunk_data["choices"][0]["delta"]["content"]
-                    except json.JSONDecodeError:
-                        pass
+                        except json.JSONDecodeError:
+                            continue
+            # 处理最后可能剩余的数据
+            if buffer.strip():
+                try:
+                    if buffer.startswith("data: "):
+                        buffer = buffer[6:]
+                    if buffer != "[DONE]":
+                        chunk_data = json.loads(buffer)
+                        if chunk_data.get("choices") and chunk_data["choices"][0].get("delta", {}).get("content"):
+                            yield chunk_data["choices"][0]["delta"]["content"]
+                except json.JSONDecodeError:
+                    pass
     except Exception as e:
         logger.error(f"调用 LLM API 失败: {e}")
         raise

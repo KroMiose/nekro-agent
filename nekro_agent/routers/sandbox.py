@@ -4,7 +4,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends
 from tortoise.functions import Count
 
-from nekro_agent.models.db_exec_code import DBExecCode
+from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
 from nekro_agent.systems.user.deps import get_current_active_user
@@ -47,6 +47,11 @@ async def get_sandbox_logs(
                     "code_text": log.code_text,
                     "outputs": log.outputs,
                     "create_time": log.create_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "thought_chain": log.thought_chain,
+                    "stop_type": log.stop_type,
+                    "exec_time_ms": log.exec_time_ms,
+                    "generation_time_ms": log.generation_time_ms,
+                    "total_time_ms": log.total_time_ms,
                 }
                 for log in logs
             ],
@@ -61,6 +66,7 @@ async def get_sandbox_stats(_current_user: DBUser = Depends(get_current_active_u
     total = await DBExecCode.all().count()
     success = await DBExecCode.filter(success=True).count()
     failed = await DBExecCode.filter(success=False).count()
+    agent_count = await DBExecCode.filter(stop_type=ExecStopType.AGENT).count()
 
     return Ret.success(
         msg="获取成功",
@@ -69,5 +75,6 @@ async def get_sandbox_stats(_current_user: DBUser = Depends(get_current_active_u
             "success": success,
             "failed": failed,
             "success_rate": round(success / total * 100, 2) if total > 0 else 0,
+            "agent_count": agent_count,
         },
     )

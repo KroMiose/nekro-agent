@@ -19,8 +19,8 @@ class DBChatMessage(Model):
     message_id = fields.CharField(max_length=32, index=True, description="消息平台 ID")
     sender_id = fields.CharField(max_length=32, index=True, description="发送者 ID")
     sender_bind_qq = fields.CharField(max_length=32, index=True, description="发送者绑定 QQ")
-    sender_real_nickname = fields.CharField(max_length=32, index=True, description="发送者真实昵称")
-    sender_nickname = fields.CharField(max_length=32, index=True, description="发送者显示昵称")
+    sender_real_nickname = fields.CharField(max_length=128, index=True, description="发送者真实昵称")
+    sender_nickname = fields.CharField(max_length=128, index=True, description="发送者显示昵称")
     is_tome = fields.IntField(description="是否与 Bot 相关")
     is_recalled = fields.BooleanField(description="是否为撤回消息")
 
@@ -37,7 +37,7 @@ class DBChatMessage(Model):
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
-    class Meta:
+    class Meta: # type: ignore
         table = "chat_message"
 
     def parse_chat_history_prompt(self, one_time_code: str) -> str:

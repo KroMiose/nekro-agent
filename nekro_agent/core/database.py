@@ -51,7 +51,7 @@ async def init_db():
     except Exception:
         logger.error("初始化数据表失败，如果应用行为异常，请使用 `/nekro_db_reset -y` 重建数据表")
     DB_INITED = True
-    logger.success("Database initialized")
+    logger.success("Nekro Agent 数据库初始化成功 =^_^=")
 
 
 async def reset_db(table_name: str = ""):
