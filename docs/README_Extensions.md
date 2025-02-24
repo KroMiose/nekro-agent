@@ -129,6 +129,7 @@ EMO_API_KEYWORD: "" # 表情包类型
 提供二次元图片搜索功能。
 
 - **功能**: 让 AI 搜索二次元图片
+- **注意事项**: 根据测试结果gemini-2.0-flash-thinking-exp会出现LLM API error: 'NoneType' object is not subscriptable的现象，如果出现请尝试更换模型或禁用扩展解决。
 - **配置**: 
 
 ```yaml
