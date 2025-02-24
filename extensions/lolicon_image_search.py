@@ -9,7 +9,7 @@ from nekro_agent.services.chat import chat_service
 from nekro_agent.core import config
 
 __meta__ = ExtMetaData(
-    name="image_search",
+    name="lolicon_image_search",
     description="[NA] 二次元图片获取插件",
     version="0.2.0",
     author="Zaxpris, wess09",
