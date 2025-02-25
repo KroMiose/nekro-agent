@@ -10,6 +10,7 @@ import ExtensionsEditorPage from '../pages/extensions/editor'
 import NapCatPage from '../pages/protocols/napcat'
 import SandboxPage from '../pages/sandbox'
 import ProfilePage from '../pages/profile'
+import DashboardPage from '../pages/dashboard'
 
 const router = createHashRouter([
   {
@@ -23,7 +24,11 @@ const router = createHashRouter([
     children: [
       {
         index: true,
-        element: <LogsPage />,
+        element: <Navigate to="/dashboard" />,
+      },
+      {
+        path: 'dashboard',
+        element: <DashboardPage />,
       },
       {
         path: 'logs',

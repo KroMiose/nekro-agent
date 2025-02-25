@@ -255,7 +255,6 @@ export default function SettingsPage() {
     }
   }, [
     checkRequiredFields, 
-    configApi, 
     editingValues, 
     queryClient, 
     setEditingValues, 

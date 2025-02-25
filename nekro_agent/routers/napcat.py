@@ -40,6 +40,8 @@ async def get_docker():
 
 async def get_container():
     """获取 NapCat 容器实例"""
+    if not config.NAPCAT_CONTAINER_NAME:
+        raise HTTPException(status_code=500, detail="未设置 NapCat 容器名称")
     try:
         client = await get_docker()
         return await client.containers.get(config.NAPCAT_CONTAINER_NAME)
@@ -89,6 +91,7 @@ async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(ge
 async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
     """实时日志流"""
     try:
+
         async def generate() -> AsyncGenerator[str, None]:
             try:
                 container = await get_container()

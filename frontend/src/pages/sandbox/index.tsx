@@ -29,48 +29,11 @@ import {
   KeyboardArrowUp as KeyboardArrowUpIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import { sandboxApi, ExecStopType } from '../../services/api/sandbox'
+import { sandboxApi } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
-
-// 获取停止类型的文本描述
-const getStopTypeText = (stopType: number) => {
-  switch (stopType) {
-    case ExecStopType.NORMAL:
-      return '正常'
-    case ExecStopType.ERROR:
-      return '错误'
-    case ExecStopType.TIMEOUT:
-      return '超时'
-    case ExecStopType.AGENT:
-      return '代理'
-    case ExecStopType.MANUAL:
-      return '手动'
-    default:
-      return '未知'
-  }
-}
-
-// 获取停止类型的颜色
-const getStopTypeColor = (
-  stopType: number
-): 'success' | 'error' | 'warning' | 'info' | 'default' => {
-  switch (stopType) {
-    case ExecStopType.NORMAL:
-      return 'success'
-    case ExecStopType.ERROR:
-      return 'error'
-    case ExecStopType.TIMEOUT:
-      return 'warning'
-    case ExecStopType.AGENT:
-      return 'info'
-    case ExecStopType.MANUAL:
-      return 'default'
-    default:
-      return 'default'
-  }
-}
+import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
 
 export default function SandboxPage() {
   const [page, setPage] = useState(0)

@@ -34,6 +34,7 @@ import {
   Code as CodeIcon,
   Person as PersonIcon,
   GitHub as GitHubIcon,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
@@ -57,16 +58,22 @@ interface MenuGroup {
 
 // 集中的页面配置
 const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
-  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
+  { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
   {
     key: 'extensions',
     text: '扩展能力',
     icon: <ExtensionIcon />,
     children: [
-      { path: '/extensions/management', text: '扩展管理', icon: <ExtensionIcon />, parent: 'extensions' },
+      {
+        path: '/extensions/management',
+        text: '扩展管理',
+        icon: <ExtensionIcon />,
+        parent: 'extensions',
+      },
       { path: '/extensions/editor', text: '扩展编辑器', icon: <CodeIcon />, parent: 'extensions' },
     ],
   },
+  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
   { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
   {
     key: 'protocols',
@@ -119,11 +126,7 @@ export default function MainLayout() {
   const [message, setMessage] = useState<string>('')
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
-  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
-    extensions: true,
-    protocols: true,
-    settings: true,
-  })
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
 
   const getCurrentPage = () => {
     const currentPath = location.pathname
@@ -152,7 +155,7 @@ export default function MainLayout() {
     <Box className="h-full flex flex-col">
       <Toolbar sx={{ overflow: 'visible' }}>
         <Box
-          className="flex items-center w-full justify-center relative -ml-3"
+          className="flex items-center w-full justify-center relative -ml-3 pt-4"
           sx={{ overflow: 'visible' }}
         >
           <Typography
@@ -181,7 +184,7 @@ export default function MainLayout() {
                 fontSize: '1.5rem',
                 textShadow:
                   theme.palette.mode === 'dark'
-                    ? '0 0 2px rgba(255,255,255,0.2), 0 0 2px rgba(255,255,255,0.2), 0 0 3px rgba(255,255,255,0.1)'
+                    ? '0 0 2px rgba(255,255,255,0.1), 0 0 2px rgba(255,255,255,0.1), 0 0 2px rgba(255,255,255,0.1)'
                     : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
@@ -222,7 +225,7 @@ export default function MainLayout() {
               label={`v ${version}`}
               size="small"
               variant="outlined"
-              className="version-tag absolute -top-1.5 -right-10 h-4"
+              className="version-tag absolute -top-3.5 -right-11 h-4"
               sx={{
                 fontSize: '0.65rem',
                 letterSpacing: '-0.02em',

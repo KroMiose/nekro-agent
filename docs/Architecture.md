@@ -46,6 +46,7 @@ config.DATA_DIR
 - `config.py`: 配置相关接口
 - `extensions.py`: 扩展相关接口
 - `users.py`: 用户相关接口
+- `dashboard.py`: 仪表盘相关接口
 
 ### 2.4 扩展系统
 
@@ -63,6 +64,7 @@ config.DATA_DIR
 - 状态管理: `stores/`
 - API 服务: `services/api/`
 - 组件库: `components/`
+- 仪表盘: `pages/dashboard/`
 
 ## 3. 开发指南
 
@@ -126,6 +128,9 @@ nekro-agent/
 ├── frontend/           # 前端项目
 │   └── src/
 │       ├── components/ # 组件
+│       ├── pages/      # 页面
+│       │   ├── dashboard/ # 仪表盘页面
+│       │   └── ...
 │       ├── services/   # API服务
 │       └── stores/     # 状态管理
 └── extensions/        # 扩展模块
