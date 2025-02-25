@@ -156,12 +156,15 @@ async def get_ranking(
     start_time = await get_time_range(time_range)
 
     if ranking_type == "users":
-        messages = await DBChatMessage.filter(create_time__gte=start_time, sender_id__not=-1).all()  # 过滤掉 System 用户
+        execs = await DBExecCode.filter(
+            create_time__gte=start_time,
+            trigger_user_id__not_in=[0, -1],  # 过滤掉系统触发的执行
+        ).all()
 
         user_counts = {}
-        for message in messages:
-            user_id = message.sender_id
-            user_name = message.sender_nickname
+        for _exec in execs:
+            user_id = _exec.trigger_user_id
+            user_name = _exec.trigger_user_name
 
             if user_id not in user_counts:
                 user_counts[user_id] = {
@@ -199,11 +202,11 @@ async def get_stats_stream(
 
             # 计算开始时间（当前时间减去50个粒度单位）
             start_time = datetime.now() - timedelta(minutes=granularity * 50)
-            
+
             # 对齐到粒度的整点时间
             current_time = start_time.replace(
                 minute=(start_time.minute // granularity) * granularity,
-                second=0, 
+                second=0,
                 microsecond=0,
             )
 
@@ -259,14 +262,14 @@ async def get_stats_stream(
             # 如果下一个对齐时间的分钟小于当前分钟，说明跨小时了
             if next_aligned_time.minute < now.minute:
                 next_aligned_time = next_aligned_time.replace(hour=next_aligned_time.hour + 1)
-            
+
             # 实时监控循环
             while True:
                 # 等待到下一个对齐的时间点
                 wait_seconds = (next_aligned_time - datetime.now()).total_seconds()
                 if wait_seconds > 0:
                     await asyncio.sleep(wait_seconds)
-                
+
                 # 查询从上次发送到现在的数据
                 current_message_count = await DBChatMessage.all().count()
                 current_sandbox_count = await DBExecCode.all().count()
@@ -302,7 +305,7 @@ async def get_stats_stream(
 
                 # 计算下一个对齐的时间点
                 next_aligned_time = next_aligned_time + timedelta(minutes=granularity)
-                
+
         except Exception as e:
             print(f"Stream error: {e}")
             yield json.dumps({"error": str(e)})

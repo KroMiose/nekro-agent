@@ -1,8 +1,6 @@
-import asyncio
-import inspect
+from pathlib import Path
 
-import nekro_agent.services.sandbox.ext_caller_code
-from nekro_agent.core import config, logger
+from nekro_agent.core import config
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.tools.collector import agent_collector
 
@@ -19,7 +17,8 @@ def {method_name}(*args, **kwargs):
 
 def get_api_caller_code(container_key: str, from_chat_key: str):
     base_code = (
-        inspect.getsource(nekro_agent.services.sandbox.ext_caller_code)
+        Path("nekro_agent/services/sandbox/ext_caller_code.py")
+        .read_text(encoding="utf-8")
         .replace("{CHAT_API}", config.SANDBOX_CHAT_API_URL)
         .replace("{CONTAINER_KEY}", container_key)
         .replace("{FROM_CHAT_KEY}", from_chat_key)
