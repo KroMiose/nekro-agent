@@ -114,14 +114,12 @@ export default function SandboxPage() {
   }
 
   return (
-    <Box
-      sx={{ p: 2, height: 'calc(100vh - 90px)', display: 'flex', flexDirection: 'column', gap: 3 }}
-    >
+    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-hidden p-2">
       {/* 统计卡片 */}
-      <Stack direction="row" spacing={2}>
+      <Stack direction="row" spacing={2} className="flex-shrink-0">
         <Card sx={{ flex: 1 }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" className="mb-1">
               总执行次数
             </Typography>
             <Typography variant="h4">{stats?.total || 0}</Typography>
@@ -129,7 +127,7 @@ export default function SandboxPage() {
         </Card>
         <Card sx={{ flex: 1 }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" className="mb-1">
               成功次数
             </Typography>
             <Typography variant="h4" color="success.main">
@@ -139,7 +137,7 @@ export default function SandboxPage() {
         </Card>
         <Card sx={{ flex: 1 }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" className="mb-1">
               代理执行次数
             </Typography>
             <Typography variant="h4" color="info.main">
@@ -149,7 +147,7 @@ export default function SandboxPage() {
         </Card>
         <Card sx={{ flex: 1 }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" className="mb-1">
               失败次数
             </Typography>
             <Typography variant="h4" color="error.main">
@@ -159,7 +157,7 @@ export default function SandboxPage() {
         </Card>
         <Card sx={{ flex: 1 }}>
           <CardContent>
-            <Typography color="textSecondary" gutterBottom>
+            <Typography color="textSecondary" className="mb-1">
               成功率
             </Typography>
             <Typography variant="h4">{stats?.success_rate || 0}%</Typography>
@@ -168,24 +166,26 @@ export default function SandboxPage() {
       </Stack>
 
       {/* 日志表格 */}
-      <Paper sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <TableContainer>
-          <Table stickyHeader sx={{ tableLayout: 'fixed' }}>
+      <Paper className="flex-1 flex flex-col overflow-hidden">
+        <TableContainer className="flex-1 overflow-auto">
+          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: '1200px' }}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ width: '48px' }} />
-                <TableCell sx={{ width: '100px' }}>状态</TableCell>
-                <TableCell sx={{ width: '100px' }}>停止类型</TableCell>
-                <TableCell sx={{ width: '120px' }}>触发用户</TableCell>
-                <TableCell sx={{ width: '200px' }}>会话标识</TableCell>
-                <TableCell sx={{ width: '180px', textAlign: 'center' }}>执行耗时</TableCell>
-                <TableCell>执行时间</TableCell>
+                <TableCell sx={{ width: '8%', minWidth: '100px' }}>状态</TableCell>
+                <TableCell sx={{ width: '10%', minWidth: '100px' }}>停止类型</TableCell>
+                <TableCell sx={{ width: '12%', minWidth: '120px' }}>触发用户</TableCell>
+                <TableCell sx={{ width: '25%', minWidth: '200px' }}>会话标识</TableCell>
+                <TableCell className="text-center" sx={{ width: '20%', minWidth: '180px' }}>
+                  执行耗时
+                </TableCell>
+                <TableCell sx={{ width: '25%', minWidth: '200px' }}>执行时间</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && !isPlaceholderData ? (
                 <TableRow>
-                  <TableCell colSpan={7} align="center" sx={{ py: 3 }}>
+                  <TableCell colSpan={7} className="text-center py-3">
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
@@ -226,7 +226,14 @@ export default function SandboxPage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" alignItems="center" sx={{ '& > *:first-of-type': { width: '80px', textAlign: 'right' }, '& > *:last-of-type': { width: '80px' } }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          sx={{
+                            '& > *:first-of-type': { width: '80px', textAlign: 'right' },
+                            '& > *:last-of-type': { width: '80px' },
+                          }}
+                        >
                           <Tooltip title="生成耗时">
                             <Typography
                               variant="body2"
@@ -315,13 +322,18 @@ export default function SandboxPage() {
                             )}
 
                             {/* 执行代码 */}
-                            <Box sx={{ mb: 3, maxWidth: '100%', overflow: 'hidden' }}>
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                            <Box className="mb-3 max-w-full overflow-hidden">
+                              <Stack
+                                direction="row"
+                                spacing={1}
+                                alignItems="center"
+                                className="mb-1"
+                              >
                                 <CodeIcon color="info" />
                                 <Typography variant="subtitle1">执行代码：</Typography>
                               </Stack>
-                              <Paper variant="outlined" sx={{ overflow: 'hidden', width: '100%' }}>
-                                <Box sx={{ width: '100%', overflow: 'auto' }}>
+                              <Paper variant="outlined" className="overflow-hidden w-full">
+                                <Box className="w-full overflow-auto">
                                   <SyntaxHighlighter
                                     language="python"
                                     style={vscDarkPlus}
@@ -345,12 +357,17 @@ export default function SandboxPage() {
                             {/* 执行输出 */}
                             {log.outputs && (
                               <Box>
-                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                                <Stack
+                                  direction="row"
+                                  spacing={1}
+                                  alignItems="center"
+                                  className="mb-1"
+                                >
                                   <TimerIcon color="info" />
                                   <Typography variant="subtitle1">执行输出：</Typography>
                                 </Stack>
-                                <Paper variant="outlined" sx={{ overflow: 'hidden', width: '100%' }}>
-                                  <Box sx={{ width: '100%', overflow: 'auto' }}>
+                                <Paper variant="outlined" className="overflow-hidden w-full">
+                                  <Box className="w-full overflow-auto">
                                     <SyntaxHighlighter
                                       language="text"
                                       style={vscDarkPlus}
@@ -381,8 +398,8 @@ export default function SandboxPage() {
           </Table>
         </TableContainer>
         <TablePagination
-          rowsPerPageOptions={[10, 25, 50]}
           component="div"
+          rowsPerPageOptions={[10, 25, 50]}
           count={logs?.total || 0}
           rowsPerPage={rowsPerPage}
           page={page}
