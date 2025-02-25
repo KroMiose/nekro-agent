@@ -131,15 +131,15 @@ export default function SandboxPage() {
       {/* 日志表格 */}
       <Paper className="flex-1 flex flex-col overflow-hidden">
         <TableContainer className="flex-1 overflow-auto">
-          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: '1200px' }}>
+          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: '900px' }}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ width: '48px' }} />
-                <TableCell sx={{ width: '8%', minWidth: '100px' }}>状态</TableCell>
+                <TableCell sx={{ width: '10%', minWidth: '100px' }}>状态</TableCell>
                 <TableCell sx={{ width: '10%', minWidth: '100px' }}>停止类型</TableCell>
                 <TableCell sx={{ width: '12%', minWidth: '120px' }}>触发用户</TableCell>
-                <TableCell sx={{ width: '25%', minWidth: '200px' }}>会话标识</TableCell>
-                <TableCell className="text-center" sx={{ width: '20%', minWidth: '180px' }}>
+                <TableCell sx={{ width: '20%', minWidth: '160px' }}>会话标识</TableCell>
+                <TableCell sx={{ width: '20%', minWidth: '180px', textAlign: 'center' }}>
                   执行耗时
                 </TableCell>
                 <TableCell sx={{ width: '25%', minWidth: '200px' }}>执行时间</TableCell>
