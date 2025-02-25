@@ -3,7 +3,12 @@
 import pickle as _pickle
 from typing import Any, Callable, Dict, Tuple
 
+import matplotlib.pyplot as plt
 import requests as _requests
+
+# 设置中文字体
+plt.rcParams["font.sans-serif"] = ["SimHei", "DejaVu Sans", "Arial Unicode MS", "sans-serif"]
+plt.rcParams["axes.unicode_minus"] = False
 
 CHAT_API = "{CHAT_API}"
 CONTAINER_KEY = "{CONTAINER_KEY}"
