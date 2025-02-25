@@ -124,11 +124,12 @@ EMO_API_TOKEN: "" # API Token密钥
 EMO_API_KEYWORD: "" # 表情包类型
 ```
 
-### anime_image_search - 二次元图片搜索
+### lolicon_image_search - 二次元图片搜索
 
 提供二次元图片搜索功能。
 
 - **功能**: 让 AI 搜索二次元图片
+- **注意事项**: 根据测试结果gemini-2.0-flash-thinking-exp会出现LLM API error: 'NoneType' object is not subscriptable的现象，如果出现请尝试更换模型或禁用扩展解决。
 - **配置**: 
 
 ```yaml
@@ -151,7 +152,7 @@ EXTENSION_MODULES:
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
   - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
-  - extensions.anime_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
+  - extensions.lolicon_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
 ```
 
 2. 根据扩展需求补充相应配置项
