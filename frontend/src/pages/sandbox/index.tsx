@@ -139,7 +139,7 @@ export default function SandboxPage() {
                 <TableCell sx={{ width: '10%', minWidth: '100px' }}>停止类型</TableCell>
                 <TableCell sx={{ width: '12%', minWidth: '120px' }}>触发用户</TableCell>
                 <TableCell sx={{ width: '20%', minWidth: '160px' }}>会话标识</TableCell>
-                <TableCell sx={{ width: '20%', minWidth: '180px', textAlign: 'center' }}>
+                <TableCell sx={{ width: '100px', textAlign: 'left' }}>
                   执行耗时
                 </TableCell>
                 <TableCell sx={{ width: '25%', minWidth: '200px' }}>执行时间</TableCell>
@@ -193,8 +193,8 @@ export default function SandboxPage() {
                           direction="row"
                           alignItems="center"
                           sx={{
-                            '& > *:first-of-type': { width: '80px', textAlign: 'right' },
-                            '& > *:last-of-type': { width: '80px' },
+                            '& > *:first-of-type': { width: '50px', textAlign: 'right' },
+                            '& > *:last-of-type': { width: '50px' },
                           }}
                         >
                           <Tooltip title="生成耗时">
