@@ -59,25 +59,32 @@ export default function ThemeConfig({ children }: { children: ReactNode }) {
         },
       },
       MuiCssBaseline: {
-        styleOverrides: `
-          body {
-            fontFamily: ${globalFonts.sans};
-            &::-webkit-scrollbar {
-              width: '8px';
-              height: '8px';
-            }
-            &::-webkit-scrollbar-track {
-              background: ${mode === 'dark' ? '#1A1A1A' : '#f1f1f1'};
-            }
-            &::-webkit-scrollbar-thumb {
-              background: ${mode === 'dark' ? '#555' : '#888'};
-              borderRadius: '4px';
-              &:hover {
-                background: ${mode === 'dark' ? '#666' : '#999'};
-              }
-            }
-          }
-        `,
+        styleOverrides: {
+          body: {
+            fontFamily: globalFonts.sans,
+          },
+          '*::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '*::-webkit-scrollbar-track': {
+            background: mode === 'dark' ? 'rgba(255, 255, 255, 0.05)' : '#f5f5f5',
+            borderRadius: '4px',
+          },
+          '*::-webkit-scrollbar-thumb': {
+            background: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.2)',
+            borderRadius: '4px',
+            '&:hover': {
+              background: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+            },
+          },
+          '*': {
+            scrollbarWidth: 'thin',
+            scrollbarColor: mode === 'dark' 
+              ? 'rgba(255, 255, 255, 0.1) rgba(255, 255, 255, 0.05)'
+              : 'rgba(0, 0, 0, 0.2) #f5f5f5',
+          },
+        },
       },
     },
   })

@@ -23,6 +23,7 @@ from .sandbox import router as sandbox_router
 from .tools import router as tools_router
 from .user import router as user_router
 from .dashboard import router as dashboard_router
+from .chat_channel import router as chat_channel_router
 
 
 def mount_routers(app: FastAPI):
@@ -55,6 +56,7 @@ def mount_routers(app: FastAPI):
     api.include_router(napcat_router)
     api.include_router(sandbox_router)
     api.include_router(dashboard_router)
+    api.include_router(chat_channel_router)
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:

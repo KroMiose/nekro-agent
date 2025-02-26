@@ -13,7 +13,6 @@ class DBUser(Model):
     perm_level = fields.IntField(description="权限等级")
     login_time = fields.DatetimeField(description="上次登录时间")
 
-    # 新增字段
     ban_until = fields.DatetimeField(null=True, description="封禁截止时间")
     prevent_trigger_until = fields.DatetimeField(null=True, description="禁止触发截止时间")
     ext_data = fields.JSONField(default=dict, description="扩展数据")

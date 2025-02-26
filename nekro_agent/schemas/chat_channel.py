@@ -10,7 +10,6 @@ from nekro_agent.core.logger import logger
 from nekro_agent.schemas.chat_message import ChatType
 
 MAX_PRESET_STATUS_LIST_SIZE = 99
-MAX_PRESET_STATUS_SHOW_SIZE = 6
 
 
 class PresetStatus(BaseModel):
@@ -125,7 +124,7 @@ class ChannelData(BaseModel):
             history_str = "History Status:\n " + "".join(
                 [
                     f"{preset_status.render_prompts()}\n"
-                    for preset_status in self.preset_status_list[-MAX_PRESET_STATUS_SHOW_SIZE:-1]
+                    for preset_status in self.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE : -1]
                 ],
             )
 

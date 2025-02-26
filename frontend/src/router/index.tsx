@@ -11,6 +11,7 @@ import NapCatPage from '../pages/protocols/napcat'
 import SandboxPage from '../pages/sandbox'
 import ProfilePage from '../pages/profile'
 import DashboardPage from '../pages/dashboard'
+import ChatChannelPage from '../pages/chat-channel'
 
 const router = createHashRouter([
   {
@@ -29,6 +30,10 @@ const router = createHashRouter([
       {
         path: 'dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: 'chat-channel',
+        element: <ChatChannelPage />,
       },
       {
         path: 'logs',

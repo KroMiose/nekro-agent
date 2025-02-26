@@ -15,7 +15,7 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
-from nekro_agent.schemas.chat_channel import MAX_PRESET_STATUS_SHOW_SIZE, ChannelData
+from nekro_agent.schemas.chat_channel import ChannelData
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
 from nekro_agent.services.message.message_service import message_service
@@ -133,7 +133,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     channel_data: ChannelData = await db_chat_channel.get_channel_data()
     if channel_data.preset_status_list:
         info += "人设状态历史:\n"
-    for status in channel_data.preset_status_list[-MAX_PRESET_STATUS_SHOW_SIZE:]:
+    for status in channel_data.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE :]:
         info += f"[{status.setting_name}] - {status.description}\n"
 
     info += "效果标签:\n"

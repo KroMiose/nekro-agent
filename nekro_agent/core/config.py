@@ -152,6 +152,11 @@ class PluginConfig(ConfigBase):
         title="会话上下文最大长度 (字符)",
         description="会话历史记录上下文最大长度，超出该长度会自动截断",
     )
+    AI_MAX_PRESET_STATUS_REFER_SIZE: int = Field(
+        default=10,
+        title="人设状态变化参考最大条数",
+        description="人设状态变化参考最大条数，超出该数量会自动截断",
+    )
     AI_ENABLE_VISION: bool = Field(
         default=True,
         title="启用视觉功能",
@@ -306,12 +311,13 @@ class PluginConfig(ConfigBase):
     """emo表情包扩展 配置"""
     EMO_API_URL: str = Field(
         default="https://v3.alapi.cn/api/doutu",
-        title="表情包 API URL 配置，可以填写其他的API（自建）",
-        json_schema_extra={"placeholder": "例: http:// API URL /请求地址"},
+        title="表情包服务 API URL",
+        json_schema_extra={"placeholder": "例: https://v3.alapi.cn/api/doutu"},
+        description="表情包 API URL 配置，可以填写其他的API（自建）",
     )
     EMO_API_TOKEN: str = Field(
         default="",
-        title="表情包 API Token 密钥",
+        title="表情包服务 API Token 密钥",
         json_schema_extra={"is_secret": True},
         description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
     )

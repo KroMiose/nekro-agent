@@ -17,7 +17,6 @@ class DBChatChannel(Model):
     is_active = fields.BooleanField(default=True, description="是否激活")
     data = fields.TextField(description="频道数据")
 
-    # 新增字段
     channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
     conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
 

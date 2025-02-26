@@ -128,13 +128,13 @@ class GroupAdminNoticeHandler(BaseNoticeHandler):
         return {
             "user_id": str(event_dict["user_id"]),
             "group_id": str(event_dict["group_id"]),
-            "action": event_dict["sub_type"]  # set/unset
+            "action": event_dict["sub_type"],  # set/unset
         }
 
     def format_message(self, info: Dict[str, str]) -> str:
         action_map = {
             "set": "被设置为管理员",
-            "unset": "被取消管理员身份"
+            "unset": "被取消管理员身份",
         }
         return f"(成员 (qq:{info['user_id']}) {action_map[info['action']]})"
 

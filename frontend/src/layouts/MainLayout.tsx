@@ -59,6 +59,7 @@ interface MenuGroup {
 // 集中的页面配置
 const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
   { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
+  { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
   {
     key: 'extensions',
     text: '扩展能力',

@@ -24,7 +24,6 @@ class DBExecCode(Model):
     code_text = fields.TextField(description="执行代码文本")
     outputs = fields.TextField(description="输出结果")
 
-    # 新增字段
     thought_chain = fields.TextField(null=True, description="思维链信息")
     stop_type = fields.IntEnumField(ExecStopType, default=ExecStopType.NORMAL, description="停止类型")
     exec_time_ms = fields.IntField(default=0, description="执行时间(毫秒)")
