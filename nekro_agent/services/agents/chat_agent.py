@@ -401,9 +401,13 @@ async def agent_exec_result(
 
             addition_prompt_message.append(AiMessage(f"{ret_content}"))
             if retry_depth < config.AI_SCRIPT_MAX_RETRY_TIMES - 1:
+                format_tip = "DO NOT give any explanation or apology. Just directly respond in the EXACT format below:\n"
+                if config.AI_ENABLE_COT:
+                    format_tip += "<think>Your step-by-step analysis</think>\n"
+                format_tip += "```python\n# Your executable code\n```"
                 addition_prompt_message.append(
                     UserMessage(
-                        f"Code run error: {err_msg or 'No error message'}\nPlease maintain agreed reply format and try again.",
+                        f"Code run error: {err_msg or 'No error message'}\n{format_tip}",
                     ),
                 )
             else:
