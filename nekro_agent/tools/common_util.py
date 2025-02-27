@@ -193,7 +193,7 @@ def convert_file_name_to_access_path(file_name: str, from_chat_key: str) -> Path
 
 
 def get_downloaded_prompt_file_path(file_name: str) -> Path:
-    """获取已下载文件路径
+    """获取已下载文件的沙盒路径
 
     Args:
         file_name (str): 文件名
@@ -202,7 +202,7 @@ def get_downloaded_prompt_file_path(file_name: str) -> Path:
         Path: 文件路径
     """
 
-    return "app/uploads" / Path(file_name)
+    return "/app/uploads" / Path(file_name)
 
 
 def random_chat_check() -> bool:
