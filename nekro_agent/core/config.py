@@ -74,8 +74,8 @@ class PluginConfig(ConfigBase):
     )
     MAIL_TARGET: List[str] = Field(
         default=[],
-        title="邮件目标",
-        description="邮件目标，多个目标用逗号分隔",
+        title="邮件发送目标",
+        description="填写邮箱地址",
     )
     MAIL_HOSTNAME: str = Field(
         default="smtp.qq.com",
@@ -89,8 +89,8 @@ class PluginConfig(ConfigBase):
     )
     MAIL_STARTTLS: bool = Field(
         default=True,
-        title="启用 STARTTLS",
-        description="启用 STARTTLS 加密",
+        title="启用 TLS",
+        description="启用 TLS 加密",
     )
 
     """OpenAI API 配置"""
