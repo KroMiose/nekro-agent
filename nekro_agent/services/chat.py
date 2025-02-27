@@ -53,6 +53,7 @@ class ChatService:
 
         file_message: List[Path] = []
         if file_mode:
+            #发送文件
             for agent_message in messages:
                 if agent_message.type != AgentMessageSegmentType.FILE.value:
                     raise ValueError("File mode only support file message")
@@ -88,6 +89,7 @@ class ChatService:
                 message.append(MessageSegment.text(f"Invalid file path: {content}"))
 
         else:
+            #发送图片
             for agent_message in messages:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
@@ -111,6 +113,7 @@ class ChatService:
                     if content.startswith("uploads/"):
                         real_path = Path(USER_UPLOAD_DIR) / chat_key / content[len("uploads/") :]
                         logger.info(f"Sending agent file: {real_path}")
+                        agent_message.content = str(real_path)
                         message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
                         continue
 
@@ -126,10 +129,12 @@ class ChatService:
                     if content.startswith("shared/"):
                         real_path = Path(SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
                         logger.info(f"Sending agent file: {real_path}")
+                        agent_message.content = str(real_path)
                         message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
                         continue
                     if content.startswith(("http://", "https://")):
                         file_path, _ = await download_file(content, from_chat_key=chat_key)
+                        agent_message.content = file_path
                         message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
                         continue
 

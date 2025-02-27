@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from nekro_agent.core import config, logger
@@ -18,6 +19,7 @@ from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
     random_chat_check,
+    move_to_upload_dir,
 )
 
 
@@ -204,6 +206,33 @@ class MessageService:
         send_timestamp = int(time.time())
         content_text = convert_agent_message_to_prompt(agent_messages)
 
+        content_data = []
+        for msg in agent_messages:
+            if msg.type == AgentMessageSegmentType.FILE:
+                suffix = msg.content.split(".")[-1].lower()
+                if suffix in ["jpg", "jpeg", "png", "gif", "webp"]:
+                    file_path = Path(msg.content)
+
+                    # 复制文件到uploads目录
+                    local_path, file_name = await move_to_upload_dir(
+                        str(file_path),
+                        file_name=file_path.name,
+                        from_chat_key=chat_key,
+                    )
+
+                    content_data.append({
+                        "type": "image",
+                        "text": "",
+                        "file_name": file_name,
+                        "local_path": local_path,  # 使用复制后的路径
+                        "remote_url": "",
+                    })
+            elif msg.type == AgentMessageSegmentType.TEXT:
+                content_data.append({
+                    "type": "text",
+                    "text": msg.content,
+                })
+
         await DBChatMessage.create(
             message_id="",
             sender_id=-1,
@@ -215,7 +244,7 @@ class MessageService:
             chat_key=chat_key,
             chat_type=ChatType.from_chat_key(chat_key).value,
             content_text=content_text,
-            content_data=[],
+            content_data=content_data,
             raw_cq_code="",
             ext_data={},
             send_timestamp=send_timestamp,

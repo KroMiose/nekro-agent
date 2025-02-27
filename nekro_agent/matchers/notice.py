@@ -22,19 +22,20 @@ class PokeNoticeHandler(BaseNoticeHandler):
     def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "notify" or event_dict.get("sub_type") != "poke":
             return None
+        raw_info = event_dict.get("raw_info", [])
+        poke_style = raw_info[2].get("txt", "戳一戳") if len(raw_info) > 2 else "戳一戳"
+        poke_style_suffix = raw_info[4].get("txt", "") if len(raw_info) > 4 else ""
         return {
             "user_id": str(event_dict["user_id"]),
             "target_id": str(event_dict["target_id"]),
-            "raw_info": event_dict.get("raw_info", []),
+            "poke_style": poke_style,
+            "poke_style_suffix": poke_style_suffix,
         }
 
     def format_message(self, info: Dict[str, str]) -> str:
-        raw_info = info["raw_info"]
-        poke_style = raw_info[2].get("txt", "戳一戳") if len(raw_info) > 2 else "戳一戳"
-        poke_style_suffix = raw_info[4].get("txt", "") if len(raw_info) > 4 else ""
         if str(info["target_id"]) == str(config.BOT_QQ):
-            return f"( {poke_style} {config.AI_CHAT_PRESET_NAME} {poke_style_suffix})"
-        return f"({poke_style} {info['target_id']} {poke_style_suffix})"
+            return f"( {info['poke_style']} {config.AI_CHAT_PRESET_NAME} {info['poke_style_suffix']})"
+        return f"({info['poke_style']} {info['target_id']} {info['poke_style_suffix']})"
 
 
 class GroupIncreaseNoticeHandler(BaseNoticeHandler):
