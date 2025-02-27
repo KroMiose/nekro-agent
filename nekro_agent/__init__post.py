@@ -1,26 +1,14 @@
-import threading
+"""
+仅供上架 NoneBot 商城检查使用，移除所有功能
+"""
 
-from nonebot import get_app, get_driver
+from nonebot import get_driver
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
-
-# import nekro_agent.core.bot
-# import nekro_agent.matchers
-# from nekro_agent.core.args import Args
-# from nekro_agent.core.config import config
-# from nekro_agent.core.logger import logger
-# from nekro_agent.routers import mount_routers
-# from nekro_agent.services.extension import init_extensions
-
-# from .app import start
 
 
 class _Config(BaseModel):
     pass
-
-
-# mount_routers(get_app())
-# init_extensions()
 
 
 __plugin_meta__ = PluginMetadata(
@@ -34,11 +22,3 @@ __plugin_meta__ = PluginMetadata(
 )
 
 global_config = get_driver().config
-
-
-# 启动 Api 服务进程
-# threading.Thread(target=start, daemon=True).start()
-
-# if Args.LOAD_TEST:
-#     logger.success("Plugin load tested successfully")
-#     exit(0)

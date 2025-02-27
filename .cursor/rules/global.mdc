@@ -1,0 +1,34 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 开发规范
+
+- 先主动审查所有依赖与相关文件，再规划实现方案
+- 禁止假定、猜测任何实现
+- 除非用户要求否则保持最小化修改
+- 对参考信息有困惑时主动提问
+- 保持项目工程化和整洁性，合理拆分功能模块
+- 始终处理因为修改产生的衍生 Linter 警告/错误，非必要不要忽略它
+- 修改完成后，审查一遍所有依赖的逻辑是否存在且正确，是否存在未处理的 Linter 警告/错误
+- 执行严格地类型注解开发！慎用类型断言！
+
+# 文档
+
+> 按需阅读文档，如有变化及时更新文档内容
+
+- 架构文档: [Architecture.md](mdc:docs/Architecture.md)
+- 后端开发文档: [backend-rules.mdc](mdc:.cursor/rules/backend-rules.mdc)
+- 前端开发文档: [frontend-rules.mdc](mdc:.cursor/rules/frontend-rules.mdc)
+
+# 开发指南
+
+## 功能/页面开发完整流程
+
+1. 在 `frontend/src/pages` 下查找合适的页面或新建页面开始
+2. 在 `nekro_agent/routers` 下查找已存在的路由或者新建路由，注意使用 [message.py](mdc:nekro_agent/schemas/message.py) 结构; 如有必要查阅或者封装工具使用
+3. 在 `frontend/src/services/api` 下准备合适的 API 路由实现
+4. 在 [index.tsx](mdc:frontend/src/router/index.tsx) 和 [MainLayout.tsx](mdc:frontend/src/layouts/MainLayout.tsx) 中注册路由和页面
+
+上述过程中，如有疑问可参考同级目录下的其他文件实现，不要重复造轮子
