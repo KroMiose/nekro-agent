@@ -54,6 +54,40 @@ class PluginConfig(ConfigBase):
     ENABLE_COMMAND_UNAUTHORIZED_OUTPUT: bool = Field(default=False, title="启用未授权命令反馈")
     DEFAULT_PROXY: str = Field(default="", title="默认代理", json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"})
 
+    """邮件通知配置"""
+    MAIL_ENABLED: bool = Field(
+        default=False,
+        title="启用邮件通知",
+        description="启用后，Bot 上下线时会发送邮件通知",
+    )
+    MAIL_USERNAME: str = Field(
+        default="",
+        title="邮箱账号",
+        json_schema_extra={"is_secret": True},
+        description="用于发送通知的邮箱账号",
+    )
+    MAIL_PASSWORD: str = Field(
+        default="",
+        title="邮箱密码/授权码",
+        json_schema_extra={"is_secret": True},
+        description="邮箱密码或授权码",
+    )
+    MAIL_TARGET: List[str] = Field(
+        default=[],
+        title="邮件目标",
+        description="邮件目标，多个目标用逗号分隔",
+    )
+    MAIL_HOSTNAME: str = Field(
+        default="smtp.qq.com",
+        title="SMTP服务器地址",
+        description="邮件服务器的SMTP地址",
+    )
+    MAIL_PORT: int = Field(
+        default=587,
+        title="SMTP端口",
+        description="SMTP服务器端口，一般为587或465",
+    )
+
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
         default={

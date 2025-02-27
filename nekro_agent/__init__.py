@@ -2,6 +2,7 @@ import logging
 
 import weave
 from nonebot import get_app, get_driver
+from nonebot.adapters.onebot.v11 import Bot
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
 
@@ -15,6 +16,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.routers import mount_routers
 from nekro_agent.services.extension import init_extensions, reload_ext_workdir
 from nekro_agent.services.festival_service import festival_service
+from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.timer_service import timer_service
 
 from .app import start
@@ -54,6 +56,20 @@ async def on_startup():
 async def on_shutdown():
     await timer_service.stop()
     logger.info("Timer service stopped")
+
+
+@get_driver().on_bot_connect
+async def on_bot_connect(bot: Bot):
+    adapter: str = bot.adapter.get_name()
+    bot_id: str = bot.self_id
+    await send_bot_status_email(adapter, bot_id, True)
+
+
+@get_driver().on_bot_disconnect
+async def on_bot_disconnect(bot: Bot):
+    adapter: str = bot.adapter.get_name()
+    bot_id: str = bot.self_id
+    await send_bot_status_email(adapter, bot_id, False)
 
 
 __plugin_meta__ = PluginMetadata(
