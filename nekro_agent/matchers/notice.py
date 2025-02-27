@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from typing import Any, Dict, Optional, Type
 
 from nonebot import on_notice
@@ -117,6 +118,7 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
         # 如果是被管理员撤回
         return f"(成员 (qq:{info['user_id']}) 的一条消息被管理员 (qq:{info['operator_id']}) 撤回，但该消息仍然对你可见)"
 
+
 class GroupAdminNoticeHandler(BaseNoticeHandler):
     """群管理员变动通知处理器"""
 
@@ -138,6 +140,7 @@ class GroupAdminNoticeHandler(BaseNoticeHandler):
             "unset": "被取消管理员身份",
         }
         return f"(成员 (qq:{info['user_id']}) {action_map[info['action']]})"
+
 
 # 注册所有通知处理器
 notice_manager.register(GroupAdminNoticeHandler())
@@ -189,6 +192,10 @@ async def _(
         user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
         sender_nickname = await get_user_name(event=event, bot=bot, user_id=bind_qq)
 
+        if user and datetime.now() < user.ban_until:
+            logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
+            return
+
         chat_message: ChatMessage = ChatMessage(
             message_id="",
             sender_id=str(user.id) if user else bind_qq,
@@ -211,4 +218,4 @@ async def _(
             ext_data={},
             send_timestamp=int(time.time()),
         )
-        await message_service.push_human_message(message=chat_message)
+        await message_service.push_human_message(message=chat_message, user=user)
