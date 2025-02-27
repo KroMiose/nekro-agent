@@ -226,7 +226,7 @@ SANDBOX_ONEBOT_SERVER_MOUNT_DIR: "/app/nekro_agent_data"
 
 这样 NekroAgent 就可以访问到协议实现端的数据目录，从而发送文件内容了
 
-#### Q: 如何在统一设备上部署多个 NekroAgent 实例？
+#### Q: 如何在同一设备上部署多个 NekroAgent 实例？
 
 A: 请先使用 `export NEKRO_DATA_DIR=<你的目录>` 设定好不冲突的目录，然后运行安装脚本并按提示修改 `.env` 文件，设定合适的前缀以避免容器名冲突，设定合适的端口以避免端口冲突，继续完成部署即可
 

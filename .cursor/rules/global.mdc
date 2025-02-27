@@ -10,9 +10,11 @@ alwaysApply: true
 - 除非用户要求否则保持最小化修改
 - 对参考信息有困惑时主动提问
 - 保持项目工程化和整洁性，合理拆分功能模块
-- 始终处理因为修改产生的衍生 Linter 警告/错误，非必要不要忽略它
-- 修改完成后，审查一遍所有依赖的逻辑是否存在且正确，是否存在未处理的 Linter 警告/错误
 - 执行严格地类型注解开发！慎用类型断言！
+- 尽可能使用主流的成熟的框架和组件开发，非必要不要自己造轮子
+- 始终处理因为修改产生的衍生 Linter 警告/错误，非必要禁止忽略它们！！！
+- 修改完成后，审查一遍所有依赖的逻辑是否存在且正确，是否存在未处理的 Linter 警告/错误！
+- 永远以严谨负责的态度完成任务，认真思考任务要求，处理好所有细节！
 
 # 文档
 
@@ -30,5 +32,6 @@ alwaysApply: true
 2. 在 `nekro_agent/routers` 下查找已存在的路由或者新建路由，注意使用 [message.py](mdc:nekro_agent/schemas/message.py) 结构; 如有必要查阅或者封装工具使用
 3. 在 `frontend/src/services/api` 下准备合适的 API 路由实现
 4. 在 [index.tsx](mdc:frontend/src/router/index.tsx) 和 [MainLayout.tsx](mdc:frontend/src/layouts/MainLayout.tsx) 中注册路由和页面
+5. 检查所有修改中的 linter 警告或者错误并修复，直到没有错误！
 
 上述过程中，如有疑问可参考同级目录下的其他文件实现，不要重复造轮子

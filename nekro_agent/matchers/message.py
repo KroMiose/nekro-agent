@@ -56,7 +56,7 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
-    if datetime.now() < user.ban_until:
+    if not user.is_active:
         logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
         return
 
@@ -109,6 +109,10 @@ async def _(
         if bind_qq == config.BOT_QQ:
             return
         raise ValueError(f"用户 {bind_qq} 尚未注册，请先发送任意消息注册后即可上传文件") from None
+
+    if not user.is_active:
+        logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
+        return
 
     # 用户信息处理
     sender_real_nickname: Optional[str] = user.username

@@ -181,9 +181,7 @@ class MessageService:
         )
 
         should_ignore = (
-            check_ignore_message(message.content_text)
-            or (user and datetime.now() < user.prevent_trigger_until)
-            or (user and datetime.now() < user.ban_until)
+            check_ignore_message(message.content_text) or (user and user.is_prevent_trigger) or (user and not user.is_active)
         )
 
         # 检查是否需要触发回复

@@ -192,7 +192,7 @@ async def _(
         user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
         sender_nickname = await get_user_name(event=event, bot=bot, user_id=bind_qq)
 
-        if user and datetime.now() < user.ban_until:
+        if user and not user.is_active:
             logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
             return
 

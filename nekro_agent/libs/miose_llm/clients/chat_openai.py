@@ -106,11 +106,13 @@ async def gen_openai_chat_response(
             api_key=api_key,
             base_url=_OPENAI_BASE_URL,
             http_client=(
-                httpx.AsyncClient(proxies=_OPENAI_PROXY, timeout=httpx.Timeout(connect=10)) if _OPENAI_PROXY else None
+                httpx.AsyncClient(proxies=_OPENAI_PROXY, timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10))
+                if _OPENAI_PROXY
+                else None
             ),
         )
 
-        res: ChatCompletion = await client.chat.completions.create( # type: ignore
+        res: ChatCompletion = await client.chat.completions.create(  # type: ignore
             model=model,
             messages=messages,  # type: ignore
             temperature=temperature,

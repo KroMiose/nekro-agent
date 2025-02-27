@@ -1,6 +1,6 @@
 ---
 description: 前端 React 服务开发指南
-globs: frontend/*
+globs: frontend/**/*.*
 alwaysApply: false
 ---
 # 前端技术栈
@@ -8,7 +8,7 @@ alwaysApply: false
 - React + TypeScript + Vite
 - Material-UI + TailwindCSS
 - Zustand + React Query
-- pnpm
+- 使用 pnpm 进行包管理
 
 # 规范
 
