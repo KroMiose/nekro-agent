@@ -1,7 +1,6 @@
 import time
-from enum import Enum
-from functools import wraps
-from typing import Callable, Dict, Optional, Tuple, Type, Union
+from datetime import datetime
+from typing import Optional, Type, Union
 
 from nonebot import on_message, on_notice
 from nonebot.adapters.onebot.v11 import (
@@ -9,7 +8,6 @@ from nonebot.adapters.onebot.v11 import (
     GroupMessageEvent,
     GroupUploadNoticeEvent,
     MessageEvent,
-    NoticeEvent,
 )
 from nonebot.matcher import Matcher
 
@@ -58,6 +56,10 @@ async def _(
         user = await query_user_by_bind_qq(bind_qq)
         assert user
 
+    if not user.is_active:
+        logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
+        return
+
     content_data, msg_tome, message_id = await convert_chat_message(event, event.to_me, bot, chat_key)
     if not content_data:  # 忽略无法转换的消息
         return
@@ -87,7 +89,7 @@ async def _(
         send_timestamp=int(time.time()),
     )
 
-    await message_service.push_human_message(message=chat_message)
+    await message_service.push_human_message(message=chat_message, user=user)
 
 
 upload_notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
@@ -107,6 +109,10 @@ async def _(
         if bind_qq == config.BOT_QQ:
             return
         raise ValueError(f"用户 {bind_qq} 尚未注册，请先发送任意消息注册后即可上传文件") from None
+
+    if not user.is_active:
+        logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
+        return
 
     # 用户信息处理
     sender_real_nickname: Optional[str] = user.username
@@ -134,4 +140,4 @@ async def _(
         send_timestamp=int(time.time()),
     )
 
-    await message_service.push_human_message(message=chat_message)
+    await message_service.push_human_message(message=chat_message, user=user)

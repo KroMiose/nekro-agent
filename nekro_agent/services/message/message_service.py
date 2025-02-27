@@ -1,6 +1,7 @@
 import asyncio
 import re
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
@@ -9,6 +10,7 @@ from nekro_agent.core.bot import get_bot
 from nekro_agent.libs.miose_llm.exceptions import ResolveError
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
+from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -18,8 +20,8 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
-    random_chat_check,
     move_to_upload_dir,
+    random_chat_check,
 )
 
 
@@ -149,7 +151,7 @@ class MessageService:
                 new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message))
                 self.running_tasks[chat_key] = new_task
 
-    async def push_human_message(self, message: ChatMessage, trigger_agent: bool = False):
+    async def push_human_message(self, message: ChatMessage, user: Optional[DBUser] = None, trigger_agent: bool = False):
         """推送人类消息"""
         logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
 
@@ -178,7 +180,9 @@ class MessageService:
             send_timestamp=int(current_time),  # 使用处理后的时间戳
         )
 
-        should_ignore = check_ignore_message(message.content_text)
+        should_ignore = (
+            check_ignore_message(message.content_text) or (user and user.is_prevent_trigger) or (user and not user.is_active)
+        )
 
         # 检查是否需要触发回复
         should_trigger = (
@@ -220,18 +224,22 @@ class MessageService:
                         from_chat_key=chat_key,
                     )
 
-                    content_data.append({
-                        "type": "image",
-                        "text": "",
-                        "file_name": file_name,
-                        "local_path": local_path,  # 使用复制后的路径
-                        "remote_url": "",
-                    })
+                    content_data.append(
+                        {
+                            "type": "image",
+                            "text": "",
+                            "file_name": file_name,
+                            "local_path": local_path,  # 使用复制后的路径
+                            "remote_url": "",
+                        },
+                    )
             elif msg.type == AgentMessageSegmentType.TEXT:
-                content_data.append({
-                    "type": "text",
-                    "text": msg.content,
-                })
+                content_data.append(
+                    {
+                        "type": "text",
+                        "text": msg.content,
+                    },
+                )
 
         await DBChatMessage.create(
             message_id="",

@@ -1,3 +1,7 @@
+from datetime import datetime
+from typing import Optional
+from zoneinfo import ZoneInfo
+
 from tortoise import fields
 from tortoise.models import Model
 
@@ -22,19 +26,29 @@ class DBUser(Model):
 
     @property
     def is_active(self) -> bool:
-        """用户是否激活"""
-        from datetime import datetime
-
-        now = datetime.now()
-        return self.ban_until is None or now > self.ban_until  # 检查是否在封禁期
+        """检查用户是否处于活跃状态（未被封禁）"""
+        now = datetime.now(ZoneInfo("Asia/Shanghai"))
+        if self.ban_until is None:
+            return True
+        # 确保 ban_until 也是带时区的，如果是 UTC 时间则转换为上海时间
+        ban_until = self.ban_until
+        if ban_until.tzinfo is None:
+            ban_until = ban_until.replace(tzinfo=ZoneInfo("UTC"))
+        ban_until = ban_until.astimezone(ZoneInfo("Asia/Shanghai"))
+        return now > ban_until  # 检查是否在封禁期
 
     @property
     def is_prevent_trigger(self) -> bool:
-        """用户是否禁止触发"""
-        from datetime import datetime
+        """检查用户是否被禁止触发（临时或永久）"""
+        now = datetime.now(ZoneInfo("Asia/Shanghai"))
+        if self.prevent_trigger_until is None:
+            return False
+        # 确保 prevent_trigger_until 也是带时区的，如果是 UTC 时间则转换为上海时间
+        prevent_until = self.prevent_trigger_until
+        if prevent_until.tzinfo is None:
+            prevent_until = prevent_until.replace(tzinfo=ZoneInfo("UTC"))
+        prevent_until = prevent_until.astimezone(ZoneInfo("Asia/Shanghai"))
+        return now < prevent_until  # 检查是否在禁止触发期间（现在时间小于结束时间）
 
-        now = datetime.now()
-        return self.prevent_trigger_until is None or now > self.prevent_trigger_until  # 检查是否在禁止触发期
-
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         table = "user"

@@ -14,7 +14,9 @@ from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user import user_login
 
+from .chat_channel import router as chat_channel_router
 from .config import router as config_router
+from .dashboard import router as dashboard_router
 from .extensions import router as extensions_router
 from .logs import router as logs_router
 from .napcat import router as napcat_router
@@ -22,8 +24,7 @@ from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
 from .tools import router as tools_router
 from .user import router as user_router
-from .dashboard import router as dashboard_router
-from .chat_channel import router as chat_channel_router
+from .user_manager import router as user_manager_router
 
 
 def mount_routers(app: FastAPI):
@@ -48,6 +49,7 @@ def mount_routers(app: FastAPI):
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)
+    api.include_router(user_manager_router)
     api.include_router(tools_router)
     api.include_router(exec_router)
     api.include_router(logs_router)

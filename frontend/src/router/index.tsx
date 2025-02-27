@@ -12,6 +12,7 @@ import SandboxPage from '../pages/sandbox'
 import ProfilePage from '../pages/profile'
 import DashboardPage from '../pages/dashboard'
 import ChatChannelPage from '../pages/chat-channel'
+import UserManagerPage from '../pages/user-manager'
 
 const router = createHashRouter([
   {
@@ -34,6 +35,10 @@ const router = createHashRouter([
       {
         path: 'chat-channel',
         element: <ChatChannelPage />,
+      },
+      {
+        path: 'user-manager',
+        element: <UserManagerPage />,
       },
       {
         path: 'logs',
