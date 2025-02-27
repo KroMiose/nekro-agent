@@ -37,6 +37,7 @@ async def send_bot_status_email(adapter: str, bot_id: str, is_online: bool) -> N
             port=config.MAIL_PORT,
             username=config.MAIL_USERNAME,
             password=config.MAIL_PASSWORD,
+            start_tls=config.MAIL_STARTTLS,
         )
         logger.info("Bot状态邮件发送成功")
     except Exception as e:

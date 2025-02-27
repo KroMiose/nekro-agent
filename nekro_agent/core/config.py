@@ -87,6 +87,11 @@ class PluginConfig(ConfigBase):
         title="SMTP端口",
         description="SMTP服务器端口，一般为587或465",
     )
+    MAIL_STARTTLS: bool = Field(
+        default=True,
+        title="启用 STARTTLS",
+        description="启用 STARTTLS 加密",
+    )
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
