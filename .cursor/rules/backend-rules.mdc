@@ -1,0 +1,64 @@
+---
+description: 后端 FastAPI 服务开发指南
+globs: *.py
+alwaysApply: false
+---
+# 技术栈
+
+- Python + FastAPI + NoneBot2
+- PostgreSQL + Tortoise ORM
+- Docker + Docker Compose
+- poetry
+
+# 目录结构
+
+```
+nekro_agent/
+├── api/          # API 相关实现
+├── cli/          # 命令行工具
+├── core/         # 核心功能模块
+├── libs/         # 通用库
+├── matchers/     # NoneBot2 消息匹配器
+├── models/       # 数据模型定义
+├── routers/      # FastAPI 路由
+├── schemas/      # Pydantic 模型
+├── services/     # 业务服务层
+├── systems/      # 系统级功能
+└── tools/        # 工具类
+```
+
+# 核心组件
+
+## 配置系统
+
+位置: [config.py](mdc:nekro_agent/core/config.py)
+
+```python
+from nekro_agent.core.config import config
+
+# 使用配置
+config.DATA_DIR
+```
+
+## 日志系统
+
+位置: [logger.py](mdc:nekro_agent/core/logger.py)
+
+```python
+from nekro_agent.core.logger import logger
+
+# 记录日志
+logger.info("操作信息")
+logger.error("错误信息")
+```
+
+# 规范
+
+- 执行完全严格的类型注解，除非必要不使用 `# type: ignore` 等方式忽略掉类型错误
+- 任何与外部系统交互的数据第一时间转化为 Pydantic 模型，尽可能不使用 `dict[key]` 来获取数据
+- 遵循 RUFF 代码规范
+- 异步优先原则，禁止使用同步阻塞
+
+# 扩展相关
+
+扩展可以被 AI 调用，用来增强 NekroAgent 的能力，开发文档参考 [Extension_Development.md](mdc:docs/Extension_Development.md)

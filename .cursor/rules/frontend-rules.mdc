@@ -1,0 +1,26 @@
+---
+description: 前端 React 服务开发指南
+globs: frontend/*
+alwaysApply: false
+---
+# 前端技术栈
+
+- React + TypeScript + Vite
+- Material-UI + TailwindCSS
+- Zustand + React Query
+- pnpm
+
+# 规范
+
+* 前端页面必须尽可能使用 Material-UI 组件与 TailwindCSS 进行原子化样式开发
+* 涉及全局相关的样式/颜色/主题时，统一在 `frontend/src/theme` 中进行配置，不要在每个实现的地方硬编码颜色信息
+* API 调用统一放在 services/api 中
+
+# 主题相关
+
+* 主题控制: [theme.ts](mdc:frontend/src/stores/theme.ts) (深色/浅色)
+* 主题定义: [constants.ts](mdc:frontend/src/theme/constants.ts), [index.tsx](mdc:frontend/src/theme/index.tsx), [utils.ts](mdc:frontend/src/theme/utils.ts)
+
+# 流式请求
+
+当你需要开发流式推送服务时，复用已经实现的包含鉴权的流式请求工具 [stream.ts](mdc:frontend/src/services/api/utils/stream.ts) ，应用示例: [logs.py](mdc:nekro_agent/routers/logs.py), [logs.ts](mdc:frontend/src/services/api/logs.ts)
