@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import List, Optional
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends
 from tortoise.expressions import Q
@@ -46,7 +47,8 @@ async def get_chat_channel_list(
     for channel in channels:
         message_count = await DBChatMessage.filter(chat_key=channel.chat_key).count()
         last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
-        last_message_time = last_message.create_time if last_message else datetime.min
+        # 确保时间是 naive 的
+        last_message_time = last_message.create_time.replace(tzinfo=None) if last_message else datetime.min
         channel_data = await channel.get_channel_data()
 
         channel_info_list.append(
