@@ -38,20 +38,38 @@ async def get_chat_channel_list(
     if is_active is not None:
         query = query.filter(is_active=is_active)
 
-    # 统计总数
-    total = await query.count()
+    # 获取所有符合条件的频道
+    channels = await query.all()
 
-    # 分页查询
-    channels = await query.order_by("-update_time").offset((page - 1) * page_size).limit(page_size)
-
-    # 获取每个会话的消息数量
-    result = []
+    # 获取每个频道的最后消息时间和其他信息
+    channel_info_list = []
     for channel in channels:
         message_count = await DBChatMessage.filter(chat_key=channel.chat_key).count()
-        # 获取最后一条消息的时间
         last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
-        last_message_time = last_message.create_time if last_message else None
+        last_message_time = last_message.create_time if last_message else datetime.min
         channel_data = await channel.get_channel_data()
+
+        channel_info_list.append(
+            {
+                "channel": channel,
+                "message_count": message_count,
+                "last_message_time": last_message_time,
+                "channel_data": channel_data,
+            },
+        )
+
+    # 按最后消息时间排序
+    channel_info_list.sort(key=lambda x: x["last_message_time"], reverse=True)
+
+    # 分页
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    paged_channels = channel_info_list[start_idx:end_idx]
+
+    # 构建返回结果
+    result = []
+    for info in paged_channels:
+        channel = info["channel"]
         result.append(
             {
                 "id": channel.id,
@@ -59,18 +77,22 @@ async def get_chat_channel_list(
                 "channel_name": channel.channel_name,
                 "is_active": channel.is_active,
                 "chat_type": channel.chat_type.value,
-                "message_count": message_count,
-                "current_preset": channel_data.get_latest_preset_status(),
+                "message_count": info["message_count"],
+                "current_preset": info["channel_data"].get_latest_preset_status(),
                 "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
-                "last_message_time": last_message_time.strftime("%Y-%m-%d %H:%M:%S") if last_message_time else None,
+                "last_message_time": (
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S")
+                    if info["last_message_time"] != datetime.min
+                    else None
+                ),
             },
         )
 
     return Ret.success(
         msg="获取成功",
         data={
-            "total": total,
+            "total": len(result),
             "items": result,
         },
     )
@@ -174,7 +196,7 @@ async def get_chat_channel_messages(
     query = DBChatMessage.filter(chat_key=chat_key)
     if before_id:
         query = query.filter(id__lt=before_id)
-    
+
     # 统计总数
     total = await query.count()
 
