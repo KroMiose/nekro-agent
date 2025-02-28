@@ -26,6 +26,10 @@ class ImageMessageSegment:
             return cls(f"data:image/jpeg;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         if path.endswith(".gif"):
             return cls(f"data:image/gif;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
+        if path.endswith(".webp"):
+            return cls(f"data:image/webp;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
+        if path.endswith(".bmp"):
+            return cls(f"data:image/bmp;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         raise ValueError(f"Unsupported image format: {path}")
 
     @classmethod
