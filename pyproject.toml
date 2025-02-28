@@ -55,10 +55,10 @@ plugins = ["nekro_agent"]
 plugin_dirs = []
 builtin_plugins = []
 
-[[tool.poetry.source]]
-name = "aliyun"
-url = "https://mirrors.aliyun.com/pypi/simple/"
-priority = "primary"
+# [[tool.poetry.source]]
+# name = "aliyun"
+# url = "https://mirrors.aliyun.com/pypi/simple/"
+# priority = "primary"
 
 [tool.black]
 line-length = 128

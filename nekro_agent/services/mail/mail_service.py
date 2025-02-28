@@ -21,11 +21,12 @@ async def send_bot_status_email(adapter: str, bot_id: str, is_online: bool) -> N
     message = EmailMessage()
     message["From"] = config.MAIL_USERNAME
     message["To"] = ", ".join(config.MAIL_TARGET) if config.MAIL_TARGET else config.MAIL_USERNAME
-    message["Subject"] = "Bot状态提醒！"
 
     if is_online:
+        message["Subject"] = "[NekroAgent] Bot 上线通知～"
         content = f"您的Bot上线啦!\n适配器：{adapter}\nBot：{bot_id}"
     else:
+        message["Subject"] = "[NekroAgent] Bot 下线通知～"
         content = f"您的Bot下线了，可能出现了问题，快去看看吧！\n适配器：{adapter}\nBot：{bot_id}"
 
     message.set_content(content)

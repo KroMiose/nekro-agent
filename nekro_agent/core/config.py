@@ -57,39 +57,39 @@ class PluginConfig(ConfigBase):
     """邮件通知配置"""
     MAIL_ENABLED: bool = Field(
         default=False,
-        title="启用邮件通知",
+        title="启用运行状态邮件通知",
         description="启用后，Bot 上下线时会发送邮件通知",
     )
     MAIL_USERNAME: str = Field(
         default="",
-        title="邮箱账号",
+        title="邮件通知账号",
         json_schema_extra={"is_secret": True},
         description="用于发送通知的邮箱账号",
     )
     MAIL_PASSWORD: str = Field(
         default="",
-        title="邮箱密码/授权码",
+        title="邮件通知密码/授权码",
         json_schema_extra={"is_secret": True},
         description="邮箱密码或授权码",
     )
     MAIL_TARGET: List[str] = Field(
         default=[],
-        title="邮件发送目标",
+        title="邮件通知目标",
         description="填写邮箱地址",
     )
     MAIL_HOSTNAME: str = Field(
         default="smtp.qq.com",
-        title="SMTP服务器地址",
+        title="邮件通知 SMTP 服务器",
         description="邮件服务器的SMTP地址",
     )
     MAIL_PORT: int = Field(
         default=587,
-        title="SMTP端口",
+        title="邮件通知 SMTP 端口",
         description="SMTP服务器端口，一般为587或465",
     )
     MAIL_STARTTLS: bool = Field(
         default=True,
-        title="启用 TLS",
+        title="邮件通知启用 TLS 加密",
         description="启用 TLS 加密",
     )
 
