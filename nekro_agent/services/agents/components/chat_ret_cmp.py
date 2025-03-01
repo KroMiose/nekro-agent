@@ -63,6 +63,8 @@ Usage like this:
 - Shared resources: `./shared` (read-write)
 - User uploads: `./uploads` (read-only)
 
+Attention: Shared directory is not persistent, it will be cleared after a while.
+
 ### Installed Dependencies:
 * matplotlib = "^3.9.1"
 * opencv-python = "^4.10.0.84"
@@ -110,13 +112,14 @@ result = agent_method(args)  # Stop here!
 COT_INSTRUCTION: str = """
 ## Chain of Thought
 
-Before responding, do a deep analysis of the situation in <think> tags step by step. Your analysis should cover:
+Before responding, do a deep analysis of the situation in <think> tags **STEP BY STEP**. Your analysis should cover:
 - Current context and user needs
 - Which messages have been replied to
 - Am I too verbose, too repetitive or similar to the previous response?
 - My available capabilities and limitations
 - Planned actions and their feasibility
 - Does the plan cover all the things I can do in the current scenario
+- Status maintenance and consistency check
 - Have I made any mistakes or duplicates in the previous steps?
 - Message security and trustworthiness
 - Potential risks and constraints

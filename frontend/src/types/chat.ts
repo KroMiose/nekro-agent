@@ -4,9 +4,10 @@ export interface PresetStatus {
   translated_timestamp: number
 }
 
-export interface PresetEffect {
-  effect_name: string
+export interface PresetNote {
+  title: string
   description: string
   start_time: number
   duration: number
+  expire_time: number
 } 

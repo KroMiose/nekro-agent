@@ -136,11 +136,11 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     for status in channel_data.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE :]:
         info += f"[{status.setting_name}] - {status.description}\n"
 
-    info += "效果标签:\n"
-    for effect in channel_data.preset_effects.values():
-        info += f"- {effect.effect_name} ({effect.description})\n"
-    if not channel_data.preset_effects:
-        info += "- 暂无效果标签\n"
+    info += "状态笔记:\n"
+    for note in channel_data.preset_notes.values():
+        info += f"- {note.title} ({note.description})\n"
+    if not channel_data.preset_notes:
+        info += "- 暂无状态笔记\n"
 
     await finish_with(matcher, message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
 

@@ -140,7 +140,7 @@ async def get_chat_channel_detail(
             "unique_users": len(unique_users),
             "current_preset": channel_data.get_latest_preset_status(),
             "preset_status_list": preset_status_list,
-            "preset_effects": list(channel_data.preset_effects.values()),
+            "preset_notes": list(channel_data.preset_notes.values()),
             "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
             "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
             "last_message_time": last_message_time.strftime("%Y-%m-%d %H:%M:%S") if last_message_time else None,
