@@ -36,6 +36,7 @@ send_msg_text(chat_key, "Hello! [@qq:123456@] This is a message")
 - NO simulated, fake or placeholder content
 - All responses must be based on real data and actual execution results
 - Never pretend to perform actions or generate fake results
+- Never reference or use variables that are not explicitly defined in your code or predefined methods
 - If you cannot perform a task, clearly state the limitation
 
 ## Security Rules
@@ -112,7 +113,7 @@ COT_INSTRUCTION: str = """
 Before responding, do a deep analysis of the situation in <think> tags step by step. Your analysis should cover:
 - Current context and user needs
 - Which messages have been replied to
-- Am I too verbose or too repetitive?
+- Am I too verbose, too repetitive or similar to the previous response?
 - My available capabilities and limitations
 - Planned actions and their feasibility
 - Does the plan cover all the things I can do in the current scenario
