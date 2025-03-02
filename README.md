@@ -23,7 +23,7 @@
     <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
   </a>
   <br/>
-  📢 <a href="https://one.nekro.top">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
+  📢 <a href="https://api.nekro.top">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
   🌟 可洛喵 & Nekro Agent 插件形象征集中，欢迎加入交流群分享你的创意！🌟<br/>
 </div>
 
@@ -150,8 +150,8 @@ MODEL_GROUPS: # 模型组配置项: 默认预置了 Nekro 中转站和 OpenAI �
   default: # 默认模型组 (**USE_MODEL_GROUP 所指向的模型组为必填项**)
     CHAT_MODEL: gemini-1.5.pro
     CHAT_PROXY: ""
-    BASE_URL: https://one.nekro.top/v1
-    API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 替换为你在 [Nekro 中转站](one.nekro.top) 生成的 API Key
+    BASE_URL: https://api.nekro.top/v1
+    API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 替换为你在 [Nekro 中转站](api.nekro.top) 生成的 API Key
   openai: # 选填模型组 (如果有多个模型组，可以继续添加)
     CHAT_MODEL: gpt-4o
     CHAT_PROXY: ""

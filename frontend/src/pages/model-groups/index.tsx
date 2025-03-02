@@ -355,7 +355,7 @@ export default function ModelGroupsPage() {
       <Box className="flex justify-between items-center mb-4 flex-shrink-0">
         <Alert severity="info" className="mr-4">
           需要 API 密钥？可访问{' '}
-          <Link href="https://one.nekro.top" target="_blank" rel="noopener">
+          <Link href="https://api.nekro.top" target="_blank" rel="noopener">
             Nekro 合作中转
           </Link>{' '}
           获取专属密钥喵～

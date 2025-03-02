@@ -23,7 +23,7 @@ class DBChatChannel(Model):
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         table = "chat_channel"
 
     @classmethod

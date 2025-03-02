@@ -14,6 +14,8 @@ import {
   DialogActions,
   CircularProgress,
   Divider,
+  IconButton,
+  Tooltip,
 } from '@mui/material'
 import {
   Group as GroupIcon,
@@ -22,6 +24,7 @@ import {
   Cancel as CancelIcon,
   Refresh as RefreshIcon,
   Circle as CircleIcon,
+  Sync as SyncIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
@@ -36,6 +39,7 @@ interface ChatChannelDetailProps {
 export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
   const [currentTab, setCurrentTab] = useState(0)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const queryClient = useQueryClient()
 
   // 查询会话详情
@@ -61,6 +65,17 @@ export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
       setResetDialogOpen(false)
     },
   })
+
+  // 刷新会话信息
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
+      await queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
 
   // 处理标签切换
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
@@ -93,6 +108,20 @@ export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
               <Typography variant="h6" className="font-medium">
                 {channel.channel_name || '未命名会话'}
               </Typography>
+              <Tooltip title="刷新会话信息">
+                <IconButton
+                  size="small"
+                  onClick={handleRefresh}
+                  disabled={isRefreshing}
+                  sx={{ mr: 0.5 }}
+                >
+                  {isRefreshing ? (
+                    <CircularProgress size={16} />
+                  ) : (
+                    <SyncIcon fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
               <CircleIcon
                 sx={{
                   fontSize: 10,
