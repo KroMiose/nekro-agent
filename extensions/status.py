@@ -16,16 +16,16 @@ __meta__ = core.ExtMetaData(
 
 @core.agent_collector.mount_method(core.MethodType.BEHAVIOR)
 async def update_preset_status(chat_key: str, setting_name: str, description: str, _ctx: schemas.AgentCtx):
-    """更新人物设定基本状态
+    """Update Character Preset Basic Status
 
-    **注意**:
-    1. 你必须在**当且仅当**场景发展变化导致**不符合**当前设定状态时调用此方法来更新自身状态, 由于上下文有限，你不能过度频繁使用此方法，否则会丢失较早的状态记录!
-    2. 通常与 `set_note` / `remove_note` 配合使用实现持久化记忆
+    **Attention**:
+    1. You must call this method only when the scene development changes and the current preset status **does not match**, because the context is limited, you cannot use this method too frequently, otherwise the earlier status records will be lost!
+    2. Usually used in conjunction with `set_note` / `remove_note` to implement persistent memory
 
     Args:
-        chat_key (str): 会话标识
-        setting_name (str): 新状态的人设名 (less than 20 characters)
-        description (str): 变化状态描述与原因 (推荐格式 "由于 [事件]，转变为 [新状态的详细描述] [且仍然...(旧状态仍有效信息 可选)]" **事件必须基于上下文进行总结描述尽可能详细地说明人物当前状态、外观、动作等信息**)
+        chat_key (str): Chat Key
+        setting_name (str): New Character Preset Name (less than 20 characters)
+        description (str): Description of the change state and reason (Recommend format: "由于 [事件]，转变为 [新状态的详细描述] [且仍然...(旧状态仍有效信息 可选)]" **event must be summarized based on the context and described as detailed as possible to describe the current state, appearance, action, etc.**)
 
     Example:
         ```
@@ -55,19 +55,19 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
 
 @core.agent_collector.mount_method(core.MethodType.TOOL)
 async def set_note(chat_key: str, title: str, description: str, duration: int, _ctx: schemas.AgentCtx) -> bool:
-    """设置状态笔记 适用于 "外观外貌"、"身体部位"、"心理状态" 等效果
+    """Set Status Note (适用于 "外观外貌"、"身体部位"、"心理状态" 等效果)
 
-    注意: 你所看到的聊天记录均是**有长度限制的滚动呈现**，因此务必及时记住对话中的重要信息，否则会丢失记录!
+    **Attention**: ALL the chat records you see are **SCROLLING WINDOW** with a length limit, so make sure to remember the important information, otherwise it will be lost!
     This is the ** MOST RECOMMENDED ** way to manage persistent information.
 
     Args:
-        chat_key (str): 会话标识
-        title (str): 笔记标题 (Update following arguments if specified `title` already exists)
-        description (str): 详细描述 (Recommend format: "[tag] ...(effect description)")
-        duration (int): 持续时间 (seconds, 0 means infinite)
+        chat_key (str): Chat Key
+        title (str): Note Title (Update following arguments if specified `title` already exists)
+        description (str): Detailed Description (Recommend format: "[tag] ...(effect description)")
+        duration (int): Duration (seconds, 0 means infinite)
 
     Returns:
-        bool: 是否成功
+        bool: Successfully set note
 
     Example:
         ```
@@ -77,11 +77,11 @@ async def set_note(chat_key: str, title: str, description: str, duration: int, _
         set_note(chat_key, "手臂受伤", "[效果] 因为摔倒而受伤，情况很严重，需要及时治疗", 0)
 
         # 维护一些自己或他人的状态变量
-        set_note(chat_key, "正在维护xxx的财务状况", "[规则] 我正在维护xxx的财务状况, ... (detail scene rules)", 0)
+        set_note(chat_key, "正在维护xxx的财务状况", "[规则] 我正在维护xxx的财务状况, 使用...如果... (design and record very detail scene to keep remember operation rules)", 0)
         last_money_yuan = 50
         spend_money_yuan = 10
         if last_money_yuan - spend_money_yuan > 0:
-            set_note(chat_key, "xxx的财务状况", "[变量] 剩余 {last_money_yuan - spend_money_yuan} 元", 0)
+            set_note(chat_key, "xxx的财务状况", f"[变量] 剩余 {last_money_yuan - spend_money_yuan} 元", 0)
 
         # 记录关键信息
         set_note(chat_key, "xxx的电子邮箱", "[记忆] xxx@gmail.com", 0)
@@ -99,25 +99,25 @@ async def set_note(chat_key: str, title: str, description: str, duration: int, _
 
 @core.agent_collector.mount_method(core.MethodType.TOOL)
 async def get_note(chat_key: str, title: str, _ctx: schemas.AgentCtx) -> str:
-    """获取状态笔记
+    """Get Status Note
 
     Args:
-        chat_key (str): 会话标识
-        title (str): 笔记标题
+        chat_key (str): Chat Key
+        title (str): Note Title
 
     Returns:
-        str: 笔记内容 (return empty string if note not found)
+        str: Note Content (return empty string if note not found)
 
     Example:
         ```
-        # 将 Note 作为 K-V 数据库使用
+        # You can also use Note System as a K-V database
         import json
         if not get_note(chat_key, "some_data"):
             set_note(chat_key, "some_data", "{}", 0)
-            set_note(chat_key, "some_data_schema", "...", 0) # note 内容过长时会省略显示, 保存一份结构描述笔记给自己参考
+            set_note(chat_key, "some_data_schema", "...", 0) # save a structure description note for reference
         data = json.loads(get_note(chat_key, "some_data"))
         data["xxx"] = "xxx"
-        set_note(chat_key, "some_data", json.dumps(data, ensure_ascii=False), 0)
+        set_note(chat_key, "some_data", json.dumps(data, ensure_ascii=False), 0) # note 内容过长时会省略显示, 但仍可以通过 `get_note` 获取完整内容
         ```
     """
     db_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key)
@@ -128,11 +128,11 @@ async def get_note(chat_key: str, title: str, _ctx: schemas.AgentCtx) -> str:
 
 @core.agent_collector.mount_method(core.MethodType.BEHAVIOR)
 async def remove_note(chat_key: str, title: str, _ctx: schemas.AgentCtx):
-    """移除状态笔记
+    """Remove Status Note
 
     Args:
-        chat_key (str): 会话标识
-        title (str): 被移除的笔记标题 (e.g. "心情愉悦" ... Must be exact match)
+        chat_key (str): Chat Key
+        title (str): Note Title to be removed (e.g. "心情愉悦" ... Must be exact match)
 
     Example:
         ```

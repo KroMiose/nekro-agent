@@ -2,6 +2,8 @@ import base64
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
 
+from nekro_agent.core import logger
+
 from ..components import BaseComponent
 from ..exceptions import ArgumentTypeError, RenderPromptError
 from .base import BasePromptCreator
@@ -30,7 +32,12 @@ class ImageMessageSegment:
             return cls(f"data:image/webp;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         if path.endswith(".bmp"):
             return cls(f"data:image/bmp;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
-        raise ValueError(f"Unsupported image format: {path}")
+        logger.warning(f"未知的图片格式，尝试使用 PNG 格式处理: {path}")
+        try:
+            return cls(f"data:image/png;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
+        except Exception as e:
+            logger.exception(f"处理图片失败: {e}")
+        raise ValueError(f"不支持的图片格式: {path}")
 
     @classmethod
     def from_url(cls, url: str) -> "ImageMessageSegment":

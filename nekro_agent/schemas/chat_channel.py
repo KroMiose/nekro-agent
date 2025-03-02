@@ -68,7 +68,7 @@ class PresetNote(BaseModel):
             if len(self.description) < 72
             else self.description[:32] + "...(note too long, use `get_note` to get the full note...)" + self.description[-32:]
         )
-        return f"{self.title}: {description_str} (started {time_diff_str} ago. {extra_diff_str})"
+        return f"* note_title: {self.title}\n* note_description: {description_str}\n* time: (started {time_diff_str} ago. {extra_diff_str})"
 
 
 class ChannelData(BaseModel):
