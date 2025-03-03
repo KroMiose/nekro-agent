@@ -74,7 +74,7 @@ def convert_to_host_path(
         ... )
         Path("/data/shared/container_789/test.txt")
     """
-    def validate_shared_path(key: Optional[str]) -> None:
+    def _validate_shared_path(key: Optional[str]) -> None:
         if not key:
             raise ValueError("Container key is required for shared paths")
 
@@ -100,7 +100,7 @@ def convert_to_host_path(
         if location == PathLocation.UPLOADS:
             return uploads_dir / chat_key / relative_path
         if location == PathLocation.SHARED:
-            validate_shared_path(container_key)
+            _validate_shared_path(container_key)
             return shared_dir / str(container_key) / relative_path
             
     except Exception as e:
