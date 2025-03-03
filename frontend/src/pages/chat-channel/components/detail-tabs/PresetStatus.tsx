@@ -170,6 +170,15 @@ export default function PresetStatus({ channel }: PresetStatusProps) {
     }
   }, [])
 
+  // 如果 channel 是 undefined，显示加载状态
+  if (!channel) {
+    return (
+      <Box className="h-full flex items-center justify-center">
+        <Typography color="textSecondary">加载中...</Typography>
+      </Box>
+    )
+  }
+
   return (
     <Box className="h-full flex flex-col overflow-hidden">
       <Box ref={containerRef} className="flex-1 overflow-auto">
@@ -198,7 +207,7 @@ export default function PresetStatus({ channel }: PresetStatusProps) {
               },
             }}
           >
-            {channel.preset_status_list.map((status, index, array) => {
+            {(channel.preset_status_list || []).map((status, index, array) => {
               const isCurrentStatus = index === array.length - 1
               const isExpired = index < array.length - channel.max_preset_status_refer_size
               return (
@@ -285,9 +294,9 @@ export default function PresetStatus({ channel }: PresetStatusProps) {
           >
             状态笔记列表
           </Typography>
-          {channel.preset_notes.length > 0 ? (
+          {(channel.preset_notes || []).length > 0 ? (
             <div className="grid grid-cols-2 gap-4">
-              {channel.preset_notes.map((note, index) => (
+              {(channel.preset_notes || []).map((note, index) => (
                 <NoteCard key={index} note={note} />
               ))}
             </div>

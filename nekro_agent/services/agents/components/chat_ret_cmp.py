@@ -270,6 +270,12 @@ class ChatResponseResolver(BaseComponent):
         self.ret_list = []
         response_text = response_text.strip()
 
+        if config.AI_RESPONSE_PRE_DROP_REGEX:
+            for regex in config.AI_RESPONSE_PRE_DROP_REGEX:
+                logger.debug(f"AI 响应预处理丢弃正则表达式: {regex}")
+                response_text = re.sub(regex, "", response_text)
+                logger.debug(f"AI 响应预处理丢弃后: {response_text}")
+
         # 提取并记录思维链内容（无论是否启用思维链模式都要提取）
         cot_match = re.search(r"<think>([\s\S]*?)</think>", response_text, flags=re.MULTILINE)
         has_think_content = False

@@ -181,6 +181,11 @@ class PluginConfig(ConfigBase):
         title="忽略正则表达式",
         description="忽略正则表达式，当消息匹配到正则表达式时，不会触发 AI 回复",
     )
+    AI_RESPONSE_PRE_DROP_REGEX: List[str] = Field(
+        default=[],
+        title="AI 响应预处理丢弃正则表达式",
+        description="使用正则表达式匹配 AI 响应结果，丢弃匹配到的内容段",
+    )
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
         default=768,
         title="单条消息最大长度 (字符)",
@@ -303,7 +308,7 @@ class PluginConfig(ConfigBase):
     MAIL_STARTTLS: bool = Field(
         default=True,
         title="邮件通知启用 TLS 加密",
-        description="启用 TLS 加密", 
+        description="启用 TLS 加密",
     )
 
     """拓展配置"""
