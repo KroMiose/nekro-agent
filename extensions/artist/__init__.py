@@ -3,15 +3,15 @@ from typing import Tuple
 
 import httpx
 
-from nekro_agent.core import logger
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.core import logger
 from nekro_agent.services.chat import chat_service
 from nekro_agent.services.extension import ExtMetaData
 from nekro_agent.tools.collector import MethodType, agent_collector
 from nekro_agent.tools.common_util import (
-    convert_file_name_to_container_path,
     download_file_from_bytes,
 )
+from nekro_agent.tools.path_convertor import convert_filename_to_container_path
 
 from .designer import gen_sd_prompt_by_scene
 from .stable_diffusion import text2img
@@ -53,7 +53,7 @@ async def draw_image(scene_description: str, img_size: Tuple, _ctx: AgentCtx) ->
     prompts, negative_prompts = await gen_sd_prompt_by_scene(scene_description)
     bytes_data: bytes = await text2img(prompts, negative_prompts, img_size[0], img_size[1])
     file_path, file_name = await download_file_from_bytes(bytes_data, use_suffix=".png", from_chat_key=_ctx.from_chat_key)
-    return str(convert_file_name_to_container_path(file_name))
+    return str(convert_filename_to_container_path(file_name))
 
 
 async def clean_up():

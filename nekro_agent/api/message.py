@@ -4,15 +4,16 @@
 """
 
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.core import logger
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
 )
 from nekro_agent.services.chat import chat_service
 from nekro_agent.tools.common_util import (
-    convert_file_name_to_container_path,
     download_file,
 )
+from nekro_agent.tools.path_convertor import convert_filename_to_container_path
 
 __all__ = [
     "download_from_url",
@@ -123,6 +124,6 @@ async def download_from_url(url: str, ctx: AgentCtx) -> str:
     """
     try:
         file_path, file_name = await download_file(url, from_chat_key=ctx.from_chat_key)
-        return str(convert_file_name_to_container_path(file_name))
+        return str(convert_filename_to_container_path(file_name))
     except Exception as e:
         raise Exception(f"下载文件失败: {e}") from e
