@@ -1,5 +1,6 @@
 from typing import List
 
+
 def format_duration(seconds: int) -> str:
     """将秒数转换为易读的时间格式
     
@@ -16,7 +17,7 @@ def format_duration(seconds: int) -> str:
         (86400, "天"),
         (3600, "小时"),
         (60, "分钟"),
-        (1, "秒")
+        (1, "秒"),
     ]
     
     parts: List[str] = []

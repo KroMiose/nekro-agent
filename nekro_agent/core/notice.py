@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, Optional, TypedDict, Any
+from typing import Any, Dict, Optional, TypedDict
 
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 
@@ -9,6 +9,7 @@ from nekro_agent.core.config import config
 @dataclass
 class NoticeConfig:
     """通知配置"""
+
     force_tome: bool = False  # 是否强制设置为 tome
     use_system_sender: bool = False  # 是否使用系统发送者 (bind_qq='0')
     use_operator_as_sender: bool = False  # 是否使用操作者作为发送者
@@ -16,6 +17,7 @@ class NoticeConfig:
 
 class BaseNoticeHandler:
     """通知处理器基类"""
+
     def __init__(self):
         self.config = self.get_notice_config()
 
@@ -25,10 +27,10 @@ class BaseNoticeHandler:
 
     def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         """匹配通知事件并提取信息
-        
+
         Args:
             event_dict (Dict[str, Any]): 通知事件字典
-            
+
         Returns:
             Optional[Dict[str, str]]: 通知信息，如果不匹配则返回 None
         """
@@ -36,10 +38,10 @@ class BaseNoticeHandler:
 
     def format_message(self, info: Dict[str, str]) -> str:
         """格式化消息
-        
+
         Args:
             info (Dict[str, str]): 通知信息
-            
+
         Returns:
             str: 格式化后的消息
         """
@@ -47,10 +49,10 @@ class BaseNoticeHandler:
 
     def get_sender_bind_qq(self, info: Dict[str, str]) -> str:
         """获取发送者QQ
-        
+
         Args:
             info (Dict[str, str]): 通知信息
-            
+
         Returns:
             str: 发送者QQ
         """
@@ -63,12 +65,14 @@ class BaseNoticeHandler:
 
 class NoticeResult(TypedDict):
     """通知处理结果"""
+
     handler: BaseNoticeHandler
     info: Dict[str, str]
 
 
 class NoticeHandlerManager:
     """通知处理器管理器"""
+
     def __init__(self):
         self._handlers: list[BaseNoticeHandler] = []
 
@@ -76,19 +80,19 @@ class NoticeHandlerManager:
         """注册处理器"""
         self._handlers.append(handler)
 
-    async def handle(self, event: NoticeEvent, bot: Bot) -> Optional[NoticeResult]:
+    async def handle(self, event: NoticeEvent, _bot: Bot) -> Optional[NoticeResult]:
         """处理通知事件
-        
+
         Args:
             event (NoticeEvent): 通知事件
-            bot (Bot): 机器人实例
-            
+            _bot (Bot): 机器人实例
+
         Returns:
             Optional[NoticeResult]: 处理结果，包含处理器实例和通知信息
         """
         # 预处理事件为字典
         event_dict = dict(event)
-        
+
         for handler in self._handlers:
             if info := handler.match(event_dict):
                 return NoticeResult(
@@ -99,4 +103,4 @@ class NoticeHandlerManager:
 
 
 # 全局通知处理器管理器
-notice_manager = NoticeHandlerManager() 
+notice_manager = NoticeHandlerManager()

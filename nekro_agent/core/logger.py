@@ -102,7 +102,7 @@ log_handlers = [
     },
 ]
 
-logger.configure(handlers=log_handlers)
+logger.configure(handlers=log_handlers) # type: ignore
 
 
 async def get_log_records(

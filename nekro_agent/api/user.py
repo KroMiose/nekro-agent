@@ -5,8 +5,6 @@
 
 from pathlib import Path
 
-from nonebot import logger
-
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.tools.common_util import (
     download_file,
