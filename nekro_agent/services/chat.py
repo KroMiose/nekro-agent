@@ -20,7 +20,7 @@ from nekro_agent.tools.path_convertor import (
     convert_to_host_path,
     is_url_path,
 )
-
+from nekro_agent.tools.onebot_util import get_user_group_card_name
 
 class SegAt(BaseModel):
     qq: str
@@ -95,7 +95,7 @@ class ChatService:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
                     content = fix_raw_response(content)
-                    seg_data = parse_at_from_text(content)
+                    seg_data = await parse_at_from_text(content,chat_key)
                     for seg in seg_data:
                         if isinstance(seg, str):
                             if seg.strip():
@@ -213,7 +213,7 @@ class ChatService:
             raise ValueError("Invalid chat type")
 
 
-def parse_at_from_text(text: str) -> List[Union[str, SegAt]]:
+async def parse_at_from_text(text: str,group_id: str) -> List[Union[str, SegAt]]:
     """从文本中解析@信息
     需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
 
@@ -248,10 +248,21 @@ def parse_at_from_text(text: str) -> List[Union[str, SegAt]]:
             parts = seg.split(";")
             qq = parts[0].replace("qq:", "").strip()
             nickname = parts[1].replace("nickname:", "").strip()
-            result.append(SegAt(qq=qq, nickname=nickname))
+            if config.SESSION_DISABLE_AT:
+                result.append(f"{nickname}")
+            else:
+                result.append(SegAt(qq=qq, nickname=nickname))
         else:
             qq = seg.replace("qq:", "").strip()
-            result.append(SegAt(qq=qq, nickname=None))
+            if config.SESSION_DISABLE_AT:
+                if "group" in group_id:
+                    group_id = group_id.replace("group_", "")
+                    nickname = await get_user_group_card_name(group_id=group_id, user_id=qq)
+                    result.append(f"{nickname}")
+                else:
+                    result.append(f"{qq}")
+            else:
+                result.append(SegAt(qq=qq, nickname=None))
         start = end_index + 2  # 跳过 '@]' 标志
     return result
 

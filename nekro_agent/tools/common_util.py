@@ -177,6 +177,19 @@ def check_content_trigger(content: str) -> bool:
             return True
     return False
 
+def check_prefix_trigger(content: str) -> bool:
+    """前缀触发检测
+
+    Args:
+        content (str): 内容
+
+    Returns:
+        bool: 是否触发
+    """
+    for prefix in config.AI_CHAT_TRIGGER_PREFIX:
+        if content.startswith(prefix):
+            return True
+    return False
 
 def check_ignore_message(content: str) -> bool:
     """忽略消息检测

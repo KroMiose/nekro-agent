@@ -67,7 +67,8 @@ async def text2img(positive_prompt: str, negative_prompt: str = DEFAULT_NEGATIVE
         timeout=120,
         proxy_server=PROXY,
     )
-    return res.json()["images"][0]
+    json_response = await res.json()
+    return json_response["images"][0]
 
 
 async def ai_text2img(prompt) -> str:

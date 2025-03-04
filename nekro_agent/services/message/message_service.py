@@ -20,6 +20,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
+    check_prefix_trigger,
     move_to_upload_dir,
     random_chat_check,
 )
@@ -161,7 +162,7 @@ class MessageService:
 
         content_data = [o.model_dump() for o in message.content_data]
         current_time: float = time.time()
-
+        
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,
@@ -191,6 +192,7 @@ class MessageService:
             or message.is_tome
             or random_chat_check()
             or check_content_trigger(message.content_text)
+            or check_prefix_trigger(message.content_text)
         )
 
         if not should_ignore and should_trigger:
