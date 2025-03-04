@@ -33,8 +33,10 @@ from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.tools.common_util import (
     compress_image,
-    convert_file_name_to_access_path,
-    get_downloaded_prompt_file_path,
+)
+from nekro_agent.tools.path_convertor import (
+    convert_filename_to_access_path,
+    get_sandbox_path,
 )
 
 from .components.chat_history_cmp import ChatHistoryComponent
@@ -141,7 +143,7 @@ async def agent_run(
             if seg.local_path:
                 if seg.file_name in img_seg_set:
                     continue
-                access_path = convert_file_name_to_access_path(seg.file_name, chat_key)
+                access_path = convert_filename_to_access_path(seg.file_name, chat_key)
                 img_seg_set.add(seg.file_name)
                 # 检查图片大小
                 if access_path.stat().st_size > config.AI_VISION_IMAGE_SIZE_LIMIT_KB * 1024:
@@ -151,11 +153,11 @@ async def agent_run(
                     except Exception as e:
                         logger.error(f"压缩图片时发生错误: {e} | 图片路径: {access_path} 跳过处理...")
                         continue
-                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
+                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>")
                     img_seg_prompts.append(ImageMessageSegment.from_path(str(compressed_path)))
                     logger.info(f"压缩图片: {access_path.name} -> {compressed_path.stat().st_size / 1024}KB")
                 else:
-                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>")
+                    img_seg_prompts.append(f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>")
                     img_seg_prompts.append(ImageMessageSegment.from_path(str(access_path)))
             elif seg.remote_url:
                 if seg.remote_url in img_seg_set:

@@ -16,6 +16,10 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
 from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.path_convertor import (
+    convert_to_host_path,
+    is_url_path,
+)
 
 
 class SegAt(BaseModel):
@@ -57,43 +61,39 @@ class ChatService:
             for agent_message in messages:
                 if agent_message.type != AgentMessageSegmentType.FILE.value:
                     raise ValueError("File mode only support file message")
+                
                 content = agent_message.content
-                if content.startswith("./"):
-                    content = content[len("./") :]
-                if content.startswith("/app/uploads/"):
-                    content = content[len("/app/") :]
-                if content.startswith("app/uploads/"):
-                    content = content[len("app/") :]
-                if content.startswith("uploads/"):
-                    real_path = Path(USER_UPLOAD_DIR) / chat_key / content[len("uploads/") :]
-                    logger.info(f"Sending agent file: {real_path}")
-                    file_message.append(real_path)
-                    continue
-
-                if not ctx:
-                    raise ValueError("Cannot send file without agent context")
-                if content.startswith("/app/shared/"):
-                    content = content[len("/app/") :]
-                if content.startswith("app/shared/"):
-                    content = content[len("app/") :]
-                if content.startswith("shared/"):
-                    real_path = Path(SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
-                    logger.info(f"Sending agent file: {real_path}")
-                    file_message.append(real_path)
-                    continue
-                if content.startswith(("http://", "https://")):
+                
+                # 处理URL下载
+                if is_url_path(content):
                     file_path, _ = await download_file(content, from_chat_key=chat_key)
                     file_message.append(Path(file_path))
                     continue
-
-                message.append(MessageSegment.text(f"Invalid file path: {content}"))
+                
+                try:
+                    # 转换为宿主机路径
+                    host_path = convert_to_host_path(
+                        Path(content),
+                        chat_key=chat_key,
+                        container_key=ctx.container_key if ctx else None,
+                    )
+                    
+                    if host_path and host_path.exists():
+                        logger.info(f"Sending agent file: {host_path}")
+                        file_message.append(host_path)
+                    else:
+                        logger.warning(f"Invalid or non-existent file path: {content}")
+                        message.append(MessageSegment.text(f"Invalid file path: {content}"))
+                        
+                except ValueError as e:
+                    logger.error(f"Path conversion error: {e}")
+                    message.append(MessageSegment.text(str(e)))
 
         else:
             #发送图片
             for agent_message in messages:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
-                    # message.append(content)
                     content = fix_raw_response(content)
                     seg_data = parse_at_from_text(content)
                     for seg in seg_data:
@@ -104,41 +104,30 @@ class ChatService:
                             message.append(MessageSegment.at(user_id=seg.qq))
                     logger.info(f"Sending agent message: {content}")
                 elif agent_message.type == AgentMessageSegmentType.FILE.value:
-                    if content.startswith("./"):
-                        content = content[len("./") :]
-                    if content.startswith("/app/uploads/"):
-                        content = content[len("/app/") :]
-                    if content.startswith("app/uploads/"):
-                        content = content[len("app/") :]
-                    if content.startswith("uploads/"):
-                        real_path = Path(USER_UPLOAD_DIR) / chat_key / content[len("uploads/") :]
-                        logger.info(f"Sending agent file: {real_path}")
-                        agent_message.content = str(real_path)
-                        message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
-                        continue
-
-                    if not ctx:
-                        raise ValueError("Cannot send file without agent context")
-
-                    if content.startswith("./"):
-                        content = content[len("./") :]
-                    if content.startswith("/app/shared/"):
-                        content = content[len("/app/") :]
-                    if content.startswith("app/shared/"):
-                        content = content[len("app/") :]
-                    if content.startswith("shared/"):
-                        real_path = Path(SANDBOX_SHARED_HOST_DIR) / ctx.container_key / content[len("shared/") :]
-                        logger.info(f"Sending agent file: {real_path}")
-                        agent_message.content = str(real_path)
-                        message.append(MessageSegment.image(file=real_path.read_bytes(), type_="image"))
-                        continue
-                    if content.startswith(("http://", "https://")):
-                        file_path, _ = await download_file(content, from_chat_key=chat_key)
-                        agent_message.content = file_path
-                        message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
-                        continue
-
-                    message.append(MessageSegment.text(f"Invalid file path: {content}"))
+                    try:
+                        # 处理URL下载
+                        if is_url_path(content):
+                            file_path, _ = await download_file(content, from_chat_key=chat_key)
+                            message.append(MessageSegment.image(file=Path(file_path).read_bytes()))
+                            agent_message.content = str(file_path)
+                            continue
+                        # 转换为宿主机路径
+                        host_path = convert_to_host_path(
+                            Path(content),
+                            chat_key=chat_key,
+                            container_key=ctx.container_key if ctx else None,
+                        )
+                        agent_message.content = str(host_path)
+                        if host_path and host_path.exists():
+                            logger.info(f"Sending agent file: {host_path}")
+                            message.append(MessageSegment.image(file=host_path.read_bytes()))
+                        else:
+                            logger.warning(f"Invalid or non-existent file path: {content}")
+                            message.append(MessageSegment.text(f"Invalid file path: {content}"))
+                            
+                    except ValueError as e:
+                        logger.error(f"Path conversion error: {e}")
+                        message.append(MessageSegment.text(str(e)))
                 else:
                     raise ValueError(f"Invalid agent message type: {agent_message.type}")
 
@@ -181,6 +170,12 @@ class ChatService:
             raise ValueError("Invalid chat type")
 
     async def send_files(self, chat_key: str, files: List[Path]):
+        """发送文件
+
+        Args:
+            chat_key (str): 聊天的唯一标识
+            files (List[Path]): 文件路径列表
+        """
         bot: Bot = get_bot()
 
         try:
@@ -191,18 +186,29 @@ class ChatService:
         chat_type = ChatType(chat_type)
         chat_id = int(chat_id)
 
-        def parse_file_path(abs_file_path: Path) -> Path:
+        # 如果配置了 OneBot 服务器挂载目录，需要转换路径
+        def get_onebot_path(file_path: Path) -> Path:
             if config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
-                return Path(config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / abs_file_path.relative_to(Path(OsEnv.DATA_DIR))
-            return abs_file_path
+                return Path(config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / file_path.relative_to(Path(OsEnv.DATA_DIR))
+            return file_path
 
         if chat_type is ChatType.GROUP:
             for file in files:
-                logger.info(f"Sending file: {file}  {config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR=}")
-                await bot.upload_group_file(group_id=chat_id, file=str(parse_file_path(file)), name=file.name)
+                logger.info(f"Sending file: {file}")
+                onebot_path = get_onebot_path(file)
+                await bot.upload_group_file(
+                    group_id=chat_id, 
+                    file=str(onebot_path), 
+                    name=file.name,
+                )
         elif chat_type is ChatType.PRIVATE:
             for file in files:
-                await bot.upload_private_file(user_id=chat_id, file=str(parse_file_path(file)), name=file.name)
+                onebot_path = get_onebot_path(file)
+                await bot.upload_private_file(
+                    user_id=chat_id, 
+                    file=str(onebot_path), 
+                    name=file.name,
+                )
         else:
             raise ValueError("Invalid chat type")
 

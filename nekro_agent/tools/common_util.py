@@ -151,60 +151,6 @@ async def move_to_upload_dir(
     Path(save_path).chmod(0o755)
     return str(save_path), file_name
 
-
-def convert_path_to_container_path(path: str) -> Path:
-    """将路径转换为容器内路径
-
-    Args:
-        path (str): 路径
-
-    Returns:
-        Path: 容器内路径
-    """
-
-    return Path("/app/uploads") / Path(path).name
-
-
-def convert_file_name_to_container_path(file_name: str) -> Path:
-    """将文件名转换为容器内路径
-
-    Args:
-        file_name (str): 文件名
-
-    Returns:
-        Path: 容器内路径
-    """
-
-    return Path("/app/uploads") / Path(file_name)
-
-
-def convert_file_name_to_access_path(file_name: str, from_chat_key: str) -> Path:
-    """将文件名转换为访问路径
-
-    Args:
-        file_name (str): 文件名
-        from_chat_key (str): 聊天会话键名
-
-    Returns:
-        Path: 访问路径
-    """
-
-    return Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
-
-
-def get_downloaded_prompt_file_path(file_name: str) -> Path:
-    """获取已下载文件的沙盒路径
-
-    Args:
-        file_name (str): 文件名
-
-    Returns:
-        Path: 文件路径
-    """
-
-    return "/app/uploads" / Path(file_name)
-
-
 def random_chat_check() -> bool:
     """随机聊天检测
 

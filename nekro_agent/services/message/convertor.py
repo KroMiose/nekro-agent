@@ -22,10 +22,10 @@ from nekro_agent.schemas.chat_message import (
 )
 from nekro_agent.tools.common_util import (
     download_file,
-    get_downloaded_prompt_file_path,
     move_to_upload_dir,
 )
 from nekro_agent.tools.onebot_util import get_user_group_card_name
+from nekro_agent.tools.path_convertor import get_sandbox_path
 
 
 async def convert_chat_message(
@@ -186,9 +186,9 @@ def convert_chat_message_to_prompt_str(chat_message: List[ChatMessageSegment], o
 
     for seg in chat_message:
         if isinstance(seg, ChatMessageSegmentImage):
-            prompt_str += f"<{one_time_code} | Image:{get_downloaded_prompt_file_path(seg.file_name)}>"
+            prompt_str += f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
         elif isinstance(seg, ChatMessageSegmentFile):
-            prompt_str += f"<{one_time_code} | File:{get_downloaded_prompt_file_path(seg.file_name)}>"
+            prompt_str += f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
         elif isinstance(seg, ChatMessageSegmentAt):
             prompt_str += f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
         elif isinstance(seg, ChatMessageSegment):

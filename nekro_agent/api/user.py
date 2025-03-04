@@ -3,11 +3,15 @@
 此模块提供了与用户相关的 API 接口。
 """
 
+from pathlib import Path
+
+from nonebot import logger
+
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.tools.common_util import (
-    convert_file_name_to_container_path,
     download_file,
 )
+from nekro_agent.tools.path_convertor import convert_to_container_path
 
 __all__ = [
     "get_avatar",
@@ -36,7 +40,8 @@ async def get_avatar(user_qq: str, ctx: AgentCtx) -> str:
         file_path, file_name = await download_file(
             f"https://q1.qlogo.cn/g?b=qq&nk={user_qq}&s=640",
             from_chat_key=ctx.from_chat_key,
+            use_suffix=".png",
         )
-        return str(convert_file_name_to_container_path(file_name))
+        return str(convert_to_container_path(Path(file_path)))
     except Exception as e:
         raise Exception(f"获取用户头像失败: {e}") from e
