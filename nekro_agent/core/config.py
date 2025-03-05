@@ -137,11 +137,6 @@ class PluginConfig(ConfigBase):
         title="触发正则表达式",
         description="触发正则表达式，当消息匹配到正则表达式时，会触发 AI 回复",
     )
-    AI_CHAT_TRIGGER_PREFIX: List[str] = Field(
-        default=[],
-        title="触发前缀",
-        description="触发前缀，当消息匹配到前缀时，会触发 AI 回复",
-    )
     AI_CHAT_IGNORE_REGEX: List[str] = Field(
         default=[],
         title="忽略正则表达式",
