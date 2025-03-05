@@ -20,7 +20,6 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
-    check_prefix_trigger,
     move_to_upload_dir,
     random_chat_check,
 )
@@ -192,7 +191,6 @@ class MessageService:
             or message.is_tome
             or random_chat_check()
             or check_content_trigger(message.content_text)
-            or check_prefix_trigger(message.content_text)
         )
 
         if not should_ignore and should_trigger:
