@@ -161,7 +161,7 @@ class MessageService:
 
         content_data = [o.model_dump() for o in message.content_data]
         current_time: float = time.time()
-
+        
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,

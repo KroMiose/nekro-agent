@@ -214,7 +214,11 @@ class PluginConfig(ConfigBase):
         title="AI 群名片名称前缀",
         description="状态扩展修改群名片时会自动添加该前缀",
     )
-
+    SESSION_DISABLE_AT: bool = Field(
+        default=False,
+        title="关闭 at 功能",
+        description="关闭后 AI 无法发送at消息",
+    )
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")
     SANDBOX_RUNNING_TIMEOUT: int = Field(

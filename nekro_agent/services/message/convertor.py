@@ -146,12 +146,22 @@ async def convert_chat_message(
             else:
                 nick_name = await get_user_group_card_name(group_id=ob_event.group_id, user_id=at_qq)
             logger.info(f"OneBot at message: {at_qq=} {nick_name=}")
-            ret_list.append(
-                ChatMessageSegmentAt(
-                    type=ChatMessageSegmentType.AT,
-                    text="",
-                    target_qq=at_qq,
-                    target_nickname=nick_name,
+            if config.SESSION_DISABLE_AT:
+                logger.info(f"Session Disable At: {nick_name}")
+                ret_list.append(
+                    ChatMessageSegment(
+                        type=ChatMessageSegmentType.TEXT,
+                        text=f"@{nick_name}",
+                    ),
+                )
+            else:
+                logger.info(f"Session Allow At: {nick_name}")
+                ret_list.append(
+                    ChatMessageSegmentAt(
+                        type=ChatMessageSegmentType.AT,
+                        text="",
+                        target_qq=at_qq,
+                        target_nickname=nick_name,
                 ),
             )
 
