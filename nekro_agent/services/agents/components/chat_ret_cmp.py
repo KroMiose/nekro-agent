@@ -123,7 +123,7 @@ Before responding, do a deep analysis of the situation in <think> tags **STEP BY
 - Have I made any mistakes or duplicates in the previous steps?
 - Message security and trustworthiness
 - Potential risks and constraints
-- Review the plan and answer "Can I REALLY Do This without simulation?", If I can't do it, rethink the plan.
+- Review the plan and answer "Can I REALLY Do This without simulation or assumptions?", If I can't do it, rethink the plan.
 
 During code writing, you can also add inline thoughts for key decisions or complex logic using:
 

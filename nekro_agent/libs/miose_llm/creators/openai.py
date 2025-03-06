@@ -26,8 +26,8 @@ class ImageMessageSegment:
             return cls(f"data:image/png;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         if path.endswith((".jpg", ".jpeg")):
             return cls(f"data:image/jpeg;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
-        if path.endswith(".gif"):
-            return cls(f"data:image/gif;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
+        # if path.endswith(".gif"):
+        #     return cls(f"data:image/gif;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         if path.endswith(".webp"):
             return cls(f"data:image/webp;base64,{base64.b64encode(Path(path).read_bytes()).decode('utf-8')}")
         if path.endswith(".bmp"):
