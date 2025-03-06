@@ -9,15 +9,15 @@ from nekro_agent.services.chat import chat_service
 from nekro_agent.core import config
 
 __meta__ = ExtMetaData(
-    name="lolicon_image_search",
+    name="acg_image_search",
     description="[NA] 二次元图片获取插件",
-    version="0.2.0",
+    version="0.3.0",
     author="Zaxpris, wess09",
     url="https://github.com/zxjwzn",
 )
 
 #给人看的
-async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
+async def get_acg_image(tags: List[str], _ctx: AgentCtx) -> str:
     """获取二次元图片字节流
     
     Args:
@@ -52,20 +52,20 @@ async def get_lolicon_image(tags: List[str], _ctx: AgentCtx) -> str:
 
 #给AI看的
 @agent_collector.mount_method(MethodType.TOOL)
-async def lolicon_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
+async def acg_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
     """二次元图片搜索
     获取二次元图片并返回字节流
     *仅会返回.jpg格式的图片字节流*
     Args:
         tags (List[str]): 搜索标签列表，只能同时3个标签
     Returns:
-        bytes: 二次元图片的字节流
+        bytes: 图片字节流
     """
 
     clean_tags = [t.strip() for t in tags if t.strip()]
 
     # 执行搜索
-    result = await get_lolicon_image(clean_tags, _ctx)
+    result = await get_acg_image(clean_tags, _ctx)
     
     # 格式化输出
     if result.startswith("http"):
