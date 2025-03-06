@@ -59,7 +59,7 @@ async def acg_image_search(tags: List[str], _ctx: AgentCtx) -> bytes:
     Args:
         tags (List[str]): 搜索标签列表，只能同时3个标签
     Returns:
-        bytes: 二次元图片的字节流
+        bytes: 图片字节流
     """
 
     clean_tags = [t.strip() for t in tags if t.strip()]
