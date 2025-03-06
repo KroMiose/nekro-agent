@@ -24,7 +24,7 @@ async def update_preset_status(chat_key: str, setting_name: str, description: st
 
     Args:
         chat_key (str): Chat Key
-        setting_name (str): New Character Preset Name (less than 20 characters)
+        setting_name (str): New Character Preset Name (keep short, less than 20 characters)
         description (str): Description of the change state and reason (Recommend format: "由于 [事件]，转变为 [新状态的详细描述] [且仍然...(旧状态仍有效信息 可选)]" **event must be summarized based on the context and described as detailed as possible to describe the current state, appearance, action, etc.**)
 
     Example:

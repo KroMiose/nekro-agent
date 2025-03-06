@@ -397,7 +397,7 @@ async def agent_exec_result(
                 )
                 return
             elif stop_type == ExecStopType.MANUAL:
-                err_msg = "Program was manually stopped"
+                err_msg = "Program was manually stopped by You!"
             else:  # ERROR
                 err_msg = output_text
 
