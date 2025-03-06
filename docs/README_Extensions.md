@@ -124,12 +124,11 @@ EMO_API_TOKEN: "" # API Token密钥
 EMO_API_KEYWORD: "" # 表情包类型
 ```
 
-### lolicon_image_search - 二次元图片搜索
+### acg_image_search - 二次元图片搜索
 
 提供二次元图片搜索功能。
 
 - **功能**: 让 AI 搜索二次元图片
-- **注意事项**: 根据测试结果gemini-2.0-flash-thinking-exp会出现LLM API error: 'NoneType' object is not subscriptable的现象，如果出现请尝试更换模型或禁用扩展解决。
 - **配置**: 
 
 ```yaml
@@ -152,7 +151,7 @@ EXTENSION_MODULES:
   - extensions.google_search # 谷歌搜索扩展 (允许 AI 使用谷歌搜索 需要配置谷歌 API 密钥)
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
   - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
-  - extensions.lolicon_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
+  - extensions.acg_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
 ```
 
 2. 根据扩展需求补充相应配置项
@@ -163,4 +162,5 @@ EXTENSION_MODULES:
 
 - 部分扩展需要特定权限或外部服务支持
 - 扩展的具体行为可能会受到 AI 人设的影响，同时扩展能力也会反向影响 AI 人设行为 (例如群管功能)
+- 部分扩展会导致部分模型出现空返回 (例如二次元图片搜索扩展)
 - 扩展列表不支持热重载配置，需要重启 Nekro Agent 服务使配置生效
