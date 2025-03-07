@@ -134,6 +134,16 @@ EMO_API_KEYWORD: "" # 表情包类型
 ```yaml
 R18_CONFIG: false # 是否启用 R18 图片 开启后，图片会包含R18的图片
 ```
+### send_email - NekroAgent 邮件扩展
+
+允许 AI 主动发送电子邮件给用户
+
+```yaml
+MAIL_USERNAME: "" # 用于发送邮件的邮箱账号
+MAIL_PASSWORD: "" # 邮箱密码或授权码
+MAIL_HOSTNAME: "smtp.qq.com" # 邮件服务器的 SMTP 地址
+MAIL_PORT: 587 # SMTP服务器端口, 一般为 587 或 465
+```
 
 
 ## 💡 使用说明
@@ -152,6 +162,7 @@ EXTENSION_MODULES:
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
   - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
   - extensions.acg_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
+  - extensions.send_email # NekroAgent 邮件扩展 (允许 AI 发送邮件)
 ```
 
 2. 根据扩展需求补充相应配置项
