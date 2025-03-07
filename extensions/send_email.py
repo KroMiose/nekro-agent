@@ -65,16 +65,16 @@ async def email_send(chat_key: str, email_receiver: str, emali_title: str, email
 
     # 添加附件
     if attachment:
-        文件名 = (attachment)  
-        附件 = open(attachment, "rb")  # noqa: PTH123, SIM115
+        file_name = (attachment)  
+        fujian = open(attachment, "rb")  # noqa: PTH123, SIM115
 
         mime_base = MIMEBase("application", "octet-stream")
-        mime_base.set_payload(附件.read())
+        mime_base.set_payload(fujian.read())
         encoders.encode_base64(mime_base)
-        mime_base.add_header("Content-Disposition", f"attachment; filename={文件名}")
+        mime_base.add_header("Content-Disposition", f"attachment; filename={file_name}")
 
         mail.attach(mime_base)
-        附件.close()  # 确保文件关闭
+        fujian.close()  # 确保文件关闭
 
     # 发送邮件
     server.send_message(mail)
