@@ -162,7 +162,7 @@ EXTENSION_MODULES:
   - extensions.timer # 定时器扩展 (允许 AI 设置定时器，在指定时间触发事件)
   - extensions.emo # 表情包获取扩展 (允许 AI 获取表情包)
   - extensions.acg_image_search # 二次元图片搜索扩展 (允许 AI 搜索二次元图片)
-  - extemsioms.send_email # NekroAgent 邮件扩展（允许 AI 发送邮件给用户）
+  - extensions.send_email # NekroAgent 邮件扩展 (允许 AI 发送邮件)
 ```
 
 2. 根据扩展需求补充相应配置项
