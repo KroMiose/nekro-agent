@@ -47,6 +47,8 @@ USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
 PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
 APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
+BUILTIN_PLUGIN_DIR: str = "plugins/builtin"
+WORKDIR_PLUGIN_DIR: str = "plugins/workdir"
 EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 

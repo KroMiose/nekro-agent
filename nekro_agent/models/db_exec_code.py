@@ -12,6 +12,7 @@ class ExecStopType(IntEnum):
     TIMEOUT = 2  # 超时停止
     AGENT = 8  # 代理停止
     MANUAL = 9  # 手动停止
+    SECURITY = 10  # 安全停止
 
 class DBExecCode(Model):
     """数据库执行代码模型"""

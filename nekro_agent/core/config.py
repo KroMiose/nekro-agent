@@ -13,10 +13,15 @@ CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
 class ModelConfigGroup(ConfigBase):
     """模型配置组"""
 
+    GROUP_NAME: str = Field(default="", title="模型组名称")
     CHAT_MODEL: str = Field(default="", title="聊天模型名称")
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
+    IS_DRAW_MODEL: bool = Field(default=False, title="是否为绘图模型")
+    TOKEN_INPUT_RATE: float = Field(default=1.0, title="输入 Token 倍率")
+    TOKEN_COMPLETION_RATE: float = Field(default=1.0, title="补全 Token 倍率")
+    MODEL_PRICE_RATE: float = Field(default=1.0, title="模型价格倍率")
     TEMPERATURE: Optional[float] = Field(default=None, title="温度值")
     TOP_P: Optional[float] = Field(default=None, title="Top P")
     TOP_K: Optional[int] = Field(default=None, title="Top K")

@@ -16,11 +16,12 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
 from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.onebot_util import get_user_group_card_name
 from nekro_agent.tools.path_convertor import (
     convert_to_host_path,
     is_url_path,
 )
-from nekro_agent.tools.onebot_util import get_user_group_card_name
+
 
 class SegAt(BaseModel):
     qq: str
@@ -57,19 +58,19 @@ class ChatService:
 
         file_message: List[Path] = []
         if file_mode:
-            #发送文件
+            # 发送文件
             for agent_message in messages:
                 if agent_message.type != AgentMessageSegmentType.FILE.value:
                     raise ValueError("File mode only support file message")
-                
+
                 content = agent_message.content
-                
+
                 # 处理URL下载
                 if is_url_path(content):
                     file_path, _ = await download_file(content, from_chat_key=chat_key)
                     file_message.append(Path(file_path))
                     continue
-                
+
                 try:
                     # 转换为宿主机路径
                     host_path = convert_to_host_path(
@@ -77,25 +78,25 @@ class ChatService:
                         chat_key=chat_key,
                         container_key=ctx.container_key if ctx else None,
                     )
-                    
+
                     if host_path and host_path.exists():
                         logger.info(f"Sending agent file: {host_path}")
                         file_message.append(host_path)
                     else:
                         logger.warning(f"Invalid or non-existent file path: {content}")
                         message.append(MessageSegment.text(f"Invalid file path: {content}"))
-                        
+
                 except ValueError as e:
                     logger.error(f"Path conversion error: {e}")
                     message.append(MessageSegment.text(str(e)))
 
         else:
-            #发送图片
+            # 发送图片
             for agent_message in messages:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
                     content = fix_raw_response(content)
-                    seg_data = await parse_at_from_text(content,chat_key)
+                    seg_data = await parse_at_from_text(content, chat_key)
                     for seg in seg_data:
                         if isinstance(seg, str):
                             if seg.strip():
@@ -124,7 +125,7 @@ class ChatService:
                         else:
                             logger.warning(f"Invalid or non-existent file path: {content}")
                             message.append(MessageSegment.text(f"Invalid file path: {content}"))
-                            
+
                     except ValueError as e:
                         logger.error(f"Path conversion error: {e}")
                         message.append(MessageSegment.text(str(e)))
@@ -197,23 +198,23 @@ class ChatService:
                 logger.info(f"Sending file: {file}")
                 onebot_path = get_onebot_path(file)
                 await bot.upload_group_file(
-                    group_id=chat_id, 
-                    file=str(onebot_path), 
+                    group_id=chat_id,
+                    file=str(onebot_path),
                     name=file.name,
                 )
         elif chat_type is ChatType.PRIVATE:
             for file in files:
                 onebot_path = get_onebot_path(file)
                 await bot.upload_private_file(
-                    user_id=chat_id, 
-                    file=str(onebot_path), 
+                    user_id=chat_id,
+                    file=str(onebot_path),
                     name=file.name,
                 )
         else:
             raise ValueError("Invalid chat type")
 
 
-async def parse_at_from_text(text: str,group_id: str) -> List[Union[str, SegAt]]:
+async def parse_at_from_text(text: str, group_id: str) -> List[Union[str, SegAt]]:
     """从文本中解析@信息
     需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
 

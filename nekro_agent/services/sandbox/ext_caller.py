@@ -2,7 +2,7 @@ from pathlib import Path
 
 from nekro_agent.core import config
 from nekro_agent.core.os_env import OsEnv
-from nekro_agent.tools.collector import agent_collector
+from nekro_agent.services.plugin.collector import plugin_collector
 
 CODE_PREAMBLE = """
 from api_caller import *
@@ -24,8 +24,8 @@ def get_api_caller_code(container_key: str, from_chat_key: str):
         .replace("{FROM_CHAT_KEY}", from_chat_key)
         .replace("{RPC_SECRET_KEY}", OsEnv.RPC_SECRET_KEY)
     )
-    methods = agent_collector.get_all_methods()
+    methods = plugin_collector.get_all_sandbox_methods()
 
     for method in methods:
-        base_code += METHOD_REG_TEMPLATE.format(method_name=method.__name__)
+        base_code += METHOD_REG_TEMPLATE.format(method_name=method.func.__name__)
     return base_code.strip()

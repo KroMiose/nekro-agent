@@ -106,7 +106,11 @@ async def gen_openai_chat_response(
             api_key=api_key,
             base_url=_OPENAI_BASE_URL,
             http_client=(
-                httpx.AsyncClient(proxies=_OPENAI_PROXY, timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10))
+                httpx.AsyncClient(
+                    proxies=_OPENAI_PROXY,
+                    timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+                    follow_redirects=True,
+                )
                 if _OPENAI_PROXY
                 else None
             ),

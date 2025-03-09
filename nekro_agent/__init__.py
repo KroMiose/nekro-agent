@@ -14,9 +14,11 @@ from nekro_agent.core.database import init_db
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.routers import mount_routers
-from nekro_agent.services.extension import init_extensions, reload_ext_workdir
 from nekro_agent.services.festival_service import festival_service
 from nekro_agent.services.mail.mail_service import send_bot_status_email
+
+# from nekro_agent.services.extension import init_extensions, reload_ext_workdir
+from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.timer_service import timer_service
 
 from .app import start
@@ -37,8 +39,9 @@ if config.WEAVE_ENABLED:
         logger.error(f"Weave 服务连接失败: {e}")
 
 mount_routers(get_app())
-init_extensions()
-reload_ext_workdir()
+# init_extensions()
+# reload_ext_workdir()
+init_plugins()
 
 
 @get_driver().on_startup

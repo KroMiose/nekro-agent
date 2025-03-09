@@ -105,7 +105,7 @@ class MessageService:
 
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None):
         """执行agent任务"""
-        from nekro_agent.services.agents.chat_agent import agent_run
+        from nekro_agent.services.agent.run_agent import run_agent
 
         if message and config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
             try:
@@ -117,7 +117,7 @@ class MessageService:
             logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
             for i in range(3):
                 try:
-                    await agent_run(chat_key=chat_key, chat_message=message)
+                    await run_agent(chat_key=chat_key, chat_message=message)
                 except ResolveError as e:
                     logger.error(f"Resolve Error, Retrying {i+1}/3...")
                     if "list index out of range" in str(e) and i > 0:
@@ -161,7 +161,7 @@ class MessageService:
 
         content_data = [o.model_dump() for o in message.content_data]
         current_time: float = time.time()
-        
+
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,

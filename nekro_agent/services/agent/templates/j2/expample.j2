@@ -1,0 +1,60 @@
+{# 这是一个注释，不会在渲染结果中显示 #}
+
+{# 基本变量输出与过滤器 #}
+你好，{{ name | upper }}！ {# upper过滤器将文本转为大写 #}
+{% if description %}
+个人简介: {{ description | truncate(20) }} {# truncate过滤器限制字符串长度 #}
+{% else %}
+没有个人简介～
+{% endif %}
+
+{# 条件语句 #}
+{% if age < 18 %}
+你还是个未成年人呢～
+{% elif age < 30 %}
+你正值青春年华！
+{% else %}
+你已经是成熟的大人了呢～
+{% endif %}
+
+{# 循环语句 #}
+{% if skills %}
+你的技能列表:
+  {% for skill in skills %}
+    {{ loop.index }}. {{ skill }}{% if not loop.last %}, {% endif %}
+  {% endfor %}
+{% else %}
+你还没有添加任何技能哦～
+{% endif %}
+
+{# 字典遍历 #}
+{% if profile %}
+个人资料:
+  {% for key, value in profile.items() %}
+    - {{ key }}: {{ value }}
+  {% endfor %}
+{% endif %}
+
+{# 使用宏定义可重用组件 #}
+{% macro render_badge(text, type='info') -%}
+  <span class="badge badge-{{ type }}">{{ text }}</span>
+{%- endmacro %}
+
+状态: {{ render_badge('活跃' if is_active else '离线', 'success' if is_active else 'danger') }}
+
+{# 数学运算和格式化 #}
+评分: {{ "%.2f"|format(score * 10) }}/10
+
+{# 日期格式化 #}
+账号创建时间: {{ created_at.strftime('%Y-%m-%d %H:%M:%S') }}
+
+{# 设置变量 #}
+{% set greeting = '祝你有美好的一天！' %}
+{{ greeting }}
+
+{# 转义与原始输出 #}
+HTML示例: {{ '<b>加粗文本</b>' }}
+HTML原始输出: {{ '<b>加粗文本</b>' | safe }}
+
+{# 三元运算符 #}
+状态信息: {{ '在线' if is_active else '离线' }}

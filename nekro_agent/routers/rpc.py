@@ -3,8 +3,6 @@ import pickle
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, Request, Response
-from fastapi.security import APIKeyHeader
-from starlette.exceptions import HTTPException
 
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import logger
@@ -16,7 +14,9 @@ from nekro_agent.schemas.http_exception import (
 )
 from nekro_agent.schemas.rpc import RPCRequest
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.tools.collector import MethodType, agent_collector
+from nekro_agent.services.plugin.collector import plugin_collector
+from nekro_agent.services.plugin.schema import SandboxMethodType
+from nekro_agent.services.plugin.utils import get_sandbox_method_type
 
 router = APIRouter(prefix="/ext", tags=["Tools"])
 
@@ -39,10 +39,10 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
 
     logger.info(f"收到 RPC 执行请求: {rpc_request.method}")
 
-    method = agent_collector.get_method(rpc_request.method)
+    method = plugin_collector.get_method(rpc_request.method)
     if not method:
         raise not_found_exception
-    method_type: MethodType = agent_collector.get_method_type(method=method)
+    method_type: SandboxMethodType = get_sandbox_method_type(method=method)
 
     if not method:
         raise not_found_exception
@@ -65,7 +65,7 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
     else:
         error_message = ""
 
-    if method_type in [MethodType.BEHAVIOR, MethodType.AGENT]:
+    if method_type in [SandboxMethodType.AGENT]:
         await message_service.push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(
         content=error_message or pickle.dumps(result),
