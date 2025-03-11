@@ -1,4 +1,5 @@
 import asyncio
+import json
 import pickle
 from typing import Any
 
@@ -67,6 +68,8 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
 
     if method_type in [SandboxMethodType.AGENT, SandboxMethodType.BEHAVIOR]:
         await message_service.push_system_message(chat_key=from_chat_key, agent_messages=str(result))
+    if method_type == SandboxMethodType.MULTIMODAL_AGENT:
+        result = f"<AGENT_RESULT>{json.dumps(result, ensure_ascii=False)}</AGENT_RESULT>"
     return Response(
         content=error_message or pickle.dumps(result),
         media_type="application/octet-stream",

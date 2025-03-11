@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import time
 from typing import Dict, List, Optional, Union
@@ -54,7 +55,8 @@ async def run_agent(
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
-            "assistant", PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
+            "assistant",
+            PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
@@ -76,11 +78,11 @@ async def run_agent(
         if one_time_code in parsed_code_data.code_content:
             stop_type = ExecStopType.SECURITY
         else:
-            sandbox_output, stop_type_value = await limited_run_code(
+            sandbox_output, raw_output, stop_type_value = await limited_run_code(
                 code_run_data=parsed_code_data,
                 from_chat_key=chat_key,
                 chat_message=chat_message,
-                generation_time=llm_response.generation_time_ms,
+                llm_response=llm_response,
             )
             stop_type = ExecStopType(stop_type_value)
 
@@ -129,6 +131,17 @@ async def run_agent(
                     ),
                 ),
             )
+        if stop_type == ExecStopType.MULTIMODAL_AGENT:
+            multimodal_agent_result = json.loads(raw_output.split("<AGENT_RESULT>")[1].split("</AGENT_RESULT>")[0])
+            if isinstance(multimodal_agent_result, list):
+                new_message = OpenAIChatMessage("user", multimodal_agent_result)
+            elif isinstance(multimodal_agent_result, str):
+                new_message = OpenAIChatMessage.from_text("user", multimodal_agent_result)
+            elif isinstance(multimodal_agent_result, dict):
+                new_message = OpenAIChatMessage(**multimodal_agent_result)
+            else:
+                raise ValueError(f"Multimodal agent result is not a list or string: {multimodal_agent_result}")
+            addition_prompt_message.append(new_message)
         if stop_type == ExecStopType.SECURITY:
             addition_prompt_message.append(
                 OpenAIChatMessage.from_text(

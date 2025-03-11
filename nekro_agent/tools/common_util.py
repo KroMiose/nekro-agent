@@ -151,6 +151,7 @@ async def move_to_upload_dir(
     Path(save_path).chmod(0o755)
     return str(save_path), file_name
 
+
 def random_chat_check() -> bool:
     """随机聊天检测
 
@@ -239,3 +240,18 @@ def compress_image(image_path: Path, size_limit_kb: int) -> Path:
         scale *= 0.8
 
     return output_path
+
+
+def limited_text_output(text: str, limit: int = 1000, placeholder: str = "...") -> str:
+    """限制文本输出
+
+    Args:
+        text (str): 文本
+        limit (int): 限制长度
+    """
+
+    if len(text) <= limit:
+        return text
+    left_limit = limit // 2 - len(placeholder) // 2
+    right_limit = limit - left_limit
+    return text[:left_limit] + placeholder + text[-right_limit:]

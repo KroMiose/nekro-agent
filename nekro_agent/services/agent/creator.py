@@ -1,6 +1,6 @@
 import base64
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Union
 
 from .templates.base import PromptTemplate
 
@@ -87,11 +87,14 @@ class ContentSegment:
         }
 
     @staticmethod
-    def image_content_from_path(image_path: str) -> Dict[str, Any]:
+    def image_content_from_path(image_path: Union[str, Path]) -> Dict[str, Any]:
         """根据图片路径生成图片内容片段"""
+        path = Path(image_path)
+        if not path.exists():
+            raise FileNotFoundError(f"图片路径不存在: {path}")
         return {
             "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{base64.b64encode(Path(image_path).read_bytes()).decode('utf-8')}"},
+            "image_url": {"url": f"data:image/png;base64,{base64.b64encode(path.read_bytes()).decode('utf-8')}"},
         }
 
     @staticmethod

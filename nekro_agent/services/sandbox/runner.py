@@ -16,6 +16,7 @@ from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.agent.openai import OpenAIResponse
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
+from nekro_agent.tools.common_util import limited_text_output
 
 from .ext_caller import CODE_PREAMBLE, get_api_caller_code
 
@@ -44,6 +45,7 @@ CODE_RUN_END_FLAGS = {
     ExecStopType.TIMEOUT: "[SANDBOX_RUN_ENDS_WITH_TIMEOUT]",  # 超时停止
     ExecStopType.AGENT: "[SANDBOX_RUN_ENDS_WITH_AGENT]",  # 代理停止 (exit code 8)
     ExecStopType.MANUAL: "[SANDBOX_RUN_ENDS_WITH_MANUAL]",  # 手动停止 (exit code 9)
+    ExecStopType.MULTIMODAL_AGENT: "[SANDBOX_RUN_ENDS_WITH_MULTIMODAL_AGENT]",  # 多模态代理停止 (exit code 11)
 }
 
 EXEC_SCRIPT = f"""
@@ -59,6 +61,8 @@ elif [ $exit_code -eq 8 ]; then
     echo "{CODE_RUN_END_FLAGS[ExecStopType.AGENT]}"
 elif [ $exit_code -eq 9 ]; then
     echo "{CODE_RUN_END_FLAGS[ExecStopType.MANUAL]}"
+elif [ $exit_code -eq 11 ]; then
+    echo "{CODE_RUN_END_FLAGS[ExecStopType.MULTIMODAL_AGENT]}"
 else
     echo "{CODE_RUN_END_FLAGS[ExecStopType.ERROR]}"
 fi
@@ -81,10 +85,9 @@ async def limited_run_code(
     code_run_data: ParsedCodeRunData,
     from_chat_key: str,
     output_limit: int = 1000,
-    generation_time: int = 0,
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
-) -> Tuple[str, int]:
+) -> Tuple[str, str, int]:
     """限制并发运行代码
 
     Args:
@@ -104,7 +107,6 @@ async def limited_run_code(
             code_run_data=code_run_data,
             from_chat_key=from_chat_key,
             output_limit=output_limit,
-            generation_time=generation_time,
             llm_response=llm_response,
             chat_message=chat_message,
         )
@@ -114,14 +116,15 @@ async def run_code_in_sandbox(
     code_run_data: ParsedCodeRunData,
     from_chat_key: str,
     output_limit: int,
-    generation_time: int = 0,
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
-) -> Tuple[str, int]:
+) -> Tuple[str, str, int]:
     """在沙盒容器中运行代码并获取输出"""
 
     # 记录开始时间
     start_time = time.time()
+
+    generation_time_ms = llm_response.generation_time_ms if llm_response else 0
 
     # container_key = f'{time.strftime("%Y%m%d%H%M%S")}_{os.urandom(4).hex()}'
     container_key = f"sandbox_{from_chat_key}"
@@ -210,9 +213,9 @@ async def run_code_in_sandbox(
     # 记录执行耗时
     exec_time = int((time.time() - start_time) * 1000)  # 转换为毫秒
     # 记录总耗时（生成耗时 + 执行耗时）
-    total_time = generation_time + exec_time
+    total_time = generation_time_ms + exec_time
 
-    logger.debug(f"容器 {container_name} 输出: {output_text} | 退出类型: {stop_type}")
+    logger.debug(f"容器 {container_name} 输出: {limited_text_output(output_text)} | 退出类型: {stop_type}")
 
     # 沙盒共享目录超过 30 分钟未活动，则自动清理
     async def cleanup_container_shared_dir(box_last_active_time):
@@ -237,10 +240,10 @@ async def run_code_in_sandbox(
         code_text=code_run_data.code_content,
         thought_chain=code_run_data.thought_chain,
         outputs=output_text,
-        success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT],  # AGENT 状态也视为成功
+        success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT, ExecStopType.MULTIMODAL_AGENT],  # AGENT 状态也视为成功
         stop_type=stop_type,
         exec_time_ms=exec_time,
-        generation_time_ms=generation_time,
+        generation_time_ms=generation_time_ms,
         total_time_ms=total_time,
         trigger_user_id=int(chat_message.sender_id) if chat_message else 0,
         trigger_user_name=chat_message.sender_real_nickname if chat_message else "System",
@@ -251,7 +254,7 @@ async def run_code_in_sandbox(
         if len(output_text) <= output_limit
         else f"(output too long, hidden {len(output_text) - output_limit} characters)...{output_text[-output_limit:]}"
     )
-    return final_output, stop_type.value
+    return final_output, output_text, stop_type.value
 
 
 async def run_container_with_timeout(container: DockerContainer, timeout: int) -> Tuple[str, ExecStopType]:

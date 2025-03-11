@@ -12,11 +12,18 @@ class SandboxMethodType(str, Enum):
 
     * AGENT: 代理方法
         用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用
+
+    * BEHAVIOR: 行为方法
+        用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中但不触发再次调用
+
+    * MULTIMODAL_AGENT: 多模态 Agent
+        用于提供 LLM 交互反馈，其返回值为一段 多模态 message，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用
     """
 
     TOOL = "tool"
     AGENT = "agent"
     BEHAVIOR = "behavior"
+    MULTIMODAL_AGENT = "multimodal_agent"
 
 
 class WebhookMethod:

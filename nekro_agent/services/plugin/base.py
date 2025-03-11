@@ -196,7 +196,7 @@ class NekroPlugin(Generic[T]):
             if not method.func.__doc__:
                 logger.warning(f"方法 {method.func.__name__} 没有可用的文档注解。")
                 continue
-            if method.method_type in [SandboxMethodType.AGENT]:
+            if method.method_type in [SandboxMethodType.AGENT, SandboxMethodType.MULTIMODAL_AGENT]:
                 prompts.append(f"* {method.func.__name__} - [AGENT METHOD - STOP AFTER CALL] {method.func.__doc__.strip()}")
             else:
                 prompts.append(f"* {method.func.__name__} - {method.func.__doc__.strip()}")
