@@ -1,3 +1,4 @@
+import re
 from typing import Any, Dict, List, Type, cast
 
 from pydantic import Field
@@ -43,7 +44,7 @@ config.some_field = "test"
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
     """基础提示注入"""
-    return "This is a injected prompt test."
+    return ""
 
 
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
@@ -58,6 +59,12 @@ async def send_msg_text(chat_key: str, message_text: str, _ctx: AgentCtx):
         message_text (str): 消息内容
     """
     global SEND_MSG_CACHE
+
+    # 拒绝包含 [image:xxx...] 的图片消息
+    if re.match(r"^.*\[image:.*\]$", message_text) and len(message_text) > 100:
+        raise Exception(
+            "Error: You can't send image message directly, please use the send_msg_file method to send image/file resources.",
+        )
 
     if message_text in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
         core.logger.warning(f"[{_ctx.from_chat_key}] 检测到重复消息, 跳过发送...")

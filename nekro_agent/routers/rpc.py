@@ -60,12 +60,12 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
         else:
             result = method(*args, **kwargs)
     except Exception as e:
-        logger.error(f"执行 RPC 请求失败: {e}")
+        logger.exception(f"执行 RPC 请求方法失败: {e}")
         error_message = str(e)
     else:
         error_message = ""
 
-    if method_type in [SandboxMethodType.AGENT]:
+    if method_type in [SandboxMethodType.AGENT, SandboxMethodType.BEHAVIOR]:
         await message_service.push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     return Response(
         content=error_message or pickle.dumps(result),

@@ -53,9 +53,14 @@ async def run_agent(
             ),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code)),
-        OpenAIChatMessage.from_template("assistant", PracticePrompt_response_1(one_time_code=one_time_code)),
+        OpenAIChatMessage.from_template(
+            "assistant", PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
+        ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code)),
-        OpenAIChatMessage.from_template("assistant", PracticePrompt_response_2(one_time_code=one_time_code)),
+        OpenAIChatMessage.from_template(
+            "assistant",
+            PracticePrompt_response_2(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
+        ),
         OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=config.AI_ENABLE_COT)).extend(
             await render_history_data(chat_key=chat_key, db_chat_channel=db_chat_channel, one_time_code=one_time_code),
         ),
@@ -65,7 +70,7 @@ async def run_agent(
     llm_response: OpenAIResponse = await send_agent_request(messages=messages)
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
-    for _ in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
+    for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
         addition_prompt_message: List[OpenAIChatMessage] = []
 
         if one_time_code in parsed_code_data.code_content:
@@ -115,7 +120,12 @@ async def run_agent(
                 .extend(
                     OpenAIChatMessage.from_text(
                         "user",
-                        "please DO NOT give any extra explanation or apology and keep the response format for retry.",
+                        "please DO NOT give any extra explanation or apology and keep the response format for retry."
+                        + (
+                            f" This is the last retry. Describe the reason if you can't finish the task. (Retry times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
+                            if i == config.AI_SCRIPT_MAX_RETRY_TIMES - 1
+                            else ""
+                        ),
                     ),
                 ),
             )

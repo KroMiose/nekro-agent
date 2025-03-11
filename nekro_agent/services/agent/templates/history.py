@@ -124,7 +124,11 @@ async def render_history_data(
 
     img_seg_pairs = img_seg_pairs[::-1]  # 反转得到正确排序的 描述-图片 对
     if img_seg_pairs:
-        openai_chat_message.add(ContentSegment.text_content("Here are some images in the chat history:"))
+        openai_chat_message.add(
+            ContentSegment.text_content(
+                "Here are latest images in the chat history, carefully identify the image sender and use your vision if needed:",
+            ),
+        )
     for img_seg_prompt, img_seg_content in img_seg_pairs:
         openai_chat_message.add(ContentSegment.text_content(img_seg_prompt))
         openai_chat_message.add(img_seg_content)

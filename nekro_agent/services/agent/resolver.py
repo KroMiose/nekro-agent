@@ -57,3 +57,50 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
             code_content = content_without_think
 
     return ParsedCodeRunData(raw_content=raw_content, code_content=code_content, thought_chain=thought_chain)
+
+
+def fix_raw_response(raw_response: str) -> str:
+    """修复原始响应"""
+    # logger.debug(f"Raw response: {raw_response}")
+    # 修正基本 at 格式
+    raw_response = raw_response.replace("[qq:", "[@qq:")
+    raw_response = raw_response.replace("@[qq:", "[@qq:")
+    # 修正 [@qq:123456] -> [@qq:123456@]
+    raw_response = re.sub(r"\[@qq:(\d+)\]", r"[@qq:\1@]", raw_response)
+    # 修正 [@qq:123456;nickname:Abc] -> [@qq:123456@]
+    raw_response = re.sub(r"\[@qq:(\d+);nickname:(.+)\]", r"[@qq:\1@]", raw_response)
+    # 修正 [@123456] -> [@qq:123456@]
+    raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
+    # 修正 (@qq:123456@) -> [@qq:123456@]
+    raw_response = re.sub(r"\(@qq:(\d+)@\)", r"[@qq:\1@]", raw_response)
+    # 修正 (@qq:123456) -> [@qq:123456@]
+    raw_response = re.sub(r"\(@qq:(\d+)\)", r"[@qq:\1@]", raw_response)
+    # 修正 (@123456@) -> [@qq:123456@]
+    raw_response = re.sub(r"\( ?@(\d+)@ ?\)", r"[@qq:\1@]", raw_response)
+    # 修正  <7e56b348 | At:[@qq:xxx@]> -> [@qq:xxx@]
+    raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\1@]", raw_response)
+    # 修正 (@[@qq:123456@]) -> [@qq:123456@]
+    raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\1@]", raw_response)
+    # 修正 <@123456> -> [@qq:123456@]
+    raw_response = re.sub(r"<@(\d+)>", r"[@qq:\1@]", raw_response)
+    # 修正 @123456@) -> [@qq:123456@]
+    raw_response = re.sub(r"@(\d+)@\)", r"[@qq:\1@]", raw_response)
+    # 修正 (@123456) -> [@qq:123456@]
+    raw_response = re.sub(r"\( ?@(\d+) ?\)", r"[@qq:\1@]", raw_response)
+    # 修正 @123456@) -> [@qq:123456@]
+    raw_response = re.sub(r"@(\d+)@ ?\)", r"[@qq:\1@]", raw_response)
+
+    # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
+    reg = r"<\w{8} \| message separator>"
+    match = re.search(reg, raw_response)
+    if match:
+        raw_response = raw_response[: match.start()]
+
+    # 检查是否存在多个 <think> 标签
+    tags = ["<think>", "</think>"]
+    for tag in tags:
+        if raw_response.count(tag) > 1 and raw_response.endswith(tag):
+            raw_response = raw_response[: -len(tag)]
+
+    # logger.debug(f"Fixed raw response: {raw_response}")
+    return raw_response.strip()

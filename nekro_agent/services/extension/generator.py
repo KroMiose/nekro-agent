@@ -6,7 +6,6 @@
 from typing import Any, AsyncGenerator, Dict, Optional
 
 from nekro_agent.core.config import config
-from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
 from nekro_agent.tools.llm import get_chat_response, get_chat_response_stream
 
 

@@ -16,6 +16,7 @@ class SandboxMethodType(str, Enum):
 
     TOOL = "tool"
     AGENT = "agent"
+    BEHAVIOR = "behavior"
 
 
 class WebhookMethod:

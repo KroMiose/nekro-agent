@@ -10,6 +10,8 @@ from openai import AsyncOpenAI, AsyncStream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel
 
+from nekro_agent.core import logger
+
 from .creator import OpenAIChatMessage
 
 _OPENAI_BASE_URL = "https://api.openai.com/v1"
@@ -294,6 +296,7 @@ async def gen_openai_chat_response(
         )
 
         async for chunk in res_stream:
+            # logger.debug(f"Chunk: {chunk}")
             if not first_token_time:
                 first_token_time = time.time()
             chunk_text: Optional[str] = chunk.choices[0].delta.content

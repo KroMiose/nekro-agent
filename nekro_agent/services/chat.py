@@ -14,7 +14,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
 )
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.agents.components.chat_ret_cmp import fix_raw_response
+from nekro_agent.services.agent.resolver import fix_raw_response
 from nekro_agent.tools.common_util import download_file
 from nekro_agent.tools.onebot_util import get_user_group_card_name
 from nekro_agent.tools.path_convertor import (
