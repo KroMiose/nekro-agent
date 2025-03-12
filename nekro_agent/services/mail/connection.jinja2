@@ -1,0 +1,61 @@
+<div style="background: #eee">
+    <table width="600" border="0" align="center" cellpadding="0" cellspacing="0">
+        <tbody>
+            <tr>
+                <td>
+                    <div style="background:#fff">
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <thead>
+                                <tr>
+                                    <td valign="middle" style="padding-left:30px;background-color:#EA5252;color:#fff;padding:20px 40px;font-size: 21px;">Nekro-Agent</td>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if is_online %}
+                                <tr style="padding:40px 40px 0 40px;display:table-cell">
+                                    <td style="font-size:24px;line-height:1.5;color:#000;margin-top:40px">
+                                        Bot 上线通知～
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size:14px;color:#333;padding:24px 40px 0 40px">
+                                        您的Bot上线啦!<br>
+                                        适配器：{{ adapter }}<br>
+                                        Bot ID：{{ bot_id }}<br><br>
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr style="padding:40px 40px 0 40px;display:table-cell">
+                                    <td style="font-size:24px;line-height:1.5;color:#000;margin-top:40px">
+                                        Bot 下线通知～
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="font-size:14px;color:#333;padding:24px 40px 0 40px">
+                                        您的Bot下线了，可能出现了问题，快去看看吧！<br>
+                                        适配器：{{ adapter }}<br>
+                                        Bot ID：{{ bot_id }}<br><br>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div>
+                        <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                            <tbody>
+                                <tr>
+                                    <td style="padding:20px 40px;font-size:12px;color:#999;line-height:20px;background:#f7f7f7">
+                                        <a href="https://github.com/KroMiose/nekro-agent" style="font-size:14px;color:#929292; display: flex; align-items: center;">
+                                            查看Github仓库
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
