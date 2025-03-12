@@ -24,7 +24,7 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
         raise ValueError("webhook_request is required")
     body = _ctx.webhook_request.body
     headers = _ctx.webhook_request.headers
-    logger.debug(f"收到GitHub webhook请求: {headers}\n===\n {body}")
+    # logger.debug(f"收到GitHub webhook请求: {headers}\n===\n {body}")
 
     try:
         # 如果配置了webhook密钥，验证签名
