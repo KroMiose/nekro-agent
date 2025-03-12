@@ -8,8 +8,9 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="note",
-    description="[NA] 笔记系统插件",
+    name="[NA] 笔记系统插件",
+    module_name="note",
+    description="提供笔记系统功能，支持设置、获取、删除笔记",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -20,7 +21,7 @@ plugin = NekroPlugin(
 class NoteConfig(ConfigBase):
     """笔记系统配置"""
 
-    max_note_length: int = Field(default=72, description="笔记最大显示长度")
+    MAX_NOTE_LENGTH: int = Field(default=72, description="笔记最大显示长度")
 
 
 # 获取配置和插件存储
@@ -60,10 +61,10 @@ class Note(BaseModel):
             extra_diff_str = "expired (use `remove_note` to remove it)"
         description_str: str = (
             self.description
-            if len(self.description) < config.max_note_length
-            else self.description[: config.max_note_length // 2]
+            if len(self.description) < config.MAX_NOTE_LENGTH
+            else self.description[: config.MAX_NOTE_LENGTH // 2]
             + "...(note too long, use `get_note` to get the full note...)"
-            + self.description[-config.max_note_length // 2 :]
+            + self.description[-config.MAX_NOTE_LENGTH // 2 :]
         )
         return f"* note_title: {self.title}\n* note_description: {description_str}\n* time: (started {time_diff_str} ago. {extra_diff_str})"
 
@@ -130,8 +131,8 @@ async def note_prompt(_ctx: schemas.AgentCtx) -> str:
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取状态笔记")
-async def get_note(chat_key: str, title: str, _ctx: schemas.AgentCtx) -> str:
-    """Get Status Note
+async def get_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
+    """Get Note
 
     Args:
         chat_key (str): Chat Key
@@ -159,8 +160,8 @@ async def get_note(chat_key: str, title: str, _ctx: schemas.AgentCtx) -> str:
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "设置状态笔记")
-async def set_note(chat_key: str, title: str, duration: int, description: str, _ctx: schemas.AgentCtx) -> bool:
-    """Set Status Note (适用于 "外观外貌"、"身体部位"、"心理状态" 等效果)
+async def set_note(_ctx: schemas.AgentCtx, chat_key: str, title: str, description: str, duration: int = 0) -> bool:
+    """Set Note (适用于 "外观外貌"、"身体部位"、"心理状态" 等效果)
 
     **Attention**: ALL the chat records you see are **SCROLLING WINDOW** with a length limit, so make sure to remember the important information, otherwise it will be lost!
     This is the ** MOST RECOMMENDED ** way to manage persistent information.
@@ -168,8 +169,8 @@ async def set_note(chat_key: str, title: str, duration: int, description: str, _
     Args:
         chat_key (str): Chat Key
         title (str): Note Title (Update following arguments if specified `title` already exists)
-        duration (int): Duration (seconds, 0 means infinite)
         description (str): Detailed Description (Recommend format: "[tag] ...(effect description)")
+        duration (int): Duration (seconds, 0 means infinite, default is 0)
 
     Returns:
         bool: Successfully set note
@@ -177,19 +178,19 @@ async def set_note(chat_key: str, title: str, duration: int, description: str, _
     Example:
         ```
         # 由于某种原因，你变得 "开心"
-        set_note(chat_key, "心情愉悦", 60*60, "[效果] 因为 ...(事件发生) 而感到开心, ...(更多效果描述)")
+        set_note(chat_key, "心情愉悦", "[效果] 因为 ...(事件发生) 而感到开心, ...(更多效果描述)", 60*60)
         # 由于摔倒，你的手臂受伤了
-        set_note(chat_key, "手臂受伤", 0, "[效果] 因为摔倒而受伤，情况很严重，需要及时治疗")
+        set_note(chat_key, "手臂受伤", "[效果] 因为摔倒而受伤，情况很严重，需要及时治疗")
 
         # 维护一些自己或用户的状态变量
-        set_note(chat_key, "正在维护xxx的财务状况", 0, "[规则] 我正在维护xxx的财务状况, 使用...如果... (design and record very detail scene to keep remember operation rules)")
+        set_note(chat_key, "正在维护xxx的财务状况", "[规则] 我正在维护xxx的财务状况, 使用...如果... (design and record very detail scene to keep remember operation rules)")
         last_money_yuan = 50
         spend_money_yuan = 10
         if last_money_yuan - spend_money_yuan > 0:
-            set_note(chat_key, "xxx的财务状况", 0, f"[变量] 剩余 {last_money_yuan - spend_money_yuan} 元")
+            set_note(chat_key, "xxx的财务状况", f"[变量] 剩余 {last_money_yuan - spend_money_yuan} 元")
 
         # 记录关键信息
-        set_note(chat_key, "xxx的电子邮箱", 0, "[记忆] xxx@gmail.com")
+        set_note(chat_key, "xxx的电子邮箱", "[记忆] xxx@qq.com")
         ```
     """
     data = await store.get(chat_key=chat_key, store_key="note")
@@ -203,8 +204,8 @@ async def set_note(chat_key: str, title: str, duration: int, description: str, _
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "移除状态笔记")
-async def remove_note(chat_key: str, title: str, _ctx: schemas.AgentCtx) -> str:
-    """Remove Status Note
+async def remove_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
+    """Remove Note
 
     Args:
         chat_key (str): Chat Key

@@ -112,7 +112,7 @@ async def render_history_data(
                     ),
                 )
 
-    openai_chat_message = OpenAIChatMessage.from_template(
+    openai_chat_message: OpenAIChatMessage = OpenAIChatMessage.from_template(
         "user",
         HistoryPrompt(
             plugin_injected_prompt="",

@@ -17,8 +17,11 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_channel import ChannelData
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
+
+# from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
 from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.plugin.collector import plugin_collector
+from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.sandbox.executor import limited_run_code
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
@@ -127,20 +130,20 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
-
     info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
-    channel_data: ChannelData = await db_chat_channel.get_channel_data()
-    if channel_data.preset_status_list:
-        info += "人设状态历史:\n"
-    for status in channel_data.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE :]:
-        info += f"[{status.setting_name}] - {status.description}\n"
 
-    info += "状态笔记:\n"
-    for note in channel_data.preset_notes.values():
-        info += f"- {note.title} ({note.description})\n"
-    if not channel_data.preset_notes:
-        info += "- 暂无状态笔记\n"
+    # db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
+    # channel_data: ChannelData = await db_chat_channel.get_channel_data()
+    # if channel_data.preset_status_list:
+    #     info += "人设状态历史:\n"
+    # for status in channel_data.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE :]:
+    #     info += f"[{status.setting_name}] - {status.description}\n"
+
+    # info += "状态笔记:\n"
+    # for note in channel_data.preset_notes.values():
+    #     info += f"- {note.title} ({note.description})\n"
+    # if not channel_data.preset_notes:
+    #     info += "- 暂无状态笔记\n"
 
     await finish_with(matcher, message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
 
@@ -384,19 +387,169 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-@on_command("na_exts", aliases={"na-exts"}, priority=5, block=True).handle()
+@on_command("na_plugins", aliases={"na-plugins", "nps"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    ext_info = "\n".join([ext.gen_ext_info() for ext in get_all_ext_meta_data()])
-    await finish_with(matcher, message=f"当前已加载的扩展模块: \n{ext_info}")
+    plugins = plugin_collector.get_all_plugins()
+
+    if not plugins:
+        await finish_with(matcher, message="当前没有已加载的插件")
+        return
+
+    plugin_info_parts = []
+
+    for plugin in plugins:
+        # 获取插件基本信息
+        plugin_name = plugin.name
+        plugin_desc = plugin.description
+        plugin_version = plugin.version
+        plugin_author = plugin.author
+        plugin_url = plugin.url
+        plugin_status = "已启用" if plugin.is_enabled else "已禁用"
+
+        # 获取插件功能统计
+        sandbox_methods_count = len(plugin.sandbox_methods)
+        has_prompt_inject = "是" if plugin.prompt_inject_method else "否"
+        webhook_methods_count = len(plugin.webhook_methods)
+
+        # 格式化插件信息
+        plugin_info = (
+            f"* {plugin_name} - v{plugin_version} ({plugin_status})\n"
+            f"作者: {plugin_author}\n"
+            f"说明: {plugin_desc}\n"
+            f"链接: {plugin_url}\n"
+            f"功能: 沙盒方法({sandbox_methods_count}), 提示注入({has_prompt_inject}), Webhook({webhook_methods_count})"
+        )
+
+        plugin_info_parts.append(plugin_info)
+
+    # 组合所有插件信息
+    all_plugin_info = "\n\n".join(plugin_info_parts)
+
+    # 添加统计信息
+    stats = f"共加载 {len(plugins)} 个插件"
+
+    await finish_with(matcher, message=f"当前已加载的插件: \n{all_plugin_info}\n\n{stats}")
 
 
-@on_command("na_ext_gen", aliases={"na-ext-gen"}, priority=5, block=True).handle()
+@on_command("plugin_info", aliases={"plugin-info", "npi"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    await finish_with(matcher, message="扩展模块生成中...")
+    if not cmd_content:
+        await finish_with(matcher, message="请指定要查询的插件名或插件键名 (plugin_info <plugin_name/key>)")
+        return
+
+    plugins = plugin_collector.get_all_plugins()
+    target_plugin = None
+    search_term = cmd_content.strip()
+
+    # 分步骤查找插件，优先级从高到低:
+    # 1. 键名完全匹配（区分大小写）
+    for plugin in plugins:
+        if plugin.key == search_term:
+            target_plugin = plugin
+            break
+
+    # 2. 键名完全匹配（不区分大小写）
+    if not target_plugin:
+        for plugin in plugins:
+            if plugin.key.lower() == search_term.lower():
+                target_plugin = plugin
+                break
+
+    # 3. 插件名完全匹配（区分大小写）
+    if not target_plugin:
+        for plugin in plugins:
+            if plugin.name == search_term:
+                target_plugin = plugin
+                break
+
+    # 4. 插件名完全匹配（不区分大小写）
+    if not target_plugin:
+        for plugin in plugins:
+            if plugin.name.lower() == search_term.lower():
+                target_plugin = plugin
+                break
+
+    # 5. 键名部分匹配
+    if not target_plugin:
+        for plugin in plugins:
+            if search_term.lower() in plugin.key.lower():
+                target_plugin = plugin
+                break
+
+    # 6. 插件名部分匹配
+    if not target_plugin:
+        for plugin in plugins:
+            if search_term.lower() in plugin.name.lower():
+                target_plugin = plugin
+                break
+
+    if not target_plugin:
+        # 提供匹配建议
+        suggestions = []
+        for plugin in plugins:
+            if any(
+                c.lower() in plugin.key.lower() or c.lower() in plugin.name.lower() for c in search_term.lower() if c.isalnum()
+            ):
+                suggestions.append(f"- {plugin.name} (键名: {plugin.key})")
+
+        suggestion_text = ""
+        if suggestions:
+            suggestion_text = "\n\n您可能想查找的插件:\n" + "\n".join(suggestions[:3])
+            if len(suggestions) > 3:
+                suggestion_text += f"\n...等共 {len(suggestions)} 个可能的匹配"
+
+        await finish_with(
+            matcher,
+            message=f"未找到插件: {search_term}\n提示: 使用 `na_plugins` 命令查看所有已加载的插件{suggestion_text}",
+        )
+        return
+
+    # 基本信息
+    info = [
+        f"=> [{target_plugin.name}] 插件详情",
+        f"版本: v{target_plugin.version} ({'已启用' if target_plugin.is_enabled else '已禁用'})",
+        f"键名: {target_plugin.key}",
+        f"作者: {target_plugin.author}",
+        f"说明: {target_plugin.description}",
+        f"链接: {target_plugin.url}",
+        "",
+        "===== 功能统计 =====",
+        f"沙盒方法: {len(target_plugin.sandbox_methods)}",
+        f"提示注入: {'有' if target_plugin.prompt_inject_method else '无'}",
+        f"Webhook: {len(target_plugin.webhook_methods)}",
+    ]
+
+    # 配置信息
+    try:
+        plugin_config = target_plugin.get_config()
+        config_items = plugin_config.model_dump()
+        if config_items:
+            info.append("")
+            info.append("===== 配置信息 =====")
+            for key, value in config_items.items():
+                info.append(f"{key}: {value}")
+    except Exception as e:
+        info.append("")
+        info.append(f"获取配置失败: {e}")
+
+    # 方法列表
+    if target_plugin.sandbox_methods:
+        info.append("")
+        info.append("===== 方法列表 =====")
+        for method in target_plugin.sandbox_methods:
+            method_type_str = {
+                SandboxMethodType.AGENT: "代理方法",
+                SandboxMethodType.MULTIMODAL_AGENT: "多模态代理",
+                SandboxMethodType.TOOL: "工具方法",
+                SandboxMethodType.BEHAVIOR: "行为方法",
+            }.get(method.method_type, "未知类型")
+            info.append(f"- {method.func.__name__} ({method_type_str}): {method.name}")
+
+    await finish_with(matcher, message="\n".join(info))
 
 
 @on_command("na_help", aliases={"na-help"}, priority=5, block=True).handle()
@@ -407,19 +560,28 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         matcher,
         (
             "=> [Nekro-Agent 帮助]\n"
-            "====== [命令列表] ======\n"
+            "====== [聊天管理] ======\n"
             "reset <chat_key?>: 清空指定会话的聊天记录\n"
             "inspect <chat_key?>: 查询指定会话的基本信息\n"
             "code_log <idx?>: 查询当前会话的执行记录\n"
             "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
-            "na_exts: 查看当前已加载的扩展模块\n"
+            "system <message>: 添加系统消息\n"
+            "\n====== [插件系统] ======\n"
+            "na_exts: 查看当前已加载的插件及其详细信息\n"
+            "plugin_info <name/key>: 查看指定插件的详细信息\n"
+            "reload_ext: 重新加载插件目录中的插件\n"
+            "\n====== [配置管理] ======\n"
             "conf_show <key?>: 查看配置列表/配置值\n"
             "conf_set <key=value>: 修改配置\n"
             "conf_reload: 重载配置\n"
             "conf_save: 保存配置\n"
+            "\n====== [其他功能] ======\n"
             "ai_voices: 查看当前可用的 AI 声聊角色\n"
-            "注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
+            "debug_on: 开启调试模式\n"
+            "debug_off: 关闭调试模式\n"
+            "na_info: 查看系统信息\n"
+            "\n注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
             "Github: https://github.com/KroMiose/nekro-agent\n"
@@ -510,15 +672,15 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
 
 
-@on_command("reload_ext", aliases={"reload-ext"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+# @on_command("reload_ext", aliases={"reload-ext"}, priority=5, block=True).handle()
+# async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+#     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    try:
-        reloaded_modules = reload_ext_workdir()
-        if reloaded_modules:
-            await finish_with(matcher, message="重载成功！已重载以下模块:\n" + "\n".join([f"- {m}" for m in reloaded_modules]))
-        else:
-            await finish_with(matcher, message="重载完成，但没有找到任何模块")
-    except Exception as e:
-        await finish_with(matcher, message=f"重载失败: {e!s}")
+#     try:
+#         reloaded_modules = reload_ext_workdir()
+#         if reloaded_modules:
+#             await finish_with(matcher, message="重载成功！已重载以下模块:\n" + "\n".join([f"- {m}" for m in reloaded_modules]))
+#         else:
+#             await finish_with(matcher, message="重载完成，但没有找到任何模块")
+#     except Exception as e:
+#         await finish_with(matcher, message=f"重载失败: {e!s}")

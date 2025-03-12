@@ -7,7 +7,6 @@ from typing import Dict, List, Optional, Union
 
 from nekro_agent.core import config, logger
 from nekro_agent.core.bot import get_bot
-from nekro_agent.libs.miose_llm.exceptions import ResolveError
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
@@ -115,14 +114,11 @@ class MessageService:
 
         try:
             logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
-            for i in range(3):
+            for _i in range(3):
                 try:
                     await run_agent(chat_key=chat_key, chat_message=message)
-                except ResolveError as e:
-                    logger.error(f"Resolve Error, Retrying {i+1}/3...")
-                    if "list index out of range" in str(e) and i > 0:
-                        logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
-                        break
+                except Exception as e:
+                    logger.exception(f"执行失败: {e}")
                 else:
                     break
             else:

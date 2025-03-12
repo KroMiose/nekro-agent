@@ -17,7 +17,8 @@ from nekro_agent.services.user import user_login
 from .chat_channel import router as chat_channel_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
-from .extensions import router as extensions_router
+
+# from .extensions import router as extensions_router
 from .logs import router as logs_router
 from .napcat import router as napcat_router
 from .rpc import router as exec_router
@@ -25,6 +26,7 @@ from .sandbox import router as sandbox_router
 from .tools import router as tools_router
 from .user import router as user_router
 from .user_manager import router as user_manager_router
+from .webhook import router as webhook_router
 
 
 def mount_routers(app: FastAPI):
@@ -54,11 +56,12 @@ def mount_routers(app: FastAPI):
     api.include_router(exec_router)
     api.include_router(logs_router)
     api.include_router(config_router)
-    api.include_router(extensions_router)
+    # api.include_router(extensions_router)
     api.include_router(napcat_router)
     api.include_router(sandbox_router)
     api.include_router(dashboard_router)
     api.include_router(chat_channel_router)
+    api.include_router(webhook_router)
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:

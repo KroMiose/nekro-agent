@@ -6,7 +6,7 @@
 import sys
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Type
+from typing import Any, Awaitable, Callable, Coroutine, Dict, List, Optional, Tuple
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
@@ -82,7 +82,7 @@ class PluginCollector:
 
                 if isinstance(plugin, NekroPlugin):
                     logger.success(
-                        f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"',
+                        f'插件加载成功: "[{plugin.key}] {plugin.name}" by "{plugin.author or "未知"}"',
                     )
                     self.loaded_plugins[plugin.key] = plugin
                 else:
@@ -139,11 +139,62 @@ class PluginCollector:
         logger.debug(f"获取到 {len(methods)} 个沙盒方法")
         return methods
 
+    def get_webhook_method(self, plugin_key: str, endpoint: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
+        """获取指定插件的webhook方法
+
+        Args:
+            plugin_key: 插件键
+            endpoint: webhook端点路径
+
+        Returns:
+            Optional[Callable]: webhook方法实例，如果不存在则返回 None
+        """
+        plugin = self.get_plugin(plugin_key)
+        if not plugin or not plugin.is_enabled:
+            return None
+
+        if endpoint in plugin.webhook_methods:
+            return plugin.webhook_methods[endpoint].func
+        return None
+
+    def get_webhook_methods_by_endpoint(self, endpoint: str) -> List[Tuple[str, Callable[..., Coroutine[Any, Any, Any]]]]:
+        """获取所有注册了指定endpoint的webhook方法
+
+        Args:
+            endpoint: webhook端点路径
+
+        Returns:
+            List[Tuple[str, Callable]]: 包含插件键和webhook方法的元组列表
+        """
+        methods: List[Tuple[str, Callable[..., Coroutine[Any, Any, Any]]]] = []
+        for plugin_key, plugin in self.loaded_plugins.items():
+            if not plugin.is_enabled:
+                continue
+
+            if endpoint in plugin.webhook_methods:
+                methods.append((plugin_key, plugin.webhook_methods[endpoint].func))
+
+        logger.debug(f"获取到 {len(methods)} 个处理 {endpoint} 的webhook方法")
+        return methods
+
+    def get_all_webhook_methods(self) -> Dict[str, Dict[str, Callable[..., Coroutine[Any, Any, Any]]]]:
+        """获取所有webhook方法
+
+        Returns:
+            Dict[str, Dict[str, Callable]]: 以插件键和endpoint为键的webhook方法字典
+        """
+        webhook_methods: Dict[str, Dict[str, Callable[..., Coroutine[Any, Any, Any]]]] = {}
+        for plugin_key, plugin in self.loaded_plugins.items():
+            if plugin.is_enabled and plugin.webhook_methods:
+                webhook_methods[plugin_key] = {endpoint: method.func for endpoint, method in plugin.webhook_methods.items()}
+        logger.debug(f"获取到 {sum(len(methods) for methods in webhook_methods.values())} 个webhook方法")
+        return webhook_methods
+
 
 # 全局插件收集器实例
 plugin_collector = PluginCollector()
 
 
 def init_plugins() -> None:
-    """初始化并加载所有插件（兼容旧代码）"""
+    """初始化并加载所有插件"""
     plugin_collector.init_plugins()

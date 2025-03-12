@@ -1,3 +1,4 @@
+import inspect
 import re
 from enum import Enum
 from pathlib import Path
@@ -36,19 +37,21 @@ class NekroPlugin(Generic[T]):
     _Configs: Type[ConfigBase] = ConfigBase
     _config: ConfigBase
 
-    def __init__(self, name: str, description: str, version: str, author: str, url: str):
+    def __init__(self, name: str, module_name: str, description: str, version: str, author: str, url: str):
         self.init_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
-        self.name = _validate_name(name, "Plugin Name")
+        self.name = name
+        self.module_name = _validate_name(module_name, "Module Name")
         self.description = description.strip()
         self.version = version.strip()
         self.author = _validate_name(author, "Author")
-        self.key = f"{self.author}.{self.name}"
         self.url = url.strip()
         self._is_enabled = True
+        self._key = f"{self.author}.{self.module_name}"
+
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.name / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.name
         self._store = PluginStore(self)
@@ -173,6 +176,10 @@ class NekroPlugin(Generic[T]):
 
     def disable(self):
         self._is_enabled = False
+
+    @property
+    def key(self) -> str:
+        return self._key
 
     async def render_inject_prompt(self, ctx: AgentCtx) -> str:
         """渲染提示注入提示词

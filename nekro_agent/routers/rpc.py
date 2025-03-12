@@ -48,10 +48,9 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
     if not method:
         raise not_found_exception
 
-    args = rpc_request.args or []
-    kwargs = rpc_request.kwargs or {}
     ctx = AgentCtx(container_key=container_key, from_chat_key=from_chat_key)
-    kwargs["_ctx"] = ctx
+    args = [ctx, *rpc_request.args] if rpc_request.args else [ctx]
+    kwargs = rpc_request.kwargs or {}
 
     result = None
 
