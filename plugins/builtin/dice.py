@@ -7,8 +7,9 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="dice",
-    description="[NA] 掷骰姬",
+    name="[NA] 掷骰姬",
+    module_name="dice",
+    description="提供掷骰检定能力",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -27,7 +28,7 @@ config = plugin.get_config(DiceConfig)
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.AGENT, "掷骰检定请求")
-async def dice_roll(event_name: str, description: str, difficulty: int, _ctx: AgentCtx) -> str:
+async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficulty: int) -> str:
     """对可能产生不同结果的事件发起掷骰检定请求以确认执行结果 (use lang: zh-CN)
 
     **应用场景: 战斗、施法、防护、反抗、逃跑、随机事件、行为、交互等 (!!!你需要在这些场景中积极使用掷骰检定!!!)**

@@ -34,49 +34,11 @@ class PresetStatus(BaseModel):
         return f"{self.setting_name}: {self.description} (updated {time_diff_str} ago.{addition_str})"
 
 
-class PresetNote(BaseModel):
-    """预设状态笔记"""
-
-    title: str
-    description: str
-    start_time: int
-    expire_time: int = 0
-    duration: int = 0
-
-    @classmethod
-    def create(cls, title: str, description: str, duration: int = 0):
-        start_time = int(time.time())
-        expire_time = start_time + duration if duration > 0 else 0
-        return cls(
-            title=title,
-            description=description,
-            start_time=start_time,
-            expire_time=expire_time,
-            duration=duration,
-        )
-
-    def render_prompts(self) -> str:
-        time_diff = time.time() - self.start_time
-        time_diff_str = time.strftime("%H:%M:%S", time.gmtime(time_diff))
-        extra_diff = time.time() - self.expire_time
-        if self.duration > 0 and extra_diff > 0:
-            extra_diff_str = f"expires in {time.strftime('%H:%M:%S', time.gmtime(extra_diff))}"
-        else:
-            extra_diff_str = "expired (use `remove_note` to remove it)"
-        description_str: str = (
-            self.description
-            if len(self.description) < 72
-            else self.description[:32] + "...(note too long, use `get_note` to get the full note...)" + self.description[-32:]
-        )
-        return f"* note_title: {self.title}\n* note_description: {description_str}\n* time: (started {time_diff_str} ago. {extra_diff_str})"
-
-
 class ChannelData(BaseModel):
     """聊天频道数据"""
 
     chat_key: str
     preset_status_list: List[PresetStatus] = []
-    preset_notes: Dict[str, PresetNote] = {}
 
     class Config:
         extra = "ignore"
@@ -110,34 +72,6 @@ class ChannelData(BaseModel):
             return None
         return self.preset_status_list[-1]
 
-    async def update_preset_note(self, note: PresetNote):
-        """更新预设笔记"""
-        self.preset_notes[note.title] = note
-
-    async def remove_preset_note(self, title: str, fuzzy: bool = False) -> bool:
-        """移除预设笔记"""
-        if title in self.preset_notes:
-            del self.preset_notes[title]
-            return True
-        if fuzzy:
-            for note in self.preset_notes:
-                _title = note.replace(" ", "").replace("<", "").replace(">", "")
-                if title.replace(" ", "").replace("<", "").replace(">", "") in _title:
-                    del self.preset_notes[note]
-                    return True
-        return False
-
-    def get_preset_note(self, title: str, fuzzy: bool = False) -> Optional[PresetNote]:
-        """获取预设笔记"""
-        if title in self.preset_notes:
-            return self.preset_notes[title]
-        if fuzzy:
-            for note in self.preset_notes:
-                _title = note.replace(" ", "").replace("<", "").replace(">", "")
-                if title.replace(" ", "").replace("<", "").replace(">", "") in _title:
-                    return self.preset_notes[note]
-        return None
-
     def render_prompts(self) -> str:
         """渲染提示词"""
         latest_preset_status = self.get_latest_preset_status()
@@ -153,21 +87,7 @@ class ChannelData(BaseModel):
                 ],
             )
 
-        note_str: str = (
-            "".join(
-                [f"* {note.render_prompts()}\n" for note in list(self.preset_notes.values())],
-            )
-            if len(self.preset_notes) > 0
-            else "No notes. (use `set_note` to add one)"
-        )
-
-        return (
-            f"{history_str}"
-            "Current Character Setting status:"
-            f"{latest_preset_status.render_prompts(extra=True)}\n\n"
-            "Current Notes:\n"
-            f"{note_str}"
-        )
+        return f"{history_str}" + "Current Character Setting status:" + f"{latest_preset_status.render_prompts(extra=True)}\n\n"
 
     async def clear_status(self):
         self.preset_status_list = []

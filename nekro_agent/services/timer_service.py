@@ -81,7 +81,9 @@ class TimerService:
                     if not self.tasks[chat_key]:
                         del self.tasks[chat_key]
                 if not silent:
-                    logger.info(f"已清空会话 {chat_key} 的{'所有' if temporary is None else '临时' if temporary else '非临时'}定时器")
+                    logger.info(
+                        f"已清空会话 {chat_key} 的{'所有' if temporary is None else '临时' if temporary else '非临时'}定时器",
+                    )
             return True
 
         # 如果触发时间为0，立即触发会话
@@ -107,6 +109,17 @@ class TimerService:
         if not silent:
             logger.info(f"定时器设置成功: {chat_key} | 触发时间: {datetime.fromtimestamp(trigger_time)}")
         return True
+
+    def get_timers(self, chat_key: str) -> List[TimerTask]:
+        """获取指定会话的所有未触发定时器
+
+        Args:
+            chat_key (str): 会话标识
+
+        Returns:
+            List[TimerTask]: 定时器任务列表
+        """
+        return self.tasks.get(chat_key, [])
 
     async def _timer_loop(self):
         """定时器循环"""
