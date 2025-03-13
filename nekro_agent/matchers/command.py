@@ -552,6 +552,57 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message="\n".join(info))
 
 
+@on_command("reset_plugin", aliases={"reset-plugin"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not cmd_content:
+        await finish_with(matcher, message="请指定要重置的插件名或插件键名 (reset_plugin <plugin_name/key>)")
+    else:
+        plugins = plugin_collector.get_all_plugins()
+        target_plugin = None
+        search_term = cmd_content.strip()
+
+        # 分步骤查找插件，优先级从高到低:
+        # 1. 键名完全匹配（区分大小写）
+        for plugin in plugins:
+            if plugin.key == search_term:
+                target_plugin = plugin
+                break
+
+        # 2. 键名完全匹配（不区分大小写）
+        if not target_plugin:
+            for plugin in plugins:
+                if plugin.key.lower() == search_term.lower():
+                    target_plugin = plugin
+                    break
+
+        # 3. 插件名完全匹配（区分大小写）
+        if not target_plugin:
+            for plugin in plugins:
+                if plugin.name == search_term:
+                    target_plugin = plugin
+                    break
+
+        # 4. 插件名完全匹配（不区分大小写）
+        if not target_plugin:
+            for plugin in plugins:
+                if plugin.name.lower() == search_term.lower():
+                    target_plugin = plugin
+                    break
+
+        if not target_plugin:
+            await finish_with(matcher, message=f"未找到插件: {search_term}")
+            return
+
+        config_path = target_plugin._plugin_config_path  # noqa: SLF001
+        if config_path.exists():
+            config_path.unlink()
+            await finish_with(matcher, message=f"插件 {target_plugin.name} 配置文件已删除")
+        else:
+            await finish_with(matcher, message=f"插件 {target_plugin.name} 配置文件不存在")
+
+
 @on_command("na_help", aliases={"na-help"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)

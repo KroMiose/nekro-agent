@@ -214,7 +214,7 @@ class ChatService:
             raise ValueError("Invalid chat type")
 
 
-async def parse_at_from_text(text: str, group_id: str) -> List[Union[str, SegAt]]:
+async def parse_at_from_text(text: str, chat_key: str) -> List[Union[str, SegAt]]:
     """从文本中解析@信息
     需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
 
@@ -252,18 +252,24 @@ async def parse_at_from_text(text: str, group_id: str) -> List[Union[str, SegAt]
             if config.SESSION_DISABLE_AT:
                 result.append(f"{nickname}")
             else:
-                result.append(SegAt(qq=qq, nickname=nickname))
+                if "group" in chat_key:
+                    result.append(SegAt(qq=qq, nickname=None))
+                else:
+                    result.append("") #私聊无法@
         else:
             qq = seg.replace("qq:", "").strip()
             if config.SESSION_DISABLE_AT:
-                if "group" in group_id:
-                    group_id = group_id.replace("group_", "")
+                if "group" in chat_key:
+                    group_id = chat_key.replace("group_", "")
                     nickname = await get_user_group_card_name(group_id=group_id, user_id=qq)
                     result.append(f"{nickname}")
                 else:
-                    result.append(f"{qq}")
+                    result.append("")
             else:
-                result.append(SegAt(qq=qq, nickname=None))
+                if "group" in chat_key:
+                    result.append(SegAt(qq=qq, nickname=None))
+                else:
+                    result.append("") #私聊无法@
         start = end_index + 2  # 跳过 '@]' 标志
     return result
 

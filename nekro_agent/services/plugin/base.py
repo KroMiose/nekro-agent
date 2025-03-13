@@ -99,6 +99,7 @@ class NekroPlugin(Generic[T]):
             config = self._config
         else:
             config = self._Configs.load_config(file_path=self._plugin_config_path)
+            config.dump_config(self._plugin_config_path)
 
         # 如果提供了类型，则进行类型转换
         if config_cls is not None:

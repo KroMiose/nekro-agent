@@ -1,4 +1,5 @@
 from fileinput import filename
+from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union, cast
 
 import json5
@@ -12,6 +13,7 @@ from nonebot.adapters.onebot.v11 import (
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
+from nekro_agent.core.os_env import NAPCAT_TEMPFILE_DIR
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
@@ -71,11 +73,30 @@ async def convert_chat_message(
                     remote_url="",
                 ),
             )
+        elif ob_event.file.id:
+            file_data = await bot.get_file(file_id=ob_event.file.id)
+            logger.debug(f"获取文件: {file_data}")
+            # TODO: 获取文件: {'file': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'url': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'file_size': '1079', 'file_name': 'XXXXXX.csv'}
+            # napcat 挂载目录 ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ
+            target_file_path = str(Path(NAPCAT_TEMPFILE_DIR) / file_data["file_name"])
+            if Path(target_file_path).exists():
+                local_path, file_name = await move_to_upload_dir(
+                    file_path=target_file_path,
+                    file_name=file_data["file_name"],
+                    from_chat_key=chat_key,
+                )
+                logger.debug(f"上传文件转移: {target_file_path} -> {local_path}")
+                ret_list.append(
+                    ChatMessageSegmentFile(
+                        type=ChatMessageSegmentType.FILE,
+                        text="",
+                        file_name=file_name,
+                        local_path=local_path,
+                    ),
+                )
+            else:
+                logger.warning(f"文件不存在: {target_file_path}")
         else:
-            # file_data = await bot.get_file(file_id=ob_event.file.id)
-            # logger.debug(f"获取文件: {file_data}")
-            # TODO: 获取文件: {'file': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'url': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'file_size': '1079', 'filename': 'XXXXXX.csv'}
-            # TODO: 需要调整 NapCat 容器挂载以获取到文件
             logger.debug(f"无法处理的文件消息: {ob_event.file}")
 
         return ret_list, False, ""
@@ -162,8 +183,8 @@ async def convert_chat_message(
                         text="",
                         target_qq=at_qq,
                         target_nickname=nick_name,
-                ),
-            )
+                    ),
+                )
 
         elif seg.type == "file":
             ...  # TODO: llob 传递过来的文件没有直链，待补充实现
