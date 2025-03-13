@@ -52,6 +52,7 @@ PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
 APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
 BUILTIN_PLUGIN_DIR: str = "plugins/builtin"
 WORKDIR_PLUGIN_DIR: str = "plugins/workdir"
+NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"
 EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 

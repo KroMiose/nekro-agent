@@ -1,4 +1,5 @@
 import asyncio
+import json
 import re
 import time
 from datetime import datetime
@@ -170,7 +171,7 @@ class MessageService:
             chat_key=message.chat_key,
             chat_type=message.chat_type,
             content_text=message.content_text,
-            content_data=content_data,
+            content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code=message.raw_cq_code,
             ext_data=message.ext_data,
             send_timestamp=int(current_time),  # 使用处理后的时间戳
@@ -248,7 +249,7 @@ class MessageService:
             chat_key=chat_key,
             chat_type=ChatType.from_chat_key(chat_key).value,
             content_text=content_text,
-            content_data=content_data,
+            content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
             send_timestamp=send_timestamp,
@@ -279,7 +280,7 @@ class MessageService:
             chat_key=chat_key,
             chat_type=ChatType.from_chat_key(chat_key).value,
             content_text=content_text,
-            content_data=[],
+            content_data=json.dumps([], ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
             send_timestamp=send_timestamp,

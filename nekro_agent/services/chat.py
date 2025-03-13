@@ -214,7 +214,7 @@ class ChatService:
             raise ValueError("Invalid chat type")
 
 
-async def parse_at_from_text(text: str, group_id: str) -> List[Union[str, SegAt]]:
+async def parse_at_from_text(text: str, chat_key: str) -> List[Union[str, SegAt]]:
     """从文本中解析@信息
     需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
 

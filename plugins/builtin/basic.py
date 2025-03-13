@@ -1,3 +1,4 @@
+import difflib
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Type, cast
@@ -8,6 +9,7 @@ from nekro_agent.api import core, message, user
 from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
+from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
@@ -53,6 +55,19 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     return ""
 
 
+def calculate_text_similarity(text1: str, text2: str) -> float:
+    """计算两段文本的相似度
+
+    Args:
+        text1 (str): 第一段文本
+        text2 (str): 第二段文本
+
+    Returns:
+        float: 相似度（0-1）
+    """
+    return difflib.SequenceMatcher(None, text1, text2).ratio()
+
+
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
 
 
@@ -66,29 +81,55 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     """
     global SEND_MSG_CACHE
 
+    if not message_text.strip():
+        raise Exception("Error: The message content cannot be empty.")
+
+    message_text = message_text.replace("[@all@]", "@全体成员")
+
     # 拒绝包含 [image:xxx...] 的图片消息
     if re.match(r"^.*\[image:.*\]$", message_text) and len(message_text) > 100:
         raise Exception(
             "Error: You can't send image message directly, please use the send_msg_file method to send image/file resources.",
         )
 
-    if message_text in SEND_MSG_CACHE.get(_ctx.from_chat_key, []):
-        core.logger.warning(f"[{_ctx.from_chat_key}] 检测到重复消息, 跳过发送...")
-        SEND_MSG_CACHE[_ctx.from_chat_key] = [msg for msg in SEND_MSG_CACHE[_ctx.from_chat_key] if msg != message_text]
-        return
+    # 初始化消息缓存
+    if chat_key not in SEND_MSG_CACHE:
+        SEND_MSG_CACHE[chat_key] = []
+
+    recent_messages = SEND_MSG_CACHE[chat_key][-5:] if SEND_MSG_CACHE[chat_key] else []
+
+    # 检查完全匹配
+    if message_text in recent_messages:
+        # 清空缓存允许再次发送
+        SEND_MSG_CACHE[chat_key] = []
+        raise Exception(
+            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. If you determine it is necessary, you can resend it."
+        )
+
+    # 检查相似度（仅对超过 12 字符的消息进行检查）
+    if len(message_text) > 12:
+        for recent_msg in recent_messages:
+            similarity = calculate_text_similarity(message_text, recent_msg)
+            if similarity > 0.7:
+                # 发送系统消息提示避免类似内容
+                logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+                await message_service.push_system_message(
+                    chat_key=chat_key,
+                    agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
+                    trigger_agent=False,
+                )
+                break
 
     try:
         await message.send_text(chat_key, message_text, _ctx)
     except Exception as e:
         raise Exception(
-            "Error sending text message to chat: Make sure the chat key is correct, you have permission to speak, and the content is not empty or too long.",
+            "Error sending text message to chat: Make sure the chat key is valid, you have permission to speak and message is not too long.",
         ) from e
 
-    if _ctx.from_chat_key not in SEND_MSG_CACHE:
-        SEND_MSG_CACHE[_ctx.from_chat_key] = []
-
-    SEND_MSG_CACHE[_ctx.from_chat_key].append(message_text)
-    SEND_MSG_CACHE[_ctx.from_chat_key] = SEND_MSG_CACHE[_ctx.from_chat_key][-10:]
+    # 更新消息缓存
+    SEND_MSG_CACHE[chat_key].append(message_text)
+    SEND_MSG_CACHE[chat_key] = SEND_MSG_CACHE[chat_key][-10:]  # 保持最近10条消息
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送聊天消息图片/文件资源")

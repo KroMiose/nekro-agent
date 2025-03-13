@@ -7,7 +7,10 @@ from lunar_python import Lunar
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
-from nekro_agent.schemas.chat_message import ChatMessageSegmentImage
+from nekro_agent.schemas.chat_message import (
+    ChatMessageSegmentImage,
+    ChatMessageSegmentType,
+)
 from nekro_agent.tools.common_util import compress_image
 from nekro_agent.tools.path_convertor import (
     convert_filename_to_access_path,
@@ -64,7 +67,7 @@ async def render_history_data(
     image_segments: List[ChatMessageSegmentImage] = []
     for db_message in recent_chat_messages:
         for seg in db_message.parse_content_data():
-            if isinstance(seg, ChatMessageSegmentImage):
+            if isinstance(seg, ChatMessageSegmentImage) and seg.type == ChatMessageSegmentType.IMAGE:
                 image_segments.append(seg)
 
     img_seg_pairs: List[Tuple[str, Dict[str, Any]]] = []
