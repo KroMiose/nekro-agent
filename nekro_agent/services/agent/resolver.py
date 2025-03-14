@@ -56,7 +56,13 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
             content_without_think = re.sub(r"<think>.*?</think>", "", cleaned_content, flags=re.DOTALL).strip()
             code_content = content_without_think
 
-    return ParsedCodeRunData(raw_content=raw_content, code_content=code_content, thought_chain=thought_chain)
+    return ParsedCodeRunData(raw_content=raw_content, code_content=fix_code_content(code_content), thought_chain=thought_chain)
+
+
+def fix_code_content(code_content: str) -> str:
+    """修复代码内容"""
+    # 修正代码块去掉所有 from plugins ... import ... 开头的行
+    return re.sub(r"^from plugins.*\n", "", code_content, flags=re.MULTILINE)
 
 
 def fix_raw_response(raw_response: str) -> str:

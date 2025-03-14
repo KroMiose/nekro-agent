@@ -90,7 +90,7 @@ class PluginCollector:
             else:
                 logger.warning(f"模块未找到插件实例: {path}")
         except Exception as e:
-            logger.error(f"加载插件失败 {path}: {e}")
+            logger.exception(f"加载插件失败 {path}: {e}")
 
     def get_plugin(self, key: str) -> Optional[NekroPlugin]:
         """根据插件键获取插件实例

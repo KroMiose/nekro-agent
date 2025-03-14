@@ -52,8 +52,8 @@ class NekroPlugin(Generic[T]):
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
 
-        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.name / "config.yaml"
-        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.name
+        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key / "config.yaml"
+        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key
         self._store = PluginStore(self)
 
     def reset_methods(self):
