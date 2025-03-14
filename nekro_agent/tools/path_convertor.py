@@ -63,8 +63,12 @@ def convert_to_host_path(
         ValueError: 当 shared 路径没有提供 container_key 时
 
     Examples:
-        >>> # 转换 uploads 路径
+        >>> # 转换绝对路径
         >>> convert_to_host_path(Path("/app/uploads/test.txt"), "group_123456")
+        Path("/data/uploads/group_123456/test.txt")
+
+        >>> # 转换相对路径
+        >>> convert_to_host_path(Path("./uploads/test.txt"), "group_123456")
         Path("/data/uploads/group_123456/test.txt")
 
         >>> # 转换 shared 路径
@@ -79,6 +83,13 @@ def convert_to_host_path(
     def _validate_shared_path(key: Optional[str]) -> None:
         if not key:
             raise ValueError("Container key is required for shared paths")
+
+    # 设置默认工作目录为 /app
+    base_path = Path("/app")
+    
+    # 如果是相对路径，将其转换为绝对路径
+    if not sandbox_path.is_absolute():
+        sandbox_path = base_path / sandbox_path
 
     # 标准化路径
     clean_path = Path(*sandbox_path.parts)
