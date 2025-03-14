@@ -134,6 +134,8 @@ async def note_prompt(_ctx: schemas.AgentCtx) -> str:
 async def get_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
     """Get Note
 
+    Only for too long notes, you can use the method to get the full content.
+
     Args:
         chat_key (str): Chat Key
         title (str): Note Title
@@ -150,7 +152,7 @@ async def get_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
             set_note(chat_key, "some_data_schema", "...", 0) # save a structure description note for reference
         data = json.loads(get_note(chat_key, "some_data"))
         data["xxx"] = "xxx"
-        set_note(chat_key, "some_data", json.dumps(data, ensure_ascii=False), 0) # note 内容过长时会省略显示, 但仍可以通过 `get_note` 获取完整内容
+        set_note(chat_key, "some_data", json.dumps(data, ensure_ascii=False), 0)
         ```
     """
     data = await store.get(chat_key=chat_key, store_key="note")
