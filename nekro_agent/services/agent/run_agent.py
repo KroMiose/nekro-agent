@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import weave
 
@@ -39,6 +39,9 @@ async def run_agent(
     one_time_code = os.urandom(4).hex()
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     ctx: AgentCtx = AgentCtx(from_chat_key=chat_key)
+    
+    # 获取当前使用的模型组
+    used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
 
     messages = [
         OpenAIChatMessage.from_template(
@@ -50,26 +53,26 @@ async def run_agent(
                 chat_key=chat_key,
                 plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_plugins(), ctx),
                 admin_chat_key=config.ADMIN_CHAT_KEY,
-                enable_cot=config.AI_ENABLE_COT,
+                enable_cot=used_model_group.ENABLE_COT,
             ),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
             "assistant",
-            PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
+            PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=used_model_group.ENABLE_COT),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
             "assistant",
-            PracticePrompt_response_2(one_time_code=one_time_code, enable_cot=config.AI_ENABLE_COT),
+            PracticePrompt_response_2(one_time_code=one_time_code, enable_cot=used_model_group.ENABLE_COT),
         ),
-        OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=config.AI_ENABLE_COT)).extend(
-            await render_history_data(chat_key=chat_key, db_chat_channel=db_chat_channel, one_time_code=one_time_code),
+        OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT)).extend(
+            await render_history_data(chat_key=chat_key, db_chat_channel=db_chat_channel, one_time_code=one_time_code, model_group=used_model_group),
         ),
     ]
 
     history_render_until_time = time.time()
-    llm_response: OpenAIResponse = await send_agent_request(messages=messages)
+    llm_response, used_model_group = await send_agent_request(messages=messages)
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
@@ -117,6 +120,7 @@ async def run_agent(
                         db_chat_channel=db_chat_channel,
                         one_time_code=one_time_code,
                         record_sta_timestamp=history_render_until_time,
+                        model_group=used_model_group,
                     ),
                 )
                 .extend(
@@ -153,16 +157,18 @@ async def run_agent(
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
-        llm_response: OpenAIResponse = await send_agent_request(messages=messages)
+        llm_response, used_model_group = await send_agent_request(messages=messages)
         parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
 
-async def send_agent_request(messages: List[OpenAIChatMessage]) -> OpenAIResponse:
+async def send_agent_request(messages: List[OpenAIChatMessage]) -> Tuple[OpenAIResponse, ModelConfigGroup]:
 
     model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
     fallback_model_group: ModelConfigGroup = (
         config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP] if config.FALLBACK_MODEL_GROUP else model_group
     )
+
+    used_model_group: ModelConfigGroup = model_group  # 记录实际使用的模型组
 
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
@@ -180,8 +186,9 @@ async def send_agent_request(messages: List[OpenAIChatMessage]) -> OpenAIRespons
             logger.error(f"LLM 请求失败: {e}")
             continue
         else:
+            used_model_group = use_model_group  # 记录成功使用的模型组
             break
     else:
         raise ValueError("所有 LLM 请求失败")
 
-    return llm_response
+    return llm_response, used_model_group

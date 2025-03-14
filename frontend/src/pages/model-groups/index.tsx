@@ -22,6 +22,11 @@ import {
   InputAdornment,
   Link,
   styled,
+  Switch,
+  FormControlLabel,
+  Tooltip,
+  Chip,
+  MenuItem,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -30,6 +35,12 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   Launch as LaunchIcon,
+  Image as ImageIcon,
+  Psychology as PsychologyIcon,
+  Chat as ChatIcon,
+  Code as CodeIcon,
+  Brush as BrushIcon,
+  EmojiObjects as EmojiObjectsIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ModelGroupConfig } from '../../services/api/config'
@@ -56,37 +67,111 @@ function EditDialog({
     CHAT_PROXY: '',
     BASE_URL: '',
     API_KEY: '',
+    MODEL_TYPE: 'chat',
     TEMPERATURE: null,
     TOP_P: null,
     TOP_K: null,
     PRESENCE_PENALTY: null,
     FREQUENCY_PENALTY: null,
     EXTRA_BODY: null,
+    ENABLE_VISION: true,
+    ENABLE_COT: false,
   })
   const [error, setError] = useState('')
+  const [groupNameError, setGroupNameError] = useState('')
   const [showApiKey, setShowApiKey] = useState(false)
   const [showAdvanced, setShowAdvanced] = useState(false)
 
+  // 获取模型类型列表
+  const { data: modelTypes = [] } = useQuery({
+    queryKey: ['model-types'],
+    queryFn: () => configApi.getModelTypes(),
+  })
+
+  // 获取模型类型的图标
+  const getModelTypeIcon = (type: string | undefined) => {
+    if (!type) return <ChatIcon fontSize="small" />;
+    
+    const found = modelTypes.find(t => t.value === type);
+    const iconName = found?.icon || "EmojiObjects";
+    
+    // 图标映射
+    const iconMap: Record<string, React.ReactElement> = {
+      "Chat": <ChatIcon fontSize="small" />,
+      "Code": <CodeIcon fontSize="small" />,
+      "Brush": <BrushIcon fontSize="small" />,
+      "EmojiObjects": <EmojiObjectsIcon fontSize="small" />
+    };
+    
+    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />;
+  }
+
   useEffect(() => {
     if (initialConfig) {
-      setConfig(initialConfig)
+      setConfig({
+        ...initialConfig,
+        MODEL_TYPE: initialConfig.MODEL_TYPE || 'chat',
+        ENABLE_VISION: initialConfig.ENABLE_VISION !== undefined ? initialConfig.ENABLE_VISION : true,
+        ENABLE_COT: initialConfig.ENABLE_COT !== undefined ? initialConfig.ENABLE_COT : false,
+      })
     } else {
       setConfig({
         CHAT_MODEL: '',
         CHAT_PROXY: '',
         BASE_URL: '',
         API_KEY: '',
+        MODEL_TYPE: 'chat',
         TEMPERATURE: null,
         TOP_P: null,
         TOP_K: null,
         PRESENCE_PENALTY: null,
         FREQUENCY_PENALTY: null,
         EXTRA_BODY: null,
+        ENABLE_VISION: true,
+        ENABLE_COT: false,
       })
     }
   }, [initialConfig])
 
+  // 验证组名的函数
+  const validateGroupName = (name: string): boolean => {
+    // 只允许字母、数字、下划线和短横线
+    const validNameRegex = /^[a-zA-Z0-9_-]+$/;
+    return validNameRegex.test(name);
+  }
+
+  // 处理组名变更，添加验证
+  const handleGroupNameChange = (name: string) => {
+    // 如果为空，清除错误信息
+    if (!name) {
+      setGroupNameError('');
+      onGroupNameChange(name);
+      return;
+    }
+    
+    // 验证组名格式
+    if (!validateGroupName(name)) {
+      setGroupNameError('组名只能包含字母、数字、下划线和短横线');
+    } else {
+      setGroupNameError('');
+    }
+    onGroupNameChange(name);
+  }
+
+  // 在提交前验证表单
   const handleSubmit = async () => {
+    // 验证组名
+    if (groupName && !validateGroupName(groupName)) {
+      setGroupNameError('组名只能包含字母、数字、下划线和短横线');
+      return;
+    }
+    
+    // 检查空组名
+    if (!groupName) {
+      setGroupNameError('组名不能为空');
+      return;
+    }
+
     try {
       await onSubmit(groupName, config)
       onClose()
@@ -103,15 +188,22 @@ function EditDialog({
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>{initialConfig ? '编辑模型组' : '新建模型组'}</DialogTitle>
       <DialogContent>
+        {!initialConfig && groupNameError && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            {groupNameError}
+          </Alert>
+        )}
         <Stack spacing={2} className="mt-4">
           <TextField
             label="组名"
             value={groupName}
-            onChange={e => onGroupNameChange(e.target.value)}
+            onChange={e => handleGroupNameChange(e.target.value)}
             disabled={!!initialConfig}
             fullWidth
             autoComplete="off"
             required
+            error={!!groupNameError}
+            helperText={groupNameError || (groupName ? "" : "组名只能包含字母、数字、下划线和短横线，创建后不可修改")}
             inputProps={{
               autoComplete: 'new-password',
               form: {
@@ -132,6 +224,30 @@ function EditDialog({
               },
             }}
           />
+          <TextField
+            select
+            label="模型类型"
+            value={config.MODEL_TYPE || 'chat'}
+            onChange={e => setConfig({ ...config, MODEL_TYPE: e.target.value })}
+            fullWidth
+            size="small"
+          >
+            {modelTypes.map((type) => (
+              <MenuItem key={type.value} value={type.value}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {getModelTypeIcon(type.value)}
+                  <Box sx={{ ml: 1 }}>
+                    <Typography variant="body2">{type.label}</Typography>
+                    {type.description && (
+                      <Typography variant="caption" color="text.secondary">
+                        {type.description}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
           <TextField
             label="代理地址"
             value={config.CHAT_PROXY}
@@ -181,6 +297,44 @@ function EditDialog({
               ),
             }}
           />
+
+          {/* 模型功能选项 */}
+          <Box className="border-t pt-2 mt-2">
+            <Typography variant="subtitle2" className="mb-2">
+              模型功能
+            </Typography>
+            <Stack direction="row" spacing={4}>
+              <Tooltip title="启用模型视觉能力，需要模型支持多模态输入">
+                <div>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={config.ENABLE_VISION}
+                        onChange={e => setConfig({ ...config, ENABLE_VISION: e.target.checked })}
+                        color="primary"
+                      />
+                    }
+                    label="视觉能力"
+                  />
+                </div>
+              </Tooltip>
+              
+              <Tooltip title="启用NA提供的思维链进行分析，如果模型原生支持请关闭">
+                <div>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={config.ENABLE_COT}
+                        onChange={e => setConfig({ ...config, ENABLE_COT: e.target.checked })}
+                        color="primary"
+                      />
+                    }
+                    label="外置思维链"
+                  />
+                </div>
+              </Tooltip>
+            </Stack>
+          </Box>
 
           {/* 高级选项折叠面板 */}
           <Button
@@ -280,7 +434,11 @@ function EditDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button onClick={handleSubmit} color="primary">
+        <Button 
+          onClick={handleSubmit} 
+          color="primary" 
+          disabled={!!groupNameError || !groupName}
+        >
           保存
         </Button>
       </DialogActions>
@@ -309,6 +467,55 @@ export default function ModelGroupsPage() {
     queryKey: ['model-groups'],
     queryFn: () => configApi.getModelGroups(),
   })
+  
+  // 获取模型类型列表，用于显示模型类型名称
+  const { data: modelTypes = [] } = useQuery({
+    queryKey: ['model-types'],
+    queryFn: () => configApi.getModelTypes(),
+  })
+  
+  // 获取模型类型的显示名称
+  const getModelTypeLabel = (type: string | undefined) => {
+    if (!type) return '聊天';
+    const found = modelTypes.find(t => t.value === type);
+    return found ? found.label : type;
+  }
+  
+  // 获取模型类型对应的颜色
+  const getModelTypeColor = (type: string | undefined): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
+    if (!type) return "primary";
+    const found = modelTypes.find(t => t.value === type);
+    const color = found?.color as "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" | undefined;
+    
+    // 确保返回值是有效的 MUI 颜色
+    switch(color) {
+      case "primary": return "primary";
+      case "secondary": return "secondary";
+      case "error": return "error";
+      case "info": return "info";
+      case "success": return "success";
+      case "warning": return "warning";
+      default: return "default";
+    }
+  }
+  
+  // 获取模型类型的图标
+  const getModelTypeIcon = (type: string | undefined) => {
+    if (!type) return <ChatIcon fontSize="small" />;
+    
+    const found = modelTypes.find(t => t.value === type);
+    const iconName = found?.icon || "EmojiObjects";
+    
+    // 图标映射
+    const iconMap: Record<string, React.ReactElement> = {
+      "Chat": <ChatIcon fontSize="small" />,
+      "Code": <CodeIcon fontSize="small" />,
+      "Brush": <BrushIcon fontSize="small" />,
+      "EmojiObjects": <EmojiObjectsIcon fontSize="small" />
+    };
+    
+    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />;
+  }
 
   const handleAdd = () => {
     setEditingGroup({ name: '' })
@@ -371,11 +578,13 @@ export default function ModelGroupsPage() {
           <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
-                <TableCell className="w-[15%]">组名</TableCell>
-                <TableCell className="w-[20%]">模型名称</TableCell>
-                <TableCell className="w-[35%]">API地址</TableCell>
-                <TableCell className="w-[20%]">代理地址</TableCell>
-                <TableCell className="w-[10%] text-right">操作</TableCell>
+                <TableCell width="12%">组名</TableCell>
+                <TableCell width="12%">模型名称</TableCell>
+                <TableCell width="10%">模型类型</TableCell>
+                <TableCell width="20%">API地址</TableCell>
+                <TableCell width="13%">代理地址</TableCell>
+                <TableCell width="18%">功能</TableCell>
+                <TableCell width="15%">操作</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -391,11 +600,42 @@ export default function ModelGroupsPage() {
                   </TableCell>
                   <TableCell>{config.CHAT_MODEL}</TableCell>
                   <TableCell>
+                    <Chip
+                      icon={getModelTypeIcon(config.MODEL_TYPE)}
+                      label={getModelTypeLabel(config.MODEL_TYPE)}
+                      size="small"
+                      color={getModelTypeColor(config.MODEL_TYPE)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
                     <BlurredText>{config.BASE_URL}</BlurredText>
                   </TableCell>
                   <TableCell>{config.CHAT_PROXY || '-'}</TableCell>
-                  <TableCell className="text-right">
-                    <Stack direction="row" spacing={1} className="justify-end">
+                  <TableCell>
+                    <Stack direction="row" spacing={1}>
+                      <Tooltip title={config.ENABLE_VISION ? "支持视觉功能" : "不支持视觉功能"}>
+                        <Chip
+                          icon={<ImageIcon fontSize="small" />}
+                          label="视觉"
+                          size="small"
+                          color={config.ENABLE_VISION ? "primary" : "default"}
+                          variant={config.ENABLE_VISION ? "filled" : "outlined"}
+                        />
+                      </Tooltip>
+                      <Tooltip title={config.ENABLE_COT ? "启用思维链" : "未启用思维链"}>
+                        <Chip
+                          icon={<PsychologyIcon fontSize="small" />}
+                          label="思维链"
+                          size="small"
+                          color={config.ENABLE_COT ? "secondary" : "default"}
+                          variant={config.ENABLE_COT ? "filled" : "outlined"}
+                        />
+                      </Tooltip>
+                    </Stack>
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} justifyContent="flex-start">
                       <IconButton
                         onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
                         size="small"

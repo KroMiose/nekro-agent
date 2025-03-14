@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 from lunar_python import Lunar
 
 from nekro_agent.core import config, logger
+from nekro_agent.core.config import ModelConfigGroup
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import (
@@ -45,9 +46,14 @@ async def render_history_data(
     db_chat_channel: DBChatChannel,
     one_time_code: str,
     record_sta_timestamp: Optional[float] = None,
+    model_group: Optional[ModelConfigGroup] = None,
 ) -> OpenAIChatMessage:
     if record_sta_timestamp is None:
         record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
+
+    # 获取当前使用的模型组，如果没有传入则使用默认模型组
+    if model_group is None:
+        model_group = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
 
     recent_chat_messages: List[DBChatMessage] = await (
         DBChatMessage.filter(
@@ -72,8 +78,7 @@ async def render_history_data(
 
     img_seg_pairs: List[Tuple[str, Dict[str, Any]]] = []
     img_seg_set: Set[str] = set()
-
-    if image_segments and config.AI_ENABLE_VISION:
+    if image_segments and model_group.ENABLE_VISION:
         for seg in image_segments[::-1]:
             if len(img_seg_set) >= config.AI_VISION_IMAGE_LIMIT:
                 break
