@@ -18,7 +18,7 @@ class ModelConfigGroup(ConfigBase):
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
-    IS_DRAW_MODEL: bool = Field(default=False, title="是否为绘图模型")
+    MODEL_TYPE: Literal["chat", "embedding", "draw"] = Field(default="chat", title="模型类型", description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)或绘图(draw)")
     TOKEN_INPUT_RATE: float = Field(default=1.0, title="输入 Token 倍率")
     TOKEN_COMPLETION_RATE: float = Field(default=1.0, title="补全 Token 倍率")
     MODEL_PRICE_RATE: float = Field(default=1.0, title="模型价格倍率")
@@ -28,6 +28,8 @@ class ModelConfigGroup(ConfigBase):
     PRESENCE_PENALTY: Optional[float] = Field(default=None, title="提示重复惩罚")
     FREQUENCY_PENALTY: Optional[float] = Field(default=None, title="补全重复惩罚")
     EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
+    ENABLE_VISION: bool = Field(default=False, title="启用视觉功能", description="模型是否支持视觉能力，如果不支持请关闭")
+    ENABLE_COT: bool = Field(default=False, title="启用思维链", description="启用后AI会在回答前输出思考过程，如果模型原生支持请关闭")
 
 
 class PluginConfig(ConfigBase):
@@ -67,12 +69,18 @@ class PluginConfig(ConfigBase):
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.top/v1",
                 API_KEY="",
+                MODEL_TYPE="chat",
+                ENABLE_VISION=True,
+                ENABLE_COT=False,
             ),
             "openai": ModelConfigGroup(
                 CHAT_MODEL="gpt-4o",
                 CHAT_PROXY="",
                 BASE_URL="https://api.openai.com/v1",
                 API_KEY="",
+                MODEL_TYPE="chat",
+                ENABLE_VISION=True,
+                ENABLE_COT=False,
             ),
         },
         title="模型组配置",
@@ -167,11 +175,6 @@ class PluginConfig(ConfigBase):
         title="人设状态变化参考最大条数",
         description="人设状态变化参考最大条数，超出该数量会自动截断",
     )
-    AI_ENABLE_VISION: bool = Field(
-        default=True,
-        title="启用视觉功能",
-        description="需要多模态模型支持，如果模型不支持，请关闭该功能，否则可能导致无法响应",
-    )
     AI_VISION_IMAGE_LIMIT: int = Field(
         default=3,
         title="视觉图片数量限制",
@@ -186,11 +189,6 @@ class PluginConfig(ConfigBase):
         default="lucy-voice-xueling",
         title="语音角色",
         description="该功能使用 QQ 群中的 AI 声聊能力，使用 `/ai_voices` 命令查看所有可用角色",
-    )
-    AI_ENABLE_COT: bool = Field(
-        default=False,
-        title="启用思维链",
-        description="启用后 AI 会在回答前详细分析提示词内容并输出思考过程，注意：如果使用的模型原生支持思维链功能，请关闭此选项以避免冲突",
     )
 
     """会话设置"""

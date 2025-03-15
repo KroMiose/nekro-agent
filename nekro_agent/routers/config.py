@@ -114,12 +114,8 @@ async def update_model_group(
 ) -> Ret:
     """更新或添加模型组配置"""
     try:
-        config.MODEL_GROUPS[group_name] = ModelConfigGroup(
-            CHAT_MODEL=model_config.CHAT_MODEL,
-            CHAT_PROXY=model_config.CHAT_PROXY,
-            BASE_URL=model_config.BASE_URL,
-            API_KEY=model_config.API_KEY,
-        )
+        # 直接使用整个model_config对象
+        config.MODEL_GROUPS[group_name] = model_config
         save_config()
         return Ret.success(msg="更新成功")
     except Exception as e:
@@ -363,3 +359,47 @@ async def get_config_list_with_placeholder(_current_user: DBUser = Depends(get_c
 async def get_version(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取应用版本"""
     return Ret.success(msg="获取成功", data=get_app_version())
+
+
+@router.get("/model-types", summary="获取支持的模型类型列表")
+@require_role(Role.Admin)
+async def get_model_types(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """获取支持的模型类型列表"""
+    # 从 ModelConfigGroup 的 MODEL_TYPE 字段定义中获取所有类型
+    model_types = get_args(ModelConfigGroup.model_fields["MODEL_TYPE"].annotation)
+    
+    # 构建类型与描述的映射
+    type_info = {
+        "chat": {
+            "label": "聊天",
+            "description": "用于对话的模型",
+            "color": "primary",
+            "icon": "Chat",
+        },
+        "embedding": {
+            "label": "向量嵌入",
+            "description": "用于将文本转换为向量的模型",
+            "color": "secondary",
+            "icon": "Code",
+        },
+        "draw": {
+            "label": "绘图",
+            "description": "用于生成图像的模型",
+            "color": "warning",
+            "icon": "Brush",
+        },
+    }
+    
+    # 返回类型和描述
+    model_type_info = [
+        {
+            "value": t, 
+            "label": type_info.get(t, {}).get("label", t),
+            "description": type_info.get(t, {}).get("description", ""),
+            "color": type_info.get(t, {}).get("color", "default"),
+            "icon": type_info.get(t, {}).get("icon", "EmojiObjects"),
+        } 
+        for t in model_types
+    ]
+    
+    return Ret.success(msg="获取成功", data=model_type_info)

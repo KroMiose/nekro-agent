@@ -308,9 +308,21 @@ async def gen_openai_chat_response(
                     thought_chain += _thought_chain
             else:
                 _thought_chain = ""
-            token_consumption += chunk.usage.total_tokens if chunk.usage else 0
-            token_input += chunk.usage.prompt_tokens if chunk.usage else 0
-            token_output += chunk.usage.completion_tokens if chunk.usage else 0
+            
+            # 修复: 确保在total_tokens为None时使用0
+            if chunk.usage and chunk.usage.total_tokens is not None:
+                token_consumption += chunk.usage.total_tokens
+            
+            # 修复: 确保在prompt_tokens为None时使用0
+            if chunk.usage and chunk.usage.prompt_tokens is not None:
+                token_input += chunk.usage.prompt_tokens
+            
+            # 修复：确保在completion_tokens为None时使用0
+            completion_tokens = 0
+            if chunk.usage and chunk.usage.completion_tokens is not None:
+                completion_tokens = chunk.usage.completion_tokens
+            token_output += completion_tokens
+            
             if chunk_callback and await chunk_callback(
                 OpenAIStreamChunk(
                     chunk_text=chunk_text or "",
