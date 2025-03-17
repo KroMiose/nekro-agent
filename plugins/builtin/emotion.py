@@ -6,11 +6,15 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 import aiofiles
 import chromadb
 import httpx
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
+from nonebot.matcher import Matcher
+from nonebot.params import CommandArg
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from nekro_agent.api import core, schemas
 from nekro_agent.core.logger import logger
+from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
@@ -130,6 +134,9 @@ class EmotionStore(BaseModel):
 
 
 # endregion: 表情包系统数据模型
+
+
+# region: 表情包工具方法
 
 
 async def load_emotion_store() -> EmotionStore:
@@ -263,6 +270,111 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
     return None
 
 
+# endregion: 表情包工具方法
+
+
+# region: 表情包命令
+@on_command("emo_search", aliases={"emo-search"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not cmd_content:
+        await finish_with(matcher, message="喵~ 请输入要搜索的关键词哦！")
+        return
+
+    try:
+        # 调用搜索方法
+        result = await search_emotion(schemas.AgentCtx(from_chat_key=chat_key), cmd_content)
+        # 从返回的字典中提取消息内容
+        message = result.get("content", "没有找到相关表情包呢...")
+    except Exception as e:
+        logger.error(f"搜索表情包失败: {e}")
+        message = f"喵呜... 搜索失败了: {e!s}"
+
+    await finish_with(matcher, message=message)
+
+
+@on_command("emo_stats", aliases={"emo-stats"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    try:
+        # 加载表情包存储
+        emotion_store = await load_emotion_store()
+
+        # 统计信息
+        total_count = len(emotion_store.emotions)
+        all_tags = set()
+        for metadata in emotion_store.emotions.values():
+            all_tags.update(metadata.tags)
+
+        # 限制标签显示数量
+        sorted_tags = sorted(all_tags)[:32]
+        tags_str = "、".join(sorted_tags) if sorted_tags else "暂无标签"
+
+        message = f"喵~ 这是当前的表情包统计信息：\n总数量：{total_count} 个\n标签集合（top 32）：{tags_str}"
+    except Exception as e:
+        logger.error(f"统计表情包失败: {e}")
+        message = f"喵呜... 统计失败了: {e!s}"
+
+    await finish_with(matcher, message=message)
+
+
+@on_command("emo_ls", aliases={"emo-ls"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    try:
+        # 加载表情包存储
+        emotion_store = await load_emotion_store()
+
+        # 获取页码，默认为1
+        try:
+            page = max(1, int(cmd_content)) if cmd_content else 1
+        except ValueError:
+            page = 1
+
+        # 计算分页
+        page_size = 10
+        total_count = len(emotion_store.emotions)
+        total_pages = (total_count + page_size - 1) // page_size
+
+        # 确保页码有效
+        if page > total_pages:
+            await finish_with(matcher, message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～")
+            return
+
+        # 获取当前页的表情包
+        start_idx = (page - 1) * page_size
+        end_idx = min(start_idx + page_size, total_count)
+
+        # 构建消息
+        message = f"喵~ 这是第 {page}/{total_pages} 页的表情包列表：\n\n"
+
+        # 获取排序后的表情包列表
+        sorted_emotions = sorted(
+            emotion_store.emotions.items(),
+            key=lambda x: x[1].added_time,
+            reverse=True,
+        )[start_idx:end_idx]
+
+        for emotion_id, metadata in sorted_emotions:
+            tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+            message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
+
+        message += "使用 emo-list <页码> 查看其他页面～"
+    except Exception as e:
+        logger.error(f"查看表情包列表失败: {e}")
+        message = f"喵呜... 获取列表失败了: {e!s}"
+
+    await finish_with(matcher, message=message)
+
+
+# endregion: 表情包命令
+
+# region: 表情包提示注入
+
+
 @plugin.mount_prompt_inject_method("emotion_prompt_inject")
 async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
     """表情包提示注入"""
@@ -280,12 +392,18 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
     return "\n".join(prompt_parts)
 
 
+# endregion: 表情包提示注入
+
+
+# region: 表情包沙盒方法
+
+
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "收集表情包")
 async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description: str, tags: Optional[List[str]] = None) -> str:
     """Collect Emotion (表情包)
 
     Collect an expression image/GIF and add it to the emotion database.
-    **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content).
+    **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
 
     Args:
         source_path (str): The path or URL of the expression image
@@ -535,6 +653,9 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     )
 
     return msg.to_dict()
+
+
+# endregion: 表情包沙盒方法
 
 
 @plugin.mount_cleanup_method()
