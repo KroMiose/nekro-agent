@@ -98,6 +98,12 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True},
         description="当主模型组不可用时, 使用备用模型组",
     )
+    DEBUG_MIGRATION_MODEL_GROUP: str = Field(
+        default="",
+        title="调试/Agent 迁移模型组",
+        json_schema_extra={"ref_model_groups": True},
+        description="主模型编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
+    )
 
     """聊天配置"""
     AI_CHAT_PRESET_NAME: str = Field(default="可洛喵", title="聊天设定名")

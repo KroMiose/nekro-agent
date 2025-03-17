@@ -1,26 +1,24 @@
-import asyncio
+import datetime
 import json
 import os
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 
 import weave
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
-from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentImage
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.sandbox.runner import limited_run_code
 
 from .creator import ContentSegment, OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
-from .templates.history import HistoryFirstStart, HistoryPrompt, render_history_data
+from .templates.history import HistoryFirstStart, render_history_data
 from .templates.plugin import render_plugins_prompt
 from .templates.practice import (
     PracticePrompt_question_1,
@@ -39,7 +37,7 @@ async def run_agent(
     one_time_code = os.urandom(4).hex()
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     ctx: AgentCtx = AgentCtx(from_chat_key=chat_key)
-    
+
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
 
@@ -67,7 +65,12 @@ async def run_agent(
             PracticePrompt_response_2(one_time_code=one_time_code, enable_cot=used_model_group.ENABLE_COT),
         ),
         OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT)).extend(
-            await render_history_data(chat_key=chat_key, db_chat_channel=db_chat_channel, one_time_code=one_time_code, model_group=used_model_group),
+            await render_history_data(
+                chat_key=chat_key,
+                db_chat_channel=db_chat_channel,
+                one_time_code=one_time_code,
+                model_group=used_model_group,
+            ),
         ),
     ]
 
@@ -99,7 +102,7 @@ async def run_agent(
             addition_prompt_message.append(
                 OpenAIChatMessage.from_text(
                     "user",
-                    f"[Agent Method Response] {sandbox_output}\nPlease continue based on this agent response.",
+                    f"[Agent Method Response] {sandbox_output}\nPlease continue based on this agent response. Attention: the code after the agent method is NOT EXECUTED!",
                 ),
             )
 
@@ -145,7 +148,14 @@ async def run_agent(
                 new_message = OpenAIChatMessage(**multimodal_agent_result)
             else:
                 raise ValueError(f"Multimodal agent result is not a list or string: {multimodal_agent_result}")
-            addition_prompt_message.append(new_message)
+            addition_prompt_message.append(
+                new_message.extend(
+                    OpenAIChatMessage.from_text(
+                        "user",
+                        "Attention: the code after the agent method is NOT EXECUTED!",
+                    ),
+                ),
+            )
         if stop_type == ExecStopType.SECURITY:
             addition_prompt_message.append(
                 OpenAIChatMessage.from_text(
@@ -157,13 +167,20 @@ async def run_agent(
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
-        llm_response, used_model_group = await send_agent_request(messages=messages)
+        llm_response, used_model_group = await send_agent_request(messages=messages, is_debug_iteration=True)
         parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
 
-async def send_agent_request(messages: List[OpenAIChatMessage]) -> Tuple[OpenAIResponse, ModelConfigGroup]:
+async def send_agent_request(
+    messages: List[OpenAIChatMessage],
+    is_debug_iteration: bool = False,
+) -> Tuple[OpenAIResponse, ModelConfigGroup]:
 
-    model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
+    model_group: ModelConfigGroup = (
+        config.MODEL_GROUPS[config.DEBUG_MIGRATION_MODEL_GROUP]
+        if is_debug_iteration and config.DEBUG_MIGRATION_MODEL_GROUP
+        else config.MODEL_GROUPS[config.USE_MODEL_GROUP]
+    )
     fallback_model_group: ModelConfigGroup = (
         config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP] if config.FALLBACK_MODEL_GROUP else model_group
     )
@@ -180,7 +197,7 @@ async def send_agent_request(messages: List[OpenAIChatMessage]) -> Tuple[OpenAIR
                 base_url=use_model_group.BASE_URL,
                 api_key=use_model_group.API_KEY,
                 stream_mode=True,
-                log_path=".temp/chat_log.log",
+                log_path=f'.temp/prompts/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
             )
         except Exception as e:
             logger.error(f"LLM 请求失败: {e}")
