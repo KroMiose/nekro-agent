@@ -73,7 +73,7 @@ async def render_history_data(
     image_segments: List[ChatMessageSegmentImage] = []
     for db_message in recent_chat_messages:
         for seg in db_message.parse_content_data():
-            if isinstance(seg, ChatMessageSegmentImage) and seg.type == ChatMessageSegmentType.IMAGE:
+            if isinstance(seg, ChatMessageSegmentImage):
                 image_segments.append(seg)
 
     img_seg_pairs: List[Tuple[str, Dict[str, Any]]] = []
@@ -119,6 +119,8 @@ async def render_history_data(
                         ContentSegment.image_content(seg.remote_url),
                     ),
                 )
+            else:
+                logger.warning(f"图片路径无效: {seg}")
 
     openai_chat_message: OpenAIChatMessage = OpenAIChatMessage.from_template(
         "user",
@@ -130,6 +132,7 @@ async def render_history_data(
         ),
     )
 
+    logger.debug(f"已加载到 {len(img_seg_pairs)} 张图片")
     img_seg_pairs = img_seg_pairs[::-1]  # 反转得到正确排序的 描述-图片 对
     if img_seg_pairs:
         openai_chat_message.add(
@@ -140,6 +143,12 @@ async def render_history_data(
     for img_seg_prompt, img_seg_content in img_seg_pairs:
         openai_chat_message.add(ContentSegment.text_content(img_seg_prompt))
         openai_chat_message.add(img_seg_content)
+
+    openai_chat_message.add(
+        ContentSegment.text_content(
+            "Recent Messages:\n",
+        ),
+    )
 
     chat_history_prompts: List[str] = []
     for db_message in recent_chat_messages:
