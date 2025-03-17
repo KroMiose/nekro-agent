@@ -296,33 +296,32 @@ async def gen_openai_chat_response(
         )
 
         async for chunk in res_stream:
-            # logger.debug(f"Chunk: {chunk}")
             if not first_token_time:
                 first_token_time = time.time()
             chunk_text: Optional[str] = chunk.choices[0].delta.content
             if chunk_text:
-                output += chunk_text
+                output += f"{chunk_text}"
             if hasattr(chunk.choices[0].delta, thought_chain_field_name):
                 _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
                 if _thought_chain:
                     thought_chain += _thought_chain
             else:
                 _thought_chain = ""
-            
+
             # 修复: 确保在total_tokens为None时使用0
             if chunk.usage and chunk.usage.total_tokens is not None:
                 token_consumption += chunk.usage.total_tokens
-            
+
             # 修复: 确保在prompt_tokens为None时使用0
             if chunk.usage and chunk.usage.prompt_tokens is not None:
                 token_input += chunk.usage.prompt_tokens
-            
+
             # 修复：确保在completion_tokens为None时使用0
             completion_tokens = 0
             if chunk.usage and chunk.usage.completion_tokens is not None:
                 completion_tokens = chunk.usage.completion_tokens
             token_output += completion_tokens
-            
+
             if chunk_callback and await chunk_callback(
                 OpenAIStreamChunk(
                     chunk_text=chunk_text or "",

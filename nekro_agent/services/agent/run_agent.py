@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import time
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import weave
@@ -98,72 +99,82 @@ async def run_agent(
         # 添加 AI 回复的原始内容到上下文
         addition_prompt_message.append(OpenAIChatMessage.from_text("assistant", llm_response.response_content))
 
+        msg: OpenAIChatMessage = OpenAIChatMessage.create_empty("user")  # 待添加到迭代上下文的用户消息
+
+        # Agent 类型的迭代对话
         if stop_type == ExecStopType.AGENT:
-            addition_prompt_message.append(
+            msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
                     f"[Agent Method Response] {sandbox_output}\nPlease continue based on this agent response. Attention: the code after the agent method is NOT EXECUTED!",
                 ),
             )
 
-        reason_map: Dict[ExecStopType, str] = {
+        # 多模态类型的迭代对话
+        elif stop_type == ExecStopType.MULTIMODAL_AGENT:
+            multimodal_agent_result = json.loads(raw_output.split("<AGENT_RESULT>")[1].split("</AGENT_RESULT>")[0])
+            if isinstance(multimodal_agent_result, list):
+                msg = msg.extend(OpenAIChatMessage("user", multimodal_agent_result))
+            elif isinstance(multimodal_agent_result, str):
+                msg = msg.extend(OpenAIChatMessage.from_text("user", multimodal_agent_result))
+            elif isinstance(multimodal_agent_result, dict):
+                msg = msg.extend(OpenAIChatMessage(**multimodal_agent_result))
+            else:
+                raise ValueError(f"Multimodal agent result is not a list or string: {multimodal_agent_result}")
+            msg = msg.extend(
+                OpenAIChatMessage.from_text(
+                    "user",
+                    "Attention: the code AFTER THE AGENT METHOD is NOT EXECUTED!",
+                ),
+            )
+
+        # 异常类型的迭代对话
+        exception_reason_map: Dict[ExecStopType, str] = {
             ExecStopType.TIMEOUT: "Sandbox exited due to timeout",
             ExecStopType.ERROR: "Sandbox exited due to error occurred",
             ExecStopType.MANUAL: "Sandbox exited due to manual stop by you",
         }
-        if stop_type in [ExecStopType.TIMEOUT, ExecStopType.ERROR, ExecStopType.MANUAL]:
-            addition_prompt_message.append(
+        if stop_type in exception_reason_map:
+            msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
-                    f"[Sandbox Output] {sandbox_output}\n---\n{reason_map[stop_type]}. During the generation and execution, the following messages were sent:",
-                )
-                .extend(
-                    await render_history_data(
-                        chat_key=chat_key,
-                        db_chat_channel=db_chat_channel,
-                        one_time_code=one_time_code,
-                        record_sta_timestamp=history_render_until_time,
-                        model_group=used_model_group,
-                    ),
-                )
-                .extend(
-                    OpenAIChatMessage.from_text(
-                        "user",
-                        "please DO NOT give any extra explanation or apology and keep the response format for retry."
-                        + (
-                            f" This is the last retry. Describe the reason if you can't finish the task. (Retry times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
-                            if i == config.AI_SCRIPT_MAX_RETRY_TIMES - 1
-                            else ""
-                        ),
-                    ),
-                ),
-            )
-        if stop_type == ExecStopType.MULTIMODAL_AGENT:
-            multimodal_agent_result = json.loads(raw_output.split("<AGENT_RESULT>")[1].split("</AGENT_RESULT>")[0])
-            if isinstance(multimodal_agent_result, list):
-                new_message = OpenAIChatMessage("user", multimodal_agent_result)
-            elif isinstance(multimodal_agent_result, str):
-                new_message = OpenAIChatMessage.from_text("user", multimodal_agent_result)
-            elif isinstance(multimodal_agent_result, dict):
-                new_message = OpenAIChatMessage(**multimodal_agent_result)
-            else:
-                raise ValueError(f"Multimodal agent result is not a list or string: {multimodal_agent_result}")
-            addition_prompt_message.append(
-                new_message.extend(
-                    OpenAIChatMessage.from_text(
-                        "user",
-                        "Attention: the code after the agent method is NOT EXECUTED!",
-                    ),
-                ),
-            )
-        if stop_type == ExecStopType.SECURITY:
-            addition_prompt_message.append(
-                OpenAIChatMessage.from_text(
-                    "user",
-                    "[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry.",
+                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}. During the generation and execution, the following messages were sent:\n",
                 ),
             )
 
+        # 安全类型的迭代对话
+        if stop_type == ExecStopType.SECURITY:
+            msg = msg.extend(
+                OpenAIChatMessage.from_text(
+                    "user",
+                    "\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry.",
+                ),
+            )
+
+        # 为所有迭代对话添加新记录背景
+        msg = msg.extend(
+            await render_history_data(
+                chat_key=chat_key,
+                db_chat_channel=db_chat_channel,
+                one_time_code=one_time_code,
+                record_sta_timestamp=history_render_until_time,
+                model_group=used_model_group,
+            ),
+        )
+        msg = msg.extend(
+            OpenAIChatMessage.from_text(
+                "user",
+                "\nplease DO NOT give any extra explanation or apology and keep the response format for retry."
+                + (
+                    f" This is the last retry. Describe the reason if you can't finish the task. (Iteration times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
+                    if i == config.AI_SCRIPT_MAX_RETRY_TIMES - 1
+                    else "(Iteration times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
+                ),
+            ),
+        )
+
+        # 将迭代对话添加到上下文
+        addition_prompt_message.append(msg.tidy())
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
@@ -206,6 +217,15 @@ async def send_agent_request(
             used_model_group = use_model_group  # 记录成功使用的模型组
             break
     else:
+        err_log = Path(f'.temp/prompts-error/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log')
+        err_log.parent.mkdir(parents=True, exist_ok=True)
+        err_log.write_text(
+            json.dumps(
+                [message.to_dict() for message in messages],
+                indent=2,
+                ensure_ascii=False,
+            ),
+        )
         raise ValueError("所有 LLM 请求失败")
 
     return llm_response, used_model_group

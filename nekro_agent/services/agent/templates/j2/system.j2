@@ -123,13 +123,14 @@ here are some predefined methods provided by the plugin
 </predefined_methods>
 </plugin>
 
-#### Agent Method Attention:
-If you call [AGENT METHOD - STOP AFTER CALL] methods, you must stop code generation immediately after calling.
+#### Agent Method:
+
+The agent method is a special method that can provide you with further information after execution and reawaken you, which is useful for you to complete the task. They are defined by plugins and marked with `[AGENT METHOD - STOP AFTER CALL]` in the prompt. You must stop code generation immediately after calling.
 
 Example:
 ```python
-result = agent_method(args)  # Stop here! The code after this line will not be executed!
-send_msg_text(chat_key, "Result: " + result) # This line will not be executed!
+agent_method(args)  # Stop here! The code after this line will not be executed!
+send_msg_text(chat_key, "I have to ...") # BAD EXAMPLE: This line will not be executed !!!
 ```
 
 ### Your Plugins:

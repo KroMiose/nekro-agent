@@ -1,6 +1,7 @@
 import difflib
 import hashlib
 import re
+from pathlib import Path
 from typing import Dict, List
 
 import aiofiles
@@ -11,6 +12,7 @@ from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(
     name="[NA] 基础交互插件",
@@ -50,8 +52,12 @@ config.MY_CUSTOM_FIELD = "test"
 
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
-    """基础提示注入"""
+    """示例提示注入"""
     return ""
+
+
+SEND_MSG_CACHE: Dict[str, List[str]] = {}
+SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_key: [md5_1, md5_2, md5_3]}
 
 
 def _calculate_text_similarity(text1: str, text2: str) -> float:
@@ -65,10 +71,6 @@ def _calculate_text_similarity(text1: str, text2: str) -> float:
         float: 相似度（0-1）
     """
     return difflib.SequenceMatcher(None, text1, text2).ratio()
-
-
-SEND_MSG_CACHE: Dict[str, List[str]] = {}
-SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_key: [md5_1, md5_2, md5_3]}
 
 
 async def _calculate_file_md5(file_path: str) -> str:
@@ -172,6 +174,12 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
 
     if not isinstance(file, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
+
+    file_path = convert_to_host_path(Path(file), _ctx.from_chat_key, container_key=_ctx.container_key)
+    if not file_path.exists():
+        raise FileNotFoundError(
+            f"The file `{file}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
+        )
 
     # 初始化文件缓存
     if chat_key not in SEND_FILE_CACHE:

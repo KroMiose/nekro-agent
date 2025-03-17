@@ -69,6 +69,22 @@ class OpenAIChatMessage:
             raise ValueError("消息角色不一致")
         return OpenAIChatMessage(self.role, self.content + other.content)
 
+    def tidy(self) -> "OpenAIChatMessage":
+        """整理消息合并所有连续的文本内容"""
+        merged_content: List[Dict[str, Any]] = []
+        current_text = ""
+        for segment in self.content:
+            if segment["type"] == "text":
+                current_text += segment["text"]
+            else:
+                if current_text:
+                    merged_content.append({"type": "text", "text": current_text})
+                    current_text = ""
+                merged_content.append(segment)
+        if current_text:
+            merged_content.append({"type": "text", "text": current_text})
+        return OpenAIChatMessage(self.role, merged_content)
+
 
 class ContentSegment:
     """内容片段生成器"""

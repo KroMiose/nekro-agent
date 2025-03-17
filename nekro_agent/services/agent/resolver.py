@@ -62,7 +62,9 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
 def fix_code_content(code_content: str) -> str:
     """修复代码内容"""
     # 修正代码块去掉所有 from plugins ... import ... 开头的行
-    return re.sub(r"^from plugins.*\n", "", code_content, flags=re.MULTILINE)
+    code_content = re.sub(r"^from plugins.*\n", "", code_content, flags=re.MULTILINE)
+    # 修正代码块去掉所有 from plugin_manager ... import ... 开头的行
+    return re.sub(r"^from plugin_manager.*\n", "", code_content, flags=re.MULTILINE)
 
 
 def fix_raw_response(raw_response: str) -> str:
