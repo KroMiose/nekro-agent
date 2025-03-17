@@ -1,7 +1,9 @@
 import difflib
+import hashlib
 import re
 from typing import Dict, List
 
+import aiofiles
 from pydantic import Field
 
 from nekro_agent.api import message, user
@@ -52,7 +54,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     return ""
 
 
-def calculate_text_similarity(text1: str, text2: str) -> float:
+def _calculate_text_similarity(text1: str, text2: str) -> float:
     """计算两段文本的相似度
 
     Args:
@@ -66,6 +68,35 @@ def calculate_text_similarity(text1: str, text2: str) -> float:
 
 
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
+SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_key: [md5_1, md5_2, md5_3]}
+
+
+async def _calculate_file_md5(file_path: str) -> str:
+    """计算文件的 MD5 值或获取标识
+
+    Args:
+        file_path (str): 文件路径或 URL
+
+    Returns:
+        str: 本地文件返回 MD5 哈希值，URL 返回其链接
+    """
+    # 对于网络资源，直接返回 URL 作为标识
+    if file_path.startswith(("http://", "https://")):
+        return file_path
+
+    # 处理本地文件
+    try:
+        md5_hash = hashlib.md5()
+        async with aiofiles.open(file_path, "rb") as f:
+            while True:
+                chunk = await f.read(4096)
+                if not chunk:
+                    break
+                md5_hash.update(chunk)
+        return md5_hash.hexdigest()
+    except Exception as e:
+        logger.warning(f"计算文件 MD5 失败: {e}")
+        return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送聊天消息文本")
@@ -106,7 +137,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     # 检查相似度（仅对超过 12 字符的消息进行检查）
     if len(message_text) > 12:
         for recent_msg in recent_messages:
-            similarity = calculate_text_similarity(message_text, recent_msg)
+            similarity = _calculate_text_similarity(message_text, recent_msg)
             if similarity > 0.7:
                 # 发送系统消息提示避免类似内容
                 logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
@@ -130,21 +161,45 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送聊天消息图片/文件资源")
-async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
+async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
     """发送聊天消息图片/文件资源
 
     Args:
         chat_key (str): 会话标识
-        file_path (str): 图片/文件路径或 URL
+        file (str): 图片/文件路径或 URL
     """
+    global SEND_FILE_CACHE
+
+    if not isinstance(file, str):
+        raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
+
+    # 初始化文件缓存
+    if chat_key not in SEND_FILE_CACHE:
+        SEND_FILE_CACHE[chat_key] = []
+
+    # 计算文件 MD5
+    file_md5 = await _calculate_file_md5(file)
+
+    # 检查是否重复发送
+    if file_md5 in SEND_FILE_CACHE[chat_key]:
+        raise Exception(
+            "Error: Identical file has been sent recently. Please check if this file is really needed to be sent again.",
+        )
+
     try:
-        suf = file_path.split(".")[-1]
+        suf = file.split(".")[-1]
         if suf in ["jpg", "jpeg", "png", "gif", "webp"]:
-            await message.send_image(chat_key, file_path, _ctx)
+            await message.send_image(chat_key, file, _ctx)
         else:
-            await message.send_file(chat_key, file_path, _ctx)
+            await message.send_file(chat_key, file, _ctx)
+
+        # 更新文件缓存
+        SEND_FILE_CACHE[chat_key].append(file_md5)
+        SEND_FILE_CACHE[chat_key] = SEND_FILE_CACHE[chat_key][-3:]  # 只保留最近 3 个文件的 MD5
     except Exception as e:
-        raise Exception(f"Error sending file to chat: {e}") from e
+        raise Exception(
+            f"Error sending file to chat: {e}, make sure the file path is valid(in shared directory or uploads directory).",
+        ) from e
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取用户头像")
@@ -162,8 +217,10 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e
 
+
 @plugin.mount_cleanup_method()
 async def clean_up():
     """清理插件"""
-    global SEND_MSG_CACHE
+    global SEND_MSG_CACHE, SEND_FILE_CACHE
     SEND_MSG_CACHE = {}
+    SEND_FILE_CACHE = {}

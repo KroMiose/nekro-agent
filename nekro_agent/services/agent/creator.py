@@ -22,7 +22,7 @@ class OpenAIChatMessage:
         """
 
         if all(_c["type"] == "text" for _c in self.content):
-            return {"role": self.role, "content": "".join(_c["text"] for _c in self.content).strip()}
+            return {"role": self.role, "content": "".join(_c["text"] for _c in self.content)}
 
         merged_content: List[Dict[str, Any]] = []
         current_text = ""
@@ -35,7 +35,7 @@ class OpenAIChatMessage:
                     current_text = ""
                 merged_content.append(segment)
         if current_text:
-            merged_content.append({"type": "text", "text": current_text.strip()})
+            merged_content.append({"type": "text", "text": current_text})
         return {"role": self.role, "content": merged_content}
 
     @classmethod

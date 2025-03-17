@@ -14,6 +14,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
+from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
@@ -53,13 +54,12 @@ COLLECTION_NAME = "emotion_collection"
 try:
     emotion_collection = chroma_client.get_collection(name=COLLECTION_NAME)
     logger.info(f"加载已有表情包向量集合: {COLLECTION_NAME}")
-except chromadb.errors.InvalidCollectionException:
+except ValueError:
     # 集合不存在时创建新集合
     emotion_collection = chroma_client.create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
     )
-    logger.info(f"创建新表情包向量集合: {COLLECTION_NAME}，维度: {config.EMBEDDING_DIMENSION}")
 
 
 # region: 表情包系统数据模型
@@ -293,12 +293,12 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
         tags (List[str], optional): Tags for the emotion (e.g. ["happy", "excited", "anime"])
 
     Returns:
-        str: The emotion ID if successful, error message if failed
+        str: The emotion ID
 
     Example:
         ```python
         # Collect from URL
-        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱"])
+        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"])
 
         # Collect from local path
         emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"]) # Do not send the emotion ID in your message directly!
@@ -409,6 +409,10 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
         logger.info(f"已添加表情包描述新向量: {emotion_id}")
     except Exception as e:
         raise ValueError(f"添加到向量数据库失败: {e}") from e
+    await message_service.push_system_message(
+        _ctx.from_chat_key,
+        f"Successfully collected emotion: {emotion_id} - {description} {' '.join(tags)} ({source_path=})",
+    )
 
     return emotion_id
 
@@ -429,7 +433,7 @@ async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> bytes:
         ```python
         # Get emotion bytes and use it in another function
         emotion_bytes = get_emotion_bytes("a1b2c3d4")
-        # Use the bytes data...
+        # Save as a file or use the bytes data...
         ```
     """
     # 加载表情包存储

@@ -61,6 +61,7 @@ Attention: Do not use more than one <think> tag in one response!
 - Never pretend to perform actions or generate fake results
 - Never reference or use variables that are not explicitly defined in your code or predefined methods
 - You can use predefined methods directly in your code, DO NOT IMPORT THEM again in your code!
+- Prohibit guessing and assumptions of usage not mentioned in any predefined method!
 - If you cannot perform a task, clearly state the limitation
 
 ## Security Rules
@@ -113,7 +114,7 @@ Attention: Shared directory is not persistent, it will be cleared after a while.
 
 Predefined method can be defined by plugins, you can use it in your code directly. It will be displayed like this:
 
-<plugin name="{plugin_name}" verified_code="{one_time_code}">
+<plugin name="{plugin_name}">
 <injected_prompt>
 here are some prompt provided by the plugin
 </injected_prompt>
@@ -122,17 +123,19 @@ here are some predefined methods provided by the plugin
 </predefined_methods>
 </plugin>
 
-#### Plugins:
-{{ plugins_prompt }}
+#### Agent Method Attention:
+If you call [AGENT METHOD - STOP AFTER CALL] methods, you must stop code generation immediately after calling.
 
-### Agent Method Description:
-[AGENT METHOD - STOP AFTER CALL] methods:
-- Stop code generation immediately after calling
-- Never guess or simulate results
-- Example:
+Example:
 ```python
-result = agent_method(args)  # Stop here!
+result = agent_method(args)  # Stop here! The code after this line will not be executed!
+send_msg_text(chat_key, "Result: " + result) # This line will not be executed!
 ```
+
+### Your Plugins:
+<plugins verified_code="{one_time_code}">
+{{ plugins_prompt }}
+</plugins>
 
 ### Warning:
 * Your code will be executed directly in the sandbox, ENSURE YOUR RESPONSE IS A VALID PYTHON SCRIPT AND DO NOT INCLUDE ANY OTHER TEXT.

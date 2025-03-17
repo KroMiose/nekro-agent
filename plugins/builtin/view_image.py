@@ -18,6 +18,7 @@ plugin = NekroPlugin(
     url="https://github.com/KroMiose/nekro-agent",
 )
 
+
 @plugin.mount_sandbox_method(SandboxMethodType.MULTIMODAL_AGENT, "图片观察工具")
 async def view_image(_ctx: AgentCtx, images: List[str]):
     """利用视觉观察图片
@@ -43,9 +44,11 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
         else:
             # 使用文件路径方式
             path = convert_to_host_path(Path(image_path), chat_key=_ctx.from_chat_key)
+            if not path.exists():
+                raise ValueError(f"图片路径不存在: {image_path}")
             msg.batch_add(
                 [
-                    ContentSegment.text_content(f"Image {i+1}: {path}"),
+                    ContentSegment.text_content(f"Image {i+1}: {image_path}"),
                     ContentSegment.image_content_from_path(path),
                 ],
             )
