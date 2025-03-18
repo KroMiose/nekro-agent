@@ -29,28 +29,34 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
     has_think_tags = "<think>" in cleaned_content and "</think>" in cleaned_content
 
     if has_think_tags:
-        # 如果存在思维链，匹配思维链和代码内容
-        think_pattern = re.compile(r"<think>(.*?)</think>\s*(?:```(?:python)?\s*(.*?)```)?", re.DOTALL)
-        match = think_pattern.search(cleaned_content)
+        # 如果存在思维链，先提取思维链
+        think_pattern = re.compile(r"<think>(.*?)</think>", re.DOTALL)
+        think_match = think_pattern.search(cleaned_content)
 
-        if match:
+        if think_match:
             # 提取思维链内容并清理可能存在的嵌套标签
-            thought_chain = match.group(1).strip()
+            thought_chain = think_match.group(1).strip()
             thought_chain = re.sub(r"</?think>", "", thought_chain)
 
-            # 如果匹配到了代码块
-            if match.group(2):
-                code_content = match.group(2).strip()
+            # 在思维链之后查找代码块
+            remaining_content = cleaned_content[think_match.end():].strip()
+            code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
+            code_match = code_pattern.search(remaining_content)
+
+            if code_match:
+                code_content = code_match.group(1).strip()
 
     # 如果通过思维链匹配没有提取到代码内容，尝试直接匹配代码块
     if not code_content:
-        # 提取所有代码块
-        code_pattern = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
-        code_matches = code_pattern.findall(cleaned_content)
-
-        if code_matches:
+        # 提取最长的完整代码块（从```python到最后一个```）
+        code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
+        code_matches = code_pattern.finditer(cleaned_content)
+        
+        # 获取所有匹配结果
+        matches_list = list(code_matches)
+        if matches_list:
             # 选择最长的代码块
-            code_content = max(code_matches, key=len).strip()
+            code_content = max((match.group(1).strip() for match in matches_list), key=len)
         else:
             # 如果没有代码块，移除思维链部分后的内容作为代码
             content_without_think = re.sub(r"<think>.*?</think>", "", cleaned_content, flags=re.DOTALL).strip()
