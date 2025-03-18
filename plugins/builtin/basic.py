@@ -133,7 +133,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
         # 清空缓存允许再次发送
         SEND_MSG_CACHE[chat_key] = []
         raise Exception(
-            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. If you determine it is necessary, you can resend it.",
+            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. If you determine it is necessary, resend it. SPAM IS NOT ALLOWED!",
         )
 
     # 检查相似度（仅对超过 12 字符的消息进行检查）
