@@ -12,7 +12,7 @@ from nonebot.params import CommandArg
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
-from nekro_agent.api import core, schemas
+from nekro_agent.api import core, message, schemas
 from nekro_agent.core.logger import logger
 from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -20,7 +20,11 @@ from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.tools.path_convertor import convert_to_host_path
+from nekro_agent.tools.common_util import copy_to_upload_dir
+from nekro_agent.tools.path_convertor import (
+    convert_to_container_path,
+    convert_to_host_path,
+)
 
 plugin = NekroPlugin(
     name="[NA] 表情包插件",
@@ -536,7 +540,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取表情包数据")
-async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> bytes:
+async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     """Get Emotion Bytes
 
     Get the raw bytes data of an emotion by its ID.
@@ -545,13 +549,13 @@ async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> bytes:
         emotion_id (str): The emotion ID
 
     Returns:
-        bytes: The raw bytes data of the emotion
+        str: The path of the emotion file
 
     Example:
         ```python
         # Get emotion bytes and use it in another function
-        emotion_bytes = get_emotion_bytes("a1b2c3d4")
-        # Save as a file or use the bytes data...
+        emotion_file_path = get_emotion_bytes("a1b2c3d4")
+        # Send it or do something ...
         ```
     """
     # 加载表情包存储
@@ -569,10 +573,16 @@ async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> bytes:
 
     # 读取文件内容
     try:
-        async with aiofiles.open(file_path, "rb") as f:
-            return await f.read()
+        emo_file_path, _ = await copy_to_upload_dir(
+            metadata.file_path,
+            file_path.name,
+            from_chat_key=_ctx.from_chat_key,
+        )
+
     except Exception as e:
         raise ValueError(f"Error reading emotion file: {e}") from e
+    else:
+        return str(convert_to_container_path(Path(emo_file_path)))
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.MULTIMODAL_AGENT, "搜索表情包")

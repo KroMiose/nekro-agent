@@ -24,7 +24,7 @@ from nekro_agent.schemas.chat_message import (
 )
 from nekro_agent.tools.common_util import (
     download_file,
-    move_to_upload_dir,
+    copy_to_upload_dir,
 )
 from nekro_agent.tools.onebot_util import get_user_group_card_name
 from nekro_agent.tools.path_convertor import get_sandbox_path
@@ -80,7 +80,7 @@ async def convert_chat_message(
             # napcat 挂载目录 ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ
             target_file_path = str(Path(NAPCAT_TEMPFILE_DIR) / file_data["file_name"])
             if Path(target_file_path).exists():
-                local_path, file_name = await move_to_upload_dir(
+                local_path, file_name = await copy_to_upload_dir(
                     file_path=target_file_path,
                     file_name=file_data["file_name"],
                     from_chat_key=chat_key,
@@ -142,7 +142,7 @@ async def convert_chat_message(
                 seg_local_path = seg.data["file"]
                 if seg_local_path.startswith("file:"):
                     seg_local_path = seg_local_path[len("file:") :]
-                local_path, file_name = await move_to_upload_dir(seg_local_path, use_suffix=suffix, from_chat_key=chat_key)
+                local_path, file_name = await copy_to_upload_dir(seg_local_path, use_suffix=suffix, from_chat_key=chat_key)
                 ret_list.append(
                     ChatMessageSegmentImage(
                         type=ChatMessageSegmentType.IMAGE,

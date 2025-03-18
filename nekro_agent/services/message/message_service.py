@@ -20,7 +20,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
-    move_to_upload_dir,
+    copy_to_upload_dir,
     random_chat_check,
 )
 
@@ -215,7 +215,7 @@ class MessageService:
                     file_path = Path(msg.content)
 
                     # 复制文件到uploads目录
-                    local_path, file_name = await move_to_upload_dir(
+                    local_path, file_name = await copy_to_upload_dir(
                         str(file_path),
                         file_name=file_path.name,
                         from_chat_key=chat_key,

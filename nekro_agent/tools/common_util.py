@@ -125,7 +125,7 @@ async def download_file_from_base64(
     return file_path, file_name
 
 
-async def move_to_upload_dir(
+async def copy_to_upload_dir(
     file_path: str,
     file_name: str = "",
     use_suffix: str = "",
