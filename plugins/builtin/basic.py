@@ -133,7 +133,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
         # 清空缓存允许再次发送
         SEND_MSG_CACHE[chat_key] = []
         raise Exception(
-            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. If you determine it is necessary, resend it. SPAM IS NOT ALLOWED!",
+            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you determine it is necessary, resend it. SPAM IS NOT ALLOWED!",
         )
 
     # 检查相似度（仅对超过 12 字符的消息进行检查）
@@ -190,8 +190,9 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
 
     # 检查是否重复发送
     if file_md5 in SEND_FILE_CACHE[chat_key]:
+        SEND_FILE_CACHE[chat_key].remove(file_md5)
         raise Exception(
-            "Error: Identical file has been sent recently. Please check if this file is really needed to be sent again.",
+            "Error: Identical file has been sent recently. Please check if this file is really needed to be sent again. Please generate more interesting replies. SPAM IS NOT ALLOWED!",
         )
 
     try:
