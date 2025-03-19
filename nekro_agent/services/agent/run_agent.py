@@ -211,7 +211,9 @@ async def send_agent_request(
                 log_path=f'.temp/prompts/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
             )
         except Exception as e:
-            logger.error(f"LLM 请求失败: {e}")
+            logger.error(
+                f'LLM 请求失败: {e} ｜ 使用模型: {use_model_group.CHAT_MODEL} {"(fallback)" if i == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ""}',
+            )
             continue
         else:
             used_model_group = use_model_group  # 记录成功使用的模型组

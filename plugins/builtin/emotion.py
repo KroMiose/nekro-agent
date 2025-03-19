@@ -17,7 +17,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
-from nekro_agent.services.agent.openai import gen_openai_chat_response
+from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.common_util import copy_to_upload_dir
@@ -43,13 +43,14 @@ class EmotionConfig(ConfigBase):
     MAX_RECENT_EMOTION_COUNT: int = Field(default=10, description="最近添加表情包最大显示数量")
     MAX_SEARCH_RESULTS: int = Field(default=3, description="表情包搜索结果最大数量")
     EMBEDDING_MODEL: str = Field(default="text-embedding-v3", description="使用的嵌入模型")
-    EMBEDDING_API_KEY: Optional[str] = Field(default="", description="嵌入模型 API Key")
-    EMBEDDING_API_BASE: Optional[str] = Field(default="https://one.api.miose.cn/v1", description="嵌入模型 API 地址")
+    EMBEDDING_API_KEY: str = Field(default="", description="嵌入模型 API Key")
+    EMBEDDING_API_BASE: str = Field(default="https://api.nekro.top/v1", description="嵌入模型 API 地址")
+    EMBEDDING_API_ENDPOINT: str = Field(default="/embeddings", description="嵌入模型 API 端点")
     EMBEDDING_DIMENSION: int = Field(default=1024, description="嵌入维度")
 
 
 # 获取配置和插件存储
-config = plugin.get_config(EmotionConfig)
+config: EmotionConfig = plugin.get_config(EmotionConfig)
 store = plugin.store
 store_dir = plugin.get_plugin_path() / "emotions"
 chroma_client = chromadb.PersistentClient(path=str(plugin.get_plugin_path() / "vector_db"))
@@ -157,20 +158,14 @@ async def save_emotion_store(emotion_store: EmotionStore):
 async def generate_embedding(text: str) -> List[float]:
     """生成文本嵌入向量"""
 
-    # 初始化客户端
-    client = AsyncOpenAI(
+    embedding_vector = await gen_openai_embeddings(
+        model=config.EMBEDDING_MODEL,
+        input=text,
+        dimensions=config.EMBEDDING_DIMENSION,
         api_key=config.EMBEDDING_API_KEY,
         base_url=config.EMBEDDING_API_BASE,
     )
 
-    # 调用embedding API
-    response = await client.embeddings.create(
-        model=config.EMBEDDING_MODEL,
-        input=text,
-    )
-
-    # 获取embedding向量
-    embedding_vector = response.data[0].embedding
     vector_dimension = len(embedding_vector)
     logger.debug(f"生成嵌入向量: {text[:10]}... 向量维度: {vector_dimension}")
 
@@ -178,7 +173,7 @@ async def generate_embedding(text: str) -> List[float]:
     if vector_dimension != config.EMBEDDING_DIMENSION:
         logger.error(f"嵌入向量维度不匹配！预期: {config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
         raise ValueError(
-            f"嵌入向量维度错误！预期为 {config.EMBEDDING_DIMENSION} 维，但实际获取到{vector_dimension}维。请更新配置中的EMBEDDING_DIMENSION值为{vector_dimension}。",
+            f"嵌入向量维度错误！预期为 {config.EMBEDDING_DIMENSION} 维，但实际获取到 {vector_dimension} 维。请更新配置中的 EMBEDDING_DIMENSION 值为 {vector_dimension} 。",
         )
 
     return embedding_vector
@@ -286,16 +281,52 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="喵~ 请输入要搜索的关键词哦！")
         return
 
+    # 生成查询向量
     try:
-        # 调用搜索方法
-        result = await search_emotion(schemas.AgentCtx(from_chat_key=chat_key), cmd_content)
-        # 从返回的字典中提取消息内容
-        message = result.get("content", "没有找到相关表情包呢...")
+        query_embedding = await generate_embedding(cmd_content)
     except Exception as e:
-        logger.error(f"搜索表情包失败: {e}")
-        message = f"喵呜... 搜索失败了: {e!s}"
+        logger.error(f"生成查询向量失败: {e}")
+        await finish_with(matcher, message=f"喵呜... 生成查询向量失败了: {e!s}")
+        return
 
-    await finish_with(matcher, message=message)
+    # 进行向量搜索
+    results = emotion_collection.query(
+        query_embeddings=[query_embedding],
+        n_results=config.MAX_SEARCH_RESULTS,
+    )
+
+    # 检查是否有结果
+    if not results or not results["ids"] or not results["ids"][0]:
+        await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的表情包呢...")
+        return
+
+    # 加载表情包存储
+    emotion_store = await load_emotion_store()
+
+    # 构建返回消息
+    message_parts = [f"喵~ 这是和「{cmd_content}」相关的表情包："]
+    found_valid_results = False
+
+    # 处理搜索结果
+    for i, emotion_id in enumerate(results["ids"][0], 1):
+        metadata = emotion_store.get_emotion(emotion_id)
+        if not metadata:
+            continue
+
+        # 准备标签字符串
+        tags_str = "、".join(metadata.tags) if metadata.tags else "暂无标签"
+
+        # 添加表情包信息
+        message_parts.append(
+            f"\n{i}. ID: {emotion_id}\n描述: {metadata.description}\n标签: {tags_str}",
+        )
+        found_valid_results = True
+
+    if not found_valid_results:
+        await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的可用表情包呢...")
+        return
+
+    await finish_with(matcher, message="\n".join(message_parts))
 
 
 @on_command("emo_stats", aliases={"emo-stats"}, priority=5, block=True).handle()
@@ -406,7 +437,7 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
 async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description: str, tags: Optional[List[str]] = None) -> str:
     """Collect Emotion (表情包)
 
-    Collect an expression image/GIF and add it to the emotion database.
+    Collect an expression image/GIF to the emotion database.
     **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
 
     Args:
@@ -476,28 +507,24 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             metadata.update(description, tags)
             emotion_store.add_emotion(duplicate_id, metadata)
 
-            # 更新向量数据库
+            # 生成嵌入向量
+            embedding = await generate_embedding(f"{description} {' '.join(tags)}")
+
+            # 先删除旧向量，再添加新向量
             try:
-                # 生成嵌入向量
-                embedding = await generate_embedding(f"{description} {' '.join(tags)}")
-
-                # 先删除旧向量，再添加新向量
-                try:
-                    # 先尝试删除旧向量
-                    emotion_collection.delete(ids=[duplicate_id])
-                    logger.info(f"已删除旧向量: {duplicate_id}")
-                except Exception as e:
-                    logger.warning(f"删除旧向量失败，可能不存在: {e}")
-
-                # 添加新向量
-                emotion_collection.add(
-                    ids=[duplicate_id],
-                    embeddings=[embedding],
-                    metadatas=[{"description": description, "tags": ",".join(tags)}],
-                )
-                logger.info(f"已添加新向量: {duplicate_id}")
+                # 先尝试删除旧向量
+                emotion_collection.delete(ids=[duplicate_id])
+                logger.info(f"已删除旧向量: {duplicate_id}")
             except Exception as e:
-                raise ValueError(f"更新向量数据库失败: {e}") from e
+                logger.warning(f"删除旧向量失败，可能不存在: {e}")
+
+            # 添加新向量
+            emotion_collection.add(
+                ids=[duplicate_id],
+                embeddings=[embedding],
+                metadatas=[{"description": description, "tags": ",".join(tags)}],
+            )
+            logger.info(f"已添加新向量: {duplicate_id}")
 
             await save_emotion_store(emotion_store)
             return duplicate_id
@@ -539,11 +566,156 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     return emotion_id
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取表情包数据")
-async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
-    """Get Emotion Bytes
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "更新表情包")
+async def update_emotion(
+    _ctx: schemas.AgentCtx,
+    emotion_id: str,
+    description: str,
+    tags: List[str],
+) -> str:
+    """Update Emotion (更新表情包)
 
-    Get the raw bytes data of an emotion by its ID.
+    Update the metadata of an existing emotion.
+
+    Args:
+        emotion_id (str): The ID of the emotion to update
+        description (str): New description for the emotion
+        tags (List[str]): New tags for the emotion
+
+    Returns:
+        str: The emotion ID of the updated emotion
+
+    Example:
+        ```python
+        # Update emotion metadata
+        updated_id = update_emotion("a1b2c3d4", description="一只超可爱的猫猫", tags=["可爱", "猫咪", "萌"])
+        ```
+    """
+    # 参数验证
+    if not emotion_id:
+        raise ValueError("Error: Emotion ID cannot be empty!")
+
+    if not isinstance(tags, list):
+        raise TypeError("Error: Tags must be a list!")
+
+    # 加载表情包存储
+    emotion_store = await load_emotion_store()
+
+    # 检查表情包是否存在
+    metadata = emotion_store.get_emotion(emotion_id)
+    if not metadata:
+        raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
+
+    # 更新描述和标签
+    metadata.description = description
+    metadata.tags = tags
+    metadata.last_updated = int(time.time())
+
+    # 保存更新后的表情包存储
+    emotion_store.add_emotion(emotion_id, metadata)
+    await save_emotion_store(emotion_store)
+
+    # 更新向量数据库
+    # 生成嵌入向量
+    embedding_text = f"{description} {' '.join(tags)}"
+    embedding = await generate_embedding(embedding_text)
+
+    # 先删除旧向量，再添加新向量
+    try:
+        # 先尝试删除旧向量
+        emotion_collection.delete(ids=[emotion_id])
+        logger.info(f"已删除旧向量: {emotion_id}")
+    except Exception as e:
+        logger.warning(f"删除旧向量失败，可能不存在: {e}")
+
+    # 添加新向量
+    emotion_collection.add(
+        ids=[emotion_id],
+        embeddings=[embedding],
+        metadatas=[{"description": description, "tags": ",".join(tags)}],
+    )
+    logger.info(f"已添加新向量: {emotion_id}")
+
+    await message_service.push_system_message(
+        _ctx.from_chat_key,
+        f"Successfully updated emotion metadata: {emotion_id}",
+    )
+
+    return emotion_id
+
+
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "删除表情包")
+async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
+    """Remove Emotion (删除表情包)
+
+    Remove an emotion from the database by its ID.
+
+    Args:
+        emotion_id (str): The ID of the emotion to be deleted
+
+    Returns:
+        str: A message indicating the success or failure of the operation
+
+    Example:
+        ```python
+        # Remove an emotion
+        result = remove_emotion("a1b2c3d4")
+        ```
+    """
+    # 参数验证
+    if not emotion_id:
+        raise ValueError("Error: Emotion ID cannot be empty!")
+
+    # 加载表情包存储
+    emotion_store = await load_emotion_store()
+
+    # 检查表情包是否存在
+    metadata = emotion_store.get_emotion(emotion_id)
+    if not metadata:
+        raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
+
+    # 获取文件路径
+    file_path = Path(metadata.file_path)
+
+    # 从表情包存储中删除
+    if emotion_id in emotion_store.emotions:
+        del emotion_store.emotions[emotion_id]
+
+    # 从最近表情包列表中删除
+    if emotion_id in emotion_store.recent_emotion_ids:
+        emotion_store.recent_emotion_ids.remove(emotion_id)
+
+    # 保存更新后的表情包存储
+    await save_emotion_store(emotion_store)
+
+    # 从向量数据库中删除
+    try:
+        emotion_collection.delete(ids=[emotion_id])
+        logger.info(f"已从向量数据库删除表情包: {emotion_id}")
+    except Exception as e:
+        logger.warning(f"从向量数据库删除表情包失败，可能不存在: {e}")
+
+    # 尝试删除文件
+    try:
+        if file_path.exists():
+            file_path.unlink()
+            logger.info(f"已删除表情包文件: {file_path}")
+    except Exception as e:
+        logger.warning(f"删除表情包文件失败: {e}")
+
+    await message_service.push_system_message(
+        _ctx.from_chat_key,
+        f"Successfully removed emotion: {emotion_id}",
+    )
+
+    return f"表情包 {emotion_id} 已成功删除"
+
+
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取表情包路径")
+async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
+    """Get Emotion Path
+
+    Get the path of an emotion by its ID.
 
     Args:
         emotion_id (str): The emotion ID
@@ -553,8 +725,8 @@ async def get_emotion_bytes(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
 
     Example:
         ```python
-        # Get emotion bytes and use it in another function
-        emotion_file_path = get_emotion_bytes("a1b2c3d4")
+        # Get emotion path and use it in another function
+        emotion_file_path = get_emotion_path("a1b2c3d4")
         # Send it or do something ...
         ```
     """
@@ -658,7 +830,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         )
     msg.add(
         ContentSegment.text_content(
-            "If they don't look don't match the description, please use `collect_emotion` immediately to correct it.",
+            "If they don't look don't match the description, please use `collect_emotion` immediately to correct it. After that, continue to Your task.",
         ),
     )
 

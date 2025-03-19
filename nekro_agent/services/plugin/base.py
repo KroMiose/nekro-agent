@@ -83,7 +83,7 @@ class NekroPlugin(Generic[T]):
     @overload
     def get_config(self, config_cls: Type) -> Any: ...
 
-    def get_config(self, config_cls=None):  # type: ignore
+    def get_config(self, config_cls=None):
         """获取插件配置
 
         Args:
@@ -205,9 +205,11 @@ class NekroPlugin(Generic[T]):
                 logger.warning(f"方法 {method.func.__name__} 没有可用的文档注解。")
                 continue
             if method.method_type in [SandboxMethodType.AGENT, SandboxMethodType.MULTIMODAL_AGENT]:
-                prompts.append(f"* {method.func.__name__} - [AGENT METHOD - STOP AFTER CALL] {method.func.__doc__.strip()}")
+                prompts.append(
+                    f"* {method.func.__name__} - **[AGENT METHOD - STOP AFTER CALL]**\n{method.func.__doc__.strip()}",
+                )
             else:
-                prompts.append(f"* {method.func.__name__} - {method.func.__doc__.strip()}")
+                prompts.append(f"* {method.func.__name__}\n{method.func.__doc__.strip()}")
         return "\n".join(prompts)
 
     @property

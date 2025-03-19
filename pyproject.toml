@@ -44,6 +44,7 @@ tzlocal = "^5.2"
 aiosmtplib = "^2.0.0"
 aiofiles = "^24.1.0"
 chromadb = "^0.6.3"
+python-magic = "^0.4.27"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"

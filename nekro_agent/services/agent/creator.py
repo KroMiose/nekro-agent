@@ -2,7 +2,11 @@ import base64
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Union
 
+import magic
+
 from .templates.base import PromptTemplate
+
+mime = magic.Magic(mime=True)
 
 
 class OpenAIChatMessage:
@@ -108,9 +112,14 @@ class ContentSegment:
         path = Path(image_path)
         if not path.exists():
             raise FileNotFoundError(f"图片路径不存在: {path}")
+
+        file_bytes = path.read_bytes()
+        mime_type = mime.from_buffer(file_bytes)
+        mime_type = "image/png" if mime_type == "image/gif" else mime_type
+
         return {
             "type": "image_url",
-            "image_url": {"url": f"data:image/png;base64,{base64.b64encode(path.read_bytes()).decode('utf-8')}"},
+            "image_url": {"url": f"data:{mime_type};base64,{base64.b64encode(file_bytes).decode()}"},
         }
 
     @staticmethod

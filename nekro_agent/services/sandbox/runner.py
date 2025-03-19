@@ -235,11 +235,17 @@ async def run_code_in_sandbox(
         cleanup_container_shared_dir(box_last_active_time),
     )
 
+    final_output = (
+        output_text
+        if len(output_text) <= output_limit
+        else f"(output too long, hidden {len(output_text) - output_limit} characters)...{output_text[-output_limit:]}"
+    )
+
     await DBExecCode.create(
         chat_key=from_chat_key,
         code_text=code_run_data.code_content,
-        thought_chain=code_run_data.thought_chain,
-        outputs=output_text,
+        thought_chain=code_run_data.thought_chain or (llm_response.thought_chain if llm_response else ""),
+        outputs=final_output,
         success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT, ExecStopType.MULTIMODAL_AGENT],  # AGENT 状态也视为成功
         stop_type=stop_type,
         exec_time_ms=exec_time,
@@ -249,11 +255,6 @@ async def run_code_in_sandbox(
         trigger_user_name=chat_message.sender_real_nickname if chat_message else "System",
     )
 
-    final_output = (
-        output_text
-        if len(output_text) <= output_limit
-        else f"(output too long, hidden {len(output_text) - output_limit} characters)...{output_text[-output_limit:]}"
-    )
     return final_output, output_text, stop_type.value
 
 

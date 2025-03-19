@@ -385,3 +385,23 @@ async def gen_openai_chat_response(
         )
 
     return response
+
+
+async def gen_openai_embeddings(
+    model: str,
+    input: Union[str, List[Dict[str, Any]]],  # noqa: A002
+    dimensions: int,
+    api_key: str,
+    base_url: str,
+    endpoint: str = "/embeddings",
+) -> List[float]:
+    """生成文本的向量表示"""
+    client = httpx.AsyncClient()
+    res = await client.post(
+        f"{base_url}{endpoint}",
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+        json={"model": model, "input": input, "dimensions": dimensions},
+    )
+    res.raise_for_status()
+
+    return res.json()["data"][0]["embedding"]
