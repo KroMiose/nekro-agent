@@ -40,13 +40,27 @@ plugin = NekroPlugin(
 class EmotionConfig(ConfigBase):
     """表情包配置"""
 
-    MAX_RECENT_EMOTION_COUNT: int = Field(default=10, description="最近添加表情包最大显示数量")
-    MAX_SEARCH_RESULTS: int = Field(default=3, description="表情包搜索结果最大数量")
-    EMBEDDING_MODEL: str = Field(default="text-embedding-v3", description="使用的嵌入模型")
-    EMBEDDING_API_KEY: str = Field(default="", description="嵌入模型 API Key")
-    EMBEDDING_API_BASE: str = Field(default="https://api.nekro.top/v1", description="嵌入模型 API 地址")
-    EMBEDDING_API_ENDPOINT: str = Field(default="/embeddings", description="嵌入模型 API 端点")
-    EMBEDDING_DIMENSION: int = Field(default=1024, description="嵌入维度")
+    MAX_RECENT_EMOTION_COUNT: int = Field(
+        default=5,
+        title="最近添加表情包显示数量",
+        description="最近添加表情包最大显示数量",
+    )
+    MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
+    EMBEDDING_MODEL: str = Field(default="text-embedding-v3", title="嵌入模型", description="使用的嵌入模型")
+    EMBEDDING_API_KEY: str = Field(
+        default="",
+        title="嵌入模型 API Key",
+        description="嵌入模型 API Key",
+        json_schema_extra={"is_secret": True},
+    )
+    EMBEDDING_API_BASE: str = Field(
+        default="https://api.nekro.top/v1",
+        title="嵌入模型 API 地址",
+        description="嵌入模型 API 地址",
+        json_schema_extra={"is_secret": True},
+    )
+    EMBEDDING_API_ENDPOINT: str = Field(default="/embeddings", title="嵌入模型 API 端点", description="嵌入模型 API 端点")
+    EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
 
 
 # 获取配置和插件存储
@@ -433,7 +447,11 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
 # region: 表情包沙盒方法
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "收集表情包")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="收集表情包",
+    description="收集表情包并进行特征打标，保存到向量数据库",
+)
 async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description: str, tags: Optional[List[str]] = None) -> str:
     """Collect Emotion (表情包)
 
@@ -566,7 +584,11 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     return emotion_id
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "更新表情包")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="更新表情包",
+    description="更新表情包的描述和标签",
+)
 async def update_emotion(
     _ctx: schemas.AgentCtx,
     emotion_id: str,
@@ -644,7 +666,11 @@ async def update_emotion(
     return emotion_id
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "删除表情包")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="删除表情包",
+    description="删除表情包，并从向量数据库中移除",
+)
 async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     """Remove Emotion (删除表情包)
 
@@ -711,7 +737,11 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     return f"表情包 {emotion_id} 已成功删除"
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取表情包路径")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="获取表情包路径",
+    description="获取表情包文件路径",
+)
 async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     """Get Emotion Path
 
@@ -757,7 +787,11 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         return str(convert_to_container_path(Path(emo_file_path)))
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.MULTIMODAL_AGENT, "搜索表情包")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.MULTIMODAL_AGENT,
+    name="搜索表情包",
+    description="根据文本描述搜索表情包",
+)
 async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Optional[int] = None) -> Dict[str, Any]:
     """Search Emotion
 
@@ -830,7 +864,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         )
     msg.add(
         ContentSegment.text_content(
-            "If they don't look don't match the description, please use `collect_emotion` immediately to correct it. After that, continue to Your task.",
+            "If they don't look don't match the description, please use `update_emotion` immediately to correct it. After that, continue to Your task.",
         ),
     )
 

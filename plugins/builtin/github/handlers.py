@@ -774,6 +774,8 @@ async def send_to_subscribers(repo_name: str, event_type: str, message: str):
 
     chat_channels = await DBChatChannel.all()
 
+    message += "\n\n[Attention] This message is visible for you only. Transfer to the chat channel to make other users see it."
+
     # 遍历所有会话，查找订阅了该仓库的会话
     sent_count = 0
     for channel in chat_channels:

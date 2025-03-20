@@ -16,18 +16,11 @@ plugin = NekroPlugin(
 )
 
 
-@plugin.mount_config()
-class DiceConfig(ConfigBase):
-    """掷骰配置"""
-
-    some_field: str = Field(default="", title="一些配置")
-
-
-# 获取配置
-config = plugin.get_config(DiceConfig)
-
-
-@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "掷骰检定请求")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.AGENT,
+    name="掷骰检定请求",
+    description="设定一个待检定的目标事件和难度，投掷一次 20 面骰子，根据其结果成功与否进行接下来的行动",
+)
 async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficulty: int) -> str:
     """对可能产生不同结果的事件发起掷骰检定请求以确认执行结果 (use lang: zh-CN)
 

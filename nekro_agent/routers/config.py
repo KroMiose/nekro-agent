@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import (
+    CONFIG_PATH,
     ModelConfigGroup,
     PluginConfig,
     config,
@@ -14,6 +15,7 @@ from nekro_agent.core.config import (
 )
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
+from nekro_agent.services.config_service import ConfigService
 from nekro_agent.systems.user.deps import get_current_active_user
 from nekro_agent.systems.user.perm import Role, require_role
 from nekro_agent.tools.common_util import get_app_version
@@ -49,53 +51,13 @@ def get_field_extra(field: Any, key: str) -> Any:
 @require_role(Role.Admin)
 async def get_config_list(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取可修改的配置列表"""
-    modifiable_configs: List[Dict[str, Any]] = []
-    for key, value in config.model_dump().items():
-        field = PluginConfig.model_fields.get(key)
-        if field:
-            # 获取基础类型
-            base_type = str(type(value).__name__)
-
-            # 处理列表类型，获取元素类型
-            element_type = None
-            if isinstance(value, list):
-                element_type = str(type(value[0]).__name__) if value else "str"
-
-            config_item = {
-                "key": key,
-                "value": value,
-                "type": base_type,
-                "element_type": element_type,  # 添加元素类型信息
-                "title": PluginConfig.get_field_title(key),
-                "description": field.description,  # 添加描述信息
-                "placeholder": PluginConfig.get_field_placeholder(key),
-                "required": get_field_extra(field, "required") or False,  # 添加必填标记
-            }
-
-            # 添加枚举选项
-            enum_values = get_field_enum(field.annotation)
-            if enum_values:
-                config_item["enum"] = enum_values
-
-            # 添加模型组引用标识
-            if get_field_extra(field, "ref_model_groups"):
-                config_item["ref_model_groups"] = True
-
-            # 添加隐藏标识
-            if get_field_extra(field, "is_hidden"):
-                config_item["is_hidden"] = True
-
-            # 添加密钥标识
-            if get_field_extra(field, "is_secret"):
-                config_item["is_secret"] = True
-
-            # 添加文本域标识
-            if get_field_extra(field, "is_textarea"):
-                config_item["is_textarea"] = True
-
-            modifiable_configs.append(config_item)
-
-    return Ret.success(msg="获取成功", data=modifiable_configs)
+    try:
+        # 使用配置服务获取配置列表
+        modifiable_configs = ConfigService.get_config_list(config)
+        return Ret.success(msg="获取成功", data=modifiable_configs)
+    except Exception as e:
+        logger.error(f"获取配置列表失败: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
 
 
 @router.get("/model-groups", summary="获取模型组列表")
@@ -143,107 +105,32 @@ async def delete_model_group(
 
 @router.get("/get", summary="获取配置值")
 @require_role(Role.Admin)
-async def get_config(key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def get_config_item(key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取配置值"""
-    if key not in config.model_dump():
-        return Ret.fail(msg="配置项不存在")
-
-    field = PluginConfig.model_fields.get(key)
-    if not field:
-        return Ret.fail(msg="配置项不存在")
-
-    config_item = {
-        "key": key,
-        "value": getattr(config, key),
-        "type": str(type(getattr(config, key)).__name__),
-        "title": PluginConfig.get_field_title(key),
-    }
-
-    # 添加枚举选项
-    enum_values = get_field_enum(field.annotation)
-    if enum_values:
-        config_item["enum"] = enum_values
-
-    # 添加模型组引用标识
-    if get_field_extra(field, "ref_model_groups"):
-        config_item["ref_model_groups"] = True
-
-    # 添加隐藏标识
-    if get_field_extra(field, "is_hidden"):
-        config_item["is_hidden"] = True
-
-    # 添加密钥标识
-    if get_field_extra(field, "is_secret"):
-        config_item["is_secret"] = True
-
-    # 添加文本域标识
-    if get_field_extra(field, "is_textarea"):
-        config_item["is_textarea"] = True
-
-    return Ret.success(msg="获取成功", data=config_item)
+    try:
+        # 使用配置服务获取配置项
+        config_item = ConfigService.get_config_item(config, key)
+        if not config_item:
+            return Ret.fail(msg="配置项不存在")
+        return Ret.success(msg="获取成功", data=config_item)
+    except Exception as e:
+        logger.error(f"获取配置项失败: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
 
 
 @router.post("/set", summary="设置配置值")
 @require_role(Role.Admin)
-async def set_config(key: str, value: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def set_config_value(key: str, value: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """设置配置值"""
-    if key not in config.model_dump():
-        return Ret.fail(msg="配置项不存在")
-
     try:
-        _c_value = getattr(config, key)
-        if isinstance(_c_value, (int, float)):
-            setattr(config, key, type(_c_value)(value))
-        elif isinstance(_c_value, bool):
-            if value.lower() in ["true", "1", "yes"]:
-                setattr(config, key, True)
-            elif value.lower() in ["false", "0", "no"]:
-                setattr(config, key, False)
-            else:
-                return Ret.fail(msg="布尔值只能是 true 或 false")
-        elif isinstance(_c_value, str):
-            setattr(config, key, value)
-        elif isinstance(_c_value, list):
-            # 处理列表类型
-            try:
-                # 将字符串转换为 Python 列表
-                import json
-
-                parsed_value = json.loads(value)
-                if not isinstance(parsed_value, list):
-                    return Ret.fail(msg="输入必须是有效的列表格式")
-
-                # 获取列表元素的类型
-                if _c_value and len(_c_value) > 0:
-                    # 尝试转换列表中的每个元素为正确的类型
-                    converted_list = []
-                    for item in parsed_value:
-                        if isinstance(_c_value[0], bool):
-                            if isinstance(item, str):
-                                if item.lower() in ["true", "1", "yes"]:
-                                    converted_list.append(True)
-                                elif item.lower() in ["false", "0", "no"]:
-                                    converted_list.append(False)
-                                else:
-                                    return Ret.fail(msg=f"列表中的布尔值格式错误: {item}")
-                            else:
-                                converted_list.append(bool(item))
-                        else:
-                            converted_list.append(type(_c_value[0])(item))
-                    setattr(config, key, converted_list)
-                else:
-                    # 如果是空列表，直接设置
-                    setattr(config, key, parsed_value)
-            except json.JSONDecodeError:
-                return Ret.fail(msg="输入必须是有效的 JSON 列表格式")
-            except (ValueError, TypeError) as e:
-                return Ret.fail(msg=f"列表元素类型转换失败: {e!s}")
-        else:
-            return Ret.fail(msg=f"不支持的配置类型: {type(_c_value)}")
-    except ValueError as e:
-        return Ret.fail(msg=f"配置值类型错误: {e!s}")
-
-    return Ret.success(msg="设置成功")
+        # 使用配置服务设置配置值
+        success, error_msg = ConfigService.set_config_value(config, key, value)
+        if not success:
+            return Ret.fail(msg=error_msg)
+        return Ret.success(msg="设置成功")
+    except Exception as e:
+        logger.error(f"设置配置值失败: {e}")
+        return Ret.error(msg=f"设置失败: {e!s}")
 
 
 @router.post("/batch", summary="批量更新配置")
@@ -254,65 +141,20 @@ async def batch_update_config(
 ) -> Ret:
     """批量更新配置值"""
     try:
-        for key, value in body.configs.items():
-            if key not in config.model_dump():
-                return Ret.fail(msg=f"配置项不存在: {key}")
-
-            _c_value = getattr(config, key)
-            logger.debug(f"更新配置: {key} = {value} | {_c_value=} | {type(_c_value)=}")
-            logger.debug(f"检查类型: isinstance(_c_value, bool) = {isinstance(_c_value, bool)}")
-            if isinstance(_c_value, bool):
-                if value.lower() in ["true", "1", "yes"]:
-                    setattr(config, key, True)
-                elif value.lower() in ["false", "0", "no"]:
-                    setattr(config, key, False)
-                else:
-                    return Ret.fail(msg=f"布尔值只能是 true 或 false: {key}")
-            elif isinstance(_c_value, (int, float)):
-                setattr(config, key, type(_c_value)(value))
-            elif isinstance(_c_value, str):
-                setattr(config, key, value)
-            elif isinstance(_c_value, list):
-                try:
-                    # 将字符串转换为 Python 列表
-                    parsed_value = json.loads(value)
-                    if not isinstance(parsed_value, list):
-                        return Ret.fail(msg=f"输入必须是有效的列表格式: {key}")
-
-                    # 获取列表元素的类型
-                    if _c_value and len(_c_value) > 0:
-                        # 尝试转换列表中的每个元素为正确的类型
-                        converted_list = []
-                        for item in parsed_value:
-                            if isinstance(_c_value[0], bool):
-                                if isinstance(item, str):
-                                    if item.lower() in ["true", "1", "yes"]:
-                                        converted_list.append(True)
-                                    elif item.lower() in ["false", "0", "no"]:
-                                        converted_list.append(False)
-                                    else:
-                                        return Ret.fail(msg=f"列表中的布尔值格式错误: {item}")
-                                else:
-                                    converted_list.append(bool(item))
-                            else:
-                                converted_list.append(type(_c_value[0])(item))
-                        setattr(config, key, converted_list)
-                    else:
-                        # 如果是空列表，直接设置
-                        setattr(config, key, parsed_value)
-                except json.JSONDecodeError:
-                    return Ret.fail(msg=f"输入必须是有效的 JSON 列表格式: {key}")
-                except (ValueError, TypeError) as e:
-                    return Ret.fail(msg=f"列表元素类型转换失败: {e!s}")
-            else:
-                return Ret.fail(msg=f"不支持的配置类型: {type(_c_value)} ({key})")
-
+        # 使用配置服务批量更新配置
+        success, error_msg = ConfigService.batch_update_config(config, body.configs)
+        if not success:
+            return Ret.fail(msg=error_msg or "批量更新失败")
+        
         # 立即保存配置到文件
-        save_config()
-    except ValueError as e:
-        return Ret.fail(msg=f"配置值类型错误: {e!s}")
-
-    return Ret.success(msg="批量更新成功")
+        success, error_msg = ConfigService.save_config(config, CONFIG_PATH)
+        if not success:
+            return Ret.fail(msg=f"保存配置失败: {error_msg or '未知错误'}")
+            
+        return Ret.success(msg="批量更新成功")
+    except Exception as e:
+        logger.error(f"批量更新配置失败: {e}")
+        return Ret.error(msg=f"更新失败: {e!s}")
 
 
 @router.post("/reload", summary="重载配置")
@@ -331,27 +173,13 @@ async def reload_config_api(_current_user: DBUser = Depends(get_current_active_u
 async def save_config_api(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """保存配置"""
     try:
-        save_config()
+        success, error_msg = ConfigService.save_config(config, CONFIG_PATH)
+        if not success:
+            return Ret.fail(msg=f"保存失败: {error_msg or '未知错误'}")
+        return Ret.success(msg="保存成功")
     except Exception as e:
-        return Ret.fail(msg=f"保存失败: {e!s}")
-    return Ret.success(msg="保存成功")
-
-
-@router.get("/configs")
-@require_role(Role.Admin)
-async def get_config_list_with_placeholder(_current_user: DBUser = Depends(get_current_active_user)) -> List[Dict[str, Any]]:
-    """获取配置列表（包含占位符）"""
-    config_list = []
-    for key in PluginConfig.model_fields:
-        config_list.append(
-            {
-                "key": key,
-                "value": getattr(config, key),
-                "title": PluginConfig.get_field_title(key),
-                "placeholder": PluginConfig.get_field_placeholder(key),
-            },
-        )
-    return config_list
+        logger.error(f"保存配置失败: {e}")
+        return Ret.error(msg=f"保存失败: {e!s}")
 
 
 @router.get("/version", summary="获取应用版本")

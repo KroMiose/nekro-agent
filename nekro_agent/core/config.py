@@ -18,7 +18,11 @@ class ModelConfigGroup(ConfigBase):
     CHAT_PROXY: str = Field(default="", title="聊天模型访问代理")
     BASE_URL: str = Field(default="", title="聊天模型 API 地址")
     API_KEY: str = Field(default="", title="聊天模型 API 密钥")
-    MODEL_TYPE: Literal["chat", "embedding", "draw"] = Field(default="chat", title="模型类型", description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)或绘图(draw)")
+    MODEL_TYPE: Literal["chat", "embedding", "draw"] = Field(
+        default="chat",
+        title="模型类型",
+        description="模型的用途类型，可以是聊天(chat)、向量嵌入(embedding)或绘图(draw)",
+    )
     TOKEN_INPUT_RATE: float = Field(default=1.0, title="输入 Token 倍率")
     TOKEN_COMPLETION_RATE: float = Field(default=1.0, title="补全 Token 倍率")
     MODEL_PRICE_RATE: float = Field(default=1.0, title="模型价格倍率")
@@ -29,7 +33,11 @@ class ModelConfigGroup(ConfigBase):
     FREQUENCY_PENALTY: Optional[float] = Field(default=None, title="补全重复惩罚")
     EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
     ENABLE_VISION: bool = Field(default=False, title="启用视觉功能", description="模型是否支持视觉能力，如果不支持请关闭")
-    ENABLE_COT: bool = Field(default=False, title="启用思维链", description="启用后AI会在回答前输出思考过程，如果模型原生支持请关闭")
+    ENABLE_COT: bool = Field(
+        default=False,
+        title="启用思维链",
+        description="启用后AI会在回答前输出思考过程，如果模型原生支持请关闭",
+    )
 
 
 class PluginConfig(ConfigBase):
@@ -285,23 +293,18 @@ class PluginConfig(ConfigBase):
         description="启用 TLS 加密",
     )
 
-    """拓展配置"""
-    EXTENSION_MODULES: List[str] = Field(
-        default=["extensions.basic", "extensions.status"],
-        title="启用的插件模块",
-        description="暂时不支持热重载，请重启 Nekro Agent 后生效，前往 <a href='https://github.com/KroMiose/nekro-agent/blob/main/docs/README_Extensions.md' target='_blank'>插件模块列表</a>",
-    )
-    EXTENSION_GENERATE_MODEL_GROUP: str = Field(
+    """插件配置"""
+    PLUGIN_GENERATE_MODEL_GROUP: str = Field(
         default="default",
-        title="扩展代码生成模型组",
+        title="插件代码生成模型组",
         json_schema_extra={"ref_model_groups": True},
-        description="用于生成扩展代码的模型组，建议使用上下文长，逻辑推理能力强的模型",
+        description="用于生成插件代码的模型组，建议使用上下文长，逻辑推理能力强的模型",
     )
-    EXTENSION_APPLY_MODEL_GROUP: str = Field(
+    PLUGIN_APPLY_MODEL_GROUP: str = Field(
         default="default",
-        title="扩展代码应用模型组",
+        title="插件代码应用模型组",
         json_schema_extra={"ref_model_groups": True},
-        description="用于应用扩展代码的模型组，建议使用上下文长，响应速度快的模型",
+        description="用于应用插件代码的模型组，建议使用上下文长，响应速度快的模型",
     )
 
     """Postgresql 配置"""
@@ -329,67 +332,6 @@ class PluginConfig(ConfigBase):
         default="nekro_agent",
         title="数据库名称",
         json_schema_extra={"is_hidden": True},
-    )
-
-    """Stable Diffusion API 配置"""
-    STABLE_DIFFUSION_API: str = Field(
-        default="http://127.0.0.1:9999",
-        title="Stable Diffusion API 地址",
-        description="Stable Diffusion 的 API 地址，请确保 Stable Diffusion 已启动",
-        json_schema_extra={"placeholder": "例: http://<服务器 IP>:<Stable Diffusion 端口>"},
-    )
-    STABLE_DIFFUSION_PROXY: str = Field(
-        default="",
-        title="Stable Diffusion 访问代理",
-        json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"},
-    )
-    STABLE_DIFFUSION_USE_MODEL_GROUP: str = Field(
-        default="default",
-        title="Stable Diffusion 使用模型组",
-        description="Stable Diffusion 使用模型组，注意: 该模型组是一个 LLM 模型，用于生成自然语言绘图使用的词条",
-        json_schema_extra={"ref_model_groups": True},
-    )
-
-    """Google Search API 配置"""
-    GOOGLE_SEARCH_API_KEY: str = Field(
-        default="",
-        title="Google 搜索 API 密钥",
-        json_schema_extra={"is_secret": True},
-        description="Google 搜索 API 密钥 <a href='https://developers.google.com/custom-search/v1/introduction?hl=zh-cn' target='_blank'>获取地址</a>",
-    )
-    GOOGLE_SEARCH_CX_KEY: str = Field(
-        default="",
-        title="Google 搜索 CX 密钥",
-        json_schema_extra={"is_secret": True},
-        description="Google 搜索 CX 密钥 <a href='https://programmablesearchengine.google.com/controlpanel/all' target='_blank'>获取地址</a>",
-    )
-    GOOGLE_SEARCH_MAX_RESULTS: int = Field(default=3, title="Google 搜索参考最大结果数")
-
-    """emo表情包扩展 配置"""
-    EMO_API_URL: str = Field(
-        default="https://v3.alapi.cn/api/doutu",
-        title="表情包服务 API URL",
-        json_schema_extra={"placeholder": "例: https://v3.alapi.cn/api/doutu"},
-        description="表情包 API URL 配置，可以填写其他的API（自建）",
-    )
-    EMO_API_TOKEN: str = Field(
-        default="",
-        title="表情包服务 API Token 密钥",
-        json_schema_extra={"is_secret": True},
-        description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
-    )
-    EMO_API_KEYWORD: str = Field(
-        default="",
-        title="表情包类型",
-        json_schema_extra={"placeholder": "例: 猫猫"},
-        description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
-    )
-
-    """二次元图片扩展 配置"""
-    R18_CONFIG: bool = Field(
-        default=False,
-        title="二次元搜图扩展允许限制内容",
-        description="开启后，搜图扩展返回的结果可能会包含R18的图片",
     )
 
     """Weave 配置"""

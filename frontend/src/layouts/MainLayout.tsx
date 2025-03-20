@@ -62,17 +62,17 @@ const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
   { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
   { path: '/user-manager', text: '用户管理', icon: <PersonIcon /> },
   {
-    key: 'extensions',
-    text: '扩展能力',
+    key: 'plugins',
+    text: '插件管理',
     icon: <ExtensionIcon />,
     children: [
       {
-        path: '/extensions/management',
-        text: '扩展管理',
+        path: '/plugins/management',
+        text: '插件管理',
         icon: <ExtensionIcon />,
-        parent: 'extensions',
+        parent: 'plugins',
       },
-      { path: '/extensions/editor', text: '扩展编辑器', icon: <CodeIcon />, parent: 'extensions' },
+      { path: '/plugins/editor', text: '插件编辑器', icon: <CodeIcon />, parent: 'plugins' },
     ],
   },
   { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },

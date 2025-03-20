@@ -21,7 +21,11 @@ plugin = NekroPlugin(
 class AIVoiceConfig(ConfigBase):
     """AI语音配置"""
 
-    AI_VOICE_CHARACTER: str = Field(default=global_config.AI_VOICE_CHARACTER, description="AI语音角色")
+    AI_VOICE_CHARACTER: str = Field(
+        default=global_config.AI_VOICE_CHARACTER,
+        title="AI语音角色",
+        description="使用命令 /ai_voices 查看所有可用角色",
+    )
 
 
 # 获取配置

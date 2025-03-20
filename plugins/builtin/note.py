@@ -21,7 +21,7 @@ plugin = NekroPlugin(
 class NoteConfig(ConfigBase):
     """笔记系统配置"""
 
-    MAX_NOTE_LENGTH: int = Field(default=72, description="笔记最大显示长度")
+    MAX_NOTE_LENGTH: int = Field(default=72, title="笔记最大显示长度", description="笔记最大显示长度")
 
 
 # 获取配置和插件存储

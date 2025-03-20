@@ -35,19 +35,16 @@ plugin = NekroPlugin(
 #        (即不需要 `await func()` )，因为其实际执行是通过 rpc 在 Nekro-Agent 主服务进行的
 #     5. `inject_prompt` 方法会在每次会话触发开始时调用一次，并将返回值注入到会话提示词中
 #     6. 插件的清理方法 `clean_up` 会在插件卸载时自动调用，请在此方法中实现清理或重置逻辑
+#
+# 插件配置编写方法:
+# @plugin.mount_config()
+# class BasicConfig(ConfigBase):
+#     """基础配置"""
+#     MY_CUSTOM_FIELD: str = Field(default="默认值", title="插件自定义配置")
+# # 获取配置
+# config: BasicConfig = plugin.get_config(BasicConfig)
+# config.MY_CUSTOM_FIELD = "test"
 # ========================================================================================
-
-
-@plugin.mount_config()
-class BasicConfig(ConfigBase):
-    """基础配置"""
-
-    MY_CUSTOM_FIELD: str = Field(default="", title="插件自定义配置")
-
-
-# 获取配置
-config = plugin.get_config(BasicConfig)
-config.MY_CUSTOM_FIELD = "test"
 
 
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
@@ -101,7 +98,11 @@ async def _calculate_file_md5(file_path: str) -> str:
         return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送聊天消息文本")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="发送聊天消息文本",
+    description="发送聊天消息文本，附带缓存消息重复检查",
+)
 async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     """发送聊天消息文本
 
@@ -162,7 +163,11 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     SEND_MSG_CACHE[chat_key] = SEND_MSG_CACHE[chat_key][-10:]  # 保持最近10条消息
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送聊天消息图片/文件资源")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="发送聊天消息图片/文件资源",
+    description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
+)
 async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
     """发送聊天消息图片/文件资源
 
@@ -211,7 +216,11 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
         ) from e
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取用户头像")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="获取用户头像",
+    description="获取用户头像",
+)
 async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
     """获取用户头像
 

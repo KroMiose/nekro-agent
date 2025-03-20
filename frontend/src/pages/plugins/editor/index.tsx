@@ -39,21 +39,16 @@ import {
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
 import { useTheme } from '@mui/material/styles'
-import {
-  extensionsApi,
-  streamGenerateCode,
-  deleteExtensionFile,
-  exportExtensionFile,
-} from '../../../services/api/extensions'
+import { pluginsApi, streamGenerateCode } from '../../../services/api/plugins'
 
 // 新建扩展对话框组件
-interface NewExtensionDialogProps {
+interface NewPluginDialogProps {
   open: boolean
   onClose: () => void
   onConfirm: (name: string, description: string) => void
 }
 
-function NewExtensionDialog({ open, onClose, onConfirm }: NewExtensionDialogProps) {
+function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
@@ -122,7 +117,7 @@ function NewExtensionDialog({ open, onClose, onConfirm }: NewExtensionDialogProp
 }
 
 // 主页面组件
-export default function ExtensionsEditorPage() {
+export default function PluginsEditorPage() {
   const [selectedFile, setSelectedFile] = useState<string>('')
   const [files, setFiles] = useState<string[]>([])
   const [code, setCode] = useState<string>('')
@@ -135,11 +130,11 @@ export default function ExtensionsEditorPage() {
   const [error, setError] = useState<string>('')
   const [success, setSuccess] = useState<string>('')
   const [generatedCode, setGeneratedCode] = useState<string>('')
-  const [isNewExtensionDialogOpen, setIsNewExtensionDialogOpen] = useState(false)
+  const [isNewPluginDialogOpen, setIsNewPluginDialogOpen] = useState(false)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [fileToDelete, setFileToDelete] = useState<string | null>(null)
+  const [fileToDelete, setFileToDelete] = useState<string>('')
   const [reloadExtDialogOpen, setReloadExtDialogOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
@@ -153,7 +148,7 @@ export default function ExtensionsEditorPage() {
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        const files = (await extensionsApi.getExtensionFiles()) as string[]
+        const files = await pluginsApi.getPluginFiles()
         setFiles(files)
         if (files.length > 0 && !selectedFile) {
           setSelectedFile(files[0])
@@ -173,9 +168,9 @@ export default function ExtensionsEditorPage() {
       if (!selectedFile) return
       setIsLoading(true)
       try {
-        const content = (await extensionsApi.getExtensionFiles(selectedFile)) as string
-        setCode(content)
-        setOriginalCode(content)
+        const content = await pluginsApi.getPluginFileContent(selectedFile)
+        setCode(content || '')
+        setOriginalCode(content || '')
         setHasUnsavedChanges(false)
         setError('')
       } catch (err: unknown) {
@@ -194,7 +189,7 @@ export default function ExtensionsEditorPage() {
     if (!selectedFile || !code) return
     setIsSaving(true)
     try {
-      await extensionsApi.saveExtensionFile(selectedFile, code)
+      await pluginsApi.savePluginFile(selectedFile, code)
       setOriginalCode(code)
       setHasUnsavedChanges(false)
       setSuccess('保存成功')
@@ -312,8 +307,8 @@ export default function ExtensionsEditorPage() {
     if (!selectedFile || !generatedCode) return
     setIsApplying(true)
     try {
-      const result = await extensionsApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
-      setCode(result)
+      const result = await pluginsApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
+      setCode(result || '')
       setHasUnsavedChanges(true)
       setSuccess('代码应用成功')
     } catch (error) {
@@ -324,13 +319,35 @@ export default function ExtensionsEditorPage() {
   }
 
   // 处理文件选择
-  const handleFileSelect = (event: SelectChangeEvent<string>) => {
-    if (hasUnsavedChanges) {
-      if (window.confirm('当前文件有未保存的更改，确定要切换文件吗？')) {
-        setSelectedFile(event.target.value)
+  const handleFileSelect = async (event: SelectChangeEvent<string>) => {
+    const newSelectedFile = event.target.value
+    if (newSelectedFile !== selectedFile) {
+      if (hasUnsavedChanges && selectedFile) {
+        setHasUnsavedChanges(false)
+        setFileToDelete(selectedFile)
+        setDeleteDialogOpen(true)
+        return
       }
-    } else {
-      setSelectedFile(event.target.value)
+
+      setSelectedFile(newSelectedFile)
+      if (newSelectedFile) {
+        setIsLoading(true)
+        try {
+          const content = await pluginsApi.getPluginFileContent(newSelectedFile)
+          setCode(content || '')
+          setOriginalCode(content || '')
+          setHasUnsavedChanges(false)
+        } catch (error) {
+          setError(`获取文件内容失败: ${error}`)
+          setCode('')
+          setOriginalCode('')
+        } finally {
+          setIsLoading(false)
+        }
+      } else {
+        setCode('')
+        setOriginalCode('')
+      }
     }
   }
 
@@ -365,9 +382,9 @@ export default function ExtensionsEditorPage() {
     reader.onload = async e => {
       try {
         const content = e.target?.result as string
-        await extensionsApi.saveExtensionFile(file.name, content)
+        await pluginsApi.savePluginFile(file.name, content)
         // 重新加载文件列表
-        const files = (await extensionsApi.getExtensionFiles()) as string[]
+        const files = await pluginsApi.getPluginFiles()
         setFiles(files)
         setSelectedFile(file.name)
         setError('')
@@ -380,19 +397,19 @@ export default function ExtensionsEditorPage() {
   }
 
   // 创建新扩展
-  const handleCreateNewExtension = async (name: string, description: string) => {
+  const handleCreateNewPlugin = async (name: string, description: string) => {
     const fileName = `${name}.py`
     try {
       // 获取模板内容
-      const template = await extensionsApi.generateExtensionTemplate(name, description)
+      const template = await pluginsApi.generatePluginTemplate(name, description)
       // 保存文件
-      await extensionsApi.saveExtensionFile(fileName, template)
+      await pluginsApi.savePluginFile(fileName, template || '')
       // 重新加载文件列表
-      const files = (await extensionsApi.getExtensionFiles()) as string[]
+      const files = await pluginsApi.getPluginFiles()
       setFiles(files)
       setSelectedFile(fileName)
       setError('')
-      setIsNewExtensionDialogOpen(false)
+      setIsNewPluginDialogOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
       setError('创建扩展失败: ' + errorMessage)
@@ -403,7 +420,7 @@ export default function ExtensionsEditorPage() {
   const handleDeleteConfirm = async () => {
     if (fileToDelete) {
       try {
-        await deleteExtensionFile(fileToDelete)
+        await pluginsApi.deletePluginFile(fileToDelete)
         setSuccess('文件删除成功')
         // 如果删除的是当前选中的文件，清空编辑器
         if (fileToDelete === selectedFile) {
@@ -411,30 +428,30 @@ export default function ExtensionsEditorPage() {
           setCode('')
         }
         // 重新加载文件列表
-        const files = (await extensionsApi.getExtensionFiles()) as string[]
+        const files = await pluginsApi.getPluginFiles()
         setFiles(files)
-      } catch (err) {
-        setError(`删除文件失败: ${err}`)
+      } catch (error) {
+        setError('删除失败: ' + (error instanceof Error ? error.message : String(error)))
       }
+      setDeleteDialogOpen(false)
+      setFileToDelete('')
     }
-    setDeleteDialogOpen(false)
-    setFileToDelete(null)
   }
 
   // 重载扩展
   const handleReloadExt = async () => {
     try {
       setIsGenerating(true)
-      await extensionsApi.reloadExtensions()
+      await pluginsApi.reloadPlugins()
       // 重新加载文件列表
-      const files = (await extensionsApi.getExtensionFiles()) as string[]
+      const files = await pluginsApi.getPluginFiles()
       setFiles(files)
       setSuccess('扩展重载成功')
       setReloadExtDialogOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
       setError('重载扩展失败: ' + errorMessage)
-      console.error('Failed to reload extensions:', err)
+      console.error('Failed to reload plugins:', err)
     } finally {
       setIsGenerating(false)
     }
@@ -448,7 +465,7 @@ export default function ExtensionsEditorPage() {
     setAnchorEl(null)
   }
 
-  const handleToggleExtension = async () => {
+  const handleTogglePlugin = async () => {
     if (!selectedFile) return
 
     try {
@@ -457,11 +474,11 @@ export default function ExtensionsEditorPage() {
         ? selectedFile.replace('.disabled', '')
         : `${selectedFile}.disabled`
 
-      await extensionsApi.saveExtensionFile(newFileName, code)
-      await deleteExtensionFile(selectedFile)
+      await pluginsApi.savePluginFile(newFileName, code)
+      await pluginsApi.deletePluginFile(selectedFile)
 
       // 更新文件列表和选中文件
-      const files = (await extensionsApi.getExtensionFiles()) as string[]
+      const files = await pluginsApi.getPluginFiles()
       setFiles(files)
       setSelectedFile(newFileName)
 
@@ -523,7 +540,7 @@ export default function ExtensionsEditorPage() {
             </FormControl>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
               <Tooltip title="新建扩展">
-                <IconButton color="primary" onClick={() => setIsNewExtensionDialogOpen(true)}>
+                <IconButton color="primary" onClick={() => setIsNewPluginDialogOpen(true)}>
                   <AddIcon />
                 </IconButton>
               </Tooltip>
@@ -689,8 +706,13 @@ export default function ExtensionsEditorPage() {
               onClick={async () => {
                 if (selectedFile) {
                   try {
-                    await exportExtensionFile(selectedFile)
-                    setSuccess('文件导出成功')
+                    // 如果存在导出功能，使用导出功能，否则提示功能不可用
+                    if (typeof pluginsApi.exportPluginFile === 'function') {
+                      await pluginsApi.exportPluginFile(selectedFile)
+                      setSuccess('文件导出成功')
+                    } else {
+                      setError('导出功能暂不可用')
+                    }
                   } catch (err) {
                     setError('文件导出失败: ' + (err instanceof Error ? err.message : String(err)))
                   }
@@ -698,24 +720,30 @@ export default function ExtensionsEditorPage() {
                 handleMenuClose()
               }}
               disabled={!selectedFile}
-              sx={{ color: theme => theme.palette.success.main }}
             >
-              <UploadIcon sx={{ mr: 1, transform: 'rotate(180deg)', color: theme => theme.palette.success.main }} />
-              导出文件
+              导出
             </MenuItem>
             <MenuItem
-              onClick={() => {
+              onClick={async () => {
                 if (selectedFile) {
-                  setFileToDelete(selectedFile)
-                  setDeleteDialogOpen(true)
+                  try {
+                    await pluginsApi.deletePluginFile(selectedFile)
+                    setSuccess('文件删除成功')
+                    // 重新加载文件列表
+                    const files = await pluginsApi.getPluginFiles()
+                    setFiles(files)
+                    setSelectedFile('')
+                    setCode('')
+                  } catch (err) {
+                    setError('删除失败: ' + (err instanceof Error ? err.message : String(err)))
+                  }
                 }
                 handleMenuClose()
               }}
               disabled={!selectedFile}
-              sx={{ color: theme => theme.palette.error.main }}
             >
-              <DeleteIcon sx={{ mr: 1 }} />
-              删除扩展
+              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+              删除
             </MenuItem>
           </Menu>
         </Box>
@@ -1116,10 +1144,10 @@ export default function ExtensionsEditorPage() {
       </Paper>
 
       {/* 新建扩展对话框 */}
-      <NewExtensionDialog
-        open={isNewExtensionDialogOpen}
-        onClose={() => setIsNewExtensionDialogOpen(false)}
-        onConfirm={handleCreateNewExtension}
+      <NewPluginDialog
+        open={isNewPluginDialogOpen}
+        onClose={() => setIsNewPluginDialogOpen(false)}
+        onConfirm={handleCreateNewPlugin}
       />
 
       {/* 重置代码确认对话框 */}
@@ -1152,7 +1180,7 @@ export default function ExtensionsEditorPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Add new reload extension dialog */}
+      {/* Add new reload plugin dialog */}
       <Dialog open={reloadExtDialogOpen} onClose={() => setReloadExtDialogOpen(false)}>
         <DialogTitle>确认重载扩展</DialogTitle>
         <DialogContent>
@@ -1166,7 +1194,7 @@ export default function ExtensionsEditorPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Add new disable extension dialog */}
+      {/* Add new disable plugin dialog */}
       <Dialog open={isDisableDialogOpen} onClose={() => setIsDisableDialogOpen(false)}>
         <DialogTitle>
           {selectedFile?.endsWith('.disabled') ? '确认启用扩展' : '确认禁用扩展'}
@@ -1181,7 +1209,7 @@ export default function ExtensionsEditorPage() {
         <DialogActions>
           <Button onClick={() => setIsDisableDialogOpen(false)}>取消</Button>
           <Button
-            onClick={handleToggleExtension}
+            onClick={handleTogglePlugin}
             color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
             variant="contained"
           >

@@ -24,11 +24,15 @@ plugin = NekroPlugin(
 class StatusConfig(ConfigBase):
     """状态控制配置"""
 
-    MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, description="最大预设状态列表大小")
-    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, description="最大预设状态引用大小")
-    ENABLE_CHANGE_NICKNAME: bool = Field(default=True, description="启用更改昵称")
-    NICKNAME_PREFIX: str = Field(default="", description="昵称前缀")
-    DEFAULT_PRESET_NAME: str = Field(default=global_config.AI_CHAT_PRESET_NAME, description="默认预设名称")
+    MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, title="最大预设状态列表大小", description="最大预设状态列表大小")
+    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, title="最大预设状态引用大小", description="最大预设状态引用大小")
+    ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用更改昵称", description="启用更改昵称")
+    NICKNAME_PREFIX: str = Field(default="", title="昵称前缀", description="昵称前缀")
+    DEFAULT_PRESET_NAME: str = Field(
+        default=global_config.AI_CHAT_PRESET_NAME,
+        title="默认预设名称",
+        description="默认预设名称",
+    )
 
 
 # 获取配置和插件存储

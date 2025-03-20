@@ -239,7 +239,7 @@ async def generate_extension_code(file_path: str, prompt: str, current_code: Opt
     # 调用 LLM 生成代码
     response = await get_chat_response(
         messages=[{"role": "system", "content": GENERATE_SYSTEM_PROMPT}, {"role": "user", "content": user_prompt}],
-        model_group=config.EXTENSION_GENERATE_MODEL_GROUP,
+        model_group=config.PLUGIN_GENERATE_MODEL_GROUP,
     )
 
     return _clean_code_format(response)
@@ -271,7 +271,7 @@ async def generate_extension_code_stream(
     # 调用 LLM 流式生成代码
     async for chunk in get_chat_response_stream(
         messages=[{"role": "system", "content": GENERATE_SYSTEM_PROMPT}, {"role": "user", "content": user_prompt}],
-        model_group=config.EXTENSION_GENERATE_MODEL_GROUP,
+        model_group=config.PLUGIN_GENERATE_MODEL_GROUP,
     ):
         yield chunk
 
@@ -347,7 +347,7 @@ async def apply_extension_code(file_path: str, prompt: str, current_code: str) -
         },
     ]
 
-    response = await get_chat_response(messages, model_group=config.EXTENSION_APPLY_MODEL_GROUP)
+    response = await get_chat_response(messages, model_group=config.PLUGIN_APPLY_MODEL_GROUP)
 
     return _clean_code_format(response)
 

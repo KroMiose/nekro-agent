@@ -1,12 +1,10 @@
 from pathlib import Path
 from typing import List
 
-from pydantic import Field
-
 from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.services.plugin.base import NekroPlugin, SandboxMethodType
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(

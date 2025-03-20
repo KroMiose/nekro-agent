@@ -12,38 +12,28 @@ import {
   Chip,
   IconButton,
   Collapse,
+  Button,
+  CircularProgress,
 } from '@mui/material'
 import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
+  Settings as SettingsIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import { extensionsApi } from '../../services/api/extensions'
-
-interface Method {
-  name: string
-  type: 'tool' | 'behavior' | 'agent'
-  description: string
-}
-
-interface Extension {
-  name: string
-  version: string
-  description: string
-  author: string
-  methods: Method[]
-  is_enabled: boolean
-}
+import { pluginsApi, Plugin, MethodType } from '../../services/api/plugins'
+import { useNavigate } from 'react-router-dom'
 
 // 扩展方法类型对应的颜色
-const METHOD_TYPE_COLORS = {
+const METHOD_TYPE_COLORS: Record<MethodType, 'primary' | 'success' | 'warning' | 'info'> = {
   tool: 'primary',
   behavior: 'success',
   agent: 'warning',
-} as const
+  multimodal_agent: 'info',
+}
 
 // 扩展行组件
-function ExtensionRow({ extension }: { extension: Extension }) {
+function PluginRow({ plugin }: { plugin: Plugin }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -56,16 +46,16 @@ function ExtensionRow({ extension }: { extension: Extension }) {
         </TableCell>
         <TableCell component="th" scope="row">
           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
-            {extension.name}
+            {plugin.name}
           </Typography>
         </TableCell>
-        <TableCell>{extension.version}</TableCell>
-        <TableCell>{extension.description}</TableCell>
-        <TableCell>{extension.author}</TableCell>
+        <TableCell>{plugin.version}</TableCell>
+        <TableCell>{plugin.description}</TableCell>
+        <TableCell>{plugin.author}</TableCell>
         <TableCell>
           <Chip
-            label={extension.is_enabled ? '已启用' : '已禁用'}
-            color={extension.is_enabled ? 'success' : 'default'}
+            label={plugin.enabled ? '已启用' : '已禁用'}
+            color={plugin.enabled ? 'success' : 'default'}
             size="small"
           />
         </TableCell>
@@ -86,7 +76,7 @@ function ExtensionRow({ extension }: { extension: Extension }) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {extension.methods.map(method => (
+                  {plugin.methods.map(method => (
                     <TableRow key={method.name}>
                       <TableCell component="th" scope="row">
                         <Typography
@@ -117,11 +107,13 @@ function ExtensionRow({ extension }: { extension: Extension }) {
   )
 }
 
-export default function ExtensionsPage() {
+export default function PluginsPage() {
+  const navigate = useNavigate()
+  
   // 获取扩展列表
-  const { data: extensions = [] } = useQuery({
-    queryKey: ['extensions'],
-    queryFn: () => extensionsApi.getExtensions(),
+  const { data: plugins = [], isLoading } = useQuery({
+    queryKey: ['plugins'],
+    queryFn: () => pluginsApi.getPlugins(),
   })
 
   return (
@@ -130,8 +122,20 @@ export default function ExtensionsPage() {
         display: 'flex',
         flexDirection: 'column',
         height: 'calc(100vh - 120px)',
+        gap: 2,
       }}
     >
+      {/* 顶部操作区 */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <Button 
+          variant="contained" 
+          startIcon={<SettingsIcon />}
+          onClick={() => navigate('/plugins/management')}
+        >
+          插件管理
+        </Button>
+      </Box>
+      
       {/* 表格容器 */}
       <Paper
         elevation={3}
@@ -142,25 +146,31 @@ export default function ExtensionsPage() {
           flexDirection: 'column',
         }}
       >
-        <TableContainer sx={{ flexGrow: 1 }}>
-          <Table stickyHeader>
-            <TableHead>
-              <TableRow>
-                <TableCell width="50px" />
-                <TableCell width="200px">扩展名称</TableCell>
-                <TableCell width="100px">版本</TableCell>
-                <TableCell>描述</TableCell>
-                <TableCell width="120px">作者</TableCell>
-                <TableCell width="100px">状态</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {extensions.map(extension => (
-                <ExtensionRow key={extension.name} extension={extension} />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        {isLoading ? (
+          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <CircularProgress />
+          </Box>
+        ) : (
+          <TableContainer sx={{ flexGrow: 1 }}>
+            <Table stickyHeader>
+              <TableHead>
+                <TableRow>
+                  <TableCell width="50px" />
+                  <TableCell width="200px">扩展名称</TableCell>
+                  <TableCell width="100px">版本</TableCell>
+                  <TableCell>描述</TableCell>
+                  <TableCell width="120px">作者</TableCell>
+                  <TableCell width="100px">状态</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {plugins.map(plugin => (
+                  <PluginRow key={plugin.id} plugin={plugin} />
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
       </Paper>
     </Box>
   )
