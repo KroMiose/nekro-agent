@@ -294,6 +294,7 @@ async def run_container_with_timeout(container: DockerContainer, timeout: int) -
 
 
 async def cleanup_sandbox_containers():
+    """清理所有沙盒容器"""
     docker = aiodocker.Docker()
     try:
         containers = await docker.containers.list(all=True)
