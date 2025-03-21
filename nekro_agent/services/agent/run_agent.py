@@ -50,7 +50,7 @@ async def run_agent(
                 bot_qq=config.BOT_QQ,
                 chat_preset=config.AI_CHAT_PRESET_SETTING,
                 chat_key=chat_key,
-                plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_plugins(), ctx),
+                plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
             ),
