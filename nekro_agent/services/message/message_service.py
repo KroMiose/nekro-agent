@@ -6,6 +6,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import magic
+
 from nekro_agent.core import config, logger
 from nekro_agent.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -210,26 +212,27 @@ class MessageService:
         content_data = []
         for msg in agent_messages:
             if msg.type == AgentMessageSegmentType.FILE:
-                suffix = msg.content.split(".")[-1].lower()
-                if suffix in ["jpg", "jpeg", "png", "gif", "webp"]:
-                    file_path = Path(msg.content)
+                # 使用magic库检测文件MIME类型
+                file_path = Path(msg.content)
+                if file_path.exists():
+                    mime_type = magic.from_buffer(file_path.read_bytes(), mime=True)
+                    if mime_type.startswith("image/"):
+                        # 复制文件到uploads目录
+                        local_path, file_name = await copy_to_upload_dir(
+                            str(file_path),
+                            file_name=file_path.name,
+                            from_chat_key=chat_key,
+                        )
 
-                    # 复制文件到uploads目录
-                    local_path, file_name = await copy_to_upload_dir(
-                        str(file_path),
-                        file_name=file_path.name,
-                        from_chat_key=chat_key,
-                    )
-
-                    content_data.append(
-                        {
-                            "type": "image",
-                            "text": "",
-                            "file_name": file_name,
-                            "local_path": local_path,  # 使用复制后的路径
-                            "remote_url": "",
-                        },
-                    )
+                        content_data.append(
+                            {
+                                "type": "image",
+                                "text": "",
+                                "file_name": file_name,
+                                "local_path": local_path,  # 使用复制后的路径
+                                "remote_url": "",
+                            },
+                        )
             elif msg.type == AgentMessageSegmentType.TEXT:
                 content_data.append(
                     {

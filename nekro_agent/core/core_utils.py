@@ -76,7 +76,7 @@ class ConfigBase(BaseModel):
     def dump_config(self, file_path: Path) -> None:
         """保存配置文件"""
         if file_path.suffix == ".json":
-            file_path.write_text(self.model_dump_json())
+            file_path.write_text(self.model_dump_json(), encoding="utf-8")
         elif file_path.suffix in [".yaml", ".yml"]:
             yaml_str = yaml.dump(
                 data=self.model_dump(),
