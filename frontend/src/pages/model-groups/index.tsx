@@ -135,9 +135,9 @@ function EditDialog({
 
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
-    // 只允许字母、数字、下划线和短横线
-    const validNameRegex = /^[a-zA-Z0-9_-]+$/;
-    return validNameRegex.test(name);
+    // 只排除会影响URL解析的特殊字符，包括百分号
+    const invalidChars = /[\/\?&#=%]/;
+    return name.trim().length > 0 && !invalidChars.test(name);
   }
 
   // 处理组名变更，添加验证
@@ -151,7 +151,7 @@ function EditDialog({
     
     // 验证组名格式
     if (!validateGroupName(name)) {
-      setGroupNameError('组名只能包含字母、数字、下划线和短横线');
+      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)');
     } else {
       setGroupNameError('');
     }
@@ -162,7 +162,7 @@ function EditDialog({
   const handleSubmit = async () => {
     // 验证组名
     if (groupName && !validateGroupName(groupName)) {
-      setGroupNameError('组名只能包含字母、数字、下划线和短横线');
+      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)');
       return;
     }
     
@@ -203,7 +203,7 @@ function EditDialog({
             autoComplete="off"
             required
             error={!!groupNameError}
-            helperText={groupNameError || (groupName ? "" : "组名只能包含字母、数字、下划线和短横线，创建后不可修改")}
+            helperText={groupNameError || (groupName ? "" : "组名不能包含URL特殊字符 (如 / ? & # = %)，创建后不可修改")}
             inputProps={{
               autoComplete: 'new-password',
               form: {
