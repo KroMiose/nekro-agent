@@ -35,16 +35,37 @@ plugin = NekroPlugin(
 #        (即不需要 `await func()` )，因为其实际执行是通过 rpc 在 Nekro-Agent 主服务进行的
 #     5. `inject_prompt` 方法会在每次会话触发开始时调用一次，并将返回值注入到会话提示词中
 #     6. 插件的清理方法 `clean_up` 会在插件卸载时自动调用，请在此方法中实现清理或重置逻辑
-#
-# 插件配置编写方法:
-# @plugin.mount_config()
-# class BasicConfig(ConfigBase):
-#     """基础配置"""
-#     MY_CUSTOM_FIELD: str = Field(default="默认值", title="插件自定义配置")
-# # 获取配置
-# config: BasicConfig = plugin.get_config(BasicConfig)
-# config.MY_CUSTOM_FIELD = "test"
 # ========================================================================================
+
+
+@plugin.mount_config()
+class BasicConfig(ConfigBase):
+    """基础配置"""
+
+    STRICT_MESSAGE_FILTER: bool = Field(
+        default=False,
+        title="启用严格重复消息过滤",
+        description="启用后，完全重复的消息将直接抛出异常，否则仅过滤并提示",
+    )
+    SIMILARITY_THRESHOLD: float = Field(
+        default=0.7,
+        title="消息相似度警告阈值",
+        description="当消息相似度超过该阈值时，将触发系统警告提示引导 AI 调整生成策略",
+    )
+    SIMILARITY_CHECK_LENGTH: int = Field(
+        default=12,
+        title="消息相似度检查长度",
+        description="当消息长度超过该阈值时，将进行相似度检查",
+    )
+    ALLOW_AT_ALL: bool = Field(
+        default=False,
+        title="允许 @全体成员",
+        description="启用后，消息中可以触发 @全体成员 功能；禁用时将被替换为纯文本形式的 @全体成员",
+    )
+
+
+# 获取配置
+config: BasicConfig = plugin.get_config(BasicConfig)
 
 
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
@@ -115,7 +136,8 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     if not message_text.strip():
         raise Exception("Error: The message content cannot be empty.")
 
-    message_text = message_text.replace("[@all@]", "@全体成员")
+    if not config.ALLOW_AT_ALL:
+        message_text = message_text.replace("[@all@]", "@全体成员")
 
     # 拒绝包含 [image:xxx...] 的图片消息
     if re.match(r"^.*\[image:.*\]$", message_text) and len(message_text) > 100:
@@ -133,15 +155,22 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     if message_text in recent_messages:
         # 清空缓存允许再次发送
         SEND_MSG_CACHE[chat_key] = []
-        raise Exception(
-            "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you determine it is necessary, resend it. SPAM IS NOT ALLOWED!",
+        if config.STRICT_MESSAGE_FILTER:
+            raise Exception(
+                "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+            )
+        await message_service.push_system_message(
+            chat_key=chat_key,
+            agent_messages="System Alert: Identical message has been sent recently. Auto Skip this message. Carefully read the recent chat history whether it has sent duplicate messages. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+            trigger_agent=False,
         )
+        return
 
-    # 检查相似度（仅对超过 12 字符的消息进行检查）
-    if len(message_text) > 12:
+    # 检查相似度（仅对超过限定字符的消息进行检查）
+    if len(message_text) > config.SIMILARITY_CHECK_LENGTH:
         for recent_msg in recent_messages:
             similarity = _calculate_text_similarity(message_text, recent_msg)
-            if similarity > 0.7:
+            if similarity > config.SIMILARITY_THRESHOLD:
                 # 发送系统消息提示避免类似内容
                 logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
                 await message_service.push_system_message(
@@ -180,11 +209,12 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
     if not isinstance(file, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
 
-    file_path = convert_to_host_path(Path(file), _ctx.from_chat_key, container_key=_ctx.container_key)
-    if not file_path.exists():
-        raise FileNotFoundError(
-            f"The file `{file}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
-        )
+    if not file.startswith("http://") and not file.startswith("https://"):
+        file_path = convert_to_host_path(Path(file), _ctx.from_chat_key, container_key=_ctx.container_key)
+        if not file_path.exists():
+            raise FileNotFoundError(
+                f"The file `{file}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
+            )
 
     # 初始化文件缓存
     if chat_key not in SEND_FILE_CACHE:
@@ -196,13 +226,22 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
     # 检查是否重复发送
     if file_md5 in SEND_FILE_CACHE[chat_key]:
         SEND_FILE_CACHE[chat_key].remove(file_md5)
-        raise Exception(
-            "Error: Identical file has been sent recently. Please check if this file is really needed to be sent again. Please generate more interesting replies. SPAM IS NOT ALLOWED!",
+        if config.STRICT_MESSAGE_FILTER:
+            raise Exception(
+                "Error: Identical file has been sent recently. Please check if this file is really needed to be sent again. Please generate more interesting replies. SPAM IS NOT ALLOWED!",
+            )
+        await message_service.push_system_message(
+            chat_key=chat_key,
+            agent_messages="System Alert: Identical file has been sent recently. Auto Skip this file. Please check if this file is really needed to be sent again. Please generate more interesting replies. SPAM IS NOT ALLOWED!",
+            trigger_agent=False,
         )
+        return
 
     try:
         suf = file.split(".")[-1]
-        if suf in ["jpg", "jpeg", "png", "gif", "webp"]:
+        if suf in ["jpg", "jpeg", "png", "gif", "webp"] or any(
+            f".{suf}" in file for suf in ["jpg", "jpeg", "png", "gif", "webp"]
+        ):
             await message.send_image(chat_key, file, _ctx)
         else:
             await message.send_file(chat_key, file, _ctx)
