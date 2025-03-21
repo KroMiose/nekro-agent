@@ -203,15 +203,15 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     name="发送聊天消息图片/文件资源",
     description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
 )
-async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_container_path: str):
+async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
     """发送聊天消息图片/文件资源
 
     Args:   
         chat_key (str): 会话标识
-        file_container_path (str): 图片/文件路径或 URL 容器内路径
+        file_path (str): 图片/文件路径或 URL 容器内路径
     """
     global SEND_FILE_CACHE
-
+    file_container_path = file_path #防止误导llm
     if not isinstance(file_container_path, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
 
