@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List
 
 import aiofiles
+import magic
 from pydantic import Field
 
 from nekro_agent.api import message, user
@@ -12,7 +13,12 @@ from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.tools.path_convertor import convert_to_host_path
+from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.path_convertor import (
+    convert_to_container_path,
+    convert_to_host_path,
+    is_url_path,
+)
 
 plugin = NekroPlugin(
     name="[NA] 基础交互插件",
@@ -101,7 +107,7 @@ async def _calculate_file_md5(file_path: str) -> str:
         str: 本地文件返回 MD5 哈希值，URL 返回其链接
     """
     # 对于网络资源，直接返回 URL 作为标识
-    if file_path.startswith(("http://", "https://")):
+    if is_url_path(file_path):
         return file_path
 
     # 处理本地文件
@@ -197,31 +203,33 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     name="发送聊天消息图片/文件资源",
     description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
 )
-async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
+async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_container_path: str):
     """发送聊天消息图片/文件资源
 
-    Args:
+    Args:   
         chat_key (str): 会话标识
-        file (str): 图片/文件路径或 URL
+        file_container_path (str): 图片/文件路径或 URL 容器内路径
     """
     global SEND_FILE_CACHE
 
-    if not isinstance(file, str):
+    if not isinstance(file_container_path, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
 
-    if not file.startswith("http://") and not file.startswith("https://"):
-        file_path = convert_to_host_path(Path(file), _ctx.from_chat_key, container_key=_ctx.container_key)
-        if not file_path.exists():
+    if is_url_path(file_container_path):
+        file_host_path, _ = await download_file(file_container_path, from_chat_key=chat_key)
+        file_container_path = str(convert_to_container_path(Path(file_host_path)))
+    else:
+        file_host_path = str(convert_to_host_path(Path(file_container_path), _ctx.from_chat_key, container_key=_ctx.container_key))
+        if not Path(file_host_path).exists():
             raise FileNotFoundError(
-                f"The file `{file}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
+                f"The file `{file_container_path}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
             )
-
     # 初始化文件缓存
     if chat_key not in SEND_FILE_CACHE:
         SEND_FILE_CACHE[chat_key] = []
 
     # 计算文件 MD5
-    file_md5 = await _calculate_file_md5(file)
+    file_md5 = await _calculate_file_md5(file_host_path)
 
     # 检查是否重复发送
     if file_md5 in SEND_FILE_CACHE[chat_key]:
@@ -238,13 +246,16 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file: str):
         return
 
     try:
-        suf = file.split(".")[-1]
-        if suf in ["jpg", "jpeg", "png", "gif", "webp"] or any(
-            f".{suf}" in file for suf in ["jpg", "jpeg", "png", "gif", "webp"]
-        ):
-            await message.send_image(chat_key, file, _ctx)
+        # 使用magic库检测文件MIME类型
+        async with aiofiles.open(file_host_path, "rb") as f:
+            file_data = await f.read()
+            mime_type = magic.from_buffer(file_data, mime=True)
+            is_image = mime_type.startswith("image/")
+        
+        if is_image:
+            await message.send_image(chat_key, file_container_path, _ctx)
         else:
-            await message.send_file(chat_key, file, _ctx)
+            await message.send_file(chat_key, file_container_path, _ctx)
 
         # 更新文件缓存
         SEND_FILE_CACHE[chat_key].append(file_md5)

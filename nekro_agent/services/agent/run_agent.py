@@ -227,6 +227,7 @@ async def send_agent_request(
                 indent=2,
                 ensure_ascii=False,
             ),
+            encoding="utf-8",
         )
         raise ValueError("所有 LLM 请求失败")
 
