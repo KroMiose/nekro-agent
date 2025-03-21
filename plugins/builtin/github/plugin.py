@@ -26,5 +26,5 @@ class GitHubConfig(ConfigBase):
 
 
 # 获取配置和插件存储
-config = plugin.get_config(GitHubConfig)
+config: GitHubConfig = plugin.get_config(GitHubConfig)
 store = plugin.store
