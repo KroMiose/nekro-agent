@@ -10,6 +10,9 @@ from .core_utils import OsEnvTypes
 class OsEnv:
     """系统变量"""
 
+    """实例名称"""
+    INSTANCE_NAME: str = OsEnvTypes.Str("INSTANCE_NAME", default="")
+
     """数据目录"""
     DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data")  # `~/srv/nekro_agent` In Docker
 
@@ -53,6 +56,7 @@ APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
 BUILTIN_PLUGIN_DIR: str = "plugins/builtin"
 WORKDIR_PLUGIN_DIR: str = "plugins/workdir"
 NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"
+NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"
 EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 

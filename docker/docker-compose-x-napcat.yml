@@ -15,7 +15,7 @@ services:
     ports:
       - "${POSTGRES_EXPOSE_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ${NEKRO_DATA_DIR}/postgres_data:/var/lib/postgresql/data
     networks:
       - nekro_network
     restart: unless-stopped
@@ -25,6 +25,7 @@ services:
     image: kromiose/nekro-agent:latest
     container_name: ${INSTANCE_NAME}nekro_agent
     environment:
+      - NEKRO_INSTANCE_NAME=${INSTANCE_NAME}nekro_agent
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
       - NEKRO_EXPOSE_PORT=${NEKRO_EXPOSE_PORT:-8021}
       - NEKRO_POSTGRES_HOST=${POSTGRES_HOST:-nekro_postgres}
@@ -59,10 +60,6 @@ services:
     networks:
       - nekro_network
     restart: unless-stopped
-
-volumes:
-  postgres_data:
-    name: ${INSTANCE_NAME}postgres_data
 
 networks:
   nekro_network:

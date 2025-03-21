@@ -236,6 +236,7 @@ class PluginConfig(ConfigBase):
         title="关闭 at 功能",
         description="关闭后 AI 无法发送at消息",
     )
+
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")
     SANDBOX_RUNNING_TIMEOUT: int = Field(
@@ -348,6 +349,14 @@ class PluginConfig(ConfigBase):
     NAPCAT_CONTAINER_NAME: str = Field(
         default="napcat",
         title="NapCat 容器名称",
+    )
+
+    """插件配置"""
+    PLUGIN_DISABLED: List[str] = Field(
+        default=[],
+        title="禁用插件",
+        description="禁用插件 key 列表",
+        json_schema_extra={"is_hidden": True},
     )
 
 

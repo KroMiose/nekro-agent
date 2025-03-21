@@ -11,12 +11,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from nekro_agent.core import logger
+from nekro_agent.core.config import CONFIG_PATH, config
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.services.config_service import ConfigService
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
-
-from .base import NekroPlugin
 
 
 async def get_all_ext_meta_data() -> List[dict]:
@@ -30,7 +29,7 @@ async def get_all_ext_meta_data() -> List[dict]:
             "version": plugin.version,
             "author": plugin.author,
             "enabled": plugin.is_enabled,
-            "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,
+            "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
             "url": plugin.url or "",
         }
         for plugin in plugins
@@ -73,7 +72,7 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "author": plugin.author,
         "url": plugin.url or "",
         "enabled": plugin.is_enabled,
-        "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,
+        "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
         "methods": methods,
         "webhooks": webhooks,
     }
@@ -90,10 +89,14 @@ async def enable_plugin(plugin_id: str) -> bool:
 
     try:
         plugin.enable()
-        return True
+        if plugin.key in config.PLUGIN_DISABLED:
+            config.PLUGIN_DISABLED.remove(plugin.key)
+            ConfigService.save_config(config, CONFIG_PATH)
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
         return False
+    else:
+        return True
 
 
 async def disable_plugin(plugin_id: str) -> bool:
@@ -107,16 +110,20 @@ async def disable_plugin(plugin_id: str) -> bool:
 
     try:
         plugin.disable()
-        return True
+        if plugin.key not in config.PLUGIN_DISABLED:
+            config.PLUGIN_DISABLED.append(plugin.key)
+            ConfigService.save_config(config, CONFIG_PATH)
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")
         return False
+    else:
+        return True
 
 
 async def get_plugin_config(plugin_id: str) -> Optional[List[Dict[str, Any]]]:
     """获取插件配置列表"""
     plugin = plugin_collector.get_plugin(plugin_id)
-    if not plugin or not hasattr(plugin, "_Configs") or plugin._Configs == ConfigBase:
+    if not plugin or not hasattr(plugin, "_Configs") or plugin._Configs == ConfigBase:  # noqa: SLF001
         return None
 
     try:
@@ -142,7 +149,7 @@ async def save_plugin_config(plugin_id: str, configs: Dict[str, str]) -> Tuple[b
         (成功状态, 错误信息)
     """
     plugin = plugin_collector.get_plugin(plugin_id)
-    if not plugin or not hasattr(plugin, "_Configs") or plugin._Configs == ConfigBase:
+    if not plugin or not hasattr(plugin, "_Configs") or plugin._Configs == ConfigBase:  # noqa: SLF001
         return False, f"插件 {plugin_id} 不存在或无配置"
 
     try:
@@ -156,11 +163,12 @@ async def save_plugin_config(plugin_id: str, configs: Dict[str, str]) -> Tuple[b
             return False, error_msg
 
         # 保存配置
-        success, error_msg = ConfigService.save_config(config, plugin._plugin_config_path)
+        success, error_msg = ConfigService.save_config(config, plugin._plugin_config_path)  # noqa: SLF001
         if not success:
             return False, f"保存配置失败: {error_msg}"
 
-        return True, None
     except Exception as e:
         logger.error(f"保存插件配置失败: {plugin_id}, 错误: {e}")
         return False, f"保存失败: {e!s}"
+    else:
+        return True, None

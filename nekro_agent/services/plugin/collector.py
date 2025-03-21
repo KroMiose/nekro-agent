@@ -84,6 +84,8 @@ class PluginCollector:
                     logger.success(
                         f'插件加载成功: "[{plugin.key}] {plugin.name}" by "{plugin.author or "未知"}"',
                     )
+                    if plugin.key in config.PLUGIN_DISABLED:
+                        plugin.disable()
                     self.loaded_plugins[plugin.key] = plugin
                 else:
                     logger.warning(f"插件实例类型错误: {path}")
@@ -110,6 +112,14 @@ class PluginCollector:
             List[NekroPlugin]: 插件列表
         """
         return list(self.loaded_plugins.values())
+
+    def get_all_active_plugins(self) -> List[NekroPlugin]:
+        """获取所有已加载且启用的插件
+
+        Returns:
+            List[NekroPlugin]: 插件列表
+        """
+        return [plugin for plugin in self.loaded_plugins.values() if plugin.is_enabled]
 
     def get_method(self, method_name: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
         """获取指定方法
