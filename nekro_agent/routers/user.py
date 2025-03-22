@@ -14,14 +14,14 @@ from nekro_agent.schemas.user import (
     UserCreate,
     UserLogin,
 )
-from nekro_agent.services.user import (
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.role import Role, get_perm_role
+from nekro_agent.services.user.util import (
     user_change_password,
     user_delete,
     user_login,
     user_register,
 )
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.role import Role, get_perm_role
 
 router = APIRouter(prefix="/user", tags=["User"])
 

@@ -11,13 +11,13 @@ from nekro_agent.schemas.user import (
     UserLogin,
     UserToken,
 )
-from nekro_agent.systems.user.auth import (
+from nekro_agent.services.user.auth import (
     create_access_token,
     create_refresh_token,
     get_hashed_password,
     verify_password,
 )
-from nekro_agent.systems.user.perm import Role
+from nekro_agent.services.user.perm import Role
 
 
 async def query_user_by_bind_qq(qq: str) -> Optional[DBUser]:

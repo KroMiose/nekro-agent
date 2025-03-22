@@ -19,8 +19,8 @@ from nekro_agent.services.plugin.manager import (
     save_plugin_config,
 )
 from nekro_agent.services.plugin.schema import SandboxMethodType
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.perm import Role, require_role
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/plugins", tags=["Plugins"])
 

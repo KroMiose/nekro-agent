@@ -12,7 +12,7 @@ from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
-from nekro_agent.services.user import user_login
+from nekro_agent.services.user.util import user_login
 
 from .chat_channel import router as chat_channel_router
 from .config import router as config_router

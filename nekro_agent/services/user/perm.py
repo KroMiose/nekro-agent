@@ -5,8 +5,8 @@ from fastapi import Depends, HTTPException
 from starlette import status
 
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.role import Role
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.role import Role
 
 
 def require_role(min_role: Role) -> Callable:

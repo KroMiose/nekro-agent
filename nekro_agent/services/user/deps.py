@@ -13,7 +13,7 @@ from nekro_agent.schemas.http_exception import (
     authorization_exception,
     credentials_exception,
 )
-from nekro_agent.systems.user.role import Role
+from nekro_agent.services.user.role import Role
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 

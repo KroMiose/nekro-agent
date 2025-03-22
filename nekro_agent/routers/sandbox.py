@@ -7,8 +7,8 @@ from tortoise.functions import Count
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.perm import Role, require_role
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/sandbox", tags=["Sandbox"])
 

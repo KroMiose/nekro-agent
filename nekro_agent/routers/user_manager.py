@@ -14,10 +14,10 @@ from nekro_agent.schemas.http_exception import (
 )
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserCreate, UserUpdate
-from nekro_agent.services.user import user_register
-from nekro_agent.systems.user.auth import get_hashed_password
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.role import Role, get_perm_role
+from nekro_agent.services.user.auth import get_hashed_password
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.role import Role, get_perm_role
+from nekro_agent.services.user.util import user_register
 
 router = APIRouter(prefix="/user-manager", tags=["UserManager"])
 
@@ -170,6 +170,7 @@ async def update_user(
 class BanUserRequest(BaseModel):
     ban_until: Optional[datetime] = None
 
+
 @router.post("/{user_id}/ban", summary="封禁/解封用户")
 async def ban_user(
     user_id: int,
@@ -193,6 +194,7 @@ async def ban_user(
 
 class PreventTriggerRequest(BaseModel):
     prevent_trigger_until: Optional[datetime] = None
+
 
 @router.post("/{user_id}/prevent-trigger", summary="设置触发权限")
 async def prevent_trigger(

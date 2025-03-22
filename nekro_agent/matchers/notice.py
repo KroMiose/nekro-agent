@@ -12,7 +12,7 @@ from nekro_agent.core.notice import BaseNoticeHandler, NoticeConfig, notice_mana
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.user import query_user_by_bind_qq
+from nekro_agent.services.user.util import query_user_by_bind_qq
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 from nekro_agent.tools.time_util import format_duration
 
