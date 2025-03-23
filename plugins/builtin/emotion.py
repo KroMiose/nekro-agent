@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import aiofiles
 import chromadb
+import chromadb.errors
 import httpx
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
@@ -46,8 +47,10 @@ class EmotionConfig(ConfigBase):
         title="最近添加表情包显示数量",
         description="最近添加表情包最大显示数量",
     )
-    MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
-    EMBEDDING_MODEL: str = Field(default="text-embedding-v3", title="嵌入模型", description="使用的嵌入模型")
+    MAX_SEARCH_RESULTS: int = Field(
+        default=3, title="搜索结果显示数量", description="搜索结果显示数量")
+    EMBEDDING_MODEL: str = Field(
+        default="text-embedding-v3", title="嵌入模型", description="使用的嵌入模型")
     EMBEDDING_API_KEY: str = Field(
         default="",
         title="嵌入模型 API Key",
@@ -60,15 +63,18 @@ class EmotionConfig(ConfigBase):
         description="嵌入模型 API 地址",
         json_schema_extra={"is_secret": True},
     )
-    EMBEDDING_API_ENDPOINT: str = Field(default="/embeddings", title="嵌入模型 API 端点", description="嵌入模型 API 端点")
-    EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
+    EMBEDDING_API_ENDPOINT: str = Field(
+        default="/embeddings", title="嵌入模型 API 端点", description="嵌入模型 API 端点")
+    EMBEDDING_DIMENSION: int = Field(
+        default=1024, title="嵌入维度", description="嵌入维度")
 
 
 # 获取配置和插件存储
 config: EmotionConfig = plugin.get_config(EmotionConfig)
 store = plugin.store
 store_dir = plugin.get_plugin_path() / "emotions"
-chroma_client = chromadb.PersistentClient(path=str(plugin.get_plugin_path() / "vector_db"))
+chroma_client = chromadb.PersistentClient(
+    path=str(plugin.get_plugin_path() / "vector_db"))
 
 # 确保存储目录存在
 store_dir.mkdir(parents=True, exist_ok=True)
@@ -78,7 +84,7 @@ COLLECTION_NAME = "emotion_collection"
 try:
     emotion_collection = chroma_client.get_collection(name=COLLECTION_NAME)
     logger.info(f"加载已有表情包向量集合: {COLLECTION_NAME}")
-except ValueError | InvalidCollectionException:
+except (ValueError,InvalidCollectionException):
     # 集合不存在时创建新集合
     emotion_collection = chroma_client.create_collection(
         name=COLLECTION_NAME,
@@ -186,7 +192,8 @@ async def generate_embedding(text: str) -> List[float]:
 
     # 验证维度是否一致
     if vector_dimension != config.EMBEDDING_DIMENSION:
-        logger.error(f"嵌入向量维度不匹配！预期: {config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
+        logger.error(
+            f"嵌入向量维度不匹配！预期: {config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
         raise ValueError(
             f"嵌入向量维度错误！预期为 {config.EMBEDDING_DIMENSION} 维，但实际获取到 {vector_dimension} 维。请更新配置中的 EMBEDDING_DIMENSION 值为 {vector_dimension} 。",
         )
@@ -221,7 +228,8 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
     # 如果是本地路径，则复制图片
     try:
-        source_path_obj = convert_to_host_path(Path(source_path), _ctx.from_chat_key)
+        source_path_obj = convert_to_host_path(
+            Path(source_path), _ctx.from_chat_key)
         logger.info(f"从本地路径复制图片: {source_path_obj} 到 {target_path}")
 
         if not source_path_obj.exists():
@@ -409,7 +417,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         )[start_idx:end_idx]
 
         for emotion_id, metadata in sorted_emotions:
-            tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+            tags_str = "、".join(
+                metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
             message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
 
         message += "使用 emo-list <页码> 查看其他页面～"
@@ -436,8 +445,10 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
 
     prompt_parts = ["Recent Emotions:"]
     for idx, (emotion_id, metadata) in enumerate(recent_emotions, 1):
-        tags_str = ", ".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
-        prompt_parts.append(f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]")
+        tags_str = ", ".join(
+            metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+        prompt_parts.append(
+            f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]")
 
     return "\n".join(prompt_parts)
 
@@ -500,7 +511,8 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             file_name = f"{hashlib.md5(source_path.encode()).hexdigest()[:8]}.png"
     else:
         # 本地文件，直接使用原文件名
-        file_name = convert_to_host_path(Path(source_path), _ctx.from_chat_key).name
+        file_name = convert_to_host_path(
+            Path(source_path), _ctx.from_chat_key).name
 
     # 添加随机字符串避免文件名冲突
     path_obj = Path(file_name)
@@ -541,7 +553,8 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             emotion_collection.add(
                 ids=[duplicate_id],
                 embeddings=[embedding],
-                metadatas=[{"description": description, "tags": ",".join(tags)}],
+                metadatas=[
+                    {"description": description, "tags": ",".join(tags)}],
             )
             logger.info(f"已添加新向量: {duplicate_id}")
 
@@ -840,7 +853,8 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     emotion_store = await load_emotion_store()
 
     # 构建多模态消息
-    msg = OpenAIChatMessage.from_text("user", f"Here are the emotions You have collected for '{query}':")
+    msg = OpenAIChatMessage.from_text(
+        "user", f"Here are the emotions You have collected for '{query}':")
 
     for i, emotion_id in enumerate(results["ids"][0]):
         metadata = emotion_store.get_emotion(emotion_id)
