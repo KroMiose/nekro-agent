@@ -25,6 +25,7 @@ from nekro_agent.tools.path_convertor import (
     convert_to_container_path,
     convert_to_host_path,
 )
+from chromadb.errors import InvalidCollectionException
 
 plugin = NekroPlugin(
     name="[NA] 表情包插件",
@@ -77,7 +78,7 @@ COLLECTION_NAME = "emotion_collection"
 try:
     emotion_collection = chroma_client.get_collection(name=COLLECTION_NAME)
     logger.info(f"加载已有表情包向量集合: {COLLECTION_NAME}")
-except ValueError:
+except ValueError | InvalidCollectionException:
     # 集合不存在时创建新集合
     emotion_collection = chroma_client.create_collection(
         name=COLLECTION_NAME,
