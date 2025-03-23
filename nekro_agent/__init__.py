@@ -20,6 +20,7 @@ from nekro_agent.services.mail.mail_service import send_bot_status_email
 # from nekro_agent.services.extension import init_extensions, reload_ext_workdir
 from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.timer_service import timer_service
+from nekro_agent.systems.cloud.scheduler import start_telemetry_task
 
 from .app import start
 
@@ -53,6 +54,9 @@ async def on_startup():
     # 初始化节日提醒
     await festival_service.init_festivals()
     logger.info("Festival service initialized")
+
+    # 遥测任务
+    start_telemetry_task()
 
 
 @get_driver().on_shutdown

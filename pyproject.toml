@@ -46,6 +46,7 @@ aiofiles = "^24.1.0"
 chromadb = "^0.6.3"
 python-magic = "^0.4.27"
 python-magic-bin = { version = "^0.4.14", markers = "sys_platform == 'win32'" }
+psutil = "^7.0.0"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"

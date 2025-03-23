@@ -123,7 +123,7 @@ class NekroPlugin(Generic[T]):
         def decorator(func):
             func._method_type = method_type  # noqa: SLF001
             self.sandbox_methods.append(SandboxMethod(method_type, name, description, func))
-            logger.debug(f"从插件 {self.name} 挂载沙盒方法 {name} 成功")
+            # logger.debug(f"从插件 {self.name} 挂载沙盒方法 {name} 成功")
             return func
 
         return decorator
