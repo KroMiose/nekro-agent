@@ -78,7 +78,8 @@ COLLECTION_NAME = "emotion_collection"
 try:
     emotion_collection = chroma_client.get_collection(name=COLLECTION_NAME)
     logger.info(f"加载已有表情包向量集合: {COLLECTION_NAME}")
-except (ValueError,chromadb.errors.InvalidCollectionException) as e:
+except (ValueError, chromadb.errors.InvalidCollectionException) as e:
+    logger.debug(f"Error retrieving collection {COLLECTION_NAME}: {e}")
     # 集合不存在时创建新集合
     emotion_collection = chroma_client.create_collection(
         name=COLLECTION_NAME,
