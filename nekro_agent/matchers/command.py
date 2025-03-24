@@ -1,5 +1,6 @@
 import os
 import time
+from datetime import datetime, timedelta
 from typing import List, Optional, Tuple, Union
 
 from nonebot import on_command
@@ -23,6 +24,7 @@ from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.sandbox.executor import limited_run_code
+from nekro_agent.systems.cloud.api import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
@@ -735,3 +737,24 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 #             await finish_with(matcher, message="重载完成，但没有找到任何模块")
 #     except Exception as e:
 #         await finish_with(matcher, message=f"重载失败: {e!s}")
+
+
+@on_command("telemetry_report", aliases={"telemetry-report"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """手动触发遥测数据提交（用于调试）"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    try:
+        # 获取当前时间和上一个整点时间
+        now = datetime.now()
+        current_hour = now.replace(minute=0, second=0, microsecond=0)
+        prev_hour = current_hour - timedelta(hours=1)
+
+        # 上报上一个小时的数据
+        response = await send_telemetry_report(prev_hour, current_hour)
+        if response.success:
+            await finish_with(matcher, message=f"遥测数据上报成功: {prev_hour} - {current_hour}")
+        else:
+            await finish_with(matcher, message=f"遥测数据上报失败: {response.message}")
+
+    except Exception as e:
+        await finish_with(matcher, message=f"遥测数据上报异常: {e}")

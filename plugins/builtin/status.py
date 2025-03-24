@@ -179,8 +179,7 @@ async def update_preset_status(_ctx: schemas.AgentCtx, chat_key: str, setting_na
     """Update Character Preset Basic Status
 
     **Attention**:
-    1. You must call this method only when the scene development changes and the current preset status **does not match**, because the context is limited, you cannot use this method too frequently, otherwise the earlier status records will be lost!
-    2. Usually used in conjunction with `set_note` / `remove_note` to implement persistent memory
+    1. You must call this method only when the scene development changes and the current preset status **does not match**. The data of status are not persistent, because the context is limited, you cannot use this method too frequently, otherwise the earlier status records will be lost!
 
     Args:
         chat_key (str): Chat Key
@@ -192,7 +191,6 @@ async def update_preset_status(_ctx: schemas.AgentCtx, chat_key: str, setting_na
         character_name = "" # Replace with actual character name (Your Name)
         # Assuming the new state is "认真看书" and the previous state is "戴着帽子"
         update_preset_status(chat_key, f"正在认真看书的{character_name}", f'由于 ... " ... {character_name} 开始认真看书且仍然戴着帽子')
-        set_note(chat_key, "戴着帽子", "戴着一顶可爱的帽子")  # Add "wearing a hat" effect to maintain state consistency
         ```
     """
     # 从存储中获取频道数据

@@ -359,6 +359,16 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"is_hidden": True},
     )
 
+    """Nekro Cloud 云服务配置"""
+    ENABLE_NEKRO_CLOUD: bool = Field(
+        default=True,
+        title="启用 Nekro Cloud",
+        description=(
+            "是否启用 Nekro Cloud 云服务，启用后可使用 Nekro Cloud 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
+            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
+        ),
+    )
+
 
 try:
     config = PluginConfig.load_config(file_path=CONFIG_PATH)

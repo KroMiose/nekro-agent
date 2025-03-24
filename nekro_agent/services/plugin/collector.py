@@ -73,7 +73,7 @@ class PluginCollector:
             module_path: 模块导入路径
             path: 文件或目录路径（用于日志）
         """
-        logger.info(f"正在加载插件: {module_path} 从 {path}")
+        # logger.info(f"正在加载插件: {module_path} 从 {path}")
         try:
             module = import_module(module_path)
 
@@ -82,7 +82,7 @@ class PluginCollector:
 
                 if isinstance(plugin, NekroPlugin):
                     logger.success(
-                        f'插件加载成功: "[{plugin.key}] {plugin.name}" by "{plugin.author or "未知"}"',
+                        f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}" ({plugin.key})',
                     )
                     if plugin.key in config.PLUGIN_DISABLED:
                         plugin.disable()
