@@ -36,7 +36,7 @@ async def get_daily_zaobao(chat_key: str, _ctx: AgentCtx) -> str:
         get_daily_zaobao("chat_key")
     """
     api_token = config.ZB_API_TOKEN
-    url = config.ZB_URL
+    url = config.ZB_API_URL
     payload = {"token": api_token, "format": "json"}
     headers = {"Content-Type": "application/json"}
     
