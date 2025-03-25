@@ -99,16 +99,6 @@ export default function ChatChannelList({
                 />
               </Stack>
               <Stack spacing={0.5} className="min-w-0">
-                <Typography
-                  variant="caption"
-                  color="textSecondary"
-                  className="truncate block"
-                  sx={{ lineHeight: 1.2 }}
-                >
-                  {channel.current_preset
-                    ? `${channel.current_preset.setting_name}: ${channel.current_preset.description}`
-                    : '无预设状态'}
-                </Typography>
                 <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between">
                   <Typography
                     variant="caption"

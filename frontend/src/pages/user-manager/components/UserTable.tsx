@@ -80,6 +80,7 @@ interface UserTableProps {
   }) => Promise<unknown>
   onResetPassword: (params: { id: number; password: string }) => Promise<unknown>
   onUpdateUser: (params: { id: number; data: UserUpdateData }) => Promise<unknown>
+  showEditButton?: boolean
 }
 
 const UserTable: React.FC<UserTableProps> = ({
@@ -96,6 +97,7 @@ const UserTable: React.FC<UserTableProps> = ({
   onSetPreventTrigger,
   onResetPassword,
   onUpdateUser,
+  showEditButton = true,
 }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [banDialogOpen, setBanDialogOpen] = useState(false)
@@ -641,11 +643,13 @@ const UserTable: React.FC<UserTableProps> = ({
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="编辑用户">
-                          <IconButton size="small" onClick={() => handleEditClick(user)}>
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        {showEditButton && (
+                          <Tooltip title="编辑用户">
+                            <IconButton size="small" onClick={() => handleEditClick(user)}>
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
                           <IconButton size="small" onClick={() => handleBanClick(user)}>
                             <BlockIcon fontSize="small" />
