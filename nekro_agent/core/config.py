@@ -381,7 +381,7 @@ class PluginConfig(ConfigBase):
         default="https://v3.alapi.cn/api/zaobao",
         title="早报 API URL",
         json_schema_extra={"placeholder": "例: https://v3.alapi.cn/api/zaobao"},
-        description="表情包 API URL 配置，可以填写其他的API（自建）",
+        description="每日早报 API URL 配置，可以填写其他的API（自建）",
     )
     ZB_API_TOKEN: str = Field(
         default="",
