@@ -1,5 +1,4 @@
 import axios from './axios'
-import { PresetNote, PresetStatus } from '../../types/chat'
 
 export interface ChatChannel {
   id: number
@@ -8,7 +7,6 @@ export interface ChatChannel {
   is_active: boolean
   chat_type: string
   message_count: number
-  current_preset: PresetStatus | null
   create_time: string
   update_time: string
   last_message_time: string | null
@@ -16,10 +14,7 @@ export interface ChatChannel {
 
 export interface ChatChannelDetail extends ChatChannel {
   unique_users: number
-  preset_status_list: PresetStatus[]
-  preset_notes: PresetNote[]
   conversation_start_time: string
-  max_preset_status_refer_size: number
 }
 
 export interface ChatMessage {

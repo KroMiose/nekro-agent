@@ -29,7 +29,6 @@ import {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
-import PresetStatus from './detail-tabs/PresetStatus'
 import MessageHistory from './detail-tabs/MessageHistory'
 
 interface ChatChannelDetailProps {
@@ -171,7 +170,6 @@ export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
       <Box className="flex-shrink-0">
         <Tabs value={currentTab} onChange={handleTabChange} variant="fullWidth">
           <Tab label="基础信息" />
-          <Tab label="状态信息" />
           <Tab label="消息记录" />
         </Tabs>
       </Box>
@@ -181,8 +179,7 @@ export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
       {/* 标签内容 */}
       <Box className="flex-1 overflow-auto">
         {currentTab === 0 && <BasicInfo channel={channel} />}
-        {currentTab === 1 && <PresetStatus channel={channel} />}
-        {currentTab === 2 && <MessageHistory chatKey={chatKey} />}
+        {currentTab === 1 && <MessageHistory chatKey={chatKey} />}
       </Box>
 
       {/* 重置确认对话框 */}
