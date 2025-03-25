@@ -375,6 +375,20 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"placeholder": "例: 猫猫"},
         description="表情包的类型，填入后实际搜索的表情包为 [你填写的类型]+[情绪] 例子：猫猫开心",
     )
+    
+    """每日早报扩展 配置"""
+    ZB_API_URL: str = Field(
+        default="https://v3.alapi.cn/api/zaobao",
+        title="早报 API URL",
+        json_schema_extra={"placeholder": "例: https://v3.alapi.cn/api/zaobao"},
+        description="每日早报 API URL 配置，可以填写其他的API（自建）",
+    )
+    ZB_API_TOKEN: str = Field(
+        default="",
+        title="早报 API Token 密钥",
+        json_schema_extra={"is_secret": True},
+        description="ALAPI Token密钥 <a href='https://www.alapi.cn/' target='_blank'>获取地址</a>",
+    )   
 
     """二次元图片扩展 配置"""
     R18_CONFIG: bool = Field(
