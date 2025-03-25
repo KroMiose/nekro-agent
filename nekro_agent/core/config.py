@@ -383,7 +383,7 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"placeholder": "例: https://v3.alapi.cn/api/zaobao"},
         description="表情包 API URL 配置，可以填写其他的API（自建）",
     )
-     EMO_API_TOKEN: str = Field(
+    ZB_API_TOKEN: str = Field(
         default="",
         title="早报 API Token 密钥",
         json_schema_extra={"is_secret": True},
