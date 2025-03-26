@@ -47,7 +47,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   const [currentPreset, setCurrentPreset] = useState<Preset | null>(null)
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
-  
+
   // 获取当前会话的人设信息
   useEffect(() => {
     const fetchCurrentPreset = async () => {
@@ -67,13 +67,13 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
     }
     fetchCurrentPreset()
   }, [channel.preset_id])
-  
+
   // 打开人设选择对话框时加载人设列表
   const handleOpenPresetDialog = async () => {
     setPresetDialogOpen(true)
     await loadPresets()
   }
-  
+
   // 加载人设列表
   const loadPresets = async () => {
     try {
@@ -91,12 +91,12 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       setLoading(false)
     }
   }
-  
+
   // 搜索人设
   const handleSearch = async () => {
     await loadPresets()
   }
-  
+
   // 选择人设
   const handleSelectPreset = async (preset: Preset | null) => {
     try {
@@ -106,7 +106,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
         variant: 'success',
       })
       setPresetDialogOpen(false)
-      
+
       // 刷新会话详情
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
     } catch (error) {
@@ -135,7 +135,9 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           <Typography variant="body2" color="textSecondary" className="mb-1">
             {label}
           </Typography>
-          <Typography variant="body1">{value}</Typography>
+          <Typography variant="body1" component="div">
+            {value}
+          </Typography>
         </Box>
         {action}
       </Stack>
@@ -158,7 +160,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                   alt={currentPreset.name}
                   sx={{ width: 24, height: 24, marginRight: 0.5 }}
                 />
-                <Typography>
+                <Typography component="div">
                   {currentPreset.title}
                   {currentPreset.is_remote && (
                     <Chip
@@ -208,9 +210,14 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           value={channel.last_message_time || '暂无消息'}
         />
       </Stack>
-      
+
       {/* 人设选择对话框 */}
-      <Dialog open={presetDialogOpen} onClose={() => setPresetDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog
+        open={presetDialogOpen}
+        onClose={() => setPresetDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>选择人设</DialogTitle>
         <DialogContent>
           <Box className="mb-3 mt-2">
@@ -237,7 +244,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
               }}
             />
           </Box>
-          
+
           <Box className="mb-3">
             <Button
               fullWidth
@@ -248,9 +255,9 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
               使用默认人设(清除当前人设)
             </Button>
           </Box>
-          
+
           <Divider className="mb-2" />
-          
+
           {loading ? (
             <Box className="flex justify-center p-4">
               <CircularProgress />
@@ -263,7 +270,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                     <ListItemAvatar>
                       <Avatar src={preset.avatar} alt={preset.name} />
                     </ListItemAvatar>
-                    <ListItemText 
+                    <ListItemText
                       primary={
                         <Stack direction="row" spacing={1} alignItems="center">
                           {preset.title}
@@ -297,4 +304,4 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       </Dialog>
     </Box>
   )
-} 
+}

@@ -975,19 +975,22 @@ export default function PresetsPage() {
   const [presets, setPresets] = useState<Preset[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
-  const pageSize = 20
+  const pageSize = 25
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [editDialog, setEditDialog] = useState(false)
   const [editingPreset, setEditingPreset] = useState<PresetDetail | undefined>(undefined)
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
   const { enqueueSnackbar } = useSnackbar()
-  const [errorMessage, setErrorMessage] = useState<{type: 'success' | 'error' | 'info' | 'warning'; content: string} | null>(null)
+  const [errorMessage, setErrorMessage] = useState<{
+    type: 'success' | 'error' | 'info' | 'warning'
+    content: string
+  } | null>(null)
 
   // 添加全局错误处理函数
   const showError = useCallback((message: string) => {
     console.error(message)
-    setErrorMessage({type: 'error', content: message})
+    setErrorMessage({ type: 'error', content: message })
     setTimeout(() => setErrorMessage(null), 5000) // 5秒后自动关闭
   }, [])
 
