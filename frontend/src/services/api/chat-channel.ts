@@ -15,6 +15,7 @@ export interface ChatChannel {
 export interface ChatChannelDetail extends ChatChannel {
   unique_users: number
   conversation_start_time: string
+  preset_id?: number | null
 }
 
 export interface ChatMessage {
@@ -74,7 +75,17 @@ export const chatChannelApi = {
         before_id: params.before_id,
         page_size: params.page_size || 32,
       },
+
     })
     return response.data.data
+  },
+
+  setPreset: async (chatKey: string, presetId: number | null) => {
+    const response = await axios.post<{ code: number; msg: string }>(
+      `/chat-channel/${chatKey}/preset`,
+      null,
+      { params: { preset_id: presetId } },
+    )
+    return response.data
   },
 } 

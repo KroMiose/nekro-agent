@@ -49,14 +49,12 @@ async def get_chat_channel_list(
         last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
         # 确保时间是 naive 的
         last_message_time = last_message.create_time.replace(tzinfo=None) if last_message else datetime.min
-        channel_data = await channel.get_channel_data()
 
         channel_info_list.append(
             {
                 "channel": channel,
                 "message_count": message_count,
                 "last_message_time": last_message_time,
-                "channel_data": channel_data,
             },
         )
 
@@ -80,7 +78,6 @@ async def get_chat_channel_list(
                 "is_active": channel.is_active,
                 "chat_type": channel.chat_type.value,
                 "message_count": info["message_count"],
-                "current_preset": info["channel_data"].get_latest_preset_status(),
                 "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "last_message_time": (
@@ -102,18 +99,13 @@ async def get_chat_channel_list(
 
 @router.get("/detail/{chat_key}", summary="获取会话详情")
 @require_role(Role.Admin)
-async def get_chat_channel_detail(
-    chat_key: str,
-    include_history: bool = True,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """获取会话详情"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
         return Ret.fail(msg="会话不存在")
 
     # 获取会话数据
-    channel_data = await channel.get_channel_data()
     message_count = await DBChatMessage.filter(chat_key=chat_key).count()
 
     # 获取最近一条消息的时间
@@ -122,11 +114,6 @@ async def get_chat_channel_detail(
 
     # 获取参与用户数
     unique_users = await DBChatMessage.filter(chat_key=chat_key).distinct().values_list("sender_id", flat=True)
-
-    # 获取历史状态列表
-    preset_status_list = channel_data.preset_status_list
-    if not include_history:
-        preset_status_list = preset_status_list[-1:] if preset_status_list else []
 
     return Ret.success(
         msg="获取成功",
@@ -138,13 +125,12 @@ async def get_chat_channel_detail(
             "chat_type": channel.chat_type.value,
             "message_count": message_count,
             "unique_users": len(unique_users),
-            "current_preset": channel_data.get_latest_preset_status(),
-            "preset_status_list": preset_status_list,
             "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
             "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
             "last_message_time": last_message_time.strftime("%Y-%m-%d %H:%M:%S") if last_message_time else None,
             "conversation_start_time": channel.conversation_start_time.strftime("%Y-%m-%d %H:%M:%S"),
             "max_preset_status_refer_size": config.AI_MAX_PRESET_STATUS_REFER_SIZE,
+            "preset_id": channel.preset_id,
         },
     )
 
@@ -220,3 +206,29 @@ async def get_chat_channel_messages(
             ],
         },
     )
+
+
+@router.post("/{chat_key}/preset", summary="设置会话人设")
+@require_role(Role.Admin)
+async def set_chat_channel_preset(
+    chat_key: str,
+    preset_id: Optional[int] = None,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """设置会话人设，传入 preset_id=None 则使用默认人设"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+
+    # 设置人设ID，None需要作为null处理
+    if preset_id is None:
+        channel.preset_id = None  # type: ignore  # 在数据库模型中允许为null
+    else:
+        channel.preset_id = preset_id
+    await channel.save()
+
+    # 获取人设信息
+    preset = await channel.get_preset()
+    preset_name = preset.name if hasattr(preset, "name") else "默认人设"
+
+    return Ret.success(msg=f"设置成功，当前人设: {preset_name}")

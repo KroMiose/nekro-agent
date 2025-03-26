@@ -150,9 +150,17 @@ class MessageService:
                 new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message))
                 self.running_tasks[chat_key] = new_task
 
-    async def push_human_message(self, message: ChatMessage, user: Optional[DBUser] = None, trigger_agent: bool = False):
+    async def push_human_message(
+        self,
+        message: ChatMessage,
+        user: Optional[DBUser] = None,
+        trigger_agent: bool = False,
+        db_chat_channel: Optional[DBChatChannel] = None,
+    ):
         """推送人类消息"""
         logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=message.chat_key)
+        preset = await db_chat_channel.get_preset()
 
         if not await self._message_validation_check(message):
             logger.warning("消息校验失败，跳过本次处理...")
@@ -186,23 +194,30 @@ class MessageService:
         # 检查是否需要触发回复
         should_trigger = (
             trigger_agent
-            or config.AI_CHAT_PRESET_NAME in message.content_text
+            or preset.name in message.content_text
             or message.is_tome
             or random_chat_check()
             or check_content_trigger(message.content_text)
         )
 
         if not should_ignore and should_trigger:
-            db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=message.chat_key)
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
             await self.schedule_agent_task(message=message)
 
-    async def push_bot_message(self, chat_key: str, agent_messages: Union[str, List[AgentMessageSegment]]):
+    async def push_bot_message(
+        self,
+        chat_key: str,
+        agent_messages: Union[str, List[AgentMessageSegment]],
+        db_chat_channel: Optional[DBChatChannel] = None,
+    ):
         """推送机器人消息"""
         logger.info(f"Pushing Bot Message To Chat {chat_key}")
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=chat_key)
+        preset = await db_chat_channel.get_preset()
+
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
@@ -245,8 +260,8 @@ class MessageService:
             message_id="",
             sender_id=-1,
             sender_bind_qq=config.BOT_QQ or "0",
-            sender_real_nickname=config.AI_CHAT_PRESET_NAME,
-            sender_nickname=config.AI_CHAT_PRESET_NAME,
+            sender_real_nickname=preset.name,
+            sender_nickname=preset.name,
             is_tome=0,
             is_recalled=False,
             chat_key=chat_key,
@@ -263,9 +278,12 @@ class MessageService:
         chat_key: str,
         agent_messages: Union[str, List[AgentMessageSegment]],
         trigger_agent: bool = False,
+        db_chat_channel: Optional[DBChatChannel] = None,
     ):
         """推送系统消息"""
         logger.info(f"Pushing System Message To Chat {chat_key}")
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=chat_key)
+
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
@@ -290,7 +308,6 @@ class MessageService:
         )
 
         if trigger_agent:
-            db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
                 return

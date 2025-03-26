@@ -14,6 +14,7 @@ from nonebot.adapters.onebot.v11 import (
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import NAPCAT_TEMPFILE_DIR
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
@@ -23,8 +24,8 @@ from nekro_agent.schemas.chat_message import (
     segments_from_list,
 )
 from nekro_agent.tools.common_util import (
-    download_file,
     copy_to_upload_dir,
+    download_file,
 )
 from nekro_agent.tools.onebot_util import get_user_group_card_name
 from nekro_agent.tools.path_convertor import get_sandbox_path
@@ -34,7 +35,7 @@ async def convert_chat_message(
     ob_event: Union[MessageEvent, GroupMessageEvent, GroupUploadNoticeEvent],
     msg_to_me: bool,
     bot: Bot,  # noqa: ARG001
-    chat_key: str,  # noqa: ARG001
+    db_chat_channel: DBChatChannel,
 ) -> Tuple[List[ChatMessageSegment], bool, str]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
@@ -62,7 +63,7 @@ async def convert_chat_message(
             local_path, file_name = await download_file(
                 ob_event.file.model_extra["url"],
                 use_suffix=suffix,
-                from_chat_key=chat_key,
+                from_chat_key=db_chat_channel.chat_key,
             )
             ret_list.append(
                 ChatMessageSegmentFile(
@@ -83,7 +84,7 @@ async def convert_chat_message(
                 local_path, file_name = await copy_to_upload_dir(
                     file_path=target_file_path,
                     file_name=file_data["file_name"],
-                    from_chat_key=chat_key,
+                    from_chat_key=db_chat_channel.chat_key,
                 )
                 logger.debug(f"上传文件转移: {target_file_path} -> {local_path}")
                 ret_list.append(
@@ -128,7 +129,11 @@ async def convert_chat_message(
                 suffix = ""
             if "url" in seg.data:
                 remote_url: str = seg.data["url"]
-                local_path, file_name = await download_file(remote_url, use_suffix=suffix, from_chat_key=chat_key)
+                local_path, file_name = await download_file(
+                    remote_url,
+                    use_suffix=suffix,
+                    from_chat_key=db_chat_channel.chat_key,
+                )
                 ret_list.append(
                     ChatMessageSegmentImage(
                         type=ChatMessageSegmentType.IMAGE,
@@ -142,7 +147,11 @@ async def convert_chat_message(
                 seg_local_path = seg.data["file"]
                 if seg_local_path.startswith("file:"):
                     seg_local_path = seg_local_path[len("file:") :]
-                local_path, file_name = await copy_to_upload_dir(seg_local_path, use_suffix=suffix, from_chat_key=chat_key)
+                local_path, file_name = await copy_to_upload_dir(
+                    seg_local_path,
+                    use_suffix=suffix,
+                    from_chat_key=db_chat_channel.chat_key,
+                )
                 ret_list.append(
                     ChatMessageSegmentImage(
                         type=ChatMessageSegmentType.IMAGE,
@@ -163,9 +172,13 @@ async def convert_chat_message(
             if at_qq == bot_qq:
                 at_qq = bot_qq
                 is_tome = True
-                nick_name = config.AI_CHAT_PRESET_NAME
+                nick_name = (await db_chat_channel.get_preset()).name
             else:
-                nick_name = await get_user_group_card_name(group_id=ob_event.group_id, user_id=at_qq)
+                nick_name = await get_user_group_card_name(
+                    group_id=ob_event.group_id,
+                    user_id=at_qq,
+                    db_chat_channel=db_chat_channel,
+                )
             logger.info(f"OneBot at message: {at_qq=} {nick_name=}")
             if config.SESSION_DISABLE_AT:
                 logger.info(f"Session Disable At: {nick_name}")
@@ -190,13 +203,14 @@ async def convert_chat_message(
             ...  # TODO: llob 传递过来的文件没有直链，待补充实现
 
     if msg_to_me and not is_tome:
+        is_tome = True
         ret_list.insert(
             0,
             ChatMessageSegmentAt(
                 type=ChatMessageSegmentType.AT,
                 text="",
                 target_qq=str(config.BOT_QQ),
-                target_nickname=config.AI_CHAT_PRESET_NAME,
+                target_nickname=(await db_chat_channel.get_preset()).name,
             ),
         )
 

@@ -16,7 +16,6 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
-from nekro_agent.schemas.chat_channel import ChannelData
 from nekro_agent.schemas.chat_message import ChatType
 
 # from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
@@ -24,7 +23,7 @@ from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.sandbox.executor import limited_run_code
-from nekro_agent.systems.cloud.api import send_telemetry_report
+from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
@@ -50,7 +49,9 @@ async def command_guard(
     Returns:
         Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
     """
-    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
+    chat_key, chat_type = await get_chat_info(event=event)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
     # 判断是否是禁止使用的用户
     if event.get_user_id() not in config.SUPER_USERS:
         logger.warning(f"用户 {username} 不在允许的管理用户中")
@@ -60,7 +61,6 @@ async def command_guard(
             await matcher.finish()
 
     cmd_content: str = arg.extract_plain_text().strip()
-    chat_key, chat_type = await get_chat_info(event=event)
     return username, cmd_content, chat_key, chat_type
 
 
@@ -71,9 +71,10 @@ async def reset_command_guard(
     matcher: Matcher,
 ) -> Tuple[str, str, str, ChatType]:
     """Reset指令鉴权"""
-    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id())
-    cmd_content: str = arg.extract_plain_text().strip()
     chat_key, chat_type = await get_chat_info(event=event)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
+    cmd_content: str = arg.extract_plain_text().strip()
 
     if event.get_user_id() in config.SUPER_USERS:
         return username, cmd_content, chat_key, chat_type
@@ -132,21 +133,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
         await finish_with(matcher, message="请指定要查询的会话")
-    info = f"基本人设: {config.AI_CHAT_PRESET_NAME}\n"
-
-    # db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
-    # channel_data: ChannelData = await db_chat_channel.get_channel_data()
-    # if channel_data.preset_status_list:
-    #     info += "人设状态历史:\n"
-    # for status in channel_data.preset_status_list[-config.AI_MAX_PRESET_STATUS_REFER_SIZE :]:
-    #     info += f"[{status.setting_name}] - {status.description}\n"
-
-    # info += "状态笔记:\n"
-    # for note in channel_data.preset_notes.values():
-    #     info += f"- {note.title} ({note.description})\n"
-    # if not channel_data.preset_notes:
-    #     info += "- 暂无状态笔记\n"
-
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
+    preset = await db_chat_channel.get_preset()
+    info = f"基本人设: {preset.name}\n"
     await finish_with(matcher, message=f"频道 {target_chat_key} 信息：\n{info.strip()}")
 
 
@@ -372,6 +361,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    preset = await db_chat_channel.get_preset()
+
     version: str = get_app_version()
     await finish_with(
         matcher,
@@ -383,7 +375,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             f"Version: {version}\n"
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             "========会话设定========\n"
-            f"人设: {config.AI_CHAT_PRESET_NAME}\n"
+            f"人设: {preset.name}\n"
             f"当前模型组: {config.USE_MODEL_GROUP}\n"
         ).strip(),
     )

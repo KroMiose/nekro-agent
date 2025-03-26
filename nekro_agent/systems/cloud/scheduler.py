@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 
 from nekro_agent.core.logger import logger
-from nekro_agent.systems.cloud.api import send_telemetry_report
+from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 
 
 async def telemetry_task():

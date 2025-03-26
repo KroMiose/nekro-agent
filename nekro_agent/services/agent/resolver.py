@@ -66,8 +66,9 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
     if not code_content:
         code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
         code_matches = code_pattern.finditer(cleaned_content)
-        if code_matches:
-            code_content = max((match.group(1).strip() for match in code_matches), key=len)
+        matches_list = list(code_matches)
+        if matches_list:
+            code_content = max((match.group(1).strip() for match in matches_list), key=len)
 
     return ParsedCodeRunData(raw_content=raw_content, code_content=fix_code_content(code_content), thought_chain=thought_chain)
 

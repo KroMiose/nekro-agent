@@ -275,7 +275,7 @@ async def gen_openai_chat_response(
     messages = [msg.to_dict() if isinstance(msg, OpenAIChatMessage) else msg for msg in messages]
 
     client: AsyncOpenAI = AsyncOpenAI(
-        api_key=api_key,
+        api_key=api_key.strip() if api_key else None,
         base_url=base_url or _OPENAI_BASE_URL,
         http_client=(httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10))),
     )
@@ -399,7 +399,7 @@ async def gen_openai_embeddings(
     client = httpx.AsyncClient()
     res = await client.post(
         f"{base_url}{endpoint}",
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"},
+        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key.strip()}"},
         json={"model": model, "input": input, "dimensions": dimensions},
     )
     res.raise_for_status()

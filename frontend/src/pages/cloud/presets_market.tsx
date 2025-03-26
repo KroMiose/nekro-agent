@@ -1,0 +1,596 @@
+import { useState, useEffect, useCallback } from 'react'
+import {
+  Box,
+  Typography,
+  Alert,
+  Grid,
+  Card,
+  CardContent,
+  CardActions,
+  Button,
+  Avatar,
+  Chip,
+  TextField,
+  InputAdornment,
+  IconButton,
+  Pagination,
+  CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  useTheme,
+  Divider,
+} from '@mui/material'
+import {
+  Search as SearchIcon,
+  CloudDownload as CloudDownloadIcon,
+  Done as DoneIcon,
+  Info as InfoIcon,
+} from '@mui/icons-material'
+import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_market'
+import { useSnackbar } from 'notistack'
+import { formatLastActiveTime } from '../../utils/time'
+
+// 人设卡片组件
+const PresetCard = ({
+  preset,
+  onDownload,
+  onShowDetail,
+}: {
+  preset: CloudPreset
+  onDownload: () => void
+  onShowDetail: () => void
+}) => {
+  const theme = useTheme()
+  const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
+
+  return (
+    <Card
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        transition: 'all 0.3s',
+        borderRadius: 2,
+        overflow: 'hidden',
+        '&:hover': {
+          boxShadow: theme.shadows[6],
+          transform: 'translateY(-2px)',
+        },
+        position: 'relative',
+      }}
+    >
+      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
+        <Box sx={{ display: 'flex', gap: 2.5, mb: 2 }}>
+          {/* 头像 */}
+          <Avatar
+            src={preset.avatar}
+            alt={preset.name}
+            variant="rounded"
+            sx={{
+              width: 100,
+              height: 100,
+              borderRadius: 2,
+              boxShadow: '0 3px 10px rgba(0,0,0,0.1)',
+            }}
+          />
+
+          {/* 基本信息 */}
+          <Box sx={{ flexGrow: 1 }}>
+            <Typography
+              variant="h6"
+              gutterBottom
+              noWrap
+              sx={{
+                fontWeight: 600,
+                fontSize: '1.1rem',
+                lineHeight: 1.4,
+              }}
+            >
+              {preset.title || preset.name}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                mb: 1,
+              }}
+            >
+              {preset.description || '无描述'}
+            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="caption" color="text.secondary">
+                作者: {preset.author || '未知'}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+
+        {/* 标签 */}
+        <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', my: 1 }}>
+          {tagsArray.length > 0 ? (
+            tagsArray.map((tag, index) => (
+              <Chip
+                key={index}
+                label={tag.trim()}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  bgcolor: theme =>
+                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                  fontWeight: 500,
+                  borderRadius: 1,
+                }}
+              />
+            ))
+          ) : (
+            <Typography variant="caption" color="text.disabled">
+              无标签
+            </Typography>
+          )}
+        </Box>
+      </CardContent>
+
+      <CardActions
+        sx={{
+          justifyContent: 'space-between',
+          p: 1.5,
+          bgcolor: theme =>
+            theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Button size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
+          详情
+        </Button>
+        <Button
+          size="small"
+          variant={preset.is_local ? 'text' : 'contained'}
+          startIcon={preset.is_local ? <DoneIcon /> : <CloudDownloadIcon />}
+          onClick={onDownload}
+          disabled={preset.is_local}
+          color="primary"
+        >
+          {preset.is_local ? '已获取' : '获取'}
+        </Button>
+      </CardActions>
+    </Card>
+  )
+}
+
+// 详情对话框组件
+const PresetDetailDialog = ({
+  open,
+  onClose,
+  preset,
+}: {
+  open: boolean
+  onClose: () => void
+  preset: CloudPreset | null
+}) => {
+  const theme = useTheme()
+
+  if (!preset) return null
+
+  const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
+
+  return (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="md"
+      fullWidth
+      scroll="paper"
+      PaperProps={{
+        sx: {
+          borderRadius: 2,
+          overflow: 'hidden',
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          px: 3,
+          py: 2,
+          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Typography variant="h6">人设详情：{preset.title || preset.name}</Typography>
+      </DialogTitle>
+      <DialogContent dividers sx={{ p: 3 }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} sm={4} md={3}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2.5 }}>
+              <Avatar
+                src={preset.avatar}
+                alt={preset.name}
+                variant="rounded"
+                sx={{
+                  width: '100%',
+                  height: 'auto',
+                  aspectRatio: '1/1',
+                  borderRadius: 2,
+                  boxShadow: theme.shadows[3],
+                }}
+              />
+              <Box sx={{ width: '100%' }}>
+                <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                  标签:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                  {tagsArray.length > 0 ? (
+                    tagsArray.map((tag, index) => (
+                      <Chip
+                        key={index}
+                        label={tag.trim()}
+                        size="small"
+                        sx={{
+                          margin: '2px',
+                          bgcolor:
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255,255,255,0.08)'
+                              : 'rgba(0,0,0,0.05)',
+                        }}
+                      />
+                    ))
+                  ) : (
+                    <Typography variant="caption" color="text.disabled">
+                      无标签
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid item xs={12} sm={8} md={9}>
+            <Typography variant="h5" gutterBottom fontWeight={600}>
+              {preset.title || preset.name}
+            </Typography>
+
+            <Box sx={{ mb: 3 }}>
+              <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                作者: {preset.author || '未知'}
+              </Typography>
+              <Typography
+                variant="body1"
+                paragraph
+                sx={{
+                  backgroundColor:
+                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  p: 2,
+                  borderRadius: 1,
+                  borderLeft: '4px solid',
+                  borderColor: 'primary.main',
+                  mt: 1,
+                }}
+              >
+                {preset.description || '无描述'}
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    创建时间:
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatLastActiveTime(new Date(preset.create_time).getTime() / 1000)}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    更新时间:
+                  </Typography>
+                  <Typography variant="body2">
+                    {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+
+            <Divider sx={{ mb: 2.5 }} />
+
+            <Typography variant="h6" gutterBottom fontWeight={600}>
+              人设内容:
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{
+                whiteSpace: 'pre-wrap',
+                bgcolor:
+                  theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.03)',
+                p: 2.5,
+                borderRadius: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                maxHeight: '350px',
+                overflow: 'auto',
+                fontFamily: 'monospace',
+                fontSize: '0.9rem',
+                lineHeight: 1.6,
+              }}
+            >
+              {preset.content || '无内容'}
+            </Typography>
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions sx={{ px: 3, py: 2 }}>
+        <Button variant="contained" onClick={onClose} color="primary">
+          关闭
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
+export default function PresetsMarket() {
+  const [presets, setPresets] = useState<CloudPreset[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchKeyword, setSearchKeyword] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedPreset, setSelectedPreset] = useState<CloudPreset | null>(null)
+  const [downloadingId, setDownloadingId] = useState<string | null>(null)
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; preset: CloudPreset | null }>(
+    {
+      open: false,
+      preset: null,
+    }
+  )
+  const { enqueueSnackbar } = useSnackbar()
+  const pageSize = 12
+
+  const fetchPresets = useCallback(
+    async (page: number, keyword: string = '') => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        const data = await presetsMarketApi.getList({
+          page,
+          page_size: pageSize,
+          keyword: keyword || undefined,
+        })
+
+        setPresets(data.items)
+        setTotalPages(data.totalPages)
+
+        if (data.items.length === 0 && data.total > 0 && page > 1) {
+          // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
+          setCurrentPage(1)
+          fetchPresets(1, keyword)
+        }
+      } catch (error) {
+        console.error('获取云端人设列表失败', error)
+        setError('获取人设列表失败，请检查网络连接或联系管理员')
+      } finally {
+        setLoading(false)
+      }
+    },
+    [pageSize, setCurrentPage, setLoading, setError, setPresets, setTotalPages]
+  )
+
+  useEffect(() => {
+    fetchPresets(currentPage, searchKeyword)
+  }, [fetchPresets, currentPage, searchKeyword])
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page)
+  }
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setCurrentPage(1)
+    fetchPresets(1, searchKeyword)
+  }
+
+  const handleShowDetail = (preset: CloudPreset) => {
+    setSelectedPreset(preset)
+  }
+
+  const handleDownloadClick = (preset: CloudPreset) => {
+    setConfirmDialog({ open: true, preset })
+  }
+
+  const handleDownloadConfirm = async () => {
+    if (!confirmDialog.preset) return
+
+    try {
+      setDownloadingId(confirmDialog.preset.remote_id)
+      const response = await presetsMarketApi.downloadPreset(confirmDialog.preset.remote_id)
+
+      if (response.code === 200) {
+        enqueueSnackbar('人设获取成功', { variant: 'success' })
+        // 更新本地状态
+        setPresets(prev =>
+          prev.map(p =>
+            p.remote_id === confirmDialog.preset?.remote_id ? { ...p, is_local: true } : p
+          )
+        )
+      } else {
+        enqueueSnackbar(`获取失败: ${response.msg}`, { variant: 'error' })
+      }
+    } catch (error) {
+      console.error('获取失败', error)
+      enqueueSnackbar('获取失败，请重试', { variant: 'error' })
+    } finally {
+      setDownloadingId(null)
+      setConfirmDialog({ open: false, preset: null })
+    }
+  }
+
+  if (loading && presets.length === 0) {
+    return (
+      <Box
+        sx={{
+          p: 3,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '70vh',
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (error && presets.length === 0) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">{error}</Alert>
+      </Box>
+    )
+  }
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box
+        sx={{
+          mb: 4,
+          display: 'flex',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 2,
+          alignItems: 'center',
+        }}
+      >
+        <Box
+          component="form"
+          onSubmit={handleSearch}
+          sx={{
+            display: 'flex',
+            boxShadow: theme =>
+              theme.palette.mode === 'dark'
+                ? '0 0 10px rgba(0,0,0,0.2)'
+                : '0 0 15px rgba(0,0,0,0.07)',
+            borderRadius: 2,
+            overflow: 'hidden',
+          }}
+        >
+          <TextField
+            size="small"
+            placeholder="搜索人设"
+            value={searchKeyword}
+            onChange={e => setSearchKeyword(e.target.value)}
+            sx={{
+              minWidth: 220,
+              '& .MuiOutlinedInput-root': {
+                borderRadius: '8px 0 0 8px',
+              },
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchKeyword && (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setSearchKeyword('')
+                      setCurrentPage(1)
+                      fetchPresets(1, '')
+                    }}
+                  >
+                    &times;
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            type="submit"
+            sx={{
+              borderRadius: '0 8px 8px 0',
+              px: 2,
+              background: theme => theme.palette.primary.main,
+              '&:hover': {
+                background: theme => theme.palette.primary.dark,
+              },
+            }}
+            variant="contained"
+          >
+            搜索
+          </Button>
+        </Box>
+      </Box>
+
+      {presets.length > 0 ? (
+        <>
+          <Grid container spacing={3}>
+            {presets.map(preset => (
+              <Grid item xs={12} sm={6} md={4} key={preset.remote_id}>
+                <PresetCard
+                  preset={preset}
+                  onDownload={() => handleDownloadClick(preset)}
+                  onShowDetail={() => handleShowDetail(preset)}
+                />
+              </Grid>
+            ))}
+          </Grid>
+
+          {totalPages > 1 && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Pagination
+                count={totalPages}
+                page={currentPage}
+                onChange={handlePageChange}
+                color="primary"
+              />
+            </Box>
+          )}
+        </>
+      ) : (
+        <Alert severity="info" sx={{ mt: 2 }}>
+          没有找到符合条件的人设，请尝试其他关键词
+        </Alert>
+      )}
+
+      {/* 详情对话框 */}
+      <PresetDetailDialog
+        open={!!selectedPreset}
+        onClose={() => setSelectedPreset(null)}
+        preset={selectedPreset}
+      />
+
+      {/* 确认获取对话框 */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => setConfirmDialog({ open: false, preset: null })}
+      >
+        <DialogTitle>确认获取</DialogTitle>
+        <DialogContent>
+          <Typography>
+            确定要获取人设 "{confirmDialog.preset?.title || confirmDialog.preset?.name}"
+            到本地库吗？
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConfirmDialog({ open: false, preset: null })}
+            disabled={!!downloadingId}
+          >
+            取消
+          </Button>
+          <Button onClick={handleDownloadConfirm} color="primary" disabled={!!downloadingId}>
+            {downloadingId ? <CircularProgress size={24} /> : '确认获取'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  )
+}

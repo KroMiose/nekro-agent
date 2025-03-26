@@ -3,16 +3,18 @@ import MainLayout from '../layouts/MainLayout'
 import LoginPage from '../pages/login'
 import LogsPage from '../pages/logs'
 import SettingsPage from '../pages/settings'
-import SettingsLayout from '../pages/settings/Layout'
 import ModelGroupsPage from '../pages/model-groups'
 import PluginsManagementPage from '../pages/plugins/management'
 import PluginsEditorPage from '../pages/plugins/editor'
-import NapCatPage from '../pages/protocols/napcat'
+import ChatChannelPage from '../pages/chat-channel'
 import SandboxPage from '../pages/sandbox'
 import ProfilePage from '../pages/profile'
 import DashboardPage from '../pages/dashboard'
-import ChatChannelPage from '../pages/chat-channel'
 import UserManagerPage from '../pages/user-manager'
+import PresetsPage from '../pages/presets'
+import CloudCommunityPage from '../pages/cloud/telemetry'
+import CloudPresetsMarketPage from '../pages/cloud/presets_market'
+import NapCatPage from '../pages/protocols/napcat'
 
 const router = createHashRouter([
   {
@@ -41,6 +43,10 @@ const router = createHashRouter([
         element: <UserManagerPage />,
       },
       {
+        path: 'presets',
+        element: <PresetsPage />,
+      },
+      {
         path: 'logs',
         element: <LogsPage />,
       },
@@ -67,21 +73,23 @@ const router = createHashRouter([
       },
       {
         path: 'settings',
-        element: <SettingsLayout />,
-        children: [
-          {
-            path: '',
-            element: <SettingsPage />,
-          },
-          {
-            path: 'model-groups',
-            element: <ModelGroupsPage />,
-          },
-        ],
+        element: <SettingsPage />,
+      },
+      {
+        path: 'settings/model-groups',
+        element: <ModelGroupsPage />,
       },
       {
         path: 'profile',
         element: <ProfilePage />,
+      },
+      {
+        path: 'cloud/telemetry',
+        element: <CloudCommunityPage />,
+      },
+      {
+        path: 'cloud/presets-market',
+        element: <CloudPresetsMarketPage />,
       },
     ],
   },

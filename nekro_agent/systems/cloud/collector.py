@@ -10,7 +10,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.systems.cloud.schema import (
+from nekro_agent.systems.cloud.schemas.telemetry import (
     ExecStopTypeStat,
     TelemetryData,
     TelemetryStats,

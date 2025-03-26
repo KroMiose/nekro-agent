@@ -1,12 +1,22 @@
 from datetime import datetime
+from typing import Optional, Union
 
+from pydantic import BaseModel
 from tortoise import fields
 from tortoise.models import Model
 
 from nekro_agent.core import config
+from nekro_agent.core.bot import get_bot
 from nekro_agent.core.logger import logger
-from nekro_agent.schemas.chat_channel import ChannelData
+from nekro_agent.models.db_preset import DBPreset
 from nekro_agent.schemas.chat_message import ChatType
+
+
+class DefaultPreset(BaseModel):
+    """默认人设"""
+
+    name: str = config.AI_CHAT_PRESET_NAME
+    content: str = config.AI_CHAT_PRESET_SETTING
 
 
 class DBChatChannel(Model):
@@ -15,6 +25,7 @@ class DBChatChannel(Model):
     id = fields.IntField(pk=True, generated=True, description="ID")
     chat_key = fields.CharField(max_length=32, index=True, description="会话唯一标识")
     is_active = fields.BooleanField(default=True, description="是否激活")
+    preset_id = fields.IntField(default=None, null=True, description="人设 ID")
     data = fields.TextField(description="频道数据")
 
     channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
@@ -35,34 +46,39 @@ class DBChatChannel(Model):
             chat_type = ChatType.from_chat_key(chat_key)
             channel = await cls.create(
                 chat_key=chat_key,
+                channel_name="",
                 is_active=(
                     config.SESSION_GROUP_ACTIVE_DEFAULT
                     if chat_type == ChatType.GROUP
                     else config.SESSION_PRIVATE_ACTIVE_DEFAULT
                 ),
-                data=ChannelData(chat_key=chat_key).model_dump_json(),
+                data="",
             )
+            await channel.sync_channel_name()
         return channel
 
-    async def get_channel_data(self) -> ChannelData:
-        """获取聊天频道数据"""
-        try:
-            return ChannelData.model_validate_json(self.data)
-        except Exception as e:
-            logger.error(f"获取聊天频道数据失败，{e} 重置使用新数据")
-            await self.reset_channel()
-            return ChannelData(chat_key=self.chat_key)
-
-    async def save_channel_data(self, data: ChannelData):
-        """保存聊天频道数据"""
-        self.data = data.model_dump_json()
+    async def sync_channel_name(self):
+        """同步频道名称"""
+        self.channel_name = await self.get_channel_name()
         await self.save()
+
+    async def get_channel_name(self) -> str:
+        """获取频道名称"""
+        chat_type = self.chat_type
+        if chat_type == ChatType.GROUP:
+            try:
+                channel_name = (await get_bot().get_group_info(group_id=int(self.chat_key.replace("group_", ""))))["group_name"]
+            except Exception as e:
+                logger.error(f"获取群组名称失败: {e!s}")
+                channel_name = self.chat_key
+        elif chat_type == ChatType.PRIVATE:
+            channel_name = (await get_bot().get_stranger_info(user_id=int(self.chat_key.replace("private_", ""))))["nickname"]
+        else:
+            channel_name = self.chat_key
+        return channel_name
 
     async def reset_channel(self):
         """重置聊天频道"""
-        chanel_data = await self.get_channel_data()
-        await chanel_data.clear_status()
-        self.data = ChannelData(chat_key=self.chat_key).model_dump_json()
         self.conversation_start_time = datetime.now()  # 重置对话起始时间
         await self.save()
 
@@ -74,5 +90,11 @@ class DBChatChannel(Model):
     @property
     def chat_type(self) -> ChatType:
         """获取聊天频道类型"""
-        channel_data = ChannelData.model_validate_json(self.data)
-        return channel_data.chat_type
+        return ChatType.from_chat_key(self.chat_key)
+
+    async def get_preset(self) -> Union[DBPreset, DefaultPreset]:
+        """获取人设"""
+        preset = await DBPreset.get_or_none(id=self.preset_id)
+        if not preset:
+            return DefaultPreset()
+        return preset

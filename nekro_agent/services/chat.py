@@ -9,6 +9,7 @@ from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -51,6 +52,7 @@ class ChatService:
         Raises:
             ValueError: 聊天类型错误
         """
+        db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
         message = Message()
 
         if isinstance(messages, str):
@@ -96,7 +98,7 @@ class ChatService:
                 content = agent_message.content
                 if agent_message.type == AgentMessageSegmentType.TEXT.value:
                     content = fix_raw_response(content)
-                    seg_data = await parse_at_from_text(content, chat_key)
+                    seg_data = await parse_at_from_text(content, db_chat_channel)
                     for seg in seg_data:
                         if isinstance(seg, str):
                             if seg.strip():
@@ -214,7 +216,7 @@ class ChatService:
             raise ValueError("Invalid chat type")
 
 
-async def parse_at_from_text(text: str, chat_key: str) -> List[Union[str, SegAt]]:
+async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[Union[str, SegAt]]:
     """从文本中解析@信息
     需要提取 '[@qq:123456;nickname:用户名@]' 或 '[@qq:123456@]' 这样的格式，其余的文本不变
 
@@ -252,24 +254,24 @@ async def parse_at_from_text(text: str, chat_key: str) -> List[Union[str, SegAt]
             if config.SESSION_DISABLE_AT:
                 result.append(f"{nickname}")
             else:
-                if "group" in chat_key:
+                if "group" in db_chat_channel.chat_key:
                     result.append(SegAt(qq=qq, nickname=None))
                 else:
-                    result.append("") #私聊无法@
+                    result.append("")  # 私聊无法@
         else:
             qq = seg.replace("qq:", "").strip()
             if config.SESSION_DISABLE_AT:
-                if "group" in chat_key:
-                    group_id = chat_key.replace("group_", "")
-                    nickname = await get_user_group_card_name(group_id=group_id, user_id=qq)
+                if "group" in db_chat_channel.chat_key:
+                    group_id = db_chat_channel.chat_key.replace("group_", "")
+                    nickname = await get_user_group_card_name(group_id=group_id, user_id=qq, db_chat_channel=db_chat_channel)
                     result.append(f"{nickname}")
                 else:
                     result.append("")
             else:
-                if "group" in chat_key:
+                if "group" in db_chat_channel.chat_key:
                     result.append(SegAt(qq=qq, nickname=None))
                 else:
-                    result.append("") #私聊无法@
+                    result.append("")  # 私聊无法@
         start = end_index + 2  # 跳过 '@]' 标志
     return result
 
