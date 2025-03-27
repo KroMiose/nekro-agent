@@ -32,7 +32,8 @@ if ! command -v docker &>/dev/null; then
 fi
 
 # 检查 Docker Compose 安装情况
-if ! command -v docker-compose &>/dev/null; then
+
+if  ! command -v docker-compose &>/dev/null && ! docker compose version &>/dev/null; then
     read -p "Docker Compose 未安装，是否安装？[Y/n] " answer
     if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
         echo "正在安装 Docker Compose..."
@@ -162,10 +163,22 @@ if [ -f .env ]; then
     # 使用 --env-file 参数而不是 export
     echo "使用实例名称: ${INSTANCE_NAME}"
     echo "启动主服务中..."
-    if ! sudo docker-compose --env-file .env up -d; then
-        echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
-        exit 1
+
+    if command -v docker-compose &>/dev/null ; then
+        if ! sudo docker-compose --env-file .env up -d; then
+            echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
+            exit 1
+        fi
     fi
+    if docker compose version &>/dev/null; then
+        if ! sudo docker compose --env-file .env up -d; then
+            echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
+            exit 1
+        fi
+    fi
+
+
+
 else
     echo "Error: .env 文件不存在"
     exit 1
