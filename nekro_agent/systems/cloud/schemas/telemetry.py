@@ -5,6 +5,7 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from nekro_agent.models.db_exec_code import ExecStopType
+from nekro_agent.systems.cloud.schemas.base import BasicResponse
 
 
 class TelemetryStatsType(str, Enum):
@@ -62,9 +63,7 @@ class TelemetryData(BaseModel):
     system_info: Optional[Dict] = Field(default=None, description="系统信息")
 
 
-class TelemetryResponse(BaseModel):
+class TelemetryResponse(BasicResponse):
     """遥测响应"""
 
-    success: bool = Field(..., description="是否成功")
-    message: Optional[str] = Field(default=None, description="消息")
-    data: Optional[Dict] = Field(default=None, description="数据")
+    data: Optional[TelemetryData] = Field(default=None, description="遥测数据")

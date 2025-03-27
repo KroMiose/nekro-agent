@@ -375,50 +375,45 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
+    # 加载表情包存储
+    emotion_store = await load_emotion_store()
+
+    # 获取页码，默认为1
     try:
-        # 加载表情包存储
-        emotion_store = await load_emotion_store()
+        page = max(1, int(cmd_content)) if cmd_content else 1
+    except ValueError:
+        page = 1
 
-        # 获取页码，默认为1
-        try:
-            page = max(1, int(cmd_content)) if cmd_content else 1
-        except ValueError:
-            page = 1
+    # 计算分页
+    page_size = 10
+    total_count = len(emotion_store.emotions)
+    total_pages = (total_count + page_size - 1) // page_size
 
-        # 计算分页
-        page_size = 10
-        total_count = len(emotion_store.emotions)
-        total_pages = (total_count + page_size - 1) // page_size
+    # 确保页码有效
+    if page > total_pages:
+        await finish_with(matcher, message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～")
+        return
+    # 获取当前页的表情包
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_count)
 
-        # 确保页码有效
-        if page > total_pages:
-            await finish_with(matcher, message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～")
-            return
+    # 构建消息
+    _message: str = f"喵~ 这是第 {page}/{total_pages} 页的表情包列表：\n\n"
 
-        # 获取当前页的表情包
-        start_idx = (page - 1) * page_size
-        end_idx = min(start_idx + page_size, total_count)
+    # 获取排序后的表情包列表
+    sorted_emotions = sorted(
+        emotion_store.emotions.items(),
+        key=lambda x: x[1].added_time,
+        reverse=True,
+    )[start_idx:end_idx]
 
-        # 构建消息
-        message = f"喵~ 这是第 {page}/{total_pages} 页的表情包列表：\n\n"
+    for emotion_id, metadata in sorted_emotions:
+        tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+        _message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
 
-        # 获取排序后的表情包列表
-        sorted_emotions = sorted(
-            emotion_store.emotions.items(),
-            key=lambda x: x[1].added_time,
-            reverse=True,
-        )[start_idx:end_idx]
+    _message += "使用 emo-list <页码> 查看其他页面～"
 
-        for emotion_id, metadata in sorted_emotions:
-            tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
-            message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
-
-        message += "使用 emo-list <页码> 查看其他页面～"
-    except Exception as e:
-        logger.error(f"查看表情包列表失败: {e}")
-        message = f"喵呜... 获取列表失败了: {e!s}"
-
-    await finish_with(matcher, message=message)
+    await finish_with(matcher, message=_message)
 
 
 # endregion: 表情包命令

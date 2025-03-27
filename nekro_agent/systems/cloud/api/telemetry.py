@@ -1,8 +1,9 @@
 import asyncio
 import json
 import random
+import time
 from datetime import datetime
-from pathlib import Path
+from typing import Any, Dict, Optional
 
 import httpx
 
@@ -10,7 +11,11 @@ from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.systems.cloud.collector import prepare_telemetry_data
-from nekro_agent.systems.cloud.schema import TelemetryData, TelemetryResponse
+from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
+from nekro_agent.systems.cloud.schemas.telemetry import TelemetryData, TelemetryResponse
+
+# 内存缓存
+_CACHE: Dict[str, Dict[str, Any]] = {"community_stats": {"data": None, "expires_at": 0}}
 
 
 def get_client() -> httpx.AsyncClient:
@@ -24,7 +29,7 @@ def get_client() -> httpx.AsyncClient:
     return httpx.AsyncClient(base_url=OsEnv.NEKRO_CLOUD_API_BASE_URL)
 
 
-async def send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryResponse:
+async def _send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryResponse:
     """发送遥测数据
 
     Args:
@@ -55,15 +60,10 @@ async def send_telemetry_report(hour_start: datetime, hour_end: datetime) -> Tel
     try:
         # 准备遥测数据
         telemetry_data = await prepare_telemetry_data(hour_start, hour_end)
-        # temp_path = Path(".temp/telemetry_data.json")
-        # temp_path.parent.mkdir(parents=True, exist_ok=True)
-        # temp_path.write_bytes(
-        #     json.dumps(telemetry_data.model_dump(mode="json", exclude_none=True)).encode("utf-8"),
-        # )
 
         # 发送遥测数据
         for _ in range(10):
-            response = await send_telemetry_data(telemetry_data)
+            response = await _send_telemetry_data(telemetry_data)
             if response.success:
                 break
             await asyncio.sleep(random.uniform(3, 10))
@@ -78,9 +78,38 @@ async def send_telemetry_report(hour_start: datetime, hour_end: datetime) -> Tel
         return response
 
 
-class NekroCloudDisabled(Exception):
-    """Nekro Cloud 未启用异常"""
+async def get_community_stats(force_refresh: bool = False) -> Optional[Dict[str, Any]]:
+    """获取社区统计数据，带有1小时缓存
 
-    def __init__(self, message: str = "Nekro Cloud 未启用"):
-        self.message = message
-        super().__init__(self.message)
+    Args:
+        force_refresh: 是否强制刷新缓存
+
+    Returns:
+        Optional[Dict[str, Any]]: 社区统计数据，如果失败则返回 None
+    """
+    cache = _CACHE["community_stats"]
+    current_time = time.time()
+
+    # 检查缓存是否有效且未过期
+    if not force_refresh and cache["data"] is not None and current_time < cache["expires_at"]:
+        logger.debug("使用缓存的社区统计数据")
+        return cache["data"]
+
+    try:
+        logger.debug("从社区获取统计数据")
+        async with get_client() as client:
+            response = await client.get("/api/telemetry/community-stats")
+            response.raise_for_status()
+            stats = response.json()
+
+            # 更新缓存，设置1小时有效期
+            _CACHE["community_stats"]["data"] = stats
+            _CACHE["community_stats"]["expires_at"] = current_time + 3600  # 1小时 = 3600秒
+
+            return stats
+    except NekroCloudDisabled:
+        logger.warning("Nekro Cloud 未启用，无法获取社区统计数据")
+        return None
+    except Exception as e:
+        logger.error(f"获取社区统计数据失败: {e}")
+        return None

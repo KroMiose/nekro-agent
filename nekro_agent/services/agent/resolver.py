@@ -39,7 +39,7 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
             thought_chain = re.sub(r"</?think>", "", thought_chain)
 
             # 在思维链之后查找代码块
-            remaining_content = cleaned_content[think_match.end():].strip()
+            remaining_content = cleaned_content[think_match.end() :].strip()
             code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
             code_match = code_pattern.search(remaining_content)
 
@@ -51,7 +51,7 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
         # 提取最长的完整代码块（从```python到最后一个```）
         code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
         code_matches = code_pattern.finditer(cleaned_content)
-        
+
         # 获取所有匹配结果
         matches_list = list(code_matches)
         if matches_list:
@@ -66,8 +66,14 @@ def parse_chat_response(raw_content: str) -> ParsedCodeRunData:
     if not code_content:
         code_pattern = re.compile(r"```(?:python)?\s*(.*?)```(?:\s*$|(?=\s*```\s*$))", re.DOTALL)
         code_matches = code_pattern.finditer(cleaned_content)
-        if code_matches:
-            code_content = max((match.group(1).strip() for match in code_matches), key=len)
+        matches_list = list(code_matches)
+        if matches_list:
+            code_content = max((match.group(1).strip() for match in matches_list), key=len)
+
+    if code_content.strip().startswith("```python"):
+        code_content = code_content.strip()[len("```python") :].strip()
+    if code_content.strip().endswith("```"):
+        code_content = code_content.strip()[: -len("```")].strip()
 
     return ParsedCodeRunData(raw_content=raw_content, code_content=fix_code_content(code_content), thought_chain=thought_chain)
 

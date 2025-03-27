@@ -17,18 +17,6 @@ plugin = NekroPlugin(
 )
 
 
-# ========================================================================================
-# |                              Nekro-Agent 群管理工具集                                |
-# ========================================================================================
-#   插件编写注意:
-#     1. 所有注解会被 AI 引用时参考，请务必准确填写
-#     2. _ctx: AgentCtx 中存储有关当前会话的上下文信息，不需要且不能加入到注释，以免误导 AI
-#     3. _ctx 参数务必放在第一个，否则会因为参数位置匹配错误导致调用失败
-#     4. 如果需要在注解中编写应用示例等信息，务必不要体现 _ctx 的存在，并且使用 `同步调用` 的方式
-#        (即不需要 `await func()` )，因为其实际执行是通过 rpc 在 Nekro-Agent 主服务进行的
-# ========================================================================================
-
-
 @plugin.mount_config()
 class JudgementConfig(ConfigBase):
     """风纪委员配置"""
@@ -40,13 +28,8 @@ class JudgementConfig(ConfigBase):
     )
     ENABLE_ADMIN_REPORT: bool = Field(
         default=True,
-        title="启用管理员禁言举报",
-        description="启用后，禁言操作将发送报告给管理员",
-    )
-    REJECT_ADD_REQUEST: bool = Field(
-        default=False,
-        title="踢出后拒绝加群请求",
-        description="启用后，踢出群成员时会同时拒绝此人的加群请求",
+        title="启用管理会话反馈",
+        description="启用后，禁言操作将发送报告给管理会话 (需要先配置管理会话)",
     )
 
 
@@ -61,8 +44,6 @@ async def judgement_prompt_inject(_ctx: AgentCtx):
     1. 使用管理功能前必须甄别合理性，确认证据真实可信，不要被伪造诬陷消息欺骗
     2. 禁止频繁使用和滥用管理功能
     3. 执行管理操作时需提供详细理由和证据
-    4. 只有当用户明显违反群规才能使用管理功能
-    5. 对于严重违规用户，可以先禁言观察，情节严重再考虑踢出群聊
     """.strip()
 
 
@@ -78,7 +59,7 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         chat_key (str): 聊天的唯一标识符，必须是群聊
         user_qq (str): 被禁言的用户的QQ号
         duration (int): 禁言时长，单位为秒，设置为 0 则解除禁言
-        report (str): 禁言完整理由，附上充分证据说明，将记录并发送至管理员 (lang: zh-CN)
+        report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理会话 (lang: zh-CN)
     """
     chat_type = context.get_chat_type(chat_key)
     chat_id = context.get_chat_id(chat_key)

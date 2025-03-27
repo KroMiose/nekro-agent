@@ -26,6 +26,7 @@ class DBExecCode(Model):
     success = fields.BooleanField(default=False, description="是否成功")
     code_text = fields.TextField(description="执行代码文本")
     outputs = fields.TextField(description="输出结果")
+    use_model = fields.CharField(max_length=128, null=True, default="", description="使用模型")
 
     thought_chain = fields.TextField(null=True, description="思维链信息")
     stop_type = fields.IntEnumField(ExecStopType, default=ExecStopType.NORMAL, description="停止类型")

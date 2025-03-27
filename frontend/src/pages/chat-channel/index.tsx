@@ -15,10 +15,7 @@ import {
   SelectChangeEvent,
   TablePagination,
 } from '@mui/material'
-import {
-  Search as SearchIcon,
-  Clear as ClearIcon,
-} from '@mui/icons-material'
+import { Search as SearchIcon, Clear as ClearIcon } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
@@ -30,7 +27,7 @@ export default function ChatChannelPage() {
   const [isActive, setIsActive] = useState<string>('')
   const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(20)
+  const [pageSize, setPageSize] = useState(25)
 
   // 查询会话列表
   const { data: channelList, isLoading } = useQuery({
@@ -82,9 +79,7 @@ export default function ChatChannelPage() {
           <ChatChannelDetail chatKey={selectedChatKey} />
         ) : (
           <Box className="h-full flex items-center justify-center">
-            <Typography color="textSecondary">
-              请选择一个会话查看详情
-            </Typography>
+            <Typography color="textSecondary">请选择一个会话查看详情</Typography>
           </Box>
         )}
       </Paper>
@@ -120,11 +115,7 @@ export default function ChatChannelPage() {
             <Stack direction="row" spacing={1}>
               <FormControl size="small" fullWidth>
                 <InputLabel>类型</InputLabel>
-                <Select
-                  value={chatType}
-                  label="类型"
-                  onChange={handleChatTypeChange}
-                >
+                <Select value={chatType} label="类型" onChange={handleChatTypeChange}>
                   <MenuItem value="">全部</MenuItem>
                   <MenuItem value="group">群聊</MenuItem>
                   <MenuItem value="private">私聊</MenuItem>
@@ -132,11 +123,7 @@ export default function ChatChannelPage() {
               </FormControl>
               <FormControl size="small" fullWidth>
                 <InputLabel>状态</InputLabel>
-                <Select
-                  value={isActive}
-                  label="状态"
-                  onChange={handleActiveChange}
-                >
+                <Select value={isActive} label="状态" onChange={handleActiveChange}>
                   <MenuItem value="">全部</MenuItem>
                   <MenuItem value="true">已激活</MenuItem>
                   <MenuItem value="false">未激活</MenuItem>
@@ -166,7 +153,7 @@ export default function ChatChannelPage() {
             page={page - 1}
             rowsPerPage={pageSize}
             onPageChange={(_, newPage) => setPage(newPage + 1)}
-            onRowsPerPageChange={(event) => {
+            onRowsPerPageChange={event => {
               setPageSize(parseInt(event.target.value, 10))
               setPage(1)
             }}
@@ -184,4 +171,4 @@ export default function ChatChannelPage() {
       </Paper>
     </Box>
   )
-} 
+}

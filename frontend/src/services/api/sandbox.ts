@@ -16,6 +16,7 @@ export interface SandboxLog {
   exec_time_ms: number
   generation_time_ms: number
   total_time_ms: number
+  use_model: string
 }
 
 // 停止类型枚举

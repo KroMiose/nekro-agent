@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional, TypedDict
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 
 from nekro_agent.core.config import config
+from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.schemas.chat_message import ChatType
 
 
 @dataclass
@@ -25,7 +27,7 @@ class BaseNoticeHandler:
         """获取通知配置"""
         return NoticeConfig()
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         """匹配通知事件并提取信息
 
         Args:
@@ -36,7 +38,7 @@ class BaseNoticeHandler:
         """
         raise NotImplementedError
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         """格式化消息
 
         Args:
@@ -80,7 +82,7 @@ class NoticeHandlerManager:
         """注册处理器"""
         self._handlers.append(handler)
 
-    async def handle(self, event: NoticeEvent, _bot: Bot) -> Optional[NoticeResult]:
+    async def handle(self, event: NoticeEvent, _bot: Bot, db_chat_channel: DBChatChannel) -> Optional[NoticeResult]:
         """处理通知事件
 
         Args:
@@ -94,7 +96,7 @@ class NoticeHandlerManager:
         event_dict = dict(event)
 
         for handler in self._handlers:
-            if info := handler.match(event_dict):
+            if info := handler.match(db_chat_channel, event_dict):
                 return NoticeResult(
                     handler=handler,
                     info=info,

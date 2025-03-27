@@ -37,6 +37,7 @@ async def run_agent(
 ):
     one_time_code = os.urandom(4).hex()
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    preset = await db_chat_channel.get_preset()
     ctx: AgentCtx = AgentCtx(from_chat_key=chat_key)
 
     # 获取当前使用的模型组
@@ -48,7 +49,7 @@ async def run_agent(
             SystemPrompt(
                 one_time_code=one_time_code,
                 bot_qq=config.BOT_QQ,
-                chat_preset=config.AI_CHAT_PRESET_SETTING,
+                chat_preset=preset.content,
                 chat_key=chat_key,
                 plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),
                 admin_chat_key=config.ADMIN_CHAT_KEY,

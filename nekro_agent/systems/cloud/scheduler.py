@@ -3,7 +3,7 @@ import random
 from datetime import datetime, timedelta
 
 from nekro_agent.core.logger import logger
-from nekro_agent.systems.cloud.api import send_telemetry_report
+from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 
 
 async def telemetry_task():
@@ -18,8 +18,6 @@ async def telemetry_task():
                 # 刚过整点，需要等待随机时间再上报上一个小时的数据
                 prev_hour = current_hour - timedelta(hours=1)
                 delay_seconds = random.randint(1, 300)  # 随机延迟0-5分钟
-
-                logger.info(f"即将上报 {prev_hour} 的遥测数据，延迟 {delay_seconds} 秒")
                 await asyncio.sleep(delay_seconds)
 
                 # 上报上一个小时的数据
@@ -28,9 +26,9 @@ async def telemetry_task():
 
                 response = await send_telemetry_report(hour_start, hour_end)
                 if response.success:
-                    logger.info(f"遥测数据上报成功: {hour_start} - {hour_end}")
+                    logger.debug(f"遥测数据上报成功: {hour_start} - {hour_end}")
                 else:
-                    logger.warning(f"遥测数据上报失败: {response.message}")
+                    logger.warning(f"与 Nekro Cloud 通信发生错误: {response.message}")
 
             # 计算到下一个整点的等待时间
             next_hour = current_hour + timedelta(hours=1)
@@ -41,7 +39,7 @@ async def telemetry_task():
                 next_hour = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
                 wait_seconds = (next_hour - now).total_seconds()
 
-            logger.info(f"等待到下一个整点触发遥测: {next_hour}, 等待 {wait_seconds} 秒")
+            logger.debug(f"等待到下一个整点触发遥测: {next_hour}, 等待 {wait_seconds} 秒")
             await asyncio.sleep(wait_seconds)
 
         except Exception as e:

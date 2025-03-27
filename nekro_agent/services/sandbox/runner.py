@@ -248,6 +248,7 @@ async def run_code_in_sandbox(
         outputs=final_output,
         success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT, ExecStopType.MULTIMODAL_AGENT],  # AGENT 状态也视为成功
         stop_type=stop_type,
+        use_model=(llm_response and llm_response.use_model) or "",
         exec_time_ms=exec_time,
         generation_time_ms=generation_time_ms,
         total_time_ms=total_time,

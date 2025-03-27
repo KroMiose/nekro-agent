@@ -7,6 +7,7 @@ from nekro_agent.api import core, schemas
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config as global_config
 from nekro_agent.core.logger import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
@@ -28,11 +29,6 @@ class StatusConfig(ConfigBase):
     MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, title="最大预设状态引用大小", description="最大预设状态引用大小")
     ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用更改昵称", description="启用更改昵称")
     NICKNAME_PREFIX: str = Field(default="", title="昵称前缀", description="昵称前缀")
-    DEFAULT_PRESET_NAME: str = Field(
-        default=global_config.AI_CHAT_PRESET_NAME,
-        title="默认预设名称",
-        description="默认预设名称",
-    )
 
 
 # 获取配置和插件存储
@@ -147,7 +143,7 @@ class ChannelData(BaseModel):
                             await bot.set_group_card(
                                 group_id=int(chat_id),
                                 user_id=int(global_config.BOT_QQ),
-                                card=f"{config.NICKNAME_PREFIX}{config.DEFAULT_PRESET_NAME}",
+                                card=f"{config.NICKNAME_PREFIX}{(await (await DBChatChannel.get_channel(chat_key=self.chat_key)).get_preset()).name}",
                             )
                     except Exception as e:
                         logger.warning(f"会话 {self.chat_key} 尝试重置群名片失败: {e}")

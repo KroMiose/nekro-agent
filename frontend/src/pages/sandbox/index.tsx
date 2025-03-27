@@ -138,17 +138,18 @@ export default function SandboxPage() {
                 <TableCell sx={{ width: '10%', minWidth: '100px' }}>状态</TableCell>
                 <TableCell sx={{ width: '10%', minWidth: '100px' }}>停止类型</TableCell>
                 <TableCell sx={{ width: '12%', minWidth: '120px' }}>触发用户</TableCell>
-                <TableCell sx={{ width: '20%', minWidth: '160px' }}>会话标识</TableCell>
-                <TableCell sx={{ width: '100px', textAlign: 'left' }}>
-                  执行耗时
+                <TableCell sx={{ width: '15%', minWidth: '160px' }}>会话标识</TableCell>
+                <TableCell sx={{ width: '16%', minWidth: '100px' }}>使用模型</TableCell>
+                <TableCell sx={{ width: '160px', textAlign: 'left' }}>
+                  生成耗时 | 执行耗时
                 </TableCell>
-                <TableCell sx={{ width: '25%', minWidth: '200px' }}>执行时间</TableCell>
+                <TableCell sx={{ width: '20%', minWidth: '150px' }}>执行时间</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && !isPlaceholderData ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-3">
+                  <TableCell colSpan={8} className="text-center py-3">
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
@@ -189,6 +190,9 @@ export default function SandboxPage() {
                         </Typography>
                       </TableCell>
                       <TableCell>
+                        <Typography variant="body2">{log.use_model || '未知'}</Typography>
+                      </TableCell>
+                      <TableCell>
                         <Stack
                           direction="row"
                           alignItems="center"
@@ -226,7 +230,7 @@ export default function SandboxPage() {
                       <TableCell>{log.create_time}</TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
+                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
                         <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
                           <Box
                             sx={{
