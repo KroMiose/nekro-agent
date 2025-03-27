@@ -179,7 +179,7 @@ async def update_preset(
     preset.author = author or _current_user.username
 
     # 如果需要移除云端关联
-    if remove_remote and preset.remote_id:
+    if remove_remote and preset.remote_id and not preset.on_shared:
         preset.remote_id = ""  # 使用空字符串代替None
         preset.on_shared = False
 

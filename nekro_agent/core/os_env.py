@@ -49,7 +49,7 @@ class OsEnv:
     ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
 
     """Nekro Cloud API"""
-    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.cloud")
+    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://preview-community.nekro.cloud")
 
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"

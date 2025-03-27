@@ -184,8 +184,8 @@ const PresetEditDialog = ({
       return
     }
 
-    // 如果是云端人设且正在编辑，需要确认是否解除云端关联
-    if (preset?.remote_id && !isNew && !confirmDialog) {
+    // 如果是云端人设且正在编辑，但不是自己上传的(on_shared为false)，需要确认是否解除云端关联
+    if (preset?.remote_id && !isNew && !preset?.on_shared && !confirmDialog) {
       setConfirmDialog(true)
       return
     }
@@ -194,7 +194,8 @@ const PresetEditDialog = ({
       setLoading(true)
       await onSave({
         ...formData,
-        remove_remote: preset?.remote_id ? true : false,
+        // 如果是自己上传的云端人设(on_shared为true)，则不解除关联
+        remove_remote: preset?.remote_id && !preset?.on_shared ? true : false,
       })
       onClose()
     } catch (error) {
@@ -229,6 +230,11 @@ const PresetEditDialog = ({
         <DialogTitle>{isNew ? '创建新人设' : '编辑人设'}</DialogTitle>
         <DialogContent dividers>
           <Box component="form" noValidate sx={{ mt: 1 }} className="space-y-4" autoComplete="off">
+            {preset?.remote_id && preset?.on_shared && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                此人设已共享到云端，保存后可以通过"同步到云端"按钮将修改同步到云端共享。
+              </Alert>
+            )}
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Box className="flex flex-col items-center">
@@ -422,7 +428,7 @@ const PresetEditDialog = ({
         <DialogTitle>解除云端关联确认</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            此人设来自云端，编辑后将解除与云端的关联，无法再同步最新更新。
+            此人设来自云端下载，编辑后将解除与云端的关联，无法再同步最新更新。
           </Alert>
           <Typography>确定要继续编辑并解除云端关联吗？</Typography>
         </DialogContent>
