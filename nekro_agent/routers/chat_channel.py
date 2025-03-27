@@ -129,7 +129,6 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
             "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
             "last_message_time": last_message_time.strftime("%Y-%m-%d %H:%M:%S") if last_message_time else None,
             "conversation_start_time": channel.conversation_start_time.strftime("%Y-%m-%d %H:%M:%S"),
-            "max_preset_status_refer_size": config.AI_MAX_PRESET_STATUS_REFER_SIZE,
             "preset_id": channel.preset_id,
         },
     )

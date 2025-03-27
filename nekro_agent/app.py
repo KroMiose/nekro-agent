@@ -44,5 +44,5 @@ def start():
         "nekro_agent.app:app",
         host=config.APP_HOST,  # type: ignore
         port=config.APP_PORT,  # type: ignore
-        log_level=config.UVICORN_LOG_LEVEL.lower(),
+        log_level="warning",
     )

@@ -180,7 +180,7 @@ async def convert_chat_message(
                     db_chat_channel=db_chat_channel,
                 )
             logger.info(f"OneBot at message: {at_qq=} {nick_name=}")
-            if config.SESSION_DISABLE_AT:
+            if not config.SESSION_ENABLE_AT:
                 logger.info(f"Session Disable At: {nick_name}")
                 ret_list.append(
                     ChatMessageSegment(

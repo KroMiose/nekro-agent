@@ -251,7 +251,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
             parts = seg.split(";")
             qq = parts[0].replace("qq:", "").strip()
             nickname = parts[1].replace("nickname:", "").strip()
-            if config.SESSION_DISABLE_AT:
+            if not config.SESSION_ENABLE_AT:
                 result.append(f"{nickname}")
             else:
                 if "group" in db_chat_channel.chat_key:
@@ -260,7 +260,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
                     result.append("")  # 私聊无法@
         else:
             qq = seg.replace("qq:", "").strip()
-            if config.SESSION_DISABLE_AT:
+            if not config.SESSION_ENABLE_AT:
                 if "group" in db_chat_channel.chat_key:
                     group_id = db_chat_channel.chat_key.replace("group_", "")
                     nickname = await get_user_group_card_name(group_id=group_id, user_id=qq, db_chat_channel=db_chat_channel)
