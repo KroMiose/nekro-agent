@@ -150,7 +150,6 @@ async def list_presets(
     page_size: int = 10,
     keyword: Optional[str] = None,
     tag: Optional[str] = None,
-    allow_nsfw: bool = False,
 ) -> PresetListResponse:
     """查询人设列表
 
@@ -174,8 +173,8 @@ async def list_presets(
             params["keyword"] = keyword
         if tag:
             params["tag"] = tag
-        if allow_nsfw:
-            params["allowNsfw"] = allow_nsfw
+        if not config.ENSURE_SFW_CONTENT:
+            params["allowNsfw"] = True
 
         async with get_client() as client:
             response = await client.get(

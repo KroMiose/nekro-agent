@@ -37,7 +37,6 @@ export const presetsMarketApi = {
     page_size: number
     keyword?: string
     tag?: string
-    allow_nsfw?: boolean
   }): Promise<CloudPresetListResponse> => {
     try {
       const response = await axios.get<{
