@@ -9,7 +9,9 @@ from nekro_agent.core import config
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_preset import DBPreset
+from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.plugin.collector import plugin_collector
 
 
 class DefaultPreset(BaseModel):
@@ -81,6 +83,9 @@ class DBChatChannel(Model):
         """重置聊天频道"""
         self.conversation_start_time = datetime.now()  # 重置对话起始时间
         await self.save()
+
+        # 执行重置回调
+        await plugin_collector.chat_channel_on_reset(AgentCtx(from_chat_key=self.chat_key))
 
     async def set_active(self, is_active: bool):
         """设置频道是否激活"""

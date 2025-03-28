@@ -19,10 +19,11 @@ from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
 
 # from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
+from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
-from nekro_agent.services.sandbox.executor import limited_run_code
+from nekro_agent.services.sandbox.runner import limited_run_code
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
@@ -143,10 +144,12 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
-    result, _ = await limited_run_code(cmd_content, cot_content="", from_chat_key=chat_key)
+    result, _, _ = await limited_run_code(
+        ParsedCodeRunData(raw_content=cmd_content, code_content=cmd_content, thought_chain=""),
+        from_chat_key=chat_key,
+    )
 
-    if result:
-        await finish_with(matcher, result)
+    await finish_with(matcher, result or "<Empty Output>")
 
 
 @on_command("code_log", aliases={"code-log"}, priority=5, block=True).handle()
@@ -622,7 +625,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "conf_reload: 重载配置\n"
             "conf_save: 保存配置\n"
             "\n====== [其他功能] ======\n"
-            "ai_voices: 查看当前可用的 AI 声聊角色\n"
             "debug_on: 开启调试模式\n"
             "debug_off: 关闭调试模式\n"
             "na_info: 查看系统信息\n"
@@ -632,24 +634,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "Github: https://github.com/KroMiose/nekro-agent\n"
         ).strip(),
     )
-
-
-@on_command("ai_voices", aliases={"ai-voices"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    if chat_type is ChatType.GROUP:
-        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[1])
-        formatted_characters = []
-        for tag in tags:
-            char_list = []
-            for char in tag["characters"]:
-                char_list.append(f"ID: {char['character_id']} - {char['character_name']}")
-            formatted_characters.append(f"=== {tag['type']} ===\n" + "\n".join(char_list))
-
-        await finish_with(matcher, message="当前可用的 AI 声聊角色: \n\n" + "\n\n".join(formatted_characters))
-    else:
-        await finish_with(matcher, message="AI 声聊功能仅支持群组")
 
 
 # ! 高风险命令

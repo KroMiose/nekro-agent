@@ -21,19 +21,12 @@ async def get_cloud_presets_list(
     page_size: int = Query(12, ge=1, le=100),
     keyword: Optional[str] = None,
     tag: Optional[str] = None,
-    allow_nsfw: bool = False,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取云端人设列表"""
     try:
         # 查询云端人设列表
-        response = await list_presets(
-            page=page,
-            page_size=page_size,
-            keyword=keyword,
-            tag=tag,
-            allow_nsfw=allow_nsfw,
-        )
+        response = await list_presets(page=page, page_size=page_size, keyword=keyword, tag=tag)
 
         if not response.success:
             return Ret.fail(msg=f"获取失败: {response.error}")

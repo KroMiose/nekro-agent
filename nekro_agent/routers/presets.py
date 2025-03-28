@@ -220,7 +220,7 @@ async def sync_preset(
     # 从云端获取最新数据
     response = await get_preset(preset.remote_id)
     if not response.success or not response.data:
-        return Ret.fail(msg=f"同步失败: {response.error}")
+        return Ret.fail(msg=str(response.error))
 
     # 更新本地数据
     preset.name = response.data.name
@@ -291,7 +291,7 @@ async def upload_avatar(
         return Ret.success(msg="上传成功", data={"avatar": data_url})
     except Exception as e:
         logger.error(f"上传头像失败: {e}")
-        return Ret.fail(msg=f"上传失败: {e}")
+        return Ret.fail(msg=str(e))
 
 
 @router.post("/{preset_id}/share", summary="共享人设到云端")
@@ -339,13 +339,13 @@ async def share_preset(
         )
     except Exception as e:
         logger.error(f"创建人设数据验证失败: {e}")
-        return Ret.fail(msg=f"数据验证失败，请检查所有字段: {e!s}")
+        return Ret.fail(msg=str(e))
 
     # 调用云端API创建人设
     response = await cloud_create_preset(preset_data)
 
     if not response.success or not response.data:
-        return Ret.fail(msg=f"共享失败: {response.error}")
+        return Ret.fail(msg=str(response.error))
 
     # 更新本地数据
     preset.remote_id = response.data.id
@@ -392,7 +392,7 @@ async def unshare_preset(
     await preset.save()
 
     if not response.success:
-        return Ret.fail(msg=f"撤回共享时出现问题: {response.error}")
+        return Ret.fail(msg=str(response.error))
 
     return Ret.success(msg="撤回共享成功")
 
@@ -440,7 +440,7 @@ async def sync_to_cloud(
         )
     except Exception as e:
         logger.error(f"更新人设数据验证失败: {e}")
-        return Ret.fail(msg=f"数据验证失败，请检查所有字段: {e!s}")
+        return Ret.fail(msg=str(e))
 
     # 确保remote_id是字符串
     remote_id = str(preset.remote_id) if preset.remote_id else ""
@@ -449,6 +449,6 @@ async def sync_to_cloud(
     response = await cloud_update_preset(remote_id, preset_data)
 
     if not response.success:
-        return Ret.fail(msg=f"同步失败: {response.error}")
+        return Ret.fail(msg=str(response.error))
 
     return Ret.success(msg="同步成功")

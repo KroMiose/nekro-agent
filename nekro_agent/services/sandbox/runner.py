@@ -13,6 +13,7 @@ from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
+from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.agent.openai import OpenAIResponse
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
@@ -87,6 +88,7 @@ async def limited_run_code(
     output_limit: int = 1000,
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
+    ctx: Optional[AgentCtx] = None,
 ) -> Tuple[str, str, int]:
     """限制并发运行代码
 
@@ -99,7 +101,7 @@ async def limited_run_code(
         chat_message: 聊天消息
 
     Returns:
-        Tuple[str, int]: 输出结果和退出类型
+        Tuple[str, str, int]: 最终输出结果、原始输出结果和退出类型
     """
 
     async with semaphore:
@@ -109,6 +111,7 @@ async def limited_run_code(
             output_limit=output_limit,
             llm_response=llm_response,
             chat_message=chat_message,
+            ctx=ctx,
         )
 
 
@@ -118,6 +121,7 @@ async def run_code_in_sandbox(
     output_limit: int,
     llm_response: Optional[OpenAIResponse] = None,
     chat_message: Optional[ChatMessage] = None,
+    ctx: Optional[AgentCtx] = None,
 ) -> Tuple[str, str, int]:
     """在沙盒容器中运行代码并获取输出"""
 
@@ -136,7 +140,7 @@ async def run_code_in_sandbox(
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
     api_caller_file_path.write_text(
-        get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key),
+        await get_api_caller_code(container_key=container_key, from_chat_key=from_chat_key, ctx=ctx),
         encoding="utf-8",
     )
 
