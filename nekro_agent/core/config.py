@@ -212,7 +212,7 @@ class PluginConfig(ConfigBase):
     )
     SESSION_NICKNAME_PREFIX: str = Field(default="", title="AI 群名片名称前缀")
     SESSION_ENABLE_AT: bool = Field(
-        default=False,
+        default=True,
         title="启用 at 功能",
         description="关闭后 AI 无法发送 at 消息",
     )
@@ -337,6 +337,7 @@ class PluginConfig(ConfigBase):
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
         ),
     )
+    ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra={"is_hidden": True})
 
 
 try:

@@ -23,7 +23,7 @@ _ASSERT_DICE_NUM: int = 0
 _LOCKED_DICE_NUM: int = 0
 
 
-@on_command("dice-assert", aliases={"dice-assert"}, priority=5, block=True).handle()
+@on_command("dice_assert", aliases={"dice-assert"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
     global _ASSERT_DICE_NUM
@@ -38,7 +38,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"掷骰检定预言: {_ASSERT_DICE_NUM}/20")
 
 
-@on_command("dice-lock", aliases={"dice-lock"}, priority=5, block=True).handle()
+@on_command("dice_lock", aliases={"dice-lock"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
     global _LOCKED_DICE_NUM
@@ -59,7 +59,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="请输入有效的数字")
 
 
-@on_command("dice-unlock", aliases={"dice-unlock"}, priority=5, block=True).handle()
+@on_command("dice_unlock", aliases={"dice-unlock"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
     global _LOCKED_DICE_NUM

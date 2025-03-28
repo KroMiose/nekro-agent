@@ -371,7 +371,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=message)
 
 
-@on_command("emo_ls", aliases={"emo-ls"}, priority=5, block=True).handle()
+@on_command("emo_list", aliases={"emo-list", "emo_ls", "emo-ls"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 

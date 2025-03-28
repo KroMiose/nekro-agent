@@ -21,7 +21,12 @@ plugin = NekroPlugin(
 class NoteConfig(ConfigBase):
     """笔记系统配置"""
 
-    MAX_NOTE_LENGTH: int = Field(default=72, title="笔记最大显示长度", description="笔记最大显示长度")
+    MAX_NOTE_LENGTH: int = Field(default=72, title="单条笔记最大显示长度", description="超出该长度时，会自动摘要显示")
+    NOTE_PROMPT_CLEAN_THRESHOLD: int = Field(
+        default=12,
+        title="笔记提示清理阈值",
+        description="超出该长度时，会提示清理过期或无用的笔记",
+    )
 
 
 # 获取配置和插件存储
@@ -116,7 +121,13 @@ class ChannelNoteData(BaseModel):
             else "No notes. (use `set_note` to add one)"
         )
 
-        return "Current Notes:\n" + note_str
+        note_warning_str: str = (
+            "Warning: You have too many notes. (use `remove_note` to remove some expired or useless notes)"
+            if len(self.notes) > config.NOTE_PROMPT_CLEAN_THRESHOLD
+            else ""
+        )
+
+        return "Current Notes:\n" + note_str + "\n" + note_warning_str
 
 
 # endregion: 笔记系统数据模型

@@ -39,11 +39,7 @@ class DrawConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
-    NUM_INFERENCE_STEPS: int = Field(
-        default=20,
-        title="推理步数",
-        description="推理步数",
-    )
+    NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
 
 
 # 获取配置
@@ -56,7 +52,7 @@ async def draw(
     prompt: str,
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
-    source_image: str = "",
+    base_image: str = "",
 ) -> str:
     """Generate or modify images
 
@@ -71,7 +67,7 @@ async def draw(
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
-        source_image (str): Optional source image path for image modification or variation
+        base_image (str): Optional source image path for image modification or create similar image to the base image
 
     Returns:
         str: Generated image URL
@@ -81,14 +77,14 @@ async def draw(
         send_msg_file(chat_key, draw("a illustration style cute orange cat napping on a sunny windowsill, watercolor painting style", "1024x1024"))
 
         # Modify existing image
-        send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/source_image.jpg"))
+        send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/base_image.jpg"))
     """
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
     # logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
-    if source_image:
+    if base_image:
         async with aiofiles.open(
-            convert_to_host_path(Path(source_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
+            convert_to_host_path(Path(base_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
             mode="rb",
         ) as f:
             image_data = await f.read()

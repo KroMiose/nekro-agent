@@ -60,7 +60,7 @@ class BasicConfig(ConfigBase):
     )
     SIMILARITY_CHECK_LENGTH: int = Field(
         default=12,
-        title="消息相似度检查长度",
+        title="启用消息相似度检查阈值",
         description="当消息长度超过该阈值时，将进行相似度检查",
     )
     ALLOW_AT_ALL: bool = Field(
@@ -206,12 +206,12 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
 async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
     """发送聊天消息图片/文件资源
 
-    Args:   
+    Args:
         chat_key (str): 会话标识
         file_path (str): 图片/文件路径或 URL 容器内路径
     """
     global SEND_FILE_CACHE
-    file_container_path = file_path #防止误导llm
+    file_container_path = file_path  # 防止误导llm
     if not isinstance(file_container_path, str):
         raise TypeError("Error: The file argument must be a string with the correct file shared path or URL.")
 
@@ -219,7 +219,9 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
         file_host_path, _ = await download_file(file_container_path, from_chat_key=chat_key)
         file_container_path = str(convert_to_container_path(Path(file_host_path)))
     else:
-        file_host_path = str(convert_to_host_path(Path(file_container_path), _ctx.from_chat_key, container_key=_ctx.container_key))
+        file_host_path = str(
+            convert_to_host_path(Path(file_container_path), _ctx.from_chat_key, container_key=_ctx.container_key),
+        )
         if not Path(file_host_path).exists():
             raise FileNotFoundError(
                 f"The file `{file_container_path}` does not exist! Attention: The file you generated in previous conversation may not be persistence in sandbox environment, please check it.",
@@ -251,7 +253,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
             file_data = await f.read()
             mime_type = magic.from_buffer(file_data, mime=True)
             is_image = mime_type.startswith("image/")
-        
+
         if is_image:
             await message.send_image(chat_key, file_container_path, _ctx)
         else:

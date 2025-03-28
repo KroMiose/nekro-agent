@@ -18,7 +18,7 @@ plugin = NekroPlugin(
 class GroupHonorConfig(ConfigBase):
     """群荣誉配置"""
 
-    MAX_TITLE_LENGTH: int = Field(default=6, title="最大头衔长度", description="最大头衔长度")
+    MAX_TITLE_LENGTH: int = Field(default=6, title="最大头衔长度")
 
 
 # 获取配置

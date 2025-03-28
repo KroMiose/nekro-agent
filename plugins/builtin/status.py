@@ -25,10 +25,10 @@ plugin = NekroPlugin(
 class StatusConfig(ConfigBase):
     """状态控制配置"""
 
-    MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, title="最大预设状态列表大小", description="最大预设状态列表大小")
-    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, title="最大预设状态引用大小", description="最大预设状态引用大小")
-    ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用更改昵称", description="启用更改昵称")
-    NICKNAME_PREFIX: str = Field(default="", title="昵称前缀", description="昵称前缀")
+    MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, title="保存的历史预设状态条数")
+    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, title="每次引用预设状态条数")
+    ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用根据状态更改群名片")
+    NICKNAME_PREFIX: str = Field(default="", title="群名片前缀")
 
 
 # 获取配置和插件存储
@@ -239,6 +239,20 @@ async def clear_status(_ctx: schemas.AgentCtx, chat_key: str):
     await store.set(chat_key=chat_key, store_key="status", value=channel_data.model_dump_json())
 
     return "Character status cleared"
+
+
+@plugin.mount_on_channel_reset()
+async def on_channel_reset(_ctx: schemas.AgentCtx):
+    """重置插件"""
+    if config.ENABLE_CHANGE_NICKNAME:
+        bot = get_bot()
+        if bot:
+            await bot.set_group_card(
+                group_id=int(_ctx.from_chat_key.split("_")[1]),
+                user_id=int(global_config.BOT_QQ),
+                card=f"{config.NICKNAME_PREFIX}{(await (await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)).get_preset()).name}",
+            )
+    await store.delete(chat_key=_ctx.from_chat_key, store_key="status")
 
 
 @plugin.mount_cleanup_method()

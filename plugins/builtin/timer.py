@@ -22,7 +22,7 @@ plugin = NekroPlugin(
 class TimerConfig(ConfigBase):
     """定时器配置"""
 
-    MAX_DISPLAY_DESC_LENGTH: int = Field(default=100, title="定时器描述最大显示长度", description="定时器描述最大显示长度")
+    MAX_DISPLAY_DESC_LENGTH: int = Field(default=100, title="定时器描述最大显示长度")
 
 
 # 获取配置

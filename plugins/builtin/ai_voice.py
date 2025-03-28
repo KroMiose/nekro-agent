@@ -1,10 +1,13 @@
-from typing import Optional
-
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
+from nonebot.matcher import Matcher
+from nonebot.params import CommandArg
 from pydantic import Field
 
 from nekro_agent.api import context, core
 from nekro_agent.api.core import config as global_config
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.matchers.command import command_guard, finish_with, on_command
+from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
@@ -24,12 +27,30 @@ class AIVoiceConfig(ConfigBase):
     AI_VOICE_CHARACTER: str = Field(
         default=global_config.AI_VOICE_CHARACTER,
         title="AI语音角色",
-        description="使用命令 /ai_voices 查看所有可用角色",
+        description="使用命令 `/ai_voices` 可查看所有可用角色",
     )
 
 
 # 获取配置
 config = plugin.get_config(AIVoiceConfig)
+
+
+@on_command("ai_voices", aliases={"ai-voices"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if chat_type is ChatType.GROUP:
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[1])
+        formatted_characters = []
+        for tag in tags:
+            char_list = []
+            for char in tag["characters"]:
+                char_list.append(f"ID: {char['character_id']} - {char['character_name']}")
+            formatted_characters.append(f"=== {tag['type']} ===\n" + "\n".join(char_list))
+
+        await finish_with(matcher, message="当前可用的 AI 声聊角色: \n\n" + "\n\n".join(formatted_characters))
+    else:
+        await finish_with(matcher, message="AI 声聊功能仅支持群组")
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送消息语音")
