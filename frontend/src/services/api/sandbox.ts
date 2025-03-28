@@ -26,6 +26,7 @@ export enum ExecStopType {
   TIMEOUT = 2, // 超时停止
   AGENT = 8,   // 代理停止
   MANUAL = 9,  // 手动停止
+  MULTIMODAL_AGENT = 11, // 多模态代理停止
 }
 
 export interface SandboxStats {
