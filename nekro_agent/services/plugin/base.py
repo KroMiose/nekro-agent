@@ -1,6 +1,4 @@
-import inspect
 import re
-from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
@@ -26,21 +24,32 @@ from nekro_agent.schemas.agent_ctx import AgentCtx
 from .schema import PromptInjectMethod, SandboxMethod, SandboxMethodType, WebhookMethod
 
 T = TypeVar("T", bound=ConfigBase)
+CollectMethodsFunc = Callable[[AgentCtx], Coroutine[Any, Any, List[SandboxMethod]]]
 
 
-class NekroPlugin(Generic[T]):
+class NekroPlugin:
     """Nekro 插件基类
 
-    用于描述 Nekro 插件的基类，提供插件的基本信息和方法挂载功能。
+    用于描述 Nekro 插件的基本信息和方法挂载功能。
     """
 
     _Configs: Type[ConfigBase] = ConfigBase
     _config: ConfigBase
 
-    def __init__(self, name: str, module_name: str, description: str, version: str, author: str, url: str):
+    def __init__(
+        self,
+        name: str,
+        module_name: str,
+        description: str,
+        version: str,
+        author: str,
+        url: str,
+        is_builtin: bool = False,
+    ):
         self.init_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
+        self.on_reset_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
         self.name = name
@@ -51,39 +60,40 @@ class NekroPlugin(Generic[T]):
         self.url = url.strip()
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
+        self._collect_methods_func: Optional[CollectMethodsFunc] = None
+        self._is_builtin: bool = is_builtin  # 标记是否为内置插件
 
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key
         self._store = PluginStore(self)
 
-    def reset_methods(self):
+    def reset_methods(self) -> None:
         self.init_method = None
         self.cleanup_method = None
         self.prompt_inject_method = None
+        self.on_reset_method = None
         self.sandbox_methods = []
         self.webhook_methods = {}
+        self._collect_methods_func = None
 
-    def mount_config(self):
+    def mount_config(self) -> Callable[[Type[T]], Type[T]]:
         """挂载配置类
 
         用于挂载配置类，提供给 Nekro 插件使用。
+
+        Returns:
+            装饰器函数
         """
 
-        def decorator(cls: Type[T]) -> T:
+        def decorator(cls: Type[T]) -> Type[T]:
             if not issubclass(cls, ConfigBase):
                 raise TypeError("Config class must inherit from ConfigBase")
             self._Configs = cls
-            return cls  # type: ignore
+            return cls
 
         return decorator
 
-    @overload
-    def get_config(self) -> ConfigBase: ...
-
-    @overload
-    def get_config(self, config_cls: Type) -> Any: ...
-
-    def get_config(self, config_cls=None):
+    def get_config(self, config_cls: Type[T] = ConfigBase) -> T:
         """获取插件配置
 
         Args:
@@ -100,16 +110,17 @@ class NekroPlugin(Generic[T]):
         else:
             config = self._Configs.load_config(file_path=self._plugin_config_path)
             config.dump_config(self._plugin_config_path)
-
-        # 如果提供了类型，则进行类型转换
-        if config_cls is not None:
-            return cast(config_cls, config)  # type: ignore
-        return config
+        return cast(config_cls, config)
 
     def get_plugin_path(self) -> Path:
         return self._plugin_path
 
-    def mount_sandbox_method(self, method_type: SandboxMethodType, name: str, description: str = ""):
+    def mount_sandbox_method(
+        self,
+        method_type: SandboxMethodType,
+        name: str,
+        description: str = "",
+    ) -> Callable[[Callable], Callable]:
         """挂载沙盒方法
 
         用于挂载沙盒方法，提供给 Nekro 插件使用。
@@ -118,9 +129,12 @@ class NekroPlugin(Generic[T]):
             method_type (SandboxMethodType): 方法类型
             name (str): 方法名称
             description (str): 方法描述
+
+        Returns:
+            装饰器函数
         """
 
-        def decorator(func):
+        def decorator(func: Callable) -> Callable:
             func._method_type = method_type  # noqa: SLF001
             self.sandbox_methods.append(SandboxMethod(method_type, name, description, func))
             # logger.debug(f"从插件 {self.name} 挂载沙盒方法 {name} 成功")
@@ -128,7 +142,11 @@ class NekroPlugin(Generic[T]):
 
         return decorator
 
-    def mount_prompt_inject_method(self, name: str, description: str = ""):
+    def mount_prompt_inject_method(
+        self,
+        name: str,
+        description: str = "",
+    ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, str]]], Callable[[AgentCtx], Coroutine[Any, Any, str]]]:
         """挂载提示注入方法
 
         用于挂载提示注入方法，在对话开始前执行，返回内容会注入到对话提示中。
@@ -136,15 +154,35 @@ class NekroPlugin(Generic[T]):
         Args:
             name (str): 挂载的提示注入方法的名称
             description (str): 挂载的提示注入方法的描述
+
+        Returns:
+            装饰器函数
         """
 
-        def decorator(func):
+        def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, str]]) -> Callable[[AgentCtx], Coroutine[Any, Any, str]]:
             self.prompt_inject_method = PromptInjectMethod(name, description, func)
             return func
 
         return decorator
 
-    def mount_webhook_method(self, endpoint: str, name: str, description: str = ""):
+    def mount_on_channel_reset(
+        self,
+    ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
+        """挂载重置会话回调方法
+
+        用于挂载重置会话时的回调方法，在会话重置时执行。
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, Any]]) -> Callable[[AgentCtx], Coroutine[Any, Any, Any]]:
+            self.on_reset_method = func
+            return func
+
+        return decorator
+
+    def mount_webhook_method(self, endpoint: str, name: str, description: str = "") -> Callable[[Callable], Callable]:
         """挂载 Webhook 方法
 
         用于挂载 Webhook 方法，提供 Webhook 事件触发能力
@@ -153,29 +191,72 @@ class NekroPlugin(Generic[T]):
             endpoint (str): 挂载的 Webhook 方法的端点
             name (str): 挂载的 Webhook 方法的名称
             description (str): 挂载的 Webhook 方法的描述
+
+        Returns:
+            装饰器函数
         """
 
-        def decorator(func):
+        def decorator(func: Callable) -> Callable:
             self.webhook_methods[endpoint] = WebhookMethod(name, description, func)
             return func
 
         return decorator
 
-    def mount_cleanup_method(self):
-        def decorator(func):
+    def mount_cleanup_method(
+        self,
+    ) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
+        """挂载清理方法
+
+        用于挂载清理方法，在插件卸载时执行。
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
             self.cleanup_method = func
             return func
 
         return decorator
 
+    async def collect_available_methods(self, ctx: AgentCtx) -> List[SandboxMethod]:
+        """收集可用方法
+
+        Args:
+            ctx (AgentCtx): 上下文
+
+        Returns:
+            List[SandboxMethod]: 可用方法列表
+        """
+        if self._collect_methods_func:
+            return await self._collect_methods_func(ctx)
+        return self.sandbox_methods
+
+    def mount_collect_methods(
+        self,
+    ) -> Callable[[CollectMethodsFunc], CollectMethodsFunc]:
+        """挂载收集可用方法的重写函数
+
+        此装饰器允许插件开发者自定义如何收集和过滤可用的方法，根据上下文决定哪些方法对当前用户可用。
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: CollectMethodsFunc) -> CollectMethodsFunc:
+            self._collect_methods_func = func
+            return func
+
+        return decorator
+
     @property
-    def is_enabled(self):
+    def is_enabled(self) -> bool:
         return self._is_enabled
 
-    def enable(self):
+    def enable(self) -> None:
         self._is_enabled = True
 
-    def disable(self):
+    def disable(self) -> None:
         self._is_enabled = False
 
     @property
@@ -192,15 +273,15 @@ class NekroPlugin(Generic[T]):
             return await self.prompt_inject_method.func(ctx)
         return ""
 
-    async def render_sandbox_methods_prompt(self) -> str:
+    async def render_sandbox_methods_prompt(self, ctx: AgentCtx) -> str:
         """渲染沙盒方法提示词
 
         Returns:
             str: 沙盒方法提示
         """
         prompts: List[str] = []
-
-        for method in self.sandbox_methods:
+        methods = await self.collect_available_methods(ctx) if self._collect_methods_func else self.sandbox_methods
+        for method in methods:
             if not method.func.__doc__:
                 logger.warning(f"方法 {method.func.__name__} 没有可用的文档注解。")
                 continue
@@ -274,6 +355,28 @@ class PluginStore:
             data_value=value,
         )
         return 0
+
+    async def delete(self, chat_key: str = "", user_key: str = "", store_key: str = "") -> Literal[0, 1]:
+        """删除插件存储
+
+        Args:
+            chat_key (str): 对话键
+            user_key (str): 用户键
+            store_key (str): 存储键
+
+        Returns:
+            int: 删除状态: 0 表示删除成功，1 表示删除失败
+        """
+        record = await DBPluginData.filter(
+            plugin_key=self._plugin.key,
+            target_chat_key=chat_key,
+            target_user_id=user_key,
+            data_key=store_key,
+        ).first()
+        if record:
+            await record.delete()
+            return 0
+        return 1
 
 
 def _validate_name(name: str, field_name: str) -> str:

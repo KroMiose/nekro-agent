@@ -16,7 +16,7 @@ from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.sandbox.runner import limited_run_code
 
-from .creator import ContentSegment, OpenAIChatMessage
+from .creator import OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
 from .templates.history import HistoryFirstStart, render_history_data
@@ -91,6 +91,7 @@ async def run_agent(
                 from_chat_key=chat_key,
                 chat_message=chat_message,
                 llm_response=llm_response,
+                ctx=ctx,
             )
             stop_type = ExecStopType(stop_type_value)
 

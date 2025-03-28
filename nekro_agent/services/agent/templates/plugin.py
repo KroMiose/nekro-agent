@@ -17,7 +17,7 @@ async def _render_plugin_prompt(plugin: NekroPlugin, ctx: AgentCtx) -> str:
     return PluginPrompt(
         plugin_name=plugin.name,
         plugin_injected_prompt=await plugin.render_inject_prompt(ctx),
-        plugin_method_prompt=await plugin.render_sandbox_methods_prompt(),
+        plugin_method_prompt=await plugin.render_sandbox_methods_prompt(ctx),
     ).render()
 
 
