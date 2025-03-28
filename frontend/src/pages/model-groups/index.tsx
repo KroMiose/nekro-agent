@@ -136,7 +136,7 @@ function EditDialog({
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
     // 只排除会影响URL解析的特殊字符，包括百分号
-    const invalidChars = /[\/\?&#=%]/;
+    const invalidChars = /[/\\?&#=%]/;
     return name.trim().length > 0 && !invalidChars.test(name);
   }
 
@@ -562,7 +562,7 @@ export default function ModelGroupsPage() {
       <Box className="flex justify-between items-center mb-4 flex-shrink-0">
         <Alert severity="info" className="mr-4">
           需要 API 密钥？可访问{' '}
-          <Link href="https://api.nekro.top" target="_blank" rel="noopener">
+          <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
             Nekro 合作中转
           </Link>{' '}
           获取专属密钥喵～

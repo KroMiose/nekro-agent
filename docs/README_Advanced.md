@@ -56,8 +56,8 @@ MODEL_GROUPS: # 模型组配置项: 默认预置了 Nekro 中转站和 OpenAI �
   default: # 默认模型组 (**USE_MODEL_GROUP 所指向的模型组为必填项**)
     CHAT_MODEL: gemini-1.5.pro
     CHAT_PROXY: ""
-    BASE_URL: https://api.nekro.top/v1
-    API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 替换为你在 [Nekro 中转站](api.nekro.top) 生成的 API Key
+    BASE_URL: https://api.nekro.ai/v1
+    API_KEY: sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx # 替换为你在 [Nekro 中转站](api.nekro.ai) 生成的 API Key
   openai: # 选填模型组 (如果有多个模型组，可以继续添加)
     CHAT_MODEL: gpt-4o
     CHAT_PROXY: ""

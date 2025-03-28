@@ -55,7 +55,7 @@ class EmotionConfig(ConfigBase):
         json_schema_extra={"is_secret": True},
     )
     EMBEDDING_API_BASE: str = Field(
-        default="https://api.nekro.top/v1",
+        default="https://api.nekro.ai/v1",
         title="嵌入模型 API 地址",
         description="嵌入模型 API 地址",
         json_schema_extra={"is_secret": True},

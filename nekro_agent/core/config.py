@@ -76,7 +76,7 @@ class PluginConfig(ConfigBase):
             "default": ModelConfigGroup(
                 CHAT_MODEL="gemini-1.5.pro-002",
                 CHAT_PROXY="",
-                BASE_URL="https://api.nekro.top/v1",
+                BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
                 MODEL_TYPE="chat",
                 ENABLE_VISION=True,
