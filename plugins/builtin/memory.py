@@ -78,6 +78,11 @@ class BasicConfig(ConfigBase):
         title="向量嵌入模型",
         description="用于将传入的记忆进行向量嵌入,填入模型组名称即可",
     )
+    SESSION_ISOLATION: bool = Field(
+        default=True,
+        title="记忆会话隔离",
+        description="开启后bot存储的记忆只对当前会话有效,在其他会话中无法获取",
+    )
 
 memory_config: BasicConfig = plugin.get_config(BasicConfig)
 
@@ -176,6 +181,8 @@ async def add_memory(
         add_memory("喜欢打csgo", "alice", {"category": "hobbies","game_type": "csgo"})
         add_memory("小名是喵喵", "alice", {"category": "name","nickname": "喵喵"})
     """
+    if memory_config.SESSION_ISOLATION :
+        user_id = _ctx.from_chat_key + user_id
     try:
         result = mem0.add(messages=memory, user_id=user_id, metadata=metadata)
         logger.info(f"添加记忆结果: {result}")
@@ -204,6 +211,9 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     Examples:
         search_memory("2025年3月1日吃了什么","2708583339")
     """
+    if memory_config.SESSION_ISOLATION :
+        user_id = _ctx.from_chat_key + user_id
+
     try:
         result = mem0.search(query=query, user_id=user_id)
         logger.info(f"搜索记忆结果: {result}")
@@ -230,6 +240,9 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     Example:
         get_all_memories("2708583339")
     """
+    if memory_config.SESSION_ISOLATION :
+        user_id = _ctx.from_chat_key + user_id
+
     try:
         if not user_id.strip():
             return "用户ID不能为空"
@@ -261,6 +274,7 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
     Example:
         update_memory("bf4d4092...", "喜欢周末打网球")
     """
+    
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
