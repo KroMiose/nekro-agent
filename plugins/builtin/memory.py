@@ -13,16 +13,16 @@ from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMet
 try:
     from mem0 import Memory
 except ImportError as err:
-    raise ImportError("mem0 未安装，请安装 mem0ai 包") from err
+    raise ImportError("mem0 未安装,请安装 mem0ai 包") from err
 
-import uuid
 import time
+import uuid
 
 # 扩展元数据
 plugin = NekroPlugin(
     name="[NA] 记忆模块",
     module_name="memory",
-    description="长期记忆管理系统，支持记忆的增删改查及语义搜索",
+    description="长期记忆管理系统,支持记忆的增删改查及语义搜索",
     version="0.1.0",
     author="Zaxpris",
     url="https://github.com/KroMiose/nekro-agent",
@@ -87,7 +87,7 @@ class MemoryConfig(ConfigBase):
     AUTO_MEMORY_ENABLED: bool = Field(
         default=True,
         title="启用自动记忆检索",
-        description="启用后，系统将在对话开始时自动检索与当前对话相关的用户的所有记忆",
+        description="启用后,系统将在对话开始时自动检索与当前对话相关的用户的所有记忆",
     )
     AUTO_MEMORY_SEARCH_LIMIT: int = Field(
         default=5,
@@ -102,7 +102,7 @@ class MemoryConfig(ConfigBase):
     AUTO_MEMORY_USE_TOPIC_SEARCH: bool = Field(
         default=True,
         title="启用话题搜索",
-        description="启用后，系统将使用LLM来找到最近聊天话题,并通过话题获取相关记忆，可能会延长响应时间",
+        description="启用后,系统将使用LLM来找到最近聊天话题,并通过话题获取相关记忆,可能会延长响应时间",
     )
 
 memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
@@ -162,7 +162,7 @@ def format_memories(results: List[Dict]) -> str:
 
 @plugin.mount_prompt_inject_method(name="memory_prompt_inject")
 async def memory_prompt_inject(_ctx: AgentCtx) -> str:
-    """记忆提示注入，在对话开始前检索相关记忆并注入到对话提示中"""
+    """记忆提示注入,在对话开始前检索相关记忆并注入到对话提示中"""
     if not memory_config.AUTO_MEMORY_ENABLED:
         return ""
     
@@ -180,7 +180,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         
         chat_type, chat_id = parts
         
-        # 获取最近消息，用于识别用户和上下文
+        # 获取最近消息,用于识别用户和上下文
         record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
         recent_messages: List[DBChatMessage] = await (
             DBChatMessage.filter(
@@ -198,7 +198,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         # 用于保存找到的用户记忆
         all_memories = []
         
-        # 构建上下文内容，用于语义搜索
+        # 构建上下文内容,用于语义搜索
         context_content = "\n".join([db_message.parse_chat_history_prompt("") for db_message in recent_messages])
         # 识别参与对话的用户
         user_ids = set()
@@ -212,14 +212,14 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
                 if msg.sender_bind_qq and msg.sender_bind_qq != "0" and msg.sender_bind_qq is not config.BOT_QQ:
                     user_ids.add(msg.sender_bind_qq)
 
-        # 没有找到有效用户ID，返回空
+        # 没有找到有效用户ID,返回空
         if not user_ids:
             return ""
             
         # 对每个用户进行记忆检索
         for user_id in user_ids:
             try:
-                # 如果启用会话隔离，添加会话前缀
+                # 如果启用会话隔离,添加会话前缀
                 search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
                 
                 # 使用话题检索
@@ -287,7 +287,6 @@ async def notice(_ctx: AgentCtx):
     - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替换,例如("hatsune_miku","louis","takanashi_hoshino")
     - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如用户alice说"我的小名是喵喵",user_id="alice",记忆内容为"小名是喵喵")
     - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如用户alice说"我的朋友Bob喜欢游泳",user_id="bob",记忆内容为"喜欢游泳")
-    - 请你关注提示词中出现的 "当前会话相关记忆" 如果已有你需要的相关记忆,则不需要再使用search_memory进行搜索
     """
 
 @plugin.mount_sandbox_method(
@@ -307,7 +306,7 @@ async def add_memory(
         memory (str): 要添加的记忆内容文本
         **非常重要**
         user_id (str): 关联的用户ID,必须为有效非空字符串,标识应为用户qq,例如2708583339,而非chat_key.
-        metadata (Dict[str, Any]): 元数据标签，例如分类标签
+        metadata (Dict[str, Any]): 元数据标签,{"category": "hobbies"}
         
     Returns:
         返回记忆添加成功,并返回记忆ID
@@ -326,10 +325,10 @@ async def add_memory(
         if result.get("results"):
             memory_id = result["results"][0]["id"]
             short_id = encode_id(memory_id)  # 添加编码
-            return f"记忆添加成功，ID：{short_id}"
+            return f"记忆添加成功,ID：{short_id}"
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务，请检查网络连接"
+        return "无法连接到记忆存储服务,请检查网络连接"
     except Exception as e:
         logger.error(f"添加记忆失败: {e!s}")
         return f"记忆添加失败: {e!s}"
@@ -342,6 +341,7 @@ async def add_memory(
 )
 async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     """搜索记忆
+    在使用该方法前先关注提示词中出现的 "当前会话相关记忆" 字样,如果已有需要的相关记忆,则不需要再使用search_memory进行搜索
     Args:
         query (str): 要搜索的记忆内容文本,可以是问句,例如"喜欢吃什么","生日是多久"
         user_id (str): 要查询的用户唯一标识,必须为有效非空字符串,标识应为用户qq,例如2708583339,而非chat_key.
@@ -357,7 +357,7 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
         return "以下是你对该用户的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务，请稍后再试"
+        return "无法连接到记忆存储服务,请稍后再试"
     except Exception as e:
         logger.error(f"搜索记忆失败: {e!s}")
         return f"搜索记忆失败: {e!s}"
@@ -389,7 +389,7 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
         return "以下是你脑海中的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务，请稍后再试"
+        return "无法连接到记忆存储服务,请稍后再试"
     except Exception as e:
         logger.error(f"获取记忆失败: {e!s}")
         return f"获取记忆失败: {e!s}"
