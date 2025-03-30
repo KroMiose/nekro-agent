@@ -254,10 +254,8 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         
         if not all_memories:
             return ""
-        
         # 按相关性排序（如果有分数的话）
         all_memories.sort(key=lambda x: float(x.get("score", 0) or 0), reverse=True)
-        
         # 限制返回记忆数量
         all_memories = all_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
         
@@ -267,13 +265,14 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
             metadata = mem.get("metadata", {})
             nickname = mem.get("user_nickname", mem.get("user_qq", "未知用户"))
             memory_id = encode_id(mem.get("id","未知ID"))
-            memory_text += f"{idx}. [{nickname} | {metadata} | ID: {memory_id}] {mem['memory']}\n"
+            score = round(float(mem.get("score", 0)), 3) if mem.get("score") else "暂无"
+            memory_text += f"{idx}. [ 记忆归属: {nickname} | 元数据: {metadata} | ID: {memory_id} | 匹配度: {score} ] 内容: {mem['memory']}\n"
         logger.info(memory_text)
         
         return memory_text  # noqa: TRY300
     except Exception as e:
         logger.error(f"自动记忆检索失败: {e!s}")
-        raise
+        raise RuntimeError(f"记忆提示注入失败: {e!s}") from e
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="")
 async def _memory_notice(_ctx: AgentCtx):
@@ -283,7 +282,7 @@ async def _memory_notice(_ctx: AgentCtx):
     ⚠️ 关键注意：
     - user_id必须严格指向记忆的归属主体,metadata中的字段不可替代user_id的作用
     - 如果要存储的记忆中包含时间信息,禁止使用(昨天,前天,之后等)相对时间概念,应使用具体的时间(比如20xx年x月x日 x时x分)
-    - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替换,例如("hatsune_miku","takanashi_hoshino")
+    - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替代,例如("hatsune_miku","takanashi_hoshino")
     - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如QQ号为123456的用户说"我的小名是喵喵",则user_id="123456",记忆内容为"小名是喵喵")
     - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如QQ号为123456的用户说"@114514喜欢游泳",则user_id="114514",记忆内容为"喜欢游泳")
     """
@@ -327,13 +326,13 @@ async def add_memory(
             memory_id = result["results"][0]["id"]
             short_id = encode_id(memory_id)  # 添加编码
             return f"记忆添加成功,ID：{short_id}"
-        raise
+        raise RuntimeError("记忆添加失败")  # noqa: TRY301
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        raise
+        raise RuntimeError(f"网络请求失败: {e!s}") from e
     except Exception as e:
         logger.error(f"添加记忆失败: {e!s}")
-        raise
+        raise RuntimeError(f"记忆添加失败: {e!s}") from e
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -361,10 +360,10 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
         return "以下是你对该用户的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        raise
+        raise RuntimeError(f"网络请求失败: {e!s}") from e
     except Exception as e:
         logger.error(f"搜索记忆失败: {e!s}")
-        raise
+        raise RuntimeError(f"搜索记忆失败: {e!s}") from e
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -393,10 +392,10 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
         return "以下是你脑海中的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        raise
+        raise RuntimeError(f"网络请求失败: {e!s}") from e
     except Exception as e:
         logger.error(f"获取记忆失败: {e!s}")
-        raise
+        raise RuntimeError(f"获取记忆失败: {e!s}") from e
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.BEHAVIOR,
@@ -420,7 +419,7 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
         logger.error(f"无效的记忆ID: {e!s}")
-        raise
+        raise ValueError(f"无效的记忆ID格式: {e!s}") from e
     
     try:        
         result = mem0.update(memory_id=original_id, data=new_content)
@@ -428,10 +427,10 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
         return result.get("message", "记忆更新成功")
     except httpx.HTTPError as e:
         logger.error(f"更新失败: {e!s}")
-        raise
+        raise RuntimeError(f"网络请求失败: {e!s}") from e
     except Exception as e:
         logger.error(f"更新失败: {e!s}")
-        raise
+        raise RuntimeError(f"记忆更新失败: {e!s}") from e
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -454,7 +453,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
         logger.error(f"无效的记忆ID: {e!s}")
-        raise
+        raise ValueError(f"无效的记忆ID格式: {e!s}") from e
     
     try:
         records = mem0.history(memory_id=original_id)
@@ -473,7 +472,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
         return "\n".join(formatted)
     except Exception as e:
         logger.error(f"获取历史失败: {e!s}")
-        raise
+        raise RuntimeError(f"获取记忆历史记录失败: {e!s}") from e
     
 @plugin.mount_cleanup_method()
 async def clean_up():
