@@ -129,38 +129,88 @@ class MemoryConfig(ConfigBase):
 
 memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
 
-# 初始化内存客户端
-mem0_client_config = {
-    "vector_store": {
-        "provider": "chroma",#这里填你的向量数据库名称
-        "config": {
-            "path": str(plugin.get_plugin_path() / "vector_db"),  # 指定本地路径
-        },
-    },
-    "llm": {
-        "provider": "openai",
-        "config": {
-            "api_key": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).API_KEY,#这里填你的openai api key
-            "model": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).CHAT_MODEL,#这里填llm模型
-            "openai_base_url": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).BASE_URL,#这里可以填任何支持openai api格式的地址
-        },
-    },
-    "embedder": {
-        "provider": "openai",
-        "config": {
-            "api_key": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).API_KEY,#这里填你的openai api key
-            "model": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).CHAT_MODEL,#这里只能用文本嵌入模型
-            "openai_base_url": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).BASE_URL,#这里可以填任何支持openai api格式的地址
-        },
-    },
-    "version": "v1.1",
-}
+# 初始化mem0客户端
 
-mem0 = Memory.from_config(mem0_client_config)
+_mem0_instance = None
+_last_config_hash = None
+
+def get_mem0_client():
+    global _mem0_instance, _last_config_hash
+    memory_config = plugin.get_config(MemoryConfig)
+    # 计算当前配置的哈希值
+    current_config = {
+        "MEMORY_MANAGE_MODEL": memory_config.MEMORY_MANAGE_MODEL,
+        "TEXT_EMBEDDING_MODEL": memory_config.TEXT_EMBEDDING_MODEL,
+        "SESSION_ISOLATION": memory_config.SESSION_ISOLATION,
+        "AUTO_MEMORY_ENABLED": memory_config.AUTO_MEMORY_ENABLED,
+        "AUTO_MEMORY_SEARCH_LIMIT": memory_config.AUTO_MEMORY_SEARCH_LIMIT,
+        "AUTO_MEMORY_CONTEXT_MESSAGE_COUNT": memory_config.AUTO_MEMORY_CONTEXT_MESSAGE_COUNT,
+        "AUTO_MEMORY_USE_TOPIC_SEARCH": memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH,
+        "llm_model_name": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).CHAT_MODEL,
+        "llm_api_key": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).API_KEY,
+        "llm_base_url": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).BASE_URL,
+        "embedder_model_name": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).CHAT_MODEL,
+        "embedder_api_key": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).API_KEY,
+        "embedder_base_url": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).BASE_URL,
+    }
+    
+    # 验证字段不能为空字符串
+    if not current_config["llm_model_name"]:
+        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的CHAT_MODEL不能为空")
+    if not current_config["llm_api_key"]:
+        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的API_KEY不能为空")
+    if not current_config["llm_base_url"]:
+        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的BASE_URL不能为空")
+    if not current_config["embedder_model_name"]:
+        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的CHAT_MODEL不能为空")
+    if not current_config["embedder_api_key"]:
+        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的API_KEY不能为空")
+    if not current_config["embedder_base_url"]:
+        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的BASE_URL不能为空")
+    
+    
+    current_hash = hash(frozenset(current_config.items()))
+    
+    # 如果配置变了或者实例不存在，重新初始化
+    if _mem0_instance is None or current_hash != _last_config_hash:
+        # 重新构建配置
+        mem0_client_config = {
+            "vector_store": {
+                "provider": "chroma",
+                "config": {
+                    "path": str(plugin.get_plugin_path() / "vector_db"),
+                },
+            },
+            "llm": {
+                "provider": "openai",
+                "config": {
+                    "api_key": current_config["llm_api_key"],
+                    "model": current_config["llm_model_name"],
+                    "openai_base_url": current_config["llm_base_url"],
+                },
+            },
+            "embedder": {
+                "provider": "openai",
+                "config": {
+                    "api_key": current_config["embedder_api_key"],
+                    "model": current_config["embedder_model_name"],
+                    "openai_base_url": current_config["embedder_base_url"],
+                },
+            },
+            "version": "v1.1",
+        }
+        
+        # 创建新实例
+        _mem0_instance = Memory.from_config(mem0_client_config)
+        _last_config_hash = current_hash
+        logger.info("记忆管理器已重新初始化")
+        
+    return _mem0_instance
 
 @plugin.mount_prompt_inject_method(name="memory_prompt_inject")
 async def memory_prompt_inject(_ctx: AgentCtx) -> str:
     """记忆提示注入,在对话开始前检索相关记忆并注入到对话提示中"""
+    mem0 = get_mem0_client()
     if not memory_config.AUTO_MEMORY_ENABLED:
         return ""
     
@@ -315,6 +365,7 @@ async def add_memory(
         add_memory("喜欢打csgo", "114514", {"category": "hobbies","game_type": "csgo"})
         add_memory("小名是喵喵", "123456", {"category": "name","nickname": "喵喵"})
     """
+    mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
 
@@ -352,6 +403,7 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     Examples:
         search_memory("2025年3月1日吃了什么","123456")
     """
+    mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
     
@@ -386,6 +438,7 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     Example:
         get_all_memories("123456")
     """
+    mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
 
@@ -422,7 +475,7 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
     Example:
         update_memory("bf4d4092...", "喜欢周末打网球")
     """
-    
+    mem0 = get_mem0_client()
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
@@ -457,6 +510,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
     Example:
         get_memory_history("bf4d4092...")
     """
+    mem0 = get_mem0_client()
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
@@ -484,4 +538,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
     
 @plugin.mount_cleanup_method()
 async def clean_up():
+    global _mem0_instance,_last_config_hash
+    _mem0_instance = None
+    _last_config_hash = None
     """清理插件"""
