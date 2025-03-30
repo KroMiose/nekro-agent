@@ -205,7 +205,7 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
             "icon": "Chat",
         },
         "embedding": {
-            "label": "向量嵌入",
+            "label": "嵌入",
             "description": "用于将文本转换为向量的模型",
             "color": "secondary",
             "icon": "Code",

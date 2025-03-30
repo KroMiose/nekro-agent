@@ -48,7 +48,7 @@ class EmotionConfig(ConfigBase):
         description="最近添加表情包最大显示数量",
     )
     MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
-    EMBEDDING_MODEL: str = Field(default="default", title="嵌入模型组", description="在此填入向量嵌入模型组名称")
+    EMBEDDING_MODEL: str = Field(default="text-embedding", title="嵌入模型组", description="在此填入向量嵌入模型组名称")
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
 
 
@@ -74,9 +74,11 @@ except (ValueError, chromadb.errors.InvalidCollectionException) as e:
         metadata={"hnsw:space": "cosine"},
     )
 
-#根据模型名获取模型组配置项
+
+# 根据模型名获取模型组配置项
 def get_model_group_info(model_name: str) -> ModelConfigGroup:
     from nekro_agent.core.config import config as core_config
+
     try:
         return core_config.MODEL_GROUPS[model_name]
     except KeyError as e:
