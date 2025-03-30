@@ -1,22 +1,18 @@
+import time
+import uuid
 from typing import Any, Dict, List, Optional
 
 import chromadb
 import chromadb.errors
 import httpx
+from mem0 import Memory
 from pydantic import Field
 
 from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.config import ModelConfigGroup
+from nekro_agent.core.config import config as core_config
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
-
-try:
-    from mem0 import Memory
-except ImportError as err:
-    raise ImportError("mem0 未安装,请安装 mem0ai 包") from err
-
-import time
-import uuid
 
 # 扩展元数据
 plugin = NekroPlugin(
@@ -64,18 +60,44 @@ def decode_id(encoded_id: str) -> str:
         return str(uuid.UUID(int=number))
     except (ValueError, AttributeError) as err:
         raise ValueError("无效的短ID格式") from err
+    
+def format_memories(results: List[Dict]) -> str:
+    """格式化记忆列表为字符串"""
+    if not results:
+        return "未找到任何记忆"
+    
+    formatted = []
+    for idx, mem in enumerate(results, 1):
+        metadata = mem.get("metadata", {})
+        created_at = mem.get("created_at", "未知时间")
+        score = mem.get("score", "暂无")
+        formatted.append(
+        f"{idx}. [ID: {encode_id(mem['id'])}]\n"  # 使用短ID
+        f"内容: {mem['memory']}\n"
+        f"元数据: {metadata}\n"
+        f"创建时间: {created_at}\n"
+        f"匹配度: {score}\n",
+    )
+    return "\n".join(formatted)
+
+#根据模型名获取模型组配置项
+def get_model_group_info(model_name: str) -> ModelConfigGroup:
+    try:
+        return core_config.MODEL_GROUPS[model_name]
+    except KeyError as e:
+        raise ValueError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
 
 @plugin.mount_config()
 class MemoryConfig(ConfigBase):
     """基础配置"""
 
     MEMORY_MANAGE_MODEL: str = Field(
-        default="",
+        default="default",
         title="记忆管理模型",
         description="用于将传入的记忆内容简化整理的llm,填入模型组名称即可",
     )
-    VECTOR_MODEL: str = Field(
-        default="",
+    TEXT_EMBEDDING_MODEL: str = Field(
+        default="default",
         title="向量嵌入模型",
         description="用于将传入的记忆进行向量嵌入,填入模型组名称即可",
     )
@@ -107,11 +129,6 @@ class MemoryConfig(ConfigBase):
 
 memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
 
-memory_manage_model = memory_config.MEMORY_MANAGE_MODEL or "default"
-vector_model = memory_config.VECTOR_MODEL or "default"
-
-memory_manage: ModelConfigGroup = config.MODEL_GROUPS[memory_manage_model]
-vector : ModelConfigGroup = config.MODEL_GROUPS[vector_model]
 # 初始化内存客户端
 mem0_client_config = {
     "vector_store": {
@@ -123,42 +140,23 @@ mem0_client_config = {
     "llm": {
         "provider": "openai",
         "config": {
-            "api_key": memory_manage.API_KEY,#这里填你的openai api key
-            "model": memory_manage.CHAT_MODEL,#这里填llm模型
-            "openai_base_url": memory_manage.BASE_URL,#这里可以填任何支持openai api格式的地址
+            "api_key": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).API_KEY,#这里填你的openai api key
+            "model": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).CHAT_MODEL,#这里填llm模型
+            "openai_base_url": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).BASE_URL,#这里可以填任何支持openai api格式的地址
         },
     },
     "embedder": {
         "provider": "openai",
         "config": {
-            "api_key": vector.API_KEY,#这里填你的openai api key
-            "model": vector.CHAT_MODEL,#这里只能用文本嵌入模型
-            "openai_base_url": vector.BASE_URL,#这里可以填任何支持openai api格式的地址
+            "api_key": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).API_KEY,#这里填你的openai api key
+            "model": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).CHAT_MODEL,#这里只能用文本嵌入模型
+            "openai_base_url": get_model_group_info(memory_config.TEXT_EMBEDDING_MODEL).BASE_URL,#这里可以填任何支持openai api格式的地址
         },
     },
     "version": "v1.1",
 }
 
 mem0 = Memory.from_config(mem0_client_config)
-
-def format_memories(results: List[Dict]) -> str:
-    """格式化记忆列表为字符串"""
-    if not results:
-        return "未找到任何记忆"
-    
-    formatted = []
-    for idx, mem in enumerate(results, 1):
-        metadata = mem.get("metadata", {})
-        created_at = mem.get("created_at", "未知时间")
-        score = mem.get("score", "暂无")
-        formatted.append(
-        f"{idx}. [ID: {encode_id(mem['id'])}]\n"  # 使用短ID
-        f"内容: {mem['memory']}\n"
-        f"元数据: {metadata}\n"
-        f"创建时间: {created_at}\n"
-        f"匹配度: {score}\n",
-    )
-    return "\n".join(formatted)
 
 @plugin.mount_prompt_inject_method(name="memory_prompt_inject")
 async def memory_prompt_inject(_ctx: AgentCtx) -> str:
@@ -181,7 +179,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         chat_type, chat_id = parts
         
         # 获取最近消息,用于识别用户和上下文
-        record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
+        record_sta_timestamp = int(time.time() - core_config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
         recent_messages: List[DBChatMessage] = await (
             DBChatMessage.filter(
                 send_timestamp__gte=max(record_sta_timestamp, db_chat_channel.conversation_start_time.timestamp()),
@@ -209,7 +207,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         elif chat_type == "group":
             # 从最近消息中提取所有发言用户的QQ号
             for msg in recent_messages:
-                if msg.sender_bind_qq and msg.sender_bind_qq != "0" and msg.sender_bind_qq is not config.BOT_QQ:
+                if msg.sender_bind_qq and msg.sender_bind_qq != "0":
                     user_ids.add(msg.sender_bind_qq)
 
         # 没有找到有效用户ID,返回空
@@ -274,19 +272,19 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         return memory_text  # noqa: TRY300
     except Exception as e:
         logger.error(f"自动记忆检索失败: {e!s}")
-        return ""
+        raise
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="")
-async def notice(_ctx: AgentCtx):
+async def _memory_notice(_ctx: AgentCtx):
     """
+    Do Not Call This Function!
     这是有关记忆模块的提示
     ⚠️ 关键注意：
-    - 绝对禁止将自己的ID作为user_id,除非记忆明确属于自身属性
     - user_id必须严格指向记忆的归属主体,metadata中的字段不可替代user_id的作用
     - 如果要存储的记忆中包含时间信息,禁止使用(昨天,前天,之后等)相对时间概念,应使用具体的时间(比如20xx年x月x日 x时x分)
-    - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替换,例如("hatsune_miku","louis","takanashi_hoshino")
-    - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如用户alice说"我的小名是喵喵",user_id="alice",记忆内容为"小名是喵喵")
-    - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如用户alice说"我的朋友Bob喜欢游泳",user_id="bob",记忆内容为"喜欢游泳")
+    - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替换,例如("hatsune_miku","takanashi_hoshino")
+    - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如QQ号为123456的用户说"我的小名是喵喵",则user_id="123456",记忆内容为"小名是喵喵")
+    - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如QQ号为123456的用户说"@114514喜欢游泳",则user_id="114514",记忆内容为"喜欢游泳")
     """
 
 @plugin.mount_sandbox_method(
@@ -305,18 +303,20 @@ async def add_memory(
     Args:
         memory (str): 要添加的记忆内容文本
         **非常重要**
-        user_id (str): 关联的用户ID,必须为有效非空字符串,标识应为用户qq,例如2708583339,而非chat_key.
+        user_id (str): 关联的用户ID,标识应为用户qq,例如2708583339,而非chat_key.传入空字符串则代表查询有关自身记忆
         metadata (Dict[str, Any]): 元数据标签,{"category": "hobbies"}
         
     Returns:
-        返回记忆添加成功,并返回记忆ID
+        str: 记忆ID
         
     Example:
-        add_memory("喜欢周末打板球", "alice", {"category": "hobbies","sport_type": "cricket"})
-        add_memory("喜欢吃披萨", "alice", {"category": "hobbies","food_type": "pizza"})
-        add_memory("喜欢打csgo", "alice", {"category": "hobbies","game_type": "csgo"})
-        add_memory("小名是喵喵", "alice", {"category": "name","nickname": "喵喵"})
+        add_memory("喜欢周末打板球", "114514", {"category": "hobbies","sport_type": "cricket"})
+        add_memory("喜欢吃披萨", "123456", {"category": "hobbies","food_type": "pizza"})
+        add_memory("喜欢打csgo", "114514", {"category": "hobbies","game_type": "csgo"})
+        add_memory("小名是喵喵", "123456", {"category": "name","nickname": "喵喵"})
     """
+    if user_id == "":
+        user_id = core_config.BOT_QQ
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
     try:
@@ -326,13 +326,13 @@ async def add_memory(
             memory_id = result["results"][0]["id"]
             short_id = encode_id(memory_id)  # 添加编码
             return f"记忆添加成功,ID：{short_id}"
+        raise
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务,请检查网络连接"
+        raise
     except Exception as e:
         logger.error(f"添加记忆失败: {e!s}")
-        return f"记忆添加失败: {e!s}"
-    return "记忆添加失败：未返回有效ID"
+        raise
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -344,10 +344,13 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     在使用该方法前先关注提示词中出现的 "当前会话相关记忆" 字样,如果已有需要的相关记忆,则不需要再使用search_memory进行搜索
     Args:
         query (str): 要搜索的记忆内容文本,可以是问句,例如"喜欢吃什么","生日是多久"
-        user_id (str): 要查询的用户唯一标识,必须为有效非空字符串,标识应为用户qq,例如2708583339,而非chat_key.
+        user_id (str): 要查询的用户唯一标识,标识应为用户qq,例如123456,而非chat_key.传入空字符串则代表查询有关自身记忆
     Examples:
-        search_memory("2025年3月1日吃了什么","2708583339")
+        search_memory("2025年3月1日吃了什么","123456")
     """
+    if user_id == "":
+        user_id = core_config.BOT_QQ
+    
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
 
@@ -357,10 +360,10 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
         return "以下是你对该用户的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务,请稍后再试"
+        raise
     except Exception as e:
         logger.error(f"搜索记忆失败: {e!s}")
-        return f"搜索记忆失败: {e!s}"
+        raise
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -370,29 +373,29 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
 async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     """获取用户所有记忆
     Args:
-        user_id (str): 要查询的用户唯一标识,必须为有效非空字符串,标识应为用户qq,例如2708583339,而非chat_key.
+        user_id (str): 要查询的用户唯一标识,标识应为用户qq,例如123456,而非chat_key.传入空字符串则代表查询有关自身记忆
     Returns:
         str: 格式化后的记忆列表字符串,包含记忆内容和元数据
         
     Example:
-        get_all_memories("2708583339")
+        get_all_memories("123456")
     """
+    if user_id == "":
+        user_id = core_config.BOT_QQ
+
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
 
-    try:
-        if not user_id.strip():
-            return "用户ID不能为空"
-        
+    try:        
         result = mem0.get_all(user_id=user_id)
         logger.info(f"获取所有记忆结果: {result}")
         return "以下是你脑海中的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
-        return "无法连接到记忆存储服务,请稍后再试"
+        raise
     except Exception as e:
         logger.error(f"获取记忆失败: {e!s}")
-        return f"获取记忆失败: {e!s}"
+        raise
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.BEHAVIOR,
@@ -415,17 +418,19 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
-        return f"无效的记忆ID: {e!s}"
+        logger.error(f"无效的记忆ID: {e!s}")
+        raise
     
     try:        
         result = mem0.update(memory_id=original_id, data=new_content)
         logger.info(f"更新记忆结果: {result}")
         return result.get("message", "记忆更新成功")
-    except httpx.HTTPError:
-        return "更新失败：无法连接记忆存储服务"
+    except httpx.HTTPError as e:
+        logger.error(f"更新失败: {e!s}")
+        raise
     except Exception as e:
         logger.error(f"更新失败: {e!s}")
-        return f"记忆更新失败: {e!s}"
+        raise
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
@@ -447,7 +452,8 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
-        return f"无效的记忆ID: {e!s}"
+        logger.error(f"无效的记忆ID: {e!s}")
+        raise
     
     try:
         records = mem0.history(memory_id=original_id)
@@ -466,7 +472,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
         return "\n".join(formatted)
     except Exception as e:
         logger.error(f"获取历史失败: {e!s}")
-        return "获取历史记录失败"
+        raise
     
 @plugin.mount_cleanup_method()
 async def clean_up():

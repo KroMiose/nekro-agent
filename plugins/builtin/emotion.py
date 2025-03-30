@@ -14,7 +14,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
 from nekro_agent.api import core, message, schemas
-from nekro_agent.core.config import config as core_config
+from nekro_agent.core.config import ModelConfigGroup
 from nekro_agent.core.logger import logger
 from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -48,27 +48,12 @@ class EmotionConfig(ConfigBase):
         description="最近添加表情包最大显示数量",
     )
     MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
-    #EMBEDDING_MODEL: str = Field(default="text-embedding-v3", title="嵌入模型", description="使用的嵌入模型")
-    #EMBEDDING_API_KEY: str = Field(
-    #    default="",
-    #    title="嵌入模型 API Key",
-    #    description="嵌入模型 API Key",
-    #    json_schema_extra={"is_secret": True},
-    #)
-    #EMBEDDING_API_BASE: str = Field(
-    #    default="https://api.nekro.ai/v1",
-    #    title="嵌入模型 API 地址",
-    #    description="嵌入模型 API 地址",
-    #    json_schema_extra={"is_secret": True},
-    #)
-    EMBEDDING_MODEL: str = Field(default="text-embedding-v3", title="嵌入模型组", description="在此填入向量嵌入模型组名称")
-    EMBEDDING_API_ENDPOINT: str = Field(default="/embeddings", title="嵌入模型 API 端点", description="嵌入模型 API 端点")
+    EMBEDDING_MODEL: str = Field(default="default", title="嵌入模型组", description="在此填入向量嵌入模型组名称")
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
 
 
 # 获取配置和插件存储
 emotion_config: EmotionConfig = plugin.get_config(EmotionConfig)
-embedding_model = emotion_config.EMBEDDING_MODEL or "text-embedding"
 store = plugin.store
 store_dir = plugin.get_plugin_path() / "emotions"
 chroma_client = chromadb.PersistentClient(path=str(plugin.get_plugin_path() / "vector_db"))
@@ -88,6 +73,14 @@ except (ValueError, chromadb.errors.InvalidCollectionException) as e:
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"},
     )
+
+#根据模型名获取模型组配置项
+def get_model_group_info(model_name: str) -> ModelConfigGroup:
+    from nekro_agent.core.config import config as core_config
+    try:
+        return core_config.MODEL_GROUPS[model_name]
+    except KeyError as e:
+        raise ValueError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
 
 
 # region: 表情包系统数据模型
@@ -178,11 +171,11 @@ async def generate_embedding(text: str) -> List[float]:
     """生成文本嵌入向量"""
 
     embedding_vector = await gen_openai_embeddings(
-        model=core_config.MODEL_GROUPS[emotion_config.EMBEDDING_MODEL].CHAT_MODEL,
+        model=get_model_group_info(emotion_config.EMBEDDING_MODEL).CHAT_MODEL,
         input=text,
         dimensions=emotion_config.EMBEDDING_DIMENSION,
-        api_key=core_config.MODEL_GROUPS[emotion_config.EMBEDDING_MODEL].API_KEY,
-        base_url=core_config.MODEL_GROUPS[emotion_config.EMBEDDING_MODEL].BASE_URL,
+        api_key=get_model_group_info(emotion_config.EMBEDDING_MODEL).API_KEY,
+        base_url=get_model_group_info(emotion_config.EMBEDDING_MODEL).BASE_URL,
     )
 
     vector_dimension = len(embedding_vector)
