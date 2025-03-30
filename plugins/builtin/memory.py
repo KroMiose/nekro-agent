@@ -16,6 +16,7 @@ except ImportError as err:
     raise ImportError("mem0 未安装，请安装 mem0ai 包") from err
 
 import uuid
+import time
 
 # 扩展元数据
 plugin = NekroPlugin(
@@ -65,7 +66,7 @@ def decode_id(encoded_id: str) -> str:
         raise ValueError("无效的短ID格式") from err
 
 @plugin.mount_config()
-class BasicConfig(ConfigBase):
+class MemoryConfig(ConfigBase):
     """基础配置"""
 
     MEMORY_MANAGE_MODEL: str = Field(
@@ -83,8 +84,28 @@ class BasicConfig(ConfigBase):
         title="记忆会话隔离",
         description="开启后bot存储的记忆只对当前会话有效,在其他会话中无法获取",
     )
+    AUTO_MEMORY_ENABLED: bool = Field(
+        default=True,
+        title="启用自动记忆检索",
+        description="启用后，系统将在对话开始时自动检索与当前对话相关的用户的所有记忆",
+    )
+    AUTO_MEMORY_SEARCH_LIMIT: int = Field(
+        default=5,
+        title="自动记忆检索数量上限",
+        description="自动检索时返回的记忆条数上限",
+    )
+    AUTO_MEMORY_CONTEXT_MESSAGE_COUNT: int = Field(
+        default=5,
+        title="上下文消息数",
+        description="可获取到的上下文消息数量",
+    )
+    AUTO_MEMORY_USE_TOPIC_SEARCH: bool = Field(
+        default=True,
+        title="启用话题搜索",
+        description="启用后，系统将使用LLM来找到最近聊天话题,并通过话题获取相关记忆，可能会延长响应时间",
+    )
 
-memory_config: BasicConfig = plugin.get_config(BasicConfig)
+memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
 
 memory_manage_model = memory_config.MEMORY_MANAGE_MODEL or "default"
 vector_model = memory_config.VECTOR_MODEL or "default"
@@ -139,6 +160,122 @@ def format_memories(results: List[Dict]) -> str:
     )
     return "\n".join(formatted)
 
+@plugin.mount_prompt_inject_method(name="memory_prompt_inject")
+async def memory_prompt_inject(_ctx: AgentCtx) -> str:
+    """记忆提示注入，在对话开始前检索相关记忆并注入到对话提示中"""
+    if not memory_config.AUTO_MEMORY_ENABLED:
+        return ""
+    
+    try:
+        from nekro_agent.models.db_chat_channel import DBChatChannel
+        from nekro_agent.models.db_chat_message import DBChatMessage
+        
+        # 获取会话信息
+        db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)
+        
+        # 从会话键中提取用户ID和类型
+        parts = _ctx.from_chat_key.split("_")
+        if len(parts) != 2:
+            return ""
+        
+        chat_type, chat_id = parts
+        
+        # 获取最近消息，用于识别用户和上下文
+        record_sta_timestamp = int(time.time() - config.AI_CHAT_CONTEXT_EXPIRE_SECONDS)
+        recent_messages: List[DBChatMessage] = await (
+            DBChatMessage.filter(
+                send_timestamp__gte=max(record_sta_timestamp, db_chat_channel.conversation_start_time.timestamp()),
+                chat_key=_ctx.from_chat_key,
+            )
+            .order_by("-send_timestamp")
+            .limit(memory_config.AUTO_MEMORY_CONTEXT_MESSAGE_COUNT)
+        )
+        recent_messages = [msg for msg in recent_messages if msg.sender_bind_qq != "0"] #去除系统发言
+
+        if not recent_messages:
+            return ""
+        
+        # 用于保存找到的用户记忆
+        all_memories = []
+        
+        # 构建上下文内容，用于语义搜索
+        context_content = "\n".join([db_message.parse_chat_history_prompt("") for db_message in recent_messages])
+        # 识别参与对话的用户
+        user_ids = set()
+        
+        # 只对私聊启用自动记忆检索
+        if chat_type == "private":
+            user_ids.add(chat_id)
+        elif chat_type == "group":
+            # 从最近消息中提取所有发言用户的QQ号
+            for msg in recent_messages:
+                if msg.sender_bind_qq and msg.sender_bind_qq != "0" and msg.sender_bind_qq is not config.BOT_QQ:
+                    user_ids.add(msg.sender_bind_qq)
+
+        # 没有找到有效用户ID，返回空
+        if not user_ids:
+            return ""
+            
+        # 对每个用户进行记忆检索
+        for user_id in user_ids:
+            try:
+                # 如果启用会话隔离，添加会话前缀
+                search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
+                
+                # 使用话题检索
+                if memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH and context_content:
+                    context_content += f"\n以上是该会话的聊天记录,请你分析当前聊天话题,并搜索有关用户{search_user_id}的记忆"
+                    # 使用话题搜索检索与当前对话上下文相关的记忆
+                    result = mem0.search(
+                        query=context_content, 
+                        user_id=search_user_id,
+                    )
+                    user_memories = result.get("results", [])
+                else:
+                    # 搜索用户的所有记忆
+                    result = mem0.get_all(user_id=search_user_id)
+                    user_memories = result.get("results", [])
+                
+                # 限制返回记忆数量
+                user_memories = user_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
+                
+                # 为每个记忆添加用户信息
+                for memory in user_memories:
+                    memory["user_qq"] = user_id
+                    # 尝试获取用户昵称
+                    for msg in recent_messages:
+                        if msg.sender_bind_qq == user_id:
+                            memory["user_nickname"] = msg.sender_nickname
+                            break
+                    else:
+                        memory["user_nickname"] = user_id
+                
+                all_memories.extend(user_memories)
+            except Exception as e:
+                logger.error(f"检索用户 {user_id} 的记忆失败: {e!s}")
+        
+        if not all_memories:
+            return ""
+        
+        # 按相关性排序（如果有分数的话）
+        all_memories.sort(key=lambda x: float(x.get("score", 0) or 0), reverse=True)
+        
+        # 限制返回记忆数量
+        all_memories = all_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
+        
+        # 格式化记忆内容
+        memory_text = "当前会话相关记忆:\n"
+        for idx, mem in enumerate(all_memories, 1):
+            metadata = mem.get("metadata", {})
+            nickname = mem.get("user_nickname", mem.get("user_qq", "未知用户"))
+            memory_text += f"{idx}. [{nickname} | {metadata}] {mem['memory']}\n"
+        logger.info(memory_text)
+        
+        return memory_text  # noqa: TRY300
+    except Exception as e:
+        logger.error(f"自动记忆检索失败: {e!s}")
+        return ""
+
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="")
 async def notice(_ctx: AgentCtx):
     """
@@ -150,7 +287,7 @@ async def notice(_ctx: AgentCtx):
     - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替换,例如("hatsune_miku","louis","takanashi_hoshino")
     - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如用户alice说"我的小名是喵喵",user_id="alice",记忆内容为"小名是喵喵")
     - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如用户alice说"我的朋友Bob喜欢游泳",user_id="bob",记忆内容为"喜欢游泳")
-
+    - 请你关注提示词中出现的 "当前会话相关记忆" 如果已有你需要的相关记忆,则不需要再使用search_memory进行搜索
     """
 
 @plugin.mount_sandbox_method(
