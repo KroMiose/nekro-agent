@@ -282,7 +282,7 @@ async def _memory_notice(_ctx: AgentCtx):
     ⚠️ 关键注意：
     - user_id必须严格指向记忆的归属主体,metadata中的字段不可替代user_id的作用
     - 如果要存储的记忆中包含时间信息,禁止使用(昨天,前天,之后等)相对时间概念,应使用具体的时间(比如20xx年x月x日 x时x分)
-    - 对于虚拟角色,需使用其英文小写全名,带有空格的部分请使用_替代,例如("hatsune_miku","takanashi_hoshino")
+    - 对于虚拟角色,需使用其英文小写全名,例如("hatsune_miku","takanashi_hoshino")
     - 若记忆内容属于对话中的用户,则在存储记忆时user_id=该用户ID(如QQ号为123456的用户说"我的小名是喵喵",则user_id="123456",记忆内容为"小名是喵喵")
     - 若记忆内容属于第三方,则在存储记忆时user_id=第三方ID(如QQ号为123456的用户说"@114514喜欢游泳",则user_id="114514",记忆内容为"喜欢游泳")
     """
@@ -317,8 +317,12 @@ async def add_memory(
     """
     if user_id == "":
         user_id = core_config.BOT_QQ
+
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
+
+    user_id = user_id.replace(" ", "_")
+
     try:
         result = mem0.add(messages=memory, user_id=user_id, metadata=metadata)
         logger.info(f"添加记忆结果: {result}")
@@ -326,7 +330,7 @@ async def add_memory(
             memory_id = result["results"][0]["id"]
             short_id = encode_id(memory_id)  # 添加编码
             return f"记忆添加成功,ID：{short_id}"
-        raise RuntimeError("记忆添加失败")  # noqa: TRY301
+        return ""  # noqa: TRY300
     except httpx.HTTPError as e:
         logger.error(f"网络请求失败: {e!s}")
         raise RuntimeError(f"网络请求失败: {e!s}") from e
@@ -353,6 +357,8 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
+
+    user_id = user_id.replace(" ", "_")
 
     try:
         result = mem0.search(query=query, user_id=user_id)
@@ -386,6 +392,8 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     if memory_config.SESSION_ISOLATION :
         user_id = _ctx.from_chat_key + user_id
 
+    user_id = user_id.replace(" ", "_")
+    
     try:        
         result = mem0.get_all(user_id=user_id)
         logger.info(f"获取所有记忆结果: {result}")
