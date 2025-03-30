@@ -266,7 +266,8 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         for idx, mem in enumerate(all_memories, 1):
             metadata = mem.get("metadata", {})
             nickname = mem.get("user_nickname", mem.get("user_qq", "未知用户"))
-            memory_text += f"{idx}. [{nickname} | {metadata}] {mem['memory']}\n"
+            memory_id = encode_id(mem.get("id","未知ID"))
+            memory_text += f"{idx}. [{nickname} | {metadata} | ID: {memory_id}] {mem['memory']}\n"
         logger.info(memory_text)
         
         return memory_text  # noqa: TRY300
