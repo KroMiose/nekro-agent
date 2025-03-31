@@ -54,7 +54,7 @@ async def draw(
     """Generate or modify images
 
     Args:
-        prompt (str): Natural language description of the image you want to create.
+        prompt (str): Natural language description of the image you want to create. (Only supports English)
             Suggested elements to include:
             - Type of drawing (e.g., character setting, landscape, etc.)
             - What to draw details (characters, animals, objects, etc.)

@@ -39,7 +39,7 @@ import {
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
 import { useTheme } from '@mui/material/styles'
-import { pluginsApi, streamGenerateCode } from '../../../services/api/plugins'
+import { pluginsApi, streamGenerateCode } from '../../services/api/plugins'
 
 // 新建扩展对话框组件
 interface NewPluginDialogProps {

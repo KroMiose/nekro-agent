@@ -62,7 +62,7 @@ import {
   Storage as StorageIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../../services/api/plugins'
+import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../services/api/plugins'
 
 // 自定义提示样式，支持富文本
 const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (

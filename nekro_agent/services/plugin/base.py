@@ -50,6 +50,7 @@ class NekroPlugin:
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
         self.on_reset_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
+        self.on_message_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
         self.name = name
@@ -178,6 +179,23 @@ class NekroPlugin:
 
         def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, Any]]) -> Callable[[AgentCtx], Coroutine[Any, Any, Any]]:
             self.on_reset_method = func
+            return func
+
+        return decorator
+
+    def mount_on_message(
+        self,
+    ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
+        """挂载消息回调方法
+
+        用于挂载消息回调方法，在收到消息时执行。
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, Any]]) -> Callable[[AgentCtx], Coroutine[Any, Any, Any]]:
+            self.on_message_method = func
             return func
 
         return decorator

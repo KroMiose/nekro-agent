@@ -1,6 +1,6 @@
-"""扩展生成器
+"""插件生成器
 
-负责生成扩展代码和模板。
+负责生成插件代码和模板。
 """
 
 from typing import Any, AsyncGenerator, Dict, Optional
@@ -9,15 +9,15 @@ from nekro_agent.core.config import config
 from nekro_agent.tools.llm import get_chat_response, get_chat_response_stream
 
 
-def generate_extension_template(name: str, description: str) -> str:
-    """生成扩展模板
+def generate_plugin_template(name: str, description: str) -> str:
+    """生成插件模板
 
     Args:
-        name (str): 扩展名称
-        description (str): 扩展描述
+        name (str): 插件名称
+        description (str): 插件描述
 
     Returns:
-        str: 扩展模板代码
+        str: 插件模板代码
     """
     return f'''from typing import Optional
 from pydantic import BaseModel
@@ -47,12 +47,12 @@ async def example_add_method(a: int, b: int, _ctx: AgentCtx) -> int:
     return a + b
 
 def clean_up():
-    """清理扩展资源"""
+    """清理插件资源"""
     # 如有必要，在此实现清理资源的逻辑
 '''
 
 
-GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生成 Nekro Agent 的扩展代码。
+GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生成 Nekro Agent 的插件代码。
 请根据用户的需求，生成符合以下规范的代码修改建议：
 
 1. 代码规范：
@@ -64,21 +64,21 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
    - 正确处理异常情况（使用 try-except 并记录日志）
    - 返回合适的响应消息（使用 Pydantic 模型或明确的返回类型）
 
-2. 扩展结构：
-   - 必须包含 __meta__ 定义，用于描述扩展的基本信息
+2. 插件结构：
+   - 必须包含 __meta__ 定义，用于描述插件的基本信息
    - 使用 @core.agent_collector.mount_method 装饰器注册方法，指定正确的方法类型
    - 可选实现 clean_up 函数用于清理资源（如关闭连接、清理缓存等）
-   - 相关功能应该组织在同一个扩展中
+   - 相关功能应该组织在同一个插件中
    - 复杂功能应该拆分为多个子函数，保持代码清晰
 
 3. 方法类型说明：
    a) TOOL 类型 (工具方法)：
       - 用于执行具体的功能操作，如发送消息、处理数据等
       - 返回结果会通过 RPC 返回给沙盒，允许 AI 获取结果继续处理
-      - 由于扩展代码和沙盒在两个不同的执行环境运行，不应该通过直接任何文件路径进行交互（例如直接返回文件路径）
+      - 由于插件代码和沙盒在两个不同的执行环境运行，不应该通过直接任何文件路径进行交互（例如直接返回文件路径）
       - 参数和返回值必须是可通过 pickle 序列化的基本数据类型（str、int、float、bool、list、dict、byte等）
       - 不要使用复杂对象或自定义类作为参数或返回值
-      - 适用场景：用于增强沙盒数据处理能力的扩展
+      - 适用场景：用于增强沙盒数据处理能力的插件
 
    b) AGENT 类型 (代理方法)：
       - 用于实现 Agent 的核心行为，如对话、决策等
@@ -93,7 +93,7 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
       - 适用场景：处理结果单一的行为
 
 4. 文档规范：
-   - 模块级文档：描述扩展的整体功能和用途
+   - 模块级文档：描述插件的整体功能和用途
    - 类文档：描述类的功能、属性和使用方法
    - 函数文档：
      * 简短的功能描述
@@ -117,7 +117,7 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
 
 7. 可用的 API：
    a) 核心 API (nekro_agent.api.core):
-      - ExtMetaData: 扩展元数据类
+      - ExtMetaData: 插件元数据类
       - MethodType: 方法类型(TOOL/AGENT/BEHAVIOR)
       - agent_collector: 方法收集器
       - logger: 日志记录器
@@ -162,13 +162,13 @@ GENERATE_SYSTEM_PROMPT = r'''你是一个专业的 Python 开发者，负责生�
    - 必须生成完整代码，不要省略内容
    - 必须包含所有必要的导入语句
    - 必须正确处理所有可能的异常
-   - 不使用 Optional 类型的扩展方法参数，不要为任何参数设定默认值，要求 AI 必须提供参数
+   - 不使用 Optional 类型的插件方法参数，不要为任何参数设定默认值，要求 AI 必须提供参数
    - 修改代码时对于原代码中重复的内容可以使用 "\# ... existing code ..." 占位
 
-示例扩展结构：
+示例插件结构：
 
 ```python
-"""天气查询扩展
+"""天气查询插件
 
 提供天气查询相关功能，包括实时天气、天气预报等。
 使用 wttr.in API 获取天气数据。
@@ -180,12 +180,12 @@ from pydantic import BaseModel, Field
 from nekro_agent.api import core, message
 from nekro_agent.api.schemas import AgentCtx
 
-# 扩展元数据
+# 插件元数据
 __meta__ = core.ExtMetaData(
     name="weather",  # Do not modify when generating code for user
     version="1.0.0",
     author="喵喵小助手", # Do not modify when generating code for user
-    description="天气查询扩展",
+    description="天气查询插件",
 )
 
 @core.agent_collector.mount_method(core.MethodType.AGENT)
@@ -204,7 +204,7 @@ async def query_weather(city: str, _ctx: AgentCtx) -> str:
     # 在这里实现你的功能
 
 def clean_up():
-    """清理扩展资源"""
+    """清理插件资源"""
     # 如有必要，在此实现清理资源的逻辑
 
 请根据以上规范和示例生成内容。
@@ -222,8 +222,8 @@ GENERATE_USER_PROMPT = """
 """.strip()
 
 
-async def generate_extension_code(file_path: str, prompt: str, current_code: Optional[str] = None) -> str:  # noqa: ARG001
-    """生成扩展代码
+async def generate_plugin_code(file_path: str, prompt: str, current_code: Optional[str] = None) -> str:  # noqa: ARG001
+    """生成插件代码
 
     Args:
         file_path (str): 文件路径
@@ -245,12 +245,12 @@ async def generate_extension_code(file_path: str, prompt: str, current_code: Opt
     return _clean_code_format(response)
 
 
-async def generate_extension_code_stream(
+async def generate_plugin_code_stream(
     file_path: str,  # noqa: ARG001
     prompt: str,
     current_code: Optional[str] = None,
 ) -> AsyncGenerator[str, None]:
-    """流式生成扩展代码
+    """流式生成插件代码
 
     Args:
         file_path (str): 文件路径
@@ -261,7 +261,7 @@ async def generate_extension_code_stream(
         str: 生成的代码片段
     """
     # 构建提示词
-    user_prompt = f"""请生成以下扩展功能的代码：
+    user_prompt = f"""请生成以下插件功能的代码：
 
 {prompt}
 
@@ -317,7 +317,7 @@ Important Notes:
 """
 
 
-async def apply_extension_code(file_path: str, prompt: str, current_code: str) -> str:  # noqa: ARG001
+async def apply_plugin_code(file_path: str, prompt: str, current_code: str) -> str:  # noqa: ARG001
     """应用生成的代码
 
     Args:
