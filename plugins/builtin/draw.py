@@ -1,21 +1,17 @@
 import base64
-import difflib
-import hashlib
 import random
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Literal
 
 import aiofiles
 import magic
 from httpx import AsyncClient, Timeout
 from pydantic import Field
 
-from nekro_agent.api import message, user
 from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config as global_config
-from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
@@ -39,6 +35,7 @@ class DrawConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
+    MODEL_MODE: Literal["图像生成", "聊天模式"] = Field(default="图像生成", title="绘图模型调用格式")
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
 
 
@@ -59,7 +56,8 @@ async def draw(
     Args:
         prompt (str): Natural language description of the image you want to create.
             Suggested elements to include:
-            - What to draw (characters, animals, objects, etc.)
+            - Type of drawing (e.g., character setting, landscape, etc.)
+            - What to draw details (characters, animals, objects, etc.)
             - What they are doing or their state
             - The scene or environment
             - Overall mood or atmosphere
@@ -79,9 +77,9 @@ async def draw(
         # Modify existing image
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/base_image.jpg"))
     """
-    # logger.info(f"绘图提示: {prompt}")
-    # logger.info(f"绘图尺寸: {size}")
-    # logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
+    logger.info(f"绘图提示: {prompt}")
+    logger.info(f"绘图尺寸: {size}")
+    logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
     if base_image:
         async with aiofiles.open(
             convert_to_host_path(Path(base_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
@@ -96,30 +94,67 @@ async def draw(
     if config.USE_DRAW_MODEL_GROUP not in global_config.MODEL_GROUPS:
         raise Exception(f"绘图模型组 `{config.USE_DRAW_MODEL_GROUP}` 未配置")
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
-    async with AsyncClient() as client:
-        response = await client.post(
-            f"{model_group.BASE_URL}/images/generations",
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Authorization": f"Bearer {model_group.API_KEY}",
-            },
-            json={
-                "model": model_group.CHAT_MODEL,
-                "prompt": prompt,
-                "image_size": size,
-                "batch_size": 1,
-                "seed": random.randint(0, 9999999999),
-                "num_inference_steps": config.NUM_INFERENCE_STEPS,
-                "guidance_scale": guidance_scale,
-                "image": source_image_data,
-            },
-            timeout=Timeout(read=60, write=60, connect=10, pool=10),
-        )
+    if config.MODEL_MODE == "图像生成":
+        async with AsyncClient() as client:
+            response = await client.post(
+                f"{model_group.BASE_URL}/images/generations",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {model_group.API_KEY}",
+                },
+                json={
+                    "model": model_group.CHAT_MODEL,
+                    "prompt": prompt,
+                    "image_size": size,
+                    "batch_size": 1,
+                    "seed": random.randint(0, 9999999999),
+                    "num_inference_steps": config.NUM_INFERENCE_STEPS,
+                    "guidance_scale": guidance_scale,
+                    "image": source_image_data,
+                },
+                timeout=Timeout(read=60, write=60, connect=10, pool=10),
+            )
         response.raise_for_status()
         data = response.json()
+        ret_file_url = data["data"][0]["url"]
+    elif config.MODEL_MODE == "聊天模式":
+        async with AsyncClient() as client:
+            response = await client.post(
+                f"{model_group.BASE_URL}/chat/completions",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": f"Bearer {model_group.API_KEY}",
+                },
+                json={
+                    "model": model_group.CHAT_MODEL,
+                    "messages": [
+                        {
+                            "role": "system",
+                            "content": "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information.",
+                        },
+                        {
+                            "role": "user",
+                            "content": f"Make a picture based on the following description: {prompt} (size: {size})",
+                        },
+                    ],
+                },
+                timeout=Timeout(read=60, write=60, connect=10, pool=10),
+            )
+            response.raise_for_status()
+            data = response.json()
         logger.info(f"绘图响应: {data}")
-        return data["data"][0]["url"]
+        content = data["choices"][0]["message"]["content"]
+        ret_file_url = re.search(r"!\[\w+?\]\((.*?)\)", content)
+        if ret_file_url:
+            ret_file_url = ret_file_url.group(1)
+        else:
+            raise Exception(
+                "No image found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+            )
+
+    return ret_file_url
 
 
 @plugin.mount_cleanup_method()
