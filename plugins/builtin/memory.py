@@ -136,21 +136,23 @@ class MemoryConfig(ConfigBase):
         description="系统将临时保留话题,超时后再重新总结",
     )
 
-memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
+# 获取最新配置的函数
+def get_memory_config() -> MemoryConfig:
+    """获取最新的记忆模块配置"""
+    return plugin.get_config(MemoryConfig)
 
 # 初始化mem0客户端
-
 _mem0_instance = None
 _last_config_hash = None
 _thread_pool = ThreadPoolExecutor(max_workers=5)  # 创建一个线程池用于执行同步操作
 
 # 添加记忆注入缓存，避免短时间内重复执行
 _memory_inject_cache = {}
-_MEMORY_CACHE_EXPIRE_SECONDS = 60  # 缓存有效期，单位秒
+
 
 def get_mem0_client():
     global _mem0_instance, _last_config_hash
-    memory_config = plugin.get_config(MemoryConfig)
+    memory_config = get_memory_config()  # 始终获取最新配置
     # 计算当前配置的哈希值
     current_config = {
         "MEMORY_MANAGE_MODEL": memory_config.MEMORY_MANAGE_MODEL,
@@ -231,35 +233,35 @@ def get_mem0_client():
 # 将同步方法包装成异步方法
 async def async_mem0_search(mem0, query: str, user_id: str):
     """异步执行mem0.search，避免阻塞事件循环"""
-    return await asyncio.get_event_loop().run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         _thread_pool, 
         lambda: mem0.search(query=query, user_id=user_id),
     )
 
 async def async_mem0_get_all(mem0, user_id: str):
     """异步执行mem0.get_all，避免阻塞事件循环"""
-    return await asyncio.get_event_loop().run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         _thread_pool, 
         lambda: mem0.get_all(user_id=user_id),
     )
 
 async def async_mem0_add(mem0, messages: str, user_id: str, metadata: Dict[str, Any]):
     """异步执行mem0.add，避免阻塞事件循环"""
-    return await asyncio.get_event_loop().run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         _thread_pool, 
         lambda: mem0.add(messages=messages, user_id=user_id, metadata=metadata),
     )
 
 async def async_mem0_update(mem0, memory_id: str, data: str):
     """异步执行mem0.update，避免阻塞事件循环"""
-    return await asyncio.get_event_loop().run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         _thread_pool, 
         lambda: mem0.update(memory_id=memory_id, data=data),
     )
 
 async def async_mem0_history(mem0, memory_id: str):
     """异步执行mem0.history，避免阻塞事件循环"""
-    return await asyncio.get_event_loop().run_in_executor(
+    return await asyncio.get_running_loop().run_in_executor(
         _thread_pool, 
         lambda: mem0.history(memory_id=memory_id),
     )
@@ -269,20 +271,21 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
     """记忆提示注入,在对话开始前检索相关记忆并注入到对话提示中"""
     global _memory_inject_cache
     
+    # 没有缓存或缓存已过期，执行正常流程
+    memory_config = get_memory_config()
+    mem0 = get_mem0_client()
+    if not memory_config.AUTO_MEMORY_ENABLED:
+        return ""
+    
     # 检查缓存是否存在且未过期
     current_time = time.time()
     cache_key = _ctx.from_chat_key
     if cache_key in _memory_inject_cache:
         cache_data = _memory_inject_cache[cache_key]
-        if current_time - cache_data["timestamp"] < _MEMORY_CACHE_EXPIRE_SECONDS:
-            logger.info(f"使用缓存的记忆注入结果，剩余有效期：{int(_MEMORY_CACHE_EXPIRE_SECONDS - (current_time - cache_data['timestamp']))}秒")
+        if current_time - cache_data["timestamp"] < memory_config.TOPIC_CACHE_EXPIRE_SECONDS:
+            logger.info(f"使用缓存的记忆注入结果，剩余有效期：{int(memory_config.TOPIC_CACHE_EXPIRE_SECONDS - (current_time - cache_data['timestamp']))}秒")
             return cache_data["result"]
-    
-    # 没有缓存或缓存已过期，执行正常流程
-    mem0 = get_mem0_client()
-    if not memory_config.AUTO_MEMORY_ENABLED:
-        return ""
-    
+
     try:
         from nekro_agent.models.db_chat_channel import DBChatChannel
         from nekro_agent.models.db_chat_message import DBChatMessage
@@ -424,7 +427,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         }
         
         # 清理过期缓存
-        expired_keys = [k for k, v in _memory_inject_cache.items() if current_time - v["timestamp"] > _MEMORY_CACHE_EXPIRE_SECONDS]
+        expired_keys = [k for k, v in _memory_inject_cache.items() if current_time - v["timestamp"] > memory_config.TOPIC_CACHE_EXPIRE_SECONDS]
         for k in expired_keys:
             del _memory_inject_cache[k]
         
@@ -475,6 +478,7 @@ async def add_memory(
         add_memory("喜欢打csgo", "114514", {"category": "hobbies","game_type": "csgo"})
         add_memory("小名是喵喵", "123456", {"category": "name","nickname": "喵喵"})
     """
+    memory_config = get_memory_config()
     mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
@@ -513,6 +517,7 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     Examples:
         search_memory("2025年3月1日吃了什么","123456")
     """
+    memory_config = get_memory_config()
     mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
@@ -548,6 +553,7 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     Example:
         get_all_memories("123456")
     """
+    memory_config = get_memory_config()  # 获取最新配置
     mem0 = get_mem0_client()
     if user_id == "":
         user_id = core_config.BOT_QQ
