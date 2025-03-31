@@ -50,6 +50,7 @@ class OsEnv:
 
     """Nekro Cloud API"""
     NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.ai")
+    # NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="http://localhost:8787")
 
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"

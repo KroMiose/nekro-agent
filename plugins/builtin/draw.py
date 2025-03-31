@@ -77,9 +77,9 @@ async def draw(
         # Modify existing image
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/base_image.jpg"))
     """
-    logger.info(f"绘图提示: {prompt}")
-    logger.info(f"绘图尺寸: {size}")
-    logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
+    # logger.info(f"绘图提示: {prompt}")
+    # logger.info(f"绘图尺寸: {size}")
+    # logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
     if base_image:
         async with aiofiles.open(
             convert_to_host_path(Path(base_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),

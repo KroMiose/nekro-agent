@@ -32,6 +32,23 @@ import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 
+// 防抖自定义Hook
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value)
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value)
+    }, delay)
+
+    return () => {
+      clearTimeout(timer)
+    }
+  }, [value, delay])
+
+  return debouncedValue
+}
+
 // 人设卡片组件
 const PresetCard = ({
   preset,
@@ -337,6 +354,7 @@ export default function PresetsMarket() {
   const [presets, setPresets] = useState<CloudPreset[]>([])
   const [loading, setLoading] = useState(true)
   const [searchKeyword, setSearchKeyword] = useState('')
+  const debouncedSearchKeyword = useDebounce(searchKeyword, 800)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [error, setError] = useState<string | null>(null)
@@ -382,8 +400,14 @@ export default function PresetsMarket() {
   )
 
   useEffect(() => {
-    fetchPresets(currentPage, searchKeyword)
-  }, [fetchPresets, currentPage, searchKeyword])
+    fetchPresets(currentPage, debouncedSearchKeyword)
+  }, [fetchPresets, currentPage, debouncedSearchKeyword])
+
+  // 监听防抖后的搜索关键词变化，重置到第一页
+  useEffect(() => {
+    // 当搜索关键词变化时重置页码到第一页
+    setCurrentPage(1)
+  }, [debouncedSearchKeyword])
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
     setCurrentPage(page)

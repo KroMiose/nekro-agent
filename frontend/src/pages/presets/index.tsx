@@ -24,6 +24,7 @@ import {
   FormControlLabel,
   Checkbox,
   Snackbar,
+  Link,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -457,7 +458,7 @@ const PresetCard = ({
   onExpand: () => void
   expanded: boolean
   onDelete: () => void
-  onSync: () => void
+  onSync: () => Promise<void>
   onEdit: () => void
   showError: (message: string) => void
 }) => {
@@ -470,6 +471,8 @@ const PresetCard = ({
   const [showSyncToCloudDialog, setShowSyncToCloudDialog] = useState(false)
   const [isSfw, setIsSfw] = useState(true)
   const [shareLoading, setShareLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
 
   // 更新 preset 当 initialPreset 变化时
   useEffect(() => {
@@ -663,8 +666,20 @@ const PresetCard = ({
     else if (!preset.on_shared && preset.remote_id) {
       return (
         <Tooltip title="从云端同步最新版本">
-          <IconButton size="small" color="primary" onClick={onSync}>
-            <SyncIcon />
+          <IconButton 
+            size="small" 
+            color="primary" 
+            onClick={async () => {
+              setSyncLoading(true);
+              try {
+                await onSync();
+              } finally {
+                setSyncLoading(false);
+              }
+            }}
+            disabled={syncLoading}
+          >
+            {syncLoading ? <CircularProgress size={24} /> : <SyncIcon />}
           </IconButton>
         </Tooltip>
       )
@@ -890,8 +905,20 @@ const PresetCard = ({
           </Tooltip>
           {preset.remote_id && preset.on_shared && (
             <Tooltip title="同步云端最新数据">
-              <IconButton size="small" color="primary" onClick={onSync}>
-                <SyncIcon />
+              <IconButton 
+                size="small" 
+                color="primary" 
+                onClick={async () => {
+                  setSyncLoading(true);
+                  try {
+                    await onSync();
+                  } finally {
+                    setSyncLoading(false);
+                  }
+                }}
+                disabled={syncLoading}
+              >
+                {syncLoading ? <CircularProgress size={24} /> : <SyncIcon />}
               </IconButton>
             </Tooltip>
           )}
@@ -914,16 +941,35 @@ const PresetCard = ({
           <Alert severity="info" sx={{ mb: 2 }}>
             共享后，其他人可以下载和使用您的人设。
           </Alert>
-          <FormControlLabel
-            control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
-            label="这是安全内容(SFW)"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <FormControlLabel
+              control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
+              label="我确认这是符合社区内容规则的安全内容(SFW)"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox checked={agreeToTerms} onChange={e => setAgreeToTerms(e.target.checked)} />
+              }
+              label={
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                  我已阅读并接受{' '}
+                  <Link href="https://community.nekro.ai/terms" target="_blank" underline="hover" sx={{ ml: 0.5 }}>
+                    《NekroAI 社区资源共享协议》
+                  </Link>
+                </Box>
+              }
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
             取消
           </Button>
-          <Button onClick={handleShareToCloud} color="primary" disabled={shareLoading}>
+          <Button 
+            onClick={handleShareToCloud} 
+            color="primary" 
+            disabled={shareLoading || !isSfw || !agreeToTerms}
+          >
             {shareLoading ? <CircularProgress size={24} /> : '共享'}
           </Button>
         </DialogActions>
@@ -958,16 +1004,35 @@ const PresetCard = ({
           <Alert severity="info" sx={{ mb: 2 }}>
             同步将用本地版本覆盖云端版本。
           </Alert>
-          <FormControlLabel
-            control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
-            label="这是安全内容(SFW)"
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <FormControlLabel
+              control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
+              label="我确认这是符合社区内容规则的安全内容(SFW)"
+            />
+            <FormControlLabel
+              control={
+                <Checkbox checked={agreeToTerms} onChange={e => setAgreeToTerms(e.target.checked)} />
+              }
+              label={
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                  我已阅读并接受{' '}
+                  <Link href="https://community.nekro.ai/terms" target="_blank" underline="hover" sx={{ ml: 0.5 }}>
+                    《NekroAI 社区资源共享协议》
+                  </Link>
+                </Box>
+              }
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
             取消
           </Button>
-          <Button onClick={handleSyncToCloud} color="primary" disabled={shareLoading}>
+          <Button 
+            onClick={handleSyncToCloud} 
+            color="primary" 
+            disabled={shareLoading || !isSfw || !agreeToTerms}
+          >
             {shareLoading ? <CircularProgress size={24} /> : '同步'}
           </Button>
         </DialogActions>
