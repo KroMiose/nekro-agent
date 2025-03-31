@@ -1,5 +1,7 @@
+import asyncio
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
 import chromadb
@@ -12,6 +14,8 @@ from nekro_agent.api.core import logger
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import ModelConfigGroup
 from nekro_agent.core.config import config as core_config
+from nekro_agent.services.agent.creator import OpenAIChatMessage
+from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 # 扩展元数据
@@ -126,6 +130,11 @@ class MemoryConfig(ConfigBase):
         title="启用话题搜索",
         description="启用后,系统将使用LLM来找到最近聊天话题,并通过话题获取相关记忆,可能会延长响应时间",
     )
+    TOPIC_CACHE_EXPIRE_SECONDS: int = Field(
+        default=60,
+        title="话题缓存时长",
+        description="系统将临时保留话题,超时后再重新总结",
+    )
 
 memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
 
@@ -133,6 +142,11 @@ memory_config: MemoryConfig = plugin.get_config(MemoryConfig)
 
 _mem0_instance = None
 _last_config_hash = None
+_thread_pool = ThreadPoolExecutor(max_workers=5)  # 创建一个线程池用于执行同步操作
+
+# 添加记忆注入缓存，避免短时间内重复执行
+_memory_inject_cache = {}
+_MEMORY_CACHE_EXPIRE_SECONDS = 60  # 缓存有效期，单位秒
 
 def get_mem0_client():
     global _mem0_instance, _last_config_hash
@@ -155,18 +169,25 @@ def get_mem0_client():
     }
     
     # 验证字段不能为空字符串
+    errors = []
+    
     if not current_config["llm_model_name"]:
-        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的CHAT_MODEL不能为空")
+        errors.append(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的CHAT_MODEL不能为空")
     if not current_config["llm_api_key"]:
-        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的API_KEY不能为空")
+        errors.append(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的API_KEY不能为空")
     if not current_config["llm_base_url"]:
-        raise ValueError(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的BASE_URL不能为空")
+        errors.append(f"模型组 '{memory_config.MEMORY_MANAGE_MODEL}' 的BASE_URL不能为空")
     if not current_config["embedder_model_name"]:
-        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的CHAT_MODEL不能为空")
+        errors.append(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的CHAT_MODEL不能为空")
     if not current_config["embedder_api_key"]:
-        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的API_KEY不能为空")
+        errors.append(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的API_KEY不能为空")
     if not current_config["embedder_base_url"]:
-        raise ValueError(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的BASE_URL不能为空")
+        errors.append(f"模型组 '{memory_config.TEXT_EMBEDDING_MODEL}' 的BASE_URL不能为空")
+    
+    if errors:
+        error_message = "记忆模块配置错误：\n" + "\n".join([f"- {error}" for error in errors])
+        logger.error(error_message)
+        raise ValueError(error_message)
     
     
     current_hash = hash(frozenset(current_config.items()))
@@ -207,9 +228,57 @@ def get_mem0_client():
         
     return _mem0_instance
 
+# 将同步方法包装成异步方法
+async def async_mem0_search(mem0, query: str, user_id: str):
+    """异步执行mem0.search，避免阻塞事件循环"""
+    return await asyncio.get_event_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.search(query=query, user_id=user_id),
+    )
+
+async def async_mem0_get_all(mem0, user_id: str):
+    """异步执行mem0.get_all，避免阻塞事件循环"""
+    return await asyncio.get_event_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.get_all(user_id=user_id),
+    )
+
+async def async_mem0_add(mem0, messages: str, user_id: str, metadata: Dict[str, Any]):
+    """异步执行mem0.add，避免阻塞事件循环"""
+    return await asyncio.get_event_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.add(messages=messages, user_id=user_id, metadata=metadata),
+    )
+
+async def async_mem0_update(mem0, memory_id: str, data: str):
+    """异步执行mem0.update，避免阻塞事件循环"""
+    return await asyncio.get_event_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.update(memory_id=memory_id, data=data),
+    )
+
+async def async_mem0_history(mem0, memory_id: str):
+    """异步执行mem0.history，避免阻塞事件循环"""
+    return await asyncio.get_event_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.history(memory_id=memory_id),
+    )
+
 @plugin.mount_prompt_inject_method(name="memory_prompt_inject")
 async def memory_prompt_inject(_ctx: AgentCtx) -> str:
     """记忆提示注入,在对话开始前检索相关记忆并注入到对话提示中"""
+    global _memory_inject_cache
+    
+    # 检查缓存是否存在且未过期
+    current_time = time.time()
+    cache_key = _ctx.from_chat_key
+    if cache_key in _memory_inject_cache:
+        cache_data = _memory_inject_cache[cache_key]
+        if current_time - cache_data["timestamp"] < _MEMORY_CACHE_EXPIRE_SECONDS:
+            logger.info(f"使用缓存的记忆注入结果，剩余有效期：{int(_MEMORY_CACHE_EXPIRE_SECONDS - (current_time - cache_data['timestamp']))}秒")
+            return cache_data["result"]
+    
+    # 没有缓存或缓存已过期，执行正常流程
     mem0 = get_mem0_client()
     if not memory_config.AUTO_MEMORY_ENABLED:
         return ""
@@ -272,16 +341,45 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
                 
                 # 使用话题检索
                 if memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH and context_content:
-                    context_content += f"\n以上是该会话的聊天记录,请你分析当前聊天话题,并搜索有关用户{search_user_id}的记忆"
+        
                     # 使用话题搜索检索与当前对话上下文相关的记忆
-                    result = mem0.search(
-                        query=context_content, 
-                        user_id=search_user_id,
-                    )
-                    user_memories = result.get("results", [])
+                    # 调用LLM获取话题关键词
+                    # 获取模型配置
+                    memory_manage_model_group = get_model_group_info(memory_config.MEMORY_MANAGE_MODEL)
+                    
+                    # 准备消息
+                    messages = [
+                        OpenAIChatMessage.from_text("system", f"你是一个聊天主题分析专家,请分析给定的对话内容并总结用户{user_id}发言的关键词.只返回关键词,不要有任何解释或额外文本.例如'生日''爱好''喜欢的食物'等."),
+                        OpenAIChatMessage.from_text("user", context_content),
+                    ]
+                    
+                    # 调用LLM获取话题关键词
+                    try:
+                        llm_response = await gen_openai_chat_response(
+                            model=memory_manage_model_group.CHAT_MODEL,
+                            messages=[msg.to_dict() for msg in messages],
+                            base_url=memory_manage_model_group.BASE_URL,
+                            api_key=memory_manage_model_group.API_KEY,
+                            stream_mode=False,
+                        )
+                        topic_keywords = llm_response.response_content.strip()
+                        logger.info(f"话题分析结果: {topic_keywords}")
+                        
+                        # 使用生成的关键词进行搜索
+                        result = await async_mem0_search(
+                            mem0,
+                            query=topic_keywords, 
+                            user_id=search_user_id,
+                        )
+                        user_memories = result.get("results", [])
+                    except Exception as e:
+                        logger.error(f"话题分析失败: {e!s}")
+                        # 出错时直接获取用户的所有记忆作为备选
+                        result = await async_mem0_get_all(mem0, user_id=search_user_id)
+                        user_memories = result.get("results", [])
                 else:
                     # 搜索用户的所有记忆
-                    result = mem0.get_all(user_id=search_user_id)
+                    result = await async_mem0_get_all(mem0, user_id=search_user_id)
                     user_memories = result.get("results", [])
                 
                 # 限制返回记忆数量
@@ -310,7 +408,7 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         all_memories = all_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
         
         # 格式化记忆内容
-        memory_text = "当前会话相关记忆:\n"
+        memory_text = "以下是当前会话的相关记忆,请你认真阅读,在没有需要的记忆内容时才使用search_memory:\n"
         for idx, mem in enumerate(all_memories, 1):
             metadata = mem.get("metadata", {})
             nickname = mem.get("user_nickname", mem.get("user_qq", "未知用户"))
@@ -319,17 +417,29 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
             memory_text += f"{idx}. [ 记忆归属: {nickname} | 元数据: {metadata} | ID: {memory_id} | 匹配度: {score} ] 内容: {mem['memory']}\n"
         logger.info(memory_text)
         
+        # 将结果存入缓存
+        _memory_inject_cache[cache_key] = {
+            "timestamp": current_time,
+            "result": memory_text,
+        }
+        
+        # 清理过期缓存
+        expired_keys = [k for k, v in _memory_inject_cache.items() if current_time - v["timestamp"] > _MEMORY_CACHE_EXPIRE_SECONDS]
+        for k in expired_keys:
+            del _memory_inject_cache[k]
+        
         return memory_text  # noqa: TRY300
     except Exception as e:
         logger.error(f"自动记忆检索失败: {e!s}")
         raise RuntimeError(f"记忆提示注入失败: {e!s}") from e
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="")
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="memory_notice")
 async def _memory_notice(_ctx: AgentCtx):
     """
     Do Not Call This Function!
     这是有关记忆模块的提示
     ⚠️ 关键注意：
+    - 在使用以下Function时,尽量放在代码最后进行处理,特别是send_msg_text或是send_msg_file
     - user_id必须严格指向记忆的归属主体,metadata中的字段不可替代user_id的作用
     - 如果要存储的记忆中包含时间信息,禁止使用(昨天,前天,之后等)相对时间概念,应使用具体的时间(比如20xx年x月x日 x时x分)
     - 对于虚拟角色,需使用其英文小写全名,例如("hatsune_miku","takanashi_hoshino")
@@ -375,7 +485,7 @@ async def add_memory(
     user_id = user_id.replace(" ", "_")
 
     try:
-        result = mem0.add(messages=memory, user_id=user_id, metadata=metadata)
+        result = await async_mem0_add(mem0, messages=memory, user_id=user_id, metadata=metadata)
         logger.info(f"添加记忆结果: {result}")
         if result.get("results"):
             memory_id = result["results"][0]["id"]
@@ -413,7 +523,7 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
     user_id = user_id.replace(" ", "_")
 
     try:
-        result = mem0.search(query=query, user_id=user_id)
+        result = await async_mem0_search(mem0, query=query, user_id=user_id)
         logger.info(f"搜索记忆结果: {result}")
         return "以下是你对该用户的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
@@ -448,7 +558,7 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
     user_id = user_id.replace(" ", "_")
     
     try:        
-        result = mem0.get_all(user_id=user_id)
+        result = await async_mem0_get_all(mem0, user_id=user_id)
         logger.info(f"获取所有记忆结果: {result}")
         return "以下是你脑海中的记忆:\n" + format_memories(result.get("results", []))
     except httpx.HTTPError as e:
@@ -483,7 +593,7 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
         raise ValueError(f"无效的记忆ID格式: {e!s}") from e
     
     try:        
-        result = mem0.update(memory_id=original_id, data=new_content)
+        result = await async_mem0_update(mem0, memory_id=original_id, data=new_content)
         logger.info(f"更新记忆结果: {result}")
         return result.get("message", "记忆更新成功")
     except httpx.HTTPError as e:
@@ -518,7 +628,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
         raise ValueError(f"无效的记忆ID格式: {e!s}") from e
     
     try:
-        records = mem0.history(memory_id=original_id)
+        records = await async_mem0_history(mem0, memory_id=original_id)
         logger.info(f"获取历史记录结果: {records}")
         if not records:
             return "该记忆暂无历史记录"
@@ -538,7 +648,9 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
     
 @plugin.mount_cleanup_method()
 async def clean_up():
-    global _mem0_instance,_last_config_hash
+    global _mem0_instance, _last_config_hash, _thread_pool, _memory_inject_cache
     _mem0_instance = None
     _last_config_hash = None
+    _thread_pool.shutdown()
+    _memory_inject_cache = {}
     """清理插件"""
