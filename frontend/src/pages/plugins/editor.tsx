@@ -36,12 +36,14 @@ import {
   PowerSettingsNew as PowerIcon,
   ContentCopy as ContentCopyIcon,
   Clear as ClearIcon,
+  Block as BlockIcon,
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
 import { useTheme } from '@mui/material/styles'
-import { pluginsApi, streamGenerateCode } from '../../services/api/plugins'
+import { pluginEditorApi, streamGenerateCode } from '../../services/api/plugin-editor'
+import { reloadPlugins } from '../../services/api/plugins'
 
-// 新建扩展对话框组件
+// 新建插件对话框组件
 interface NewPluginDialogProps {
   open: boolean
   onClose: () => void
@@ -55,15 +57,15 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
 
   const handleConfirm = () => {
     if (!name) {
-      setError('请输入扩展名称')
+      setError('请输入插件名称')
       return
     }
     if (!name.match(/^[a-z][a-z0-9_]*$/)) {
-      setError('扩展名称只能包含小写字母、数字和下划线，且必须以字母开头')
+      setError('插件名称只能包含小写字母、数字和下划线，且必须以字母开头')
       return
     }
     if (!description) {
-      setError('请输入扩展描述')
+      setError('请输入插件描述')
       return
     }
     onConfirm(name, description)
@@ -79,7 +81,7 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>新建扩展</DialogTitle>
+      <DialogTitle>新建插件</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {error && (
@@ -88,7 +90,7 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
             </Alert>
           )}
           <TextField
-            label="扩展名称"
+            label="插件名称"
             value={name}
             onChange={e => setName(e.target.value)}
             helperText="只能包含小写字母、数字和下划线，且必须以字母开头"
@@ -96,7 +98,7 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
             required
           />
           <TextField
-            label="扩展描述"
+            label="插件描述"
             value={description}
             onChange={e => setDescription(e.target.value)}
             fullWidth
@@ -148,7 +150,7 @@ export default function PluginsEditorPage() {
   useEffect(() => {
     const loadFiles = async () => {
       try {
-        const files = await pluginsApi.getPluginFiles()
+        const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
         if (files.length > 0 && !selectedFile) {
           setSelectedFile(files[0])
@@ -168,7 +170,7 @@ export default function PluginsEditorPage() {
       if (!selectedFile) return
       setIsLoading(true)
       try {
-        const content = await pluginsApi.getPluginFileContent(selectedFile)
+        const content = await pluginEditorApi.getPluginFileContent(selectedFile)
         setCode(content || '')
         setOriginalCode(content || '')
         setHasUnsavedChanges(false)
@@ -189,7 +191,7 @@ export default function PluginsEditorPage() {
     if (!selectedFile || !code) return
     setIsSaving(true)
     try {
-      await pluginsApi.savePluginFile(selectedFile, code)
+      await pluginEditorApi.savePluginFile(selectedFile, code)
       setOriginalCode(code)
       setHasUnsavedChanges(false)
       setSuccess('保存成功')
@@ -307,7 +309,7 @@ export default function PluginsEditorPage() {
     if (!selectedFile || !generatedCode) return
     setIsApplying(true)
     try {
-      const result = await pluginsApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
+      const result = await pluginEditorApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
       setCode(result || '')
       setHasUnsavedChanges(true)
       setSuccess('代码应用成功')
@@ -333,7 +335,7 @@ export default function PluginsEditorPage() {
       if (newSelectedFile) {
         setIsLoading(true)
         try {
-          const content = await pluginsApi.getPluginFileContent(newSelectedFile)
+          const content = await pluginEditorApi.getPluginFileContent(newSelectedFile)
           setCode(content || '')
           setOriginalCode(content || '')
           setHasUnsavedChanges(false)
@@ -368,7 +370,7 @@ export default function PluginsEditorPage() {
     [originalCode]
   )
 
-  // 导入扩展文件
+  // 导入插件文件
   const handleImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -382,9 +384,9 @@ export default function PluginsEditorPage() {
     reader.onload = async e => {
       try {
         const content = e.target?.result as string
-        await pluginsApi.savePluginFile(file.name, content)
+        await pluginEditorApi.savePluginFile(file.name, content)
         // 重新加载文件列表
-        const files = await pluginsApi.getPluginFiles()
+        const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
         setSelectedFile(file.name)
         setError('')
@@ -396,23 +398,23 @@ export default function PluginsEditorPage() {
     reader.readAsText(file)
   }
 
-  // 创建新扩展
+  // 创建新插件
   const handleCreateNewPlugin = async (name: string, description: string) => {
     const fileName = `${name}.py`
     try {
       // 获取模板内容
-      const template = await pluginsApi.generatePluginTemplate(name, description)
+      const template = await pluginEditorApi.generatePluginTemplate(name, description)
       // 保存文件
-      await pluginsApi.savePluginFile(fileName, template || '')
+      await pluginEditorApi.savePluginFile(fileName, template || '')
       // 重新加载文件列表
-      const files = await pluginsApi.getPluginFiles()
+      const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
       setSelectedFile(fileName)
       setError('')
       setIsNewPluginDialogOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError('创建扩展失败: ' + errorMessage)
+      setError('创建插件失败: ' + errorMessage)
       console.error('Failed to create extension:', err)
     }
   }
@@ -420,7 +422,7 @@ export default function PluginsEditorPage() {
   const handleDeleteConfirm = async () => {
     if (fileToDelete) {
       try {
-        await pluginsApi.deletePluginFile(fileToDelete)
+        await pluginEditorApi.deletePluginFile(fileToDelete)
         setSuccess('文件删除成功')
         // 如果删除的是当前选中的文件，清空编辑器
         if (fileToDelete === selectedFile) {
@@ -428,7 +430,7 @@ export default function PluginsEditorPage() {
           setCode('')
         }
         // 重新加载文件列表
-        const files = await pluginsApi.getPluginFiles()
+        const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
       } catch (error) {
         setError('删除失败: ' + (error instanceof Error ? error.message : String(error)))
@@ -438,19 +440,19 @@ export default function PluginsEditorPage() {
     }
   }
 
-  // 重载扩展
+  // 重载插件
   const handleReloadExt = async () => {
     try {
       setIsGenerating(true)
-      await pluginsApi.reloadPlugins()
+      await reloadPlugins()
       // 重新加载文件列表
-      const files = await pluginsApi.getPluginFiles()
+      const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      setSuccess('扩展重载成功')
+      setSuccess('插件重载成功')
       setReloadExtDialogOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError('重载扩展失败: ' + errorMessage)
+      setError('重载插件失败: ' + errorMessage)
       console.error('Failed to reload plugins:', err)
     } finally {
       setIsGenerating(false)
@@ -474,18 +476,18 @@ export default function PluginsEditorPage() {
         ? selectedFile.replace('.disabled', '')
         : `${selectedFile}.disabled`
 
-      await pluginsApi.savePluginFile(newFileName, code)
-      await pluginsApi.deletePluginFile(selectedFile)
+      await pluginEditorApi.savePluginFile(newFileName, code)
+      await pluginEditorApi.deletePluginFile(selectedFile)
 
       // 更新文件列表和选中文件
-      const files = await pluginsApi.getPluginFiles()
+      const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
       setSelectedFile(newFileName)
 
-      setSuccess(`扩展${isDisabled ? '启用' : '禁用'}成功，请重载扩展使更改生效`)
+      setSuccess(`插件${isDisabled ? '启用' : '禁用'}成功，请重载插件使更改生效`)
       setIsDisableDialogOpen(false)
     } catch (err) {
-      setError(`${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}扩展失败: ${err}`)
+      setError(`${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}插件失败: ${err}`)
     }
   }
 
@@ -525,26 +527,43 @@ export default function PluginsEditorPage() {
         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
           <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
             <FormControl sx={{ flex: 1 }}>
-              <InputLabel>选择扩展文件</InputLabel>
-              <Select value={selectedFile} label="选择扩展文件" onChange={handleFileSelect}>
-                {files.map(file => (
-                  <MenuItem
-                    key={file}
-                    value={file}
-                    sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    {file}
-                  </MenuItem>
-                ))}
+              <InputLabel>选择插件文件</InputLabel>
+              <Select value={selectedFile} label="选择插件文件" onChange={handleFileSelect}>
+                {files.map(file => {
+                  const isDisabled = file.endsWith('.disabled');
+                  return (
+                    <MenuItem
+                      key={file}
+                      value={file}
+                      sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'center',
+                        color: isDisabled ? 'text.disabled' : 'text.primary',
+                        ...(isDisabled && {
+                          background: theme => theme.palette.mode === 'dark' 
+                            ? 'rgba(255, 0, 0, 0.08)' 
+                            : 'rgba(255, 0, 0, 0.05)',
+                          fontStyle: 'italic'
+                        })
+                      }}
+                    >
+                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
+                        {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
+                      </Box>
+                    </MenuItem>
+                  );
+                })}
               </Select>
             </FormControl>
             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Tooltip title="新建扩展">
+              <Tooltip title="新建插件">
                 <IconButton color="primary" onClick={() => setIsNewPluginDialogOpen(true)}>
                   <AddIcon />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="导入扩展">
+              <Tooltip title="导入插件">
                 <IconButton color="primary" component="label">
                   <input type="file" hidden accept=".py" onChange={handleImportFile} />
                   <UploadIcon />
@@ -665,13 +684,13 @@ export default function PluginsEditorPage() {
             >
               重置代码
             </Button>
-            <Tooltip title="修改后的扩展需要重载才能生效" arrow placement="top">
+            <Tooltip title="修改后的插件需要重载才能生效" arrow placement="top">
               <Button
                 startIcon={<ExtensionIcon />}
                 onClick={() => setReloadExtDialogOpen(true)}
                 color="primary"
               >
-                重载扩展
+                重载插件
               </Button>
             </Tooltip>
             <Button
@@ -680,7 +699,7 @@ export default function PluginsEditorPage() {
               disabled={!selectedFile}
               color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
             >
-              {selectedFile?.endsWith('.disabled') ? '启用扩展' : '禁用扩展'}
+              {selectedFile?.endsWith('.disabled') ? '启用插件' : '禁用插件'}
             </Button>
             <Button
               id="more-button"
@@ -707,8 +726,8 @@ export default function PluginsEditorPage() {
                 if (selectedFile) {
                   try {
                     // 如果存在导出功能，使用导出功能，否则提示功能不可用
-                    if (typeof pluginsApi.exportPluginFile === 'function') {
-                      await pluginsApi.exportPluginFile(selectedFile)
+                    if (typeof pluginEditorApi.exportPluginFile === 'function') {
+                      await pluginEditorApi.exportPluginFile(selectedFile)
                       setSuccess('文件导出成功')
                     } else {
                       setError('导出功能暂不可用')
@@ -727,10 +746,10 @@ export default function PluginsEditorPage() {
               onClick={async () => {
                 if (selectedFile) {
                   try {
-                    await pluginsApi.deletePluginFile(selectedFile)
+                    await pluginEditorApi.deletePluginFile(selectedFile)
                     setSuccess('文件删除成功')
                     // 重新加载文件列表
-                    const files = await pluginsApi.getPluginFiles()
+                    const files = await pluginEditorApi.getPluginFiles()
                     setFiles(files)
                     setSelectedFile('')
                     setCode('')
@@ -750,7 +769,7 @@ export default function PluginsEditorPage() {
 
         <Divider />
 
-        <Typography variant="h6">扩展需求</Typography>
+        <Typography variant="h6">插件需求</Typography>
 
         {/* 提示词输入框 */}
         <TextField
@@ -759,7 +778,7 @@ export default function PluginsEditorPage() {
           value={prompt}
           onChange={e => setPrompt(e.target.value)}
           label="需求提示词"
-          placeholder="描述你想要实现的扩展功能..."
+          placeholder="描述你想要实现的插件功能..."
           onKeyDown={e => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
               e.preventDefault()
@@ -884,8 +903,7 @@ export default function PluginsEditorPage() {
                   alignItems: 'center',
                   gap: '4px',
                   opacity: 0.8,
-                  fontSize: '0.85em',
-                  color: 'rgba(255,255,255,0.8)',
+                  px: 0.5,
                 }}
               >
                 <Box
@@ -921,6 +939,8 @@ export default function PluginsEditorPage() {
                     justifyContent: 'center',
                     opacity: 0.6,
                     px: 0.5,
+                    fontSize: '0.85em',
+                    color: 'rgba(255,255,255,0.8)',
                   }}
                 >
                   +
@@ -1143,7 +1163,7 @@ export default function PluginsEditorPage() {
         </Box>
       </Paper>
 
-      {/* 新建扩展对话框 */}
+      {/* 新建插件对话框 */}
       <NewPluginDialog
         open={isNewPluginDialogOpen}
         onClose={() => setIsNewPluginDialogOpen(false)}
@@ -1182,9 +1202,9 @@ export default function PluginsEditorPage() {
 
       {/* Add new reload plugin dialog */}
       <Dialog open={reloadExtDialogOpen} onClose={() => setReloadExtDialogOpen(false)}>
-        <DialogTitle>确认重载扩展</DialogTitle>
+        <DialogTitle>确认重载插件</DialogTitle>
         <DialogContent>
-          <DialogContentText>这将重新加载所有扩展文件并更新应用。确定要继续吗？</DialogContentText>
+          <DialogContentText>这将重新加载所有插件文件并更新应用。确定要继续吗？</DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setReloadExtDialogOpen(false)}>取消</Button>
@@ -1197,13 +1217,13 @@ export default function PluginsEditorPage() {
       {/* Add new disable plugin dialog */}
       <Dialog open={isDisableDialogOpen} onClose={() => setIsDisableDialogOpen(false)}>
         <DialogTitle>
-          {selectedFile?.endsWith('.disabled') ? '确认启用扩展' : '确认禁用扩展'}
+          {selectedFile?.endsWith('.disabled') ? '确认启用插件' : '确认禁用插件'}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
             {selectedFile?.endsWith('.disabled')
-              ? '这将启用当前扩展，启用后需要重载扩展才能生效。确定要继续吗？'
-              : '这将禁用当前扩展，禁用后需要重载扩展才能生效。确定要继续吗？'}
+              ? '这将启用当前插件，启用后需要重载插件才能生效。确定要继续吗？'
+              : '这将禁用当前插件，禁用后需要重载插件才能生效。确定要继续吗？'}
           </DialogContentText>
         </DialogContent>
         <DialogActions>

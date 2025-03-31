@@ -41,6 +41,12 @@ class PluginCollector:
         if str(parent_dir.absolute()) not in sys.path:
             sys.path.insert(0, str(parent_dir.absolute()))
 
+        if self.workdir_plugin_dir:
+            # 添加工作目录到 Python 路径
+            parent_dir = self.workdir_plugin_dir.parent
+            if str(parent_dir.absolute()) not in sys.path:
+                sys.path.insert(0, str(parent_dir.absolute()))
+
         # 加载内置插件
         if self.builtin_plugin_dir.exists():
             for item in self.builtin_plugin_dir.iterdir():

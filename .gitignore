@@ -166,5 +166,8 @@ wandb
 # Extension workdir
 ext_workdir
 
+# Plugin workdir
+plugins/workdir
+
 # webui build files
 static

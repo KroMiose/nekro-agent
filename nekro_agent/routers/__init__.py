@@ -21,6 +21,7 @@ from .config import router as config_router
 from .dashboard import router as dashboard_router
 from .logs import router as logs_router
 from .napcat import router as napcat_router
+from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
 from .presets import router as presets_router
 from .rpc import router as exec_router
@@ -57,6 +58,7 @@ def mount_routers(app: FastAPI):
     api.include_router(logs_router)
     api.include_router(config_router)
     api.include_router(plugins_router)
+    api.include_router(plugin_editor_router)
     api.include_router(napcat_router)
     api.include_router(sandbox_router)
     api.include_router(dashboard_router)

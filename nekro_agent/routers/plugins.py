@@ -159,7 +159,7 @@ async def save_plugin_configs(
 
 @router.post("/reload", summary="重载所有插件")
 @require_role(Role.Admin)
-async def reload_plugins(_=Depends(get_current_active_user)) -> Ret:
+async def reload_plugins(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """重载所有插件"""
     try:
         from nekro_agent.services.plugin.collector import plugin_collector
