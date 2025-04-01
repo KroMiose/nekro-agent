@@ -41,6 +41,7 @@ import {
   Code as CodeIcon,
   Brush as BrushIcon,
   EmojiObjects as EmojiObjectsIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ModelGroupConfig } from '../../services/api/config'
@@ -52,6 +53,8 @@ interface EditDialogProps {
   initialConfig?: ModelGroupConfig
   onSubmit: (groupName: string, config: ModelGroupConfig) => Promise<void>
   onGroupNameChange: (name: string) => void
+  isCopy?: boolean
+  existingGroups: Record<string, ModelGroupConfig>
 }
 
 function EditDialog({
@@ -61,6 +64,8 @@ function EditDialog({
   initialConfig,
   onSubmit,
   onGroupNameChange,
+  isCopy,
+  existingGroups,
 }: EditDialogProps) {
   const [config, setConfig] = useState<ModelGroupConfig>({
     CHAT_MODEL: '',
@@ -90,20 +95,20 @@ function EditDialog({
 
   // 获取模型类型的图标
   const getModelTypeIcon = (type: string | undefined) => {
-    if (!type) return <ChatIcon fontSize="small" />;
-    
-    const found = modelTypes.find(t => t.value === type);
-    const iconName = found?.icon || "EmojiObjects";
-    
+    if (!type) return <ChatIcon fontSize="small" />
+
+    const found = modelTypes.find(t => t.value === type)
+    const iconName = found?.icon || 'EmojiObjects'
+
     // 图标映射
     const iconMap: Record<string, React.ReactElement> = {
-      "Chat": <ChatIcon fontSize="small" />,
-      "Code": <CodeIcon fontSize="small" />,
-      "Brush": <BrushIcon fontSize="small" />,
-      "EmojiObjects": <EmojiObjectsIcon fontSize="small" />
-    };
-    
-    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />;
+      Chat: <ChatIcon fontSize="small" />,
+      Code: <CodeIcon fontSize="small" />,
+      Brush: <BrushIcon fontSize="small" />,
+      EmojiObjects: <EmojiObjectsIcon fontSize="small" />,
+    }
+
+    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />
   }
 
   useEffect(() => {
@@ -111,7 +116,8 @@ function EditDialog({
       setConfig({
         ...initialConfig,
         MODEL_TYPE: initialConfig.MODEL_TYPE || 'chat',
-        ENABLE_VISION: initialConfig.ENABLE_VISION !== undefined ? initialConfig.ENABLE_VISION : true,
+        ENABLE_VISION:
+          initialConfig.ENABLE_VISION !== undefined ? initialConfig.ENABLE_VISION : true,
         ENABLE_COT: initialConfig.ENABLE_COT !== undefined ? initialConfig.ENABLE_COT : false,
       })
     } else {
@@ -136,40 +142,51 @@ function EditDialog({
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
     // 只排除会影响URL解析的特殊字符，包括百分号
-    const invalidChars = /[/\\?&#=%]/;
-    return name.trim().length > 0 && !invalidChars.test(name);
+    const invalidChars = /[/\\?&#=%]/
+    return name.trim().length > 0 && !invalidChars.test(name)
   }
 
   // 处理组名变更，添加验证
   const handleGroupNameChange = (name: string) => {
     // 如果为空，清除错误信息
     if (!name) {
-      setGroupNameError('');
-      onGroupNameChange(name);
-      return;
+      setGroupNameError('')
+      onGroupNameChange(name)
+      return
     }
-    
+
     // 验证组名格式
     if (!validateGroupName(name)) {
-      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)');
-    } else {
-      setGroupNameError('');
+      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)')
     }
-    onGroupNameChange(name);
+    // 验证组名是否已存在
+    else if (existingGroups[name] && (isCopy || !initialConfig)) {
+      // 当创建新组或复制时，检查名称是否已存在
+      setGroupNameError(`模型组名称 "${name}" 已存在，请使用其他名称`)
+    } else {
+      setGroupNameError('')
+    }
+    onGroupNameChange(name)
   }
 
   // 在提交前验证表单
   const handleSubmit = async () => {
     // 验证组名
     if (groupName && !validateGroupName(groupName)) {
-      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)');
-      return;
+      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)')
+      return
     }
-    
+
     // 检查空组名
     if (!groupName) {
-      setGroupNameError('组名不能为空');
-      return;
+      setGroupNameError('组名不能为空')
+      return
+    }
+
+    // 检查名称是否已存在（对于新建或复制的情况）
+    if (existingGroups[groupName] && (isCopy || !initialConfig)) {
+      setGroupNameError(`模型组名称 "${groupName}" 已存在，请使用其他名称`)
+      return
     }
 
     try {
@@ -186,24 +203,28 @@ function EditDialog({
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{initialConfig ? '编辑模型组' : '新建模型组'}</DialogTitle>
+      <DialogTitle>
+        {isCopy ? '复制模型组' : initialConfig && !isCopy ? '编辑模型组' : '新建模型组'}
+      </DialogTitle>
       <DialogContent>
-        {!initialConfig && groupNameError && (
-          <Alert severity="warning" sx={{ mb: 2 }}>
-            {groupNameError}
-          </Alert>
-        )}
         <Stack spacing={2} className="mt-4">
           <TextField
             label="组名"
             value={groupName}
             onChange={e => handleGroupNameChange(e.target.value)}
-            disabled={!!initialConfig}
+            disabled={!!initialConfig && !isCopy}
             fullWidth
             autoComplete="off"
             required
             error={!!groupNameError}
-            helperText={groupNameError || (groupName ? "" : "组名不能包含URL特殊字符 (如 / ? & # = %)，创建后不可修改")}
+            helperText={
+              groupNameError ||
+              (groupName
+                ? ''
+                : isCopy
+                  ? '请为复制的模型组设置一个新名称'
+                  : '组名不能包含URL特殊字符 (如 / ? & # = %)，创建后不可修改')
+            }
             inputProps={{
               autoComplete: 'new-password',
               form: {
@@ -232,7 +253,7 @@ function EditDialog({
             fullWidth
             size="small"
           >
-            {modelTypes.map((type) => (
+            {modelTypes.map(type => (
               <MenuItem key={type.value} value={type.value}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {getModelTypeIcon(type.value)}
@@ -318,7 +339,7 @@ function EditDialog({
                   />
                 </div>
               </Tooltip>
-              
+
               <Tooltip title="启用NA提供的思维链进行分析，如果模型原生支持请关闭">
                 <div>
                   <FormControlLabel
@@ -434,12 +455,8 @@ function EditDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>取消</Button>
-        <Button 
-          onClick={handleSubmit} 
-          color="primary" 
-          disabled={!!groupNameError || !groupName}
-        >
-          保存
+        <Button onClick={handleSubmit} color="primary" disabled={!!groupNameError || !groupName}>
+          {isCopy ? '创建副本' : '保存'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -459,62 +476,85 @@ export default function ModelGroupsPage() {
   const queryClient = useQueryClient()
   const [message, setMessage] = useState('')
   const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editingGroup, setEditingGroup] = useState<{ name: string; config?: ModelGroupConfig }>({
+  const [editingGroup, setEditingGroup] = useState<{
+    name: string
+    config?: ModelGroupConfig
+    isCopy?: boolean
+  }>({
     name: '',
   })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletingGroupName, setDeletingGroupName] = useState('')
 
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
     queryFn: () => configApi.getModelGroups(),
   })
-  
+
   // 获取模型类型列表，用于显示模型类型名称
   const { data: modelTypes = [] } = useQuery({
     queryKey: ['model-types'],
     queryFn: () => configApi.getModelTypes(),
   })
-  
+
   // 获取模型类型的显示名称
   const getModelTypeLabel = (type: string | undefined) => {
-    if (!type) return '聊天';
-    const found = modelTypes.find(t => t.value === type);
-    return found ? found.label : type;
+    if (!type) return '聊天'
+    const found = modelTypes.find(t => t.value === type)
+    return found ? found.label : type
   }
-  
+
   // 获取模型类型对应的颜色
-  const getModelTypeColor = (type: string | undefined): "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" => {
-    if (!type) return "primary";
-    const found = modelTypes.find(t => t.value === type);
-    const color = found?.color as "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning" | undefined;
-    
+  const getModelTypeColor = (
+    type: string | undefined
+  ): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
+    if (!type) return 'primary'
+    const found = modelTypes.find(t => t.value === type)
+    const color = found?.color as
+      | 'default'
+      | 'primary'
+      | 'secondary'
+      | 'error'
+      | 'info'
+      | 'success'
+      | 'warning'
+      | undefined
+
     // 确保返回值是有效的 MUI 颜色
-    switch(color) {
-      case "primary": return "primary";
-      case "secondary": return "secondary";
-      case "error": return "error";
-      case "info": return "info";
-      case "success": return "success";
-      case "warning": return "warning";
-      default: return "default";
+    switch (color) {
+      case 'primary':
+        return 'primary'
+      case 'secondary':
+        return 'secondary'
+      case 'error':
+        return 'error'
+      case 'info':
+        return 'info'
+      case 'success':
+        return 'success'
+      case 'warning':
+        return 'warning'
+      default:
+        return 'default'
     }
   }
-  
+
   // 获取模型类型的图标
   const getModelTypeIcon = (type: string | undefined) => {
-    if (!type) return <ChatIcon fontSize="small" />;
-    
-    const found = modelTypes.find(t => t.value === type);
-    const iconName = found?.icon || "EmojiObjects";
-    
+    if (!type) return <ChatIcon fontSize="small" />
+
+    const found = modelTypes.find(t => t.value === type)
+    const iconName = found?.icon || 'EmojiObjects'
+
     // 图标映射
     const iconMap: Record<string, React.ReactElement> = {
-      "Chat": <ChatIcon fontSize="small" />,
-      "Code": <CodeIcon fontSize="small" />,
-      "Brush": <BrushIcon fontSize="small" />,
-      "EmojiObjects": <EmojiObjectsIcon fontSize="small" />
-    };
-    
-    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />;
+      Chat: <ChatIcon fontSize="small" />,
+      Code: <CodeIcon fontSize="small" />,
+      Brush: <BrushIcon fontSize="small" />,
+      EmojiObjects: <EmojiObjectsIcon fontSize="small" />,
+    }
+
+    return iconMap[iconName] || <EmojiObjectsIcon fontSize="small" />
   }
 
   const handleAdd = () => {
@@ -527,11 +567,22 @@ export default function ModelGroupsPage() {
     setEditDialogOpen(true)
   }
 
+  // 添加复制模型组功能
+  const handleCopy = (name: string) => {
+    setEditingGroup({
+      name: name,
+      config: { ...modelGroups[name] },
+      isCopy: true,
+    })
+    setEditDialogOpen(true)
+  }
+
   const handleDelete = async (name: string) => {
     try {
       await configApi.deleteModelGroup(name)
-      setMessage('删除成功')
+      setMessage(`模型组 "${name}" 已删除！`)
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
+      setDeleteDialogOpen(false)
     } catch (error) {
       if (error instanceof Error) {
         setMessage(error.message)
@@ -541,9 +592,30 @@ export default function ModelGroupsPage() {
     }
   }
 
+  // 确认删除
+  const confirmDelete = (name: string) => {
+    setDeletingGroupName(name)
+    setDeleteDialogOpen(true)
+  }
+
   const handleSubmit = async (groupName: string, config: ModelGroupConfig) => {
-    await configApi.updateModelGroup(groupName, config)
-    setMessage('保存成功')
+    // 检查新模型组名称是否已存在
+    if (modelGroups[groupName] && !editingGroup.isCopy && editingGroup.name === groupName) {
+      // 如果是编辑已有模型组，允许相同名称
+      await configApi.updateModelGroup(groupName, config)
+      setMessage('保存成功～ (=^･ω･^=)')
+    } else if (!modelGroups[groupName]) {
+      // 如果是新建或复制模型组，名称必须不存在
+      await configApi.updateModelGroup(groupName, config)
+      setMessage(
+        editingGroup.isCopy ? `模型组 "${groupName}" 复制成功～ (≧ω≦)ノ` : '保存成功～ (=^･ω･^=)'
+      )
+    } else {
+      // 如果是已有名称
+      setMessage(`模型组名称 "${groupName}" 已存在，请换一个名称～ (>﹏<)`)
+      return
+    }
+
     queryClient.invalidateQueries({ queryKey: ['model-groups'] })
   }
 
@@ -565,7 +637,7 @@ export default function ModelGroupsPage() {
           <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
             Nekro 合作中转
           </Link>{' '}
-          获取专属密钥喵～
+          获取专属密钥哦～
         </Alert>
         <Button variant="contained" startIcon={<AddIcon />} onClick={handleAdd}>
           新建模型组
@@ -614,47 +686,63 @@ export default function ModelGroupsPage() {
                   <TableCell>{config.CHAT_PROXY || '-'}</TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={1}>
-                      <Tooltip title={config.ENABLE_VISION ? "支持视觉功能" : "不支持视觉功能"}>
+                      <Tooltip title={config.ENABLE_VISION ? '支持视觉功能' : '不支持视觉功能'}>
                         <Chip
                           icon={<ImageIcon fontSize="small" />}
                           label="视觉"
                           size="small"
-                          color={config.ENABLE_VISION ? "primary" : "default"}
-                          variant={config.ENABLE_VISION ? "filled" : "outlined"}
+                          color={config.ENABLE_VISION ? 'primary' : 'default'}
+                          variant={config.ENABLE_VISION ? 'filled' : 'outlined'}
                         />
                       </Tooltip>
-                      <Tooltip title={config.ENABLE_COT ? "启用思维链" : "未启用思维链"}>
+                      <Tooltip title={config.ENABLE_COT ? '启用思维链' : '未启用思维链'}>
                         <Chip
                           icon={<PsychologyIcon fontSize="small" />}
                           label="思维链"
                           size="small"
-                          color={config.ENABLE_COT ? "secondary" : "default"}
-                          variant={config.ENABLE_COT ? "filled" : "outlined"}
+                          color={config.ENABLE_COT ? 'secondary' : 'default'}
+                          variant={config.ENABLE_COT ? 'filled' : 'outlined'}
                         />
                       </Tooltip>
                     </Stack>
                   </TableCell>
                   <TableCell>
                     <Stack direction="row" spacing={0.5} justifyContent="flex-start">
-                      <IconButton
-                        onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
-                        size="small"
-                        color="primary"
-                        disabled={!config.BASE_URL}
+                      <Tooltip title="访问API提供商" arrow>
+                        <IconButton
+                          onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
+                          size="small"
+                          color="success"
+                          disabled={!config.BASE_URL}
+                        >
+                          <LaunchIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="编辑模型组" arrow>
+                        <IconButton onClick={() => handleEdit(name)} size="small" color="warning">
+                          <EditIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="复制模型组" arrow>
+                        <IconButton onClick={() => handleCopy(name)} size="small" color="info">
+                          <ContentCopyIcon />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip
+                        title={name === 'default' ? '默认模型组不可删除' : '删除模型组'}
+                        arrow
                       >
-                        <LaunchIcon />
-                      </IconButton>
-                      <IconButton onClick={() => handleEdit(name)} size="small" color="primary">
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        onClick={() => handleDelete(name)}
-                        size="small"
-                        color="error"
-                        disabled={name === 'default'}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
+                        <span>
+                          <IconButton
+                            onClick={() => name !== 'default' && confirmDelete(name)}
+                            size="small"
+                            color="error"
+                            disabled={name === 'default'}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -671,7 +759,23 @@ export default function ModelGroupsPage() {
         initialConfig={editingGroup.config}
         onSubmit={handleSubmit}
         onGroupNameChange={name => setEditingGroup(prev => ({ ...prev, name }))}
+        isCopy={editingGroup.isCopy}
+        existingGroups={modelGroups}
       />
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>确认删除模型组</DialogTitle>
+        <DialogContent>
+          <Typography>确定要删除模型组 "{deletingGroupName}" 吗？此操作不可恢复！</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button onClick={() => handleDelete(deletingGroupName)} color="error">
+            确认删除
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Snackbar
         open={!!message}
