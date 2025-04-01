@@ -235,6 +235,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     enabled: !!plugin && activeTab === 1 && plugin.hasConfig,
   })
 
+  // 获取模型组列表
+  const { data: modelGroups = {} } = useQuery({
+    queryKey: ['model-groups'],
+    queryFn: () => pluginsApi.getModelGroups(),
+    enabled: !!plugin && activeTab === 1,
+  })
+
   // 获取插件数据
   const { data: pluginData = [], isLoading: isDataLoading } = useQuery({
     queryKey: ['plugin-data', plugin?.id],
@@ -292,12 +299,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       return pluginsApi.savePluginConfig(plugin.id, stringValues)
     },
     onSuccess: () => {
-      setMessage('配置已保存喵～')
+      setMessage('配置已成功保存喵～ (≧ω≦)ノ')
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
       setEditingStatus({})
     },
     onError: (error: Error) => {
-      setMessage(`保存失败: ${error.message}`)
+      setMessage(`保存失败: ${error.message} 呜呜呜 (ノ_<)`)
     },
   })
 
@@ -305,12 +312,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const reloadMutation = useMutation({
     mutationFn: () => pluginsApi.reloadPlugins(),
     onSuccess: () => {
-      setMessage('插件已重载喵～')
+      setMessage('插件已重载～ (*￣▽￣)b')
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
     },
     onError: (error: Error) => {
-      setMessage(`重载失败: ${error.message}`)
+      setMessage(`重载失败: ${error.message} 呜呜呜 (ノ_<)`)
     },
   })
 
@@ -472,6 +479,42 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             />
           )}
         </Box>
+      )
+    }
+
+    // 如果是模型组引用，显示模型组选择器
+    if (config.ref_model_groups) {
+      const modelGroupNames = Object.keys(modelGroups)
+      const currentValueStr = String(currentValue)
+      const isInvalidValue = !modelGroupNames.includes(currentValueStr)
+
+      return (
+        <TextField
+          select
+          value={currentValueStr}
+          onChange={e => handleConfigChange(config.key, e.target.value)}
+          size="small"
+          fullWidth
+          error={isInvalidValue}
+          helperText={isInvalidValue ? '当前选择的模型组已不存在' : undefined}
+          placeholder={config.placeholder}
+          sx={{
+            ...(isEdited && {
+              '& .MuiInputBase-root': {
+                backgroundColor: theme =>
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(144, 202, 249, 0.08)'
+                    : 'rgba(33, 150, 243, 0.08)',
+              },
+            }),
+          }}
+        >
+          {modelGroupNames.map(name => (
+            <MenuItem key={name} value={name}>
+              {name}
+            </MenuItem>
+          ))}
+        </TextField>
       )
     }
 
@@ -828,7 +871,14 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   variant="outlined"
                                 />
                               </TableCell>
-                              <TableCell>{renderConfigInput(item)}</TableCell>
+                              <TableCell>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  {renderConfigInput(item)}
+                                  {item.ref_model_groups && (
+                                    <Chip label="模型组" size="small" color="primary" variant="outlined" />
+                                  )}
+                                </Box>
+                              </TableCell>
                             </TableRow>
                           ))}
                       </TableBody>

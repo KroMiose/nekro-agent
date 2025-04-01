@@ -125,9 +125,9 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
               fullWidth
               size="small"
               value={newItem}
-              onChange={(e) => setNewItem(e.target.value)}
+              onChange={e => setNewItem(e.target.value)}
               placeholder={`输入${itemType === 'bool' ? 'true/false' : itemType}类型的值`}
-              onKeyPress={(e) => e.key === 'Enter' && handleAddItem()}
+              onKeyPress={e => e.key === 'Enter' && handleAddItem()}
               autoComplete="off"
             />
             <IconButton onClick={handleAddItem} color="primary">
@@ -213,13 +213,12 @@ export default function SettingsPage() {
     const emptyFields = configs
       .filter(config => {
         if (!config.required) return false
-        const currentValue = editingValues[config.key] !== undefined 
-          ? editingValues[config.key]
-          : String(config.value)
+        const currentValue =
+          editingValues[config.key] !== undefined ? editingValues[config.key] : String(config.value)
         return !currentValue || currentValue === '' || currentValue === '[]'
       })
       .map(config => config.title || config.key)
-    
+
     setEmptyRequiredFields(emptyFields)
     if (emptyFields.length > 0) {
       setSaveWarningOpen(true)
@@ -229,38 +228,43 @@ export default function SettingsPage() {
   }, [configs, editingValues])
 
   // 修改保存函数
-  const handleSaveAllChanges = useCallback(async (force: boolean = false) => {
-    if (!force && !checkRequiredFields()) {
-      return
-    }
-
-    try {
-      await configApi.batchUpdateConfig(editingValues)
-      await configApi.saveConfig()
-      setMessage('所有修改已保存并导出到配置文件')
-      queryClient.setQueryData(['configs'], (oldData: ConfigItem[] | undefined) => {
-        if (!oldData) return oldData
-        return oldData.map(item =>
-          editingValues[item.key] !== undefined ? { ...item, value: editingValues[item.key] } : item
-        )
-      })
-      setEditingValues({})
-      setSaveWarningOpen(false)
-    } catch (error) {
-      if (error instanceof Error) {
-        setMessage(error.message)
-      } else {
-        setMessage('保存失败')
+  const handleSaveAllChanges = useCallback(
+    async (force: boolean = false) => {
+      if (!force && !checkRequiredFields()) {
+        return
       }
-    }
-  }, [
-    checkRequiredFields, 
-    editingValues, 
-    queryClient, 
-    setEditingValues, 
-    setMessage, 
-    setSaveWarningOpen
-  ])
+
+      try {
+        await configApi.batchUpdateConfig(editingValues)
+        await configApi.saveConfig()
+        setMessage('所有修改已保存并导出到配置文件')
+        queryClient.setQueryData(['configs'], (oldData: ConfigItem[] | undefined) => {
+          if (!oldData) return oldData
+          return oldData.map(item =>
+            editingValues[item.key] !== undefined
+              ? { ...item, value: editingValues[item.key] }
+              : item
+          )
+        })
+        setEditingValues({})
+        setSaveWarningOpen(false)
+      } catch (error) {
+        if (error instanceof Error) {
+          setMessage(error.message)
+        } else {
+          setMessage('保存失败')
+        }
+      }
+    },
+    [
+      checkRequiredFields,
+      editingValues,
+      queryClient,
+      setEditingValues,
+      setMessage,
+      setSaveWarningOpen,
+    ]
+  )
 
   //监听保存快捷键
   useEffect(() => {
@@ -319,7 +323,7 @@ export default function SettingsPage() {
     if (config.type === 'list') {
       const itemType = config.element_type || 'str'
       const currentValue = Array.isArray(config.value) ? config.value : []
-      
+
       return (
         <Box sx={{ width: '100%' }}>
           <TextField
@@ -335,9 +339,9 @@ export default function SettingsPage() {
               readOnly: true,
               startAdornment: (
                 <InputAdornment position="start">
-                  <Chip 
-                    label={`${itemType}[]`} 
-                    size="small" 
+                  <Chip
+                    label={`${itemType}[]`}
+                    size="small"
                     color={getTypeColor(itemType)}
                     variant="outlined"
                     sx={{ mr: 1 }}
@@ -347,7 +351,10 @@ export default function SettingsPage() {
               endAdornment: (
                 <InputAdornment position="end">
                   <Tooltip title="编辑列表">
-                    <IconButton onClick={() => setListEditState({ open: true, configKey: config.key })} edge="end">
+                    <IconButton
+                      onClick={() => setListEditState({ open: true, configKey: config.key })}
+                      edge="end"
+                    >
                       <TuneIcon />
                     </IconButton>
                   </Tooltip>
@@ -361,7 +368,7 @@ export default function SettingsPage() {
               open={listEditState.open}
               onClose={() => setListEditState({ open: false, configKey: null })}
               value={isEditing ? JSON.parse(displayValue) : currentValue}
-              onChange={(newValue) => handleConfigChange(config.key, JSON.stringify(newValue))}
+              onChange={newValue => handleConfigChange(config.key, JSON.stringify(newValue))}
               itemType={itemType}
               title={`编辑${config.title || config.key}`}
             />
@@ -521,8 +528,8 @@ export default function SettingsPage() {
           overflow: 'hidden',
         }}
       >
-        <TableContainer 
-          sx={{ 
+        <TableContainer
+          sx={{
             flex: 1,
             overflow: 'auto',
             '&::-webkit-scrollbar': {
@@ -557,11 +564,7 @@ export default function SettingsPage() {
                           <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
                             {config.title || config.key}
                             {config.required && (
-                              <Typography
-                                component="span"
-                                color="error"
-                                sx={{ ml: 0.5 }}
-                              >
+                              <Typography component="span" color="error" sx={{ ml: 0.5 }}>
                                 *
                               </Typography>
                             )}

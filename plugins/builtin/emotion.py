@@ -48,7 +48,12 @@ class EmotionConfig(ConfigBase):
         description="最近添加表情包最大显示数量",
     )
     MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
-    EMBEDDING_MODEL: str = Field(default="text-embedding", title="嵌入模型组", description="在此填入向量嵌入模型组名称")
+    EMBEDDING_MODEL: str = Field(
+        default="text-embedding",
+        title="嵌入模型组",
+        description="在此填入向量嵌入模型组名称",
+        json_schema_extra={"ref_model_groups": True, "required": True},
+    )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
 
 
@@ -859,7 +864,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         )
     msg.add(
         ContentSegment.text_content(
-            "If they don't look don't match the description, please use `update_emotion` immediately to correct it. After that, continue to Your task.",
+            "If they don't match the description, please use `update_emotion` immediately to correct it. If you find any non-expression images (like screenshots, photos, or irrelevant content), please use `remove_emotion` to delete them. Expression images should only be reaction GIFs or meme images. After that, continue to Your task.",
         ),
     )
 

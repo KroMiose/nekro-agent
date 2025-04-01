@@ -98,12 +98,14 @@ class MemoryConfig(ConfigBase):
     MEMORY_MANAGE_MODEL: str = Field(
         default="default",
         title="记忆管理模型",
-        description="用于将传入的记忆内容简化整理的llm,填入模型组名称即可",
+        description="用于将传入的记忆内容简化整理的对话模型组",
+        json_schema_extra={"ref_model_groups": True, "required": True},
     )
     TEXT_EMBEDDING_MODEL: str = Field(
         default="default",
         title="向量嵌入模型",
-        description="用于将传入的记忆进行向量嵌入,填入模型组名称即可",
+        description="用于将传入的记忆进行向量嵌入的嵌入模型组",
+        json_schema_extra={"ref_model_groups": True, "required": True},
     )
     SESSION_ISOLATION: bool = Field(
         default=True,

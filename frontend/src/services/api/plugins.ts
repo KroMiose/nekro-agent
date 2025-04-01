@@ -1,5 +1,6 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
+import { configApi } from './config'
 
 export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
 
@@ -270,6 +271,11 @@ export const pluginsApi = {
     const res = await axios.delete(`/plugins/data/${pluginId}`)
     return res.data
   },
+
+  // 获取模型组列表
+  getModelGroups: async () => {
+    return configApi.getModelGroups()
+  },
 }
 
 // 为了支持直接导入这些方法，我们也单独导出它们
@@ -290,6 +296,7 @@ export const exportPluginFile = pluginsApi.exportPluginFile
 export const getPluginData = pluginsApi.getPluginData
 export const deletePluginData = pluginsApi.deletePluginData
 export const resetPluginData = pluginsApi.resetPluginData
+export const getModelGroups = pluginsApi.getModelGroups
 
 export const streamGenerateCode = (
   filePath: string,

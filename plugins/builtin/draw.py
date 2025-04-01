@@ -81,7 +81,7 @@ async def draw(
     """
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
-    # logger.info(f"绘图模型组: {config.USE_DRAW_MODEL_GROUP}")
+    logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
         async with aiofiles.open(
             convert_to_host_path(Path(refer_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
@@ -155,12 +155,13 @@ async def draw(
             )
             response.raise_for_status()
             data = response.json()
-        logger.info(f"绘图响应: {data}")
+        # logger.info(f"绘图响应: {data}")
         content = data["choices"][0]["message"]["content"]
         ret_file_url = re.search(r"!\[\w+?\]\((.*?)\)", content)
         if ret_file_url:
             ret_file_url = ret_file_url.group(1)
         else:
+            logger.error(f"绘图响应中未找到图片信息: {data}")
             raise Exception(
                 "No image found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
             )
