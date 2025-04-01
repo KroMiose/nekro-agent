@@ -107,6 +107,11 @@ class MemoryConfig(ConfigBase):
         description="用于将传入的记忆进行向量嵌入的嵌入模型组",
         json_schema_extra={"ref_model_groups": True, "required": True},
     )
+    TEXT_EMBEDDING_DIMENSION: int = Field(
+        default=1024,
+        title="嵌入维度",
+        description="嵌入维度",
+    )
     SESSION_ISOLATION: bool = Field(
         default=True,
         title="记忆会话隔离",
@@ -151,19 +156,59 @@ _thread_pool = ThreadPoolExecutor(max_workers=5)  # 创建一个线程池用于�
 # 添加记忆注入缓存，避免短时间内重复执行
 _memory_inject_cache = {}
 
+# 异步创建Memory实例
+async def create_memory_async(config: Dict[str, Any]) -> Memory:
+    """将Memory.from_config包装成异步函数，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool,
+        lambda: Memory.from_config(config),
+    )
 
-def get_mem0_client():
+# 将同步方法包装成异步方法
+async def async_mem0_search(mem0, query: str, user_id: str):
+    """异步执行mem0.search，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.search(query=query, user_id=user_id),
+    )
+
+async def async_mem0_get_all(mem0, user_id: str):
+    """异步执行mem0.get_all，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.get_all(user_id=user_id),
+    )
+
+async def async_mem0_add(mem0, messages: str, user_id: str, metadata: Dict[str, Any]):
+    """异步执行mem0.add，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.add(messages=messages, user_id=user_id, metadata=metadata),
+    )
+
+async def async_mem0_update(mem0, memory_id: str, data: str):
+    """异步执行mem0.update，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.update(memory_id=memory_id, data=data),
+    )
+
+async def async_mem0_history(mem0, memory_id: str):
+    """异步执行mem0.history，避免阻塞事件循环"""
+    return await asyncio.get_running_loop().run_in_executor(
+        _thread_pool, 
+        lambda: mem0.history(memory_id=memory_id),
+    )
+
+async def get_mem0_client_async():
+    """异步获取mem0客户端实例"""
     global _mem0_instance, _last_config_hash
     memory_config = get_memory_config()  # 始终获取最新配置
     # 计算当前配置的哈希值
     current_config = {
         "MEMORY_MANAGE_MODEL": memory_config.MEMORY_MANAGE_MODEL,
         "TEXT_EMBEDDING_MODEL": memory_config.TEXT_EMBEDDING_MODEL,
-        "SESSION_ISOLATION": memory_config.SESSION_ISOLATION,
-        "AUTO_MEMORY_ENABLED": memory_config.AUTO_MEMORY_ENABLED,
-        "AUTO_MEMORY_SEARCH_LIMIT": memory_config.AUTO_MEMORY_SEARCH_LIMIT,
-        "AUTO_MEMORY_CONTEXT_MESSAGE_COUNT": memory_config.AUTO_MEMORY_CONTEXT_MESSAGE_COUNT,
-        "AUTO_MEMORY_USE_TOPIC_SEARCH": memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH,
+        "TEXT_EMBEDDING_DIMENSION": memory_config.TEXT_EMBEDDING_DIMENSION,
         "llm_model_name": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).CHAT_MODEL,
         "llm_api_key": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).API_KEY,
         "llm_base_url": get_model_group_info(memory_config.MEMORY_MANAGE_MODEL).BASE_URL,
@@ -220,53 +265,19 @@ def get_mem0_client():
                     "api_key": current_config["embedder_api_key"],
                     "model": current_config["embedder_model_name"],
                     "openai_base_url": current_config["embedder_base_url"],
+                    "embedding_dims": current_config["TEXT_EMBEDDING_DIMENSION"],
                 },
             },
             "version": "v1.1",
         }
         
-        # 创建新实例
-        _mem0_instance = Memory.from_config(mem0_client_config)
+        # 异步创建新实例
+        _mem0_instance = await create_memory_async(mem0_client_config)
         _last_config_hash = current_hash
         logger.info("记忆管理器已重新初始化")
         
     return _mem0_instance
 
-# 将同步方法包装成异步方法
-async def async_mem0_search(mem0, query: str, user_id: str):
-    """异步执行mem0.search，避免阻塞事件循环"""
-    return await asyncio.get_running_loop().run_in_executor(
-        _thread_pool, 
-        lambda: mem0.search(query=query, user_id=user_id),
-    )
-
-async def async_mem0_get_all(mem0, user_id: str):
-    """异步执行mem0.get_all，避免阻塞事件循环"""
-    return await asyncio.get_running_loop().run_in_executor(
-        _thread_pool, 
-        lambda: mem0.get_all(user_id=user_id),
-    )
-
-async def async_mem0_add(mem0, messages: str, user_id: str, metadata: Dict[str, Any]):
-    """异步执行mem0.add，避免阻塞事件循环"""
-    return await asyncio.get_running_loop().run_in_executor(
-        _thread_pool, 
-        lambda: mem0.add(messages=messages, user_id=user_id, metadata=metadata),
-    )
-
-async def async_mem0_update(mem0, memory_id: str, data: str):
-    """异步执行mem0.update，避免阻塞事件循环"""
-    return await asyncio.get_running_loop().run_in_executor(
-        _thread_pool, 
-        lambda: mem0.update(memory_id=memory_id, data=data),
-    )
-
-async def async_mem0_history(mem0, memory_id: str):
-    """异步执行mem0.history，避免阻塞事件循环"""
-    return await asyncio.get_running_loop().run_in_executor(
-        _thread_pool, 
-        lambda: mem0.history(memory_id=memory_id),
-    )
 
 @plugin.mount_prompt_inject_method(name="memory_prompt_inject")
 async def memory_prompt_inject(_ctx: AgentCtx) -> str:
@@ -275,7 +286,6 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
     
     # 没有缓存或缓存已过期，执行正常流程
     memory_config = get_memory_config()
-    mem0 = get_mem0_client()
     if not memory_config.AUTO_MEMORY_ENABLED:
         return ""
     
@@ -291,6 +301,9 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
     try:
         from nekro_agent.models.db_chat_channel import DBChatChannel
         from nekro_agent.models.db_chat_message import DBChatMessage
+        
+        # 异步获取记忆客户端
+        mem0 = await get_mem0_client_async()
         
         # 获取会话信息
         db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)
@@ -338,72 +351,134 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         if not user_ids:
             return ""
             
-        # 对每个用户进行记忆检索
-        for user_id in user_ids:
-            try:
-                # 如果启用会话隔离,添加会话前缀
-                search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
-                
-                # 使用话题检索
-                if memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH and context_content:
+        # 将所有用户ID转换为列表，便于后续处理
+        user_id_list = list(user_ids)
         
-                    # 使用话题搜索检索与当前对话上下文相关的记忆
-                    # 调用LLM获取话题关键词
-                    # 获取模型配置
-                    memory_manage_model_group = get_model_group_info(memory_config.MEMORY_MANAGE_MODEL)
-                    
-                    # 准备消息
-                    messages = [
-                        OpenAIChatMessage.from_text("system", f"你是一个聊天主题分析专家,请分析给定的对话内容并总结用户{user_id}发言的关键词.只返回关键词,不要有任何解释或额外文本.例如'生日''爱好''喜欢的食物'等."),
-                        OpenAIChatMessage.from_text("user", context_content),
-                    ]
-                    
-                    # 调用LLM获取话题关键词
+        # 使用话题检索 - 一次性获取所有用户的关键词
+        if memory_config.AUTO_MEMORY_USE_TOPIC_SEARCH and context_content:
+            try:
+                # 获取模型配置
+                memory_manage_model_group = get_model_group_info(memory_config.MEMORY_MANAGE_MODEL)
+                
+                # 准备LLM查询 - 一次性处理所有用户的话题分析
+                system_prompt = "你是一个聊天主题分析专家，请基于以下对话内容，为每个用户提取关键词。\n"
+                system_prompt += "对每个用户ID给出的关键词应该只包含该用户提及的概念或主题，例如'生日'，'爱好'，'游戏'等。\n"
+                system_prompt += "请使用如下格式返回结果，不要有任何额外文本或解释：\n\n"
+                system_prompt += "用户ID1: 关键词1, 关键词2, 关键词3\n"
+                system_prompt += "用户ID2: 关键词4, 关键词5, 关键词6\n"
+                system_prompt += f"\n需要分析的用户ID列表: {', '.join(user_id_list)}"
+                
+                messages = [
+                    OpenAIChatMessage.from_text("system", system_prompt),
+                    OpenAIChatMessage.from_text("user", context_content),
+                ]
+                
+                # 调用LLM获取所有用户的话题关键词
+                llm_response = await gen_openai_chat_response(
+                    model=memory_manage_model_group.CHAT_MODEL,
+                    messages=[msg.to_dict() for msg in messages],
+                    base_url=memory_manage_model_group.BASE_URL,
+                    api_key=memory_manage_model_group.API_KEY,
+                    stream_mode=False,
+                )
+                
+                # 解析LLM回复，提取每个用户的关键词
+                user_keywords = {}
+                for line in llm_response.response_content.strip().split("\n"):
+                    if ":" in line:
+                        user_id, keywords = line.split(":", 1)
+                        user_id = user_id.strip()
+                        if user_id in user_ids:
+                            user_keywords[user_id] = keywords.strip()
+                
+                logger.info(f"全部用户话题分析结果: {user_keywords}")
+                
+                # 为每个用户进行记忆检索
+                for user_id in user_ids:
                     try:
-                        llm_response = await gen_openai_chat_response(
-                            model=memory_manage_model_group.CHAT_MODEL,
-                            messages=[msg.to_dict() for msg in messages],
-                            base_url=memory_manage_model_group.BASE_URL,
-                            api_key=memory_manage_model_group.API_KEY,
-                            stream_mode=False,
-                        )
-                        topic_keywords = llm_response.response_content.strip()
-                        logger.info(f"话题分析结果: {topic_keywords}")
+                        # 如果启用会话隔离,添加会话前缀
+                        search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
                         
-                        # 使用生成的关键词进行搜索
-                        result = await async_mem0_search(
-                            mem0,
-                            query=topic_keywords, 
-                            user_id=search_user_id,
-                        )
-                        user_memories = result.get("results", [])
+                        # 使用该用户的关键词进行搜索
+                        if user_keywords.get(user_id):
+                            query = user_keywords[user_id]
+                            logger.info(f"用户 {user_id} 的话题关键词: {query}")
+                            
+                            result = await async_mem0_search(
+                                mem0,
+                                query=query, 
+                                user_id=search_user_id,
+                            )
+                            user_memories = result.get("results", [])
+                        else:
+                            # 如果没有获取到关键词，获取所有记忆
+                            logger.info(f"用户 {user_id} 未获得有效关键词，获取所有记忆")
+                            result = await async_mem0_get_all(mem0, user_id=search_user_id)
+                            user_memories = result.get("results", [])
+                        
+                        # 限制返回记忆数量
+                        user_memories = user_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
+                        
+                        # 为每个记忆添加用户信息
+                        for memory in user_memories:
+                            memory["user_qq"] = user_id
+                            # 尝试获取用户昵称
+                            for msg in recent_messages:
+                                if msg.sender_bind_qq == user_id:
+                                    memory["user_nickname"] = msg.sender_nickname
+                                    break
+                            else:
+                                memory["user_nickname"] = user_id
+                        
+                        all_memories.extend(user_memories)
                     except Exception as e:
-                        logger.error(f"话题分析失败: {e!s}")
-                        # 出错时直接获取用户的所有记忆作为备选
+                        logger.error(f"检索用户 {user_id} 的记忆失败: {e!s}")
+                    
+            except Exception as e:
+                logger.error(f"话题分析总体失败: {e!s}")
+                # 话题分析失败时，回退到为每个用户获取所有记忆
+                for user_id in user_ids:
+                    try:
+                        search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
                         result = await async_mem0_get_all(mem0, user_id=search_user_id)
                         user_memories = result.get("results", [])
-                else:
-                    # 搜索用户的所有记忆
+                        user_memories = user_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
+                        
+                        # 为每个记忆添加用户信息
+                        for memory in user_memories:
+                            memory["user_qq"] = user_id
+                            for msg in recent_messages:
+                                if msg.sender_bind_qq == user_id:
+                                    memory["user_nickname"] = msg.sender_nickname
+                                    break
+                            else:
+                                memory["user_nickname"] = user_id
+                        
+                        all_memories.extend(user_memories)
+                    except Exception as e:
+                        logger.error(f"检索用户 {user_id} 的记忆失败: {e!s}")
+        else:
+            # 不使用话题检索时，直接获取所有用户的所有记忆
+            for user_id in user_ids:
+                try:
+                    search_user_id = _ctx.from_chat_key + user_id if memory_config.SESSION_ISOLATION else user_id
                     result = await async_mem0_get_all(mem0, user_id=search_user_id)
                     user_memories = result.get("results", [])
-                
-                # 限制返回记忆数量
-                user_memories = user_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
-                
-                # 为每个记忆添加用户信息
-                for memory in user_memories:
-                    memory["user_qq"] = user_id
-                    # 尝试获取用户昵称
-                    for msg in recent_messages:
-                        if msg.sender_bind_qq == user_id:
-                            memory["user_nickname"] = msg.sender_nickname
-                            break
-                    else:
-                        memory["user_nickname"] = user_id
-                
-                all_memories.extend(user_memories)
-            except Exception as e:
-                logger.error(f"检索用户 {user_id} 的记忆失败: {e!s}")
+                    user_memories = user_memories[:memory_config.AUTO_MEMORY_SEARCH_LIMIT]
+                    
+                    # 为每个记忆添加用户信息
+                    for memory in user_memories:
+                        memory["user_qq"] = user_id
+                        for msg in recent_messages:
+                            if msg.sender_bind_qq == user_id:
+                                memory["user_nickname"] = msg.sender_nickname
+                                break
+                        else:
+                            memory["user_nickname"] = user_id
+                    
+                    all_memories.extend(user_memories)
+                except Exception as e:
+                    logger.error(f"检索用户 {user_id} 的记忆失败: {e!s}")
         
         if not all_memories:
             return ""
@@ -420,7 +495,9 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
             memory_id = encode_id(mem.get("id","未知ID"))
             score = round(float(mem.get("score", 0)), 3) if mem.get("score") else "暂无"
             memory_text += f"{idx}. [ 记忆归属: {nickname} | 元数据: {metadata} | ID: {memory_id} | 匹配度: {score} ] 内容: {mem['memory']}\n"
-        logger.info(memory_text)
+        
+        # 不在日志中输出完整的记忆内容，避免过多日志
+        logger.info(f"找到 {len(all_memories)} 条相关记忆")
         
         # 将结果存入缓存
         _memory_inject_cache[cache_key] = {
@@ -435,8 +512,8 @@ async def memory_prompt_inject(_ctx: AgentCtx) -> str:
         
         return memory_text  # noqa: TRY300
     except Exception as e:
-        logger.error(f"自动记忆检索失败: {e!s}")
-        raise RuntimeError(f"记忆提示注入失败: {e!s}") from e
+        logger.error(f"自动记忆检索失败: {e!s}", exc_info=True)
+        return ""  # 出错时返回空，避免中断整个流程
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL,name="memory_notice")
 async def _memory_notice(_ctx: AgentCtx):
@@ -481,7 +558,7 @@ async def add_memory(
         add_memory("小名是喵喵", "123456", {"category": "name","nickname": "喵喵"})
     """
     memory_config = get_memory_config()
-    mem0 = get_mem0_client()
+    mem0 = await get_mem0_client_async()
     if user_id == "":
         user_id = core_config.BOT_QQ
 
@@ -520,7 +597,7 @@ async def search_memory(_ctx: AgentCtx, query: str, user_id: str) -> str:
         search_memory("2025年3月1日吃了什么","123456")
     """
     memory_config = get_memory_config()
-    mem0 = get_mem0_client()
+    mem0 = await get_mem0_client_async()
     if user_id == "":
         user_id = core_config.BOT_QQ
     
@@ -556,7 +633,7 @@ async def get_all_memories( _ctx: AgentCtx,user_id: str) -> str:
         get_all_memories("123456")
     """
     memory_config = get_memory_config()  # 获取最新配置
-    mem0 = get_mem0_client()
+    mem0 = await get_mem0_client_async()
     if user_id == "":
         user_id = core_config.BOT_QQ
 
@@ -593,7 +670,7 @@ async def update_memory(_ctx: AgentCtx,memory_id: str, new_content: str) -> str:
     Example:
         update_memory("bf4d4092...", "喜欢周末打网球")
     """
-    mem0 = get_mem0_client()
+    mem0 = await get_mem0_client_async()
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
@@ -628,7 +705,7 @@ async def get_memory_history( _ctx: AgentCtx, memory_id: str) -> str:
     Example:
         get_memory_history("bf4d4092...")
     """
-    mem0 = get_mem0_client()
+    mem0 = await get_mem0_client_async()
     try:
         original_id = decode_id(memory_id)  # 解码短ID
     except ValueError as e:
