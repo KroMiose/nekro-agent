@@ -91,6 +91,8 @@ async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int
     """获取用户所在群的群名片"""
     if str(user_id) == str(config.BOT_QQ):
         return (await db_chat_channel.get_preset()).name
+    if str(user_id) == "all":
+        return "全体成员"
     user_info = await get_bot().get_group_member_info(
         group_id=int(group_id),
         user_id=int(user_id),
