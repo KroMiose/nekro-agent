@@ -31,7 +31,7 @@ import {
 import { useQuery } from '@tanstack/react-query'
 import { sandboxApi } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
 import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
 
@@ -303,7 +303,7 @@ export default function SandboxPage() {
                                 <Box className="w-full overflow-auto">
                                   <SyntaxHighlighter
                                     language="python"
-                                    style={vscDarkPlus}
+                                    style={mode === 'dark' ? vscDarkPlus : oneLight}
                                     showLineNumbers={true}
                                     customStyle={{
                                       margin: 0,
@@ -337,7 +337,7 @@ export default function SandboxPage() {
                                   <Box className="w-full overflow-auto">
                                     <SyntaxHighlighter
                                       language="text"
-                                      style={vscDarkPlus}
+                                      style={mode === 'dark' ? vscDarkPlus : oneLight}
                                       customStyle={{
                                         margin: 0,
                                         padding: '16px',
