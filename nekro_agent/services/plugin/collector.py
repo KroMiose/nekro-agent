@@ -141,7 +141,7 @@ class PluginCollector:
                     logger.success(
                         f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}',
                     )
-                    if plugin.key in config.PLUGIN_DISABLED:
+                    if plugin.key not in config.PLUGIN_ENABLED:
                         plugin.disable()
                     self.loaded_plugins[plugin.key] = plugin
                 else:

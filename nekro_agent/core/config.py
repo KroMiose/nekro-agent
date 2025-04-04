@@ -339,10 +339,10 @@ class PluginConfig(ConfigBase):
     NAPCAT_CONTAINER_NAME: str = Field(default="napcat", title="NapCat 容器名称")
 
     """插件配置"""
-    PLUGIN_DISABLED: List[str] = Field(
-        default=[],
-        title="禁用插件",
-        description="禁用插件 key 列表",
+    PLUGIN_ENABLED: List[str] = Field(
+        default=["KroMiose.basic"],
+        title="启用插件",
+        description="启用插件 key 列表",
         json_schema_extra={"is_hidden": True},
     )
 

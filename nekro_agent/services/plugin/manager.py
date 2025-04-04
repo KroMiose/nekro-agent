@@ -89,8 +89,8 @@ async def enable_plugin(plugin_id: str) -> bool:
 
     try:
         plugin.enable()
-        if plugin.key in config.PLUGIN_DISABLED:
-            config.PLUGIN_DISABLED.remove(plugin.key)
+        if plugin.key not in config.PLUGIN_ENABLED:
+            config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
@@ -110,8 +110,8 @@ async def disable_plugin(plugin_id: str) -> bool:
 
     try:
         plugin.disable()
-        if plugin.key not in config.PLUGIN_DISABLED:
-            config.PLUGIN_DISABLED.append(plugin.key)
+        if plugin.key in config.PLUGIN_ENABLED:
+            config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")
