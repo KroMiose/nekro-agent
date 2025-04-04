@@ -59,6 +59,21 @@ class PresetListData(BaseModel):
     total_pages: int = Field(..., alias="totalPages", description="总页数")
 
 
+class UserPresetItem(BaseModel):
+    """用户人设列表项模型，简化版"""
+
+    id: str = Field(..., description="人设ID")
+    name: str = Field(..., description="人设名称")
+    title: str = Field(..., description="资源标题")
+
+
+class UserPresetListData(BaseModel):
+    """用户人设列表数据模型"""
+
+    items: List[UserPresetItem] = Field(..., description="人设列表")
+    total: int = Field(..., description="总记录数")
+
+
 class PresetCreateResponseData(BaseModel):
     """创建人设响应数据模型"""
 
@@ -75,6 +90,12 @@ class PresetListResponse(BasicResponse):
     """人设列表响应模型"""
 
     data: Optional[PresetListData] = Field(None, description="响应数据")
+
+
+class UserPresetListResponse(BasicResponse):
+    """用户人设列表响应模型"""
+
+    data: Optional[UserPresetListData] = Field(None, description="响应数据")
 
 
 class PresetDetailResponse(BasicResponse):

@@ -231,8 +231,8 @@ class PluginConfig(ConfigBase):
     SESSION_NICKNAME_PREFIX: str = Field(default="", title="AI 群名片名称前缀")
     SESSION_ENABLE_AT: bool = Field(
         default=True,
-        title="启用 at 功能",
-        description="关闭后 AI 无法发送 at 消息",
+        title="启用 At 功能",
+        description="关闭后 AI 发送的 At 消息将被解析为纯文本用户名，避免反复打扰用户",
     )
 
     """沙盒配置"""
@@ -349,11 +349,17 @@ class PluginConfig(ConfigBase):
     """Nekro Cloud 云服务配置"""
     ENABLE_NEKRO_CLOUD: bool = Field(
         default=True,
-        title="启用 Nekro Cloud",
+        title="启用 NekroAI 云服务",
         description=(
-            "是否启用 Nekro Cloud 云服务，启用后可使用 Nekro Cloud 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
+            "是否启用 NekroAI 云服务，启用后可使用 NekroAI 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
         ),
+    )
+    NEKRO_CLOUD_API_KEY: str = Field(
+        default="",
+        title="NekroAI 云服务 API Key",
+        json_schema_extra={"is_secret": True, "placeholder": "nk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+        description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
     )
     ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra={"is_hidden": True})
 

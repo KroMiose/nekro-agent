@@ -5,15 +5,18 @@ import httpx
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
-from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
+from nekro_agent.systems.cloud.exceptions import (
+    NekroCloudAPIKeyInvalid,
+    NekroCloudDisabled,
+)
 from nekro_agent.systems.cloud.schemas.preset import (
     BasicResponse,
     PresetCreate,
     PresetCreateResponse,
-    PresetCreateResponseData,
     PresetDetailResponse,
     PresetListResponse,
     PresetUpdate,
+    UserPresetListResponse,
 )
 
 
@@ -25,7 +28,15 @@ def get_client() -> httpx.AsyncClient:
     """
     if not OsEnv.NEKRO_CLOUD_API_BASE_URL or not config.ENABLE_NEKRO_CLOUD:
         raise NekroCloudDisabled
-    return httpx.AsyncClient(base_url=OsEnv.NEKRO_CLOUD_API_BASE_URL)
+    if not config.NEKRO_CLOUD_API_KEY:
+        raise NekroCloudAPIKeyInvalid
+    return httpx.AsyncClient(
+        base_url=OsEnv.NEKRO_CLOUD_API_BASE_URL,
+        headers={
+            "X-API-Key": f"{config.NEKRO_CLOUD_API_KEY}",
+            "Content-Type": "application/json",
+        },
+    )
 
 
 async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
@@ -188,3 +199,21 @@ async def list_presets(
     except Exception as e:
         logger.error(f"查询人设列表发生错误: {e}")
         return PresetListResponse(success=False, error=f"查询人设列表失败: {e!s}", data=None)
+
+
+async def list_user_presets() -> UserPresetListResponse:
+    """获取用户上传的人设列表
+    
+    Returns:
+        UserPresetListResponse: 简化版人设列表响应
+    """
+    try:
+        async with get_client() as client:
+            response = await client.get(url="/api/preset/user")
+            response.raise_for_status()
+            return UserPresetListResponse(**response.json())
+    except NekroCloudDisabled:
+        return UserPresetListResponse(success=False, error="Nekro Cloud 未启用", data=None)
+    except Exception as e:
+        logger.error(f"获取用户上传人设列表发生错误: {e}")
+        return UserPresetListResponse(success=False, error=f"获取用户上传人设列表失败: {e!s}", data=None)

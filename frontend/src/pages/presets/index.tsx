@@ -39,6 +39,7 @@ import {
   CloudOff as CloudOffIcon,
   Upload as UploadIcon,
   Tag as TagIcon,
+  CloudSync as CloudSyncIcon,
 } from '@mui/icons-material'
 import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
@@ -453,19 +454,21 @@ const PresetCard = ({
   onSync,
   onEdit,
   showError,
+  showSuccess,
 }: {
   preset: Preset
   onExpand: () => void
   expanded: boolean
   onDelete: () => void
-  onSync: () => Promise<void>
+  onSync: (id: number) => Promise<void>
   onEdit: () => void
   showError: (message: string) => void
+  showSuccess: (message: string) => void
 }) => {
   const { enqueueSnackbar } = useSnackbar()
   const [preset, setPreset] = useState(initialPreset)
-  const [detailData, setDetailData] = useState<PresetDetail | null>(null)
   const [loading, setLoading] = useState(false)
+  const [detailData, setDetailData] = useState<PresetDetail | null>(null)
   const [showShareDialog, setShowShareDialog] = useState(false)
   const [showUnshareDialog, setShowUnshareDialog] = useState(false)
   const [showSyncToCloudDialog, setShowSyncToCloudDialog] = useState(false)
@@ -489,7 +492,7 @@ const PresetCard = ({
           setDetailData(data)
         } catch (error) {
           console.error('获取人设详情失败', error)
-          enqueueSnackbar('获取人设详情失败', { variant: 'error' })
+          enqueueSnackbar('获取人设详情失败', { variant: 'error', autoHideDuration: 5000 })
           showError('获取人设详情失败')
         } finally {
           setLoading(false)
@@ -503,9 +506,10 @@ const PresetCard = ({
   const handleShareToCloud = async () => {
     try {
       setShareLoading(true)
+      // 移除过程提示
       const response = await presetsApi.shareToCloud(preset.id, isSfw)
       if (response.code === 200) {
-        enqueueSnackbar('共享成功', { variant: 'success' })
+        showSuccess('共享成功')
         setShowShareDialog(false)
         // 更新本地状态
         setPreset({
@@ -513,23 +517,16 @@ const PresetCard = ({
           on_shared: true,
           remote_id: response.data?.remote_id || String(preset.id),
         })
-        onSync() // 刷新列表
+        onSync(preset.id) // 刷新列表
       } else {
-        // 直接显示错误，同时使用全局错误提示和snackbar
+        // 直接显示错误，只使用全局错误提示
         const errorMsg = response.msg || '未知错误'
-        enqueueSnackbar(`共享失败: ${errorMsg}`, {
-          variant: 'error',
-          autoHideDuration: 10000, // 延长显示时间
-        })
-        showError(`共享失败: ${errorMsg}`) // 使用全局错误提示
+        showError(`共享失败: ${errorMsg}`)
 
         // 如果是描述缺失错误，打开编辑对话框
         if (response.msg && response.msg.includes('描述不能为空')) {
           setTimeout(() => {
-            enqueueSnackbar('请添加人设描述后再共享', {
-              variant: 'warning',
-              autoHideDuration: 8000, // 延长显示时间
-            })
+            showError('请添加人设描述后再共享')
             onEdit()
           }, 800)
         }
@@ -538,11 +535,7 @@ const PresetCard = ({
     } catch (error) {
       console.error('共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`共享失败: ${errorMessage}`, {
-        variant: 'error',
-        autoHideDuration: 10000, // 延长显示时间
-      })
-      showError(`共享失败: ${errorMessage}`) // 使用全局错误提示
+      showError(`共享失败: ${errorMessage}`)
       setShowShareDialog(false)
     } finally {
       setShareLoading(false)
@@ -553,9 +546,10 @@ const PresetCard = ({
   const handleUnshare = async () => {
     try {
       setShareLoading(true)
+      // 移除过程提示
       const response = await presetsApi.unshare(preset.id)
       if (response.code === 200) {
-        enqueueSnackbar('撤回共享成功', { variant: 'success' })
+        showSuccess('撤回共享成功')
         setShowUnshareDialog(false)
         // 更新本地状态
         setPreset({
@@ -563,24 +557,16 @@ const PresetCard = ({
           on_shared: false,
           remote_id: null,
         })
-        onSync() // 刷新列表
+        onSync(preset.id) // 刷新列表
       } else {
         const errorMsg = response.msg || '未知错误'
-        enqueueSnackbar(`撤回共享失败: ${errorMsg}`, {
-          variant: 'error',
-          autoHideDuration: 10000, // 延长显示时间
-        })
-        showError(`撤回共享失败: ${errorMsg}`) // 使用全局错误提示
+        showError(`撤回共享失败: ${errorMsg}`)
         setShowUnshareDialog(false)
       }
     } catch (error) {
       console.error('撤回共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`撤回共享失败: ${errorMessage}`, {
-        variant: 'error',
-        autoHideDuration: 10000, // 延长显示时间
-      })
-      showError(`撤回共享失败: ${errorMessage}`) // 使用全局错误提示
+      showError(`撤回共享失败: ${errorMessage}`)
       setShowUnshareDialog(false)
     } finally {
       setShareLoading(false)
@@ -591,27 +577,25 @@ const PresetCard = ({
   const handleSyncToCloud = async () => {
     try {
       setShareLoading(true)
+      // 移除过程提示
       const response = await presetsApi.syncToCloud(preset.id, isSfw)
       if (response.code === 200) {
-        enqueueSnackbar('同步成功', { variant: 'success' })
+        showSuccess('同步成功')
+        // 显示更详细的成功信息
+        if (response.msg) {
+          showSuccess(response.msg)
+        }
         setShowSyncToCloudDialog(false)
-        onSync() // 刷新列表
+        onSync(preset.id) // 刷新列表
       } else {
-        // 直接显示错误，同时使用全局错误提示和snackbar
+        // 直接显示错误，同时使用全局错误提示
         const errorMsg = response.msg || '未知错误'
-        enqueueSnackbar(`同步失败: ${errorMsg}`, {
-          variant: 'error',
-          autoHideDuration: 10000, // 延长显示时间
-        })
-        showError(`同步失败: ${errorMsg}`) // 使用全局错误提示
+        showError(`同步失败: ${errorMsg}`)
 
         // 如果是描述缺失错误，打开编辑对话框
         if (response.msg && response.msg.includes('描述不能为空')) {
           setTimeout(() => {
-            enqueueSnackbar('请添加人设描述后再同步', {
-              variant: 'warning',
-              autoHideDuration: 8000, // 延长显示时间
-            })
+            showError('请添加人设描述后再同步')
             onEdit()
           }, 800)
         }
@@ -620,11 +604,7 @@ const PresetCard = ({
     } catch (error) {
       console.error('同步失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`同步失败: ${errorMessage}`, {
-        variant: 'error',
-        autoHideDuration: 10000, // 延长显示时间
-      })
-      showError(`同步失败: ${errorMessage}`) // 使用全局错误提示
+      showError(`同步失败: ${errorMessage}`)
       setShowSyncToCloudDialog(false)
     } finally {
       setShareLoading(false)
@@ -672,7 +652,9 @@ const PresetCard = ({
             onClick={async () => {
               setSyncLoading(true);
               try {
-                await onSync();
+                await onSync(preset.id);
+              } catch (error) {
+                console.error('同步按钮错误:', error);
               } finally {
                 setSyncLoading(false);
               }
@@ -911,7 +893,9 @@ const PresetCard = ({
                 onClick={async () => {
                   setSyncLoading(true);
                   try {
-                    await onSync();
+                    await onSync(preset.id);
+                  } catch (error) {
+                    console.error('同步按钮错误:', error);
                   } finally {
                     setSyncLoading(false);
                   }
@@ -1057,12 +1041,20 @@ export default function PresetsPage() {
     type: 'success' | 'error' | 'info' | 'warning'
     content: string
   } | null>(null)
+  const [refreshingShared, setRefreshingShared] = useState(false)
 
   // 添加全局错误处理函数
   const showError = useCallback((message: string) => {
     console.error(message)
     setErrorMessage({ type: 'error', content: message })
     setTimeout(() => setErrorMessage(null), 5000) // 5秒后自动关闭
+  }, [])
+
+  // 添加全局成功处理函数
+  const showSuccess = useCallback((message: string) => {
+    console.log(message)
+    setErrorMessage({ type: 'success', content: message })
+    setTimeout(() => setErrorMessage(null), 2000) // 2秒后自动关闭
   }, [])
 
   const fetchData = useCallback(async () => {
@@ -1076,13 +1068,12 @@ export default function PresetsPage() {
       setPresets(data.items)
     } catch (error) {
       console.error('获取人设列表失败', error)
-      enqueueSnackbar('获取人设列表失败', { variant: 'error' })
-      // 错误处理但不触发状态更新
-      console.error('获取人设列表失败:', error)
+      enqueueSnackbar('获取人设列表失败', { variant: 'error', autoHideDuration: 5000 })
+      showError('获取人设列表失败')
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, search, enqueueSnackbar])
+  }, [page, pageSize, search, enqueueSnackbar, showError])
 
   useEffect(() => {
     fetchData()
@@ -1100,13 +1091,14 @@ export default function PresetsPage() {
 
   const handleEditClick = async (preset: Preset) => {
     try {
+      enqueueSnackbar('正在加载人设详情...', { variant: 'info', autoHideDuration: 2000 })
       // 加载详细数据
       const detailData = await presetsApi.getDetail(preset.id)
       setEditingPreset(detailData)
       setEditDialog(true)
     } catch (error) {
       console.error('获取人设详情失败', error)
-      enqueueSnackbar('获取人设详情失败', { variant: 'error' })
+      enqueueSnackbar('获取人设详情失败', { variant: 'error', autoHideDuration: 5000 })
       showError('获取人设详情失败')
     }
   }
@@ -1114,16 +1106,20 @@ export default function PresetsPage() {
   const handleSave = async (data: PresetFormData) => {
     try {
       if (editingPreset) {
+        enqueueSnackbar('正在更新人设...', { variant: 'info', autoHideDuration: 2000 })
         await presetsApi.update(editingPreset.id, data)
-        enqueueSnackbar('更新成功', { variant: 'success' })
+        enqueueSnackbar('更新成功', { variant: 'success', autoHideDuration: 3000 })
       } else {
+        enqueueSnackbar('正在创建人设...', { variant: 'info', autoHideDuration: 2000 })
         await presetsApi.create(data)
-        enqueueSnackbar('创建成功', { variant: 'success' })
+        enqueueSnackbar('创建成功', { variant: 'success', autoHideDuration: 3000 })
       }
       fetchData()
     } catch (error) {
       console.error('保存失败', error)
-      enqueueSnackbar('保存失败', { variant: 'error' })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      enqueueSnackbar(`保存失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
+      showError(`保存失败: ${errorMessage}`)
       throw error // 传递错误以便上层组件处理
     }
   }
@@ -1136,25 +1132,31 @@ export default function PresetsPage() {
     if (confirmDelete === null) return
 
     try {
+      enqueueSnackbar('正在删除人设...', { variant: 'info', autoHideDuration: 2000 })
       await presetsApi.delete(confirmDelete)
-      enqueueSnackbar('删除成功', { variant: 'success' })
+      enqueueSnackbar('删除成功', { variant: 'success', autoHideDuration: 3000 })
       fetchData()
       if (expandedId === confirmDelete) {
         setExpandedId(null)
       }
     } catch (error) {
       console.error('删除失败', error)
-      enqueueSnackbar('删除失败', { variant: 'error' })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      enqueueSnackbar(`删除失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
+      showError(`删除失败: ${errorMessage}`)
     } finally {
       setConfirmDelete(null)
     }
   }
 
-  const handleSyncClick = async (id: number) => {
+  const handleSyncClick = async (id: number): Promise<void> => {
     try {
       const response = await presetsApi.sync(id)
       if (response.code === 200) {
-        enqueueSnackbar('同步成功', { variant: 'success' })
+        showSuccess('同步成功')
+        if (response.msg) {
+          showSuccess(response.msg)
+        }
         // 强制刷新数据
         await fetchData()
         // 如果当前有展开的详情，也需要刷新
@@ -1163,12 +1165,45 @@ export default function PresetsPage() {
           setTimeout(() => setExpandedId(id), 100) // 再展开以刷新详情
         }
       } else {
-        enqueueSnackbar(`同步失败: ${response.msg}`, { variant: 'error' })
+        const errorMsg = response.msg || '未知错误'
+        showError(`同步失败: ${errorMsg}`)
+        throw new Error(errorMsg)
       }
     } catch (error) {
       console.error('同步失败', error)
-      enqueueSnackbar('同步失败', { variant: 'error' })
-      showError('同步失败')
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      showError(`同步失败: ${errorMessage}`)
+      throw error
+    }
+  }
+
+  // 添加刷新共享状态的函数
+  const handleRefreshSharedStatus = async () => {
+    try {
+      setRefreshingShared(true)
+      enqueueSnackbar('正在刷新共享状态...', { variant: 'info', autoHideDuration: 2000 })
+      const response = await presetsApi.refreshSharedStatus()
+      if (response.code === 200) {
+        enqueueSnackbar(response.msg || '刷新共享状态成功', { variant: 'success', autoHideDuration: 3000 })
+        if (response.data) {
+          enqueueSnackbar(
+            `更新了${response.data.updated_count}个人设的共享状态，云端共有${response.data.total_cloud_presets}个人设`,
+            { variant: 'info', autoHideDuration: 5000 }
+          )
+        }
+        // 刷新人设列表
+        await fetchData()
+      } else {
+        enqueueSnackbar(`刷新失败: ${response.msg}`, { variant: 'error', autoHideDuration: 10000 })
+        showError(`刷新失败: ${response.msg}`)
+      }
+    } catch (error) {
+      console.error('刷新共享状态失败', error)
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      enqueueSnackbar(`刷新失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
+      showError(`刷新失败: ${errorMessage}`)
+    } finally {
+      setRefreshingShared(false)
     }
   }
 
@@ -1179,9 +1214,10 @@ export default function PresetsPage() {
       expanded={expandedId === preset.id}
       onExpand={() => handleExpandClick(preset.id)}
       onDelete={() => handleDeleteClick(preset.id)}
-      onSync={() => handleSyncClick(preset.id)}
+      onSync={handleSyncClick}
       onEdit={() => handleEditClick(preset)}
       showError={showError}
+      showSuccess={showSuccess}
     />
   )
 
@@ -1208,6 +1244,14 @@ export default function PresetsPage() {
           </Button> */}
         </Box>
         <Box className="flex gap-2">
+          <Button
+            variant="outlined"
+            startIcon={<CloudSyncIcon />}
+            onClick={handleRefreshSharedStatus}
+            disabled={refreshingShared}
+          >
+            {refreshingShared ? <CircularProgress size={24} /> : '刷新共享状态'}
+          </Button>
           <Button
             variant="contained"
             startIcon={<AddIcon />}

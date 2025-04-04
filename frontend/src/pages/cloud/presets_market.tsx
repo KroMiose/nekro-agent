@@ -410,13 +410,22 @@ export default function PresetsMarket() {
   }, [debouncedSearchKeyword])
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
+    if (loading) return // 加载中禁止翻页
     setCurrentPage(page)
   }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return // 加载中禁止搜索
     setCurrentPage(1)
     fetchPresets(1, searchKeyword)
+  }
+
+  const handleSearchInputClear = () => {
+    if (loading) return // 加载中禁止清空
+    setSearchKeyword('')
+    setCurrentPage(1)
+    fetchPresets(1, '')
   }
 
   const handleShowDetail = (preset: CloudPreset) => {
@@ -452,22 +461,6 @@ export default function PresetsMarket() {
       setDownloadingId(null)
       setConfirmDialog({ open: false, preset: null })
     }
-  }
-
-  if (loading && presets.length === 0) {
-    return (
-      <Box
-        sx={{
-          p: 3,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '70vh',
-        }}
-      >
-        <CircularProgress />
-      </Box>
-    )
   }
 
   if (error && presets.length === 0) {
@@ -522,14 +515,7 @@ export default function PresetsMarket() {
               ),
               endAdornment: searchKeyword && (
                 <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onClick={() => {
-                      setSearchKeyword('')
-                      setCurrentPage(1)
-                      fetchPresets(1, '')
-                    }}
-                  >
+                  <IconButton size="small" onClick={handleSearchInputClear}>
                     &times;
                   </IconButton>
                 </InputAdornment>
@@ -538,6 +524,7 @@ export default function PresetsMarket() {
           />
           <Button
             type="submit"
+            disabled={loading}
             sx={{
               borderRadius: '0 8px 8px 0',
               px: 2,
@@ -548,41 +535,115 @@ export default function PresetsMarket() {
             }}
             variant="contained"
           >
-            搜索
+            {loading ? '搜索中...' : '搜索'}
           </Button>
         </Box>
       </Box>
 
-      {presets.length > 0 ? (
-        <>
-          <Grid container spacing={3}>
-            {presets.map(preset => (
-              <Grid item xs={12} sm={6} md={4} key={preset.remote_id}>
-                <PresetCard
-                  preset={preset}
-                  onDownload={() => handleDownloadClick(preset)}
-                  onShowDetail={() => handleShowDetail(preset)}
-                />
-              </Grid>
-            ))}
-          </Grid>
-
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-              <Pagination
-                count={totalPages}
-                page={currentPage}
-                onChange={handlePageChange}
-                color="primary"
-              />
+      {/* 人设内容区域 */}
+      <Box position="relative" minHeight={presets.length === 0 ? '300px' : 'auto'}>
+        {/* 加载状态覆盖层 */}
+        {loading && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: presets.length === 0 ? 'center' : 'flex-start',
+              backgroundColor: 'transparent',
+              zIndex: 10,
+              borderRadius: 2,
+              backdropFilter: 'blur(2px)',
+              pt: presets.length === 0 ? 0 : 3,
+            }}
+          >
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 1,
+                backgroundColor: theme =>
+                  theme.palette.mode === 'dark'
+                    ? 'rgba(30, 30, 30, 0.8)'
+                    : 'rgba(255, 255, 255, 0.9)',
+                boxShadow: theme =>
+                  theme.palette.mode === 'dark'
+                    ? '0 4px 20px rgba(0, 0, 0, 0.5)'
+                    : '0 4px 20px rgba(0, 0, 0, 0.1)',
+                borderRadius: 2,
+                padding: '12px 24px',
+              }}
+            >
+              <CircularProgress size={28} thickness={4} />
+              <Typography variant="body2" sx={{ opacity: 0.8 }}>
+                加载中...
+              </Typography>
             </Box>
-          )}
-        </>
-      ) : (
-        <Alert severity="info" sx={{ mt: 2 }}>
-          没有找到符合条件的人设，请尝试其他关键词
-        </Alert>
-      )}
+          </Box>
+        )}
+
+        {presets.length > 0 ? (
+          <>
+            <Grid container spacing={3}>
+              {presets.map(preset => (
+                <Grid item xs={12} sm={6} md={4} key={preset.remote_id}>
+                  <PresetCard
+                    preset={preset}
+                    onDownload={() => handleDownloadClick(preset)}
+                    onShowDetail={() => handleShowDetail(preset)}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+
+            {totalPages > 1 && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+                <Pagination
+                  count={totalPages}
+                  page={currentPage}
+                  onChange={handlePageChange}
+                  color="primary"
+                  disabled={loading}
+                />
+              </Box>
+            )}
+          </>
+        ) : (
+          !loading && (
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                py: 8,
+                px: 2,
+                minHeight: 300,
+                textAlign: 'center',
+                bgcolor: theme =>
+                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                borderRadius: 2,
+                border: '1px dashed',
+                borderColor: 'divider',
+              }}
+            >
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 'normal' }}>
+                没有找到符合条件的人设
+              </Typography>
+              <Typography variant="body2" color="text.disabled" sx={{ maxWidth: 400 }}>
+                尝试使用其他关键词搜索，或等待一段时间后再次尝试。
+                <br />
+                新上传的人设可能需要一些时间才能被检索到。
+              </Typography>
+            </Box>
+          )
+        )}
+      </Box>
 
       {/* 详情对话框 */}
       <PresetDetailDialog

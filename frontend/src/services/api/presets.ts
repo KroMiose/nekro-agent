@@ -29,6 +29,11 @@ interface ShareResponse {
   remote_id: string
 }
 
+interface RefreshStatusResponse {
+  updated_count: number
+  total_cloud_presets: number
+}
+
 export const presetsApi = {
   getList: async (params: {
     page: number
@@ -145,6 +150,16 @@ export const presetsApi = {
       return response.data
     } catch (error) {
       console.error('同步到云端失败:', error)
+      throw error
+    }
+  },
+  
+  refreshSharedStatus: async () => {
+    try {
+      const response = await axios.post<ApiResponse<RefreshStatusResponse>>('/presets/refresh-shared-status')
+      return response.data
+    } catch (error) {
+      console.error('刷新共享状态失败:', error)
       throw error
     }
   },
