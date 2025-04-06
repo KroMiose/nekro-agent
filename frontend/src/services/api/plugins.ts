@@ -112,14 +112,43 @@ export const pluginsApi = {
     }
   },
 
-  // 重载所有插件
-  reloadPlugins: async (): Promise<boolean> => {
+  // 重载插件
+  reloadPlugins: async (module_name: string): Promise<{ success: boolean; errorMsg?: string }> => {
     try {
-      await axios.post('/plugins/reload')
-      return true
-    } catch (error) {
-      console.error('重载插件失败:', error)
-      return false
+      if (!module_name) {
+        return { success: false, errorMsg: 'module_name不能为空' }
+      }
+      const response = await axios.post(
+        '/plugins/reload',
+        {},
+        {
+          params: { module_name },
+        }
+      )
+      // 检查返回的结果
+      if (response.data.code !== 0) {
+        return { success: false, errorMsg: response.data.msg || '重载失败' }
+      }
+      return { success: true }
+    } catch (error: unknown) {
+      // 捕获并返回后端的详细错误信息
+      const err = error as {
+        response?: {
+          data?: {
+            msg?: string
+            detail?: unknown
+          }
+        }
+        message?: string
+      }
+
+      const errorMsg =
+        err.response?.data?.msg ||
+        (err.response?.data?.detail ? JSON.stringify(err.response.data.detail) : '') ||
+        err.message ||
+        '未知错误'
+      console.error(errorMsg)
+      return { success: false, errorMsg }
     }
   },
 

@@ -45,6 +45,7 @@ class NekroPlugin:
         author: str,
         url: str,
         is_builtin: bool = False,
+        is_package: bool = False,
     ):
         self.init_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
@@ -63,6 +64,7 @@ class NekroPlugin:
         self._key = f"{self.author}.{self.module_name}"
         self._collect_methods_func: Optional[CollectMethodsFunc] = None
         self._is_builtin: bool = is_builtin  # 标记是否为内置插件
+        self._is_package: bool = is_package  # 标记是否为包
 
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key
@@ -314,6 +316,22 @@ class NekroPlugin:
     @property
     def store(self) -> "PluginStore":
         return PluginStore(self)
+
+    def _update_plugin_type(self, is_builtin: bool, is_package: bool) -> None:
+        if is_builtin:
+            self._is_builtin = True
+            self._is_package = False
+        elif is_package:
+            self._is_builtin = False
+            self._is_package = True
+
+    @property
+    def is_builtin(self) -> bool:
+        return self._is_builtin
+
+    @property
+    def is_package(self) -> bool:
+        return self._is_package
 
 
 class PluginStore:

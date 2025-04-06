@@ -14,6 +14,7 @@ import UserManagerPage from '../pages/user-manager'
 import PresetsPage from '../pages/presets'
 import CloudCommunityPage from '../pages/cloud/telemetry'
 import CloudPresetsMarketPage from '../pages/cloud/presets_market'
+import CloudPluginsMarketPage from '../pages/cloud/plugins_market'
 import NapCatPage from '../pages/protocols/napcat'
 
 const router = createHashRouter([
@@ -90,6 +91,10 @@ const router = createHashRouter([
       {
         path: 'cloud/presets-market',
         element: <CloudPresetsMarketPage />,
+      },
+      {
+        path: 'cloud/plugins-market',
+        element: <CloudPluginsMarketPage />,
       },
     ],
   },

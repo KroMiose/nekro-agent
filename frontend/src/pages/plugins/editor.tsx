@@ -442,17 +442,35 @@ export default function PluginsEditorPage() {
 
   // 重载插件
   const handleReloadExt = async () => {
+    if (!selectedFile) {
+      setError('请先选择一个插件文件')
+      return
+    }
+
     try {
       setIsGenerating(true)
-      await reloadPlugins()
+      // 获取模块名称：去掉扩展名(.py或.disabled)的文件名
+      const moduleName = selectedFile.replace(/\.(py|disabled)$/, '')
+      if (!moduleName) {
+        setError('无法获取有效的模块名')
+        return
+      }
+
+      const result = await reloadPlugins(moduleName)
+      if (!result.success) {
+        setError(result.errorMsg || '重载插件失败: 未知错误')
+        setReloadExtDialogOpen(false)
+        return
+      }
+
       // 重新加载文件列表
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      setSuccess('插件重载成功')
+      setSuccess(`插件 ${moduleName} 重载成功`)
       setReloadExtDialogOpen(false)
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError('重载插件失败: ' + errorMessage)
+      setError(errorMessage)
       console.error('Failed to reload plugins:', err)
     } finally {
       setIsGenerating(false)
@@ -530,30 +548,33 @@ export default function PluginsEditorPage() {
               <InputLabel>选择插件文件</InputLabel>
               <Select value={selectedFile} label="选择插件文件" onChange={handleFileSelect}>
                 {files.map(file => {
-                  const isDisabled = file.endsWith('.disabled');
+                  const isDisabled = file.endsWith('.disabled')
                   return (
                     <MenuItem
                       key={file}
                       value={file}
-                      sx={{ 
-                        display: 'flex', 
-                        justifyContent: 'space-between', 
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
                         alignItems: 'center',
                         color: isDisabled ? 'text.disabled' : 'text.primary',
                         ...(isDisabled && {
-                          background: theme => theme.palette.mode === 'dark' 
-                            ? 'rgba(255, 0, 0, 0.08)' 
-                            : 'rgba(255, 0, 0, 0.05)',
-                          fontStyle: 'italic'
-                        })
+                          background: theme =>
+                            theme.palette.mode === 'dark'
+                              ? 'rgba(255, 0, 0, 0.08)'
+                              : 'rgba(255, 0, 0, 0.05)',
+                          fontStyle: 'italic',
+                        }),
                       }}
                     >
                       <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
+                        {isDisabled && (
+                          <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />
+                        )}
                         {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
                       </Box>
                     </MenuItem>
-                  );
+                  )
                 })}
               </Select>
             </FormControl>
@@ -1204,7 +1225,10 @@ export default function PluginsEditorPage() {
       <Dialog open={reloadExtDialogOpen} onClose={() => setReloadExtDialogOpen(false)}>
         <DialogTitle>确认重载插件</DialogTitle>
         <DialogContent>
-          <DialogContentText>这将重新加载所有插件文件并更新应用。确定要继续吗？</DialogContentText>
+          <DialogContentText>
+            这将重新加载当前插件文件 "{selectedFile.replace(/\.(py|disabled)$/, '')}"
+            并更新应用。确定要继续吗？
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setReloadExtDialogOpen(false)}>取消</Button>

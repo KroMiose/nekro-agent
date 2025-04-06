@@ -3,18 +3,73 @@
 负责插件的加载和管理功能。
 """
 
+import json
+import shutil
 import sys
+from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
 
+import git
+from pydantic import BaseModel
+
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, WORKDIR_PLUGIN_DIR
+from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, PACKAGES_DIR, WORKDIR_PLUGIN_DIR
 from nekro_agent.schemas.agent_ctx import AgentCtx
 
 from .base import NekroPlugin
 from .schema import SandboxMethod
+
+
+class PackageInfo(BaseModel):
+    """插件包信息"""
+
+    module_name: str
+    git_url: str
+    remote_id: Optional[str] = None
+    author: Optional[str] = None
+    description: Optional[str] = None
+
+
+class PackageData(BaseModel):
+    """插件包信息"""
+
+    packages: List[PackageInfo]
+    latest_updated: str
+
+    def get_package_by_module(self, module_name: str) -> Optional[PackageInfo]:
+        """根据模块名获取插件包信息"""
+        for package in self.packages:
+            if package.module_name == module_name:
+                return package
+        return None
+
+    def add_package(self, package: PackageInfo) -> None:
+        """添加插件包信息"""
+        if self.get_package_by_module(package.module_name):
+            raise ValueError(f"插件包 `{package.module_name}` 已存在")
+        self.packages.append(package)
+        self.save()
+
+    def remove_package(self, module_name: str) -> None:
+        """删除插件包信息"""
+        if not self.get_package_by_module(module_name):
+            raise ValueError(f"插件包 `{module_name}` 不存在")
+        self.packages = [package for package in self.packages if package.module_name != module_name]
+        self.save()
+
+    def get_remote_ids(self) -> List[str]:
+        """获取所有插件包的远程ID"""
+        return [package.remote_id for package in self.packages if package.remote_id]
+
+    def save(self) -> None:
+        """保存插件包信息"""
+        PACKAGE_DATA_PATH.write_text(json.dumps(self.model_dump(), indent=2, ensure_ascii=False))
+
+
+PACKAGE_DATA_PATH = Path(PACKAGES_DIR) / "package_data.json"
 
 
 class PluginCollector:
@@ -24,132 +79,229 @@ class PluginCollector:
         """初始化插件收集器"""
         # 存储已加载的插件
         self.loaded_plugins: Dict[str, NekroPlugin] = {}
+        self.loaded_module_names = set()
 
         # 初始化插件目录
         self.builtin_plugin_dir = Path(BUILTIN_PLUGIN_DIR)
         self.builtin_plugin_dir.mkdir(parents=True, exist_ok=True)
 
-        self.workdir_plugin_dir = None
-        if WORKDIR_PLUGIN_DIR:
-            self.workdir_plugin_dir = Path(WORKDIR_PLUGIN_DIR)
-            self.workdir_plugin_dir.mkdir(parents=True, exist_ok=True)
+        self.workdir_plugin_dir = Path(WORKDIR_PLUGIN_DIR)
+        self.workdir_plugin_dir.mkdir(parents=True, exist_ok=True)
+
+        self.packages_dir = Path(PACKAGES_DIR)
+        self.packages_dir.mkdir(parents=True, exist_ok=True)
+
+        if PACKAGE_DATA_PATH.exists():
+            self.package_data: PackageData = PackageData.model_validate_json(PACKAGE_DATA_PATH.read_text())
+        else:
+            self.package_data = PackageData(packages=[], latest_updated=datetime.now().isoformat())
 
     def init_plugins(self) -> None:
         """初始化并加载所有插件"""
         # 将插件目录添加到 Python 路径
-        parent_dir = self.builtin_plugin_dir.parent
-        if str(parent_dir.absolute()) not in sys.path:
-            sys.path.insert(0, str(parent_dir.absolute()))
+        if str(self.builtin_plugin_dir.parent.absolute()) not in sys.path:
+            sys.path.insert(0, str(self.builtin_plugin_dir.parent.absolute()))
 
-        if self.workdir_plugin_dir:
-            # 添加工作目录到 Python 路径
-            parent_dir = self.workdir_plugin_dir.parent
-            if str(parent_dir.absolute()) not in sys.path:
-                sys.path.insert(0, str(parent_dir.absolute()))
+        # 添加工作目录到 Python 路径
+        if str(self.workdir_plugin_dir.parent.absolute()) not in sys.path:
+            sys.path.insert(0, str(self.workdir_plugin_dir.parent.absolute()))
+
+        # 添加 packages 目录到 Python 路径
+        if str(self.packages_dir.parent.absolute()) not in sys.path:
+            sys.path.insert(0, str(self.packages_dir.parent.absolute()))
 
         # 加载内置插件
-        if self.builtin_plugin_dir.exists():
-            for item in self.builtin_plugin_dir.iterdir():
-                self._try_load_plugin(item, is_builtin=True)
+        for item in self.builtin_plugin_dir.iterdir():
+            self._try_load_plugin(item, is_builtin=True)
 
         # 加载工作目录插件
-        if self.workdir_plugin_dir and self.workdir_plugin_dir.exists():
-            for item in self.workdir_plugin_dir.iterdir():
-                self._try_load_plugin(item, is_builtin=False)
+        for item in self.workdir_plugin_dir.iterdir():
+            self._try_load_plugin(item, is_builtin=False)
 
-    async def reload_workdir_plugins(self) -> List[Exception]:
-        """重新加载工作目录下的插件
+        # 加载packages插件
+        for item in self.packages_dir.iterdir():
+            self._try_load_plugin(item, is_package=True)
 
-        当工作目录下的插件文件发生变化时，动态应用最新的代码实现，
-        会先清理已加载的插件（如果插件提供了清理方法），然后重新加载。
+    async def unload_plugin_by_module_name(self, module_name: str) -> None:
+        """卸载指定插件"""
+        if module_name.endswith(".py"):
+            module_name = module_name[: -len(".py")]
+        if module_name.endswith("/__init__"):
+            module_name = module_name[: -len("/__init__")]
+        if "/" in module_name:
+            raise ValueError(f"插件模块名 `{module_name}` 不在合法的加载目录中")
+
+        plugin = self.get_plugin_by_module_name(module_name)
+        if not plugin:
+            return
+
+        if plugin.cleanup_method:
+            await plugin.cleanup_method()
+            logger.info(f"插件 {plugin.name} 清理完成")
+
+        if plugin.key in self.loaded_plugins:
+            del self.loaded_plugins[plugin.key]
+            self.loaded_module_names.remove(plugin.module_name)
+
+        if plugin.module_name in self.loaded_module_names:
+            self.loaded_module_names.remove(plugin.module_name)
+
+    async def reload_plugin_by_module_name(self, module_name: str):
+        """重新加载指定插件"""
+        fixed_module_name = module_name
+        if module_name.endswith(".py"):
+            fixed_module_name = module_name[: -len(".py")]
+        if module_name.endswith("/__init__"):
+            fixed_module_name = module_name[: -len("/__init__")]
+        if "/" in module_name:
+            raise ValueError(f"插件模块名 `{module_name}` 不在合法的加载目录中")
+
+        builtin_plugin_path = self.builtin_plugin_dir / module_name
+        workdir_plugin_path = self.workdir_plugin_dir / module_name
+        package_path = self.packages_dir / module_name
+
+        exists_paths = [p for p in [builtin_plugin_path, workdir_plugin_path, package_path] if p.exists()]
+        if len(exists_paths) == 0:
+            return ValueError(f"插件 `{module_name}` 不存在")
+
+        if len(exists_paths) > 1:
+            logger.warning(
+                f"在多个加载目录中发现了重复插件 `{module_name}`，将按照以下优先级加载：内置插件 > 工作目录插件 > 插件包",
+            )
+
+        real_path = exists_paths[0]
+        if real_path.is_dir():
+            real_path = real_path / "__init__.py"
+
+        loaded_plugin = self.get_plugin_by_module_name(fixed_module_name)
+        if loaded_plugin:
+            logger.info(f"插件 `{module_name}` 已加载，正在重载...")
+            if loaded_plugin.cleanup_method:
+                await loaded_plugin.cleanup_method()
+                logger.info(f"插件 {loaded_plugin.name} 清理完成")
+            if loaded_plugin.key in self.loaded_plugins:
+                del self.loaded_plugins[loaded_plugin.key]
+                self.loaded_module_names.remove(loaded_plugin.key)
+            if loaded_plugin.module_name in self.loaded_module_names:
+                self.loaded_module_names.remove(loaded_plugin.module_name)
+
+        self._try_load_plugin(real_path, is_builtin=False)
+        return None
+
+    async def clone_package(
+        self,
+        module_name: str,
+        git_url: str,
+        remote_id: str,
+        auto_load: bool = False,
+    ) -> None:
+        """克隆插件包
+
+        Args:
+            module_name: 插件包模块名
+            git_url: 插件包Git URL
+            remote_id: 插件包远程ID
+            version: 插件包版本
+            auto_load: 是否自动加载插件
         """
-        errors: List[Exception] = []
-        if not self.workdir_plugin_dir or not self.workdir_plugin_dir.exists():
-            logger.warning("工作目录插件目录不存在，无法重新加载")
-            return errors
+        package_dir = self.packages_dir / module_name
+        if package_dir.exists():
+            raise ValueError(f"插件包 `{module_name}` 已存在")
 
-        # 找出所有非内置的插件（来自工作目录）
-        workdir_plugins = {}
-        for key, plugin in list(self.loaded_plugins.items()):
-            if not plugin._is_builtin:  # noqa: SLF001
-                workdir_plugins[key] = plugin
+        git.Repo.clone_from(git_url, package_dir, env={"HTTP_PROXY": config.DEFAULT_PROXY, "HTTPS_PROXY": config.DEFAULT_PROXY})
+        self.package_data.add_package(
+            PackageInfo(module_name=module_name, git_url=git_url, remote_id=remote_id),
+        )
+        if auto_load:
+            await self.reload_plugin_by_module_name(module_name)
 
-        # 执行插件的清理方法并移除插件
-        for key, plugin in workdir_plugins.items():
-            logger.info(f"正在卸载插件: {plugin.name} ({plugin.key})")
+    async def update_package(self, module_name: str, auto_reload: bool = False) -> None:
+        """更新插件包
 
-            # 如果插件提供了清理方法，调用它
-            if plugin.cleanup_method:
-                try:
-                    await plugin.cleanup_method()
-                    logger.info(f"插件 {plugin.name} 清理完成")
-                except Exception as e:
-                    logger.error(f"插件 {plugin.name} 清理失败: {e}")
+        Args:
+            module_name: 插件包模块名
+            auto_reload: 是否自动重新加载插件
+        """
+        package_dir = self.packages_dir / module_name
+        if not package_dir.exists():
+            raise ValueError(f"插件包 `{module_name}` 不存在")
 
-            # 从已加载插件中移除
-            if key in self.loaded_plugins:
-                del self.loaded_plugins[key]
+        try:
+            repo = git.Repo(package_dir)
+            repo.remotes.origin.pull()
+        except Exception as e:
+            logger.error(f"更新插件包 `{module_name}` 失败: {e}")
+            raise
 
-        # 重新加载工作目录中的所有插件
-        logger.info("正在重新加载工作目录插件...")
-        if self.workdir_plugin_dir.exists():
-            for item in self.workdir_plugin_dir.iterdir():
-                try:
-                    self._try_load_plugin(item, is_builtin=False)
-                except Exception as e:
-                    errors.append(e)
+        if auto_reload:
+            await self.reload_plugin_by_module_name(module_name)
 
-        logger.success(f"工作目录插件重新加载完成，共加载 {len(self.loaded_plugins)} 个插件")
-        return errors
+    def remove_package(self, module_name: str) -> None:
+        """删除插件包
 
-    def _try_load_plugin(self, item_path: Path, is_builtin: bool = False) -> None:
+        Args:
+            module_name: 插件包模块名
+        """
+        package_dir = self.packages_dir / module_name
+        if not package_dir.exists():
+            raise ValueError(f"插件包 `{module_name}` 不存在")
+
+        shutil.rmtree(package_dir)
+        self.package_data.remove_package(module_name)
+
+    def _try_load_plugin(self, item_path: Path, is_builtin: bool = False, is_package: bool = False) -> bool:
         """尝试加载插件
 
         Args:
             item_path: 插件路径（可能是文件或目录）
             is_builtin: 是否为内置插件
+            is_package: 是否为插件包
         """
         # 如果是Python文件
         if item_path.is_file() and item_path.suffix == ".py" and item_path.name != "__init__.py":
             module_path = f"{item_path.parent.name}.{item_path.stem}"
-            self._load_plugin_module(module_path, item_path, is_builtin)
-
+            self._load_plugin_module(module_path, item_path, is_builtin, is_package)
+            return True
         # 如果是目录且包含 __init__.py（Python包）
-        elif item_path.is_dir() and (item_path / "__init__.py").exists():
+        if item_path.is_dir() and (item_path / "__init__.py").exists():
             module_path = f"{item_path.parent.name}.{item_path.name}"
-            self._load_plugin_module(module_path, item_path, is_builtin)
+            self._load_plugin_module(module_path, item_path, is_builtin, is_package)
+            return True
+        return False
 
-    def _load_plugin_module(self, module_path: str, path: Path, is_builtin: bool = False) -> None:
+    def _load_plugin_module(self, module_path: str, path: Path, is_builtin: bool = False, is_package: bool = False) -> None:
         """加载插件模块
 
         Args:
             module_path: 模块导入路径
             path: 文件或目录路径（用于日志）
             is_builtin: 是否为内置插件
+            is_package: 是否为插件包
         """
         # logger.info(f"正在加载插件: {module_path} 从 {path}")
         try:
             module = import_module(module_path)
-
-            if hasattr(module, "plugin"):
-                plugin = module.plugin
-
-                if isinstance(plugin, NekroPlugin):
-                    # 直接设置内置插件标识
-                    plugin._is_builtin = is_builtin  # noqa: SLF001
-
-                    logger.success(
-                        f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}',
-                    )
-                    if plugin.key not in config.PLUGIN_ENABLED:
-                        plugin.disable()
-                    self.loaded_plugins[plugin.key] = plugin
-                else:
-                    logger.warning(f"插件实例类型错误: {path}")
-            else:
-                logger.warning(f"模块未找到插件实例: {path}")
         except Exception as e:
             logger.exception(f"加载插件失败 {path}: {e}")
+            return
+
+        if hasattr(module, "plugin"):
+            plugin = module.plugin
+
+            if isinstance(plugin, NekroPlugin):
+                # 直接设置内置插件标识
+                logger.success(
+                    f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}{" [云端]" if is_package else ""}',
+                )
+                plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
+                if plugin.key not in config.PLUGIN_ENABLED:
+                    plugin.disable()
+                self.loaded_plugins[plugin.key] = plugin
+                self.loaded_module_names.add(module_path)
+            else:
+                logger.error(f"插件实例类型错误: {path}")
+        else:
+            logger.error(f"模块未找到插件实例: {path}")
 
     def get_plugin(self, key: str) -> Optional[NekroPlugin]:
         """根据插件键获取插件实例
@@ -162,6 +314,14 @@ class PluginCollector:
         """
         return self.loaded_plugins.get(key)
 
+    def get_plugin_by_module_name(self, module_name: str) -> Optional[NekroPlugin]:
+        """根据模块名获取插件实例
+
+        Args:
+            module_name: 插件模块名
+        """
+        return self.loaded_plugins.get(module_name)
+
     def get_all_plugins(self) -> List[NekroPlugin]:
         """获取所有已加载的插件
 
@@ -169,6 +329,14 @@ class PluginCollector:
             List[NekroPlugin]: 插件列表
         """
         return list(self.loaded_plugins.values())
+
+    def get_all_package_plugins(self) -> List[NekroPlugin]:
+        """获取所有已加载的插件包插件
+
+        Returns:
+            List[NekroPlugin]: 插件列表
+        """
+        return [plugin for plugin in self.loaded_plugins.values() if plugin.is_package]
 
     def get_all_active_plugins(self) -> List[NekroPlugin]:
         """获取所有已加载且启用的插件

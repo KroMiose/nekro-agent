@@ -310,14 +310,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
   // 重载插件
   const reloadMutation = useMutation({
-    mutationFn: () => pluginsApi.reloadPlugins(),
+    mutationFn: async () => {
+      if (!plugin.moduleName) {
+        throw new Error('无法获取有效的模块名')
+      }
+      const result = await pluginsApi.reloadPlugins(plugin.moduleName)
+      if (!result.success) {
+        throw new Error(result.errorMsg || '重载失败，请检查后端日志')
+      }
+      return true
+    },
     onSuccess: () => {
-      setMessage('插件已重载～ (*￣▽￣)b')
+      setMessage(`插件 ${plugin.name} 已重载～ (*￣▽￣)b`)
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
     },
     onError: (error: Error) => {
-      setMessage(`重载失败: ${error.message} 呜呜呜 (ノ_<)`)
+      setMessage(error.message)
     },
   })
 
@@ -875,7 +884,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   {renderConfigInput(item)}
                                   {item.ref_model_groups && (
-                                    <Chip label="模型组" size="small" color="primary" variant="outlined" />
+                                    <Chip
+                                      label="模型组"
+                                      size="small"
+                                      color="primary"
+                                      variant="outlined"
+                                    />
                                   )}
                                 </Box>
                               </TableCell>
@@ -1245,7 +1259,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         <DialogTitle>确认重载插件？</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            重载所有插件将重新加载所有插件代码，可能会导致正在进行的操作中断。是否继续？
+            重载插件将重新加载此插件的代码，可能会导致正在进行的操作中断。是否继续？
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -1294,7 +1308,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       >
         <Alert
           onClose={() => setMessage('')}
-          severity="info"
+          severity={message.includes('失败') ? 'error' : 'success'}
           variant="filled"
           sx={{ width: '100%' }}
         >
@@ -1511,7 +1525,7 @@ export default function PluginsManagementPage() {
       >
         <Alert
           onClose={() => setMessage('')}
-          severity="info"
+          severity={message.includes('失败') ? 'error' : 'success'}
           variant="filled"
           sx={{ width: '100%' }}
         >

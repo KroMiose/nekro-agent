@@ -15,6 +15,7 @@ from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user.util import user_login
 
 from .chat_channel import router as chat_channel_router
+from .cloud.plugins_market import router as plugins_market_router
 from .cloud.presets_market import router as presets_market_router
 from .cloud.telemetry import router as telemetry_router
 from .config import router as config_router
@@ -67,6 +68,7 @@ def mount_routers(app: FastAPI):
     api.include_router(presets_router)
     api.include_router(telemetry_router)
     api.include_router(presets_market_router)
+    api.include_router(plugins_market_router)
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:

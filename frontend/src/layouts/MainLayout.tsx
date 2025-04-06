@@ -68,7 +68,7 @@ const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
     children: [
       { path: '/cloud/telemetry', text: '社区观测', icon: <DashboardIcon />, parent: 'cloud' },
       { path: '/cloud/presets-market', text: '人设市场', icon: <FaceIcon />, parent: 'cloud' },
-      // { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
+      { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
     ],
   },
   { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },

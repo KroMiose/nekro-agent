@@ -12,6 +12,7 @@ from nekro_agent.core.config import config
 from nekro_agent.core.os_env import WORKDIR_PLUGIN_DIR
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
+from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.generator import (
     apply_plugin_code,
     generate_plugin_code,
@@ -149,6 +150,8 @@ async def delete_plugin_file(
         # 检查文件是否存在
         if not full_path.exists():
             return Ret.fail(msg=f"文件 {file_path} 不存在")
+
+        await plugin_collector.unload_plugin_by_module_name(full_path.stem)
 
         # 删除文件
         full_path.unlink()

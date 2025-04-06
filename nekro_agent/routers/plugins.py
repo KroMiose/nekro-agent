@@ -21,6 +21,7 @@ from nekro_agent.services.plugin.manager import (
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
+from nekro_agent.services.plugin.collector import plugin_collector
 
 router = APIRouter(prefix="/plugins", tags=["Plugins"])
 
@@ -157,17 +158,15 @@ async def save_plugin_configs(
         return Ret.error(msg=f"保存失败: {e!s}")
 
 
-@router.post("/reload", summary="重载所有插件")
+@router.post("/reload", summary="重载插件")
 @require_role(Role.Admin)
-async def reload_plugins(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """重载所有插件"""
+async def reload_plugins(module_name: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """重载插件"""
     try:
-        from nekro_agent.services.plugin.collector import plugin_collector
-
-        plugin_collector.init_plugins()
+        await plugin_collector.reload_plugin_by_module_name(module_name)
         return Ret.success(msg="重载插件成功")
     except Exception as e:
-        logger.error(f"重载插件失败: {e}")
+        logger.exception(f"重载插件失败: {e}")
         return Ret.error(msg=f"重载插件失败: {e!s}")
 
 

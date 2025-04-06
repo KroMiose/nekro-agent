@@ -21,6 +21,7 @@ from nekro_agent.systems.cloud.api.preset import update_preset as cloud_update_p
 from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
 from nekro_agent.systems.cloud.schemas.preset import PresetCreate, PresetUpdate
 from nekro_agent.tools.telemetry_util import generate_instance_id
+from nekro_agent.tools.image_utils import process_image_data_url
 
 router = APIRouter(prefix="/presets", tags=["Presets"])
 
@@ -246,50 +247,19 @@ async def upload_avatar(
     try:
         contents = await file.read()
 
-        # 使用PIL打开图片
-        img = Image.open(io.BytesIO(contents))
+        # 转换为Base64字符串
+        base64_encoded = base64.b64encode(contents).decode("utf-8")
 
-        # 压缩图片，保持尺寸不变
-        output = io.BytesIO()
+        # 判断MIME类型
+        mime_type = file.content_type or "image/jpeg"
 
-        # 如果是PNG等透明图片，保持透明通道
-        if img.mode == "RGBA":
-            img.save(output, format="PNG", optimize=True)
-        else:
-            img.convert("RGB").save(output, format="JPEG", quality=85, optimize=True)
-
-        # 检查大小，如果超过500KB，继续压缩
-        img_data = output.getvalue()
-        if len(img_data) > 500 * 1024:  # 500KB
-            # 计算需要的压缩比例
-            compression_ratio = 500 * 1024 / len(img_data)
-            quality = int(85 * compression_ratio)
-            quality = max(10, min(quality, 85))  # 确保不太低也不太高
-
-            output = io.BytesIO()
-            img.convert("RGB").save(output, format="JPEG", quality=quality, optimize=True)
-            img_data = output.getvalue()
-
-            # 如果还是太大，降低分辨率
-            if len(img_data) > 500 * 1024:
-                width, height = img.size
-                ratio = (500 * 1024 / len(img_data)) ** 0.5
-                new_size = (int(width * ratio), int(height * ratio))
-                # 使用数字2代替BICUBIC常量 (2=BICUBIC in PIL)
-                img = img.resize(new_size, 2)
-
-                output = io.BytesIO()
-                img.convert("RGB").save(output, format="JPEG", quality=quality, optimize=True)
-                img_data = output.getvalue()
-
-        # 转为Base64
-        base64_encoded = base64.b64encode(img_data).decode("utf-8")
-
-        # 添加数据URL前缀
-        mime_type = "image/jpeg" if img.format == "JPEG" or img.mode != "RGBA" else "image/png"
+        # 创建数据URL
         data_url = f"data:{mime_type};base64,{base64_encoded}"
 
-        return Ret.success(msg="上传成功", data={"avatar": data_url})
+        # 使用工具函数处理图片
+        processed_data_url = await process_image_data_url(data_url)
+
+        return Ret.success(msg="上传成功", data={"avatar": processed_data_url})
     except Exception as e:
         logger.error(f"上传头像失败: {e}")
         return Ret.fail(msg=str(e))
@@ -461,42 +431,42 @@ async def refresh_shared_status(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """刷新人设共享状态
-    
+
     从云端获取用户上传的人设列表，并更新本地人设的共享状态
     """
     try:
         # 获取云端用户上传的人设列表
         response = await list_user_presets()
-        
+
         if not response.success:
             return Ret.fail(msg=f"获取云端人设列表失败: {response.error}")
-            
+
         if not response.data or not response.data.items:
             # 没有云端人设，将所有本地人设的共享状态设置为false
             await DBPreset.filter(on_shared=True).update(on_shared=False)
             return Ret.success(msg="刷新成功，您在云端没有共享的人设")
-            
+
         # 获取云端人设的ID列表
         cloud_preset_ids = [item.id for item in response.data.items]
-        
+
         # 获取所有有远程ID的本地人设
         local_presets = await DBPreset.filter(remote_id__not_isnull=True).all()
-        
+
         # 更新状态
         updated_count = 0
         for preset in local_presets:
             if not preset.remote_id:  # 安全检查
                 continue
-                
+
             # 检查是否在云端列表中
             is_in_cloud = preset.remote_id in cloud_preset_ids
-            
+
             # 如果状态不一致，更新
             if preset.on_shared != is_in_cloud:
                 preset.on_shared = is_in_cloud
                 await preset.save()
                 updated_count += 1
-        
+
         return Ret.success(
             msg=f"刷新成功，更新了{updated_count}个人设的共享状态",
             data={

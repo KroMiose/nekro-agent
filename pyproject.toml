@@ -48,6 +48,7 @@ python-magic = "^0.4.27"
 python-magic-bin = { version = "^0.4.14", markers = "sys_platform == 'win32'" }
 psutil = "^7.0.0"
 mem0ai = "^0.1.79"
+gitpython = "^3.1.44"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
