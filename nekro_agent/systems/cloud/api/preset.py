@@ -1,14 +1,7 @@
-from typing import Any, Dict, Optional, Union
-
-import httpx
+from typing import Dict, Optional, Union
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import OsEnv
-from nekro_agent.systems.cloud.exceptions import (
-    NekroCloudAPIKeyInvalid,
-    NekroCloudDisabled,
-)
 from nekro_agent.systems.cloud.schemas.preset import (
     BasicResponse,
     PresetCreate,
@@ -19,24 +12,7 @@ from nekro_agent.systems.cloud.schemas.preset import (
     UserPresetListResponse,
 )
 
-
-def get_client() -> httpx.AsyncClient:
-    """获取 HTTP 客户端
-
-    Returns:
-        httpx.AsyncClient: HTTP 客户端
-    """
-    if not OsEnv.NEKRO_CLOUD_API_BASE_URL or not config.ENABLE_NEKRO_CLOUD:
-        raise NekroCloudDisabled
-    if not config.NEKRO_CLOUD_API_KEY:
-        raise NekroCloudAPIKeyInvalid
-    return httpx.AsyncClient(
-        base_url=OsEnv.NEKRO_CLOUD_API_BASE_URL,
-        headers={
-            "X-API-Key": f"{config.NEKRO_CLOUD_API_KEY}",
-            "Content-Type": "application/json",
-        },
-    )
+from .client import get_client
 
 
 async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
@@ -49,7 +25,7 @@ async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
         PresetCreateResponse: 创建响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.post(
                 url="/api/preset",
                 json={
@@ -67,11 +43,9 @@ async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
             )
             response.raise_for_status()
             return PresetCreateResponse(**response.json())
-    except NekroCloudDisabled:
-        return PresetCreateResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"创建人设资源发生错误: {e}")
-        return PresetCreateResponse(success=False, error=f"创建人设资源失败: {e!s}", data=None)
+        return PresetCreateResponse.process_exception(e)
 
 
 async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicResponse:
@@ -85,7 +59,7 @@ async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicRespo
         BasicResponse: 响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.put(
                 url=f"/api/preset/{preset_id}",
                 json={
@@ -103,11 +77,9 @@ async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicRespo
             )
             response.raise_for_status()
             return BasicResponse(**response.json())
-    except NekroCloudDisabled:
-        return BasicResponse(success=False, error="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"更新人设资源发生错误: {e}")
-        return BasicResponse(success=False, error=f"更新人设资源失败: {e!s}")
+        return BasicResponse.process_exception(e)
 
 
 async def delete_preset(preset_id: str, instance_id: str) -> BasicResponse:
@@ -121,18 +93,16 @@ async def delete_preset(preset_id: str, instance_id: str) -> BasicResponse:
         BasicResponse: 响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.delete(
                 url=f"/api/preset/{preset_id}",
                 params={"instanceId": instance_id},
             )
             response.raise_for_status()
             return BasicResponse(**response.json())
-    except NekroCloudDisabled:
-        return BasicResponse(success=False, error="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"删除人设资源发生错误: {e}")
-        return BasicResponse(success=False, error=f"删除人设资源失败: {e!s}")
+        return BasicResponse.process_exception(e)
 
 
 async def get_preset(preset_id: str) -> PresetDetailResponse:
@@ -149,11 +119,9 @@ async def get_preset(preset_id: str) -> PresetDetailResponse:
             response = await client.get(url=f"/api/preset/{preset_id}")
             response.raise_for_status()
             return PresetDetailResponse(**response.json())
-    except NekroCloudDisabled:
-        return PresetDetailResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"获取人设详情发生错误: {e}")
-        return PresetDetailResponse(success=False, error=f"获取人设详情失败: {e!s}", data=None)
+        return PresetDetailResponse.process_exception(e)
 
 
 async def list_presets(
@@ -194,26 +162,22 @@ async def list_presets(
             )
             response.raise_for_status()
             return PresetListResponse(**response.json())
-    except NekroCloudDisabled:
-        return PresetListResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"查询人设列表发生错误: {e}")
-        return PresetListResponse(success=False, error=f"查询人设列表失败: {e!s}", data=None)
+        return PresetListResponse.process_exception(e)
 
 
 async def list_user_presets() -> UserPresetListResponse:
     """获取用户上传的人设列表
-    
+
     Returns:
         UserPresetListResponse: 简化版人设列表响应
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.get(url="/api/preset/user")
             response.raise_for_status()
             return UserPresetListResponse(**response.json())
-    except NekroCloudDisabled:
-        return UserPresetListResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"获取用户上传人设列表发生错误: {e}")
-        return UserPresetListResponse(success=False, error=f"获取用户上传人设列表失败: {e!s}", data=None)
+        return UserPresetListResponse.process_exception(e)

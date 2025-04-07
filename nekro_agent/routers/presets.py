@@ -20,8 +20,8 @@ from nekro_agent.systems.cloud.api.preset import get_preset, list_user_presets
 from nekro_agent.systems.cloud.api.preset import update_preset as cloud_update_preset
 from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
 from nekro_agent.systems.cloud.schemas.preset import PresetCreate, PresetUpdate
-from nekro_agent.tools.telemetry_util import generate_instance_id
 from nekro_agent.tools.image_utils import process_image_data_url
+from nekro_agent.tools.telemetry_util import generate_instance_id
 
 router = APIRouter(prefix="/presets", tags=["Presets"])
 
@@ -222,7 +222,7 @@ async def sync_preset(
     # 从云端获取最新数据
     response = await get_preset(preset.remote_id)
     if not response.success or not response.data:
-        return Ret.fail(msg=str(response.error))
+        return Ret.fail(msg=str(response.message))
 
     # 更新本地数据
     preset.name = response.data.name
@@ -316,7 +316,7 @@ async def share_preset(
     response = await cloud_create_preset(preset_data)
 
     if not response.success or not response.data:
-        return Ret.fail(msg=str(response.error))
+        return Ret.fail(msg=str(response.message))
 
     # 更新本地数据
     preset.remote_id = response.data.id
@@ -363,7 +363,7 @@ async def unshare_preset(
     await preset.save()
 
     if not response.success:
-        return Ret.fail(msg=str(response.error))
+        return Ret.fail(msg=str(response.message))
 
     return Ret.success(msg="撤回共享成功")
 
@@ -420,7 +420,7 @@ async def sync_to_cloud(
     response = await cloud_update_preset(remote_id, preset_data)
 
     if not response.success:
-        return Ret.fail(msg=str(response.error))
+        return Ret.fail(msg=str(response.message))
 
     return Ret.success(msg="同步成功")
 

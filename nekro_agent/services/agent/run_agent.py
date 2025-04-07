@@ -9,6 +9,7 @@ import weave
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.os_env import PROMPT_LOG_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
@@ -210,7 +211,7 @@ async def send_agent_request(
                 base_url=use_model_group.BASE_URL,
                 api_key=use_model_group.API_KEY,
                 stream_mode=True,
-                log_path=f'.temp/prompts/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
+                log_path=f'{PROMPT_LOG_DIR}/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
             )
         except Exception as e:
             logger.error(
@@ -221,7 +222,7 @@ async def send_agent_request(
             used_model_group = use_model_group  # 记录成功使用的模型组
             break
     else:
-        err_log = Path(f'.temp/prompts-error/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log')
+        err_log = Path(f'{PROMPT_LOG_DIR}/chat_err_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log')
         err_log.parent.mkdir(parents=True, exist_ok=True)
         err_log.write_text(
             json.dumps(

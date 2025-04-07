@@ -1,14 +1,9 @@
 from typing import Any, Dict, Optional, Union
 
-import httpx
+from fastapi import HTTPException
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import OsEnv
-from nekro_agent.systems.cloud.exceptions import (
-    NekroCloudAPIKeyInvalid,
-    NekroCloudDisabled,
-)
 from nekro_agent.systems.cloud.schemas.plugin import (
     BasicResponse,
     PluginCreate,
@@ -18,24 +13,7 @@ from nekro_agent.systems.cloud.schemas.plugin import (
     UserPluginListResponse,
 )
 
-
-def get_client() -> httpx.AsyncClient:
-    """获取 HTTP 客户端
-
-    Returns:
-        httpx.AsyncClient: HTTP 客户端
-    """
-    if not OsEnv.NEKRO_CLOUD_API_BASE_URL or not config.ENABLE_NEKRO_CLOUD:
-        raise NekroCloudDisabled
-    if not config.NEKRO_CLOUD_API_KEY:
-        raise NekroCloudAPIKeyInvalid
-    return httpx.AsyncClient(
-        base_url=OsEnv.NEKRO_CLOUD_API_BASE_URL,
-        headers={
-            "X-API-Key": f"{config.NEKRO_CLOUD_API_KEY}",
-            "Content-Type": "application/json",
-        },
-    )
+from .client import get_client
 
 
 async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
@@ -48,7 +26,7 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
         PluginCreateResponse: 创建响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.post(
                 url="/api/plugin",
                 json={
@@ -67,11 +45,9 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
             )
             response.raise_for_status()
             return PluginCreateResponse(**response.json())
-    except NekroCloudDisabled:
-        return PluginCreateResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"创建插件资源发生错误: {e}")
-        return PluginCreateResponse(success=False, error=f"创建插件资源失败: {e!s}", data=None)
+        return PluginCreateResponse.process_exception(e)
 
 
 async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicResponse:
@@ -85,18 +61,16 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
         BasicResponse: 响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.put(
                 url=f"/api/plugin/{module_name}",
                 json=updates,
             )
             response.raise_for_status()
             return BasicResponse(**response.json())
-    except NekroCloudDisabled:
-        return BasicResponse(success=False, error="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"更新插件资源发生错误: {e}")
-        return BasicResponse(success=False, error=f"更新插件资源失败: {e!s}")
+        return BasicResponse.process_exception(e)
 
 
 async def delete_plugin(module_name: str) -> BasicResponse:
@@ -109,17 +83,15 @@ async def delete_plugin(module_name: str) -> BasicResponse:
         BasicResponse: 响应结果
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.delete(
                 url=f"/api/plugin/{module_name}",
             )
             response.raise_for_status()
             return BasicResponse(**response.json())
-    except NekroCloudDisabled:
-        return BasicResponse(success=False, error="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"删除插件资源发生错误: {e}")
-        return BasicResponse(success=False, error=f"删除插件资源失败: {e!s}")
+        return BasicResponse.process_exception(e)
 
 
 async def get_plugin(module_name: str) -> PluginDetailResponse:
@@ -138,11 +110,9 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
             data = response.json()
             logger.info(f"获取插件详情响应: {data}")
             return PluginDetailResponse(**data)
-    except NekroCloudDisabled:
-        return PluginDetailResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"获取插件详情发生错误: {e}")
-        return PluginDetailResponse(success=False, error=f"获取插件详情失败: {e!s}", data=None)
+        return PluginDetailResponse.process_exception(e)
 
 
 async def list_plugins(
@@ -184,11 +154,9 @@ async def list_plugins(
             data = response.json()
             logger.info(f"查询插件列表响应: {data}")
             return PluginListResponse(**data)
-    except NekroCloudDisabled:
-        return PluginListResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"查询插件列表发生错误: {e}")
-        return PluginListResponse(success=False, error=f"查询插件列表失败: {e!s}", data=None)
+        return PluginListResponse.process_exception(e)
 
 
 async def list_user_plugins() -> UserPluginListResponse:
@@ -198,12 +166,10 @@ async def list_user_plugins() -> UserPluginListResponse:
         UserPluginListResponse: 简化版插件列表响应
     """
     try:
-        async with get_client() as client:
+        async with get_client(require_auth=True) as client:
             response = await client.get(url="/api/plugin/user")
             response.raise_for_status()
             return UserPluginListResponse(**response.json())
-    except NekroCloudDisabled:
-        return UserPluginListResponse(success=False, error="Nekro Cloud 未启用", data=None)
     except Exception as e:
         logger.error(f"获取用户上传插件列表发生错误: {e}")
-        return UserPluginListResponse(success=False, error=f"获取用户上传插件列表失败: {e!s}", data=None)
+        return UserPluginListResponse.process_exception(e)

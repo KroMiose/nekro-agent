@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from nekro_agent.systems.cloud.schemas.base import BasicResponse
+
 
 class PluginBase(BaseModel):
     """插件基础信息模型"""
@@ -39,19 +41,15 @@ class PluginCreate(BaseModel):
     icon: Optional[str] = None  # 插件图标，可以是Base64或URL
 
 
-class PluginCreateResponse(BaseModel):
+class PluginCreateResponse(BasicResponse):
     """创建插件响应模型"""
 
-    success: bool
-    error: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
 
 
-class PluginDetailResponse(BaseModel):
+class PluginDetailResponse(BasicResponse):
     """获取插件详情响应模型"""
 
-    success: bool
-    error: Optional[str] = None
     data: Optional[PluginBase] = None
 
 
@@ -83,11 +81,9 @@ class PluginListData(BaseModel):
     pageSize: int
 
 
-class PluginListResponse(BaseModel):
+class PluginListResponse(BasicResponse):
     """获取插件列表响应模型"""
 
-    success: bool
-    error: Optional[str] = None
     data: Optional[PluginListData] = None
 
 
@@ -106,16 +102,7 @@ class UserPluginListData(BaseModel):
     total: int
 
 
-class UserPluginListResponse(BaseModel):
+class UserPluginListResponse(BasicResponse):
     """获取用户插件列表响应模型"""
 
-    success: bool
-    error: Optional[str] = None
     data: Optional[UserPluginListData] = None
-
-
-class BasicResponse(BaseModel):
-    """基础响应模型"""
-
-    success: bool
-    error: Optional[str] = None

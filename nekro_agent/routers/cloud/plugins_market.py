@@ -1,7 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Body, Depends, Query
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query
 
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_user import DBUser
@@ -11,11 +10,11 @@ from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.systems.cloud.api.plugin import (
     create_plugin,
+    delete_plugin,
     get_plugin,
     list_plugins,
     list_user_plugins,
 )
-from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
 from nekro_agent.systems.cloud.schemas.plugin import PluginCreate
 from nekro_agent.tools.image_utils import process_image_data_url
 
@@ -37,13 +36,13 @@ async def get_cloud_plugins_list(
         response = await list_plugins(page=page, page_size=page_size, keyword=keyword, has_webhook=has_webhook)
 
         if not response.success:
-            return Ret.fail(msg=f"获取失败: {response.error}")
+            return Ret.fail(msg=response.message)
 
         if not response.data or not response.data.items:
             return Ret.success(msg="暂无数据", data={"total": 0, "items": []})
 
         # 获取所有云端插件的ID
-        remote_ids = [item.id for item in response.data.items]
+        # remote_ids = [item.id for item in response.data.items]
 
         # 查询本地插件，获取版本信息
         # 这里只是预留位置，实际实现需要根据你的系统进行调整
@@ -101,8 +100,6 @@ async def get_cloud_plugins_list(
             },
         )
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"获取云端插件列表失败: {e}")
         return Ret.fail(msg=f"获取失败: {e}")
@@ -125,8 +122,6 @@ async def get_user_plugins(
 
         return Ret.success(msg="获取成功", data=response.data.items)
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"获取用户插件列表失败: {e}")
         return Ret.fail(msg=f"获取失败: {e}")
@@ -176,8 +171,6 @@ async def get_plugin_detail(
 
         return Ret.success(msg="获取成功", data=result)
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"获取插件详情失败: {e}")
         return Ret.fail(msg=f"获取失败: {e}")
@@ -199,7 +192,7 @@ async def download_plugin(
         # 获取云端插件详情
         response = await get_plugin(module_name)
         if not response.success or not response.data:
-            return Ret.fail(msg=f"获取插件信息失败: {response.error}")
+            return Ret.fail(msg=response.message)
 
         plugin_data = response.data
 
@@ -223,8 +216,6 @@ async def download_plugin(
 
         return Ret.success(msg="下载成功，插件已安装")
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"下载插件失败: {e}")
         return Ret.fail(msg=f"下载失败: {e}")
@@ -246,7 +237,7 @@ async def update_plugin(
         # 获取云端插件详情
         response = await get_plugin(plugin_id)
         if not response.success or not response.data:
-            return Ret.fail(msg=f"获取插件信息失败: {response.error}")
+            return Ret.fail(msg=response.message)
 
         logger.info(f"准备更新插件: {plugin_id}")
 
@@ -260,8 +251,6 @@ async def update_plugin(
 
         return Ret.success(msg="更新成功，插件已更新至最新版本")
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"更新插件失败: {e}")
         return Ret.fail(msg=f"更新失败: {e}")
@@ -289,15 +278,36 @@ async def create_cloud_plugin(
         response = await create_plugin(plugin_data)
 
         if not response.success:
-            return Ret.fail(msg=f"创建失败: {response.error}")
+            return Ret.fail(msg=response.message)
 
         if not response.data:
             return Ret.fail(msg="创建失败，服务返回数据为空")
 
         return Ret.success(msg="插件创建成功", data=response.data)
 
-    except NekroCloudDisabled:
-        return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
         logger.error(f"创建插件失败: {e}")
         return Ret.fail(msg=f"创建失败: {e}")
+
+
+@router.delete("/plugin/{module_name}", summary="删除云端插件")
+@require_role(Role.Admin)
+async def delete_cloud_plugin(
+    module_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """删除云端插件"""
+    try:
+        # 调用云端接口删除插件
+        response = await delete_plugin(module_name)
+
+        if not response.success:
+            # 处理可能的错误，比如权限不足或插件不存在
+            return Ret.fail(msg=response.message)
+
+        return Ret.success(msg=f"插件 '{module_name}' 已成功从云端删除")
+
+    except Exception as e:
+        logger.error(f"删除云端插件 '{module_name}' 失败: {e}")
+        # 处理调用过程中的其他异常
+        return Ret.fail(msg=f"删除插件失败: {e}")
