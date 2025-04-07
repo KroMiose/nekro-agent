@@ -455,6 +455,7 @@ const PresetCard = ({
   onEdit,
   showError,
   showSuccess,
+  onRefreshList,
 }: {
   preset: Preset
   onExpand: () => void
@@ -464,6 +465,7 @@ const PresetCard = ({
   onEdit: () => void
   showError: (message: string) => void
   showSuccess: (message: string) => void
+  onRefreshList: () => Promise<void>
 }) => {
   const { enqueueSnackbar } = useSnackbar()
   const [preset, setPreset] = useState(initialPreset)
@@ -517,7 +519,7 @@ const PresetCard = ({
           on_shared: true,
           remote_id: response.data?.remote_id || String(preset.id),
         })
-        onSync(preset.id) // 刷新列表
+        await onRefreshList()
       } else {
         // 直接显示错误，只使用全局错误提示
         const errorMsg = response.msg || '未知错误'
@@ -557,7 +559,7 @@ const PresetCard = ({
           on_shared: false,
           remote_id: null,
         })
-        onSync(preset.id) // 刷新列表
+        await onRefreshList()
       } else {
         const errorMsg = response.msg || '未知错误'
         showError(`撤回共享失败: ${errorMsg}`)
@@ -586,7 +588,7 @@ const PresetCard = ({
           showSuccess(response.msg)
         }
         setShowSyncToCloudDialog(false)
-        onSync(preset.id) // 刷新列表
+        await onRefreshList()
       } else {
         // 直接显示错误，同时使用全局错误提示
         const errorMsg = response.msg || '未知错误'
@@ -646,17 +648,17 @@ const PresetCard = ({
     else if (!preset.on_shared && preset.remote_id) {
       return (
         <Tooltip title="从云端同步最新版本">
-          <IconButton 
-            size="small" 
-            color="primary" 
+          <IconButton
+            size="small"
+            color="primary"
             onClick={async () => {
-              setSyncLoading(true);
+              setSyncLoading(true)
               try {
-                await onSync(preset.id);
+                await onSync(preset.id)
               } catch (error) {
-                console.error('同步按钮错误:', error);
+                console.error('同步按钮错误:', error)
               } finally {
-                setSyncLoading(false);
+                setSyncLoading(false)
               }
             }}
             disabled={syncLoading}
@@ -887,17 +889,17 @@ const PresetCard = ({
           </Tooltip>
           {preset.remote_id && preset.on_shared && (
             <Tooltip title="同步云端最新数据">
-              <IconButton 
-                size="small" 
-                color="primary" 
+              <IconButton
+                size="small"
+                color="primary"
                 onClick={async () => {
-                  setSyncLoading(true);
+                  setSyncLoading(true)
                   try {
-                    await onSync(preset.id);
+                    await onSync(preset.id)
                   } catch (error) {
-                    console.error('同步按钮错误:', error);
+                    console.error('同步按钮错误:', error)
                   } finally {
-                    setSyncLoading(false);
+                    setSyncLoading(false)
                   }
                 }}
                 disabled={syncLoading}
@@ -932,12 +934,20 @@ const PresetCard = ({
             />
             <FormControlLabel
               control={
-                <Checkbox checked={agreeToTerms} onChange={e => setAgreeToTerms(e.target.checked)} />
+                <Checkbox
+                  checked={agreeToTerms}
+                  onChange={e => setAgreeToTerms(e.target.checked)}
+                />
               }
               label={
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   我已阅读并接受{' '}
-                  <Link href="https://community.nekro.ai/terms" target="_blank" underline="hover" sx={{ ml: 0.5 }}>
+                  <Link
+                    href="https://community.nekro.ai/terms"
+                    target="_blank"
+                    underline="hover"
+                    sx={{ ml: 0.5 }}
+                  >
                     《NekroAI 社区资源共享协议》
                   </Link>
                 </Box>
@@ -949,9 +959,9 @@ const PresetCard = ({
           <Button onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
             取消
           </Button>
-          <Button 
-            onClick={handleShareToCloud} 
-            color="primary" 
+          <Button
+            onClick={handleShareToCloud}
+            color="primary"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : '共享'}
@@ -995,12 +1005,20 @@ const PresetCard = ({
             />
             <FormControlLabel
               control={
-                <Checkbox checked={agreeToTerms} onChange={e => setAgreeToTerms(e.target.checked)} />
+                <Checkbox
+                  checked={agreeToTerms}
+                  onChange={e => setAgreeToTerms(e.target.checked)}
+                />
               }
               label={
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   我已阅读并接受{' '}
-                  <Link href="https://community.nekro.ai/terms" target="_blank" underline="hover" sx={{ ml: 0.5 }}>
+                  <Link
+                    href="https://community.nekro.ai/terms"
+                    target="_blank"
+                    underline="hover"
+                    sx={{ ml: 0.5 }}
+                  >
                     《NekroAI 社区资源共享协议》
                   </Link>
                 </Box>
@@ -1012,9 +1030,9 @@ const PresetCard = ({
           <Button onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
             取消
           </Button>
-          <Button 
-            onClick={handleSyncToCloud} 
-            color="primary" 
+          <Button
+            onClick={handleSyncToCloud}
+            color="primary"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : '同步'}
@@ -1184,7 +1202,10 @@ export default function PresetsPage() {
       enqueueSnackbar('正在刷新共享状态...', { variant: 'info', autoHideDuration: 2000 })
       const response = await presetsApi.refreshSharedStatus()
       if (response.code === 200) {
-        enqueueSnackbar(response.msg || '刷新共享状态成功', { variant: 'success', autoHideDuration: 3000 })
+        enqueueSnackbar(response.msg || '刷新共享状态成功', {
+          variant: 'success',
+          autoHideDuration: 3000,
+        })
         if (response.data) {
           enqueueSnackbar(
             `更新了${response.data.updated_count}个人设的共享状态，云端共有${response.data.total_cloud_presets}个人设`,
@@ -1210,6 +1231,7 @@ export default function PresetsPage() {
   // 修改PresetCard组件，传入showError函数
   const renderPresetCard = (preset: Preset) => (
     <PresetCard
+      key={preset.id}
       preset={preset}
       expanded={expandedId === preset.id}
       onExpand={() => handleExpandClick(preset.id)}
@@ -1218,6 +1240,7 @@ export default function PresetsPage() {
       onEdit={() => handleEditClick(preset)}
       showError={showError}
       showSuccess={showSuccess}
+      onRefreshList={fetchData}
     />
   )
 
