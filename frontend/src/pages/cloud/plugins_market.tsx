@@ -648,7 +648,7 @@ const CreatePluginDialog = ({
     if (!formData.moduleName.trim()) {
       newErrors.moduleName = '模块名不能为空'
     } else if (!/^[a-zA-Z0-9_]+$/.test(formData.moduleName)) {
-      newErrors.moduleName = '模块名只能包含英文、数字和下划线'
+      newErrors.moduleName = '模块名只能包含英文、数字和下划线，并且在插件市场唯一'
     }
 
     if (!formData.description.trim()) {
@@ -743,11 +743,7 @@ const CreatePluginDialog = ({
       <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
         发布新插件
       </DialogTitle>
-      <DialogContent sx={{ pt: 3 }}>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          填写以下信息创建一个新的插件。模块名必须唯一，且只能包含英文、数字和下划线。
-        </Typography>
-
+      <DialogContent sx={{ pt: 3, mt: 3 }}>
         <Grid container spacing={3}>
           {/* 基本信息（左）和图标上传（右）并排布局 */}
           <Grid item xs={12} sm={6}>
@@ -776,7 +772,7 @@ const CreatePluginDialog = ({
               fullWidth
               required
               error={!!errors.moduleName}
-              helperText={errors.moduleName || '只能包含英文、数字和下划线'}
+              helperText={errors.moduleName || '模块名只能包含英文、数字和下划线，并且在插件市场唯一'}
               disabled={isSubmitting}
             />
           </Grid>

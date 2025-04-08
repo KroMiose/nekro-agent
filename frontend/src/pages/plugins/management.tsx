@@ -1347,7 +1347,7 @@ export default function PluginsManagementPage() {
       pluginsApi.togglePluginEnabled(id, enabled),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
-      setMessage(`插件状态已${variables.enabled ? '启用' : '禁用'}喵～`)
+      setMessage(`插件已${variables.enabled ? '启用' : '禁用'}喵～`)
 
       // 如果是当前选中的插件，更新其状态
       if (selectedPlugin && selectedPlugin.id === variables.id) {

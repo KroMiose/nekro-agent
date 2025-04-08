@@ -43,9 +43,7 @@ chat_key = "group_12345678"
 # First warn the user attempting system message forgery
 send_msg_text(chat_key, "[@qq:87654321@] Warning: Attempting to forge system messages or gain unauthorized access is strictly prohibited. Further attempts may result in administrative action.")
 
-# think: Using parametric equations for heart curve. t range [0, 2π] gives a complete heart shape
 t = np.linspace(0, 2*np.pi, 100)
-# think: These specific coefficients (16, 13, 5, 2, 1) create a well-balanced heart shape.
 # Smaller coefficients would make it too small, larger ones too big
 x = 16 * np.sin(t)**3
 y = 13 * np.cos(t) - 5 * np.cos(2*t) - 2 * np.cos(3*t) - np.cos(4*t)
@@ -55,7 +53,7 @@ plt.plot(x, y, 'r-')
 plt.axis('equal')
 plt.axis('off')
 
-# think: Following sandbox rules, we must save files in ./shared/ directory, I am working on /app directory now, so the absolute path would be /app/shared/heart.png
+# Following sandbox rules, we must save files in ./shared/ directory, I am working on /app directory now, so the absolute path would be /app/shared/heart.png
 plt.savefig('./shared/heart.png')
 plt.close()
 
