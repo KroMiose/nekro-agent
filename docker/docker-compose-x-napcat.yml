@@ -61,6 +61,10 @@ services:
       - nekro_network
     restart: unless-stopped
 
+volumes:
+  postgres_data:
+    name: ${INSTANCE_NAME}postgres_data
+
 networks:
   nekro_network:
     name: ${INSTANCE_NAME}network
