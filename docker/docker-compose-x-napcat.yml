@@ -15,7 +15,7 @@ services:
     ports:
       - "${POSTGRES_EXPOSE_PORT}:5432"
     volumes:
-      - ${NEKRO_DATA_DIR}/postgres_data:/var/lib/postgresql/data
+      - ${NEKRO_DATA_DIR}/postgres_data:/var/lib/postgresql/data:rw
     networks:
       - nekro_network
     restart: unless-stopped
