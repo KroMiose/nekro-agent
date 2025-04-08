@@ -45,7 +45,7 @@ RUN apt update
 # 分批安装依赖以避免 QEMU 段错误
 RUN apt install -y ca-certificates curl
 RUN apt install -y gnupg git
-RUN apt install -y gcc libpq-dev
+RUN apt install -y gcc libpq-dev libmagic
 RUN apt install -y docker.io
 RUN apt install -y git
 
