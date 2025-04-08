@@ -68,6 +68,9 @@ mkdir -p $NEKRO_DATA_DIR || {
     exit 1
 }
 
+# 设置开放目录权限
+chmod 777 $NEKRO_DATA_DIR
+
 # 进入应用目录
 cd $NEKRO_DATA_DIR || {
     echo "Error: 无法进入应用目录 $NEKRO_DATA_DIR。"
