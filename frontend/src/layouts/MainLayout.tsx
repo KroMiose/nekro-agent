@@ -32,9 +32,12 @@ import {
   Extension as ExtensionIcon,
   Chat as ChatIcon,
   Code as CodeIcon,
-  Person as PersonIcon,
   GitHub as GitHubIcon,
   Dashboard as DashboardIcon,
+  Group as GroupIcon,
+  Face as FaceIcon,
+  AccountCircle as AccountCircleIcon,
+  CloudDownload as CloudDownloadIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { useTheme } from '@mui/material/styles'
@@ -58,21 +61,32 @@ interface MenuGroup {
 
 // 集中的页面配置
 const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
+  {
+    key: 'cloud',
+    text: 'Nekro 云',
+    icon: <CloudDownloadIcon />,
+    children: [
+      { path: '/cloud/telemetry', text: '社区观测', icon: <DashboardIcon />, parent: 'cloud' },
+      { path: '/cloud/presets-market', text: '人设市场', icon: <FaceIcon />, parent: 'cloud' },
+      { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
+    ],
+  },
   { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
   { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
-  { path: '/user-manager', text: '用户管理', icon: <PersonIcon /> },
+  { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
+  { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
   {
-    key: 'extensions',
-    text: '扩展能力',
+    key: 'plugins',
+    text: '插件管理',
     icon: <ExtensionIcon />,
     children: [
       {
-        path: '/extensions/management',
-        text: '扩展管理',
+        path: '/plugins/management',
+        text: '插件管理',
         icon: <ExtensionIcon />,
-        parent: 'extensions',
+        parent: 'plugins',
       },
-      { path: '/extensions/editor', text: '扩展编辑器', icon: <CodeIcon />, parent: 'extensions' },
+      { path: '/plugins/editor', text: '插件编辑器', icon: <CodeIcon />, parent: 'plugins' },
     ],
   },
   { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
@@ -94,7 +108,7 @@ const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
       { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
     ],
   },
-  { path: '/profile', text: '个人中心', icon: <PersonIcon /> },
+  { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
 ]
 
 // 转换配置为菜单项

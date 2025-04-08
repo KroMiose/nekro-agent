@@ -47,6 +47,7 @@ RUN apt install -y ca-certificates curl
 RUN apt install -y gnupg git
 RUN apt install -y gcc libpq-dev
 RUN apt install -y docker.io
+RUN apt install -y git
 
 # 清理缓存
 RUN apt clean && rm -rf /var/lib/apt/lists/*

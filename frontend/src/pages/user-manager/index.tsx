@@ -97,6 +97,7 @@ const UserManagerPage: React.FC = () => {
             onSetPreventTrigger={setPreventTrigger}
             onResetPassword={resetPassword}
             onUpdateUser={updateUser}
+            showEditButton={false}
           />
         </Box>
       </Paper>
