@@ -1,24 +1,25 @@
 import asyncio
 import time
+from pathlib import Path
 from typing import AsyncGenerator, Optional
 
 import aiodocker
-from fastapi import APIRouter, Depends, Header, HTTPException
-from jose import JWTError
+from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import ONEBOT_ACCESS_TOKEN
+from nekro_agent.core.os_env import (
+    NAPCAT_ONEBOT_ADAPTER_DIR,
+    ONEBOT_ACCESS_TOKEN,
+    OsEnv,
+)
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.perm import Role, require_role
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/napcat", tags=["NapCat"])
-
-# 全局 Docker 客户端
-docker = None
 
 
 @router.get("/onebot-token")
@@ -32,10 +33,7 @@ async def get_onebot_token(_current_user: DBUser = Depends(get_current_active_us
 
 async def get_docker():
     """获取或创建 Docker 客户端"""
-    global docker
-    if docker is None:
-        docker = aiodocker.Docker()
-    return docker
+    return aiodocker.Docker()
 
 
 async def get_container():
@@ -96,16 +94,18 @@ async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) 
             try:
                 container = await get_container()
                 # 先发送最近的日志
-                initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=True)
+                initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=False)
+                init_time = time.time()
                 for log in initial_logs:
-                    if log.startswith("20"):  # 移除时间戳前缀
-                        log = log.split("Z ", 1)[1]
+                    # if log.startswith("20"):  # 移除时间戳前缀
+                    #     log = log.split("Z ", 1)[1]
                     yield log
+                    await asyncio.sleep(0.01)  # 避免发送过快
 
                 # 然后开始实时流式传输
-                async for log in container.log(stdout=True, stderr=True, follow=True, since=int(time.time()), timestamps=True):
-                    if log.startswith("20"):
-                        log = log.split("Z ", 1)[1]
+                async for log in container.log(stdout=True, stderr=True, follow=True, since=int(init_time), timestamps=False):
+                    # if log.startswith("20"):
+                    #     log = log.split("Z ", 1)[1]
                     yield log
                     await asyncio.sleep(0.01)  # 避免发送过快
             except Exception as e:
@@ -118,10 +118,44 @@ async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) 
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
+ADAPTER_TEMPLATE = """
+{{
+  "network": {{
+    "httpServers": [],
+    "httpSseServers": [],
+    "httpClients": [],
+    "websocketServers": [],
+    "websocketClients": [
+      {{
+        "enable": true,
+        "name": "ws",
+        "url": "ws://nekro_agent:{port}/onebot/v11/ws",
+        "reportSelfMessage": false,
+        "messagePostFormat": "array",
+        "token": "{token}",
+        "debug": false,
+        "heartInterval": 30000,
+        "reconnectInterval": 3000
+      }}
+    ],
+    "plugins": []
+  }},
+  "musicSignUrl": "",
+  "enableLocalFile2Url": false,
+  "parseMultMsg": false
+}}
+""".strip()
+
+
 @router.post("/restart")
 @require_role(Role.Admin)
 async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """重启容器"""
+    if config.BOT_QQ:
+        adapter_file = Path(NAPCAT_ONEBOT_ADAPTER_DIR) / f"onebot11_{config.BOT_QQ}.json"
+        if not adapter_file.exists():
+            logger.info(f"未找到适配器文件: {adapter_file}, 自动创建...")
+            adapter_file.write_text(ADAPTER_TEMPLATE.format(token=ONEBOT_ACCESS_TOKEN, port=OsEnv.EXPOSE_PORT), encoding="utf-8")
     try:
         container = await get_container()
         # 发送重启命令后立即返回，不等待重启完成
@@ -132,12 +166,3 @@ async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> R
     except Exception as e:
         logger.error(f"重启失败: {e!s}")
         return Ret.fail(str(e))
-
-
-@router.on_event("shutdown")
-async def cleanup():
-    """关闭 Docker 客户端"""
-    global docker
-    if docker:
-        await docker.close()
-        docker = None

@@ -1,0 +1,23 @@
+{% macro history_first_start(enable_cot) %}
+Continue. Next is a real user conversation scene. Note that the sandbox before this has been cleaned up, and do not use the previously generated resources.
+{% if enable_cot %}
+, but this time use 中文 in thinking content and keep thinking step by step carefully and comprehensively
+{% endif %}
+{% endmacro %}
+
+{% macro history_data(plugin_injected_prompt, chat_key, current_time, lunar_time) %}
+{{ plugin_injected_prompt }}
+
+Current Chat Key: {{ chat_key }}
+Current Time: {{ current_time }} | 农历: {{ lunar_time }}
+{% endmacro %}
+
+{% macro history_debug_prompt(runout_reason, code_output) %}
+It seems that the code execution interrupted. Here are the details:
+
+Runout Reason: {{ runout_reason }}
+Code Output: {{ code_output }}
+
+Please analyze the above information and DO NOT give any explanation or apology.
+{% endmacro %}
+

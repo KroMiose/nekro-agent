@@ -1,0 +1,16 @@
+{% macro plugin_prompt(plugin_name, plugin_injected_prompt, plugin_method_prompt, one_time_code) %}
+<plugin name="{{ plugin_name }}">
+
+{% if plugin_injected_prompt %}
+<injected_prompt>
+{{ plugin_injected_prompt }}
+</injected_prompt>
+{% endif %}
+{% if plugin_method_prompt %}
+<predefined_methods>
+{{ plugin_method_prompt }}
+</predefined_methods>
+{% endif %}
+
+</plugin>
+{% endmacro %}

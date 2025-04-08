@@ -3,12 +3,13 @@
 此模块提供了与定时器相关的 API 接口。
 """
 
-from typing import Optional
+from typing import Dict, List, Optional
 
-from nekro_agent.services.timer_service import timer_service
+from nekro_agent.services.timer_service import TimerTask, timer_service
 
 __all__ = [
     "clear_timers",
+    "get_timers",
     "set_temp_timer",
     "set_timer",
 ]
@@ -97,3 +98,25 @@ async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
         ```
     """
     return await timer_service.set_timer(chat_key, -1, "", override=False, temporary=temporary)
+
+
+async def get_timers(chat_key: str) -> List[TimerTask]:
+    """获取指定会话的所有未触发定时器
+
+    Args:
+        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+
+    Returns:
+        List[TimerTask]: 定时器任务列表
+
+    Example:
+        ```python
+        from nekro_agent.api import timer
+
+        # 获取群组的所有定时器
+        timers = await timer.get_timers("group_123456")
+        for t in timers:
+            print(f"触发时间: {t.trigger_time}, 描述: {t.event_desc}")
+        ```
+    """
+    return timer_service.get_timers(chat_key)

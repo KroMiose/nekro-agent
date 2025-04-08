@@ -25,12 +25,23 @@ export interface ModelGroupConfig {
   CHAT_PROXY: string
   BASE_URL: string
   API_KEY: string
+  MODEL_TYPE?: string  
   TEMPERATURE?: number | null
   TOP_P?: number | null
   TOP_K?: number | null
   PRESENCE_PENALTY?: number | null
   FREQUENCY_PENALTY?: number | null
   EXTRA_BODY?: string | null
+  ENABLE_VISION?: boolean
+  ENABLE_COT?: boolean
+}
+
+export interface ModelTypeOption {
+  value: string
+  label: string
+  description?: string
+  color?: string
+  icon?: string
 }
 
 export const configApi = {
@@ -69,6 +80,11 @@ export const configApi = {
   saveConfig: async () => {
     const response = await axios.post<{ msg: string }>('/config/save')
     return response.data.msg
+  },
+
+  getModelTypes: async () => {
+    const response = await axios.get<{ data: ModelTypeOption[] }>('/config/model-types')
+    return response.data.data
   },
 
   getModelGroups: async () => {

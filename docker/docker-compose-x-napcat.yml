@@ -7,7 +7,7 @@ services:
   # PostgreSQL 服务
   nekro_postgres:
     image: postgres:14
-    container_name: ${INSTANCE_NAME}postgres
+    container_name: ${INSTANCE_NAME:-}postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -23,8 +23,9 @@ services:
   # 主服务
   nekro_agent:
     image: kromiose/nekro-agent:latest
-    container_name: ${INSTANCE_NAME}nekro_agent
+    container_name: ${INSTANCE_NAME:-}nekro_agent
     environment:
+      - NEKRO_INSTANCE_NAME=${INSTANCE_NAME:-}nekro_agent
       - NEKRO_DATA_DIR=${NEKRO_DATA_DIR}
       - NEKRO_EXPOSE_PORT=${NEKRO_EXPOSE_PORT:-8021}
       - NEKRO_POSTGRES_HOST=${POSTGRES_HOST:-nekro_postgres}
@@ -49,7 +50,7 @@ services:
   # Napcat 服务
   napcat:
     image: mlikiowa/napcat-docker
-    container_name: ${INSTANCE_NAME}napcat
+    container_name: ${INSTANCE_NAME:-}napcat
     ports:
       - "${NAPCAT_EXPOSE_PORT:-6099}:6099"
     volumes:
@@ -62,9 +63,9 @@ services:
 
 volumes:
   postgres_data:
-    name: ${INSTANCE_NAME}postgres_data
+    name: ${INSTANCE_NAME:-}postgres_data
 
 networks:
   nekro_network:
-    name: ${INSTANCE_NAME}network
+    name: ${INSTANCE_NAME:-}:network
     driver: bridge

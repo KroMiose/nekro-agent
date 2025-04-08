@@ -45,8 +45,9 @@ RUN apt update
 # 分批安装依赖以避免 QEMU 段错误
 RUN apt install -y ca-certificates curl
 RUN apt install -y gnupg git
-RUN apt install -y gcc libpq-dev
+RUN apt install -y gcc libpq-dev libmagic-dev
 RUN apt install -y docker.io
+RUN apt install -y git
 
 # 清理缓存
 RUN apt clean && rm -rf /var/lib/apt/lists/*
@@ -71,6 +72,7 @@ RUN poetry config virtualenvs.create false \
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
 COPY extensions ./extensions
+COPY plugins ./plugins
 COPY .env.prod ./
 
 # 从前端构建产物复制静态文件

@@ -1,4 +1,5 @@
 import asyncio
+import random
 import time
 from datetime import datetime
 from datetime import time as dt_time
@@ -101,12 +102,13 @@ class FestivalService:
         async def festival_callback():
             channels = await DBChatChannel.filter(is_active=True).all()
             for channel in channels:
-                await message_service.push_system_message(
-                    chat_key=channel.chat_key,
-                    agent_messages=event_desc,
-                    trigger_agent=True,
-                )
-                await asyncio.sleep(1)  # 每个会话间隔1秒
+                if channel.chat_key != "group_0":
+                    await message_service.push_system_message(
+                        chat_key=channel.chat_key,
+                        agent_messages=event_desc,
+                        trigger_agent=True,
+                    )
+                    await asyncio.sleep(random.randint(1, 120))  # 每个会话间隔随机时间，防止并发过高
 
         # 设置定时器
         await timer_service.set_timer(

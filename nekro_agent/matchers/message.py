@@ -19,7 +19,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.message.convertor import convert_chat_message
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.user import query_user_by_bind_qq, user_register
+from nekro_agent.services.user.util import query_user_by_bind_qq, user_register
 from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
 message_matcher: Type[Matcher] = on_message(priority=99999, block=False)
@@ -32,7 +32,7 @@ async def _(
     bot: Bot,
 ):
     chat_key, chat_type = await get_chat_info(event=event)
-
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     # 用户信息处理
     sender_real_nickname: Optional[str] = event.sender.nickname or event.sender.card
     assert sender_real_nickname
@@ -60,12 +60,12 @@ async def _(
         logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
         return
 
-    content_data, msg_tome, message_id = await convert_chat_message(event, event.to_me, bot, chat_key)
+    content_data, msg_tome, message_id = await convert_chat_message(event, event.to_me, bot, db_chat_channel)
     if not content_data:  # 忽略无法转换的消息
         return
 
-    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq)
-    content_text, is_tome = await gen_chat_text(event=event, bot=bot)
+    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq, db_chat_channel=db_chat_channel)
+    content_text, is_tome = await gen_chat_text(event=event, bot=bot, db_chat_channel=db_chat_channel)
     # send_timestamp: int = event.time
 
     if any(content_text.startswith(prefix) for prefix in config.AI_IGNORED_PREFIXES):
@@ -102,6 +102,7 @@ async def _(
     bot: Bot,
 ):
     chat_key, chat_type = await get_chat_info(event=event)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     bind_qq: str = str(event.user_id)
     user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
 
@@ -117,11 +118,11 @@ async def _(
     # 用户信息处理
     sender_real_nickname: Optional[str] = user.username
 
-    content_data, msg_tome, message_id = await convert_chat_message(event, False, bot, chat_key)
+    content_data, msg_tome, message_id = await convert_chat_message(event, False, bot, db_chat_channel)
     if not content_data:  # 忽略无法转换的消息
         return
 
-    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq)
+    sender_nickname: str = await get_user_name(event=event, bot=bot, user_id=bind_qq, db_chat_channel=db_chat_channel)
 
     chat_message: ChatMessage = ChatMessage(
         message_id=message_id,

@@ -141,7 +141,7 @@ config.DATA_DIR
 # nekro_agent/routers/custom.py
 from fastapi import APIRouter
 from nekro_agent.schemas.message import Ret
-from nekro_agent.systems.user.perm import Role, require_role
+from nekro_agent.services.user.perm import Role, require_role
 router = APIRouter(prefix="/api/custom", tags=["Custom"])
 
 @router.get("/example", summary="示例接口")

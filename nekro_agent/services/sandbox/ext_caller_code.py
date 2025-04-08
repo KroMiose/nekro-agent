@@ -44,12 +44,12 @@ def __extension_method_proxy(method: Callable):
                     f"The agent method `{method.__name__}` returned:\n{ret_data}\n[result end]\nPlease continue to generate an appropriate response based on the above information.",
                 )
                 exit(8)
+            if response.headers.get("Method-Type") == "multimodal_agent":
+                print(
+                    f"The multimodal agent method `{method.__name__}` returned:\n{ret_data}\n[result end]",
+                )
+                exit(11)
             return ret_data
-        raise Exception(f"Extension call failed: {response.status_code}")
+        raise Exception(f"Plugin RPC method `{method.__name__}` call failed: {response.status_code}")
 
     return acutely_call_method
-
-
-# def code_interrupt(reason: str):
-#     print(f'The code has been interrupted due to "{reason}", This is a manually generated error because')
-#     exit(1)
