@@ -457,12 +457,25 @@ export default function SettingsPage() {
             onChange={e => handleConfigChange(config.key, e.target.value)}
             size="small"
             fullWidth
-            type={isSecret && !visibleSecrets[config.key] ? 'password' : 'text'}
+            type="text"
             placeholder={config.placeholder}
             autoComplete="off"
+            name={`field_${Math.random().toString(36).slice(2)}`}
             multiline={config.is_textarea}
             minRows={config.is_textarea ? 3 : 1}
             maxRows={config.is_textarea ? 8 : 1}
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+              style: isSecret && !visibleSecrets[config.key]
+                ? ({
+                    '-webkit-text-security': 'disc',
+                    'text-security': 'disc',
+                  } as React.CSSProperties)
+                : undefined,
+            }}
             InputProps={
               isSecret
                 ? {

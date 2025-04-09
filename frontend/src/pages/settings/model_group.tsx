@@ -299,14 +299,21 @@ function EditDialog({
             label="API密钥"
             value={config.API_KEY}
             onChange={e => setConfig({ ...config, API_KEY: e.target.value })}
-            type={showApiKey ? 'text' : 'password'}
+            type="text"
             fullWidth
             autoComplete="off"
+            name={`apikey_${Math.random().toString(36).slice(2)}`}
             inputProps={{
               autoComplete: 'new-password',
               form: {
                 autoComplete: 'off',
               },
+              style: !showApiKey
+                ? ({
+                    '-webkit-text-security': 'disc',
+                    'text-security': 'disc',
+                  } as React.CSSProperties)
+                : undefined,
             }}
             InputProps={{
               endAdornment: (
