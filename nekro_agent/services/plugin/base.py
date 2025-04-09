@@ -108,12 +108,10 @@ class NekroPlugin:
         self._plugin_config_path.parent.mkdir(parents=True, exist_ok=True)
 
         # 获取配置对象
-        if hasattr(self, "_config"):
-            config = self._config
-        else:
-            config = self._Configs.load_config(file_path=self._plugin_config_path)
-            config.dump_config(self._plugin_config_path)
-        return cast(config_cls, config)
+        if not hasattr(self, "_config"):
+            self._config = self._Configs.load_config(file_path=self._plugin_config_path)
+            self._config.dump_config(self._plugin_config_path)
+        return cast(config_cls, self._config)
 
     def get_plugin_path(self) -> Path:
         return self._plugin_path

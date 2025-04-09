@@ -9,7 +9,7 @@ from nekro_agent.core import logger
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
-from nekro_agent.services.config_service import ConfigService
+from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.manager import (
     disable_plugin,
     enable_plugin,
@@ -21,7 +21,6 @@ from nekro_agent.services.plugin.manager import (
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
-from nekro_agent.services.plugin.collector import plugin_collector
 
 router = APIRouter(prefix="/plugins", tags=["Plugins"])
 
