@@ -32,6 +32,6 @@ async def get_qdrant_client() -> AsyncQdrantClient:
         _qdrant_client = AsyncQdrantClient(
             host=QDRANT_HOST,
             port=QDRANT_PORT,
-            api_key=QDRANT_API_KEY,
+            api_key=QDRANT_API_KEY or None,
         )
     return _qdrant_client
