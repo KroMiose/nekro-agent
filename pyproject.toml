@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "1.0.0-alpha.4"
+version = "1.0.0-alpha.5"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -50,6 +50,7 @@ psutil = "^7.0.0"
 mem0ai = "^0.1.79"
 gitpython = "^3.1.44"
 bookworm = "^0.2.1"
+qdrant-client = "^1.13.3"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
