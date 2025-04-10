@@ -20,6 +20,17 @@ services:
       - nekro_network
     restart: unless-stopped
 
+  # Qdrant 服务
+  nekro_qdrant:
+    image: qdrant/qdrant
+    container_name: ${INSTANCE_NAME:-}nekro_qdrant
+    ports:
+      - "${QDRANT_EXPOSE_PORT}:6333"
+    networks:
+      - nekro_network
+    environment:
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
+
   # 主服务
   nekro_agent:
     image: kromiose/nekro-agent:latest
@@ -35,11 +46,15 @@ services:
       - NEKRO_RUN_IN_DOCKER=true
       - NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD:-}
       - ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN:-}
+      - NEKRO_QDRANT_HOST=${QDRANT_HOST:-nekro_qdrant}
+      - NEKRO_QDRANT_PORT=${QDRANT_PORT:-6333}
+      - NEKRO_QDRANT_API_KEY=${QDRANT_API_KEY:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${NEKRO_DATA_DIR}:${NEKRO_DATA_DIR}:rw
     depends_on:
       - nekro_postgres
+      - nekro_qdrant
     ports:
       - "${NEKRO_EXPOSE_PORT:-8021}:8021"
     networks:

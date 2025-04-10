@@ -23,6 +23,10 @@ class OsEnv:
     POSTGRES_PASSWORD: str = OsEnvTypes.Str("POSTGRES_PASSWORD", default="nekro_agent")
     POSTGRES_DATABASE: str = OsEnvTypes.Str("POSTGRES_DATABASE", default="nekro_agent")
 
+    """Qdrant 数据库配置"""
+    QDRANT_HOST: str = OsEnvTypes.Str("QDRANT_HOST", default="localhost")
+    QDRANT_PORT: int = OsEnvTypes.Int("QDRANT_PORT", default=6333)
+    QDRANT_API_KEY: str = OsEnvTypes.Str("QDRANT_API_KEY", default="")
     """JWT 配置"""
     JWT_SECRET_KEY: str = OsEnvTypes.Str("JWT_SECRET_KEY", default=f"secret:{secrets.token_urlsafe(32)}")
     JWT_REFRESH_SECRET_KEY: str = OsEnvTypes.Str("JWT_REFRESH_SECRET_KEY", default=f"refresh:{secrets.token_urlsafe(32)}")

@@ -96,7 +96,7 @@ class PluginCollector:
         else:
             self.package_data = PackageData(packages=[], latest_updated=datetime.now().isoformat())
 
-    def init_plugins(self) -> None:
+    async def init_plugins(self) -> None:
         """初始化并加载所有插件"""
         # 将插件目录添加到 Python 路径
         if str(self.builtin_plugin_dir.parent.absolute()) not in sys.path:
@@ -112,15 +112,15 @@ class PluginCollector:
 
         # 加载内置插件
         for item in self.builtin_plugin_dir.iterdir():
-            self._try_load_plugin(item, is_builtin=True)
+            await self._try_load_plugin(item, is_builtin=True)
 
         # 加载工作目录插件
         for item in self.workdir_plugin_dir.iterdir():
-            self._try_load_plugin(item, is_builtin=False)
+            await self._try_load_plugin(item, is_builtin=False)
 
         # 加载packages插件
         for item in self.packages_dir.iterdir():
-            self._try_load_plugin(item, is_package=True)
+            await self._try_load_plugin(item, is_package=True)
 
     async def unload_plugin_by_module_name(self, module_name: str) -> None:
         """卸载指定插件"""
@@ -185,7 +185,7 @@ class PluginCollector:
             if loaded_plugin.module_name in self.loaded_module_names:
                 self.loaded_module_names.remove(loaded_plugin.module_name)
 
-        self._try_load_plugin(real_path, is_builtin=False)
+        await self._try_load_plugin(real_path, is_builtin=False)
         return None
 
     async def clone_package(
@@ -249,7 +249,7 @@ class PluginCollector:
         shutil.rmtree(package_dir)
         self.package_data.remove_package(module_name)
 
-    def _try_load_plugin(self, item_path: Path, is_builtin: bool = False, is_package: bool = False) -> bool:
+    async def _try_load_plugin(self, item_path: Path, is_builtin: bool = False, is_package: bool = False) -> bool:
         """尝试加载插件
 
         Args:
@@ -260,16 +260,22 @@ class PluginCollector:
         # 如果是Python文件
         if item_path.is_file() and item_path.suffix == ".py" and item_path.name != "__init__.py":
             module_path = f"{item_path.parent.name}.{item_path.stem}"
-            self._load_plugin_module(module_path, item_path, is_builtin, is_package)
+            await self._load_plugin_module(module_path, item_path, is_builtin, is_package)
             return True
         # 如果是目录且包含 __init__.py（Python包）
         if item_path.is_dir() and (item_path / "__init__.py").exists():
             module_path = f"{item_path.parent.name}.{item_path.name}"
-            self._load_plugin_module(module_path, item_path, is_builtin, is_package)
+            await self._load_plugin_module(module_path, item_path, is_builtin, is_package)
             return True
         return False
 
-    def _load_plugin_module(self, module_path: str, path: Path, is_builtin: bool = False, is_package: bool = False) -> None:
+    async def _load_plugin_module(
+        self,
+        module_path: str,
+        path: Path,
+        is_builtin: bool = False,
+        is_package: bool = False,
+    ) -> None:
         """加载插件模块
 
         Args:
@@ -290,6 +296,13 @@ class PluginCollector:
 
             if isinstance(plugin, NekroPlugin):
                 # 直接设置内置插件标识
+                try:
+                    if plugin.init_method:
+                        await plugin.init_method()
+                except Exception as e:
+                    logger.exception(f'插件 "{plugin.name}" 初始化失败 {path}: {e}')
+                    return
+
                 logger.success(
                     f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}{" [云端]" if is_package else ""}',
                 )
@@ -439,6 +452,6 @@ class PluginCollector:
 plugin_collector = PluginCollector()
 
 
-def init_plugins() -> None:
+async def init_plugins() -> None:
     """初始化并加载所有插件"""
-    plugin_collector.init_plugins()
+    await plugin_collector.init_plugins()

@@ -5,14 +5,12 @@ from typing import (
     Callable,
     Coroutine,
     Dict,
-    Generic,
     List,
     Literal,
     Optional,
     Type,
     TypeVar,
     cast,
-    overload,
 )
 
 from nekro_agent.core import logger
@@ -79,6 +77,19 @@ class NekroPlugin:
         self.webhook_methods = {}
         self._collect_methods_func = None
 
+    def mount_init_method(self) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
+        """挂载初始化方法
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
+            self.init_method = func
+            return func
+
+        return decorator
+
     def mount_config(self) -> Callable[[Type[T]], Type[T]]:
         """挂载配置类
 
@@ -114,6 +125,7 @@ class NekroPlugin:
         return cast(config_cls, self._config)
 
     def get_plugin_path(self) -> Path:
+        self._plugin_path.mkdir(parents=True, exist_ok=True)
         return self._plugin_path
 
     def mount_sandbox_method(
@@ -330,6 +342,17 @@ class NekroPlugin:
     @property
     def is_package(self) -> bool:
         return self._is_package
+
+    def get_vector_collection_name(self, key: str = "") -> str:
+        """获取向量数据库集合名称
+
+        Args:
+            key (str): 向量数据库集合名称
+
+        Returns:
+            str: 向量数据库集合名称
+        """
+        return f"{self.key}-{key}" if key else self.key
 
 
 class PluginStore:

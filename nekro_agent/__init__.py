@@ -42,12 +42,12 @@ if config.WEAVE_ENABLED:
 mount_routers(get_app())
 # init_extensions()
 # reload_ext_workdir()
-init_plugins()
 
 
 @get_driver().on_startup
 async def on_startup():
     await init_db()
+    await init_plugins()
     await timer_service.start()
     logger.info("Timer service initialized")
 

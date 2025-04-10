@@ -1,27 +1,25 @@
+import asyncio
 import hashlib
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple
 
 import aiofiles
-import chromadb
-import chromadb.errors
 import httpx
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
-from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+from qdrant_client import models as qdrant_models
 
-from nekro_agent.api import core, message, schemas
-from nekro_agent.core.config import ModelConfigGroup
-from nekro_agent.core.logger import logger
+from nekro_agent.api import schemas
+from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.core.config import config as core_config
 from nekro_agent.matchers.command import command_guard, finish_with, on_command
-from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
     convert_to_container_path,
@@ -31,7 +29,7 @@ from nekro_agent.tools.path_convertor import (
 plugin = NekroPlugin(
     name="[NA] 表情包插件",
     module_name="emotion",
-    description="提供收集、搜索、使用表情包能力",
+    description="提供收集、搜索、使用表情包能力，使用Qdrant向量数据库",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -61,33 +59,39 @@ class EmotionConfig(ConfigBase):
 emotion_config: EmotionConfig = plugin.get_config(EmotionConfig)
 store = plugin.store
 store_dir = plugin.get_plugin_path() / "emotions"
-chroma_client = chromadb.PersistentClient(path=str(plugin.get_plugin_path() / "vector_db"))
 
 # 确保存储目录存在
 store_dir.mkdir(parents=True, exist_ok=True)
 
-# 初始化 Chroma 向量集合
-COLLECTION_NAME = "emotion_collection"
-try:
-    emotion_collection = chroma_client.get_collection(name=COLLECTION_NAME)
-    logger.info(f"加载已有表情包向量集合: {COLLECTION_NAME}")
-except (ValueError, chromadb.errors.InvalidCollectionException) as e:
-    logger.debug(f"Error retrieving collection {COLLECTION_NAME}: {e}")
-    # 集合不存在时创建新集合
-    emotion_collection = chroma_client.create_collection(
-        name=COLLECTION_NAME,
-        metadata={"hnsw:space": "cosine"},
-    )
 
+@plugin.mount_init_method()
+async def init_vector_db():
+    """初始化表情包向量数据库"""
+    # 获取Qdrant客户端
+    client = await get_qdrant_client()
+    if client is None:
+        logger.warning("无法获取Qdrant客户端，跳过向量数据库初始化")
+        return
 
-# 根据模型名获取模型组配置项
-def get_model_group_info(model_name: str) -> ModelConfigGroup:
-    from nekro_agent.core.config import config as core_config
+    collection_name = plugin.get_vector_collection_name()
 
-    try:
-        return core_config.MODEL_GROUPS[model_name]
-    except KeyError as e:
-        raise ValueError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
+    # 检查集合是否存在
+    collections = await client.get_collections()
+    collection_names = [collection.name for collection in collections.collections]
+
+    if collection_name not in collection_names:
+        logger.info(f"正在创建表情包向量数据库集合: {collection_name}")
+        # 创建集合
+        await client.create_collection(
+            collection_name=collection_name,
+            vectors_config=qdrant_models.VectorParams(
+                size=emotion_config.EMBEDDING_DIMENSION,
+                distance=qdrant_models.Distance.COSINE,
+            ),
+        )
+        logger.success(f"表情包向量数据库集合 {collection_name} 创建成功")
+    else:
+        logger.info(f"表情包向量数据库集合 {collection_name} 已存在")
 
 
 # region: 表情包系统数据模型
@@ -161,8 +165,6 @@ class EmotionStore(BaseModel):
 
 
 # region: 表情包工具方法
-
-
 async def load_emotion_store() -> EmotionStore:
     """加载表情包存储"""
     data = await store.get(store_key="emotion_store")
@@ -176,13 +178,14 @@ async def save_emotion_store(emotion_store: EmotionStore):
 
 async def generate_embedding(text: str) -> List[float]:
     """生成文本嵌入向量"""
+    model_group: ModelConfigGroup = core_config.get_model_group_info(emotion_config.EMBEDDING_MODEL)
 
     embedding_vector = await gen_openai_embeddings(
-        model=get_model_group_info(emotion_config.EMBEDDING_MODEL).CHAT_MODEL,
+        model=model_group.CHAT_MODEL,
         input=text,
         dimensions=emotion_config.EMBEDDING_DIMENSION,
-        api_key=get_model_group_info(emotion_config.EMBEDDING_MODEL).API_KEY,
-        base_url=get_model_group_info(emotion_config.EMBEDDING_MODEL).BASE_URL,
+        api_key=model_group.API_KEY,
+        base_url=model_group.BASE_URL,
     )
 
     vector_dimension = len(embedding_vector)
@@ -308,14 +311,24 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message=f"喵呜... 生成查询向量失败了: {e!s}")
         return
 
+    # 获取Qdrant客户端
+    client = await get_qdrant_client()
+
     # 进行向量搜索
-    results = emotion_collection.query(
-        query_embeddings=[query_embedding],
-        n_results=emotion_config.MAX_SEARCH_RESULTS,
-    )
+    try:
+        search_results = await client.search(
+            collection_name=plugin.get_vector_collection_name(),
+            query_vector=query_embedding,
+            limit=emotion_config.MAX_SEARCH_RESULTS,
+            with_payload=True,  # 确保返回payload以获取原始emotion_id
+        )
+    except Exception as e:
+        logger.error(f"向量搜索失败: {e}")
+        await finish_with(matcher, message=f"喵呜... 搜索失败了: {e!s}")
+        return
 
     # 检查是否有结果
-    if not results or not results["ids"] or not results["ids"][0]:
+    if not search_results:
         await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的表情包呢...")
         return
 
@@ -327,7 +340,13 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     found_valid_results = False
 
     # 处理搜索结果
-    for i, emotion_id in enumerate(results["ids"][0], 1):
+    for i, result in enumerate(search_results, 1):
+        # 从payload中获取原始emotion_id
+        emotion_id = result.payload.get("emotion_id") if result.payload else None
+        if not emotion_id:
+            # 向后兼容：如果没有emotion_id，尝试使用十六进制字符串
+            emotion_id = format(result.id, "x")
+
         metadata = emotion_store.get_emotion(emotion_id)
         if not metadata:
             continue
@@ -356,8 +375,13 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         # 加载表情包存储
         emotion_store = await load_emotion_store()
 
+        # 获取Qdrant客户端并查询集合信息
+        client = await get_qdrant_client()
+        collection_info = await client.get_collection(plugin.get_vector_collection_name())
+
         # 统计信息
         total_count = len(emotion_store.emotions)
+        vector_count = collection_info.vectors_count if collection_info else 0
         all_tags = set()
         for metadata in emotion_store.emotions.values():
             all_tags.update(metadata.tags)
@@ -366,7 +390,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         sorted_tags = sorted(all_tags)[:32]
         tags_str = "、".join(sorted_tags) if sorted_tags else "暂无标签"
 
-        message = f"喵~ 这是当前的表情包统计信息：\n总数量：{total_count} 个\n标签集合（top 32）：{tags_str}"
+        message = f"喵~ 这是当前的表情包统计信息：\n总数量：{total_count} 个\n向量数量：{vector_count} 个\n标签集合（top 32）：{tags_str}"
     except Exception as e:
         logger.error(f"统计表情包失败: {e}")
         message = f"喵呜... 统计失败了: {e!s}"
@@ -419,6 +443,131 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=_message)
 
 
+@on_command("emo_reindex", aliases={"emo-reindex"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if "-y" not in cmd_content:
+        await finish_with(matcher, message="喵~ 请输入 -y 确认重建表情包索引哦～")
+        return
+
+    # 第一步：加载所有表情包元数据
+    emotion_store = await load_emotion_store()
+    total_emotions = len(emotion_store.emotions)
+
+    if total_emotions == 0:
+        await finish_with(matcher, message="喵~ 当前没有任何表情包需要重建索引呢～")
+        return
+
+    # 告知开始处理
+    await matcher.send(f"喵~ 开始重建 {total_emotions} 个表情包的索引，这可能需要一些时间...")
+
+    # 获取Qdrant客户端
+    client = await get_qdrant_client()
+    if client is None:
+        await finish_with(matcher, message="喵呜... 无法连接到向量数据库，重建索引失败了～")
+        return
+
+    collection_name = plugin.get_vector_collection_name()
+
+    # 清空或创建集合
+    try:
+        # 检查集合是否存在
+        collections = await client.get_collections()
+        collection_names = [collection.name for collection in collections.collections]
+
+        if collection_name in collection_names:
+            # 删除现有集合
+            await client.delete_collection(collection_name=collection_name)
+            logger.info(f"已删除现有集合: {collection_name}")
+
+        # 创建新集合
+        await client.create_collection(
+            collection_name=collection_name,
+            vectors_config=qdrant_models.VectorParams(
+                size=emotion_config.EMBEDDING_DIMENSION,
+                distance=qdrant_models.Distance.COSINE,
+            ),
+        )
+        logger.info(f"已创建新集合: {collection_name}")
+
+    except Exception as e:
+        logger.error(f"重置向量集合失败: {e}")
+        await finish_with(matcher, message=f"喵呜... 重置向量集合失败: {e!s}")
+        return
+
+    # 进度报告变量
+    success_count = 0
+    error_count = 0
+    missing_file_count = 0
+
+    # 批处理相关变量
+    batch_size = 50  # 每批处理的表情包数量
+    current_batch = []
+
+    # 时间跟踪变量
+    last_progress_time = time.time()
+    progress_interval = 60  # 进度报告间隔，单位秒（1分钟）
+
+    # 处理每个表情包
+    for emotion_id, metadata in emotion_store.emotions.items():
+        try:
+            # 检查文件是否存在
+            file_path = Path(metadata.file_path)
+            if not file_path.exists():
+                logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
+                missing_file_count += 1
+                continue
+
+            # 生成嵌入向量
+            embedding_text = f"{metadata.description} {' '.join(metadata.tags)}"
+            embedding = await generate_embedding(embedding_text)
+
+            # 添加到当前批次
+            current_batch.append(
+                qdrant_models.PointStruct(
+                    id=int(emotion_id, 16),  # 将十六进制字符串转换为整数
+                    vector=embedding,
+                    payload={
+                        "description": metadata.description,
+                        "tags": metadata.tags,
+                        "emotion_id": emotion_id,  # 保存原始ID以便后续检索
+                    },
+                ),
+            )
+
+            # 如果达到批处理大小或是最后一个，则提交批次
+            if len(current_batch) >= batch_size or emotion_id == list(emotion_store.emotions.keys())[-1]:
+                await client.upsert(
+                    collection_name=collection_name,
+                    points=current_batch,
+                )
+                # 清空当前批次
+                current_batch = []
+
+            success_count += 1
+
+            # 按时间间隔更新进度（每1分钟一次）
+            current_time = time.time()
+            if current_time - last_progress_time >= progress_interval:
+                await matcher.send(f"喵~ 已成功处理 {success_count}/{total_emotions} 个表情包...")
+                last_progress_time = current_time
+
+            await asyncio.sleep(0.1)
+
+        except Exception as e:
+            logger.error(f"处理表情包失败: {emotion_id}, 错误: {e}")
+            error_count += 1
+
+    # 最终统计
+    message = f"喵~ 表情包索引重建完成！\n总计: {total_emotions} 个\n成功: {success_count} 个\n失败: {error_count} 个\n文件缺失: {missing_file_count} 个"
+
+    if error_count > 0:
+        message += "\n有一些表情包处理失败了，请查看日志获取详细信息～"
+
+    await finish_with(matcher, message=message)
+
+
 # endregion: 表情包命令
 
 # region: 表情包提示注入
@@ -442,7 +591,6 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
 
 
 # endregion: 表情包提示注入
-
 
 # region: 表情包沙盒方法
 
@@ -528,21 +676,38 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             # 生成嵌入向量
             embedding = await generate_embedding(f"{description} {' '.join(tags)}")
 
-            # 先删除旧向量，再添加新向量
-            try:
-                # 先尝试删除旧向量
-                emotion_collection.delete(ids=[duplicate_id])
-                logger.info(f"已删除旧向量: {duplicate_id}")
-            except Exception as e:
-                logger.warning(f"删除旧向量失败，可能不存在: {e}")
+            # 获取Qdrant客户端
+            client = await get_qdrant_client()
 
-            # 添加新向量
-            emotion_collection.add(
-                ids=[duplicate_id],
-                embeddings=[embedding],
-                metadatas=[{"description": description, "tags": ",".join(tags)}],
+            # 更新Qdrant向量数据库中的向量
+            try:
+                # 先删除旧点
+                await client.delete(
+                    collection_name=plugin.get_vector_collection_name(),
+                    points_selector=qdrant_models.PointIdsList(
+                        points=[duplicate_id],
+                    ),
+                )
+                logger.info(f"已删除Qdrant中的旧点: {duplicate_id}")
+            except Exception as e:
+                logger.warning(f"删除Qdrant中的旧点失败，可能不存在: {e}")
+
+            # 添加新点
+            await client.upsert(
+                collection_name=plugin.get_vector_collection_name(),
+                points=[
+                    qdrant_models.PointStruct(
+                        id=int(duplicate_id, 16),  # 将十六进制字符串转换为整数
+                        vector=embedding,
+                        payload={
+                            "description": description,
+                            "tags": tags,
+                            "emotion_id": duplicate_id,  # 保存原始ID以便后续检索
+                        },
+                    ),
+                ],
             )
-            logger.info(f"已添加新向量: {duplicate_id}")
+            logger.info(f"已添加新向量到Qdrant: {duplicate_id}")
 
             await save_emotion_store(emotion_store)
             return duplicate_id
@@ -567,13 +732,25 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
         # 生成嵌入向量
         embedding = await generate_embedding(f"{description} {' '.join(tags)}")
 
-        # 添加到向量数据库
-        emotion_collection.add(
-            ids=[emotion_id],
-            embeddings=[embedding],
-            metadatas=[{"description": description, "tags": ",".join(tags)}],
+        # 获取Qdrant客户端
+        client = await get_qdrant_client()
+
+        # 添加到Qdrant向量数据库
+        await client.upsert(
+            collection_name=plugin.get_vector_collection_name(),
+            points=[
+                qdrant_models.PointStruct(
+                    id=int(emotion_id, 16),  # 将十六进制字符串转换为整数
+                    vector=embedding,
+                    payload={
+                        "description": description,
+                        "tags": tags,
+                        "emotion_id": emotion_id,  # 保存原始ID以便后续检索
+                    },
+                ),
+            ],
         )
-        logger.info(f"已添加表情包描述新向量: {emotion_id}")
+        logger.info(f"已添加表情包描述新向量到Qdrant: {emotion_id}")
     except Exception as e:
         raise ValueError(f"添加到向量数据库失败: {e}") from e
     await message_service.push_system_message(
@@ -642,21 +819,38 @@ async def update_emotion(
     embedding_text = f"{description} {' '.join(tags)}"
     embedding = await generate_embedding(embedding_text)
 
-    # 先删除旧向量，再添加新向量
-    try:
-        # 先尝试删除旧向量
-        emotion_collection.delete(ids=[emotion_id])
-        logger.info(f"已删除旧向量: {emotion_id}")
-    except Exception as e:
-        logger.warning(f"删除旧向量失败，可能不存在: {e}")
+    # 获取Qdrant客户端
+    client = await get_qdrant_client()
 
-    # 添加新向量
-    emotion_collection.add(
-        ids=[emotion_id],
-        embeddings=[embedding],
-        metadatas=[{"description": description, "tags": ",".join(tags)}],
+    # 更新Qdrant向量数据库中的向量
+    try:
+        # 先删除旧点
+        await client.delete(
+            collection_name=plugin.get_vector_collection_name(),
+            points_selector=qdrant_models.PointIdsList(
+                points=[emotion_id],
+            ),
+        )
+        logger.info(f"已删除Qdrant中的旧点: {emotion_id}")
+    except Exception as e:
+        logger.warning(f"删除Qdrant中的旧点失败，可能不存在: {e}")
+
+    # 添加新点
+    await client.upsert(
+        collection_name=plugin.get_vector_collection_name(),
+        points=[
+            qdrant_models.PointStruct(
+                id=int(emotion_id, 16),  # 将十六进制字符串转换为整数
+                vector=embedding,
+                payload={
+                    "description": description,
+                    "tags": tags,
+                    "emotion_id": emotion_id,  # 保存原始ID以便后续检索
+                },
+            ),
+        ],
     )
-    logger.info(f"已添加新向量: {emotion_id}")
+    logger.info(f"已添加新向量到Qdrant: {emotion_id}")
 
     await message_service.push_system_message(
         _ctx.from_chat_key,
@@ -716,10 +910,19 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
 
     # 从向量数据库中删除
     try:
-        emotion_collection.delete(ids=[emotion_id])
-        logger.info(f"已从向量数据库删除表情包: {emotion_id}")
+        # 获取Qdrant客户端
+        client = await get_qdrant_client()
+
+        # 从Qdrant删除点
+        await client.delete(
+            collection_name=plugin.get_vector_collection_name(),
+            points_selector=qdrant_models.PointIdsList(
+                points=[int(emotion_id, 16)],
+            ),
+        )
+        logger.info(f"已从Qdrant中删除表情包: {emotion_id}")
     except Exception as e:
-        logger.warning(f"从向量数据库删除表情包失败，可能不存在: {e}")
+        logger.warning(f"从Qdrant删除表情包失败，可能不存在: {e}")
 
     # 尝试删除文件
     try:
@@ -821,14 +1024,27 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     # 生成查询向量
     query_embedding = await generate_embedding(query)
 
+    # 获取Qdrant客户端
+    client = await get_qdrant_client()
+
     # 进行向量搜索
-    results = emotion_collection.query(
-        query_embeddings=[query_embedding],
-        n_results=search_limit,
-    )
+    try:
+        search_results = await client.search(
+            collection_name=plugin.get_vector_collection_name(),
+            query_vector=query_embedding,
+            limit=search_limit,
+            with_payload=True,  # 确保返回payload以获取原始emotion_id
+        )
+    except Exception as e:
+        logger.error(f"向量搜索失败: {e}")
+        msg = OpenAIChatMessage.from_text(
+            "assistant",
+            f"Failed to search emotions: {e}. Please try again later or check your query.",
+        )
+        return msg.to_dict()
 
     # 检查是否有结果
-    if not results or not results["ids"] or not results["ids"][0]:
+    if not search_results:
         msg = OpenAIChatMessage.from_text(
             "assistant",
             f"No emotions found for query: '{query}'. Try another search term or collect more emotions.",
@@ -841,7 +1057,13 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     # 构建多模态消息
     msg = OpenAIChatMessage.from_text("user", f"Here are the emotions You have collected for '{query}':")
 
-    for i, emotion_id in enumerate(results["ids"][0]):
+    for i, result in enumerate(search_results):
+        # 从payload中获取原始emotion_id
+        emotion_id = result.payload.get("emotion_id") if result.payload else None
+        if not emotion_id:
+            # 向后兼容：如果没有emotion_id，尝试使用十六进制字符串
+            emotion_id = format(result.id, "x")
+
         metadata = emotion_store.get_emotion(emotion_id)
         if not metadata:
             continue

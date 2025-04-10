@@ -325,6 +325,23 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"is_hidden": True},
     )
 
+    """Qdrant 配置"""
+    QDRANT_HOST: str = Field(
+        default="127.0.0.1",
+        title="Qdrant 主机",
+        json_schema_extra={"is_hidden": True},
+    )
+    QDRANT_PORT: int = Field(
+        default=6333,
+        title="Qdrant 端口",
+        json_schema_extra={"is_hidden": True},
+    )
+    QDRANT_API_KEY: str = Field(
+        default="",
+        title="Qdrant API Key",
+        json_schema_extra={"is_hidden": True, "is_secret": True},
+    )
+
     """Weave 配置"""
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
@@ -362,6 +379,12 @@ class PluginConfig(ConfigBase):
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
     )
     ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra={"is_hidden": True})
+
+    def get_model_group_info(self, model_name: str) -> ModelConfigGroup:
+        try:
+            return self.MODEL_GROUPS[model_name]
+        except KeyError as e:
+            raise KeyError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
 
 
 try:
