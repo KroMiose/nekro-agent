@@ -17,8 +17,8 @@ from nekro_agent.services.plugin.collector import plugin_collector
 class DefaultPreset(BaseModel):
     """默认人设"""
 
-    name: str = config.AI_CHAT_PRESET_NAME
-    content: str = config.AI_CHAT_PRESET_SETTING
+    name: str
+    content: str
 
 
 class DBChatChannel(Model):
@@ -101,5 +101,5 @@ class DBChatChannel(Model):
         """获取人设"""
         preset = await DBPreset.get_or_none(id=self.preset_id)
         if not preset:
-            return DefaultPreset()
+            return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
         return preset
