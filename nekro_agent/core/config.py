@@ -47,6 +47,23 @@ class ModelConfigGroup(ConfigBase):
 class PluginConfig(ConfigBase):
     """插件配置"""
 
+    """Nekro Cloud 云服务配置"""
+    ENABLE_NEKRO_CLOUD: bool = Field(
+        default=True,
+        title="启用 NekroAI 云服务",
+        description=(
+            "是否启用 NekroAI 云服务，启用后可使用 NekroAI 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
+            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
+        ),
+    )
+    NEKRO_CLOUD_API_KEY: str = Field(
+        default="",
+        title="NekroAI 云服务 API Key",
+        json_schema_extra={"is_secret": True, "placeholder": "nk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
+        description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
+    )
+    ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra={"is_hidden": True})
+
     """应用配置"""
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
@@ -82,17 +99,17 @@ class PluginConfig(ConfigBase):
                 ENABLE_VISION=True,
                 ENABLE_COT=True,
             ),
-            "openai": ModelConfigGroup(
-                CHAT_MODEL="gpt-4o",
-                CHAT_PROXY="",
-                BASE_URL="https://api.openai.com/v1",
-                API_KEY="",
-                MODEL_TYPE="chat",
-                ENABLE_VISION=True,
-                ENABLE_COT=True,
-            ),
-            "draw": ModelConfigGroup(
+            "default-draw": ModelConfigGroup(
                 CHAT_MODEL="Kolors",
+                CHAT_PROXY="",
+                BASE_URL="https://api.nekro.ai/v1",
+                API_KEY="",
+                MODEL_TYPE="draw",
+                ENABLE_VISION=False,
+                ENABLE_COT=False,
+            ),
+            "default-draw-chat": ModelConfigGroup(
+                CHAT_MODEL="gemini-2.0-flash-exp-image-generation",
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
@@ -126,7 +143,7 @@ class PluginConfig(ConfigBase):
         description="当主模型组不可用时, 使用备用模型组",
     )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
-        default="",
+        default="default",
         title="调试/Agent 迁移模型组",
         json_schema_extra={"ref_model_groups": True},
         description="主模型组编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
@@ -209,11 +226,6 @@ class PluginConfig(ConfigBase):
         title="视觉图片大小限制 (KB)",
         description="每次传递的图片大小限制，超出此大小的图片会被自动压缩到限制内传递",
     )
-    AI_VOICE_CHARACTER: str = Field(
-        default="lucy-voice-xueling",
-        title="语音角色",
-        description="该功能使用 QQ 群中的 AI 声聊能力，使用 `/ai_voices` 命令查看所有可用角色",
-    )
 
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
@@ -238,7 +250,7 @@ class PluginConfig(ConfigBase):
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")
     SANDBOX_RUNNING_TIMEOUT: int = Field(
-        default=60,
+        default=120,
         title="沙盒超时时间 (秒)",
         description="每个沙盒容器最长运行时间，超过该时间沙盒容器会被强制停止",
     )
@@ -348,7 +360,7 @@ class PluginConfig(ConfigBase):
         description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
         json_schema_extra={"placeholder": "例: http://<服务器 IP>:<NapCat 端口>/webui"},
     )
-    NAPCAT_CONTAINER_NAME: str = Field(default="napcat", title="NapCat 容器名称")
+    NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
 
     """插件配置"""
     PLUGIN_ENABLED: List[str] = Field(
@@ -357,23 +369,6 @@ class PluginConfig(ConfigBase):
         description="启用插件 key 列表",
         json_schema_extra={"is_hidden": True},
     )
-
-    """Nekro Cloud 云服务配置"""
-    ENABLE_NEKRO_CLOUD: bool = Field(
-        default=True,
-        title="启用 NekroAI 云服务",
-        description=(
-            "是否启用 NekroAI 云服务，启用后可使用 NekroAI 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
-            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
-        ),
-    )
-    NEKRO_CLOUD_API_KEY: str = Field(
-        default="",
-        title="NekroAI 云服务 API Key",
-        json_schema_extra={"is_secret": True, "placeholder": "nk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"},
-        description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
-    )
-    ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra={"is_hidden": True})
 
     def get_model_group_info(self, model_name: str) -> ModelConfigGroup:
         try:

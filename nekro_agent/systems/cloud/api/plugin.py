@@ -108,7 +108,6 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
             response = await client.get(url=f"/api/plugin/{module_name}")
             response.raise_for_status()
             data = response.json()
-            logger.info(f"获取插件详情响应: {data}")
             return PluginDetailResponse(**data)
     except Exception as e:
         logger.error(f"获取插件详情发生错误: {e}")
@@ -152,7 +151,6 @@ async def list_plugins(
             )
             response.raise_for_status()
             data = response.json()
-            logger.info(f"查询插件列表响应: {data}")
             return PluginListResponse(**data)
     except Exception as e:
         logger.error(f"查询插件列表发生错误: {e}")

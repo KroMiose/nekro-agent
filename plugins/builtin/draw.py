@@ -31,7 +31,7 @@ class DrawConfig(ConfigBase):
     """绘画配置"""
 
     USE_DRAW_MODEL_GROUP: str = Field(
-        default="default-draw",
+        default="default-draw-chat",
         title="绘图模型组",
         json_schema_extra={"ref_model_groups": True, "required": True},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",

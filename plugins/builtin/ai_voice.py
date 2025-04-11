@@ -4,7 +4,6 @@ from nonebot.params import CommandArg
 from pydantic import Field
 
 from nekro_agent.api import context, core
-from nekro_agent.api.core import config as global_config
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.schemas.chat_message import ChatType
@@ -25,7 +24,7 @@ class AIVoiceConfig(ConfigBase):
     """AI语音配置"""
 
     AI_VOICE_CHARACTER: str = Field(
-        default=global_config.AI_VOICE_CHARACTER,
+        default="lucy-voice-xueling",
         title="AI语音角色",
         description="使用命令 `/ai_voices` 可查看所有可用角色",
     )

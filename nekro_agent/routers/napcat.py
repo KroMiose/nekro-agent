@@ -129,7 +129,7 @@ ADAPTER_TEMPLATE = """
       {{
         "enable": true,
         "name": "ws",
-        "url": "ws://nekro_agent:{port}/onebot/v11/ws",
+        "url": "ws://{instance_name}:{port}/onebot/v11/ws",
         "reportSelfMessage": false,
         "messagePostFormat": "array",
         "token": "{token}",
@@ -155,7 +155,14 @@ async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> R
         adapter_file = Path(NAPCAT_ONEBOT_ADAPTER_DIR) / f"onebot11_{config.BOT_QQ}.json"
         if not adapter_file.exists():
             logger.info(f"未找到适配器文件: {adapter_file}, 自动创建...")
-            adapter_file.write_text(ADAPTER_TEMPLATE.format(token=ONEBOT_ACCESS_TOKEN, port=OsEnv.EXPOSE_PORT), encoding="utf-8")
+            adapter_file.write_text(
+                ADAPTER_TEMPLATE.format(
+                    token=ONEBOT_ACCESS_TOKEN,
+                    instance_name=OsEnv.INSTANCE_NAME,
+                    port=OsEnv.EXPOSE_PORT,
+                ),
+                encoding="utf-8",
+            )
     try:
         container = await get_container()
         # 发送重启命令后立即返回，不等待重启完成

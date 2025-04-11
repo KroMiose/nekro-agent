@@ -25,7 +25,6 @@ async def get_community_stats_api(
     Returns:
         Ret: 返回结果
     """
-    logger.info(f"获取社区统计数据，强制刷新：{force_refresh}")
     stats = await get_community_stats(force_refresh=force_refresh)
 
     if stats is None:
