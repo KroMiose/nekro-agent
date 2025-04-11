@@ -1,4 +1,5 @@
 import hashlib
+import json
 import os
 import platform
 import socket
@@ -6,6 +7,9 @@ import uuid
 from pathlib import Path
 from typing import Dict, Optional
 
+import psutil
+
+from nekro_agent.core.config import CONFIG_DIR
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 
@@ -51,17 +55,31 @@ def generate_instance_id() -> str:
     if _INSTANCE_ID is not None:
         return _INSTANCE_ID
 
+    instance_id_path = CONFIG_DIR / "instance.json"
+    if instance_id_path.exists():
+        try:
+            instance_data = json.loads(instance_id_path.read_text())
+            _instance_id: str = instance_data["instance_id"]
+            _fingerprint: str = instance_data["fingerprint"]
+            if (
+                isinstance(_instance_id, str)
+                and isinstance(_fingerprint, str)
+                and _instance_id == hashlib.sha256(_fingerprint.encode()).hexdigest()
+            ):
+                _INSTANCE_ID = _instance_id
+                return _instance_id
+        except Exception as e:
+            logger.warning(f"读取实例ID失败: {e} 重新生成实例 ID...")
+
     # 收集环境信息
     system_info = get_system_info()
 
     # 获取cpu信息
     try:
-        import psutil
-
         cpu_count = psutil.cpu_count()
         memory_info = str(psutil.virtual_memory().total)
     except ImportError:
-        logger.warning("psutil库未安装，无法获取详细硬件信息")
+        logger.warning("psutil 库未安装，无法获取硬件信息")
         cpu_count = os.cpu_count() or 0
         memory_info = "unknown"
 
@@ -93,6 +111,7 @@ def generate_instance_id() -> str:
     )
 
     # 生成 SHA256 哈希
-    instance_id = hashlib.sha256(fingerprint.encode()).hexdigest()
-    _INSTANCE_ID = instance_id
-    return instance_id
+    _INSTANCE_ID = hashlib.sha256(fingerprint.encode()).hexdigest()
+    instance_id_path.parent.mkdir(parents=True, exist_ok=True)
+    instance_id_path.write_text(json.dumps({"instance_id": _INSTANCE_ID, "fingerprint": fingerprint}))
+    return _INSTANCE_ID

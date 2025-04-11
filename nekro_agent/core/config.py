@@ -7,7 +7,8 @@ from .core_utils import ConfigBase
 from .os_env import OsEnv
 
 CONFIG_PATH = Path(OsEnv.DATA_DIR) / "configs" / "nekro-agent.yaml"
-CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+CONFIG_DIR = Path(OsEnv.DATA_DIR) / "configs"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ModelConfigGroup(ConfigBase):
