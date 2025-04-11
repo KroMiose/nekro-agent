@@ -31,6 +31,8 @@ async def get_all_ext_meta_data() -> List[dict]:
             "enabled": plugin.is_enabled,
             "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
             "url": plugin.url or "",
+            "isBuiltin": plugin.is_builtin,
+            "isPackage": plugin.is_package,
         }
         for plugin in plugins
     ]
@@ -75,6 +77,8 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
         "methods": methods,
         "webhooks": webhooks,
+        "isBuiltin": plugin.is_builtin,
+        "isPackage": plugin.is_package,
     }
 
 

@@ -290,13 +290,13 @@ async def create_cloud_plugin(
         return Ret.fail(msg=f"创建失败: {e}")
 
 
-@router.delete("/plugin/{module_name}", summary="删除云端插件")
+@router.delete("/plugin/{module_name}", summary="下架云端插件")
 @require_role(Role.Admin)
 async def delete_cloud_plugin(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """删除云端插件"""
+    """下架云端插件"""
     try:
         # 调用云端接口删除插件
         response = await delete_plugin(module_name)
@@ -308,6 +308,6 @@ async def delete_cloud_plugin(
         return Ret.success(msg=f"插件 '{module_name}' 已成功从云端删除")
 
     except Exception as e:
-        logger.error(f"删除云端插件 '{module_name}' 失败: {e}")
+        logger.error(f"下架云端插件 '{module_name}' 失败: {e}")
         # 处理调用过程中的其他异常
         return Ret.fail(msg=f"删除插件失败: {e}")

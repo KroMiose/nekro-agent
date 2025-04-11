@@ -9,7 +9,7 @@ import sys
 from datetime import datetime
 from importlib import import_module
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, List, Optional, Tuple
+from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Tuple
 
 import git
 from pydantic import BaseModel
@@ -122,8 +122,13 @@ class PluginCollector:
         for item in self.packages_dir.iterdir():
             await self._try_load_plugin(item, is_package=True)
 
-    async def unload_plugin_by_module_name(self, module_name: str) -> None:
-        """卸载指定插件"""
+    async def unload_plugin_by_module_name(self, module_name: str, scope: Literal["all", "package", "local"] = "all") -> None:
+        """卸载指定插件
+
+        Args:
+            module_name: 插件模块名
+            scope: 卸载范围，可选值：all(所有)、package(仅插件包)、local(仅本地插件)
+        """
         if module_name.endswith(".py"):
             module_name = module_name[: -len(".py")]
         if module_name.endswith("/__init__"):
@@ -133,6 +138,19 @@ class PluginCollector:
 
         plugin = self.get_plugin_by_module_name(module_name)
         if not plugin:
+            return
+
+        # 根据scope限制卸载范围
+        if scope == "package" and not plugin.is_package:
+            logger.warning(f"插件 {plugin.name} 不是插件包，跳过卸载")
+            return
+
+        if scope == "local" and (plugin.is_builtin or plugin.is_package):
+            logger.warning(f"插件 {plugin.name} 不是本地插件，跳过卸载")
+            return
+
+        if scope != "all" and plugin.is_builtin:
+            logger.warning(f"插件 {plugin.name} 是内置插件，跳过卸载")
             return
 
         if plugin.cleanup_method:
@@ -145,6 +163,8 @@ class PluginCollector:
 
         if plugin.module_name in self.loaded_module_names:
             self.loaded_module_names.remove(plugin.module_name)
+
+        logger.info(f"插件 {plugin.name} 卸载完成")
 
     async def reload_plugin_by_module_name(self, module_name: str):
         """重新加载指定插件"""
@@ -236,7 +256,7 @@ class PluginCollector:
         if auto_reload:
             await self.reload_plugin_by_module_name(module_name)
 
-    def remove_package(self, module_name: str) -> None:
+    async def remove_package(self, module_name: str) -> None:
         """删除插件包
 
         Args:
@@ -246,6 +266,10 @@ class PluginCollector:
         if not package_dir.exists():
             raise ValueError(f"插件包 `{module_name}` 不存在")
 
+        # 先卸载插件，从插件收集器中移除，限制只卸载插件包
+        await self.unload_plugin_by_module_name(module_name, scope="package")
+
+        # 然后删除文件和包信息
         shutil.rmtree(package_dir)
         self.package_data.remove_package(module_name)
 

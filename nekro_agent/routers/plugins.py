@@ -216,3 +216,34 @@ async def reset_plugin_data(
     except Exception as e:
         logger.error(f"重置插件数据失败: {e}")
         return Ret.error(msg=f"重置失败: {e!s}")
+
+
+@router.delete("/package/{module_name}", summary="删除插件包")
+@require_role(Role.Admin)
+async def remove_package(
+    module_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """删除插件包（市场插件）"""
+    try:
+        # remove_package方法现在包含了卸载步骤
+        await plugin_collector.remove_package(module_name)
+        return Ret.success(msg=f"插件包 {module_name} 删除成功")
+    except Exception as e:
+        logger.error(f"删除插件包失败: {e}")
+        return Ret.error(msg=f"删除失败: {e!s}")
+
+
+@router.post("/package/update/{module_name}", summary="更新插件包")
+@require_role(Role.Admin)
+async def update_package(
+    module_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """更新插件包（市场插件）"""
+    try:
+        await plugin_collector.update_package(module_name, auto_reload=True)
+        return Ret.success(msg=f"插件包 {module_name} 更新成功")
+    except Exception as e:
+        logger.error(f"更新插件包失败: {e}")
+        return Ret.error(msg=f"更新失败: {e!s}")

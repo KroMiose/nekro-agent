@@ -63,6 +63,7 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../services/api/plugins'
+import { useNavigate } from 'react-router-dom'
 
 // 自定义提示样式，支持富文本
 const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -99,6 +100,16 @@ const CONFIG_TYPE_COLORS: Record<string, 'primary' | 'success' | 'warning' | 'in
   float: 'info',
   bool: 'success',
   list: 'primary',
+}
+
+// 插件类型对应的颜色映射
+const PLUGIN_TYPE_COLORS: Record<
+  string,
+  'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default'
+> = {
+  builtin: 'primary',
+  package: 'info',
+  local: 'warning',
 }
 
 // 添加 server_addr 配置
@@ -217,7 +228,10 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [expandedDataRows, setExpandedDataRows] = useState<Set<number>>(new Set())
+  const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   // 列表编辑状态
   const [listEditState, setListEditState] = useState<{
@@ -354,6 +368,41 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     },
   })
 
+  // 删除插件包
+  const removePackageMutation = useMutation({
+    mutationFn: () => pluginsApi.removePackage(plugin.moduleName),
+    onSuccess: () => {
+      setMessage(`插件包 ${plugin.name} 已删除～`)
+      queryClient.invalidateQueries({ queryKey: ['plugins'] })
+      onBack() // 返回插件列表
+    },
+    onError: (error: Error) => {
+      setMessage(`删除失败: ${error.message}`)
+    },
+  })
+
+  // 更新插件包
+  const updatePackageMutation = useMutation({
+    mutationFn: async () => {
+      if (!plugin.moduleName) {
+        throw new Error('无法获取有效的模块名')
+      }
+      const result = await pluginsApi.updatePackage(plugin.moduleName)
+      if (!result.success) {
+        throw new Error(result.errorMsg || '更新失败，请检查后端日志')
+      }
+      return true
+    },
+    onSuccess: () => {
+      setMessage(`插件包 ${plugin.name} 已更新至最新版本～`)
+      queryClient.invalidateQueries({ queryKey: ['plugins'] })
+      queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
+    },
+    onError: (error: Error) => {
+      setMessage(error.message)
+    },
+  })
+
   // 追踪哪些配置项已被编辑
   const [editingStatus, setEditingStatus] = useState<Record<string, boolean>>({})
 
@@ -401,6 +450,20 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [activeTab, editingStatus, handleSaveConfig])
+
+  // 获取插件类型
+  const getPluginType = () => {
+    if (plugin.isBuiltin) return 'builtin'
+    if (plugin.isPackage) return 'package'
+    return 'local'
+  }
+
+  // 获取插件类型中文名
+  const getPluginTypeText = () => {
+    if (plugin.isBuiltin) return '内置'
+    if (plugin.isPackage) return '云端'
+    return '本地'
+  }
 
   // 渲染配置输入控件
   const renderConfigInput = (config: PluginConfig) => {
@@ -647,6 +710,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     }
   }
 
+  // 按钮点击处理函数
+  const handleNavigateToEditor = () => {
+    navigate('/plugins/editor')
+  }
+
   if (!plugin) return null
 
   return (
@@ -668,14 +736,40 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             size="small"
             sx={{ ml: 1 }}
           />
+          <Chip
+            label={getPluginTypeText()}
+            size="small"
+            color={PLUGIN_TYPE_COLORS[getPluginType()]}
+            sx={{ ml: 1 }}
+          />
         </Typography>
         <ButtonGroup variant="outlined" sx={{ mr: 1 }}>
+          {!plugin.isBuiltin && (
+            <Button
+              startIcon={<DeleteIcon />}
+              onClick={() =>
+                plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
+              }
+              color="error"
+            >
+              {plugin.isPackage ? '删除' : '编辑'}
+            </Button>
+          )}
+          {plugin.isPackage && (
+            <Button
+              startIcon={<RefreshIcon />}
+              onClick={() => setUpdateConfirmOpen(true)}
+              color="success"
+            >
+              更新
+            </Button>
+          )}
           <Button
             startIcon={<DeleteIcon />}
             onClick={() => setResetDataConfirmOpen(true)}
-            color="error"
+            color="warning"
           >
-            重置数据
+            重置
           </Button>
           <Button startIcon={<RefreshIcon />} onClick={() => setReloadConfirmOpen(true)}>
             重载
@@ -774,6 +868,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             </Typography>
             <Typography variant="body2">
               <strong>版本：</strong> {plugin.version}
+            </Typography>
+            <Typography variant="body2">
+              <strong>类型：</strong> {getPluginTypeText()}插件
             </Typography>
             <Typography variant="body2">
               <strong>链接：</strong>{' '}
@@ -1300,6 +1397,51 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         </DialogActions>
       </Dialog>
 
+      {/* 删除插件包确认对话框 */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle>确认删除插件包？</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            此操作将删除插件包 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
+          <Button
+            onClick={() => {
+              removePackageMutation.mutate()
+              setDeleteConfirmOpen(false)
+            }}
+            color="error"
+          >
+            确认删除
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 更新插件包确认对话框 */}
+      <Dialog open={updateConfirmOpen} onClose={() => setUpdateConfirmOpen(false)}>
+        <DialogTitle>确认更新插件包？</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            此操作将从远程仓库更新插件包 "{plugin.name}"
+            至最新版本。更新过程可能会导致当前配置变更，是否继续？
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setUpdateConfirmOpen(false)}>取消</Button>
+          <Button
+            onClick={() => {
+              updatePackageMutation.mutate()
+              setUpdateConfirmOpen(false)
+            }}
+            color="primary"
+          >
+            确认更新
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       <Snackbar
         open={!!message}
         autoHideDuration={3000}
@@ -1452,6 +1594,31 @@ export default function PluginsManagementPage() {
                                   sx={{ ml: 1, opacity: 0.6, fontSize: 16 }}
                                 />
                               </Tooltip>
+                            )}
+                            {/* 插件类型标签 */}
+                            {plugin.isBuiltin && (
+                              <Chip
+                                label="内置"
+                                size="small"
+                                color="primary"
+                                sx={{ ml: 1, height: 20 }}
+                              />
+                            )}
+                            {plugin.isPackage && (
+                              <Chip
+                                label="云端"
+                                size="small"
+                                color="info"
+                                sx={{ ml: 1, height: 20 }}
+                              />
+                            )}
+                            {!plugin.isBuiltin && !plugin.isPackage && (
+                              <Chip
+                                label="本地"
+                                size="small"
+                                color="warning"
+                                sx={{ ml: 1, height: 20 }}
+                              />
                             )}
                           </Box>
                         }

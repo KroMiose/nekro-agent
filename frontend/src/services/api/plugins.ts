@@ -28,6 +28,8 @@ export interface Plugin {
   webhooks: Webhook[]
   enabled: boolean
   hasConfig: boolean
+  isBuiltin: boolean // 是否为内置插件
+  isPackage: boolean // 是否为市场插件（包）
 }
 
 export interface PluginConfig {
@@ -305,6 +307,47 @@ export const pluginsApi = {
   getModelGroups: async () => {
     return configApi.getModelGroups()
   },
+
+  // 删除插件包（市场插件）
+  removePackage: async (moduleName: string): Promise<boolean> => {
+    try {
+      await axios.delete(`/plugins/package/${moduleName}`)
+      return true
+    } catch (error) {
+      console.error(`删除插件包 ${moduleName} 失败:`, error)
+      return false
+    }
+  },
+
+  // 更新插件包（市场插件）
+  updatePackage: async (moduleName: string): Promise<{ success: boolean; errorMsg?: string }> => {
+    try {
+      const response = await axios.post(`/plugins/package/update/${moduleName}`)
+      // 检查返回的结果
+      if (response.data.code !== 0) {
+        return { success: false, errorMsg: response.data.msg || '更新失败' }
+      }
+      return { success: true }
+    } catch (error: unknown) {
+      const err = error as {
+        response?: {
+          data?: {
+            msg?: string
+            detail?: unknown
+          }
+        }
+        message?: string
+      }
+
+      const errorMsg =
+        err.response?.data?.msg ||
+        (err.response?.data?.detail ? JSON.stringify(err.response.data.detail) : '') ||
+        err.message ||
+        '未知错误'
+      console.error(errorMsg)
+      return { success: false, errorMsg }
+    }
+  },
 }
 
 // 为了支持直接导入这些方法，我们也单独导出它们
@@ -326,6 +369,8 @@ export const getPluginData = pluginsApi.getPluginData
 export const deletePluginData = pluginsApi.deletePluginData
 export const resetPluginData = pluginsApi.resetPluginData
 export const getModelGroups = pluginsApi.getModelGroups
+export const removePackage = pluginsApi.removePackage
+export const updatePackage = pluginsApi.updatePackage
 
 export const streamGenerateCode = (
   filePath: string,
