@@ -90,8 +90,6 @@ async def init_vector_db():
             ),
         )
         logger.success(f"表情包向量数据库集合 {collection_name} 创建成功")
-    else:
-        logger.info(f"表情包向量数据库集合 {collection_name} 已存在")
 
 
 # region: 表情包系统数据模型

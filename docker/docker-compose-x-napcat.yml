@@ -7,15 +7,13 @@ services:
   # PostgreSQL 服务
   nekro_postgres:
     image: postgres:14
-    container_name: ${INSTANCE_NAME:-}postgres
+    container_name: ${INSTANCE_NAME:-}nekro_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DATABASE}
-    ports:
-      - "${POSTGRES_EXPOSE_PORT}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - nekro_postgres_data:/var/lib/postgresql/data
     networks:
       - nekro_network
     restart: unless-stopped
@@ -24,8 +22,6 @@ services:
   nekro_qdrant:
     image: qdrant/qdrant
     container_name: ${INSTANCE_NAME:-}nekro_qdrant
-    ports:
-      - "${QDRANT_EXPOSE_PORT}:6333"
     networks:
       - nekro_network
     environment:
@@ -47,8 +43,7 @@ services:
       - NEKRO_RUN_IN_DOCKER=true
       - NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD:-}
       - ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN:-}
-      - NEKRO_QDRANT_HOST=${QDRANT_HOST:-nekro_qdrant}
-      - NEKRO_QDRANT_PORT=${QDRANT_PORT:-6333}
+      - NEKRO_QDRANT_URL=${QDRANT_URL:-http://nekro_qdrant:6333}
       - NEKRO_QDRANT_API_KEY=${QDRANT_API_KEY:-}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
@@ -63,9 +58,9 @@ services:
     restart: unless-stopped
 
   # Napcat 服务
-  napcat:
+  nekro_napcat:
     image: mlikiowa/napcat-docker
-    container_name: ${INSTANCE_NAME:-}napcat
+    container_name: ${INSTANCE_NAME:-}nekro_napcat
     ports:
       - "${NAPCAT_EXPOSE_PORT:-6099}:6099"
     volumes:
@@ -77,10 +72,10 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-    name: ${INSTANCE_NAME:-}postgres_data
+  nekro_postgres_data:
+    name: ${INSTANCE_NAME:-}nekro_postgres_data
 
 networks:
   nekro_network:
-    name: ${INSTANCE_NAME:-}:network
+    name: ${INSTANCE_NAME:-}nekro_network
     driver: bridge

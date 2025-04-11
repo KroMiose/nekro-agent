@@ -326,14 +326,9 @@ class PluginConfig(ConfigBase):
     )
 
     """Qdrant 配置"""
-    QDRANT_HOST: str = Field(
-        default="127.0.0.1",
-        title="Qdrant 主机",
-        json_schema_extra={"is_hidden": True},
-    )
-    QDRANT_PORT: int = Field(
-        default=6333,
-        title="Qdrant 端口",
+    QDRANT_URL: str = Field(
+        default="http://127.0.0.1:6333",
+        title="Qdrant 地址",
         json_schema_extra={"is_hidden": True},
     )
     QDRANT_API_KEY: str = Field(

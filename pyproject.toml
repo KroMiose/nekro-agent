@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "1.0.0-alpha.8"
+version = "1.0.0-alpha.9"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
