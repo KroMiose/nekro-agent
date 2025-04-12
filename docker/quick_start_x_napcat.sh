@@ -172,6 +172,13 @@ if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/doc
     exit 1
 fi
 
+# 拉取服务镜像
+echo "拉取服务镜像..."
+if ! sudo docker-compose --env-file .env pull; then
+    echo "Error: 无法拉取服务镜像，请检查您的网络连接。"
+    exit 1
+fi
+
 # 从.env文件加载环境变量
 if [ -f .env ]; then
     # 使用 --env-file 参数而不是 export
