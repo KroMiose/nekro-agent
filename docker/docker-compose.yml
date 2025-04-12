@@ -22,10 +22,11 @@ services:
   nekro_qdrant:
     image: qdrant/qdrant
     container_name: ${INSTANCE_NAME:-}nekro_qdrant
-    networks:
-      - nekro_network
     environment:
       - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
+    networks:
+      - nekro_network
+    restart: unless-stopped
 
   # 主服务
   nekro_agent:
