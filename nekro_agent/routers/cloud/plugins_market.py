@@ -210,8 +210,9 @@ async def download_plugin(
             return Ret.fail(msg=f"下载插件失败: {e}")
 
         try:
-            await plugin_collector.reload_plugin_by_module_name(plugin_data.moduleName)
+            await plugin_collector.reload_plugin_by_module_name(plugin_data.moduleName, is_package=True)
         except Exception as e:
+            logger.exception(f"加载插件失败: {e}")
             return Ret.fail(msg=f"加载插件失败: {e}")
 
         return Ret.success(msg="下载成功，插件已安装")

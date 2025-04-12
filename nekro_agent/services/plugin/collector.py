@@ -138,6 +138,7 @@ class PluginCollector:
 
         plugin = self.get_plugin_by_module_name(module_name)
         if not plugin:
+            logger.warning(f"插件 `{module_name}` 不存在")
             return
 
         # 根据scope限制卸载范围
@@ -159,14 +160,13 @@ class PluginCollector:
 
         if plugin.key in self.loaded_plugins:
             del self.loaded_plugins[plugin.key]
-            self.loaded_module_names.remove(plugin.module_name)
 
         if plugin.module_name in self.loaded_module_names:
             self.loaded_module_names.remove(plugin.module_name)
 
         logger.info(f"插件 {plugin.name} 卸载完成")
 
-    async def reload_plugin_by_module_name(self, module_name: str):
+    async def reload_plugin_by_module_name(self, module_name: str, is_builtin: bool = False, is_package: bool = False):
         """重新加载指定插件"""
         fixed_module_name = module_name
         if module_name.endswith(".py"):
@@ -182,7 +182,7 @@ class PluginCollector:
 
         exists_paths = [p for p in [builtin_plugin_path, workdir_plugin_path, package_path] if p.exists()]
         if len(exists_paths) == 0:
-            return ValueError(f"插件 `{module_name}` 不存在")
+            raise ValueError(f"插件 `{module_name}` 不存在")
 
         if len(exists_paths) > 1:
             logger.warning(
@@ -201,12 +201,11 @@ class PluginCollector:
                 logger.info(f"插件 {loaded_plugin.name} 清理完成")
             if loaded_plugin.key in self.loaded_plugins:
                 del self.loaded_plugins[loaded_plugin.key]
-                self.loaded_module_names.remove(loaded_plugin.key)
             if loaded_plugin.module_name in self.loaded_module_names:
                 self.loaded_module_names.remove(loaded_plugin.module_name)
 
-        await self._try_load_plugin(real_path, is_builtin=False)
-        return None
+        # logger.debug(f"尝试加载插件: {real_path} 从 {fixed_module_name}")
+        await self._try_load_plugin(real_path, is_builtin=is_builtin, is_package=is_package)
 
     async def clone_package(
         self,
@@ -281,6 +280,8 @@ class PluginCollector:
             is_builtin: 是否为内置插件
             is_package: 是否为插件包
         """
+        if item_path.is_dir() and item_path.name == "__pycache__":
+            return False
         # 如果是Python文件
         if item_path.is_file() and item_path.suffix == ".py" and item_path.name != "__init__.py":
             module_path = f"{item_path.parent.name}.{item_path.stem}"
@@ -289,6 +290,11 @@ class PluginCollector:
         # 如果是目录且包含 __init__.py（Python包）
         if item_path.is_dir() and (item_path / "__init__.py").exists():
             module_path = f"{item_path.parent.name}.{item_path.name}"
+            await self._load_plugin_module(module_path, item_path, is_builtin, is_package)
+            return True
+        # 如果目录已经是完整的 __init__.py 文件
+        if item_path.is_file() and item_path.suffix == ".py" and item_path.name == "__init__.py":
+            module_path = f"{item_path.parent.parent.name}.{item_path.parent.name}"
             await self._load_plugin_module(module_path, item_path, is_builtin, is_package)
             return True
         return False
@@ -357,7 +363,10 @@ class PluginCollector:
         Args:
             module_name: 插件模块名
         """
-        return self.loaded_plugins.get(module_name)
+        for plugin in self.loaded_plugins.values():
+            if plugin.module_name == module_name:
+                return plugin
+        return None
 
     def get_all_plugins(self) -> List[NekroPlugin]:
         """获取所有已加载的插件

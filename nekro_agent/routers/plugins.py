@@ -230,7 +230,7 @@ async def remove_package(
         await plugin_collector.remove_package(module_name)
         return Ret.success(msg=f"插件包 {module_name} 删除成功")
     except Exception as e:
-        logger.error(f"删除插件包失败: {e}")
+        logger.exception(f"删除插件包失败: {e}")
         return Ret.error(msg=f"删除失败: {e!s}")
 
 
