@@ -24,6 +24,8 @@ services:
     container_name: ${INSTANCE_NAME:-}nekro_qdrant
     environment:
       - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY:-}
+    volumes:
+      - nekro_qdrant_data:/qdrant/storage:z
     networks:
       - nekro_network
     restart: unless-stopped
@@ -75,6 +77,8 @@ services:
 volumes:
   nekro_postgres_data:
     name: ${INSTANCE_NAME:-}nekro_postgres_data
+  nekro_qdrant_data:
+    name: ${INSTANCE_NAME}nekro_qdrant_data
 
 networks:
   nekro_network:
