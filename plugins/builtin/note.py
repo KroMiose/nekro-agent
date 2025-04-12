@@ -8,7 +8,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 笔记系统插件",
+    name="笔记系统插件",
     module_name="note",
     description="提供笔记系统功能，支持设置、获取、删除笔记",
     version="0.1.0",

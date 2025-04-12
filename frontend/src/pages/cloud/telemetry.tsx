@@ -274,8 +274,11 @@ export default function CommunityStats() {
     // 计算总数用于百分比计算
     const total = data.reduce((sum, item) => sum + item.count, 0)
 
+    // 先按版本字符串排序数据
+    const sortedData = [...data].sort((a, b) => a.version.localeCompare(b.version))
+
     // 增强数据，添加总数字段用于工具提示
-    const enhancedData = data.map(item => ({
+    const enhancedData = sortedData.map(item => ({
       ...item,
       total,
     }))
@@ -303,8 +306,8 @@ export default function CommunityStats() {
           </defs>
           <Pie
             data={enhancedData}
-            cx="50%"
-            cy="40%"
+            cx="40%"
+            cy="50%"
             labelLine={false}
             outerRadius={100}
             fill="#8884d8"
@@ -350,10 +353,10 @@ export default function CommunityStats() {
             wrapperStyle={{ zIndex: 1000, outline: 'none' }}
           />
           <Legend
-            layout="horizontal"
-            verticalAlign="bottom"
-            align="center"
-            wrapperStyle={{ paddingTop: 30 }}
+            layout="vertical"
+            verticalAlign="middle"
+            align="right"
+            wrapperStyle={{ paddingRight: 20 }}
             formatter={value => (
               <span
                 style={{

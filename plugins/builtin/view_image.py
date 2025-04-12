@@ -8,7 +8,7 @@ from nekro_agent.services.plugin.base import NekroPlugin, SandboxMethodType
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(
-    name="[NA] 图片查看插件",
+    name="图片查看插件",
     module_name="view_image",
     description="提供图片查看功能",
     version="0.1.0",

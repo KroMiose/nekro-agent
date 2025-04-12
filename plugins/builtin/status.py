@@ -12,7 +12,7 @@ from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 状态控制插件",
+    name="状态控制插件",
     module_name="status",
     description="角色状态控制，提高角色状态保持能力，提供状态管理和名片更新能力",
     version="0.1.0",

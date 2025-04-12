@@ -9,7 +9,7 @@ from nekro_agent.services.festival_service import FestivalService
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 定时器工具集",
+    name="定时器工具集",
     module_name="timer",
     description="提供主动触发、预定事件的能力，支持设置、清除定时器",
     version="0.1.0",

@@ -5,7 +5,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 群荣誉插件",
+    name="群荣誉插件",
     module_name="group_honor",
     description="提供群荣誉功能，支持设置用户特殊头衔",
     version="0.1.0",

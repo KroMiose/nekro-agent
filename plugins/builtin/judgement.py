@@ -8,7 +8,7 @@ from nekro_agent.core.config import config
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 风纪委员",
+    name="风纪委员",
     module_name="judgement",
     description="群管理工具集，提供禁言、踢出群成员、设置管理员等群管理功能",
     version="0.1.0",

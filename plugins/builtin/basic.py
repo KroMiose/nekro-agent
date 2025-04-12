@@ -21,7 +21,7 @@ from nekro_agent.tools.path_convertor import (
 )
 
 plugin = NekroPlugin(
-    name="[NA] 基础交互插件",
+    name="基础交互插件",
     module_name="basic",
     description="提供基础的聊天消息发送、图片/文件资源发送、用户头像获取、图片观察工具等基础功能",
     version="0.1.0",

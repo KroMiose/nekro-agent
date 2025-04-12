@@ -17,7 +17,7 @@ from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMet
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(
-    name="[NA] 绘画插件",
+    name="绘画插件",
     module_name="draw",
     description="学会画画！",
     version="0.1.0",

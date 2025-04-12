@@ -1506,11 +1506,39 @@ export default function PluginsManagementPage() {
   }
 
   // 过滤插件列表
-  const filteredPlugins = plugins.filter(
-    plugin =>
-      plugin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      plugin.description.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  const filteredPlugins = plugins
+    .filter(
+      plugin =>
+        plugin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        plugin.description.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // 基础交互插件(模块名为"basic")固定放在最前面
+      if (a.moduleName === 'basic') return -1
+      if (b.moduleName === 'basic') return 1
+      
+      // 优先按启用状态排序（启用的在前）
+      if (a.enabled !== b.enabled) {
+        return a.enabled ? -1 : 1
+      }
+      
+      // 按照插件类型排序：内置 -> 云端 -> 本地
+      const getTypeOrder = (plugin: Plugin) => {
+        if (plugin.isBuiltin) return 0
+        if (plugin.isPackage) return 1
+        return 2 // 本地插件
+      }
+      
+      const typeOrderA = getTypeOrder(a)
+      const typeOrderB = getTypeOrder(b)
+      
+      if (typeOrderA !== typeOrderB) {
+        return typeOrderA - typeOrderB
+      }
+      
+      // 最后按名称字母顺序排序
+      return a.name.localeCompare(b.name)
+    })
 
   return (
     <Box sx={{ display: 'flex', height: 'calc(100vh - 120px)', flexDirection: 'column', gap: 2 }}>
@@ -1584,6 +1612,31 @@ export default function PluginsManagementPage() {
                       <ListItemText
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {/* 插件类型标签 */}
+                            {plugin.isBuiltin && (
+                              <Chip
+                                label="内置"
+                                size="small"
+                                color="primary"
+                                sx={{ mr: 1, height: 20 }}
+                              />
+                            )}
+                            {plugin.isPackage && (
+                              <Chip
+                                label="云端"
+                                size="small"
+                                color="info"
+                                sx={{ mr: 1, height: 20 }}
+                              />
+                            )}
+                            {!plugin.isBuiltin && !plugin.isPackage && (
+                              <Chip
+                                label="本地"
+                                size="small"
+                                color="warning"
+                                sx={{ mr: 1, height: 20 }}
+                              />
+                            )}
                             <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
                               {plugin.name}
                             </Typography>
@@ -1594,31 +1647,6 @@ export default function PluginsManagementPage() {
                                   sx={{ ml: 1, opacity: 0.6, fontSize: 16 }}
                                 />
                               </Tooltip>
-                            )}
-                            {/* 插件类型标签 */}
-                            {plugin.isBuiltin && (
-                              <Chip
-                                label="内置"
-                                size="small"
-                                color="primary"
-                                sx={{ ml: 1, height: 20 }}
-                              />
-                            )}
-                            {plugin.isPackage && (
-                              <Chip
-                                label="云端"
-                                size="small"
-                                color="info"
-                                sx={{ ml: 1, height: 20 }}
-                              />
-                            )}
-                            {!plugin.isBuiltin && !plugin.isPackage && (
-                              <Chip
-                                label="本地"
-                                size="small"
-                                color="warning"
-                                sx={{ ml: 1, height: 20 }}
-                              />
                             )}
                           </Box>
                         }

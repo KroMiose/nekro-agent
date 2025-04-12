@@ -4,7 +4,7 @@ from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin
 
 # 创建插件实例
 plugin = NekroPlugin(
-    name="[NA] GitHub 消息推送",
+    name="GitHub 消息推送",
     module_name="github",
     description="接收 GitHub Webhook 消息并处理，支持订阅仓库消息",
     version="0.1.0",

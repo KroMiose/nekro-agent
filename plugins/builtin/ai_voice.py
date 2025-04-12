@@ -10,7 +10,7 @@ from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] AI 语音插件",
+    name="AI 语音插件",
     module_name="ai_voice",
     description="提供AI语音生成功能，支持将文本转为AI合成语音",
     version="0.1.0",

@@ -11,7 +11,7 @@ from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] 掷骰姬",
+    name="掷骰姬",
     module_name="dice",
     description="提供掷骰检定能力",
     version="0.1.0",

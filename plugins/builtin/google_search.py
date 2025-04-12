@@ -9,7 +9,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
-    name="[NA] Google搜索工具",
+    name="Google搜索工具",
     module_name="google_search",
     description="提供Google搜索功能，获取实时信息",
     version="0.1.0",

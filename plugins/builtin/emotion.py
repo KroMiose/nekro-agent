@@ -27,7 +27,7 @@ from nekro_agent.tools.path_convertor import (
 )
 
 plugin = NekroPlugin(
-    name="[NA] 表情包插件",
+    name="表情包插件",
     module_name="emotion",
     description="提供收集、搜索、使用表情包能力，使用Qdrant向量数据库",
     version="0.1.0",
