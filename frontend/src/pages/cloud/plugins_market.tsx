@@ -12,7 +12,6 @@ import {
   TextField,
   InputAdornment,
   IconButton,
-  Pagination,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -47,6 +46,7 @@ import {
   PluginCreateRequest,
 } from '../../services/api/cloud/plugins_market'
 import { formatLastActiveTime } from '../../utils/time'
+import PaginationStyled from '../../components/common/PaginationStyled'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -1391,17 +1391,12 @@ export default function PluginsMarket() {
               ))}
             </Grid>
 
-            {totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <Pagination
-                  count={totalPages}
-                  page={currentPage}
-                  onChange={handlePageChange}
-                  color="primary"
-                  disabled={loading}
-                />
-              </Box>
-            )}
+            <PaginationStyled
+              totalPages={totalPages}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
           </>
         ) : (
           !loading && (

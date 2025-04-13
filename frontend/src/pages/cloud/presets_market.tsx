@@ -13,7 +13,6 @@ import {
   TextField,
   InputAdornment,
   IconButton,
-  Pagination,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -31,6 +30,7 @@ import {
 import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
+import PaginationStyled from '../../components/common/PaginationStyled'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -382,7 +382,7 @@ export default function PresetsMarket() {
         })
 
         setPresets(data.items)
-        setTotalPages(data.totalPages)
+        setTotalPages(data.total_pages)
 
         if (data.items.length === 0 && data.total > 0 && page > 1) {
           // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
@@ -601,17 +601,12 @@ export default function PresetsMarket() {
               ))}
             </Grid>
 
-            {totalPages > 1 && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-                <Pagination
-                  count={totalPages}
-                  page={currentPage}
-                  onChange={handlePageChange}
-                  color="primary"
-                  disabled={loading}
-                />
-              </Box>
-            )}
+            <PaginationStyled
+              totalPages={totalPages}
+              currentPage={currentPage}
+              onPageChange={handlePageChange}
+              loading={loading}
+            />
           </>
         ) : (
           !loading && (
