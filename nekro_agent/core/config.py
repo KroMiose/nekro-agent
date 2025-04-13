@@ -310,6 +310,11 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True},
         description="用于应用插件代码的模型组，建议使用上下文长，响应速度快的模型",
     )
+    PLUGIN_UPDATE_USE_PROXY: bool = Field(
+        default=False,
+        title="更新/克隆插件时使用代理",
+        description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
+    )
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(
