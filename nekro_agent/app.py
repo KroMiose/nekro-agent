@@ -1,4 +1,5 @@
 import asyncio
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from nekro_agent import config, logger
 from nekro_agent.routers import mount_routers
 from nekro_agent.schemas.message import Ret
-from nekro_agent.services.dashboard.stats_task import stats_task_runner
 
 app = FastAPI(
     title="Nekro agent Service",
@@ -29,10 +29,6 @@ mount_routers(app)
 
 async def startup_event():
     logger.info("Nekro agent Service started")
-    
-    # 启动仪表盘统计任务
-    asyncio.create_task(stats_task_runner())
-    logger.info("仪表盘统计任务已启动")
 
 
 async def shutdown_event():
@@ -46,7 +42,7 @@ app.add_event_handler("shutdown", shutdown_event)
 def start():
     uvicorn.run(
         "nekro_agent.app:app",
-        host=config.APP_HOST, # type: ignore
-        port=config.APP_PORT, # type: ignore
-        log_level=config.UVICORN_LOG_LEVEL.lower(),
+        host=config.APP_HOST,  # type: ignore
+        port=config.APP_PORT,  # type: ignore
+        log_level="warning",
     )

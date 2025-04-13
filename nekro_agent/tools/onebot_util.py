@@ -11,10 +11,11 @@ from nonebot.adapters.onebot.v11 import (
 
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
-async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
+async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
     """生成合适的会话消息内容(eg. 将cq at 解析为真实的名字)
 
     Args:
@@ -43,6 +44,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot) -> Tuple[str, int]:
                         event=event,
                         bot=bot,
                         user_id=int(qq),
+                        db_chat_channel=db_chat_channel,
                     )
                     if user_name:
                         msg += f"@[{user_name}, qq={qq}]"  # 保持给bot看到的内容与真实用户看到的一致
@@ -53,10 +55,11 @@ async def get_user_name(
     event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent],
     bot: Bot,
     user_id: Union[int, str],
+    db_chat_channel: DBChatChannel,
 ) -> str:
     """获取QQ用户名"""
     if str(user_id) == str(config.BOT_QQ):
-        return config.AI_CHAT_PRESET_NAME
+        return (await db_chat_channel.get_preset()).name
 
     if isinstance(event, GroupMessageEvent) and event.sub_type == "anonymous" and event.anonymous:  # 匿名消息
         return f"[匿名]{event.anonymous.name}"
@@ -74,7 +77,9 @@ async def get_user_name(
         user_name = user_info.get("nickname", None)
         user_name = user_info.get("card", None) or user_name
     else:
-        user_name = event.sender.nickname if not isinstance(event, GroupUploadNoticeEvent) and event.sender else event.get_user_id()
+        user_name = (
+            event.sender.nickname if not isinstance(event, GroupUploadNoticeEvent) and event.sender else event.get_user_id()
+        )
 
     if not user_name:
         raise ValueError("获取用户名失败")
@@ -82,10 +87,12 @@ async def get_user_name(
     return user_name
 
 
-async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str]) -> str:
+async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str], db_chat_channel: DBChatChannel) -> str:
     """获取用户所在群的群名片"""
     if str(user_id) == str(config.BOT_QQ):
-        return config.AI_CHAT_PRESET_NAME
+        return (await db_chat_channel.get_preset()).name
+    if str(user_id) == "all" or str(user_id) == "0":
+        return "全体成员"
     user_info = await get_bot().get_group_member_info(
         group_id=int(group_id),
         user_id=int(user_id),
@@ -94,7 +101,9 @@ async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int
     return user_info.get("card") or user_info.get("nickname", "未知")
 
 
-async def get_chat_info(event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent]) -> Tuple[str, ChatType]:
+async def get_chat_info(
+    event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent],
+) -> Tuple[str, ChatType]:
     if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent, NoticeEvent)):
         raw_chat_type = "group"
     else:

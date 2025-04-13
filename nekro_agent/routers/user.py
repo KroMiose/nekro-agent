@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 from fastapi import APIRouter, Depends
 
 from nekro_agent import config, logger
@@ -6,6 +8,7 @@ from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.http_exception import (
     authorization_exception,
     permission_exception,
+    too_many_attempts_exception,
 )
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import (
@@ -14,16 +17,33 @@ from nekro_agent.schemas.user import (
     UserCreate,
     UserLogin,
 )
-from nekro_agent.services.user import (
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.role import Role, get_perm_role
+from nekro_agent.services.user.util import (
     user_change_password,
     user_delete,
     user_login,
     user_register,
 )
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.role import Role, get_perm_role
 
 router = APIRouter(prefix="/user", tags=["User"])
+
+# 登录尝试记录：{username: {attempts: int, last_attempt: datetime}}
+login_attempts = {}
+# 最大尝试次数和锁定时间
+MAX_LOGIN_ATTEMPTS = 5
+LOCKOUT_DURATION = timedelta(minutes=30)
+
+
+# 清理过期的登录尝试记录
+def clean_expired_attempts():
+    now = datetime.now()
+    expired_users = []
+    for username, data in login_attempts.items():
+        if data["last_attempt"] + LOCKOUT_DURATION < now:
+            expired_users.append(username)
+    for username in expired_users:
+        login_attempts.pop(username)
 
 
 @router.post("/register", summary="用户注册")
@@ -39,12 +59,42 @@ async def register(req_data: UserCreate) -> Ret:
 
 @router.post("/login", summary="用户登录")
 async def login(req_data: UserLogin) -> LoginRet:
-    login_token = await user_login(req_data)
-    return LoginRet(
-        access_token=login_token.access_token,
-        refresh_token=login_token.refresh_token,
-        token_type=login_token.token_type,
-    )
+    # 清理过期的尝试记录
+    clean_expired_attempts()
+
+    # 检查当前用户是否已经尝试过多次
+    if req_data.username in login_attempts:
+        user_attempts = login_attempts[req_data.username]
+        if user_attempts["attempts"] >= MAX_LOGIN_ATTEMPTS:
+            now = datetime.now()
+            lock_expires = user_attempts["last_attempt"] + LOCKOUT_DURATION
+            if now < lock_expires:
+                logger.warning(f"用户 {req_data.username} 尝试登录次数过多，账户被锁定到 {lock_expires}")
+                raise too_many_attempts_exception
+            # 锁定已过期，重置计数
+            login_attempts.pop(req_data.username)
+
+    try:
+        login_token = await user_login(req_data)
+        # 登录成功，清除尝试记录
+        if req_data.username in login_attempts:
+            login_attempts.pop(req_data.username)
+        return LoginRet(
+            access_token=login_token.access_token,
+            refresh_token=login_token.refresh_token,
+            token_type=login_token.token_type,
+        )
+    except Exception:
+        # 登录失败，记录尝试次数
+        now = datetime.now()
+        if req_data.username not in login_attempts:
+            login_attempts[req_data.username] = {"attempts": 1, "last_attempt": now}
+        else:
+            login_attempts[req_data.username]["attempts"] += 1
+            login_attempts[req_data.username]["last_attempt"] = now
+        logger.warning(f"用户 {req_data.username} 登录失败，当前尝试次数: {login_attempts[req_data.username]['attempts']}")
+        # 重新抛出原始异常
+        raise
 
 
 @router.put("/password", summary="用户更新密码")

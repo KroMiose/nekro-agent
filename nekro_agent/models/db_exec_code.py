@@ -12,6 +12,9 @@ class ExecStopType(IntEnum):
     TIMEOUT = 2  # 超时停止
     AGENT = 8  # 代理停止
     MANUAL = 9  # 手动停止
+    SECURITY = 10  # 安全停止
+    MULTIMODAL_AGENT = 11  # 多模态代理停止
+
 
 class DBExecCode(Model):
     """数据库执行代码模型"""
@@ -23,6 +26,7 @@ class DBExecCode(Model):
     success = fields.BooleanField(default=False, description="是否成功")
     code_text = fields.TextField(description="执行代码文本")
     outputs = fields.TextField(description="输出结果")
+    use_model = fields.CharField(max_length=128, null=True, default="", description="使用模型")
 
     thought_chain = fields.TextField(null=True, description="思维链信息")
     stop_type = fields.IntEnumField(ExecStopType, default=ExecStopType.NORMAL, description="停止类型")
@@ -33,5 +37,5 @@ class DBExecCode(Model):
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
-    class Meta: # type: ignore
+    class Meta:  # type: ignore
         table = "exec_code"

@@ -10,7 +10,7 @@ from nekro_agent.core import config
 
 __meta__ = ExtMetaData(
     name="acg_image_search",
-    description="[NA] 二次元图片获取插件",
+    description="二次元图片获取插件",
     version="0.3.0",
     author="Zaxpris, wess09",
     url="https://github.com/zxjwzn",

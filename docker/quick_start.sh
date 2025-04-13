@@ -68,6 +68,9 @@ mkdir -p $NEKRO_DATA_DIR || {
     exit 1
 }
 
+# 设置开放目录权限
+sudo chmod -R 777 $NEKRO_DATA_DIR
+
 # 进入应用目录
 cd $NEKRO_DATA_DIR || {
     echo "Error: 无法进入应用目录 $NEKRO_DATA_DIR。"
@@ -104,6 +107,12 @@ if [ ! -f .env ]; then
         sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env.temp
     fi
 
+    QDRANT_API_KEY=$(grep QDRANT_API_KEY .env.temp | cut -d '=' -f2)
+    if [ -z "$QDRANT_API_KEY" ]; then
+        QDRANT_API_KEY=$(generate_random_string 32)
+        sed -i "s|^QDRANT_API_KEY=.*|QDRANT_API_KEY=${QDRANT_API_KEY}|" .env.temp
+    fi
+
     # 将修改后的文件移动为 .env
     mv .env.temp .env
     echo "已获取并修改 .env 模板。"
@@ -119,6 +128,12 @@ else
     if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
         NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
         sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env
+    fi
+
+    QDRANT_API_KEY=$(grep QDRANT_API_KEY .env | cut -d '=' -f2)
+    if [ -z "$QDRANT_API_KEY" ]; then
+        QDRANT_API_KEY=$(generate_random_string 32)
+        sed -i "s|^QDRANT_API_KEY=.*|QDRANT_API_KEY=${QDRANT_API_KEY}|" .env
     fi
 fi
 
@@ -147,6 +162,13 @@ fi
 echo "正在拉取 docker-compose.yml 文件..."
 if ! wget https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/docker-compose.yml -O docker-compose.yml; then
     echo "Error: 无法拉取 docker-compose.yml 文件，请检查您的网络连接。"
+    exit 1
+fi
+
+# 拉取服务镜像
+echo "拉取服务镜像..."
+if ! sudo docker-compose --env-file .env pull; then
+    echo "Error: 无法拉取服务镜像，请检查您的网络连接。"
     exit 1
 fi
 
@@ -197,8 +219,10 @@ fi
 echo -e "\n=== 重要配置信息 ==="
 ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env | cut -d '=' -f2)
 NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
+QDRANT_API_KEY=$(grep QDRANT_API_KEY .env | cut -d '=' -f2)
 echo "OneBot 访问令牌: ${ONEBOT_ACCESS_TOKEN}"
 echo "管理员账号: admin | 密码: ${NEKRO_ADMIN_PASSWORD}"
+echo "Qdrant API 密钥: ${QDRANT_API_KEY}"
 
 echo -e "\n=== 服务访问信息 ==="
 echo "NekroAgent 主服务端口: ${NEKRO_EXPOSE_PORT:-8021}"

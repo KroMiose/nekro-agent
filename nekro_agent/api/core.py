@@ -5,15 +5,14 @@
 
 from nekro_agent.core import logger
 from nekro_agent.core.bot import get_bot
-from nekro_agent.core.config import config
-from nekro_agent.services.extension import ExtMetaData
-from nekro_agent.tools.collector import MethodType, agent_collector
+from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.vector_db import get_qdrant_client, get_qdrant_config
 
 __all__ = [
-    "ExtMetaData",
-    "MethodType",
-    "agent_collector",
+    "ModelConfigGroup",
     "config",
     "get_bot",
+    "get_qdrant_client",
+    "get_qdrant_config",
     "logger",
-] 
+]

@@ -29,7 +29,7 @@ client = httpx.AsyncClient()
 
 __meta__ = ExtMetaData(
     name="artist",
-    description="[NA] 绘图姬 (SD)",
+    description="绘图姬 (SD)",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",

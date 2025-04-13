@@ -36,3 +36,8 @@ server_error_exception = HTTPException(
     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
     detail="Internal server error",
 )
+
+too_many_attempts_exception = HTTPException(
+    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+    detail="Too many login attempts, account is locked temporarily",
+)

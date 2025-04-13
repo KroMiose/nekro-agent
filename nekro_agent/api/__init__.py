@@ -5,19 +5,19 @@
 Example:
     ```python
     from nekro_agent.api import message, timer, user, context, core, llm
-    
+
     # 发送消息
     await message.send_text("group_123456", "你好，世界！", ctx)
-    
+
     # 设置定时器
     await timer.set_timer("group_123456", int(time.time()) + 300, "提醒吃早餐", ctx)
-    
+
     # 获取用户头像
     avatar_path = await user.get_avatar("123456789", ctx)
-    
+
     # 解析会话标识
     chat_type, chat_id = context.parse_chat_key("group_123456")
-    
+
     # 使用核心功能
     core.logger.info("这是一条日志")
 
@@ -28,13 +28,13 @@ Example:
     ```
 """
 
-from nekro_agent.api import context, core, llm, message, schemas, timer, user
+from nekro_agent.api import context, core, message, plugin, schemas, timer, user
 
 __all__ = [
     "context",
     "core",
-    "llm",
     "message",
+    "plugin",
     "schemas",
     "timer",
     "user",

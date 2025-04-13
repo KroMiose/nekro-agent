@@ -1,7 +1,7 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Callable, Optional, Union
 from urllib.parse import quote_plus
 
 import yaml
@@ -38,19 +38,27 @@ class ArgTypes:
 class OsEnvTypes:
 
     @staticmethod
-    def _use_env(env_key: str, default: Any = None) -> Any:
+    def _use_env(env_key: str, default: Union[Any, Callable[[], Any]]) -> Any:
+        if callable(default):
+            return default()
         return os.environ.get(f"NEKRO_{env_key.upper()}", default)
 
     @staticmethod
-    def Str(key: str, default: str = "") -> str:
+    def Str(key: str, default: Union[str, Callable[[], str]] = "") -> str:
+        if callable(default):
+            return default()
         return str(OsEnvTypes._use_env(key, default))
 
     @staticmethod
-    def Int(key: str, default: int = 0) -> int:
+    def Int(key: str, default: Union[int, Callable[[], int]] = 0) -> int:
+        if callable(default):
+            return default()
         return int(OsEnvTypes._use_env(key, default))
 
     @staticmethod
-    def Float(key: str, default: float = 0.0) -> float:
+    def Float(key: str, default: Union[float, Callable[[], float]] = 0.0) -> float:
+        if callable(default):
+            return default()
         return float(OsEnvTypes._use_env(key, default))
 
     @staticmethod
@@ -76,7 +84,7 @@ class ConfigBase(BaseModel):
     def dump_config(self, file_path: Path) -> None:
         """保存配置文件"""
         if file_path.suffix == ".json":
-            file_path.write_text(self.model_dump_json())
+            file_path.write_text(self.model_dump_json(), encoding="utf-8")
         elif file_path.suffix in [".yaml", ".yml"]:
             yaml_str = yaml.dump(
                 data=self.model_dump(),

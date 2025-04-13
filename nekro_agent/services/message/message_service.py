@@ -1,13 +1,15 @@
 import asyncio
+import json
 import re
 import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
+import magic
+
 from nekro_agent.core import config, logger
 from nekro_agent.core.bot import get_bot
-from nekro_agent.libs.miose_llm.exceptions import ResolveError
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
@@ -20,7 +22,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_ignore_message,
-    move_to_upload_dir,
+    copy_to_upload_dir,
     random_chat_check,
 )
 
@@ -105,7 +107,7 @@ class MessageService:
 
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None):
         """执行agent任务"""
-        from nekro_agent.services.agents.chat_agent import agent_run
+        from nekro_agent.services.agent.run_agent import run_agent
 
         if message and config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
             try:
@@ -115,14 +117,11 @@ class MessageService:
 
         try:
             logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
-            for i in range(3):
+            for _i in range(3):
                 try:
-                    await agent_run(chat_key=chat_key, chat_message=message)
-                except ResolveError as e:
-                    logger.error(f"Resolve Error, Retrying {i+1}/3...")
-                    if "list index out of range" in str(e) and i > 0:
-                        logger.error("Resolve Error: 列表索引越界，可能由于目标站点返回空响应引起")
-                        break
+                    await run_agent(chat_key=chat_key, chat_message=message)
+                except Exception as e:
+                    logger.exception(f"执行失败: {e}")
                 else:
                     break
             else:
@@ -151,9 +150,17 @@ class MessageService:
                 new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message))
                 self.running_tasks[chat_key] = new_task
 
-    async def push_human_message(self, message: ChatMessage, user: Optional[DBUser] = None, trigger_agent: bool = False):
+    async def push_human_message(
+        self,
+        message: ChatMessage,
+        user: Optional[DBUser] = None,
+        trigger_agent: bool = False,
+        db_chat_channel: Optional[DBChatChannel] = None,
+    ):
         """推送人类消息"""
         logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=message.chat_key)
+        preset = await db_chat_channel.get_preset()
 
         if not await self._message_validation_check(message):
             logger.warning("消息校验失败，跳过本次处理...")
@@ -161,7 +168,7 @@ class MessageService:
 
         content_data = [o.model_dump() for o in message.content_data]
         current_time: float = time.time()
-        
+
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,
@@ -174,7 +181,7 @@ class MessageService:
             chat_key=message.chat_key,
             chat_type=message.chat_type,
             content_text=message.content_text,
-            content_data=content_data,
+            content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code=message.raw_cq_code,
             ext_data=message.ext_data,
             send_timestamp=int(current_time),  # 使用处理后的时间戳
@@ -187,23 +194,30 @@ class MessageService:
         # 检查是否需要触发回复
         should_trigger = (
             trigger_agent
-            or config.AI_CHAT_PRESET_NAME in message.content_text
+            or preset.name in message.content_text
             or message.is_tome
             or random_chat_check()
             or check_content_trigger(message.content_text)
         )
 
         if not should_ignore and should_trigger:
-            db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=message.chat_key)
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
             await self.schedule_agent_task(message=message)
 
-    async def push_bot_message(self, chat_key: str, agent_messages: Union[str, List[AgentMessageSegment]]):
+    async def push_bot_message(
+        self,
+        chat_key: str,
+        agent_messages: Union[str, List[AgentMessageSegment]],
+        db_chat_channel: Optional[DBChatChannel] = None,
+    ):
         """推送机器人消息"""
         logger.info(f"Pushing Bot Message To Chat {chat_key}")
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=chat_key)
+        preset = await db_chat_channel.get_preset()
+
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
@@ -213,26 +227,27 @@ class MessageService:
         content_data = []
         for msg in agent_messages:
             if msg.type == AgentMessageSegmentType.FILE:
-                suffix = msg.content.split(".")[-1].lower()
-                if suffix in ["jpg", "jpeg", "png", "gif", "webp"]:
-                    file_path = Path(msg.content)
+                # 使用magic库检测文件MIME类型
+                file_path = Path(msg.content)
+                if file_path.exists():
+                    mime_type = magic.from_buffer(file_path.read_bytes(), mime=True)
+                    if mime_type.startswith("image/"):
+                        # 复制文件到uploads目录
+                        local_path, file_name = await copy_to_upload_dir(
+                            str(file_path),
+                            file_name=file_path.name,
+                            from_chat_key=chat_key,
+                        )
 
-                    # 复制文件到uploads目录
-                    local_path, file_name = await move_to_upload_dir(
-                        str(file_path),
-                        file_name=file_path.name,
-                        from_chat_key=chat_key,
-                    )
-
-                    content_data.append(
-                        {
-                            "type": "image",
-                            "text": "",
-                            "file_name": file_name,
-                            "local_path": local_path,  # 使用复制后的路径
-                            "remote_url": "",
-                        },
-                    )
+                        content_data.append(
+                            {
+                                "type": "image",
+                                "text": "",
+                                "file_name": file_name,
+                                "local_path": local_path,  # 使用复制后的路径
+                                "remote_url": "",
+                            },
+                        )
             elif msg.type == AgentMessageSegmentType.TEXT:
                 content_data.append(
                     {
@@ -245,14 +260,14 @@ class MessageService:
             message_id="",
             sender_id=-1,
             sender_bind_qq=config.BOT_QQ or "0",
-            sender_real_nickname=config.AI_CHAT_PRESET_NAME,
-            sender_nickname=config.AI_CHAT_PRESET_NAME,
+            sender_real_nickname=preset.name,
+            sender_nickname=preset.name,
             is_tome=0,
             is_recalled=False,
             chat_key=chat_key,
             chat_type=ChatType.from_chat_key(chat_key).value,
             content_text=content_text,
-            content_data=content_data,
+            content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
             send_timestamp=send_timestamp,
@@ -263,9 +278,12 @@ class MessageService:
         chat_key: str,
         agent_messages: Union[str, List[AgentMessageSegment]],
         trigger_agent: bool = False,
+        db_chat_channel: Optional[DBChatChannel] = None,
     ):
         """推送系统消息"""
         logger.info(f"Pushing System Message To Chat {chat_key}")
+        db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=chat_key)
+
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
@@ -283,14 +301,13 @@ class MessageService:
             chat_key=chat_key,
             chat_type=ChatType.from_chat_key(chat_key).value,
             content_text=content_text,
-            content_data=[],
+            content_data=json.dumps([], ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
             send_timestamp=send_timestamp,
         )
 
         if trigger_agent:
-            db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
                 return

@@ -16,6 +16,7 @@ export interface SandboxLog {
   exec_time_ms: number
   generation_time_ms: number
   total_time_ms: number
+  use_model: string
 }
 
 // 停止类型枚举
@@ -25,6 +26,7 @@ export enum ExecStopType {
   TIMEOUT = 2, // 超时停止
   AGENT = 8,   // 代理停止
   MANUAL = 9,  // 手动停止
+  MULTIMODAL_AGENT = 11, // 多模态代理停止
 }
 
 export interface SandboxStats {

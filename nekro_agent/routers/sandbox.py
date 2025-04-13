@@ -7,8 +7,8 @@ from tortoise.functions import Count
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
-from nekro_agent.systems.user.deps import get_current_active_user
-from nekro_agent.systems.user.perm import Role, require_role
+from nekro_agent.services.user.deps import get_current_active_user
+from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/sandbox", tags=["Sandbox"])
 
@@ -52,6 +52,7 @@ async def get_sandbox_logs(
                     "exec_time_ms": log.exec_time_ms,
                     "generation_time_ms": log.generation_time_ms,
                     "total_time_ms": log.total_time_ms,
+                    "use_model": log.use_model,
                 }
                 for log in logs
             ],

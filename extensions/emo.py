@@ -18,7 +18,7 @@ class ALAPIResponse(BaseModel):
 
 __meta__ = ExtMetaData(
     name="emo",
-    description="[NA] 表情包获取",
+    description="表情包获取",
     version="0.5.0",
     author="wess09",
     url="https://github.com/KroMiose/nekro-agent",

@@ -8,11 +8,16 @@ from nonebot.matcher import Matcher
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.notice import BaseNoticeHandler, NoticeConfig, notice_manager
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.user import query_user_by_bind_qq
+from nekro_agent.services.notice_service import (
+    BaseNoticeHandler,
+    NoticeConfig,
+    notice_manager,
+)
+from nekro_agent.services.user.util import query_user_by_bind_qq
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 from nekro_agent.tools.time_util import format_duration
 
@@ -20,7 +25,7 @@ from nekro_agent.tools.time_util import format_duration
 class PokeNoticeHandler(BaseNoticeHandler):
     """戳一戳通知处理器"""
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "notify" or event_dict.get("sub_type") != "poke":
             return None
         raw_info = event_dict.get("raw_info", [])
@@ -33,9 +38,9 @@ class PokeNoticeHandler(BaseNoticeHandler):
             "poke_style_suffix": poke_style_suffix,
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         if str(info["target_id"]) == str(config.BOT_QQ):
-            return f"( {info['poke_style']} {config.AI_CHAT_PRESET_NAME} {info['poke_style_suffix']})"
+            return f"( {info['poke_style']} {(await _db_chat_channel.get_preset()).name} {info['poke_style_suffix']})"
         return f"({info['poke_style']} {info['target_id']} {info['poke_style_suffix']})"
 
 
@@ -45,14 +50,14 @@ class GroupIncreaseNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_increase":
             return None
         return {
             "user_id": str(event_dict["user_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         return f"(新成员 (qq:{info['user_id']}) 加入群聊)"
 
 
@@ -62,14 +67,14 @@ class GroupDecreaseNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_decrease":
             return None
         return {
             "user_id": str(event_dict["user_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         return f"(成员 (qq:{info['user_id']}) 退出群聊)"
 
 
@@ -79,7 +84,7 @@ class GroupBanNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=False, use_operator_as_sender=True)
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_ban":
             return None
         return {
@@ -88,7 +93,7 @@ class GroupBanNoticeHandler(BaseNoticeHandler):
             "duration": str(event_dict["duration"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         duration = int(info["duration"])
         if duration == 0:
             return f"(成员 (qq:{info['user_id']}) 被管理员 (qq:{info['operator_id']}) 解除禁言)"
@@ -102,7 +107,7 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=False, use_system_sender=True)
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_recall":
             return None
         return {
@@ -111,7 +116,7 @@ class GroupRecallNoticeHandler(BaseNoticeHandler):
             "message_id": str(event_dict["message_id"]),
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         # 如果是自己撤回
         if info["user_id"] == info["operator_id"]:
             return f"(成员 (qq:{info['user_id']}) 撤回了一条消息，但该消息仍然对你可见)"
@@ -125,7 +130,7 @@ class GroupAdminNoticeHandler(BaseNoticeHandler):
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
-    def match(self, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
         if event_dict["notice_type"] != "group_admin":
             return None
         return {
@@ -134,7 +139,7 @@ class GroupAdminNoticeHandler(BaseNoticeHandler):
             "action": event_dict["sub_type"],  # set/unset
         }
 
-    def format_message(self, info: Dict[str, str]) -> str:
+    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         action_map = {
             "set": "被设置为管理员",
             "unset": "被取消管理员身份",
@@ -156,13 +161,11 @@ notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 
 
 @notice_matcher.handle()
-async def _(
-    _: Matcher,
-    event: NoticeEvent,
-    bot: Bot,
-):
+async def _(_: Matcher, event: NoticeEvent, bot: Bot):
     # 处理通知事件
-    result = await notice_manager.handle(event, bot)
+    chat_key, chat_type = await get_chat_info(event=event)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    result = await notice_manager.handle(event, bot, db_chat_channel)
     if not result:
         event_dict = dict(event)
         logger.debug(
@@ -174,10 +177,9 @@ async def _(
 
     handler = result["handler"]
     info = result["info"]
-    chat_key, chat_type = await get_chat_info(event=event)
 
     # 格式化消息
-    content_text = handler.format_message(info)
+    content_text = await handler.format_message(db_chat_channel, info)
 
     if handler.config.use_system_sender:
         # 使用系统消息
@@ -190,7 +192,7 @@ async def _(
         # 使用普通消息
         bind_qq: str = handler.get_sender_bind_qq(info)
         user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
-        sender_nickname = await get_user_name(event=event, bot=bot, user_id=bind_qq)
+        sender_nickname = await get_user_name(event=event, bot=bot, user_id=bind_qq, db_chat_channel=db_chat_channel)
 
         if user and not user.is_active:
             logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
