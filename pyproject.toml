@@ -6,7 +6,6 @@ authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
 packages = [
     { include = "nekro_agent" },
-    { include = "extensions" },
     { include = "plugins" },
 ]
 repository = "https://github.com/KroMiose/nekro-agent"
