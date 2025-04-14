@@ -683,7 +683,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
                 await client.delete(
                     collection_name=plugin.get_vector_collection_name(),
                     points_selector=qdrant_models.PointIdsList(
-                        points=[duplicate_id],
+                        points=[int(duplicate_id, 16)],
                     ),
                 )
                 logger.info(f"已删除Qdrant中的旧点: {duplicate_id}")
@@ -826,7 +826,7 @@ async def update_emotion(
         await client.delete(
             collection_name=plugin.get_vector_collection_name(),
             points_selector=qdrant_models.PointIdsList(
-                points=[emotion_id],
+                points=[int(emotion_id, 16)],
             ),
         )
         logger.info(f"已删除Qdrant中的旧点: {emotion_id}")
