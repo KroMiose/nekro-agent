@@ -20,7 +20,6 @@ alwaysApply: true
 
 > 按需阅读文档，如有变化及时更新文档内容
 
-- 架构文档: [Architecture.md](mdc:docs/Architecture.md)
 - 后端开发文档: [backend-rules.mdc](mdc:.cursor/rules/backend-rules.mdc)
 - 前端开发文档: [frontend-rules.mdc](mdc:.cursor/rules/frontend-rules.mdc)
 

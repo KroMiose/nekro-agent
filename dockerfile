@@ -71,7 +71,6 @@ RUN poetry config virtualenvs.create false \
 
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
-COPY extensions ./extensions
 COPY plugins ./plugins
 COPY .env.prod ./
 
