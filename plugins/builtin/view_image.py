@@ -167,6 +167,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
     [Image 2]: image_url or path
     [Description 2]: description
     ...
+    don't add any other text, only the format above.
     """
     vision_msg = OpenAIChatMessage.from_text("system", vision_prompt)
 
