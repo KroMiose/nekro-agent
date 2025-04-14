@@ -227,7 +227,13 @@ class PluginCollector:
         if package_dir.exists():
             raise ValueError(f"插件包 `{module_name}` 已存在")
 
-        git.Repo.clone_from(git_url, package_dir, env={"HTTP_PROXY": config.DEFAULT_PROXY, "HTTPS_PROXY": config.DEFAULT_PROXY})
+        env = {}
+        if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
+            env["HTTP_PROXY"] = config.DEFAULT_PROXY
+            env["HTTPS_PROXY"] = config.DEFAULT_PROXY
+            logger.info(f"使用代理 {config.DEFAULT_PROXY} 克隆插件包 {module_name} 从 {git_url}")
+
+        git.Repo.clone_from(git_url, package_dir, env=env)
         self.package_data.add_package(
             PackageInfo(module_name=module_name, git_url=git_url, remote_id=remote_id),
         )
@@ -247,7 +253,13 @@ class PluginCollector:
 
         try:
             repo = git.Repo(package_dir)
-            repo.remotes.origin.pull()
+            env = {}
+            if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
+                env["HTTP_PROXY"] = config.DEFAULT_PROXY
+                env["HTTPS_PROXY"] = config.DEFAULT_PROXY
+                logger.info(f"使用代理 {config.DEFAULT_PROXY} 更新插件包 {module_name}")
+            # 使用 repo.git.pull 并传递 env
+            repo.git.pull("origin", env=env)
         except Exception as e:
             logger.error(f"更新插件包 `{module_name}` 失败: {e}")
             raise
