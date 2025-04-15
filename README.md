@@ -23,9 +23,14 @@
     <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
   </a>
   <br/>
-  📢 <a href="https://api.nekro.ai">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者可获得本站专属折扣和额度补贴！ 📢 <br/>
+  📢 <a href="https://api.nekro.ai">Nekro 官方合作中转站</a> 现已上线，参与 Nekro 生态开发者有机会获得本站专属额度补贴！ 📢 <br/>
   🌟 可洛喵 & Nekro Agent 插件形象征集中，欢迎加入交流群分享你的创意！🌟<br/>
+  🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 已全新上线！支持插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
 </div>
+
+## 🚀 NekroAI 云社区
+
+[NekroAI 云社区](https://community.nekro.ai) 已全新上线！这里提供插件和人设的实时自由共享与实时社区生态观测功能，快来体验吧~
 
 ## ⚠ !安全警告!
 
@@ -51,10 +56,10 @@
 > 勾选: 已实现功能；未勾选: 正在开发 / 计划开发 / 待定设计
 
 - [x] 群聊/私聊 场景的上下文智能聊天
-- [x] 自定义人设
+- [x] 自定义人设与人设市场
 - [x] 容器化沙盒执行环境
 - [x] 图片资源交互 (支持 Bot 发送&接收&处理 图片资源)
-- [x] 高度可扩展的插件系统
+- [x] 高度可扩展的插件系统与插件市场
 - [x] 基于 `docker-compose` 的容器编排一键部署支持 | 一键化小白无障碍部署脚本
 - [x] 更多文件资源交互 (文件/视频/音频等，可直接通过群文件/私聊 发送&接收&处理 任意文件资源)
 - [x] 配置热更新与指令控制支持
@@ -64,9 +69,8 @@
 - [x] 定时器自触发插件与节日祝福 (允许 AI 在一定条件下唤醒自身回复)
 - [x] 更多事件通知理解上下文理解
 - [x] 完善第三方插件能力及 AI 生成插件
+- [ ] 动态复杂人设扩展能力
 - [ ] 基于 LLM 的自动上下文衔接触发器
-
-> 💡 查看 [扩展列表](./docs/README_Extensions.md) 了解所有可用扩展及其配置说明
 
 ## 🎁 部署指南
 
@@ -145,9 +149,9 @@ cd ${NEKRO_DATA_DIR} && \
 
 命令的默认指令前缀为 `/`
 
-|   指令   |  权限  |        说明        |
-| :------: | :----: | :----------------: |
-| /na_help | 管理员 | 查询插件的所有命令 |
+|   指令   |  权限  |     说明     |
+| :------: | :----: | :----------: |
+| /na_help | 管理员 | 查询应用命令 |
 
 注: `<chat_key?>` 为会话的唯一标识符，格式为 `group_群号` `private_QQ号`
 
@@ -159,7 +163,7 @@ A: 请检查你的协议实现端是否支持文件发送，如果支持，请�
 
 由于 OneBot V11 协议的限制，发送文件时需要协议端能够直接访问到该文件的路径，因此你需要根据实际部署情况为 NekroAgent 配置文件访问基准路径，以下是一个示例:
 
-假设你的协议端部署在容器中，你需要先挂载 NekroAgent 的数据目录到协议端容器中，即 `${HOME}/srv/nekro_agent_data:/app/nekro_agent_data`，然后为 NekroAgent 配置文件访问基准路径:
+假设你的协议端部署在容器中，你需要先挂载 NekroAgent 的数据目录到协议端容器中，即 `${HOME}/srv/nekro_agent:/app/nekro_agent_data`，然后为 NekroAgent 配置文件访问基准路径:
 
 ```yaml
 SANDBOX_ONEBOT_SERVER_MOUNT_DIR: "/app/nekro_agent_data"
@@ -190,8 +194,6 @@ A: 请先使用 `export NEKRO_DATA_DIR=<你的目录>` 设定好不冲突的目�
 ## ⭐ Star 历史
 
 [![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)](https://star-history.com/#KroMiose/nekro-agent&Date)
-
-## 🚀 快速开始
 
 ## 📚 文档
 
