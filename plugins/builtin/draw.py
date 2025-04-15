@@ -2,7 +2,7 @@ import base64
 import random
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import aiofiles
 import magic
@@ -36,12 +36,15 @@ class DrawConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
-    MODEL_MODE: Literal["图像生成", "聊天模式"] = Field(default="图像生成", title="绘图模型调用格式")
+    MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
 
 
 # 获取配置
 config: DrawConfig = plugin.get_config(DrawConfig)
+
+# 保存上次成功的模式
+last_successful_mode: Optional[str] = None
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, name="绘图", description="支持文生图和图生图")
@@ -79,6 +82,7 @@ async def draw(
         # Modify existing image
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg"))
     """
+    global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
     logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
@@ -96,76 +100,132 @@ async def draw(
     if config.USE_DRAW_MODEL_GROUP not in global_config.MODEL_GROUPS:
         raise Exception(f"绘图模型组 `{config.USE_DRAW_MODEL_GROUP}` 未配置")
     model_group = global_config.MODEL_GROUPS[config.USE_DRAW_MODEL_GROUP]
+
+    # 处理自动选择模式
+    if config.MODEL_MODE == "自动选择":
+        # 优先使用上次成功的模式
+        modes_to_try = []
+        if last_successful_mode:
+            modes_to_try.append(last_successful_mode)
+            logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
+
+        # 添加未尝试过的模式
+        for mode in ["图像生成", "聊天模式"]:
+            if mode not in modes_to_try:
+                modes_to_try.append(mode)
+
+        # 依次尝试各种模式
+        last_error = None
+        for mode in modes_to_try:
+            logger.debug(f"尝试使用模式: {mode}")
+            try:
+                if mode == "图像生成":
+                    ret_file_url = await _generate_image(
+                        model_group,
+                        prompt,
+                        size,
+                        config.NUM_INFERENCE_STEPS,
+                        guidance_scale,
+                        source_image_data,
+                    )
+                else:  # 聊天模式
+                    ret_file_url = await _chat_image(model_group, prompt, size, refer_image, source_image_data)
+
+            except Exception as e:
+                last_error = e
+                logger.error(f"模式 {mode} 失败: {e!s}")
+                # 清除当前模式记录
+                if last_successful_mode == mode:
+                    last_successful_mode = None
+            else:
+                # 记录成功的模式
+                last_successful_mode = mode
+                return ret_file_url
+
+        # 如果所有模式都失败，抛出最后一个错误
+        if last_error:
+            raise last_error
+        raise Exception("所有绘图模式都失败")  # 确保有返回值或异常
+
     if config.MODEL_MODE == "图像生成":
-        async with AsyncClient() as client:
-            response = await client.post(
-                f"{model_group.BASE_URL}/images/generations",
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "Authorization": f"Bearer {model_group.API_KEY}",
-                },
-                json={
-                    "model": model_group.CHAT_MODEL,
-                    "prompt": prompt,
-                    "image_size": size,
-                    "batch_size": 1,
-                    "seed": random.randint(0, 9999999999),
-                    "num_inference_steps": config.NUM_INFERENCE_STEPS,
-                    "guidance_scale": guidance_scale,
-                    "image": source_image_data,
-                },
-                timeout=Timeout(read=60, write=60, connect=10, pool=10),
-            )
+        return await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data)
+    # 聊天模式
+    return await _chat_image(model_group, prompt, size, refer_image, source_image_data)
+
+
+async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data):
+    """使用图像生成模式绘图"""
+    async with AsyncClient() as client:
+        response = await client.post(
+            f"{model_group.BASE_URL}/images/generations",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {model_group.API_KEY}",
+            },
+            json={
+                "model": model_group.CHAT_MODEL,
+                "prompt": prompt,
+                "image_size": size,
+                "batch_size": 1,
+                "seed": random.randint(0, 9999999999),
+                "num_inference_steps": num_inference_steps,
+                "guidance_scale": guidance_scale,
+                "image": source_image_data,
+            },
+            timeout=Timeout(read=60, write=60, connect=10, pool=10),
+        )
+    response.raise_for_status()
+    data = response.json()
+    return data["data"][0]["url"]
+
+
+async def _chat_image(model_group, prompt, size, refer_image, source_image_data):
+    """使用聊天模式绘图"""
+    msg = OpenAIChatMessage.create_empty("user")
+    if refer_image:
+        msg = msg.add(ContentSegment.image_content(source_image_data))
+        msg = msg.add(
+            ContentSegment.text_content(
+                f"Carefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
+            ),
+        )
+    else:
+        msg = msg.add(
+            ContentSegment.text_content(f"Make a picture based on the following description: {prompt} (size: {size})"),
+        )
+    async with AsyncClient() as client:
+        response = await client.post(
+            f"{model_group.BASE_URL}/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "Authorization": f"Bearer {model_group.API_KEY}",
+            },
+            json={
+                "model": model_group.CHAT_MODEL,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information.",
+                    },
+                    msg.to_dict(),
+                ],
+            },
+            timeout=Timeout(read=60, write=60, connect=10, pool=10),
+        )
         response.raise_for_status()
         data = response.json()
-        ret_file_url = data["data"][0]["url"]
-    elif config.MODEL_MODE == "聊天模式":
-        msg = OpenAIChatMessage.create_empty("user")
-        if refer_image:
-            msg = msg.add(ContentSegment.image_content(source_image_data))
-            msg = msg.add(
-                ContentSegment.text_content(
-                    f"Carefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
-                ),
-            )
-        else:
-            msg = msg.add(
-                ContentSegment.text_content(f"Make a picture based on the following description: {prompt} (size: {size})"),
-            )
-        async with AsyncClient() as client:
-            response = await client.post(
-                f"{model_group.BASE_URL}/chat/completions",
-                headers={
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "Authorization": f"Bearer {model_group.API_KEY}",
-                },
-                json={
-                    "model": model_group.CHAT_MODEL,
-                    "messages": [
-                        {
-                            "role": "system",
-                            "content": "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information.",
-                        },
-                        msg.to_dict(),
-                    ],
-                },
-                timeout=Timeout(read=60, write=60, connect=10, pool=10),
-            )
-            response.raise_for_status()
-            data = response.json()
-        # logger.info(f"绘图响应: {data}")
-        content = data["choices"][0]["message"]["content"]
-        ret_file_url = re.search(r"!\[\w+?\]\((.*?)\)", content)
-        if ret_file_url:
-            ret_file_url = ret_file_url.group(1)
-        else:
-            logger.error(f"绘图响应中未找到图片信息: {data}")
-            raise Exception(
-                "No image found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
-            )
-
+    # logger.info(f"绘图响应: {data}")
+    content = data["choices"][0]["message"]["content"]
+    ret_file_url = re.search(r"!\[\w+?\]\((.*?)\)", content)
+    if ret_file_url:
+        ret_file_url = ret_file_url.group(1)
+    else:
+        logger.error(f"绘图响应中未找到图片信息: {data}")
+        raise Exception(
+            "No image found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+        )
     return ret_file_url
 
 
