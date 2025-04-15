@@ -83,6 +83,7 @@ const PresetEditDialog = ({
     remove_remote: false,
   })
   const [confirmDialog, setConfirmDialog] = useState(false)
+  const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { enqueueSnackbar } = useSnackbar()
 
@@ -110,6 +111,8 @@ const PresetEditDialog = ({
         remove_remote: false,
       })
     }
+    // 重置错误状态
+    setErrors({})
   }, [preset, open])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -118,6 +121,15 @@ const PresetEditDialog = ({
       ...prev,
       [name]: value,
     }))
+
+    // 当字段值改变时，清除对应的错误信息
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -162,27 +174,40 @@ const PresetEditDialog = ({
         }))
         enqueueSnackbar('头像上传成功', { variant: 'success' })
       } else {
-        enqueueSnackbar(`上传失败: ${response.msg}`, { variant: 'error' })
+        setErrors(prev => ({
+          ...prev,
+          avatar: `上传失败: ${response.msg}`,
+        }))
       }
     } catch {
-      enqueueSnackbar('上传失败', { variant: 'error' })
+      setErrors(prev => ({
+        ...prev,
+        avatar: '上传失败，请重试',
+      }))
     } finally {
       setLoading(false)
     }
   }
 
+  // 验证表单
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {}
+
+    if (!formData.name.trim()) {
+      newErrors.name = '请输入人设名称'
+    }
+
+    if (!formData.content.trim()) {
+      newErrors.content = '请输入人设内容'
+    }
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
+  }
+
   const handleSave = async () => {
     // 验证表单
-    if (!formData.name) {
-      enqueueSnackbar('请输入人设名称', { variant: 'error' })
-      return
-    }
-    if (!formData.avatar) {
-      enqueueSnackbar('请上传头像', { variant: 'error' })
-      return
-    }
-    if (!formData.content) {
-      enqueueSnackbar('请输入人设内容', { variant: 'error' })
+    if (!validateForm()) {
       return
     }
 
@@ -202,6 +227,11 @@ const PresetEditDialog = ({
       onClose()
     } catch (error) {
       console.error('保存失败', error)
+      // 显示通用错误
+      setErrors(prev => ({
+        ...prev,
+        general: error instanceof Error ? error.message : String(error),
+      }))
     } finally {
       setLoading(false)
       setConfirmDialog(false)
@@ -220,6 +250,11 @@ const PresetEditDialog = ({
         onClose()
       } catch (error) {
         console.error('保存失败', error)
+        // 显示通用错误
+        setErrors(prev => ({
+          ...prev,
+          general: error instanceof Error ? error.message : String(error),
+        }))
       } finally {
         setLoading(false)
       }
@@ -237,6 +272,13 @@ const PresetEditDialog = ({
                 此人设已共享到云端，保存后可以通过"同步到云端"按钮将修改同步到云端共享。
               </Alert>
             )}
+
+            {errors.general && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {errors.general}
+              </Alert>
+            )}
+
             <Grid container spacing={2}>
               <Grid item xs={12} md={4}>
                 <Box className="flex flex-col items-center">
@@ -315,6 +357,11 @@ const PresetEditDialog = ({
                   >
                     上传头像
                   </Button>
+                  {errors.avatar && (
+                    <Typography variant="caption" color="error" mt={1}>
+                      {errors.avatar}
+                    </Typography>
+                  )}
                   <Typography variant="caption" color="text.secondary" mt={1}>
                     建议比例: 正方形图片, 将自动压缩至 500KB 内
                   </Typography>
@@ -329,6 +376,8 @@ const PresetEditDialog = ({
                   value={formData.name}
                   onChange={handleChange}
                   autoComplete="off"
+                  error={!!errors.name}
+                  helperText={errors.name}
                 />
                 <TextField
                   name="title"
@@ -410,6 +459,8 @@ const PresetEditDialog = ({
                   value={formData.content}
                   onChange={handleChange}
                   autoComplete="off"
+                  error={!!errors.content}
+                  helperText={errors.content}
                 />
               </Grid>
             </Grid>
@@ -1122,14 +1173,18 @@ export default function PresetsPage() {
   }
 
   const handleSave = async (data: PresetFormData) => {
+    console.log('主页面handleSave被调用，数据:', data)
     try {
       if (editingPreset) {
+        console.log('更新现有人设:', editingPreset.id)
         enqueueSnackbar('正在更新人设...', { variant: 'info', autoHideDuration: 2000 })
         await presetsApi.update(editingPreset.id, data)
         enqueueSnackbar('更新成功', { variant: 'success', autoHideDuration: 3000 })
       } else {
+        console.log('创建新人设')
         enqueueSnackbar('正在创建人设...', { variant: 'info', autoHideDuration: 2000 })
-        await presetsApi.create(data)
+        const result = await presetsApi.create(data)
+        console.log('创建人设API响应:', result)
         enqueueSnackbar('创建成功', { variant: 'success', autoHideDuration: 3000 })
       }
       fetchData()
