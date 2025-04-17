@@ -83,6 +83,19 @@ body:
       description: 请提供相关的 错误日志/截图/配置信息 (注意保护密钥等敏感信息)
       render: shell
 
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: 贡献意向
+      description: 您是否有意向为该问题的修复提供进一步贡献？（无论您的选择如何，我们都非常欢迎您的反馈！）
+      options:
+        - label: 没有意向，仅报告问题
+        - label: 可以提供更详细的问题重现步骤
+        - label: 愿意参与讨论和解决方案设计
+        - label: 愿意协助该改动影响的相关功能测试
+        - label: 有兴趣参与部分代码修复
+        - label: 可以完整负责此问题的修复
+
   - type: textarea
     id: additional
     attributes:
