@@ -258,6 +258,7 @@ async def gen_openai_chat_response(
     extra_body: Optional[Dict[str, Any]] = None,
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
+    proxy_url: Optional[str] = None,
     stream_mode: bool = False,
     thought_chain_field_name: str = "reasoning_content",
     chunk_callback: Optional[_AsyncFunc] = None,
@@ -287,7 +288,12 @@ async def gen_openai_chat_response(
     client: AsyncOpenAI = AsyncOpenAI(
         api_key=api_key.strip() if api_key else None,
         base_url=base_url or _OPENAI_BASE_URL,
-        http_client=(httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10))),
+        http_client=(
+            httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+                proxies={"http": proxy_url, "https": proxy_url} if proxy_url else None,
+            )
+        ),
     )
 
     output: str = ""
@@ -430,7 +436,7 @@ async def gen_openai_chat_stream(
     max_tokens: Optional[int] = None,
 ) -> AsyncGenerator[str, None]:
     """简化的OpenAI流式生成器，直接产生文本片段
-    
+
     这是一个简化版的流式生成器，直接返回生成的文本片段，而不是复杂的OpenAIResponse对象。
     适用于需要简单流式输出的场景，如网页UI中的实时代码生成。
 
@@ -450,18 +456,18 @@ async def gen_openai_chat_stream(
         生成的文本片段
     """
     logger.info(f"启动简化的流式生成，使用模型: {model}")
-    
+
     # 创建参数字典，移除None值
     gen_kwargs = {
         "temperature": temperature,
-        "frequency_penalty": frequency_penalty, 
+        "frequency_penalty": frequency_penalty,
         "presence_penalty": presence_penalty,
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
     }
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
-    
+
     # 处理消息格式
     formatted_messages = []
     for msg in messages:
@@ -469,7 +475,7 @@ async def gen_openai_chat_stream(
             formatted_messages.append(msg.to_dict())
         else:
             formatted_messages.append(msg)
-    
+
     # 创建OpenAI客户端
     try:
         client = AsyncOpenAI(
@@ -477,7 +483,7 @@ async def gen_openai_chat_stream(
             base_url=base_url or _OPENAI_BASE_URL,
             http_client=httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=300, write=300, pool=10)),
         )
-        
+
         # 创建流式响应
         stream = await client.chat.completions.create(
             model=model,
@@ -485,14 +491,14 @@ async def gen_openai_chat_stream(
             stream=True,
             **gen_kwargs,
         )
-        
+
         # 直接产生文本片段
         async for chunk in stream:
             if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                 content = chunk.choices[0].delta.content
                 logger.debug(f"收到流式内容片段: {content[:20]}..." if len(content) > 20 else f"收到流式内容片段: {content}")
                 yield content
-                
+
     except Exception as e:
         logger.error(f"流式生成过程中出错: {e}")
         raise

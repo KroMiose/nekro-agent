@@ -227,6 +227,11 @@ class PluginConfig(ConfigBase):
         title="视觉图片大小限制 (KB)",
         description="每次传递的图片大小限制，超出此大小的图片会被自动压缩到限制内传递",
     )
+    AI_REQUEST_STREAM_MODE: bool = Field(
+        default=False,
+        title="启用流式请求",
+        description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能降低某些限制，但是会丢失准确的 Token 统计信息",
+    )
 
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
