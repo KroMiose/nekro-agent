@@ -216,32 +216,7 @@ async def convert_chat_message(
     return ret_list, is_tome, message_id
 
 
-def convert_chat_message_to_prompt_str(chat_message: List[ChatMessageSegment], one_time_code: str) -> str:
-    """将 ChatMessageSegment 列表转换为提示词字符串
-
-    Args:
-        chat_message (List[ChatMessageSegment]): ChatMessageSegment 列表
-
-    Returns:
-        str: 提示词字符串
-    """
-
-    prompt_str = ""
-
-    for seg in chat_message:
-        if isinstance(seg, ChatMessageSegmentImage):
-            prompt_str += f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
-        elif isinstance(seg, ChatMessageSegmentFile):
-            prompt_str += f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
-        elif isinstance(seg, ChatMessageSegmentAt):
-            prompt_str += f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
-        elif isinstance(seg, ChatMessageSegment):
-            prompt_str += seg.text
-
-    return prompt_str
-
-
-def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str):
+def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:
     """将数据库保存的原始消息数据 JSON 转换为提示词字符串
 
     Args:
@@ -251,7 +226,28 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str):
         str: 提示词字符串
     """
 
-    return convert_chat_message_to_prompt_str(
-        segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))),
-        one_time_code,
-    )
+    prompt_str = ""
+
+    for seg in segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))):
+        if isinstance(seg, ChatMessageSegmentImage):
+            prompt_str += (
+                f"<Image:{get_sandbox_path(seg.file_name)}>"
+                if travel_mode
+                else f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
+            )
+        elif isinstance(seg, ChatMessageSegmentFile):
+            prompt_str += (
+                f"<File:{get_sandbox_path(seg.file_name)}>"
+                if travel_mode
+                else f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
+            )
+        elif isinstance(seg, ChatMessageSegmentAt):
+            prompt_str += (
+                f"<At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+                if travel_mode
+                else f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+            )
+        elif isinstance(seg, ChatMessageSegment):
+            prompt_str += seg.text
+
+    return prompt_str

@@ -24,7 +24,7 @@ plugin = NekroPlugin(
     name="基础交互插件",
     module_name="basic",
     description="提供基础的聊天消息发送、图片/文件资源发送、用户头像获取、图片观察工具等基础功能",
-    version="0.1.0",
+    version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
 )
@@ -132,6 +132,8 @@ async def _calculate_file_md5(file_path: str) -> str:
 )
 async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     """发送聊天消息文本
+
+    Attention: Do not expose any unnecessary technical id or key in the message content.
 
     Args:
         chat_key (str): 会话标识

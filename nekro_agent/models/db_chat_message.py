@@ -41,9 +41,9 @@ class DBChatMessage(Model):
     class Meta:  # type: ignore
         table = "chat_message"
 
-    def parse_chat_history_prompt(self, one_time_code: str) -> str:
+    def parse_chat_history_prompt(self, one_time_code: str, travel_mode: bool = False) -> str:
         """解析聊天历史记录生成提示词"""
-        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code)
+        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, travel_mode)
         if len(content) > config.AI_CONTEXT_LENGTH_PER_MESSAGE:  # 截断消息内容
             content = (
                 content[: config.AI_CONTEXT_LENGTH_PER_MESSAGE // 4 - 3]
@@ -52,7 +52,8 @@ class DBChatMessage(Model):
                 + "(content too long, omitted)"
             )
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
-        return f'[{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}'
+        additional_info = f" (message_id: {self.id})" if travel_mode else ""
+        return f'[{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}{additional_info}'
 
     def parse_content_data(self) -> List[ChatMessageSegment]:
         """解析内容数据"""
