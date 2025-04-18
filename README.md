@@ -24,7 +24,6 @@
   📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
   💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> 🗨️ <br/>
   🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
-
 </div>
 
 ## 🚀 核心能力
@@ -99,6 +98,10 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 
 常见问题及解答请访问 [故障排除与 FAQ](https://doc.nekro.ai/docs/06_troubleshooting/faq)
 
+## 🎉 更新日志
+
+前往 [Release 页面](https://github.com/KroMiose/nekro-agent/releases) 查看重要更新日志
+
 ## 🤝 贡献列表
 
 感谢以下开发者对本项目做出的贡献
@@ -106,10 +109,6 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 <a href="https://github.com/KroMiose/nekro-agent/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=KroMiose/nekro-agent&max=1000" />
 </a>
-
-## 🎉 更新日志
-
-前往 [Release 页面](https://github.com/KroMiose/nekro-agent/releases) 查看重要更新日志
 
 ## ⭐ Star 历史
 
