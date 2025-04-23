@@ -48,18 +48,18 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: dropdown
     id: contribution
     attributes:
       label: 贡献意向
       description: 您是否有意向为该功能或优化提供进一步贡献？（无论您的选择如何，我们都非常欢迎您的建议！）
       options:
-        - label: 没有意向，仅提供建议
-        - label: 可以提供更详细的需求说明和使用场景
-        - label: 愿意参与讨论和方案设计
-        - label: 愿意协助该改动影响的相关功能测试
-        - label: 有兴趣参与部分代码实现
-        - label: 可以完整负责此功能的开发
+        - 没有意向，仅提供建议
+        - 可以提供更详细的需求说明和使用场景
+        - 愿意参与讨论和方案设计
+        - 愿意协助该改动影响的相关功能测试
+        - 有兴趣参与部分代码实现
+        - 可以完整负责此功能的开发
 
   - type: textarea
     id: additional

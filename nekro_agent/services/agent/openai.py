@@ -285,84 +285,84 @@ async def gen_openai_chat_response(
     # messages 处理
     messages = [msg.to_dict() if isinstance(msg, OpenAIChatMessage) else msg for msg in messages]
 
-    client: AsyncOpenAI = AsyncOpenAI(
-        api_key=api_key.strip() if api_key else None,
-        base_url=base_url or _OPENAI_BASE_URL,
-        http_client=(
-            httpx.AsyncClient(
-                timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
-                proxies={"http": proxy_url, "https": proxy_url} if proxy_url else None,
-            )
-        ),
-    )
-
     output: str = ""
     thought_chain: str = ""
     token_consumption: int = 0
     token_input: int = 0
     token_output: int = 0
-
     first_token_time: Optional[float] = None
-    if stream_mode:
-        res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            **gen_kwargs,
-            stream=True,
+
+    # 使用async with语法创建和管理httpx客户端
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+    ) as http_client:
+        client = AsyncOpenAI(
+            api_key=api_key.strip() if api_key else None,
+            base_url=base_url or _OPENAI_BASE_URL,
+            http_client=http_client,
         )
 
-        async for chunk in res_stream:
-            if not first_token_time:
-                first_token_time = time.time()
-            chunk_text: Optional[str] = chunk.choices[0].delta.content
-            if chunk_text:
-                output += f"{chunk_text}"
-            if hasattr(chunk.choices[0].delta, thought_chain_field_name):
-                _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
-                if _thought_chain:
-                    thought_chain += _thought_chain
-            else:
-                _thought_chain = ""
+        if stream_mode:
+            res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                **gen_kwargs,
+                stream=True,
+            )
 
-            # 修复: 确保在total_tokens为None时使用0
-            if chunk.usage and chunk.usage.total_tokens is not None:
-                token_consumption += chunk.usage.total_tokens
+            async for chunk in res_stream:
+                if not first_token_time:
+                    first_token_time = time.time()
+                chunk_text: Optional[str] = chunk.choices[0].delta.content
+                if chunk_text:
+                    output += f"{chunk_text}"
+                if hasattr(chunk.choices[0].delta, thought_chain_field_name):
+                    _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
+                    if _thought_chain:
+                        thought_chain += _thought_chain
+                else:
+                    _thought_chain = ""
 
-            # 修复: 确保在prompt_tokens为None时使用0
-            if chunk.usage and chunk.usage.prompt_tokens is not None:
-                token_input += chunk.usage.prompt_tokens
+                # 修复: 确保在total_tokens为None时使用0
+                if chunk.usage and chunk.usage.total_tokens is not None:
+                    token_consumption += chunk.usage.total_tokens
 
-            # 修复：确保在completion_tokens为None时使用0
-            completion_tokens = 0
-            if chunk.usage and chunk.usage.completion_tokens is not None:
-                completion_tokens = chunk.usage.completion_tokens
-            token_output += completion_tokens
+                # 修复: 确保在prompt_tokens为None时使用0
+                if chunk.usage and chunk.usage.prompt_tokens is not None:
+                    token_input += chunk.usage.prompt_tokens
 
-            if chunk_callback and await chunk_callback(
-                OpenAIStreamChunk(
-                    chunk_text=chunk_text or "",
-                    thought_chain=_thought_chain or "",
-                    token_consumption=token_consumption,
-                    token_input=token_input,
-                    token_output=token_output,
-                ),
-            ):
-                break
-    else:
-        res: ChatCompletion = await client.chat.completions.create(
-            model=model,
-            messages=messages,
-            **gen_kwargs,
-        )
-        if not res.choices[0].message.content:
-            raise ValueError("Chat response is empty! Response: %s", res)
+                # 修复：确保在completion_tokens为None时使用0
+                completion_tokens = 0
+                if chunk.usage and chunk.usage.completion_tokens is not None:
+                    completion_tokens = chunk.usage.completion_tokens
+                token_output += completion_tokens
 
-        output = res.choices[0].message.content
-        if hasattr(res.choices[0].message, thought_chain_field_name):
-            thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
-        token_consumption: int = res.usage.total_tokens if res.usage else 0
-        token_input: int = res.usage.prompt_tokens if res.usage else 0
-        token_output: int = res.usage.completion_tokens if res.usage else 0
+                if chunk_callback and await chunk_callback(
+                    OpenAIStreamChunk(
+                        chunk_text=chunk_text or "",
+                        thought_chain=_thought_chain or "",
+                        token_consumption=token_consumption,
+                        token_input=token_input,
+                        token_output=token_output,
+                    ),
+                ):
+                    break
+        else:
+            res: ChatCompletion = await client.chat.completions.create(
+                model=model,
+                messages=messages,
+                **gen_kwargs,
+            )
+            if not res.choices[0].message.content:
+                raise ValueError("Chat response is empty! Response: %s", res)
+
+            output = res.choices[0].message.content
+            if hasattr(res.choices[0].message, thought_chain_field_name):
+                thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
+            token_consumption: int = res.usage.total_tokens if res.usage else 0
+            token_input: int = res.usage.prompt_tokens if res.usage else 0
+            token_output: int = res.usage.completion_tokens if res.usage else 0
 
     # 时间统计
     _end_time: float = time.time()
@@ -409,18 +409,22 @@ async def gen_openai_embeddings(
     dimensions: int,
     api_key: str,
     base_url: str,
+    proxy_url: Optional[str] = None,
     endpoint: str = "/embeddings",
 ) -> List[float]:
     """生成文本的向量表示"""
-    client = httpx.AsyncClient()
-    res = await client.post(
-        f"{base_url}{endpoint}",
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key.strip()}"},
-        json={"model": model, "input": input, "dimensions": dimensions},
-    )
-    res.raise_for_status()
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+    ) as client:
+        res = await client.post(
+            f"{base_url}{endpoint}",
+            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key.strip()}"},
+            json={"model": model, "input": input, "dimensions": dimensions},
+        )
+        res.raise_for_status()
 
-    return res.json()["data"][0]["embedding"]
+        return res.json()["data"][0]["embedding"]
 
 
 async def gen_openai_chat_stream(
@@ -428,6 +432,7 @@ async def gen_openai_chat_stream(
     messages: List[Union[OpenAIChatMessage, Dict[str, Any]]],
     base_url: Optional[str] = None,
     api_key: Optional[str] = None,
+    proxy_url: Optional[str] = None,
     temperature: Optional[float] = None,
     frequency_penalty: Optional[float] = None,
     presence_penalty: Optional[float] = None,
@@ -478,26 +483,32 @@ async def gen_openai_chat_stream(
 
     # 创建OpenAI客户端
     try:
-        client = AsyncOpenAI(
-            api_key=api_key.strip() if api_key else None,
-            base_url=base_url or _OPENAI_BASE_URL,
-            http_client=httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=300, write=300, pool=10)),
-        )
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=300, write=300, pool=10),
+            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+        ) as http_client:
+            client = AsyncOpenAI(
+                api_key=api_key.strip() if api_key else None,
+                base_url=base_url or _OPENAI_BASE_URL,
+                http_client=http_client,
+            )
 
-        # 创建流式响应
-        stream = await client.chat.completions.create(
-            model=model,
-            messages=formatted_messages,
-            stream=True,
-            **gen_kwargs,
-        )
+            # 创建流式响应
+            stream = await client.chat.completions.create(
+                model=model,
+                messages=formatted_messages,
+                stream=True,
+                **gen_kwargs,
+            )
 
-        # 直接产生文本片段
-        async for chunk in stream:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                logger.debug(f"收到流式内容片段: {content[:20]}..." if len(content) > 20 else f"收到流式内容片段: {content}")
-                yield content
+            # 直接产生文本片段
+            async for chunk in stream:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    content = chunk.choices[0].delta.content
+                    logger.debug(
+                        f"收到流式内容片段: {content[:20]}..." if len(content) > 20 else f"收到流式内容片段: {content}",
+                    )
+                    yield content
 
     except Exception as e:
         logger.error(f"流式生成过程中出错: {e}")
