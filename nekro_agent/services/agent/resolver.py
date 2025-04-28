@@ -83,6 +83,8 @@ def fix_code_content(code_content: str) -> str:
     # 修正代码块去掉所有 from plugins ... import ... 开头的行
     code_content = re.sub(r"^from plugins.*\n", "", code_content, flags=re.MULTILINE)
     code_content = re.sub(r"^from predefined_methods .*\n", "", code_content, flags=re.MULTILINE)
+    code_content = re.sub(r"^from predefined_plugins .*\n", "", code_content, flags=re.MULTILINE)
+    code_content = re.sub(r"^from core\.api.*\n", "", code_content, flags=re.MULTILINE)
     # 修正代码块去掉所有 from plugin_manager ... import ... 开头的行
     return re.sub(r"^from plugin_manager.*\n", "", code_content, flags=re.MULTILINE)
 
@@ -96,7 +98,7 @@ def fix_raw_response(raw_response: str) -> str:
     # 修正 [@qq:123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@qq:(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 [@qq:123456;nickname:Abc] -> [@qq:123456@]
-    raw_response = re.sub(r"\[@qq:(\d+);nickname:(.+)\]", r"[@qq:\1@]", raw_response)
+    raw_response = re.sub(r"\[@qq:(\d+);nickname[\=\:](.+)\]", r"[@qq:\1@]", raw_response)
     # 修正 [@123456] -> [@qq:123456@]
     raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
     # 修正 (@qq:123456@) -> [@qq:123456@]
