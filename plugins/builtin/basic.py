@@ -191,6 +191,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     try:
         await message.send_text(chat_key, message_text, _ctx)
     except Exception as e:
+        logger.exception(f"发送消息失败: {e}")
         raise Exception(
             "Error sending text message to chat: Make sure the chat key is valid, you have permission to speak and message is not too long.",
         ) from e

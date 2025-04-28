@@ -24,13 +24,16 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
         raise ValueError("webhook_request is required")
     body = _ctx.webhook_request.body
     headers = _ctx.webhook_request.headers
-    # logger.debug(f"收到GitHub webhook请求: {headers}\n===\n {body}")
-
+    logger.debug(f"GitHub webhook原始请求: headers={headers}")
+    logger.debug(f"GitHub webhook原始请求体: body类型={type(body)}, 内容={body}")
+    
     try:
         # 如果配置了webhook密钥，验证签名
         if config.WEBHOOK_SECRET and headers:
             # 获取GitHub的签名头
             signature_header = headers.get("X-Hub-Signature-256")
+            logger.debug(f"GitHub签名头: {signature_header}, WEBHOOK_SECRET配置: {'已设置' if config.WEBHOOK_SECRET else '未设置'}")
+            
             if signature_header:
                 # 重新获取请求体进行验证
                 try:
@@ -57,6 +60,7 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
 
         # 从body中获取事件类型
         event_type = headers.get("x-github-event")
+        logger.debug(f"GitHub webhook事件类型: {event_type}, 请求头: {headers}")
 
         # 如果没有event_type，直接打印错误信息
         if not event_type:
@@ -67,7 +71,9 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
 
         # 提取仓库信息
         repository = body.get("repository", {})
+        logger.debug(f"提取repository结果: 类型={type(repository)}, 值={repository}")
         repo_full_name = repository.get("full_name", "unknown/unknown")
+        logger.debug(f"提取repo_full_name结果: {repo_full_name}")
 
         # 根据事件类型路由到不同的处理逻辑
         if event_type == "push":
