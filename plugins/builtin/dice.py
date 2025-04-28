@@ -111,12 +111,12 @@ async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficult
 
     global _ASSERT_DICE_NUM, _LOCKED_DICE_NUM
 
-    # 优先级：锁定骰点 > 预言骰点 > 随机骰点
-    if _LOCKED_DICE_NUM > 0:
-        roll_result = _LOCKED_DICE_NUM
-    elif _ASSERT_DICE_NUM > 0:
+    # 优先级：预言骰点 > 锁定骰点 > 随机骰点
+    if _ASSERT_DICE_NUM > 0:
         roll_result = _ASSERT_DICE_NUM
         _ASSERT_DICE_NUM = 0
+    elif _LOCKED_DICE_NUM > 0:
+        roll_result = _LOCKED_DICE_NUM
     else:
         roll_result = random.randint(1, 20)
 
