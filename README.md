@@ -48,7 +48,7 @@ NekroAgent 通过强大灵活的提示词构建系统，引导 AI 生成准确�
 
 Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处理，满足各类需求：
 
-- 💖 **情感交互与陪伴**：通过灵活的人设系统和先进的大语言模型，提供自然流畅的情感互动体验，支持多种角色定制和长期记忆
+- 💖 **情感交互与陪伴**：通过灵活的人设系统和先进的大语言模型，提供自然流畅的情感互动体验，支持多种角色定制和可扩展的记忆能力
 - 📊 **数据与文件处理**：高效处理各类图像、文档及数据，无需额外软件支持，轻松完成格式转换与内容提取
 - 🎮 **创意与开发辅助**：从网页应用生成到数据可视化，让创意实现变得简单高效
 - 🔄 **自动化与集成**：支持事件订阅推送和多 AI 协作，实现复杂任务的智能自动化
@@ -94,6 +94,8 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 - [插件开发指南(施工中)](https://doc.nekro.ai/docs/04_plugin_dev/01_concepts/architecture)
 - [应用开发指南](https://doc.nekro.ai/docs/05_app_dev/dev_linux)
 
+注意：贡献代码前请先阅读[许可说明](./LICENSE)中的条款，贡献代码即表示您同意这些条款。
+
 ## 📖 常见问题
 
 常见问题及解答请访问 [故障排除与 FAQ](https://doc.nekro.ai/docs/06_troubleshooting/faq)
@@ -101,6 +103,10 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 ## 🎉 更新日志
 
 前往 [Release 页面](https://github.com/KroMiose/nekro-agent/releases) 查看重要更新日志
+
+## 📜 许可说明
+
+NekroAgent 采用 [自定义的开源协议](./LICENSE)（基于 Apache License 2.0 修改）进行分发。请在遵守协议的前提下使用本项目！
 
 ## 🤝 贡献列表
 
