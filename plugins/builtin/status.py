@@ -26,7 +26,7 @@ class StatusConfig(ConfigBase):
     """状态控制配置"""
 
     MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, title="保存的历史预设状态条数")
-    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=3, title="每次引用预设状态条数")
+    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=5, title="每次引用预设状态条数")
     ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用根据状态更改群名片")
     NICKNAME_PREFIX: str = Field(default="", title="群名片前缀")
 

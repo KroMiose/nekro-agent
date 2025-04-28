@@ -1000,7 +1000,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
 
     Args:
         query (str): The search query
-        max_results (int, optional): Maximum number of results to return (default is 3)
+        max_results (int, optional): Maximum number of results to observe (recommended: 3-5)
 
     Returns:
         Dict: OpenAI chat message format containing the search results
