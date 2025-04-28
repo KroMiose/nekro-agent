@@ -118,7 +118,7 @@ async def get_preset(preset_id: str) -> PresetDetailResponse:
         async with get_client() as client:
             response = await client.get(url=f"/api/preset/{preset_id}")
             response.raise_for_status()
-            return PresetDetailResponse(**response.json())
+            return PresetDetailResponse.model_validate(response.json())
     except Exception as e:
         logger.error(f"获取人设详情发生错误: {e}")
         return PresetDetailResponse.process_exception(e)

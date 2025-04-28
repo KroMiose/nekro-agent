@@ -98,6 +98,7 @@ async def download_preset(
 
         # 创建本地人设记录
         preset_data = response.data
+        ext_data = preset_data.ext_data if preset_data.ext_data not in [None, "", "''", '""'] else {}
         await DBPreset.create(
             remote_id=preset_data.id,
             on_shared=False,  # 下载的人设不是本地共享的
@@ -108,7 +109,7 @@ async def download_preset(
             description=preset_data.description,
             tags=preset_data.tags,
             author=preset_data.author,
-            ext_data=preset_data.ext_data or {},
+            ext_data=ext_data,
         )
 
         return Ret.success(msg="下载成功")
@@ -116,5 +117,5 @@ async def download_preset(
     except NekroCloudDisabled:
         return Ret.fail(msg="Nekro Cloud 未启用")
     except Exception as e:
-        logger.error(f"下载云端人设失败: {e}")
+        logger.exception(f"下载云端人设失败: {e}")
         return Ret.fail(msg=f"下载失败: {e}")
