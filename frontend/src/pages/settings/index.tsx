@@ -42,6 +42,7 @@ import {
   Delete as DeleteIcon,
   Tune as TuneIcon,
   HelpOutline as HelpOutlineIcon,
+  Search as SearchIcon,
 } from '@mui/icons-material'
 import { styled } from '@mui/material/styles'
 
@@ -186,6 +187,7 @@ export default function SettingsPage() {
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [saveWarningOpen, setSaveWarningOpen] = useState(false)
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
+  const [searchText, setSearchText] = useState<string>('')
 
   // 将列表编辑状态提升到组件级别
   const [listEditState, setListEditState] = useState<{
@@ -469,12 +471,13 @@ export default function SettingsPage() {
               form: {
                 autoComplete: 'off',
               },
-              style: isSecret && !visibleSecrets[config.key]
-                ? ({
-                    '-webkit-text-security': 'disc',
-                    'text-security': 'disc',
-                  } as React.CSSProperties)
-                : undefined,
+              style:
+                isSecret && !visibleSecrets[config.key]
+                  ? ({
+                      '-webkit-text-security': 'disc',
+                      'text-security': 'disc',
+                    } as React.CSSProperties)
+                  : undefined,
             }}
             InputProps={
               isSecret
@@ -507,11 +510,27 @@ export default function SettingsPage() {
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'flex-end',
+          justifyContent: 'space-between',
           mb: 2,
           flexShrink: 0,
         }}
       >
+        {/* 搜索框 */}
+        <TextField
+          size="small"
+          variant="outlined"
+          placeholder="搜索配置名称或键"
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          sx={{ width: 300 }}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon color="action" />
+              </InputAdornment>
+            ),
+          }}
+        />
         <Stack direction="row" spacing={2}>
           <Tooltip title="保存修改">
             <IconButton
@@ -568,7 +587,12 @@ export default function SettingsPage() {
             </TableHead>
             <TableBody>
               {configs
-                .filter(config => !config.is_hidden)
+                .filter(
+                  config =>
+                    !config.is_hidden &&
+                    ((config.title || '').toLowerCase().includes(searchText.toLowerCase()) ||
+                      config.key.toLowerCase().includes(searchText.toLowerCase()))
+                )
                 .map(config => (
                   <TableRow key={config.key}>
                     <TableCell>

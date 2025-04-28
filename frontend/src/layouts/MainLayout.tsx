@@ -18,6 +18,7 @@ import {
   Snackbar,
   Button,
   Chip,
+  Link,
 } from '@mui/material'
 import {
   Terminal as TerminalIcon,
@@ -171,7 +172,7 @@ export default function MainLayout() {
     <Box className="h-full flex flex-col">
       <Toolbar sx={{ overflow: 'visible' }}>
         <Box
-          className="flex items-center w-full justify-center relative -ml-3 pt-4"
+          className="flex items-center w-full justify-center relative -ml-4 pt-4"
           sx={{ overflow: 'visible' }}
         >
           <Typography
@@ -362,6 +363,19 @@ export default function MainLayout() {
           </ListItemButton>
         </ListItem>
       </List>
+      <Box className="pb-2 -mt-2 text-center">
+        <Typography variant="caption" color="text.secondary">
+          © {new Date().getFullYear()}{' '}
+          <Link
+            href="https://github.com/KroMiose/nekro-agent"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            NekroAgent
+          </Link>
+          . 版权所有.
+        </Typography>
+      </Box>
     </Box>
   )
 

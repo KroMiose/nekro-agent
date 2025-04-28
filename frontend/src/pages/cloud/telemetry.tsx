@@ -216,7 +216,7 @@ export default function CommunityStats() {
     return num.toLocaleString('zh-CN')
   }
 
-  // 版本分布的饼图颜色
+  // 社区活跃版本分布的饼图颜色
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8']
 
   const renderLineChart = (data: CommunityStats['newInstancesTrend']) => {
@@ -450,7 +450,7 @@ export default function CommunityStats() {
           >
             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
-                版本分布
+                社区活跃版本分布
               </Typography>
               {renderPieChart(stats.versionDistribution)}
             </CardContent>
