@@ -31,8 +31,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/*
 
 # 设置 pip 镜像并安装 Python 依赖
-RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple && \
-    pip install -U pip setuptools wheel && \
+RUN pip install -U pip setuptools wheel && \
     pip install -U mplfonts poetry==1.8.0 && \
     mplfonts init
 

@@ -52,9 +52,6 @@ RUN apt install -y git
 # 清理缓存
 RUN apt clean && rm -rf /var/lib/apt/lists/*
 
-# 设置 pip 镜像
-RUN pip config set global.index-url https://mirrors.ustc.edu.cn/pypi/web/simple
-
 # 设置工作目录
 WORKDIR /app
 
