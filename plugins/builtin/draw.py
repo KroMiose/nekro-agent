@@ -14,6 +14,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config as global_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(
@@ -38,6 +39,11 @@ class DrawConfig(ConfigBase):
     )
     MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
+    USE_SYSTEM_ROLE: bool = Field(
+        default=False,
+        title="是否使用系统角色",
+        description="只对聊天模式下的模型调用有效，如果启用时会把部分绘图提示词添加到系统角色中，如果模型不支持系统消息请关闭该选项",
+    )
 
 
 # 获取配置
@@ -153,7 +159,7 @@ async def draw(
     return await _chat_image(model_group, prompt, size, refer_image, source_image_data)
 
 
-async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data):
+async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
     async with AsyncClient() as client:
         response = await client.post(
@@ -177,23 +183,56 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
         )
     response.raise_for_status()
     data = response.json()
-    return data["data"][0]["url"]
+    ret_url = data["data"][0]["url"]
+    if ret_url:
+        return ret_url
+    logger.error(f"绘图响应中未找到图片信息: {data}")
+    raise Exception(
+        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+    )
 
 
-async def _chat_image(model_group, prompt, size, refer_image, source_image_data):
+async def _chat_image(model_group, prompt, size, refer_image, source_image_data) -> str:
     """使用聊天模式绘图"""
+    system_content = "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information."
+
     msg = OpenAIChatMessage.create_empty("user")
     if refer_image:
         msg = msg.add(ContentSegment.image_content(source_image_data))
-        msg = msg.add(
-            ContentSegment.text_content(
-                f"Carefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
-            ),
-        )
+        if not config.USE_SYSTEM_ROLE:
+            msg = msg.add(
+                ContentSegment.text_content(
+                    f"{system_content}\n\nCarefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
+                ),
+            )
+        else:
+            msg = msg.add(
+                ContentSegment.text_content(
+                    f"Carefully analyze the above image and make a picture based on the following description: {prompt} (size: {size})",
+                ),
+            )
     else:
-        msg = msg.add(
-            ContentSegment.text_content(f"Make a picture based on the following description: {prompt} (size: {size})"),
+        if not config.USE_SYSTEM_ROLE:
+            msg = msg.add(
+                ContentSegment.text_content(
+                    f"{system_content}\n\nMake a picture based on the following description: {prompt} (size: {size})",
+                ),
+            )
+        else:
+            msg = msg.add(
+                ContentSegment.text_content(f"Make a picture based on the following description: {prompt} (size: {size})"),
+            )
+
+    messages = []
+    if config.USE_SYSTEM_ROLE:
+        messages.append(
+            {
+                "role": "system",
+                "content": system_content,
+            },
         )
+    messages.append(msg.to_dict())
+
     async with AsyncClient() as client:
         response = await client.post(
             f"{model_group.BASE_URL}/chat/completions",
@@ -204,13 +243,7 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
             },
             json={
                 "model": model_group.CHAT_MODEL,
-                "messages": [
-                    {
-                        "role": "system",
-                        "content": "You are a professional painter. Use your high-quality drawing skills to draw a picture based on the user's description. Just provide the image and do not ask for more information.",
-                    },
-                    msg.to_dict(),
-                ],
+                "messages": messages,
             },
             timeout=Timeout(read=60, write=60, connect=10, pool=10),
         )
@@ -218,15 +251,22 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
         data = response.json()
     # logger.info(f"绘图响应: {data}")
     content = data["choices"][0]["message"]["content"]
-    ret_file_url = re.search(r"!\[\w+?\]\((.*?)\)", content)
-    if ret_file_url:
-        ret_file_url = ret_file_url.group(1)
-    else:
-        logger.error(f"绘图响应中未找到图片信息: {data}")
-        raise Exception(
-            "No image found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
-        )
-    return ret_file_url
+    # 尝试 markdown 语法匹配，例如 ![alt](url)
+    m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", content)
+    if m:
+        return m.group(1)
+    # 尝试 HTML <img> 标签匹配，例如 <img src="url" />
+    m = re.search(r'<img\s+src=["\']([^"\']+)["\']', content)
+    if m:
+        return m.group(1)
+    # 尝试裸 URL 匹配，例如 http://... 或 https://...
+    m = re.search(r"(https?://\S+)", content)
+    if m:
+        return m.group(1)
+    logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(data))}")
+    raise Exception(
+        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+    )
 
 
 @plugin.mount_cleanup_method()
