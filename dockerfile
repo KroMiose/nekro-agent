@@ -67,7 +67,7 @@ RUN pip install poetry==1.8.0 nb-cli
 # 首先复制依赖文件，利用缓存
 COPY pyproject.toml poetry.lock ./
 RUN poetry config virtualenvs.create false \
-    && poetry install --only main --no-interaction --no-ansi
+    && poetry install --only main --without dev --no-interaction --no-ansi
 
 # 复制应用代码
 COPY nekro_agent ./nekro_agent

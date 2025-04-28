@@ -48,6 +48,6 @@ COPY . /app
 # 安装项目依赖
 RUN poetry config virtualenvs.create false && \
     poetry config installer.max-workers 4 && \
-    poetry install --no-interaction --no-ansi
+    poetry install --no-interaction --no-ansi --without dev
 
 CMD ["bash"]
