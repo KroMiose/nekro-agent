@@ -7,9 +7,9 @@ import json
 import shutil
 import sys
 from datetime import datetime
-from importlib import import_module
+from importlib import import_module, reload
 from pathlib import Path
-from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Tuple
+from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Set, Tuple
 
 import git
 from pydantic import BaseModel
@@ -79,7 +79,7 @@ class PluginCollector:
         """初始化插件收集器"""
         # 存储已加载的插件
         self.loaded_plugins: Dict[str, NekroPlugin] = {}
-        self.loaded_module_names = set()
+        self.loaded_module_names: Set[str] = set()
 
         # 初始化插件目录
         self.builtin_plugin_dir = Path(BUILTIN_PLUGIN_DIR)
@@ -166,13 +166,25 @@ class PluginCollector:
 
         logger.info(f"插件 {plugin.name} 卸载完成")
 
+    def _check_module_exists(self, path: Path) -> bool:
+        """检查模块是否存在"""
+        if path.is_dir():
+            return (path / "__init__.py").exists()
+        return path.with_suffix(".py").exists()
+
+    def _to_load_path(self, path: Path) -> Path:
+        """转换为加载路径"""
+        if path.is_dir():
+            return path / "__init__.py"
+        return path.with_suffix(".py")
+
     async def reload_plugin_by_module_name(self, module_name: str, is_builtin: bool = False, is_package: bool = False):
         """重新加载指定插件"""
         fixed_module_name = module_name
         if module_name.endswith(".py"):
             fixed_module_name = module_name[: -len(".py")]
-        if module_name.endswith("/__init__"):
-            fixed_module_name = module_name[: -len("/__init__")]
+        if module_name.endswith("/__init__.py"):
+            fixed_module_name = module_name[: -len("/__init__.py")]
         if "/" in module_name:
             raise ValueError(f"插件模块名 `{module_name}` 不在合法的加载目录中")
 
@@ -180,18 +192,20 @@ class PluginCollector:
         workdir_plugin_path = self.workdir_plugin_dir / module_name
         package_path = self.packages_dir / module_name
 
-        exists_paths = [p for p in [builtin_plugin_path, workdir_plugin_path, package_path] if p.exists()]
+        exists_paths = [
+            self._to_load_path(p)
+            for p in [builtin_plugin_path, workdir_plugin_path, package_path]
+            if self._check_module_exists(p)
+        ]
         if len(exists_paths) == 0:
             raise ValueError(f"插件 `{module_name}` 不存在")
 
         if len(exists_paths) > 1:
             logger.warning(
-                f"在多个加载目录中发现了重复插件 `{module_name}`，将按照以下优先级加载：内置插件 > 工作目录插件 > 插件包",
+                f"在多个加载目录中发现了重复插件 `{module_name}`，将按照以下优先级加载：内置插件 > 工作目录插件 > 云端插件包",
             )
 
         real_path = exists_paths[0]
-        if real_path.is_dir():
-            real_path = real_path / "__init__.py"
 
         loaded_plugin = self.get_plugin_by_module_name(fixed_module_name)
         if loaded_plugin:
@@ -203,6 +217,15 @@ class PluginCollector:
                 del self.loaded_plugins[loaded_plugin.key]
             if loaded_plugin.module_name in self.loaded_module_names:
                 self.loaded_module_names.remove(loaded_plugin.module_name)
+            # 卸载旧插件模块，保证后续重新 import 执行最新代码
+            # 从 loaded_module_names 中找到原始模块路径
+            orig_mod = next((m for m in self.loaded_module_names if m.endswith(f".{fixed_module_name}")), None)
+            if orig_mod and orig_mod in sys.modules:
+                logger.debug(f"卸载旧插件模块 {orig_mod}")
+                sys.modules.pop(orig_mod, None)
+                self.loaded_module_names.discard(orig_mod)
+            else:
+                logger.warning(f"未找到原始模块 {fixed_module_name}，无法卸载旧模块")
 
         # logger.debug(f"尝试加载插件: {real_path} 从 {fixed_module_name}")
         await self._try_load_plugin(real_path, is_builtin=is_builtin, is_package=is_package)

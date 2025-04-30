@@ -26,11 +26,13 @@ import {
   CloudDownload as CloudDownloadIcon,
   Done as DoneIcon,
   Info as InfoIcon,
+  Add as AddIcon,
 } from '@mui/icons-material'
 import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
+import { useNavigate } from 'react-router-dom'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -367,6 +369,7 @@ export default function PresetsMarket() {
     }
   )
   const { enqueueSnackbar } = useSnackbar()
+  const navigate = useNavigate()
   const pageSize = 12
 
   const fetchPresets = useCallback(
@@ -536,6 +539,16 @@ export default function PresetsMarket() {
             variant="contained"
           >
             {loading ? '搜索中...' : '搜索'}
+          </Button>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => navigate('/presets')}
+          >
+            发布人设
           </Button>
         </Box>
       </Box>

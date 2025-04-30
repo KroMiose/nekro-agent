@@ -47,6 +47,7 @@ async def send_text(chat_key: str, message: str, ctx: AgentCtx, *, record: bool 
     try:
         await chat_service.send_agent_message(chat_key, message_, ctx, record=record)
     except Exception as e:
+        logger.exception(f"发送文本消息失败: {e}")
         raise Exception("发送文本消息失败: 请确保会话标识正确且内容不为空或过长") from e
 
 
@@ -74,6 +75,7 @@ async def send_file(chat_key: str, file_path: str, ctx: AgentCtx, *, record: boo
     try:
         await chat_service.send_agent_message(chat_key, message_, ctx, file_mode=True, record=record)
     except Exception as e:
+        logger.exception(f"发送文件消息失败: {e}")
         raise Exception(f"发送文件消息失败: {e}") from e
 
 
@@ -101,6 +103,7 @@ async def send_image(chat_key: str, image_path: str, ctx: AgentCtx, *, record: b
     try:
         await chat_service.send_agent_message(chat_key, message_, ctx, record=record)
     except Exception as e:
+        logger.exception(f"发送图片消息失败: {e}")
         raise Exception(f"发送图片消息失败: {e}") from e
 
 
@@ -126,4 +129,5 @@ async def download_from_url(url: str, ctx: AgentCtx) -> str:
         file_path, file_name = await download_file(url, from_chat_key=ctx.from_chat_key)
         return str(convert_filename_to_container_path(file_name))
     except Exception as e:
+        logger.exception(f"下载文件失败: {e}")
         raise Exception(f"下载文件失败: {e}") from e

@@ -82,6 +82,14 @@ const PluginCard = ({
   const theme = useTheme()
   const [iconError, setIconError] = useState(false)
 
+  // 举报功能
+  const handleReport = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    // 打开GitHub插件举报页面
+    const reportUrl = `https://github.com/KroMiose/nekro-agent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
+    window.open(reportUrl, '_blank')
+  }
+
   return (
     <Card
       sx={{
@@ -245,6 +253,16 @@ const PluginCard = ({
               下架
             </Button>
           )}
+
+          <Button
+            size="small"
+            variant="text"
+            color="warning"
+            onClick={handleReport}
+            title="举报不当内容"
+          >
+            举报
+          </Button>
         </Box>
 
         {plugin.is_local ? (
@@ -297,6 +315,14 @@ const PluginDetailDialog = ({
 }) => {
   const theme = useTheme()
   const [iconError, setIconError] = useState(false)
+
+  // 举报功能
+  const handleReport = () => {
+    if (!plugin) return
+    // 打开GitHub插件举报页面
+    const reportUrl = `https://github.com/NEKRO-AI/NekroAgent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
+    window.open(reportUrl, '_blank')
+  }
 
   if (!plugin) return null
 
@@ -495,9 +521,14 @@ const PluginDetailDialog = ({
         </Grid>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between' }}>
-        <Button variant="outlined" onClick={onClose}>
-          关闭
-        </Button>
+        <Box>
+          <Button variant="outlined" color="warning" onClick={handleReport} sx={{ mr: 1 }}>
+            举报插件
+          </Button>
+          <Button variant="outlined" onClick={onClose}>
+            关闭
+          </Button>
+        </Box>
 
         <Box sx={{ display: 'flex', gap: 1 }}>
           {plugin.is_local ? (
@@ -772,7 +803,9 @@ const CreatePluginDialog = ({
               fullWidth
               required
               error={!!errors.moduleName}
-              helperText={errors.moduleName || '模块名只能包含英文、数字和下划线，并且在插件市场唯一'}
+              helperText={
+                errors.moduleName || '模块名只能包含英文、数字和下划线，并且在插件市场唯一'
+              }
               disabled={isSubmitting}
             />
           </Grid>
@@ -1450,6 +1483,7 @@ export default function PluginsMarket() {
       <Dialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ open: false, plugin: null, action: 'download' })}
+        maxWidth="md"
       >
         <DialogTitle>
           {confirmDialog.action === 'download'
@@ -1459,6 +1493,59 @@ export default function PluginsMarket() {
               : '确认下架'}
         </DialogTitle>
         <DialogContent>
+          {(confirmDialog.action === 'download' || confirmDialog.action === 'update') && (
+            <Box sx={{ mb: 2 }}>
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                <Typography variant="body2" component="div">
+                  <strong>安全提示：</strong>{' '}
+                  NekroAI社区仅作为插件分享平台，不具备对第三方平台托管的插件内容负责的能力。
+                  使用任何第三方插件都存在潜在风险，请自行评估插件的安全性，特别是高权限插件。
+                </Typography>
+              </Alert>
+
+              {confirmDialog.plugin?.cloneUrl && (
+                <Box sx={{ mt: 2, mb: 2 }}>
+                  <Typography variant="subtitle2" gutterBottom>
+                    插件仓库地址:
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                    <Typography
+                      variant="body2"
+                      component="code"
+                      sx={{
+                        display: 'inline-block',
+                        p: 1,
+                        bgcolor: theme => 
+                          theme.palette.mode === 'dark'
+                            ? 'rgba(255,255,255,0.05)'
+                            : 'rgba(0,0,0,0.03)',
+                        borderRadius: 1,
+                        fontFamily: 'monospace',
+                        overflow: 'auto',
+                        maxWidth: '100%',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {confirmDialog.plugin.cloneUrl}
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<GitHubIcon />}
+                      onClick={() => {
+                        // 移除.git后缀并打开链接
+                        const repoUrl = confirmDialog.plugin?.cloneUrl?.replace(/\.git$/, '')
+                        if (repoUrl) window.open(repoUrl, '_blank')
+                      }}
+                    >
+                      查看仓库
+                    </Button>
+                  </Box>
+                </Box>
+              )}
+            </Box>
+          )}
+
           <Typography>
             {confirmDialog.action === 'download' &&
               `确定要获取插件 "${confirmDialog.plugin?.name}" 到本地库吗？`}

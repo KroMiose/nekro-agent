@@ -54,6 +54,7 @@ import {
   HelpOutline as HelpOutlineIcon,
   Add as AddIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   Tune as TuneIcon,
   ContentCopy as ContentCopyIcon,
   WebhookOutlined as WebhookIcon,
@@ -746,11 +747,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         <ButtonGroup variant="outlined" sx={{ mr: 1 }}>
           {!plugin.isBuiltin && (
             <Button
-              startIcon={<DeleteIcon />}
+              startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
               onClick={() =>
                 plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
               }
-              color="error"
+              color={plugin.isPackage ? 'error' : 'warning'}
             >
               {plugin.isPackage ? '删除' : '编辑'}
             </Button>
@@ -1420,10 +1421,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       </Dialog>
 
       {/* 更新插件包确认对话框 */}
-      <Dialog open={updateConfirmOpen} onClose={() => setUpdateConfirmOpen(false)}>
+      <Dialog open={updateConfirmOpen} onClose={() => setUpdateConfirmOpen(false)} maxWidth="md">
         <DialogTitle>确认更新插件包？</DialogTitle>
         <DialogContent>
-          <DialogContentText>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" component="div">
+              <strong>安全提示：</strong>{' '}
+              插件更新可能包含原作者未经审核的代码变更，包括潜在的恶意代码或不安全内容。
+              NekroAI社区仅作为插件分享平台，不具备对第三方平台托管的插件内容负责的能力。
+              使用任何第三方插件都存在潜在风险，请自行评估插件的安全性。
+            </Typography>
+          </Alert>
+
+          <DialogContentText sx={{ mt: 2 }}>
             此操作将从远程仓库更新插件包 "{plugin.name}"
             至最新版本。更新过程可能会导致当前配置变更，是否继续？
           </DialogContentText>
@@ -1516,26 +1526,26 @@ export default function PluginsManagementPage() {
       // 基础交互插件(模块名为"basic")固定放在最前面
       if (a.moduleName === 'basic') return -1
       if (b.moduleName === 'basic') return 1
-      
+
       // 优先按启用状态排序（启用的在前）
       if (a.enabled !== b.enabled) {
         return a.enabled ? -1 : 1
       }
-      
+
       // 按照插件类型排序：内置 -> 云端 -> 本地
       const getTypeOrder = (plugin: Plugin) => {
         if (plugin.isBuiltin) return 0
         if (plugin.isPackage) return 1
         return 2 // 本地插件
       }
-      
+
       const typeOrderA = getTypeOrder(a)
       const typeOrderB = getTypeOrder(b)
-      
+
       if (typeOrderA !== typeOrderB) {
         return typeOrderA - typeOrderB
       }
-      
+
       // 最后按名称字母顺序排序
       return a.name.localeCompare(b.name)
     })
