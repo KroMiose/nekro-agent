@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Tuple
 
 import httpx
+import magic
 import toml
 from PIL import Image
 
@@ -47,6 +48,10 @@ async def download_file(
         async with httpx.AsyncClient() as client:
             response = await client.get(url)
             response.raise_for_status()
+            content = response.content
+            if not use_suffix:
+                mime = magic.from_buffer(content, mime=True)
+                use_suffix = f'.{mime.split("/")[1]}' if mime and len(mime.split("/")) > 1 else ""
             if not file_path:
                 file_name = file_name or f"{hashlib.md5(response.content).hexdigest()}{use_suffix}"
                 if from_chat_key:
@@ -55,7 +60,7 @@ async def download_file(
                     save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
                 save_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path = str(save_path)
-            Path(file_path).write_bytes(response.content)
+            Path(file_path).write_bytes(content)
             Path(file_path).chmod(0o755)
     except Exception:
         if retry_count > 0:

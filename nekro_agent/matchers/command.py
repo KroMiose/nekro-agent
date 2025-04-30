@@ -1,7 +1,7 @@
 import os
 import time
 from datetime import datetime, timedelta
-from typing import List, Optional, Tuple, Union
+from typing import List, NoReturn, Optional, Tuple, Union
 
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
@@ -29,7 +29,7 @@ from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
 
-async def finish_with(matcher: Matcher, message: str):
+async def finish_with(matcher: Matcher, message: str) -> NoReturn:
     await matcher.finish(message=f"[Opt Output] {message}")
 
 
