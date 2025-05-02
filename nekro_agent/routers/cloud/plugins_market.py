@@ -15,7 +15,10 @@ from nekro_agent.systems.cloud.api.plugin import (
     list_plugins,
     list_user_plugins,
 )
-from nekro_agent.systems.cloud.schemas.plugin import PluginCreate
+from nekro_agent.systems.cloud.api.plugin import (
+    update_plugin as cloud_update_plugin,
+)
+from nekro_agent.systems.cloud.schemas.plugin import PluginCreate, PluginUpdate
 from nekro_agent.tools.image_utils import process_image_data_url
 
 router = APIRouter(prefix="/cloud/plugins-market", tags=["Cloud Plugins Market"])
@@ -222,25 +225,25 @@ async def download_plugin(
         return Ret.fail(msg=f"下载失败: {e}")
 
 
-@router.post("/update/{plugin_id}", summary="更新本地插件")
+@router.post("/update/{module_name}", summary="更新本地插件")
 @require_role(Role.Admin)
 async def update_plugin(
-    plugin_id: str,
+    module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """更新本地插件"""
     try:
         # 检查插件是否存在于本地
         local_plugins = plugin_collector.package_data.get_remote_ids()
-        if plugin_id not in local_plugins:
+        if module_name not in local_plugins:
             return Ret.fail(msg="该插件不存在于本地，请先下载")
 
         # 获取云端插件详情
-        response = await get_plugin(plugin_id)
+        response = await get_plugin(module_name)
         if not response.success or not response.data:
             return Ret.fail(msg=response.message)
 
-        logger.info(f"准备更新插件: {plugin_id}")
+        logger.info(f"准备更新插件: {module_name}")
 
         try:
             await plugin_collector.update_package(
@@ -312,3 +315,54 @@ async def delete_cloud_plugin(
         logger.error(f"下架云端插件 '{module_name}' 失败: {e}")
         # 处理调用过程中的其他异常
         return Ret.fail(msg=f"删除插件失败: {e}")
+
+
+@router.put("/plugin/{module_name}", summary="更新插件信息")
+@require_role(Role.Admin)
+async def update_user_plugin(
+    module_name: str,
+    plugin_data: PluginUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """更新用户发布的插件信息
+
+    Args:
+        module_name: 插件模块名称
+        plugin_data: 要更新的插件数据
+        _current_user: 当前用户
+
+    Returns:
+        Ret: 请求结果
+    """
+    try:
+        # 获取当前插件信息，判断用户是否有权限修改
+        current_plugin = await get_plugin(module_name)
+        if not current_plugin.success:
+            return Ret.fail(msg=f"获取插件信息失败: {current_plugin.error}")
+
+        if not current_plugin.data or not current_plugin.data.isOwner:
+            return Ret.fail(msg="您没有权限修改此插件信息")
+
+        # 处理图标，如果是Base64格式的，进行压缩处理
+        if plugin_data.icon and plugin_data.icon.startswith("data:image/"):
+            try:
+                compressed_icon = await process_image_data_url(plugin_data.icon)
+                plugin_data.icon = compressed_icon
+            except Exception as e:
+                logger.error(f"压缩插件图标失败: {e}")
+                # 如果压缩失败，继续使用原图标
+
+        # 准备更新数据
+        update_data = plugin_data.dict(exclude_unset=True, exclude_none=True)
+
+        # 调用云端API更新插件信息
+        response = await cloud_update_plugin(module_name, update_data)
+
+        if not response.success:
+            return Ret.fail(msg=f"更新插件信息失败: {response.error}")
+
+        return Ret.success(msg="插件信息更新成功")
+
+    except Exception as e:
+        logger.error(f"更新插件信息失败: {e}")
+        return Ret.fail(msg=f"更新失败: {e}")

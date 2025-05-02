@@ -30,7 +30,6 @@ import {
 import {
   Search as SearchIcon,
   CloudDownload as CloudDownloadIcon,
-  Done as DoneIcon,
   Info as InfoIcon,
   Update as UpdateIcon,
   GitHub as GitHubIcon,
@@ -39,12 +38,16 @@ import {
   Add as AddIcon,
   Extension as ExtensionIcon,
   RemoveCircle as RemoveCircleIcon,
+  Close as CloseIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material'
 import {
   pluginsMarketApi,
   CloudPlugin,
   PluginCreateRequest,
+  PluginUpdateRequest,
 } from '../../services/api/cloud/plugins_market'
+import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 
@@ -70,12 +73,14 @@ const PluginCard = ({
   plugin,
   onDownload,
   onUpdate,
+  onRemove,
   onUnpublish,
   onShowDetail,
 }: {
   plugin: CloudPlugin
   onDownload: () => void
   onUpdate: () => void
+  onRemove: () => void
   onUnpublish?: () => void
   onShowDetail: () => void
 }) => {
@@ -266,7 +271,7 @@ const PluginCard = ({
         </Box>
 
         {plugin.is_local ? (
-          plugin.can_update ? (
+          <Box sx={{ display: 'flex', gap: 0.5 }}>
             <Button
               size="small"
               variant="contained"
@@ -274,13 +279,12 @@ const PluginCard = ({
               onClick={onUpdate}
               color="primary"
             >
-              更新
+              同步最新
             </Button>
-          ) : (
-            <Button size="small" variant="text" startIcon={<DoneIcon />} disabled>
-              已获取
+            <Button size="small" variant="outlined" color="error" onClick={onRemove}>
+              移除
             </Button>
-          )
+          </Box>
         ) : (
           <Button
             size="small"
@@ -305,6 +309,8 @@ const PluginDetailDialog = ({
   onUnpublish,
   onDownload,
   onUpdate,
+  onRemove,
+  onEdit,
 }: {
   open: boolean
   onClose: () => void
@@ -312,6 +318,8 @@ const PluginDetailDialog = ({
   onUnpublish?: () => void
   onDownload?: () => void
   onUpdate?: () => void
+  onRemove?: () => void
+  onEdit?: () => void
 }) => {
   const theme = useTheme()
   const [iconError, setIconError] = useState(false)
@@ -353,11 +361,18 @@ const PluginDetailDialog = ({
         }}
       >
         <Typography variant="h6">插件详情：{plugin.name}</Typography>
-        {plugin.isOwner && (
-          <IconButton color="error" onClick={onUnpublish} size="small" title="下架插件">
-            <RemoveCircleIcon />
-          </IconButton>
-        )}
+        <IconButton
+          color="default"
+          onClick={onClose}
+          size="small"
+          sx={{
+            position: 'absolute',
+            right: 8,
+            top: 8,
+          }}
+        >
+          <CloseIcon />
+        </IconButton>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
@@ -525,27 +540,33 @@ const PluginDetailDialog = ({
           <Button variant="outlined" color="warning" onClick={handleReport} sx={{ mr: 1 }}>
             举报插件
           </Button>
-          <Button variant="outlined" onClick={onClose}>
-            关闭
-          </Button>
+          {plugin.isOwner && (
+            <>
+              <Button variant="outlined" color="error" onClick={onUnpublish} sx={{ mr: 1 }}>
+                下架插件
+              </Button>
+              <Button variant="outlined" color="primary" onClick={onEdit} sx={{ mr: 1 }}>
+                编辑信息
+              </Button>
+            </>
+          )}
         </Box>
 
         <Box sx={{ display: 'flex', gap: 1 }}>
           {plugin.is_local ? (
-            plugin.can_update ? (
+            <>
               <Button
                 variant="contained"
                 startIcon={<UpdateIcon />}
                 color="primary"
                 onClick={onUpdate}
               >
-                更新插件
+                同步最新
               </Button>
-            ) : (
-              <Button variant="contained" disabled startIcon={<DoneIcon />}>
-                已获取
+              <Button variant="outlined" color="error" onClick={onRemove}>
+                移除插件
               </Button>
-            )
+            </>
           ) : (
             <Button
               variant="contained"
@@ -672,7 +693,7 @@ const CreatePluginDialog = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    if (!formData.name.trim()) {
+    if (!formData.name?.trim()) {
       newErrors.name = '插件名称不能为空'
     }
 
@@ -682,11 +703,11 @@ const CreatePluginDialog = ({
       newErrors.moduleName = '模块名只能包含英文、数字和下划线，并且在插件市场唯一'
     }
 
-    if (!formData.description.trim()) {
+    if (!formData.description?.trim()) {
       newErrors.description = '插件描述不能为空'
     }
 
-    if (!formData.author.trim()) {
+    if (!formData.author?.trim()) {
       newErrors.author = '作者不能为空'
     }
 
@@ -855,7 +876,12 @@ const CreatePluginDialog = ({
                 )}
               </Box>
               <Box>
-                <Button variant="outlined" component="label" disabled={isSubmitting} sx={{ mb: 1 }}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  disabled={isSubmitting}
+                  sx={{ mb: 1 }}
+                >
                   选择图标
                   <input
                     type="file"
@@ -970,7 +996,7 @@ const CreatePluginDialog = ({
             />
           </Grid>
 
-          {/* 分割线和确认选项 */}
+          {/* 添加分割线和确认选项 */}
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle1" color="text.secondary" gutterBottom>
@@ -1048,7 +1074,7 @@ export default function PluginsMarket() {
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean
     plugin: CloudPlugin | null
-    action: 'download' | 'update' | 'unpublish'
+    action: 'download' | 'update' | 'unpublish' | 'remove'
   }>({
     open: false,
     plugin: null,
@@ -1057,6 +1083,7 @@ export default function PluginsMarket() {
   const [filterWebhook, setFilterWebhook] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
   const pageSize = 12
   // 添加全局消息状态
   const [messageInfo, setMessageInfo] = useState<{
@@ -1161,6 +1188,10 @@ export default function PluginsMarket() {
     setConfirmDialog({ open: true, plugin, action: 'unpublish' })
   }
 
+  const handleRemoveClick = (plugin: CloudPlugin) => {
+    setConfirmDialog({ open: true, plugin, action: 'remove' })
+  }
+
   const handleConfirm = async () => {
     if (!confirmDialog.plugin) return
 
@@ -1172,9 +1203,18 @@ export default function PluginsMarket() {
       if (confirmDialog.action === 'download') {
         response = await pluginsMarketApi.downloadPlugin(confirmDialog.plugin.moduleName)
       } else if (confirmDialog.action === 'update') {
-        response = await pluginsMarketApi.updatePlugin(confirmDialog.plugin.moduleName)
+        const updateResult = await updatePackage(confirmDialog.plugin.moduleName)
+        response = {
+          code: updateResult.success ? 200 : 500,
+          msg: updateResult.success ? '成功' : updateResult.errorMsg || '失败',
+          data: null,
+        }
       } else if (confirmDialog.action === 'unpublish') {
         response = await pluginsMarketApi.deleteUserPlugin(confirmDialog.plugin.moduleName)
+      } else if (confirmDialog.action === 'remove') {
+        // 调用插件管理的移除插件接口
+        const success = await removePackage(confirmDialog.plugin.moduleName)
+        response = { code: success ? 200 : 500, msg: success ? '成功' : '失败', data: null }
       }
 
       if (response && response.code === 200) {
@@ -1182,7 +1222,7 @@ export default function PluginsMarket() {
         if (confirmDialog.action === 'download') {
           successMessage = '插件获取成功'
         } else if (confirmDialog.action === 'update') {
-          successMessage = '插件更新成功'
+          successMessage = '插件同步成功，已更新至最新版本'
         } else if (confirmDialog.action === 'unpublish') {
           successMessage = '插件下架成功'
           // 下架成功后从列表中移除
@@ -1190,27 +1230,36 @@ export default function PluginsMarket() {
           if (selectedPlugin?.id === confirmDialog.plugin.id) {
             setSelectedPlugin(null)
           }
-          // 重新获取插件列表以更新状态
-          fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+        } else if (confirmDialog.action === 'remove') {
+          successMessage = '插件移除成功'
+          // 更新状态，标记为未安装
+          setPlugins(prev =>
+            prev.map(p => (p.id === confirmDialog.plugin?.id ? { ...p, is_local: false } : p))
+          )
+          if (selectedPlugin?.id === confirmDialog.plugin.id) {
+            setSelectedPlugin({
+              ...selectedPlugin,
+              is_local: false,
+            })
+          }
         }
 
-        showSuccess(successMessage)
-
         // 更新本地状态（下载、更新）
-        if (confirmDialog.action !== 'unpublish') {
+        if (confirmDialog.action === 'download' || confirmDialog.action === 'update') {
           setPlugins(prev =>
-            prev.map(p =>
-              p.id === confirmDialog.plugin?.id ? { ...p, is_local: true, can_update: false } : p
-            )
+            prev.map(p => (p.id === confirmDialog.plugin?.id ? { ...p, is_local: true } : p))
           )
           if (selectedPlugin?.id === confirmDialog.plugin.id) {
             setSelectedPlugin({
               ...selectedPlugin,
               is_local: true,
-              can_update: false,
             })
           }
         }
+
+        showSuccess(successMessage)
+        // 重新获取插件列表以更新状态
+        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
       } else if (response) {
         showError(`操作失败: ${response.msg}`)
       } else {
@@ -1260,6 +1309,519 @@ export default function PluginsMarket() {
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  // 添加处理编辑的方法
+  const handleEditPlugin = (plugin: CloudPlugin) => {
+    setEditingPlugin(plugin)
+  }
+
+  // 在主组件中添加处理更新插件信息的方法
+  const handleUpdatePluginInfo = async (data: PluginUpdateRequest, moduleName: string) => {
+    try {
+      setIsSubmitting(true)
+      const response = await pluginsMarketApi.updateUserPlugin(moduleName, data)
+
+      if (response.code === 200) {
+        showSuccess('插件信息更新成功！')
+        setEditingPlugin(null)
+
+        // 刷新插件列表
+        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+
+        // 如果当前有选中的插件，更新选中插件的信息
+        if (selectedPlugin && selectedPlugin.moduleName === moduleName) {
+          const updatedPlugin = await pluginsMarketApi.getPluginDetail(moduleName)
+          setSelectedPlugin({
+            ...updatedPlugin,
+            isOwner: selectedPlugin.isOwner,
+            is_local: selectedPlugin.is_local,
+          })
+        }
+      } else {
+        showError(response.msg || '更新失败')
+      }
+    } catch (error) {
+      console.error('更新插件信息失败', error)
+      showError(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // 编辑插件对话框组件
+  const EditPluginDialog = ({
+    open,
+    onClose,
+    plugin,
+    onSubmit,
+    isSubmitting,
+  }: {
+    open: boolean
+    onClose: () => void
+    plugin: CloudPlugin | null
+    onSubmit: (data: PluginUpdateRequest, moduleName: string) => void
+    isSubmitting: boolean
+  }) => {
+    const [formData, setFormData] = useState<PluginUpdateRequest>({
+      name: '',
+      description: '',
+      author: '',
+      hasWebhook: false,
+      homepageUrl: '',
+      githubUrl: '',
+      cloneUrl: '',
+      licenseType: 'MIT',
+      isSfw: true,
+      icon: '',
+    })
+    const [errors, setErrors] = useState<Record<string, string>>({})
+    const [iconPreview, setIconPreview] = useState<string | null>(null)
+    // 添加确认选择框状态
+    const [confirmSafeContent, setConfirmSafeContent] = useState(false)
+    const [agreeToTerms, setAgreeToTerms] = useState(false)
+
+    // 初始化表单数据
+    useEffect(() => {
+      if (open && plugin) {
+        setFormData({
+          name: plugin.name || '',
+          description: plugin.description || '',
+          author: plugin.author || '',
+          hasWebhook: plugin.hasWebhook || false,
+          homepageUrl: plugin.homepageUrl || '',
+          githubUrl: plugin.githubUrl || '',
+          cloneUrl: plugin.cloneUrl || '',
+          licenseType: plugin.licenseType || 'MIT',
+          isSfw: true,
+          icon: plugin.icon || '',
+        })
+        setIconPreview(plugin.icon || null)
+        setErrors({})
+        // 重置确认状态
+        setConfirmSafeContent(false)
+        setAgreeToTerms(false)
+      }
+    }, [open, plugin])
+
+    // 处理输入变化
+    const handleChange = (
+      e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | { name?: string; value: unknown }
+      >
+    ) => {
+      const { name, value } = e.target
+      if (name) {
+        setFormData(prev => ({ ...prev, [name]: value }))
+
+        // GitHub URL自动填充Git克隆URL的逻辑
+        if (name === 'githubUrl' && typeof value === 'string') {
+          const githubUrl = value.trim()
+          // 如果Git克隆URL为空或等于旧的GitHub URL + .git，则自动填充
+          if (!formData.cloneUrl || formData.cloneUrl === formData.githubUrl + '.git') {
+            if (githubUrl) {
+              setFormData(prev => ({ ...prev, cloneUrl: githubUrl + '.git' }))
+
+              // 当自动填充克隆URL时，同时清除克隆URL的错误
+              if (errors.cloneUrl) {
+                setErrors(prev => {
+                  const newErrors = { ...prev }
+                  delete newErrors.cloneUrl
+                  return newErrors
+                })
+              }
+            } else {
+              setFormData(prev => ({ ...prev, cloneUrl: '' }))
+            }
+          }
+        }
+
+        // 清除错误
+        if (errors[name]) {
+          setErrors(prev => {
+            const newErrors = { ...prev }
+            delete newErrors[name]
+            return newErrors
+          })
+        }
+      }
+    }
+
+    // 处理切换变化
+    const handleSwitchChange = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData(prev => ({ ...prev, [name]: e.target.checked }))
+    }
+
+    // 处理SFW确认变更
+    const handleSfwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setConfirmSafeContent(e.target.checked)
+      // 同时更新formData中的isSfw值
+      setFormData(prev => ({ ...prev, isSfw: e.target.checked }))
+    }
+
+    // 验证表单
+    const validateForm = (): boolean => {
+      const newErrors: Record<string, string> = {}
+
+      if (!formData.name?.trim()) {
+        newErrors.name = '插件名称不能为空'
+      }
+
+      if (!formData.description?.trim()) {
+        newErrors.description = '插件描述不能为空'
+      }
+
+      if (!formData.author?.trim()) {
+        newErrors.author = '作者不能为空'
+      }
+
+      if (formData.githubUrl && !/^https?:\/\/github\.com\//.test(formData.githubUrl)) {
+        newErrors.githubUrl = 'GitHub URL 格式不正确'
+      }
+
+      if (formData.cloneUrl && !/\.git$/.test(formData.cloneUrl)) {
+        newErrors.cloneUrl = '克隆URL格式不正确，应以.git结尾'
+      }
+
+      setErrors(newErrors)
+      return Object.keys(newErrors).length === 0
+    }
+
+    // 处理提交
+    const handleSubmit = () => {
+      if (!plugin) return
+      if (validateForm()) {
+        onSubmit(formData, plugin.moduleName)
+      }
+    }
+
+    // 处理图标上传
+    const handleIconUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      if (file.size > 10 * 1024 * 1024) {
+        setErrors(prev => ({
+          ...prev,
+          icon: '图片太大啦，最大支持10MB～',
+        }))
+        return
+      }
+
+      try {
+        const base64Icon = await imageToBase64(file)
+        setFormData(prev => ({ ...prev, icon: base64Icon }))
+        setIconPreview(base64Icon)
+
+        // 清除错误
+        if (errors.icon) {
+          setErrors(prev => {
+            const newErrors = { ...prev }
+            delete newErrors.icon
+            return newErrors
+          })
+        }
+      } catch (error) {
+        console.error('图标转换失败:', error)
+        setErrors(prev => ({
+          ...prev,
+          icon: '图标处理失败，请重试',
+        }))
+      }
+    }
+
+    // 图片转Base64函数
+    const imageToBase64 = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.readAsDataURL(file)
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = error => reject(error)
+      })
+    }
+
+    if (!plugin) return null
+
+    return (
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 2,
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+          编辑插件信息
+          <IconButton
+            aria-label="close"
+            onClick={onClose}
+            sx={{
+              position: 'absolute',
+              right: 8,
+              top: 8,
+            }}
+            size="small"
+          >
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3, mt: 3 }}>
+          <Grid container spacing={3}>
+            {/* 基本信息（左）和图标上传（右）并排布局 */}
+            <Grid item xs={12} sm={6}>
+              <Typography variant="subtitle1" gutterBottom fontWeight={500} sx={{ mb: 2 }}>
+                基本信息
+              </Typography>
+
+              <TextField
+                name="name"
+                label="插件名称"
+                value={formData.name}
+                onChange={handleChange}
+                fullWidth
+                required
+                error={!!errors.name}
+                helperText={errors.name}
+                disabled={isSubmitting}
+                sx={{ mb: 2 }}
+              />
+
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                模块名: <b>{plugin.moduleName}</b> (不可修改)
+              </Typography>
+            </Grid>
+
+            {/* 插件图标上传 */}
+            <Grid item xs={12} sm={6}>
+              <Typography variant="subtitle1" gutterBottom fontWeight={500} sx={{ mb: 2 }}>
+                插件图标
+              </Typography>
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 2,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 100,
+                    height: 100,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme =>
+                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                  }}
+                >
+                  {iconPreview ? (
+                    <img
+                      src={iconPreview}
+                      alt="插件图标预览"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <ExtensionIcon
+                      sx={{
+                        fontSize: 48,
+                        opacity: 0.7,
+                        color: theme => theme.palette.primary.main,
+                      }}
+                    />
+                  )}
+                </Box>
+                <Box>
+                  <Button
+                    variant="outlined"
+                    component="label"
+                    disabled={isSubmitting}
+                    sx={{ mb: 1 }}
+                  >
+                    选择图标
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleIconUpload}
+                      disabled={isSubmitting}
+                    />
+                  </Button>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    建议尺寸: 128x128像素
+                    <br />
+                    支持格式: PNG, JPG, GIF
+                    <br />
+                    大小限制: 10MB (自动压缩至 500 KB)
+                  </Typography>
+                  {errors.icon && (
+                    <Typography variant="caption" color="error" sx={{ mt: 1 }}>
+                      {errors.icon}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                name="description"
+                label="插件描述"
+                value={formData.description}
+                onChange={handleChange}
+                fullWidth
+                required
+                multiline
+                rows={3}
+                error={!!errors.description}
+                helperText={errors.description}
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="author"
+                label="作者"
+                value={formData.author}
+                onChange={handleChange}
+                fullWidth
+                required
+                error={!!errors.author}
+                helperText={errors.author}
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth disabled={isSubmitting}>
+                <TextField
+                  select
+                  name="licenseType"
+                  label="许可证类型"
+                  value={formData.licenseType}
+                  onChange={handleChange}
+                  fullWidth
+                >
+                  <MenuItem value="MIT">MIT</MenuItem>
+                  <MenuItem value="Apache-2.0">Apache-2.0</MenuItem>
+                  <MenuItem value="GPL-3.0">GPL-3.0</MenuItem>
+                  <MenuItem value="BSD-3-Clause">BSD-3-Clause</MenuItem>
+                  <MenuItem value="UNLICENSED">UNLICENSED</MenuItem>
+                  <MenuItem value="CUSTOM">自定义（参考描述）</MenuItem>
+                </TextField>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="githubUrl"
+                label="GitHub 仓库URL"
+                value={formData.githubUrl}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.githubUrl}
+                helperText={errors.githubUrl}
+                placeholder="https://github.com/username/repo"
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                name="cloneUrl"
+                label="Git 克隆URL"
+                value={formData.cloneUrl}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.cloneUrl}
+                helperText={errors.cloneUrl}
+                placeholder="https://github.com/username/repo.git"
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.hasWebhook}
+                    onChange={handleSwitchChange('hasWebhook')}
+                    color="primary"
+                    disabled={isSubmitting}
+                  />
+                }
+                label="含有 Webhook 触发功能"
+              />
+            </Grid>
+            
+            {/* 添加分割线和确认选项 */}
+            <Grid item xs={12}>
+              <Divider sx={{ my: 2 }} />
+              <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                发布确认
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={confirmSafeContent}
+                    onChange={handleSfwChange}
+                    disabled={isSubmitting}
+                  />
+                }
+                label="我确认这是符合社区内容规则的安全内容(SFW)"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={agreeToTerms}
+                    onChange={e => setAgreeToTerms(e.target.checked)}
+                    disabled={isSubmitting}
+                  />
+                }
+                label={
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
+                    我已阅读并接受{' '}
+                    <Link
+                      href="https://community.nekro.ai/terms"
+                      target="_blank"
+                      underline="hover"
+                      sx={{ ml: 0.5 }}
+                    >
+                      《NekroAI 社区资源共享协议》
+                    </Link>
+                  </Box>
+                }
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
+          <Button onClick={onClose} disabled={isSubmitting}>
+            取消
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            color="primary"
+            disabled={isSubmitting || !agreeToTerms || !confirmSafeContent}
+            startIcon={isSubmitting ? <CircularProgress size={20} /> : <EditIcon />}
+          >
+            {isSubmitting ? '提交中...' : '更新信息'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    )
   }
 
   if (error && plugins.length === 0) {
@@ -1417,6 +1979,7 @@ export default function PluginsMarket() {
                     plugin={plugin}
                     onDownload={() => handleDownloadClick(plugin)}
                     onUpdate={() => handleUpdateClick(plugin)}
+                    onRemove={() => handleRemoveClick(plugin)}
                     onUnpublish={plugin.isOwner ? () => handleUnpublishClick(plugin) : undefined}
                     onShowDetail={() => handleShowDetail(plugin)}
                   />
@@ -1476,10 +2039,12 @@ export default function PluginsMarket() {
             ? () => handleDownloadClick(selectedPlugin)
             : undefined
         }
-        onUpdate={selectedPlugin?.can_update ? () => handleUpdateClick(selectedPlugin) : undefined}
+        onUpdate={selectedPlugin?.is_local ? () => handleUpdateClick(selectedPlugin) : undefined}
+        onRemove={selectedPlugin?.is_local ? () => handleRemoveClick(selectedPlugin) : undefined}
+        onEdit={selectedPlugin?.isOwner ? () => handleEditPlugin(selectedPlugin) : undefined}
       />
 
-      {/* 确认下载/更新/下架对话框 */}
+      {/* 确认下载/更新/下架/移除对话框 */}
       <Dialog
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ open: false, plugin: null, action: 'download' })}
@@ -1489,8 +2054,10 @@ export default function PluginsMarket() {
           {confirmDialog.action === 'download'
             ? '确认获取'
             : confirmDialog.action === 'update'
-              ? '确认更新'
-              : '确认下架'}
+              ? '确认同步'
+              : confirmDialog.action === 'unpublish'
+                ? '确认下架'
+                : '确认移除'}
         </DialogTitle>
         <DialogContent>
           {(confirmDialog.action === 'download' || confirmDialog.action === 'update') && (
@@ -1515,7 +2082,7 @@ export default function PluginsMarket() {
                       sx={{
                         display: 'inline-block',
                         p: 1,
-                        bgcolor: theme => 
+                        bgcolor: theme =>
                           theme.palette.mode === 'dark'
                             ? 'rgba(255,255,255,0.05)'
                             : 'rgba(0,0,0,0.03)',
@@ -1550,13 +2117,21 @@ export default function PluginsMarket() {
             {confirmDialog.action === 'download' &&
               `确定要获取插件 "${confirmDialog.plugin?.name}" 到本地库吗？`}
             {confirmDialog.action === 'update' &&
-              `确定要更新插件 "${confirmDialog.plugin?.name}" 到最新版本吗？`}
+              `确定要同步插件 "${confirmDialog.plugin?.name}" 到最新版本吗？将会执行 git pull 操作。`}
             {confirmDialog.action === 'unpublish' && (
               <>
                 <Alert severity="warning" sx={{ mb: 2 }}>
                   下架后此插件将从云端市场移除，其他用户将无法再下载。此操作不可恢复。
                 </Alert>
                 确定要从云端市场下架插件 "{confirmDialog.plugin?.name}" 吗？
+              </>
+            )}
+            {confirmDialog.action === 'remove' && (
+              <>
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  移除后此插件将从本地删除，所有相关功能将无法使用。您可以随时从插件市场重新获取。
+                </Alert>
+                确定要从本地移除插件 "{confirmDialog.plugin?.name}" 吗？
               </>
             )}
           </Typography>
@@ -1570,7 +2145,11 @@ export default function PluginsMarket() {
           </Button>
           <Button
             onClick={handleConfirm}
-            color={confirmDialog.action === 'unpublish' ? 'error' : 'primary'}
+            color={
+              confirmDialog.action === 'unpublish' || confirmDialog.action === 'remove'
+                ? 'error'
+                : 'primary'
+            }
             disabled={!!processingId}
           >
             {processingId ? <CircularProgress size={24} /> : '确认'}
@@ -1583,6 +2162,15 @@ export default function PluginsMarket() {
         open={createDialogOpen}
         onClose={() => setCreateDialogOpen(false)}
         onSubmit={handleCreatePlugin}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* 编辑插件对话框 */}
+      <EditPluginDialog
+        open={!!editingPlugin}
+        onClose={() => setEditingPlugin(null)}
+        plugin={editingPlugin}
+        onSubmit={handleUpdatePluginInfo}
         isSubmitting={isSubmitting}
       />
 

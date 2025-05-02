@@ -41,6 +41,21 @@ class PluginCreate(BaseModel):
     icon: Optional[str] = None  # 插件图标，可以是Base64或URL
 
 
+class PluginUpdate(BaseModel):
+    """更新插件请求模型"""
+
+    name: Optional[str] = None
+    description: Optional[str] = None
+    author: Optional[str] = None
+    hasWebhook: Optional[bool] = None
+    homepageUrl: Optional[str] = None
+    githubUrl: Optional[str] = None
+    cloneUrl: Optional[str] = None
+    licenseType: Optional[str] = None
+    isSfw: Optional[bool] = None
+    icon: Optional[str] = None  # 插件图标，可以是Base64或URL
+
+
 class PluginCreateResponse(BasicResponse):
     """创建插件响应模型"""
 

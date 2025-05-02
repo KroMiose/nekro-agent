@@ -128,7 +128,7 @@ export const pluginsApi = {
         }
       )
       // 检查返回的结果
-      if (response.data.code !== 0) {
+      if (response.data.code !== 200) {
         return { success: false, errorMsg: response.data.msg || '重载失败' }
       }
       return { success: true }
@@ -324,7 +324,7 @@ export const pluginsApi = {
     try {
       const response = await axios.post(`/plugins/package/update/${moduleName}`)
       // 检查返回的结果
-      if (response.data.code !== 0) {
+      if (response.data.code !== 200) {
         return { success: false, errorMsg: response.data.msg || '更新失败' }
       }
       return { success: true }
