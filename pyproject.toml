@@ -15,7 +15,7 @@ publish = "scripts.run_publish:main"
 bot = "run_bot:main"
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.10,<3.12"
 miose-toolkit-common = "^0.3.7"
 miose-toolkit-logger = "^0.0.7"
 python-jose = { extras = ["cryptography"], version = "^3.3.0" }
@@ -48,6 +48,7 @@ psutil = "^7.0.0"
 mem0ai = "^0.1.79"
 gitpython = "^3.1.44"
 qdrant-client = "^1.13.3"
+mcp = "^1.7.0"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
@@ -65,10 +66,10 @@ plugins = ["nekro_agent"]
 plugin_dirs = []
 builtin_plugins = []
 
-# [[tool.poetry.source]]
-# name = "aliyun"
-# url = "https://mirrors.aliyun.com/pypi/simple/"
-# priority = "primary"
+#[[tool.poetry.source]]
+#name = "aliyun"
+#url = "https://mirrors.aliyun.com/pypi/simple/"
+#priority = "primary"
 
 [tool.black]
 line-length = 128
