@@ -21,7 +21,7 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.tools.common_util import (
     check_content_trigger,
-    check_ignore_message,
+    check_forbidden_message,
     copy_to_upload_dir,
     random_chat_check,
 )
@@ -169,6 +169,10 @@ class MessageService:
         content_data = [o.model_dump() for o in message.content_data]
         current_time: float = time.time()
 
+        if check_forbidden_message(message.content_text):
+            logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
+            return
+
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,
@@ -187,9 +191,7 @@ class MessageService:
             send_timestamp=int(current_time),  # 使用处理后的时间戳
         )
 
-        should_ignore = (
-            check_ignore_message(message.content_text) or (user and user.is_prevent_trigger) or (user and not user.is_active)
-        )
+        should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
 
         # 检查是否需要触发回复
         should_trigger = (

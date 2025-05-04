@@ -184,7 +184,7 @@ def check_content_trigger(content: str) -> bool:
     return False
 
 
-def check_ignore_message(content: str) -> bool:
+def check_forbidden_message(content: str) -> bool:
     """忽略消息检测
 
     Args:
