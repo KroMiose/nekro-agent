@@ -288,7 +288,7 @@ class PluginCollector:
             raise
 
         if auto_reload:
-            await self.reload_plugin_by_module_name(module_name)
+            await self.reload_plugin_by_module_name(module_name, is_package=True)
 
     async def remove_package(self, module_name: str) -> None:
         """删除插件包
