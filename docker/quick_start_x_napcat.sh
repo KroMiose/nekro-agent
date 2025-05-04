@@ -218,8 +218,8 @@ if [ -z "$INSTANCE_NAME" ]; then
     echo "  NekroAgent: 'sudo docker logs -f nekro_agent'"
     echo "  NapCat: 'sudo docker logs -f napcat'"
 else
-    echo "  NekroAgent: 'sudo docker logs -f ${INSTANCE_NAME}nekro_agent'"
-    echo "  NapCat: 'sudo docker logs -f ${INSTANCE_NAME}napcat'"
+    echo "  NekroAgent: \"sudo docker logs -f ${INSTANCE_NAME}nekro_agent\""
+    echo "  NapCat: \"sudo docker logs -f ${INSTANCE_NAME}napcat\""
 fi
 
 # 显示重要的配置信息
@@ -229,12 +229,11 @@ NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
 QDRANT_API_KEY=$(grep QDRANT_API_KEY .env | cut -d '=' -f2)
 echo "OneBot 访问令牌: ${ONEBOT_ACCESS_TOKEN}"
 echo "管理员账号: admin | 密码: ${NEKRO_ADMIN_PASSWORD}"
-echo "Qdrant API 密钥: ${QDRANT_API_KEY}"
 
 echo -e "\n=== 服务访问信息 ==="
 echo "NekroAgent 主服务端口: ${NEKRO_EXPOSE_PORT:-8021}"
-echo "NapCat 服务端口: ${NAPCAT_EXPOSE_PORT:-6099}"
 echo "NekroAgent Web 访问地址: http://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}"
+echo "NapCat 服务端口: ${NAPCAT_EXPOSE_PORT:-6099}"
 
 echo -e "\n=== 注意事项 ==="
 echo "1. 如果您使用的是云服务器，请在云服务商控制台的安全组中放行以下端口："
@@ -244,18 +243,7 @@ echo "2. 如果需要从外部访问，请将上述地址中的 127.0.0.1 替换
 if [ -z "$INSTANCE_NAME" ]; then
     echo "3. 请使用 'sudo docker logs napcat' 查看机器人 QQ 账号二维码进行登录"
 else
-    echo "3. 请使用 'sudo docker logs ${INSTANCE_NAME}napcat' 查看机器人 QQ 账号二维码进行登录"
-fi
-
-# 提示用户修改配置文件
-echo -e "\n=== 配置文件 ==="
-CONFIG_FILE="${NEKRO_DATA_DIR}/configs/nekro-agent.yaml"
-echo "配置文件路径: $CONFIG_FILE"
-echo "编辑配置后可通过以下命令重启服务："
-if [ -z "$INSTANCE_NAME" ]; then
-    echo "  'sudo docker restart nekro_agent'"
-else
-    echo "  'sudo docker restart ${INSTANCE_NAME}nekro_agent'"
+    echo "3. 请使用 \"sudo docker logs ${INSTANCE_NAME}napcat\" 查看机器人 QQ 账号二维码进行登录"
 fi
 
 echo -e "\n安装完成！祝您使用愉快！"
