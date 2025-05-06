@@ -118,4 +118,4 @@ NekroAgent 采用 [自定义的开源协议](./LICENSE)（基于 Apache License 
 
 ## ⭐ Star 历史
 
-[![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)](https://star-history.com/#KroMiose/nekro-agent&Date)
+![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)
