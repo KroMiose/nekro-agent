@@ -139,6 +139,34 @@ const PresetEditDialog = ({
       const value = input.value.trim()
 
       if (value) {
+        // 检查是否已有8个标签
+        const tagsArray = formData.tags.split(',').filter(tag => tag.trim())
+        if (tagsArray.length >= 8) {
+          setErrors(prev => ({
+            ...prev,
+            tags: '最多只能添加8个标签'
+          }))
+          return
+        }
+
+        // 检查是否是重复标签
+        if (tagsArray.some(tag => tag.trim().toLowerCase() === value.toLowerCase())) {
+          setErrors(prev => ({
+            ...prev,
+            tags: '标签不能重复'
+          }))
+          return
+        }
+
+        // 清除标签错误信息
+        if (errors.tags) {
+          setErrors(prev => {
+            const newErrors = { ...prev }
+            delete newErrors.tags
+            return newErrors
+          })
+        }
+
         // 清除输入框，并将新标签添加到已有标签中
         input.value = ''
         const newTags = formData.tags ? `${formData.tags},${value}` : value
@@ -427,7 +455,7 @@ const PresetEditDialog = ({
                       ) : null,
                     }}
                     autoComplete="off"
-                    helperText="用逗号或回车分隔多个标签"
+                    helperText={errors.tags || "用逗号或回车分隔多个标签，最多8个"}
                   />
                 </Box>
                 <TextField
