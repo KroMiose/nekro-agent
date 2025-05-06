@@ -31,3 +31,6 @@ class BasicResponse(BaseModel):
                 error=e.response.text,
             )
         raise e
+
+    class Config:
+        extra = "ignore"

@@ -101,7 +101,7 @@ async def download_preset(
         ext_data = preset_data.ext_data if preset_data.ext_data not in [None, "", "''", '""'] else {}
         await DBPreset.create(
             remote_id=preset_data.id,
-            on_shared=False,  # 下载的人设不是本地共享的
+            on_shared=preset_data.is_owner or False,  # 下载的人设是否为自己共享的
             name=preset_data.name,
             title=preset_data.title,
             avatar=preset_data.avatar,
