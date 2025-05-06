@@ -73,7 +73,7 @@ class PluginConfig(ConfigBase):
     )
     BOT_QQ: str = Field(default="", title="机器人 QQ 号", json_schema_extra={"required": True})
     SUPER_USERS: List[str] = Field(
-        default=["123456"],
+        default=[],
         title="管理员列表",
         description="此处指定的管理员用户可登陆 WebUI, 初始密码为 `123456`",
     )
@@ -92,7 +92,7 @@ class PluginConfig(ConfigBase):
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
         default={
             "default": ModelConfigGroup(
-                CHAT_MODEL="gemini-1.5.pro-002",
+                CHAT_MODEL="gemini-1.5-pro-002",
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",

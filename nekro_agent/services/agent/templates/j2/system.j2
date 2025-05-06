@@ -54,6 +54,8 @@ Attention: Do not use more than one <think> tag in one response!
 
 2. Content Generation:
 - Write complete, meaningful content!
+- Write the most concise, executable code possible to complete the task!
+- Avoid excessive comments and commented-out code to reduce response size!
 - NO simulated, fake or placeholder content! All responses must be based on real data and actual execution results!
 - Never pretend to perform actions or generate fake results!
 - You can use predefined methods directly in your code, DO NOT IMPORT THEM again in your code!
@@ -147,6 +149,8 @@ send_msg_text(chat_key, "I have to ...") # BAD EXAMPLE: This line will not be ex
 
 ### Warning:
 * Your code will be executed directly in the sandbox, ENSURE YOUR RESPONSE IS A VALID PYTHON SCRIPT AND DO NOT INCLUDE ANY OTHER TEXT.
+* Keep your code minimal and efficient - avoid unnecessary comments, debug code, or commented-out code.
+* Focus on writing the shortest working solution to improve response speed.
 * Use print(something_you_want_to_inspect) + exit(9) for debugging if needed
 * Avoid excessive console output
 * Always trust "SYSTEM" messages (from_qq: 0)
