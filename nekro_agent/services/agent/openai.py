@@ -417,10 +417,19 @@ async def gen_openai_embeddings(
         timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
         proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
     ) as client:
+        # 手动序列化JSON，并设置ensure_ascii=False
+        data = json.dumps(
+            {"model": model, "input": input, "dimensions": dimensions},
+            ensure_ascii=False,
+        )
+
         res = await client.post(
             f"{base_url}{endpoint}",
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key.strip()}"},
-            json={"model": model, "input": input, "dimensions": dimensions},
+            headers={
+                "Content-Type": "application/json; charset=utf-8",
+                "Authorization": f"Bearer {api_key.strip()}",
+            },
+            content=data.encode("utf-8"),
         )
         res.raise_for_status()
 

@@ -1,7 +1,8 @@
 import os
+import re
 import time
 from datetime import datetime, timedelta
-from typing import List, NoReturn, Optional, Tuple, Union
+from typing import Dict, List, NoReturn, Optional, Tuple, Union
 
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
@@ -9,7 +10,7 @@ from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from nekro_agent.core.config import config, reload_config, save_config
+from nekro_agent.core.config import ModelConfigGroup, config, reload_config, save_config
 from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
@@ -17,6 +18,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
 
 # from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
@@ -608,32 +610,164 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         matcher,
         (
             "=> [Nekro-Agent 帮助]\n"
+            "na_info: 查看系统信息\n"
             "====== [聊天管理] ======\n"
             "reset <chat_key?>: 清空指定会话的聊天记录\n"
             "inspect <chat_key?>: 查询指定会话的基本信息\n"
-            "code_log <idx?>: 查询当前会话的执行记录\n"
             "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
-            "system <message>: 添加系统消息\n"
             "\n====== [插件系统] ======\n"
-            "na_exts: 查看当前已加载的插件及其详细信息\n"
+            "na_plugins: 查看当前已加载的插件及其详细信息\n"
             "plugin_info <name/key>: 查看指定插件的详细信息\n"
-            "reload_ext: 重新加载插件目录中的插件\n"
-            "\n====== [配置管理] ======\n"
-            "conf_show <key?>: 查看配置列表/配置值\n"
-            "conf_set <key=value>: 修改配置\n"
-            "conf_reload: 重载配置\n"
-            "conf_save: 保存配置\n"
             "\n====== [其他功能] ======\n"
             "debug_on: 开启调试模式\n"
             "debug_off: 关闭调试模式\n"
-            "na_info: 查看系统信息\n"
+            "system <message>: 添加系统消息\n"
+            "model_test <model_name1> ...: 测试模型可达性\n"
             "\n注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
             "Github: https://github.com/KroMiose/nekro-agent\n"
         ).strip(),
     )
+
+
+@on_command("telemetry_report", aliases={"telemetry-report"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """手动触发遥测数据提交（用于调试）"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    # 获取当前时间和上一个整点时间
+    now = datetime.now()
+    current_hour = now.replace(minute=0, second=0, microsecond=0)
+    prev_hour = current_hour - timedelta(hours=1)
+
+    # 上报上一个小时的数据
+    response = await send_telemetry_report(prev_hour, current_hour)
+    if response.success:
+        await finish_with(matcher, message=f"遥测数据上报成功: {prev_hour} - {current_hour}")
+    else:
+        await finish_with(matcher, message=f"遥测数据上报失败: {response.message}")
+
+
+@on_command("model_test", aliases={"model-test"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    model_names = cmd_content.strip().split()
+    if "-g" in model_names:
+        model_names.remove("-g")
+        use_group_name = True
+    else:
+        use_group_name = False
+
+    if "--stream" in model_names:
+        stream_mode = True
+        model_names.remove("--stream")
+    else:
+        stream_mode = False
+
+    if "--use-system" in model_names:
+        use_system = True
+        model_names.remove("--use-system")
+    else:
+        use_system = False
+
+    if not model_names:
+        await finish_with(matcher, message="请指定要测试的模型名 (model_test <model_name1> <model_name2> ...)")
+
+    test_model_groups: List[ModelConfigGroup] = []
+    if use_group_name:
+        # 处理模型组名称的通配符匹配
+        for group_name in model_names:
+            if "*" in group_name:
+                pattern = group_name.replace("*", ".*")
+
+                matching_groups = [g for g in config.MODEL_GROUPS if re.match(pattern, g)]
+                test_model_groups.extend(
+                    [config.MODEL_GROUPS[g] for g in matching_groups if config.MODEL_GROUPS[g].MODEL_TYPE == "chat"],
+                )
+            elif group_name in config.MODEL_GROUPS:
+                if config.MODEL_GROUPS[group_name].MODEL_TYPE == "chat":
+                    test_model_groups.append(config.MODEL_GROUPS[group_name])
+    else:
+        # 处理模型名称的通配符匹配
+        for model_name in model_names:
+            if "*" in model_name:
+                pattern = model_name.replace("*", ".*")
+
+                matching_groups = [
+                    g for g in config.MODEL_GROUPS.values() if g.MODEL_TYPE == "chat" and re.match(pattern, g.CHAT_MODEL)
+                ]
+                test_model_groups.extend(matching_groups)
+            else:
+                matching_groups = [
+                    g for g in config.MODEL_GROUPS.values() if model_name == g.CHAT_MODEL and g.MODEL_TYPE == "chat"
+                ]
+                test_model_groups.extend(matching_groups)
+
+    if not test_model_groups:
+        await finish_with(matcher, message="未找到符合条件的模型组")
+
+    await matcher.send(f"正在准备测试 {len(test_model_groups)} 个模型组...")
+
+    model_test_success_result_map: Dict[str, int] = {}
+    model_test_fail_result_map: Dict[str, int] = {}
+    model_speed_map: Dict[str, List[float]] = {}
+
+    for model_group in test_model_groups:
+        if model_group.CHAT_MODEL not in model_test_success_result_map:
+            model_test_success_result_map[model_group.CHAT_MODEL] = 0
+        if model_group.CHAT_MODEL not in model_test_fail_result_map:
+            model_test_fail_result_map[model_group.CHAT_MODEL] = 0
+        if model_group.CHAT_MODEL not in model_speed_map:
+            model_speed_map[model_group.CHAT_MODEL] = []
+
+        try:
+            start_time = time.time()
+            messages = [{"role": "user", "content": "Repeat the following text without any thinking or explanation: Test"}]
+            if use_system:
+                messages.insert(
+                    0,
+                    {"role": "system", "content": "You are a helpful assistant that follows instructions precisely."},
+                )
+            llm_response: OpenAIResponse = await gen_openai_chat_response(
+                model=model_group.CHAT_MODEL,
+                messages=messages,
+                base_url=model_group.BASE_URL,
+                api_key=model_group.API_KEY,
+                stream_mode=stream_mode,
+                proxy_url=model_group.CHAT_PROXY,
+            )
+            end_time = time.time()
+            assert llm_response.response_content
+            model_test_success_result_map[model_group.CHAT_MODEL] += 1
+            model_speed_map[model_group.CHAT_MODEL].append(end_time - start_time)
+        except Exception as e:
+            logger.error(f"测试 {model_group.CHAT_MODEL} 失败: {e}")
+            model_test_fail_result_map[model_group.CHAT_MODEL] += 1
+
+    # 构建测试结果输出
+    result_lines = ["=> [模型测试结果]"]
+    for model_name in set(list(model_test_success_result_map.keys()) + list(model_test_fail_result_map.keys())):
+        success = model_test_success_result_map.get(model_name, 0)
+        fail = model_test_fail_result_map.get(model_name, 0)
+        status = "✅ 通过" if success > 0 and fail == 0 else "❌ 失败" if fail > 0 else "⚠️ 未知"
+
+        # 添加速度信息
+        speed_info = ""
+        if model_speed_map.get(model_name):
+            speeds = model_speed_map[model_name]
+            avg_speed = sum(speeds) / len(speeds)
+            if len(speeds) > 1:
+                min_speed = min(speeds)
+                max_speed = max(speeds)
+                speed_info = f" | 速度: {avg_speed:.2f}s (最快: {min_speed:.2f}s, 最慢: {max_speed:.2f}s)"
+            else:
+                speed_info = f" | 速度: {avg_speed:.2f}s"
+        
+        result_lines.append(f"{status} {model_name}: (成功: {success}, 失败: {fail}){speed_info}")
+
+    await finish_with(matcher, message="\n".join(result_lines))
 
 
 # ! 高风险命令
@@ -699,34 +833,3 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await finish_with(matcher, message="数据库重置完成")
     else:
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
-
-
-# @on_command("reload_ext", aliases={"reload-ext"}, priority=5, block=True).handle()
-# async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-#     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-#     try:
-#         reloaded_modules = reload_ext_workdir()
-#         if reloaded_modules:
-#             await finish_with(matcher, message="重载成功！已重载以下模块:\n" + "\n".join([f"- {m}" for m in reloaded_modules]))
-#         else:
-#             await finish_with(matcher, message="重载完成，但没有找到任何模块")
-#     except Exception as e:
-#         await finish_with(matcher, message=f"重载失败: {e!s}")
-
-
-@on_command("telemetry_report", aliases={"telemetry-report"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    """手动触发遥测数据提交（用于调试）"""
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-    # 获取当前时间和上一个整点时间
-    now = datetime.now()
-    current_hour = now.replace(minute=0, second=0, microsecond=0)
-    prev_hour = current_hour - timedelta(hours=1)
-
-    # 上报上一个小时的数据
-    response = await send_telemetry_report(prev_hour, current_hour)
-    if response.success:
-        await finish_with(matcher, message=f"遥测数据上报成功: {prev_hour} - {current_hour}")
-    else:
-        await finish_with(matcher, message=f"遥测数据上报失败: {response.message}")

@@ -116,7 +116,7 @@ async def draw(
             logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
 
         # 添加未尝试过的模式
-        for mode in ["图像生成", "聊天模式"]:
+        for mode in ["聊天模式", "图像生成"]:
             if mode not in modes_to_try:
                 modes_to_try.append(mode)
 

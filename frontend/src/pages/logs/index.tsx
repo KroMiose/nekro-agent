@@ -15,9 +15,12 @@ import {
   Autocomplete,
   MenuItem,
   Alert,
+  Button,
+  Tooltip,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { LogEntry, logsApi } from '../../services/api/logs'
+import DownloadIcon from '@mui/icons-material/Download'
 
 const LOG_LEVEL_COLORS = {
   ERROR: 'error',
@@ -37,6 +40,7 @@ export default function LogsPage() {
   const [isAdvanced, setIsAdvanced] = useState(false)
   const [realtimeLogs, setRealtimeLogs] = useState<LogEntry[]>([])
   const [isDisconnected, setIsDisconnected] = useState(false)
+  const [downloadLines, setDownloadLines] = useState<string>('1000')
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const [filters, setFilters] = useState({
     level: '',
@@ -128,6 +132,15 @@ export default function LogsPage() {
     }
   }, [filters.source])
 
+  // 处理下载日志
+  const handleDownloadLogs = () => {
+    const lines = parseInt(downloadLines) || 1000
+    logsApi.downloadLogs({
+      lines,
+      source: filters.source || undefined,
+    })
+  }
+
   return (
     <Box
       sx={{
@@ -141,7 +154,7 @@ export default function LogsPage() {
         sx={{
           display: 'flex',
           gap: 2,
-          mb: 2,
+          my: 1,
           pl: 1,
           flexShrink: 0,
         }}
@@ -205,6 +218,34 @@ export default function LogsPage() {
           size="small"
           sx={{ flexGrow: 1 }}
         />
+
+        {/* 下载日志组件 */}
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Tooltip title="输入要下载的日志行数">
+            <TextField
+              label="最近日志行数"
+              type="number"
+              value={downloadLines}
+              onChange={e => setDownloadLines(e.target.value)}
+              size="small"
+              sx={{ width: 120 }}
+              InputProps={{
+                inputProps: { min: 100, max: 10000 },
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="下载日志文件">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleDownloadLogs}
+              startIcon={<DownloadIcon />}
+              size="small"
+            >
+              下载最近日志
+            </Button>
+          </Tooltip>
+        </Box>
       </Box>
 
       {/* 日志表格 */}
