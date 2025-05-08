@@ -46,6 +46,8 @@ export interface PluginConfig {
   placeholder?: string
   is_hidden?: boolean
   ref_model_groups?: boolean
+  /** 若为模型组引用，此处指定只显示的模型类型：chat/embedding/draw */
+  model_type?: string
 }
 
 export interface PluginData {

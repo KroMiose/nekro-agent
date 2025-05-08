@@ -381,7 +381,11 @@ export default function SettingsPage() {
 
     // 如果是模型组引用，显示模型组选择器
     if (config.ref_model_groups) {
-      const modelGroupNames = Object.keys(modelGroups)
+      // 根据 model_type 过滤模型组，如未指定则全部展示
+      const modelGroupNames = Object.entries(modelGroups)
+        // 跳过第一个元素（模型组名），只使用 group 进行过滤
+        .filter(([, group]) => !config.model_type || group.MODEL_TYPE === config.model_type)
+        .map(([name]) => name)
       const isInvalidValue = !modelGroupNames.includes(displayValue)
 
       return (

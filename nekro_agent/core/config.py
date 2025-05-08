@@ -134,19 +134,19 @@ class PluginConfig(ConfigBase):
     USE_MODEL_GROUP: str = Field(
         default="default",
         title="使用的主模型组",
-        json_schema_extra={"ref_model_groups": True, "required": True},
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "chat"},
         description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
     FALLBACK_MODEL_GROUP: str = Field(
         default="default",
         title="备用模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="当主模型组不可用时, 使用备用模型组",
     )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
         default="default",
         title="调试/Agent 迁移模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="主模型组编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
     )
 
@@ -306,13 +306,13 @@ class PluginConfig(ConfigBase):
     PLUGIN_GENERATE_MODEL_GROUP: str = Field(
         default="default",
         title="插件代码生成模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="用于生成插件代码的模型组，建议使用上下文长，逻辑推理能力强的模型",
     )
     PLUGIN_APPLY_MODEL_GROUP: str = Field(
         default="default",
         title="插件代码应用模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="用于应用插件代码的模型组，建议使用上下文长，响应速度快的模型",
     )
     PLUGIN_UPDATE_USE_PROXY: bool = Field(

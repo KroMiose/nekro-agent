@@ -12,6 +12,8 @@ export interface ConfigItem {
   is_secret?: boolean
   is_textarea?: boolean
   ref_model_groups?: boolean
+  /** 若为模型组引用，此处指定只显示的模型类型：chat/embedding/draw */
+  model_type?: string
   is_hidden?: boolean
   required?: boolean  // 添加必填属性
 }
