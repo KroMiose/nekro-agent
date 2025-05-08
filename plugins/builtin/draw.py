@@ -34,7 +34,7 @@ class DrawConfig(ConfigBase):
     USE_DRAW_MODEL_GROUP: str = Field(
         default="default-draw-chat",
         title="绘图模型组",
-        json_schema_extra={"ref_model_groups": True, "required": True},
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "draw"},
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
     MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")

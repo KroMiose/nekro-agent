@@ -85,6 +85,9 @@ class ConfigService:
                     config_item["is_hidden"] = True
                 if field.json_schema_extra.get("ref_model_groups"):
                     config_item["ref_model_groups"] = True
+                # 添加模型类型过滤字段
+                if field.json_schema_extra.get("model_type"):
+                    config_item["model_type"] = field.json_schema_extra.get("model_type")
 
             # 添加枚举选项
             enum_values = _get_field_enum(field.annotation)
@@ -138,11 +141,14 @@ class ConfigService:
                 config_item["is_hidden"] = True
             if field.json_schema_extra.get("ref_model_groups"):
                 config_item["ref_model_groups"] = True
+            # 添加模型类型过滤字段
+            if field.json_schema_extra.get("model_type"):
+                config_item["model_type"] = field.json_schema_extra.get("model_type")
 
-        # 添加枚举选项
-        enum_values = _get_field_enum(field.annotation)
-        if enum_values:
-            config_item["enum"] = enum_values
+            # 添加枚举选项
+            enum_values = _get_field_enum(field.annotation)
+            if enum_values:
+                config_item["enum"] = enum_values
 
         return config_item
 
