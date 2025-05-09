@@ -231,6 +231,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [expandedDataRows, setExpandedDataRows] = useState<Set<number>>(new Set())
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [deleteDataConfirmOpen, setDeleteDataConfirmOpen] = useState(false)
+  const [deleteDataId, setDeleteDataId] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
 
@@ -1246,7 +1248,10 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 size="small"
                                 color="error"
                                 startIcon={<DeleteIcon fontSize="small" />}
-                                onClick={() => deleteDataMutation.mutate(data.id)}
+                                onClick={() => {
+                                  setDeleteDataId(data.id)
+                                  setDeleteDataConfirmOpen(true)
+                                }}
                                 sx={{
                                   textTransform: 'none',
                                   '&:hover': {
@@ -1448,6 +1453,31 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             color="primary"
           >
             确认更新
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* 删除数据确认对话框 */}
+      <Dialog open={deleteDataConfirmOpen} onClose={() => setDeleteDataConfirmOpen(false)}>
+        <DialogTitle>确认删除数据？</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            此操作将删除该条存储数据，此操作不可恢复，是否继续？
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDataConfirmOpen(false)}>取消</Button>
+          <Button
+            onClick={() => {
+              if (deleteDataId !== null) {
+                deleteDataMutation.mutate(deleteDataId)
+                setDeleteDataConfirmOpen(false)
+                setDeleteDataId(null)
+              }
+            }}
+            color="error"
+          >
+            确认删除
           </Button>
         </DialogActions>
       </Dialog>
