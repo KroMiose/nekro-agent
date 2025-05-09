@@ -3,9 +3,9 @@ import hmac
 import json
 from typing import Dict
 
+from nekro_agent.api import core
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import OsEnv
 from nekro_agent.services.message.message_service import message_service
 
 from .models import ChatSubscriptions
@@ -24,16 +24,18 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
         raise ValueError("webhook_request is required")
     body = _ctx.webhook_request.body
     headers = _ctx.webhook_request.headers
-    logger.debug(f"GitHub webhook原始请求: headers={headers}")
-    logger.debug(f"GitHub webhook原始请求体: body类型={type(body)}, 内容={body}")
-    
+    core.logger.debug(f"GitHub webhook原始请求: headers={headers}")
+    core.logger.debug(f"GitHub webhook原始请求体: body类型={type(body)}, 内容={body}")
+
     try:
         # 如果配置了webhook密钥，验证签名
         if config.WEBHOOK_SECRET and headers:
             # 获取GitHub的签名头
             signature_header = headers.get("X-Hub-Signature-256")
-            logger.debug(f"GitHub签名头: {signature_header}, WEBHOOK_SECRET配置: {'已设置' if config.WEBHOOK_SECRET else '未设置'}")
-            
+            core.logger.debug(
+                f"GitHub签名头: {signature_header}, WEBHOOK_SECRET配置: {'已设置' if config.WEBHOOK_SECRET else '未设置'}",
+            )
+
             if signature_header:
                 # 重新获取请求体进行验证
                 try:
@@ -47,33 +49,33 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
 
                     # 使用安全比较方法
                     if not hmac.compare_digest(expected_signature, signature_header):
-                        logger.warning(f"GitHub 签名不匹配: 预期 {expected_signature}, 实际 {signature_header}")
-                        logger.warning("GitHub webhook 验证失败，请检查 WEBHOOK_SECRET 配置")
+                        core.logger.warning(f"GitHub 签名不匹配: 预期 {expected_signature}, 实际 {signature_header}")
+                        core.logger.warning("GitHub webhook 验证失败，请检查 WEBHOOK_SECRET 配置")
                         return
-                    logger.info("GitHub webhook签名验证成功")
+                    core.logger.info("GitHub webhook签名验证成功")
                 except Exception as e:
-                    logger.error(f"验证GitHub签名时出错: {e}")
+                    core.logger.error(f"验证GitHub签名时出错: {e}")
                     return
             else:
-                logger.warning("未找到X-Hub-Signature-256头，但配置了WEBHOOK_SECRET，拒绝请求")
+                core.logger.warning("未找到X-Hub-Signature-256头，但配置了WEBHOOK_SECRET，拒绝请求")
                 return
 
         # 从body中获取事件类型
         event_type = headers.get("x-github-event")
-        logger.debug(f"GitHub webhook事件类型: {event_type}, 请求头: {headers}")
+        core.logger.debug(f"GitHub webhook事件类型: {event_type}, 请求头: {headers}")
 
         # 如果没有event_type，直接打印错误信息
         if not event_type:
-            logger.error("未能识别GitHub事件类型")
+            core.logger.error("未能识别GitHub事件类型")
             return
 
-        logger.info(f"收到GitHub {event_type} 事件")
+        core.logger.info(f"收到GitHub {event_type} 事件")
 
         # 提取仓库信息
         repository = body.get("repository", {})
-        logger.debug(f"提取repository结果: 类型={type(repository)}, 值={repository}")
+        core.logger.debug(f"提取repository结果: 类型={type(repository)}, 值={repository}")
         repo_full_name = repository.get("full_name", "unknown/unknown")
-        logger.debug(f"提取repo_full_name结果: {repo_full_name}")
+        core.logger.debug(f"提取repo_full_name结果: {repo_full_name}")
 
         # 根据事件类型路由到不同的处理逻辑
         if event_type == "push":
@@ -96,13 +98,13 @@ async def handle_github_webhook(_ctx: AgentCtx) -> None:
             # 检查运行/检查套件事件
             await _handle_generic_event(repo_full_name, event_type, body)
         elif event_type == "ping":
-            logger.info(f"收到来自仓库 {repo_full_name} 的ping事件，GitHub webhook配置成功")
+            core.logger.info(f"收到来自仓库 {repo_full_name} 的ping事件，GitHub webhook配置成功")
         else:
             # 处理其他类型的事件
             await _handle_generic_event(repo_full_name, event_type, body)
 
     except Exception as e:
-        logger.error(f"处理GitHub webhook事件失败: {e!s}")
+        core.logger.error(f"处理GitHub webhook事件失败: {e!s}")
 
 
 async def _handle_push_event(repo_full_name: str, body: Dict) -> None:
@@ -179,7 +181,7 @@ async def _handle_push_event(repo_full_name: str, body: Dict) -> None:
         await send_to_subscribers(repo_full_name, "push", message)
 
     except Exception as e:
-        logger.error(f"处理GitHub Push事件失败: {e!s}")
+        core.logger.error(f"处理GitHub Push事件失败: {e!s}")
 
 
 async def _handle_issues_event(repo_full_name: str, body: Dict) -> None:
@@ -262,7 +264,7 @@ async def _handle_issues_event(repo_full_name: str, body: Dict) -> None:
         await send_to_subscribers(repo_full_name, "issues", message)
 
     except Exception as e:
-        logger.error(f"处理GitHub Issues事件失败: {e!s}")
+        core.logger.error(f"处理GitHub Issues事件失败: {e!s}")
 
 
 async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
@@ -347,7 +349,7 @@ async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
         await send_to_subscribers(repo_full_name, "pull_request", message)
 
     except Exception as e:
-        logger.error(f"处理GitHub Pull Request事件失败: {e!s}")
+        core.logger.error(f"处理GitHub Pull Request事件失败: {e!s}")
 
 
 async def _handle_release_event(repo_full_name: str, body: Dict) -> None:
@@ -433,7 +435,7 @@ async def _handle_release_event(repo_full_name: str, body: Dict) -> None:
         await send_to_subscribers(repo_full_name, "release", message)
 
     except Exception as e:
-        logger.error(f"处理GitHub Release事件失败: {e!s}")
+        core.logger.error(f"处理GitHub Release事件失败: {e!s}")
 
 
 async def _handle_star_event(repo_full_name: str, body: Dict) -> None:
@@ -486,7 +488,7 @@ async def _handle_star_event(repo_full_name: str, body: Dict) -> None:
         await send_to_subscribers(repo_full_name, "star", message)
 
     except Exception as e:
-        logger.error(f"处理GitHub Star事件失败: {e!s}")
+        core.logger.error(f"处理GitHub Star事件失败: {e!s}")
 
 
 async def _handle_generic_event(repo_full_name: str, event_type: str, body: Dict) -> None:
@@ -764,7 +766,7 @@ async def _handle_generic_event(repo_full_name: str, event_type: str, body: Dict
         await send_to_subscribers(repo_full_name, event_type, message)
 
     except Exception as e:
-        logger.error(f"处理GitHub {event_type} 事件失败: {e!s}")
+        core.logger.error(f"处理GitHub {event_type} 事件失败: {e!s}")
 
 
 async def send_to_subscribers(repo_name: str, event_type: str, message: str):
@@ -796,8 +798,8 @@ async def send_to_subscribers(repo_name: str, event_type: str, message: str):
                 # 发送消息并触发AI响应
                 await message_service.push_system_message(chat_key=chat_key, agent_messages=message, trigger_agent=True)
                 sent_count += 1
-                logger.info(f"已向会话 {chat_key} 推送 {repo_name} 的 {event_type} 事件")
+                core.logger.info(f"已向会话 {chat_key} 推送 {repo_name} 的 {event_type} 事件")
             except Exception as e:
-                logger.error(f"向会话 {chat_key} 推送消息失败: {e!s}")
+                core.logger.error(f"向会话 {chat_key} 推送消息失败: {e!s}")
 
-    logger.info(f"共向 {sent_count} 个会话推送了 {repo_name} 的 {event_type} 事件")
+    core.logger.info(f"共向 {sent_count} 个会话推送了 {repo_name} 的 {event_type} 事件")

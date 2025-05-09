@@ -4,9 +4,9 @@ from datetime import datetime
 from pydantic import Field
 
 from nekro_agent.api import core, timer
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.festival_service import FestivalService
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="定时器工具集",

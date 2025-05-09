@@ -260,6 +260,7 @@ async def gen_openai_chat_response(
     base_url: Optional[str] = None,
     proxy_url: Optional[str] = None,
     stream_mode: bool = False,
+    max_wait_time: Optional[int] = None,
     thought_chain_field_name: str = "reasoning_content",
     chunk_callback: Optional[_AsyncFunc] = None,
     log_path: Optional[Union[str, Path]] = None,
@@ -294,7 +295,7 @@ async def gen_openai_chat_response(
 
     # 使用async with语法创建和管理httpx客户端
     async with httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+        timeout=httpx.Timeout(connect=10, read=max_wait_time or 3600, write=max_wait_time or 3600, pool=10),
         proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
     ) as http_client:
         client = AsyncOpenAI(
@@ -324,15 +325,12 @@ async def gen_openai_chat_response(
                 else:
                     _thought_chain = ""
 
-                # 修复: 确保在total_tokens为None时使用0
                 if chunk.usage and chunk.usage.total_tokens is not None:
                     token_consumption += chunk.usage.total_tokens
 
-                # 修复: 确保在prompt_tokens为None时使用0
                 if chunk.usage and chunk.usage.prompt_tokens is not None:
                     token_input += chunk.usage.prompt_tokens
 
-                # 修复：确保在completion_tokens为None时使用0
                 completion_tokens = 0
                 if chunk.usage and chunk.usage.completion_tokens is not None:
                     completion_tokens = chunk.usage.completion_tokens

@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin
 
 # 创建插件实例
 plugin = NekroPlugin(

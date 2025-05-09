@@ -5,12 +5,12 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from nekro_agent.api import core, schemas
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.core.config import config as global_config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="漫游历史记录",
@@ -56,8 +56,8 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     Args:
         chat_key: Chat unique identifier
-        keywords: List of short keywords to search for. 
-                 Use prefix "+word" for AND (must include), 
+        keywords: List of short keywords to search for.
+                 Use prefix "+word" for AND (must include),
                  prefix "-word" for NOT (must exclude),
                  normal "word" for OR (any match).
 
@@ -73,11 +73,11 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     conversation_start_time: datetime.datetime = db_chat_channel.conversation_start_time
     conversation_start_timestamp = int(conversation_start_time.timestamp())
-    
+
     # 安全地获取上下文截止时间点
     # 首先获取最近的消息总数
     total_messages = await DBChatMessage.filter(chat_key=chat_key).count()
-    
+
     context_cutoff_timestamp = 0
     # 只有当消息数量超过上下文大小时才设置截止时间
     if total_messages > global_config.AI_CHAT_CONTEXT_MAX_LENGTH:
@@ -89,15 +89,15 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             .limit(1)  # 只取一条
             .first()
         )
-        
+
         if oldest_context_message:
             context_cutoff_timestamp = oldest_context_message.send_timestamp
-    
+
     # 分类关键词
     or_keywords = []  # 或关系(默认)
     and_keywords = []  # 与关系(必须包含)
     not_keywords = []  # 非关系(必须排除)
-    
+
     for keyword in keywords:
         if keyword.startswith("+"):
             and_keywords.append(keyword[1:])
@@ -105,40 +105,36 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             not_keywords.append(keyword[1:])
         else:
             or_keywords.append(keyword)
-    
+
     # 记录日志，方便调试
     logger.info(f"搜索会话 {chat_key} 中的关键词，OR: {or_keywords}, AND: {and_keywords}, NOT: {not_keywords}")
     logger.info(f"上下文截止时间戳: {context_cutoff_timestamp}")
-    
+
     # 构建基础查询
     base_query = DBChatMessage.filter(
         chat_key=chat_key,
         send_timestamp__gte=conversation_start_timestamp,
     )
-    
+
     # 添加上下文截止时间条件
     if context_cutoff_timestamp > 0:
         base_query = base_query.filter(send_timestamp__lt=context_cutoff_timestamp)
-    
+
     # 处理OR关键词
     db_chat_message_list = []
     db_chat_message_id_set = set()
     keyword_match_count = {}  # 记录每条消息匹配的关键词数量
-    
+
     if or_keywords:
         # 如果有OR关键词，先按OR关系查询
         for keyword in or_keywords:
             query = base_query.filter(content_text__icontains=keyword)
-            
-            db_chat_message = (
-                await query.order_by("-update_time")
-                .limit(config.MAX_HISTORY_TRAVEL_QUERY_SIZE * 4)
-                .all()
-            )
-            
+
+            db_chat_message = await query.order_by("-update_time").limit(config.MAX_HISTORY_TRAVEL_QUERY_SIZE * 4).all()
+
             # 记录每个关键词的结果数量
             logger.info(f"OR关键词 '{keyword}' 匹配到 {len(db_chat_message)} 条消息")
-            
+
             for msg in db_chat_message:
                 if msg.id not in db_chat_message_id_set:
                     db_chat_message_list.append(msg)
@@ -154,7 +150,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             db_chat_message_list.append(msg)
             db_chat_message_id_set.add(msg.id)
             keyword_match_count[msg.id] = 0
-    
+
     # 处理AND和NOT关键词进行过滤
     filtered_messages = []
     for msg in db_chat_message_list:
@@ -164,48 +160,48 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             if keyword.lower() not in msg.content_text.lower():
                 and_match = False
                 break
-        
+
         if not and_match:
             continue
-        
+
         # 检查是否满足NOT条件
         not_match = False
         for keyword in not_keywords:
             if keyword.lower() in msg.content_text.lower():
                 not_match = True
                 break
-        
+
         if not_match:
             continue
-        
+
         # 通过了所有条件，添加到结果
         filtered_messages.append(msg)
-        
+
         # 更新匹配分数 - AND关键词匹配增加更高权重
         for keyword in and_keywords:
             if keyword.lower() in msg.content_text.lower():
                 keyword_match_count[msg.id] = keyword_match_count.get(msg.id, 0) + 2
-    
+
     # 先按关键词匹配数量和更新时间排序，选出最相关的消息
     relevant_messages = sorted(filtered_messages, key=lambda x: (-keyword_match_count.get(x.id, 0), x.update_time))[
         : config.MAX_HISTORY_TRAVEL_QUERY_SIZE
     ]
-    
+
     # 最后按发送时间戳从早到晚排序，确保消息按时间顺序呈现
     result_messages = sorted(relevant_messages, key=lambda x: x.send_timestamp)
-    
+
     # 记录最终返回的消息数量
     logger.info(f"最终返回 {len(result_messages)} 条消息")
-    
+
     # 如果没有找到任何结果，返回特殊提示
     if not result_messages:
         not_msg = f", NOT: {', '.join(not_keywords)}" if not_keywords else ""
         and_msg = f", AND: {', '.join(and_keywords)}" if and_keywords else ""
         or_msg = f"OR: {', '.join(or_keywords)}" if or_keywords else "no keywords"
         return f"[No messages found matching {or_msg}{and_msg}{not_msg}]"
-    
+
     additional_info = f"\n\n[Query {len(result_messages)} messages. You NEED to use the 'find_history_travel_range' method to get more context around a specific message. DO NOT GUESS THE EXACT CONTEXT ACCORDING TO THE SIMPLIFIED MESSAGE.]"
- 
+
     return "\n\n".join([parse_history_travel_message(msg) for msg in result_messages]) + additional_info
 
 

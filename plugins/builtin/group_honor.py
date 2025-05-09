@@ -1,8 +1,8 @@
 from pydantic import Field
 
 from nekro_agent.api import context, core
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="群荣誉插件",

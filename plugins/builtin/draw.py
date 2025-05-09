@@ -9,11 +9,11 @@ import magic
 from httpx import AsyncClient, Timeout
 from pydantic import Field
 
-from nekro_agent.api.core import logger
+from nekro_agent.api import core
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config as global_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
@@ -91,7 +91,7 @@ async def draw(
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
-    logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
+    core.logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
         async with aiofiles.open(
             convert_to_host_path(Path(refer_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
@@ -113,7 +113,7 @@ async def draw(
         modes_to_try = []
         if last_successful_mode:
             modes_to_try.append(last_successful_mode)
-            logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
+            core.logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
 
         # 添加未尝试过的模式
         for mode in ["聊天模式", "图像生成"]:
@@ -123,7 +123,7 @@ async def draw(
         # 依次尝试各种模式
         last_error = None
         for mode in modes_to_try:
-            logger.debug(f"尝试使用模式: {mode}")
+            core.logger.debug(f"尝试使用模式: {mode}")
             try:
                 if mode == "图像生成":
                     ret_file_url = await _generate_image(
@@ -139,7 +139,7 @@ async def draw(
 
             except Exception as e:
                 last_error = e
-                logger.error(f"模式 {mode} 失败: {e!s}")
+                core.logger.error(f"模式 {mode} 失败: {e!s}")
                 # 清除当前模式记录
                 if last_successful_mode == mode:
                     last_successful_mode = None
@@ -186,7 +186,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     ret_url = data["data"][0]["url"]
     if ret_url:
         return ret_url
-    logger.error(f"绘图响应中未找到图片信息: {data}")
+    core.logger.error(f"绘图响应中未找到图片信息: {data}")
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
@@ -263,7 +263,7 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
     m = re.search(r"(https?://\S+)", content)
     if m:
         return m.group(1)
-    logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(data))}")
+    core.logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(data))}")
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )

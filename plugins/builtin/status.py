@@ -4,12 +4,12 @@ from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from nekro_agent.api import core, schemas
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config as global_config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="状态控制插件",

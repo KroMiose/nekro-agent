@@ -4,8 +4,8 @@ from typing import Dict, Optional
 from pydantic import BaseModel, Field
 
 from nekro_agent.api import core, schemas
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="笔记系统插件",

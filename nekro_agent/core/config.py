@@ -137,17 +137,17 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True},
         description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
-    FALLBACK_MODEL_GROUP: str = Field(
-        default="default",
-        title="备用模型组",
-        json_schema_extra={"ref_model_groups": True},
-        description="当主模型组不可用时, 使用备用模型组",
-    )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
         default="default",
         title="调试/Agent 迁移模型组",
         json_schema_extra={"ref_model_groups": True},
         description="主模型组编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
+    )
+    FALLBACK_MODEL_GROUP: str = Field(
+        default="default",
+        title="备用模型组",
+        json_schema_extra={"ref_model_groups": True},
+        description="当主模型组不可用时, 使用备用模型组",
     )
 
     """聊天配置"""
@@ -186,6 +186,11 @@ class PluginConfig(ConfigBase):
         title="防抖等待时长 (秒)",
         description="收到触发消息时延迟指定时长再开始回复流程，防抖等待时长中继续收到的消息只会触发最后一条",
     )
+    AI_GENERATE_TIMEOUT: int = Field(
+        default=180,
+        title="AI 对话内容生成超时时间 (秒)",
+        description="AI 大模型生成响应结果的最大等待时间，超过该时间会自动停止生成并报错",
+    )
     AI_IGNORED_PREFIXES: List[str] = Field(
         default=["#", "＃", "[Debug]", "[Opt Output]"],
         title="忽略的消息前缀",
@@ -221,7 +226,7 @@ class PluginConfig(ConfigBase):
         title="会话上下文最大长度 (字符)",
         description="会话历史记录上下文最大长度，超出该长度会自动截断",
     )
-    AI_VISION_IMAGE_LIMIT: int = Field(default=3, title="视觉参考图片数量限制")
+    AI_VISION_IMAGE_LIMIT: int = Field(default=5, title="视觉参考图片数量限制")
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(
         default=1024,
         title="视觉图片大小限制 (KB)",
@@ -372,6 +377,13 @@ class PluginConfig(ConfigBase):
         json_schema_extra={"placeholder": "例: http://<服务器 IP>:<NapCat 端口>/webui"},
     )
     NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
+
+    """其他功能"""
+    ENABLE_FESTIVAL_REMINDER: bool = Field(
+        default=True,
+        title="启用节日祝福提醒",
+        description="启用后会在节日时自动向所有活跃会话发送祝福",
+    )
 
     """插件配置"""
     PLUGIN_ENABLED: List[str] = Field(

@@ -8,11 +8,10 @@ import aiofiles
 import magic
 from pydantic import Field
 
-from nekro_agent.api import message, user
-from nekro_agent.api.core import logger
+from nekro_agent.api import core, message, user
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.tools.common_util import download_file
 from nekro_agent.tools.path_convertor import (
     convert_to_container_path,
@@ -121,7 +120,7 @@ async def _calculate_file_md5(file_path: str) -> str:
                 md5_hash.update(chunk)
         return md5_hash.hexdigest()
     except Exception as e:
-        logger.warning(f"计算文件 MD5 失败: {e}")
+        core.logger.warning(f"计算文件 MD5 失败: {e}")
         return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
 
 
@@ -180,7 +179,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
             similarity = _calculate_text_similarity(message_text, recent_msg)
             if similarity > config.SIMILARITY_THRESHOLD:
                 # 发送系统消息提示避免类似内容
-                logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+                core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
                 await message_service.push_system_message(
                     chat_key=chat_key,
                     agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
@@ -191,7 +190,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     try:
         await message.send_text(chat_key, message_text, _ctx)
     except Exception as e:
-        logger.exception(f"发送消息失败: {e}")
+        core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
             "Error sending text message to chat: Make sure the chat key is valid, you have permission to speak and message is not too long.",
         ) from e

@@ -1,11 +1,10 @@
 from pydantic import Field
 
-from nekro_agent.api import context, message
-from nekro_agent.api.core import logger
+from nekro_agent.api import context, core, message
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
 
 plugin = NekroPlugin(
     name="风纪委员",
@@ -65,7 +64,7 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
     chat_id = context.get_chat_id(chat_key)
 
     if chat_type != "group":
-        logger.error(f"禁言功能不支持 {chat_type} 的会话类型")
+        core.logger.error(f"禁言功能不支持 {chat_type} 的会话类型")
         return f"禁言功能不支持 {chat_type} 的会话类型"
 
     # 发送禁言报告给管理员
@@ -84,10 +83,10 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         # 执行禁言操作
         await get_bot().set_group_ban(group_id=int(chat_id), user_id=int(user_qq), duration=duration)
     except Exception as e:
-        logger.error(f"[{chat_key}] 禁言用户 [qq:{user_qq}] {duration} 秒失败: {e}")
+        core.logger.error(f"[{chat_key}] 禁言用户 [qq:{user_qq}] {duration} 秒失败: {e}")
         return f"[{chat_key}] 禁言用户 [qq:{user_qq}] {duration} 秒失败: {e}"
     else:
-        logger.info(f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒")
+        core.logger.info(f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒")
         return f"[{chat_key}] 已禁言用户 [qq:{user_qq}] {duration} 秒"
 
 

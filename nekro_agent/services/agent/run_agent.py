@@ -212,6 +212,7 @@ async def send_agent_request(
                 api_key=use_model_group.API_KEY,
                 stream_mode=config.AI_REQUEST_STREAM_MODE,
                 proxy_url=use_model_group.CHAT_PROXY,
+                max_wait_time=config.AI_GENERATE_TIMEOUT,
                 log_path=f'{PROMPT_LOG_DIR}/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
             )
         except Exception as e:

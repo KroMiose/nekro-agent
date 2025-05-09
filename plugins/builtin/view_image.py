@@ -3,17 +3,13 @@ from typing import List
 
 from pydantic import Field
 
-from nekro_agent.api.core import logger
+from nekro_agent.api import core
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import ModelConfigGroup
 from nekro_agent.core.config import config as core_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
-from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.services.plugin.manager import (
-    disable_plugin,
-    enable_plugin,
-)
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 plugin = NekroPlugin(
@@ -24,6 +20,7 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
 )
+
 
 @plugin.mount_config()
 class ViewImageConfig(ConfigBase):
@@ -36,16 +33,19 @@ class ViewImageConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True},
     )
 
+
 def get_view_image_config() -> ViewImageConfig:
     """获取最新的记忆模块配置"""
     return plugin.get_config(ViewImageConfig)
 
-#根据模型名获取模型组配置项
+
+# 根据模型名获取模型组配置项
 def get_model_group_info(model_name: str) -> ModelConfigGroup:
     try:
         return core_config.MODEL_GROUPS[model_name]
     except KeyError as e:
         raise ValueError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
+
 
 @plugin.mount_sandbox_method(SandboxMethodType.AGENT, "图片观察工具")
 async def view_image(_ctx: AgentCtx, images: List[str]):
@@ -57,7 +57,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
         images (List[str]): 图片共享路径或在线url列表
     """
 
-    logger.debug(f"图片观察工具: {images}")
+    core.logger.debug(f"图片观察工具: {images}")
 
     # 获取插件配置
     cfg: ViewImageConfig = get_view_image_config()
@@ -65,7 +65,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
 
     if not vision_model_name:
         raise ValueError("未配置有效的视觉模型 (VISION_MODEL)，无法使用图片观察工具。")
-    
+
     vision_model_group = get_model_group_info(vision_model_name)
 
     if vision_model_group.MODEL_TYPE != "chat":
@@ -115,8 +115,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
             return ""
 
     except Exception as e:
-        logger.error(f"调用视觉模型 ({vision_model_group.CHAT_MODEL}) 时出错: {e}")
+        core.logger.error(f"调用视觉模型 ({vision_model_group.CHAT_MODEL}) 时出错: {e}")
         raise RuntimeError(f"调用视觉模型失败: {e}") from e
-
 
     return f"The visual description of the images is as follows:\n{description}"
