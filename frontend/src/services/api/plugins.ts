@@ -46,6 +46,7 @@ export interface PluginConfig {
   placeholder?: string
   is_hidden?: boolean
   ref_model_groups?: boolean
+  model_type?: string
 }
 
 export interface PluginData {

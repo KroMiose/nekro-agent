@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box,
   Paper,
@@ -64,6 +64,7 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../services/api/plugins'
+import { configApi, ModelTypeOption } from '../../services/api/config'
 import { useNavigate } from 'react-router-dom'
 
 // 自定义提示样式，支持富文本
@@ -256,8 +257,17 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
     queryFn: () => pluginsApi.getModelGroups(),
-    enabled: !!plugin && activeTab === 1,
   })
+
+  // 获取模型类型列表
+  const { data: modelTypes = [] } = useQuery<ModelTypeOption[]>({
+    queryKey: ['model-types'],
+    queryFn: () => configApi.getModelTypes(),
+  })
+  const modelTypeMap = useMemo(
+    () => Object.fromEntries(modelTypes.map(mt => [mt.value, mt])),
+    [modelTypes]
+  )
 
   // 获取插件数据
   const { data: pluginData = [], isLoading: isDataLoading } = useQuery({
@@ -468,7 +478,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     return '本地'
   }
 
-  // 渲染配置输入控件
+  // 插件配置项渲染函数
   const renderConfigInput = (config: PluginConfig) => {
     const currentValue =
       configValues[config.key] !== undefined ? configValues[config.key] : config.value
@@ -559,7 +569,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
     // 如果是模型组引用，显示模型组选择器
     if (config.ref_model_groups) {
-      const modelGroupNames = Object.keys(modelGroups)
+      const typeOption = modelTypeMap[config.model_type as string]
+      let entries = Object.entries(modelGroups)
+      if (typeOption) {
+        entries = entries.filter(([, group]) => group.MODEL_TYPE === typeOption.value)
+      }
+      const modelGroupNames = entries.map(([name]) => name)
       const currentValueStr = String(currentValue)
       const isInvalidValue = !modelGroupNames.includes(currentValueStr)
 
@@ -985,9 +1000,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   {renderConfigInput(item)}
                                   {item.ref_model_groups && (
                                     <Chip
-                                      label="模型组"
+                                      label={modelTypeMap[item.model_type as string]?.label || '模型组'}
                                       size="small"
-                                      color="primary"
+                                      color={(modelTypeMap[item.model_type as string]?.color as any) || 'primary'}
                                       variant="outlined"
                                     />
                                   )}
