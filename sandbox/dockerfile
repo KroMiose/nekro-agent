@@ -11,8 +11,8 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
 # 分批安装系统依赖以避免 QEMU 段错误
-RUN apt update && \
-    apt install -y \
+RUN apt update
+RUN apt install -y \
     build-essential \
     pkg-config \
     tzdata \
@@ -22,6 +22,7 @@ RUN apt update && \
     libssl-dev \
     libmupdf-dev \
     swig \
+    graphviz \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 

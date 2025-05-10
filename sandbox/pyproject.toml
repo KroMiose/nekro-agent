@@ -24,6 +24,8 @@ docx = "^0.2.4"
 python-pptx = "^1.0.2"
 mplfonts = "^0.0.8"
 networkx = "^3.4.2"
+py-mermaid = "^0.1.4"
+graphviz = "^0.20.1"
 
 [build-system]
 requires = ["poetry-core"]
