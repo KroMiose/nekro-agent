@@ -311,13 +311,13 @@ class PluginConfig(ConfigBase):
     PLUGIN_GENERATE_MODEL_GROUP: str = Field(
         default="default",
         title="插件代码生成模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="用于生成插件代码的模型组，建议使用上下文长，逻辑推理能力强的模型",
     )
     PLUGIN_APPLY_MODEL_GROUP: str = Field(
         default="default",
         title="插件代码应用模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="用于应用插件代码的模型组，建议使用上下文长，响应速度快的模型",
     )
     PLUGIN_UPDATE_USE_PROXY: bool = Field(

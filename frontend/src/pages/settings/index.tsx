@@ -43,8 +43,10 @@ import {
   Tune as TuneIcon,
   HelpOutline as HelpOutlineIcon,
   Search as SearchIcon,
+  Launch as LaunchIcon,
 } from '@mui/icons-material'
 import { styled } from '@mui/material/styles'
+import { useNavigate } from 'react-router-dom'
 
 // 添加自定义 Tooltip 样式
 const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -180,6 +182,7 @@ const getTypeColor = (type: string) => {
 }
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [message, setMessage] = useState<string>('')
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
@@ -651,14 +654,23 @@ export default function SettingsPage() {
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {renderConfigInput(config)}
-                        {config.ref_model_groups && (
-                          <Chip
-                            label={modelTypeMap[config.model_type as string]?.label || '模型组'}
-                            size="small"
-                            color={(modelTypeMap[config.model_type as string]?.color as any) || 'primary'}
-                            variant="outlined"
-                          />
-                        )}
+                        {config.ref_model_groups && (() => {
+                          const typeOption = modelTypeMap[config.model_type as string];
+                          const chipLabel = typeOption
+                            ? `${typeOption.label}模型组`
+                            : '模型组';
+                          const chipColor = (typeOption?.color as any) || 'primary';
+                          return (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                              <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
+                              <Tooltip title="配置模型组">
+                                <IconButton size="small" onClick={() => navigate('/settings/model-groups')}>
+                                  <LaunchIcon fontSize="inherit" />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          );
+                        })()}
                       </Box>
                     </TableCell>
                   </TableRow>
