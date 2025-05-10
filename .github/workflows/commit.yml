@@ -5,11 +5,12 @@ on:
     branches:
       - main
   pull_request:
+    types: [opened, synchronize, reopened]
     branches:
       - main
 
 jobs:
-  build-n-publish:
+  plugin-load-test:
     name: Run Plugin Load Test
     runs-on: ubuntu-22.04
     steps:
