@@ -14,6 +14,7 @@ export interface ConfigItem {
   ref_model_groups?: boolean
   is_hidden?: boolean
   required?: boolean  // 添加必填属性
+  model_type?: string
 }
 
 export interface BatchUpdateConfigRequest {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box,
   Paper,
@@ -32,7 +32,7 @@ import {
   TooltipProps,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { configApi, ConfigItem } from '../../services/api/config'
+import { configApi, ConfigItem, ModelTypeOption } from '../../services/api/config'
 import {
   Save as SaveIcon,
   Refresh as RefreshIcon,
@@ -210,6 +210,17 @@ export default function SettingsPage() {
     queryFn: () => configApi.getModelGroups(),
   })
 
+  // 获取模型类型列表
+  const { data: modelTypes = [] } = useQuery<ModelTypeOption[]>({
+    queryKey: ['model-types'],
+    queryFn: () => configApi.getModelTypes(),
+  })
+
+  const modelTypeMap = useMemo(
+    () => Object.fromEntries(modelTypes.map(mt => [mt.value, mt])),
+    [modelTypes]
+  )
+
   // 检查必填项
   const checkRequiredFields = useCallback(() => {
     const emptyFields = configs
@@ -381,7 +392,12 @@ export default function SettingsPage() {
 
     // 如果是模型组引用，显示模型组选择器
     if (config.ref_model_groups) {
-      const modelGroupNames = Object.keys(modelGroups)
+      const typeOption = modelTypeMap[config.model_type as string]
+      let entries = Object.entries(modelGroups)
+      if (typeOption) {
+        entries = entries.filter(([, group]) => group.MODEL_TYPE === typeOption.value)
+      }
+      const modelGroupNames = entries.map(([name]) => name)
       const isInvalidValue = !modelGroupNames.includes(displayValue)
 
       return (
@@ -636,7 +652,12 @@ export default function SettingsPage() {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         {renderConfigInput(config)}
                         {config.ref_model_groups && (
-                          <Chip label="模型组" size="small" color="primary" variant="outlined" />
+                          <Chip
+                            label={modelTypeMap[config.model_type as string]?.label || '模型组'}
+                            size="small"
+                            color={(modelTypeMap[config.model_type as string]?.color as any) || 'primary'}
+                            variant="outlined"
+                          />
                         )}
                       </Box>
                     </TableCell>

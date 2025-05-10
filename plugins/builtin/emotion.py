@@ -50,7 +50,7 @@ class EmotionConfig(ConfigBase):
         default="text-embedding",
         title="嵌入模型组",
         description="在此填入向量嵌入模型组名称",
-        json_schema_extra={"ref_model_groups": True, "required": True},
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "embedding"},
     )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
 

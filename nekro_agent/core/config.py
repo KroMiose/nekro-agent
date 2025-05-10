@@ -134,19 +134,19 @@ class PluginConfig(ConfigBase):
     USE_MODEL_GROUP: str = Field(
         default="default",
         title="使用的主模型组",
-        json_schema_extra={"ref_model_groups": True, "required": True},
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "chat"},
         description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
         default="default",
         title="调试/Agent 迁移模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="主模型组编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
     )
     FALLBACK_MODEL_GROUP: str = Field(
         default="default",
         title="备用模型组",
-        json_schema_extra={"ref_model_groups": True},
+        json_schema_extra={"ref_model_groups": True, "model_type": "chat"},
         description="当主模型组不可用时, 使用备用模型组",
     )
 

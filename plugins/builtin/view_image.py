@@ -30,7 +30,7 @@ class ViewImageConfig(ConfigBase):
         default="default",
         title="用于查看图片的模型,如果主模型自带视觉请勿开启本插件",
         description="用于查看图片并描述内容,以文本形式返回给主模型",
-        json_schema_extra={"ref_model_groups": True, "required": True},
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "chat"},
     )
 
 
