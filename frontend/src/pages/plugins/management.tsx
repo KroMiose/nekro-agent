@@ -61,6 +61,7 @@ import {
   KeyboardArrowUp as KeyboardArrowUpIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Storage as StorageIcon,
+  Launch as LaunchIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../services/api/plugins'
@@ -998,14 +999,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               <TableCell>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   {renderConfigInput(item)}
-                                  {item.ref_model_groups && (
-                                    <Chip
-                                      label={modelTypeMap[item.model_type as string]?.label || '模型组'}
-                                      size="small"
-                                      color={(modelTypeMap[item.model_type as string]?.color as any) || 'primary'}
-                                      variant="outlined"
-                                    />
-                                  )}
+                                  {item.ref_model_groups && (() => {
+                                    const typeOption = modelTypeMap[item.model_type as string];
+                                    const chipLabel = typeOption
+                                      ?`${typeOption.label}模型组`
+                                      : '模型组';
+                                    const chipColor = (typeOption?.color as any) || 'primary';
+                                    return (
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                        <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
+                                        <Tooltip title="配置模型组">
+                                          <IconButton size="small" onClick={() => navigate('/settings/model-groups')}>
+                                            <LaunchIcon fontSize="inherit" />
+                                          </IconButton>
+                                        </Tooltip>
+                                      </Box>
+                                    );
+                                  })()}
                                 </Box>
                               </TableCell>
                             </TableRow>
