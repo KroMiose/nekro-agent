@@ -4,7 +4,8 @@ FROM python:3.10.13-slim-bullseye
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    LANG=C.UTF-8
+    LANG=C.UTF-8 \
+    PIP_CACHE_DIR=/app/.pip_cache
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
@@ -50,9 +51,9 @@ RUN pip install -U pip setuptools wheel && \
     mplfonts init
 
 # 创建应用目录并设置权限
-RUN mkdir -p /app /app/shared && \
+RUN mkdir -p /app /app/shared /app/packages /app/.pip_cache && \
     chown -R nobody:nogroup /app && \
-    chmod -R 777 /app /app/shared && \
+    chmod -R 777 /app /app/shared /app/packages /app/.pip_cache && \
     chmod 755 /bin/bash
 
 # 设置工作目录并复制文件
@@ -63,5 +64,15 @@ COPY . /app
 RUN poetry config virtualenvs.create false && \
     poetry config installer.max-workers 4 && \
     poetry install --no-interaction --no-ansi
+
+# 设置 pip.conf 配置
+RUN mkdir -p /etc/pip && \
+    echo "[global]" > /etc/pip/pip.conf && \
+    echo "cache-dir = /app/.pip_cache" >> /etc/pip/pip.conf && \
+    echo "no-cache-dir = false" >> /etc/pip/pip.conf && \
+    echo "timeout = 120" >> /etc/pip/pip.conf && \
+    echo "index-url = https://pypi.tuna.tsinghua.edu.cn/simple" >> /etc/pip/pip.conf && \
+    echo "trusted-host = pypi.tuna.tsinghua.edu.cn" >> /etc/pip/pip.conf && \
+    chmod 644 /etc/pip/pip.conf
 
 CMD ["bash"]
