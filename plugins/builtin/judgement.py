@@ -9,7 +9,7 @@ from nekro_agent.core.config import config
 plugin = NekroPlugin(
     name="风纪委员",
     module_name="judgement",
-    description="群管理工具集，提供禁言、踢出群成员、设置管理员等群管理功能",
+    description="群管理工具集，提供临时禁言群管理功能",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",

@@ -1004,7 +1004,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     const chipLabel = typeOption
                                       ?`${typeOption.label}模型组`
                                       : '模型组';
-                                    const chipColor = (typeOption?.color as any) || 'primary';
+                                    const chipColor = (typeOption?.color as 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error' | 'default') || 'primary';
                                     return (
                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                         <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
