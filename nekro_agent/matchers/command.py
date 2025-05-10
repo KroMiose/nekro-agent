@@ -54,6 +54,8 @@ async def command_guard(
     """
     chat_key, chat_type = await get_chat_info(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    if not db_chat_channel.is_active:
+        await matcher.finish()
     username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
     # 判断是否是禁止使用的用户
     if event.get_user_id() not in config.SUPER_USERS:
@@ -613,7 +615,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "na_info: 查看系统信息\n"
             "====== [聊天管理] ======\n"
             "reset <chat_key?>: 清空指定会话的聊天记录\n"
-            "inspect <chat_key?>: 查询指定会话的基本信息\n"
             "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
             "\n====== [插件系统] ======\n"
@@ -764,7 +765,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
                 speed_info = f" | 速度: {avg_speed:.2f}s (最快: {min_speed:.2f}s, 最慢: {max_speed:.2f}s)"
             else:
                 speed_info = f" | 速度: {avg_speed:.2f}s"
-        
+
         result_lines.append(f"{status} {model_name}: (成功: {success}, 失败: {fail}){speed_info}")
 
     await finish_with(matcher, message="\n".join(result_lines))
