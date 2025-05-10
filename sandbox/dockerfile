@@ -10,8 +10,13 @@ ENV LANG=C.UTF-8
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime && \
     echo 'Asia/Shanghai' > /etc/timezone
 
-# 分批安装系统依赖以避免 QEMU 段错误
+# 安装Node.js
 RUN apt update
+RUN apt install -y curl gnupg && \
+    curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
+    apt install -y nodejs
+
+# 分批安装系统依赖以避免 QEMU 段错误
 RUN apt install -y \
     build-essential \
     pkg-config \
@@ -26,8 +31,7 @@ RUN apt install -y \
     && apt clean \
     && rm -rf /var/lib/apt/lists/*
 
-RUN apt update && \
-    apt install -y --no-install-recommends tesseract-ocr tesseract-ocr-chi-sim && \
+RUN apt install -y --no-install-recommends tesseract-ocr tesseract-ocr-chi-sim && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
