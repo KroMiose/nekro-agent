@@ -1,7 +1,9 @@
 import os
 import re
+import shutil
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, NoReturn, Optional, Tuple, Union
 
 from nonebot import on_command
@@ -13,7 +15,7 @@ from nonebot.params import CommandArg
 from nekro_agent.core.config import ModelConfigGroup, config, reload_config, save_config
 from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import OsEnv
+from nekro_agent.core.os_env import SANDBOX_PACKAGE_DIR, SANDBOX_PIP_CACHE_DIR, OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
@@ -620,7 +622,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "\n====== [插件系统] ======\n"
             "na_plugins: 查看当前已加载的插件及其详细信息\n"
             "plugin_info <name/key>: 查看指定插件的详细信息\n"
-            "\n====== [其他功能] ======\n"
+            "\n====== [系统维护] ======\n"
+            "clear_sandbox_cache: 清理沙盒环境的缓存和包目录\n"
             "debug_on: 开启调试模式\n"
             "debug_off: 关闭调试模式\n"
             "system <message>: 添加系统消息\n"
@@ -769,6 +772,71 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         result_lines.append(f"{status} {model_name}: (成功: {success}, 失败: {fail}){speed_info}")
 
     await finish_with(matcher, message="\n".join(result_lines))
+
+
+@on_command("clear_sandbox_cache", aliases={"clear-sandbox-cache", "na_csc", "na-csc"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """清理沙盒环境的缓存目录"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    cleared_size = 0
+    cleared_files = 0
+
+    # 清理 pip 缓存目录
+    pip_cache_path = Path(SANDBOX_PIP_CACHE_DIR)
+    if pip_cache_path.exists():
+        for root, _, files in os.walk(SANDBOX_PIP_CACHE_DIR):
+            root_path = Path(root)
+            for file in files:
+                file_path = root_path / file
+                try:
+                    file_size = file_path.stat().st_size
+                    file_path.unlink()
+                    cleared_size += file_size
+                    cleared_files += 1
+                except Exception as e:
+                    logger.error(f"删除文件失败 {file_path}: {e}")
+
+        # 清空目录但保留目录本身
+        for item in pip_cache_path.iterdir():
+            if item.is_dir():
+                try:
+                    shutil.rmtree(item)
+                except Exception as e:
+                    logger.error(f"删除目录失败 {item}: {e}")
+
+    # 清理包目录
+    package_path = Path(SANDBOX_PACKAGE_DIR)
+    if package_path.exists():
+        for root, _, files in os.walk(SANDBOX_PACKAGE_DIR):
+            root_path = Path(root)
+            for file in files:
+                file_path = root_path / file
+                try:
+                    file_size = file_path.stat().st_size
+                    file_path.unlink()
+                    cleared_size += file_size
+                    cleared_files += 1
+                except Exception as e:
+                    logger.error(f"删除文件失败 {file_path}: {e}")
+
+        # 清空目录但保留目录本身
+        for item in package_path.iterdir():
+            if item.is_dir():
+                try:
+                    shutil.rmtree(item)
+                except Exception as e:
+                    logger.error(f"删除目录失败 {item}: {e}")
+
+    # 创建目录（如果不存在）
+    Path(SANDBOX_PIP_CACHE_DIR).mkdir(parents=True, exist_ok=True)
+    Path(SANDBOX_PACKAGE_DIR).mkdir(parents=True, exist_ok=True)
+
+    size_in_mb = cleared_size / (1024 * 1024)
+    await finish_with(
+        matcher,
+        message=f"沙盒缓存清理完成！\n已清理文件：{cleared_files} 个\n释放空间：{size_in_mb:.2f} MB",
+    )
 
 
 # ! 高风险命令

@@ -11,7 +11,13 @@ from aiodocker.docker import DockerContainer
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
+from nekro_agent.core.os_env import (
+    SANDBOX_PACKAGE_DIR,
+    SANDBOX_PIP_CACHE_DIR,
+    SANDBOX_SHARED_HOST_DIR,
+    USER_UPLOAD_DIR,
+    OsEnv,
+)
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -27,11 +33,19 @@ HOST_SHARED_DIR = (
 )
 # 用户上传目录
 USER_UPLOAD_DIR = Path(USER_UPLOAD_DIR) if USER_UPLOAD_DIR.startswith("/") else Path(USER_UPLOAD_DIR).resolve()
+# 主机pip缓存目录
+HOST_PIP_CACHE_DIR = (
+    Path(SANDBOX_PIP_CACHE_DIR) if SANDBOX_PIP_CACHE_DIR.startswith("/") else Path(SANDBOX_PIP_CACHE_DIR).resolve()
+)
+# 主机包目录
+HOST_PACKAGE_DIR = Path(SANDBOX_PACKAGE_DIR) if SANDBOX_PACKAGE_DIR.startswith("/") else Path(SANDBOX_PACKAGE_DIR).resolve()
 
 IMAGE_NAME = config.SANDBOX_IMAGE_NAME  # Docker 镜像名称
 CONTAINER_SHARE_DIR = "/app/shared"  # 容器内共享目录 (读写)
 CONTAINER_UPLOAD_DIR = "/app/uploads"  # 容器上传目录 (只读)
 CONTAINER_WORK_DIR = "/app"  # 容器工作目录
+CONTAINER_PIP_CACHE_DIR = "/app/.pip_cache"  # 容器pip缓存目录
+CONTAINER_PACKAGE_DIR = "/app/packages"  # 容器包缓存目录
 
 CODE_FILENAME = "run_script.py.code"  # 要执行的代码文件名
 RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
@@ -148,12 +162,16 @@ async def run_code_in_sandbox(
     code_file_path = Path(host_shared_dir) / CODE_FILENAME
     code_file_path.write_text(f"{CODE_PREAMBLE.strip()}\n\n{code_run_data.code_content}", encoding="utf-8")
 
-    # 设置共享目录权限
+    # 设置目录权限
     try:
         Path.chmod(host_shared_dir, 0o777)
-        logger.debug(f"设置共享目录权限: {host_shared_dir} 777")
+        logger.debug(f"设置目录权限: {host_shared_dir} 777")
+        Path.chmod(HOST_PIP_CACHE_DIR, 0o777)
+        logger.debug(f"设置目录权限: {HOST_PIP_CACHE_DIR} 777")
+        Path.chmod(HOST_PACKAGE_DIR, 0o777)
+        logger.debug(f"设置目录权限: {HOST_PACKAGE_DIR} 777")
     except Exception as e:
-        logger.error(f"设置共享目录权限失败: {e}")
+        logger.error(f"设置目录权限失败: {e}")
 
     # 清理过期任务
     if from_chat_key in chat_key_sandbox_cleanup_task_map:
@@ -185,6 +203,8 @@ async def run_code_in_sandbox(
             "Cmd": ["bash", "-c", EXEC_SCRIPT],
             "HostConfig": {
                 "Binds": [
+                    f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
+                    f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
                     f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
                     f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
                 ],

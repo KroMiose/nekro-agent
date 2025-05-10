@@ -58,6 +58,8 @@ class OsEnv:
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
+SANDBOX_PIP_CACHE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.pip_cache"
+SANDBOX_PACKAGE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.packages"
 PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
 APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
 BUILTIN_PLUGIN_DIR: str = "plugins/builtin"

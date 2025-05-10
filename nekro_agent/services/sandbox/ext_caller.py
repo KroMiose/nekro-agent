@@ -8,6 +8,8 @@ from nekro_agent.services.plugin.collector import plugin_collector
 
 CODE_PREAMBLE = """
 from api_caller import *
+
+_ck = FROM_CHAT_KEY
 """
 
 METHOD_REG_TEMPLATE = """
@@ -29,5 +31,6 @@ async def get_api_caller_code(container_key: str, from_chat_key: str, ctx: Optio
     methods = await plugin_collector.get_all_sandbox_methods(ctx)
 
     for method in methods:
-        base_code += METHOD_REG_TEMPLATE.format(method_name=method.func.__name__)
+        if method.func.__name__ != "dynamic_importer":
+            base_code += METHOD_REG_TEMPLATE.format(method_name=method.func.__name__)
     return base_code.strip()
