@@ -66,6 +66,7 @@ def __extension_method_proxy(method: Callable):
 
 def dynamic_importer(
     package_spec: str,
+    import_name: Optional[str] = None,
     mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
     trusted_host: bool = True,
     timeout: int = 300,
@@ -75,10 +76,11 @@ def dynamic_importer(
 
     Args:
         package_spec: 包名称和版本规范 (如 "requests" 或 "numpy==1.21.0")
-        repo_dir: 持久化存储目录 (默认使用系统路径)
+        import_name: 导入名称（如果与包名不同）
         mirror: PyPI镜像源URL
         trusted_host: 是否信任镜像源主机
         timeout: 安装超时时间（秒）
+        repo_dir: 持久化存储目录 (默认使用系统路径)
 
     Returns:
         导入的模块对象
@@ -168,9 +170,12 @@ def dynamic_importer(
             print(f"安装 {package_spec} 超时（{timeout}秒），请检查网络连接")
             exit(1)
 
+    # 确定导入模块名称
+    module_name = import_name if import_name is not None else package_name
+
     # 动态导入模块
     try:
-        module = importlib.import_module(package_name)
+        module = importlib.import_module(module_name)
         module = importlib.reload(module)  # 确保加载最新版本
     except ImportError:
         # 尝试刷新导入路径
@@ -179,12 +184,12 @@ def dynamic_importer(
 
             site.addsitedir(repo_dir)
             try:
-                module = importlib.import_module(package_name)
+                module = importlib.import_module(module_name)
             except ImportError:
-                print(f"安装成功但无法导入 {package_name}，请确认包名正确")
+                print(f"安装成功但无法导入 {module_name}，请确认模块名正确")
                 exit(1)
         else:
-            print(f"安装成功但无法导入 {package_name}，请确认包名正确")
+            print(f"安装成功但无法导入 {module_name}，请确认模块名正确")
             exit(1)
 
     return module

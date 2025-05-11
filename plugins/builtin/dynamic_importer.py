@@ -21,6 +21,7 @@ plugin = NekroPlugin(
 async def dynamic_importer(
     _ctx: AgentCtx,
     package_spec: str,
+    import_name: Optional[str] = None,
     mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
     trusted_host: bool = True,
     timeout: int = 300,
@@ -35,6 +36,7 @@ async def dynamic_importer(
 
     Args:
         package_spec (str): Package name with version (e.g. "requests" or "beautifulsoup4==4.9.3")
+        import_name (Optional[str]): Module name to import if different from package name
         mirror (Optional[str]): PyPI mirror URL, defaults to Tsinghua mirror
         trusted_host (bool): Trust mirror host flag, defaults to True
         timeout (int): Install timeout in seconds, defaults to 300
@@ -44,12 +46,17 @@ async def dynamic_importer(
 
     Good Examples:
         ```python
-        # Good: Installing missing packages
-        bs4 = dynamic_importer("beautifulsoup4")
-        stripe = dynamic_importer("stripe==2.60.0")
-
-        # Using with version constraints
+        # Basic usage
+        requests = dynamic_importer("requests")
+        
+        # When package name and import name differ
+        bs4 = dynamic_importer("beautifulsoup4", import_name="bs4")
+        dateutil = dynamic_importer("python-dateutil", import_name="dateutil")
+        pil = dynamic_importer("pillow", import_name="PIL")
+        
+        # With version constraints
         redis = dynamic_importer("redis>=4.0.0")
+        stripe = dynamic_importer("stripe==2.60.0")
         ```
 
     Bad Examples:
