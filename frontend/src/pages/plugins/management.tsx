@@ -999,23 +999,42 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               <TableCell>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   {renderConfigInput(item)}
-                                  {item.ref_model_groups && (() => {
-                                    const typeOption = modelTypeMap[item.model_type as string];
-                                    const chipLabel = typeOption
-                                      ?`${typeOption.label}模型组`
-                                      : '模型组';
-                                    const chipColor = (typeOption?.color as 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error' | 'default') || 'primary';
-                                    return (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                        <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
-                                        <Tooltip title="配置模型组">
-                                          <IconButton size="small" onClick={() => navigate('/settings/model-groups')}>
-                                            <LaunchIcon fontSize="inherit" />
-                                          </IconButton>
-                                        </Tooltip>
-                                      </Box>
-                                    );
-                                  })()}
+                                  {item.ref_model_groups &&
+                                    (() => {
+                                      const typeOption = modelTypeMap[item.model_type as string]
+                                      const chipLabel = typeOption
+                                        ? `${typeOption.label}模型组`
+                                        : '模型组'
+                                      const chipColor =
+                                        (typeOption?.color as
+                                          | 'primary'
+                                          | 'secondary'
+                                          | 'success'
+                                          | 'warning'
+                                          | 'info'
+                                          | 'error'
+                                          | 'default') || 'primary'
+                                      return (
+                                        <Box
+                                          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                                        >
+                                          <Chip
+                                            label={chipLabel}
+                                            size="small"
+                                            color={chipColor}
+                                            variant="outlined"
+                                          />
+                                          <Tooltip title="配置模型组">
+                                            <IconButton
+                                              size="small"
+                                              onClick={() => navigate('/settings/model-groups')}
+                                            >
+                                              <LaunchIcon fontSize="inherit" />
+                                            </IconButton>
+                                          </Tooltip>
+                                        </Box>
+                                      )
+                                    })()}
                                 </Box>
                               </TableCell>
                             </TableRow>
@@ -1532,21 +1551,25 @@ export default function PluginsManagementPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
 
-  // 获取插件列表
+  // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
     queryKey: ['plugins'],
-    queryFn: async () => {
-      const list = await pluginsApi.getPlugins()
-      // 获取每个插件的详细信息
-      const detailedPlugins = await Promise.all(
-        list.map(async plugin => {
-          const detail = await pluginsApi.getPluginDetail(plugin.id)
-          return detail || plugin
-        })
-      )
-      return detailedPlugins
-    },
+    queryFn: () => pluginsApi.getPlugins(),
   })
+
+  // 获取当前选中插件的详情
+  const { data: pluginDetail } = useQuery({
+    queryKey: ['plugin-detail', selectedPlugin?.id],
+    queryFn: () => pluginsApi.getPluginDetail(selectedPlugin?.id as string),
+    enabled: !!selectedPlugin?.id,
+  })
+
+  // 当获取到详情后更新选中的插件
+  useEffect(() => {
+    if (pluginDetail) {
+      setSelectedPlugin(pluginDetail)
+    }
+  }, [pluginDetail])
 
   // 切换插件启用状态
   const toggleEnabledMutation = useMutation({
@@ -1568,6 +1591,11 @@ export default function PluginsManagementPage() {
 
   const handleToggleEnabled = (id: string, enabled: boolean) => {
     toggleEnabledMutation.mutate({ id, enabled })
+  }
+
+  // 处理选择插件的逻辑
+  const handleSelectPlugin = (plugin: Plugin) => {
+    setSelectedPlugin(plugin)
   }
 
   // 过滤插件列表
@@ -1657,7 +1685,7 @@ export default function PluginsManagementPage() {
                 {filteredPlugins.map(plugin => (
                   <React.Fragment key={plugin.id}>
                     <ListItem
-                      onClick={() => setSelectedPlugin(plugin)}
+                      onClick={() => handleSelectPlugin(plugin)}
                       sx={{
                         cursor: 'pointer',
                         '&:hover': { bgcolor: 'action.hover' },
