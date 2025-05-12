@@ -602,7 +602,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     """Collect Emotion (表情包)
 
     Collect an expression image/GIF to the emotion database.
-    **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
+    **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT ANY screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
 
     Args:
         source_path (str): The path or URL of the expression image
@@ -1084,7 +1084,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         )
     msg.add(
         ContentSegment.text_content(
-            "If they don't match the description, please use `update_emotion` immediately to correct it. If you find any non-expression images (like screenshots, photos, or irrelevant content), please use `remove_emotion` to delete them. Expression images should only be reaction GIFs or meme images. After that, continue to Your task.",
+            "If the emotion doesn't match the description, please use `update_emotion` IMMEDIATELY to correct it. If you find any non-expression images (like screenshots, photos, or irrelevant content), please use `remove_emotion` IMMEDIATELY to delete them. Expression images should only be reaction GIFs or meme images. ALWAYS KEEP YOUR COLLECTIONS CLEAN AND ACCURATE. After that, continue to Your task.",
         ),
     )
 
