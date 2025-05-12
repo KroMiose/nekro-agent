@@ -78,7 +78,7 @@ async def run_agent(
     ]
 
     history_render_until_time = time.time()
-    llm_response, used_model_group = await send_agent_request(messages=messages)
+    llm_response, used_model_group = await send_agent_request(messages=messages, chat_key=chat_key)
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
@@ -181,13 +181,14 @@ async def run_agent(
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
-        llm_response, used_model_group = await send_agent_request(messages=messages, is_debug_iteration=True)
+        llm_response, used_model_group = await send_agent_request(messages=messages, is_debug_iteration=True, chat_key=chat_key)
         parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
 
 async def send_agent_request(
     messages: List[OpenAIChatMessage],
     is_debug_iteration: bool = False,
+    chat_key: str = "",
 ) -> Tuple[OpenAIResponse, ModelConfigGroup]:
 
     model_group: ModelConfigGroup = (
@@ -234,6 +235,10 @@ async def send_agent_request(
             ),
             encoding="utf-8",
         )
+        if chat_key:
+            from nekro_agent.services.chat import chat_service
+
+            await chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
         raise ValueError("所有 LLM 请求失败")
 
     return llm_response, used_model_group

@@ -9,6 +9,7 @@ import magic
 import toml
 from PIL import Image
 
+from nekro_agent.core import logger
 from nekro_agent.core.config import config
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
 
@@ -196,7 +197,9 @@ def check_forbidden_message(content: str) -> bool:
 
     for reg_text in config.AI_CHAT_IGNORE_REGEX:
         reg = re.compile(reg_text)
-        if reg.search(content):
+        _r = reg.search(content)
+        if _r:
+            logger.info(f"忽略消息: {content} - 命中正则: {reg_text} 匹配内容: {_r.group(0)}")
             return True
     return False
 

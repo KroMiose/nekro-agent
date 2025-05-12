@@ -154,6 +154,9 @@ class ChatService:
 
             await message_service.push_bot_message(chat_key, messages)
 
+    async def send_operation_message(self, chat_key: str, message: str):
+        await self.send_agent_message(chat_key, "[Opt Output] " + message)
+
     async def send_message(self, chat_key: str, message: Union[str, Message]):
         bot: Bot = get_bot()
 
