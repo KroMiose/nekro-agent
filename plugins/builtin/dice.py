@@ -130,6 +130,7 @@ async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficult
     )
     return (
         f"[{event_name}] ({difficulty}/20) {fix_str_en} roll result: {roll_result}{fix_diff_show}【{result_str}】\n"
+        "Note: This is only an effect check for the action, not a substitute for the action itself. You still need to actually perform (and be able to perform) the corresponding action.\n"
         "Please continue to generate responses based on the results"
     )
 

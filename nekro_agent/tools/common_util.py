@@ -199,7 +199,7 @@ def check_forbidden_message(content: str) -> bool:
         reg = re.compile(reg_text)
         _r = reg.search(content)
         if _r:
-            logger.info(f"忽略消息: {content} - 命中正则: {reg_text} 匹配内容: {_r.group(0)}")
+            logger.info(f'忽略消息: "{content}" - 命中正则: "{reg_text}" 匹配内容: "{_r.group(0)}"')
             return True
     return False
 
