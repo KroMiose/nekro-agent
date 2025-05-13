@@ -30,6 +30,8 @@ import {
   ListItem,
   tooltipClasses,
   TooltipProps,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ConfigItem, ModelTypeOption } from '../../services/api/config'
@@ -191,6 +193,9 @@ export default function SettingsPage() {
   const [saveWarningOpen, setSaveWarningOpen] = useState(false)
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [searchText, setSearchText] = useState<string>('')
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 将列表编辑状态提升到组件级别
   const [listEditState, setListEditState] = useState<{
@@ -529,9 +534,11 @@ export default function SettingsPage() {
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
+          justifyContent: isMobile ? 'center' : 'space-between',
           mb: 2,
           flexShrink: 0,
+          flexDirection: isMobile ? 'column' : 'row',
+          gap: isMobile ? 1 : 0,
         }}
       >
         {/* 搜索框 */}
@@ -541,7 +548,7 @@ export default function SettingsPage() {
           placeholder="搜索配置名称或键"
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
-          sx={{ width: 300 }}
+          sx={{ width: isMobile ? '100%' : 300 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -550,18 +557,25 @@ export default function SettingsPage() {
             ),
           }}
         />
-        <Stack direction="row" spacing={2}>
+        <Stack direction="row" spacing={2} justifyContent={isMobile ? 'flex-end' : 'flex-start'}>
           <Tooltip title="保存修改">
-            <IconButton
-              onClick={() => handleSaveAllChanges()}
-              color="primary"
-              disabled={Object.keys(editingValues).length === 0}
-            >
-              <SaveIcon />
-            </IconButton>
+            <span>
+              <IconButton
+                onClick={() => handleSaveAllChanges()}
+                color="primary"
+                disabled={Object.keys(editingValues).length === 0}
+                size={isSmall ? "small" : "medium"}
+              >
+                <SaveIcon />
+              </IconButton>
+            </span>
           </Tooltip>
           <Tooltip title="重载配置">
-            <IconButton onClick={() => setReloadConfirmOpen(true)} color="primary">
+            <IconButton 
+              onClick={() => setReloadConfirmOpen(true)} 
+              color="primary"
+              size={isSmall ? "small" : "medium"}
+            >
               <RefreshIcon />
             </IconButton>
           </Tooltip>
@@ -596,12 +610,21 @@ export default function SettingsPage() {
             },
           }}
         >
-          <Table stickyHeader size="small">
+          <Table stickyHeader size={isSmall ? "small" : "medium"}>
             <TableHead>
               <TableRow>
-                <TableCell width="25%">配置项</TableCell>
-                <TableCell width="10%">类型</TableCell>
-                <TableCell width="65%">值</TableCell>
+                <TableCell 
+                  width={isMobile ? "40%" : "25%"}
+                  sx={{ py: isSmall ? 1 : 1.5 }}
+                >配置项</TableCell>
+                <TableCell 
+                  width={isMobile ? "20%" : "10%"}
+                  sx={{ py: isSmall ? 1 : 1.5 }}
+                >类型</TableCell>
+                <TableCell 
+                  width={isMobile ? "40%" : "65%"}
+                  sx={{ py: isSmall ? 1 : 1.5 }}
+                >值</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -614,10 +637,17 @@ export default function SettingsPage() {
                 )
                 .map(config => (
                   <TableRow key={config.key}>
-                    <TableCell>
+                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
                       <Box>
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                          <Typography 
+                            variant="subtitle2" 
+                            sx={{ 
+                              fontWeight: 'bold',
+                              fontSize: isSmall ? '0.75rem' : 'inherit',
+                              mr: 0.5
+                            }}
+                          >
                             {config.title || config.key}
                             {config.required && (
                               <Typography component="span" color="error" sx={{ ml: 0.5 }}>
@@ -632,27 +662,38 @@ export default function SettingsPage() {
                               }
                               placement="right"
                             >
-                              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
-                                <HelpOutlineIcon fontSize="small" />
+                              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6, p: isSmall ? 0.3 : 0.5 }}>
+                                <HelpOutlineIcon fontSize={isSmall ? "small" : "medium"} />
                               </IconButton>
                             </HtmlTooltip>
                           )}
                         </Box>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography 
+                          variant="caption" 
+                          color="text.secondary"
+                          sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}
+                        >
                           {config.key}
                         </Typography>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
                       <Chip
                         label={config.type}
                         size="small"
                         color={getTypeColor(config.type)}
                         variant="outlined"
+                        sx={{ 
+                          height: isSmall ? 20 : 24,
+                          fontSize: isSmall ? '0.65rem' : '0.75rem',
+                          '& .MuiChip-label': {
+                            px: isSmall ? 0.5 : 0.75,
+                          }
+                        }}
                       />
                     </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                         {renderConfigInput(config)}
                         {config.ref_model_groups && (() => {
                           const typeOption = modelTypeMap[config.model_type as string];
@@ -661,11 +702,33 @@ export default function SettingsPage() {
                             : '模型组';
                           const chipColor = (typeOption?.color as 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error' | 'default') || 'primary';
                           return (
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <Chip label={chipLabel} size="small" color={chipColor} variant="outlined" />
+                            <Box sx={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 0.5,
+                              mt: isMobile ? 0.5 : 0
+                            }}>
+                              {!isMobile && (
+                                <Chip 
+                                  label={chipLabel} 
+                                  size="small" 
+                                  color={chipColor} 
+                                  variant="outlined"
+                                  sx={{ 
+                                    height: isSmall ? 20 : 24,
+                                    fontSize: isSmall ? '0.65rem' : '0.75rem',
+                                    '& .MuiChip-label': {
+                                      px: isSmall ? 0.5 : 0.75,
+                                    }
+                                  }}
+                                />
+                              )}
                               <Tooltip title="配置模型组">
-                                <IconButton size="small" onClick={() => navigate('/settings/model-groups')}>
-                                  <LaunchIcon fontSize="inherit" />
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => navigate('/settings/model-groups')}
+                                >
+                                  <LaunchIcon fontSize={isSmall ? "small" : "inherit"} />
                                 </IconButton>
                               </Tooltip>
                             </Box>
@@ -681,23 +744,42 @@ export default function SettingsPage() {
       </Paper>
 
       {/* 添加重载确认对话框 */}
-      <Dialog open={reloadConfirmOpen} onClose={() => setReloadConfirmOpen(false)}>
+      <Dialog 
+        open={reloadConfirmOpen} 
+        onClose={() => setReloadConfirmOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>确认重载配置？</DialogTitle>
         <DialogContent>
           <DialogContentText>
             重载配置将从配置文件中重新读取所有配置项，包括基本配置和模型组配置，未保存的修改将会丢失。是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReloadConfirmOpen(false)}>取消</Button>
-          <Button onClick={handleReloadConfig} color="primary">
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setReloadConfirmOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={handleReloadConfig} 
+            color="primary"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
             确认
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 添加必填项警告对话框 */}
-      <Dialog open={saveWarningOpen} onClose={() => setSaveWarningOpen(false)}>
+      <Dialog 
+        open={saveWarningOpen} 
+        onClose={() => setSaveWarningOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>存在未填写的必填项</DialogTitle>
         <DialogContent>
           <DialogContentText>
@@ -712,9 +794,18 @@ export default function SettingsPage() {
             是否仍要继续保存？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSaveWarningOpen(false)}>取消</Button>
-          <Button onClick={() => handleSaveAllChanges(true)} color="warning">
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setSaveWarningOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={() => handleSaveAllChanges(true)} 
+            color="warning"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
             继续保存
           </Button>
         </DialogActions>

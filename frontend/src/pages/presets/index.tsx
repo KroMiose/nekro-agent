@@ -25,6 +25,8 @@ import {
   Checkbox,
   Snackbar,
   Link,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -44,6 +46,13 @@ import {
 import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
+import {
+  GRADIENTS, 
+  SHADOWS, 
+  BORDERS, 
+  BORDER_RADIUS,
+  CARD_LAYOUT
+} from '../../theme/constants'
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -535,6 +544,8 @@ const PresetCard = ({
   showError,
   showSuccess,
   onRefreshList,
+  isMobile,
+  isSmall,
 }: {
   preset: Preset
   onExpand: () => void
@@ -545,6 +556,8 @@ const PresetCard = ({
   showError: (message: string) => void
   showSuccess: (message: string) => void
   onRefreshList: () => Promise<void>
+  isMobile?: boolean
+  isSmall?: boolean
 }) => {
   const { enqueueSnackbar } = useSnackbar()
   const [preset, setPreset] = useState(initialPreset)
@@ -557,6 +570,8 @@ const PresetCard = ({
   const [shareLoading, setShareLoading] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
   const [agreeToTerms, setAgreeToTerms] = useState(false)
+  const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
 
   // 更新 preset 当 initialPreset 变化时
   useEffect(() => {
@@ -754,11 +769,22 @@ const PresetCard = ({
     <Card
       sx={{
         position: 'relative',
-        transition: 'all 0.3s',
+        transition: CARD_LAYOUT.TRANSITION,
         overflow: 'visible',
         '&:hover': {
-          boxShadow: 6,
+          boxShadow: isDark 
+            ? SHADOWS.CARD.DARK.HOVER
+            : SHADOWS.CARD.LIGHT.HOVER,
+          transform: 'translateY(-2px)',
         },
+        background: isDark 
+          ? GRADIENTS.CARD.DARK
+          : GRADIENTS.CARD.LIGHT,
+        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+        border: isDark 
+          ? BORDERS.CARD.DARK
+          : BORDERS.CARD.LIGHT,
+        borderRadius: BORDER_RADIUS.DEFAULT,
         ...(preset.remote_id
           ? {
               boxShadow: theme =>
@@ -782,6 +808,8 @@ const PresetCard = ({
             top: -10,
             right: 16,
             zIndex: 1,
+            fontSize: isSmall ? '0.65rem' : '0.75rem',
+            height: isSmall ? 20 : 24,
           }}
         />
       )}
@@ -797,14 +825,21 @@ const PresetCard = ({
             top: -10,
             right: preset.remote_id ? 110 : 16,
             zIndex: 1,
+            fontSize: isSmall ? '0.65rem' : '0.75rem',
+            height: isSmall ? 20 : 24,
           }}
         />
       )}
 
       <CardContent sx={{ pt: 3, pb: 1 }}>
-        <Box sx={{ display: 'flex', gap: 2 }}>
+        <Box sx={{ display: 'flex', gap: 2, flexDirection: isMobile && isSmall ? 'column' : 'row' }}>
           {/* 左侧头像区域 - 固定宽度 */}
-          <Box sx={{ width: { xs: '25%', sm: '16.66%' } }}>
+          <Box sx={{ 
+            width: isMobile && isSmall ? '100%' : { xs: '25%', sm: '16.66%' },
+            maxWidth: isMobile && isSmall ? '160px' : 'none',
+            alignSelf: isMobile && isSmall ? 'center' : 'flex-start',
+            mb: isMobile && isSmall ? 2 : 0
+          }}>
             <Avatar
               src={preset.avatar}
               alt={preset.name}
@@ -1139,6 +1174,9 @@ export default function PresetsPage() {
     content: string
   } | null>(null)
   const [refreshingShared, setRefreshingShared] = useState(false)
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 添加全局错误处理函数
   const showError = useCallback((message: string) => {
@@ -1324,6 +1362,8 @@ export default function PresetsPage() {
       showError={showError}
       showSuccess={showSuccess}
       onRefreshList={fetchData}
+      isMobile={isMobile}
+      isSmall={isSmall}
     />
   )
 
@@ -1332,7 +1372,7 @@ export default function PresetsPage() {
       <Box className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <Box component="form" onSubmit={handleSearch} className="flex" autoComplete="off">
           <TextField
-            size="small"
+            size={isSmall ? "small" : "medium"}
             placeholder="搜索人设"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -1355,8 +1395,9 @@ export default function PresetsPage() {
             startIcon={<CloudSyncIcon />}
             onClick={handleRefreshSharedStatus}
             disabled={refreshingShared}
+            size={isSmall ? "small" : "medium"}
           >
-            {refreshingShared ? <CircularProgress size={24} /> : '刷新共享状态'}
+            {refreshingShared ? <CircularProgress size={isSmall ? 16 : 24} /> : isMobile ? '刷新状态' : '刷新共享状态'}
           </Button>
           <Button
             variant="contained"
@@ -1365,6 +1406,7 @@ export default function PresetsPage() {
               setEditingPreset(undefined)
               setEditDialog(true)
             }}
+            size={isSmall ? "small" : "medium"}
           >
             创建人设
           </Button>
@@ -1376,7 +1418,7 @@ export default function PresetsPage() {
           <CircularProgress />
         </Box>
       ) : presets.length > 0 ? (
-        <Grid container spacing={2}>
+        <Grid container spacing={isSmall ? 1.5 : 2}>
           {presets.map(preset => (
             <Grid item xs={12} key={preset.id}>
               {renderPresetCard(preset)}
@@ -1390,7 +1432,7 @@ export default function PresetsPage() {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            py: 8,
+            py: isSmall ? 4 : 8,
           }}
         >
           <Typography color="text.secondary" gutterBottom>
@@ -1403,6 +1445,7 @@ export default function PresetsPage() {
               setEditingPreset(undefined)
               setEditDialog(true)
             }}
+            size={isSmall ? "small" : "medium"}
           >
             创建新人设
           </Button>

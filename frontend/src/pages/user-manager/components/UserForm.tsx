@@ -6,7 +6,10 @@ import {
   DialogActions, 
   Button, 
   TextField,
-  Box
+  Box,
+  useTheme,
+  useMediaQuery,
+  Typography
 } from '@mui/material';
 import { UserFormData } from '../../../services/api/user-manager';
 
@@ -17,6 +20,9 @@ interface UserFormProps {
 }
 
 const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
+  const theme = useTheme();
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'));
+
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
     password: '',
@@ -109,10 +115,18 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>创建新用户</DialogTitle>
-      <DialogContent>
-        <Box sx={{ mt: 1 }}>
+    <Dialog 
+      open={open} 
+      onClose={handleClose} 
+      maxWidth="sm" 
+      fullWidth
+      fullScreen={isSmall}
+    >
+      <DialogTitle>
+        <Typography variant={isSmall ? "h6" : "h5"}>创建新用户</Typography>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Box sx={{ mt: isSmall ? 0.5 : 1 }}>
           <TextField
             fullWidth
             margin="normal"
@@ -123,6 +137,12 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             error={!!errors.username}
             helperText={errors.username}
             required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1.5 : 2 }}
           />
           
           <TextField
@@ -136,6 +156,12 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             error={!!errors.password}
             helperText={errors.password}
             required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1.5 : 2 }}
           />
           
           <TextField
@@ -148,6 +174,12 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             error={!!errors.confirmPassword}
             helperText={errors.confirmPassword}
             required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1.5 : 2 }}
           />
           
           <TextField
@@ -160,6 +192,12 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             error={!!errors.bind_qq}
             helperText={errors.bind_qq}
             required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1.5 : 2 }}
           />
           
           <TextField
@@ -173,15 +211,28 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             error={!!errors.access_key}
             helperText={errors.access_key || "请输入超级访问密钥以确认创建"}
             required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1 : 1.5 }}
           />
         </Box>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose}>取消</Button>
+      <DialogActions sx={{ px: isSmall ? 2 : 3, py: isSmall ? 1.5 : 2 }}>
+        <Button 
+          onClick={handleClose}
+          size={isSmall ? "small" : "medium"}
+        >
+          取消
+        </Button>
         <Button 
           onClick={handleSubmit} 
           color="primary" 
+          variant="contained"
           disabled={isSubmitting}
+          size={isSmall ? "small" : "medium"}
         >
           {isSubmitting ? '创建中...' : '创建'}
         </Button>

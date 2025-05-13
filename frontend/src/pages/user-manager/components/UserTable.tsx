@@ -27,6 +27,7 @@ import {
   Switch,
   FormControlLabel,
   useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import type { WheelEvent as ReactWheelEvent } from 'react'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -123,6 +124,10 @@ const UserTable: React.FC<UserTableProps> = ({
   })
   const [isPermanentBan, setIsPermanentBan] = useState(false)
   const [isPermanentPreventTrigger, setIsPermanentPreventTrigger] = useState(false)
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   const handleRequestSort = (property: string) => {
     const isAsc = sorting.field === property && sorting.order === 'asc'
@@ -248,7 +253,8 @@ const UserTable: React.FC<UserTableProps> = ({
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '无'
     try {
-      return format(new Date(dateString), 'yyyy-MM-dd HH:mm:ss')
+      // 在移动设备上使用更简洁的日期格式
+      return format(new Date(dateString), isMobile ? 'MM-dd HH:mm' : 'yyyy-MM-dd HH:mm:ss')
     } catch {
       return '无效日期'
     }
@@ -540,7 +546,7 @@ const UserTable: React.FC<UserTableProps> = ({
   return (
     <Box className="flex-1 flex flex-col overflow-hidden">
       <TableContainer className="flex-1 overflow-auto">
-        <Table size="small" stickyHeader>
+        <Table size={isSmall ? "small" : "medium"} stickyHeader>
           <TableHead>
             <TableRow>
               <TableCell>
@@ -571,36 +577,40 @@ const UserTable: React.FC<UserTableProps> = ({
                   ) : null}
                 </TableSortLabel>
               </TableCell>
-              <TableCell>QQ号</TableCell>
-              <TableCell>权限等级</TableCell>
+              {!isSmall && (
+                <TableCell>QQ号</TableCell>
+              )}
+              <TableCell>权限</TableCell>
               <TableCell>状态</TableCell>
-              <TableCell>
-                <TableSortLabel
-                  active={sorting.field === 'create_time'}
-                  direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
-                  onClick={() => handleRequestSort('create_time')}
-                >
-                  创建时间
-                  {sorting.field === 'create_time' ? (
-                    <Box component="span" sx={srOnlyStyle}>
-                      {sorting.order === 'desc' ? '降序排列' : '升序排列'}
-                    </Box>
-                  ) : null}
-                </TableSortLabel>
-              </TableCell>
+              {!isMobile && (
+                <TableCell>
+                  <TableSortLabel
+                    active={sorting.field === 'create_time'}
+                    direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
+                    onClick={() => handleRequestSort('create_time')}
+                  >
+                    创建时间
+                    {sorting.field === 'create_time' ? (
+                      <Box component="span" sx={srOnlyStyle}>
+                        {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                      </Box>
+                    ) : null}
+                  </TableSortLabel>
+                </TableCell>
+              )}
               <TableCell align="center">操作</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={isMobile ? 6 : 8} align="center">
                   <CircularProgress size={24} />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} align="center">
+                <TableCell colSpan={isMobile ? 6 : 8} align="center">
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -611,7 +621,9 @@ const UserTable: React.FC<UserTableProps> = ({
                   <TableRow key={user.id} hover>
                     <TableCell>{user.id}</TableCell>
                     <TableCell>{user.username}</TableCell>
-                    <TableCell>{user.bind_qq}</TableCell>
+                    {!isSmall && (
+                      <TableCell>{user.bind_qq}</TableCell>
+                    )}
                     <TableCell>
                       <Chip
                         label={getRoleLabel(user.perm_level)}
@@ -626,6 +638,7 @@ const UserTable: React.FC<UserTableProps> = ({
                             | 'warning'
                         }
                         size="small"
+                        sx={{ height: isSmall ? 20 : 24, fontSize: isSmall ? '0.65rem' : '0.75rem' }}
                       />
                     </TableCell>
                     <TableCell>
@@ -633,41 +646,48 @@ const UserTable: React.FC<UserTableProps> = ({
                         label={status}
                         size="small"
                         color={getStatusColor(status)}
+                        sx={{ height: isSmall ? 20 : 24, fontSize: isSmall ? '0.65rem' : '0.75rem' }}
                       />
                     </TableCell>
-                    <TableCell>{formatDate(user.create_time)}</TableCell>
+                    {!isMobile && (
+                      <TableCell>{formatDate(user.create_time)}</TableCell>
+                    )}
                     <TableCell align="center">
                       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                         <Tooltip title="查看详情">
-                          <IconButton size="small" onClick={() => onViewDetail(user.id)}>
-                            <VisibilityIcon fontSize="small" />
+                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => onViewDetail(user.id)}>
+                            <VisibilityIcon fontSize={isSmall ? "small" : "medium"} />
                           </IconButton>
                         </Tooltip>
-                        {showEditButton && (
+                        {showEditButton && !isSmall && (
                           <Tooltip title="编辑用户">
-                            <IconButton size="small" onClick={() => handleEditClick(user)}>
-                              <EditIcon fontSize="small" />
+                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleEditClick(user)}>
+                              <EditIcon fontSize={isSmall ? "small" : "medium"} />
                             </IconButton>
                           </Tooltip>
                         )}
                         <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
-                          <IconButton size="small" onClick={() => handleBanClick(user)}>
-                            <BlockIcon fontSize="small" />
+                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleBanClick(user)}>
+                            <BlockIcon fontSize={isSmall ? "small" : "medium"} />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={!user.is_prevent_trigger ? '禁止触发' : '恢复触发'}>
-                          <IconButton size="small" onClick={() => handlePreventTriggerClick(user)}>
-                            <LockIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="重置密码">
-                          <IconButton size="small" onClick={() => handleResetPasswordClick(user)}>
-                            <KeyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
+                        {!isSmall && (
+                          <Tooltip title={!user.is_prevent_trigger ? '禁止触发' : '恢复触发'}>
+                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handlePreventTriggerClick(user)}>
+                              <LockIcon fontSize={isSmall ? "small" : "medium"} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {!isSmall && (
+                          <Tooltip title="重置密码">
+                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleResetPasswordClick(user)}>
+                              <KeyIcon fontSize={isSmall ? "small" : "medium"} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="删除用户">
-                          <IconButton size="small" onClick={() => handleDeleteClick(user)}>
-                            <DeleteIcon fontSize="small" />
+                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleDeleteClick(user)}>
+                            <DeleteIcon fontSize={isSmall ? "small" : "medium"} />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -681,43 +701,71 @@ const UserTable: React.FC<UserTableProps> = ({
       </TableContainer>
 
       <TablePagination
-        rowsPerPageOptions={[5, 10, 25, 50]}
+        rowsPerPageOptions={isMobile ? [5, 10, 25] : [5, 10, 25, 50]}
         component="div"
         count={total}
         rowsPerPage={pagination.page_size}
         page={pagination.page - 1}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage="每页行数:"
-        labelDisplayedRows={({ from, to, count }) => `${from}-${to} / ${count}`}
+        labelRowsPerPage={isSmall ? "每页:" : "每页行数:"}
+        labelDisplayedRows={({ from, to, count }) => 
+          isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}条`
+        }
         sx={{
           '.MuiTablePagination-selectLabel': {
             marginBottom: 0,
+            display: isSmall ? 'none' : 'block',
           },
           '.MuiTablePagination-displayedRows': {
             marginBottom: 0,
+            fontSize: isSmall ? '0.75rem' : 'inherit',
+          },
+          '.MuiTablePagination-select': {
+            paddingRight: isSmall ? 0 : 8,
           },
         }}
       />
 
       {/* 删除确认对话框 */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => setDeleteDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
         <DialogTitle>确认删除</DialogTitle>
         <DialogContent>
-          确定要删除用户 "{selectedUser?.username}" 吗？此操作不可撤销。
+          <Typography variant={isSmall ? "body2" : "body1"}>
+            确定要删除用户 "{selectedUser?.username}" 吗？此操作不可撤销。
+          </Typography>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
-          <Button onClick={handleDeleteConfirm} color="error">
+        <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
+          <Button 
+            onClick={() => setDeleteDialogOpen(false)}
+            size={isSmall ? "small" : "medium"}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={handleDeleteConfirm} 
+            color="error"
+            size={isSmall ? "small" : "medium"}
+          >
             删除
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 封禁/解封对话框 */}
-      <Dialog open={banDialogOpen} onClose={() => setBanDialogOpen(false)}>
+      <Dialog 
+        open={banDialogOpen} 
+        onClose={() => setBanDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>{selectedUser?.is_active ? '封禁用户' : '解除封禁'}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ px: isSmall ? 2 : 3, pt: isSmall ? 1 : 2 }}>
           {selectedUser?.is_active ? (
             <DurationSelector
               duration={banDuration}
@@ -727,14 +775,23 @@ const UserTable: React.FC<UserTableProps> = ({
               title="请设置封禁时长："
             />
           ) : (
-            <Typography sx={{ pt: 1 }}>
+            <Typography sx={{ pt: isSmall ? 0.5 : 1 }} variant={isSmall ? "body2" : "body1"}>
               确定要解除对用户 "{selectedUser?.username}" 的封禁吗？
             </Typography>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setBanDialogOpen(false)}>取消</Button>
-          <Button onClick={handleBanConfirm} color="primary">
+        <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
+          <Button 
+            onClick={() => setBanDialogOpen(false)}
+            size={isSmall ? "small" : "medium"}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={handleBanConfirm} 
+            color="primary"
+            size={isSmall ? "small" : "medium"}
+          >
             确定
           </Button>
         </DialogActions>

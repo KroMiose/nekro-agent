@@ -26,6 +26,10 @@ import {
   Checkbox,
   Link,
   Snackbar,
+  Menu,
+  useMediaQuery,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material'
 import {
   Search as SearchIcon,
@@ -40,6 +44,8 @@ import {
   RemoveCircle as RemoveCircleIcon,
   Close as CloseIcon,
   Edit as EditIcon,
+  MoreVert as MoreVertIcon,
+  Flag as FlagIcon,
 } from '@mui/icons-material'
 import {
   pluginsMarketApi,
@@ -50,6 +56,7 @@ import {
 import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
+import { GRADIENTS, SHADOWS, BORDERS, BORDER_RADIUS, CARD_LAYOUT } from '../../theme/constants'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -85,30 +92,44 @@ const PluginCard = ({
   onShowDetail: () => void
 }) => {
   const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
 
-  // 举报功能
+  // 更多菜单状态
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null)
+  const isMoreMenuOpen = Boolean(moreMenuAnchor)
+
+  const handleMoreClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setMoreMenuAnchor(event.currentTarget)
+  }
+
+  const handleMoreClose = () => {
+    setMoreMenuAnchor(null)
+  }
+
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation()
     // 打开GitHub插件举报页面
-    const reportUrl = `https://github.com/KroMiose/nekro-agent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
+    const reportUrl = `https://github.com/NEKRO-AI/NekroAgent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
     window.open(reportUrl, '_blank')
   }
 
   return (
     <Card
       sx={{
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        transition: 'all 0.3s',
-        borderRadius: 2,
-        overflow: 'hidden',
+        transition: 'all 0.2s ease-in-out',
+        borderRadius: BORDER_RADIUS.MEDIUM,
+        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+        boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
         '&:hover': {
-          boxShadow: theme.shadows[6],
-          transform: 'translateY(-2px)',
+          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
         },
-        position: 'relative',
       }}
     >
       <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
@@ -154,10 +175,10 @@ const PluginCard = ({
             <Box sx={{ overflow: 'hidden', flex: 1 }}>
               <Typography
                 variant="h6"
+                component="h2"
                 sx={{
+                  fontSize: '1rem',
                   fontWeight: 600,
-                  fontSize: '1.1rem',
-                  lineHeight: 1.4,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -165,51 +186,43 @@ const PluginCard = ({
               >
                 {plugin.name}
               </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                  fontSize: '0.8rem',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                作者: {plugin.author}
+              </Typography>
             </Box>
           </Box>
-
-          {plugin.hasWebhook && (
-            <Chip
-              size="small"
-              label="WebHook"
-              color="primary"
-              variant="outlined"
-              sx={{ height: 24, fontSize: '0.7rem', ml: 1, flexShrink: 0 }}
-            />
-          )}
         </Box>
 
         <Typography
           variant="body2"
           color="text.secondary"
           sx={{
-            my: 1.5,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
             display: '-webkit-box',
-            WebkitLineClamp: 3,
+            WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+            mb: 2,
+            minHeight: '2.5em',
+            fontSize: '0.85rem',
           }}
         >
-          {plugin.description || '无描述'}
+          {plugin.description}
         </Typography>
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto' }}>
-          <Typography variant="caption" color="text.secondary">
-            作者: {plugin.author || '未知'}
-          </Typography>
-          {plugin.version && (
-            <Typography variant="caption" color="primary">
-              版本: {plugin.version}
-            </Typography>
-          )}
-        </Box>
-
-        <Box sx={{ mt: 1 }}>
-          {plugin.licenseType && (
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+          {plugin.hasWebhook && (
             <Chip
-              label={plugin.licenseType}
               size="small"
+              label="Webhook"
               sx={{
                 height: 24,
                 fontSize: '0.75rem',
@@ -236,8 +249,7 @@ const PluginCard = ({
         sx={{
           justifyContent: 'space-between',
           p: 1.5,
-          bgcolor: theme =>
-            theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
@@ -247,43 +259,107 @@ const PluginCard = ({
             详情
           </Button>
 
-          {onUnpublish && (
-            <Button
-              size="small"
-              variant="text"
-              startIcon={<RemoveCircleIcon />}
-              onClick={onUnpublish}
-              color="error"
-            >
-              下架
-            </Button>
-          )}
+          {isMobile ? (
+            <>
+              <IconButton size="small" onClick={handleMoreClick} color="inherit" sx={{ ml: 0.5 }}>
+                <MoreVertIcon />
+              </IconButton>
 
-          <Button
-            size="small"
-            variant="text"
-            color="warning"
-            onClick={handleReport}
-            title="举报不当内容"
-          >
-            举报
-          </Button>
+              <Menu
+                anchorEl={moreMenuAnchor}
+                open={isMoreMenuOpen}
+                onClose={handleMoreClose}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'left',
+                }}
+              >
+                {onUnpublish && (
+                  <MenuItem
+                    onClick={() => {
+                      handleMoreClose()
+                      onUnpublish()
+                    }}
+                    sx={{ color: 'error.main' }}
+                  >
+                    <ListItemIcon sx={{ color: 'error.main' }}>
+                      <RemoveCircleIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="下架" />
+                  </MenuItem>
+                )}
+
+                <MenuItem
+                  onClick={() => {
+                    handleMoreClose()
+                    handleReport(new MouseEvent('click') as unknown as React.MouseEvent)
+                  }}
+                  sx={{ color: 'warning.main' }}
+                >
+                  <ListItemIcon sx={{ color: 'warning.main' }}>
+                    <FlagIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="举报" />
+                </MenuItem>
+              </Menu>
+            </>
+          ) : (
+            <>
+              {onUnpublish && (
+                <Button
+                  size="small"
+                  variant="text"
+                  startIcon={<RemoveCircleIcon />}
+                  onClick={onUnpublish}
+                  color="error"
+                >
+                  下架
+                </Button>
+              )}
+
+              <Button
+                size="small"
+                variant="text"
+                color="warning"
+                onClick={handleReport}
+                title="举报不当内容"
+              >
+                举报
+              </Button>
+            </>
+          )}
         </Box>
 
         {plugin.is_local ? (
           <Box sx={{ display: 'flex', gap: 0.5 }}>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<UpdateIcon />}
-              onClick={onUpdate}
-              color="primary"
-            >
-              同步最新
-            </Button>
-            <Button size="small" variant="outlined" color="error" onClick={onRemove}>
-              移除
-            </Button>
+            {isMobile ? (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<UpdateIcon />}
+                onClick={onUpdate}
+                color="primary"
+                sx={{ mr: 1 }}
+              >
+                更新
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<UpdateIcon />}
+                onClick={onUpdate}
+                color="primary"
+              >
+                同步最新
+              </Button>
+            )}
+
+            {!isMobile && (
+              <Button size="small" variant="outlined" color="error" onClick={onRemove}>
+                移除
+              </Button>
+            )}
           </Box>
         ) : (
           <Button
@@ -322,7 +398,21 @@ const PluginDetailDialog = ({
   onEdit?: () => void
 }) => {
   const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
+
+  // 更多菜单状态
+  const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null)
+  const isMoreMenuOpen = Boolean(moreMenuAnchor)
+
+  const handleMoreClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setMoreMenuAnchor(event.currentTarget)
+  }
+
+  const handleMoreClose = () => {
+    setMoreMenuAnchor(null)
+  }
 
   // 举报功能
   const handleReport = () => {
@@ -343,8 +433,12 @@ const PluginDetailDialog = ({
       scroll="paper"
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          borderRadius: BORDER_RADIUS.MEDIUM,
           overflow: 'hidden',
+          background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+          backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+          border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+          boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
         },
       }}
     >
@@ -352,7 +446,7 @@ const PluginDetailDialog = ({
         sx={{
           px: 3,
           py: 2,
-          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           borderBottom: '1px solid',
           borderColor: 'divider',
           display: 'flex',
@@ -435,10 +529,9 @@ const PluginDetailDialog = ({
                 variant="body1"
                 paragraph
                 sx={{
-                  backgroundColor:
-                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                   p: 2,
-                  borderRadius: 1,
+                  borderRadius: BORDER_RADIUS.SMALL,
                   borderLeft: '4px solid',
                   borderColor: 'primary.main',
                   mt: 1,
@@ -535,49 +628,156 @@ const PluginDetailDialog = ({
           </Grid>
         </Grid>
       </DialogContent>
-      <DialogActions sx={{ px: 3, py: 2, display: 'flex', justifyContent: 'space-between' }}>
-        <Box>
-          <Button variant="outlined" color="warning" onClick={handleReport} sx={{ mr: 1 }}>
-            举报插件
-          </Button>
-          {plugin.isOwner && (
-            <>
-              <Button variant="outlined" color="error" onClick={onUnpublish} sx={{ mr: 1 }}>
-                下架插件
-              </Button>
-              <Button variant="outlined" color="primary" onClick={onEdit} sx={{ mr: 1 }}>
-                编辑信息
-              </Button>
-            </>
-          )}
-        </Box>
+      <DialogActions
+        sx={{
+          px: 3,
+          py: 2,
+          display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
+          justifyContent: 'space-between',
+          gap: isMobile ? 2 : 0,
+        }}
+      >
+        {isMobile ? (
+          // 移动端布局 - 全部操作放入两个按钮组
+          <>
+            <Box sx={{ display: 'flex', width: '100%', gap: 1 }}>
+              {plugin.is_local ? (
+                <>
+                  <Button
+                    variant="contained"
+                    startIcon={<UpdateIcon />}
+                    color="primary"
+                    onClick={onUpdate}
+                    fullWidth
+                  >
+                    更新
+                  </Button>
+                  <Button variant="outlined" color="error" onClick={onRemove} fullWidth>
+                    移除
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="contained"
+                  startIcon={<CloudDownloadIcon />}
+                  color="primary"
+                  onClick={onDownload}
+                  fullWidth
+                >
+                  获取插件
+                </Button>
+              )}
+            </Box>
 
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {plugin.is_local ? (
-            <>
+            <Box sx={{ display: 'flex', width: '100%' }}>
               <Button
-                variant="contained"
-                startIcon={<UpdateIcon />}
-                color="primary"
-                onClick={onUpdate}
+                variant="outlined"
+                color="inherit"
+                startIcon={<MoreVertIcon />}
+                onClick={handleMoreClick}
+                fullWidth
               >
-                同步最新
+                更多操作
               </Button>
-              <Button variant="outlined" color="error" onClick={onRemove}>
-                移除插件
+
+              <Menu
+                anchorEl={moreMenuAnchor}
+                open={isMoreMenuOpen}
+                onClose={handleMoreClose}
+                anchorOrigin={{
+                  vertical: 'top',
+                  horizontal: 'center',
+                }}
+              >
+                <MenuItem
+                  onClick={() => {
+                    handleMoreClose()
+                    handleReport()
+                  }}
+                >
+                  <ListItemIcon>
+                    <FlagIcon fontSize="small" color="warning" />
+                  </ListItemIcon>
+                  <ListItemText primary="举报插件" />
+                </MenuItem>
+
+                {plugin.isOwner && (
+                  <>
+                    <MenuItem
+                      onClick={() => {
+                        handleMoreClose()
+                        onUnpublish?.()
+                      }}
+                    >
+                      <ListItemIcon>
+                        <RemoveCircleIcon fontSize="small" color="error" />
+                      </ListItemIcon>
+                      <ListItemText primary="下架插件" />
+                    </MenuItem>
+                    <MenuItem
+                      onClick={() => {
+                        handleMoreClose()
+                        onEdit?.()
+                      }}
+                    >
+                      <ListItemIcon>
+                        <EditIcon fontSize="small" color="primary" />
+                      </ListItemIcon>
+                      <ListItemText primary="编辑信息" />
+                    </MenuItem>
+                  </>
+                )}
+              </Menu>
+            </Box>
+          </>
+        ) : (
+          // 桌面端布局 - 保持原有左右排列
+          <>
+            <Box>
+              <Button variant="outlined" color="warning" onClick={handleReport} sx={{ mr: 1 }}>
+                举报插件
               </Button>
-            </>
-          ) : (
-            <Button
-              variant="contained"
-              startIcon={<CloudDownloadIcon />}
-              color="primary"
-              onClick={onDownload}
-            >
-              获取插件
-            </Button>
-          )}
-        </Box>
+              {plugin.isOwner && (
+                <>
+                  <Button variant="outlined" color="error" onClick={onUnpublish} sx={{ mr: 1 }}>
+                    下架插件
+                  </Button>
+                  <Button variant="outlined" color="primary" onClick={onEdit} sx={{ mr: 1 }}>
+                    编辑信息
+                  </Button>
+                </>
+              )}
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              {plugin.is_local ? (
+                <>
+                  <Button
+                    variant="contained"
+                    startIcon={<UpdateIcon />}
+                    color="primary"
+                    onClick={onUpdate}
+                  >
+                    同步最新
+                  </Button>
+                  <Button variant="outlined" color="error" onClick={onRemove}>
+                    移除插件
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  variant="contained"
+                  startIcon={<CloudDownloadIcon />}
+                  color="primary"
+                  onClick={onDownload}
+                >
+                  获取插件
+                </Button>
+              )}
+            </Box>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   )
@@ -876,12 +1076,7 @@ const CreatePluginDialog = ({
                 )}
               </Box>
               <Box>
-                <Button
-                  variant="outlined"
-                  component="label"
-                  disabled={isSubmitting}
-                  sx={{ mb: 1 }}
-                >
+                <Button variant="outlined" component="label" disabled={isSubmitting} sx={{ mb: 1 }}>
                   选择图标
                   <input
                     type="file"
@@ -1758,7 +1953,7 @@ export default function PluginsMarket() {
                 label="含有 Webhook 触发功能"
               />
             </Grid>
-            
+
             {/* 添加分割线和确认选项 */}
             <Grid item xs={12}>
               <Divider sx={{ my: 2 }} />
@@ -1853,7 +2048,6 @@ export default function PluginsMarket() {
               theme.palette.mode === 'dark'
                 ? '0 0 10px rgba(0,0,0,0.2)'
                 : '0 0 15px rgba(0,0,0,0.07)',
-            borderRadius: 2,
             overflow: 'hidden',
           }}
         >
@@ -1909,7 +2103,7 @@ export default function PluginsMarket() {
                 color="primary"
               />
             }
-            label="只显示支持 Webhook 的插件"
+            label="仅支持 Webhook 插件"
           />
 
           <Button

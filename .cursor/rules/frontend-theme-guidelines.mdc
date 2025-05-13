@@ -1,0 +1,106 @@
+---
+description: 
+globs: *.tsx
+alwaysApply: false
+---
+# 前端主题设计规范
+
+## 颜色系统
+
+### 颜色引用原则
+- **避免硬编码颜色值**：所有颜色应该从主题常量中引用或添加，严格禁止任何硬编码颜色行为！！！
+- **统一使用颜色常量**：通过 `COLORS`, `GRADIENTS`, `SHADOWS` 等从 `theme/constants.ts` 导入
+- **兼容旧版本引用**：对于不兼容的组件，使用 `LEGACY_COLORS` 提供的兼容值
+
+### 调色板结构
+- **主题主色**：使用 `COLORS.PRIMARY` 对象（而非直接使用颜色值）
+  - 亮色模式: `COLORS.PRIMARY.LIGHT`
+  - 暗色模式: `COLORS.PRIMARY.DARK`
+  - 注意: 不要使用 `'#EA5252'` 这类硬编码值
+
+### 辅助色
+- 通过 `COLORS.SECONDARY` 对象引用
+- 提供亮暗模式变体和高亮变体
+- 避免直接使用颜色码值
+
+### 状态色
+- 成功: `COLORS.SUCCESS`
+- 错误: `COLORS.ERROR`
+- 警告: `COLORS.WARNING`
+- 信息: `COLORS.INFO`
+
+## 渐变色与阴影
+
+### 背景渐变
+- 通过 `GRADIENTS` 常量引用
+- 例如: `GRADIENTS.BACKGROUND.DARK.PRIMARY`
+
+### 阴影系统
+- 通过 `SHADOWS` 常量引用
+- 例如: `SHADOWS.CARD.DARK.HOVER`
+
+## 圆角系统
+
+### 组件圆角规范
+- **小圆角(默认)**: `6px` - 适用于大多数组件，包括卡片、按钮等
+- **中等圆角**: `8px` - 适用于对话框、大型容器等
+- **大圆角**: `12px` - 仅用于特殊强调组件
+- **圆形**: `50%` 或 `rounded-full` - 用于头像、徽章等
+
+### 圆角使用原则
+- 保持统一: 同类组件使用相同的圆角值
+- 层次感: 子组件圆角应小于或等于父组件
+- 避免过大圆角: 不要使用超过 `12px` 的圆角，除非设计特殊需求
+
+## 边框样式
+
+### 卡片/内容区域
+- 暗色模式: `1px solid rgba(102, 36, 36, 0.08)`
+- 亮色模式: `1px solid rgba(234, 82, 82, 0.05)`
+
+### 导航项选中态
+- 边框颜色: 使用 `theme.palette.primary.main`
+- 边框宽度: `3px`
+
+### 分隔线
+- 使用 `theme.palette.divider`
+
+## 组件样式指南
+
+### 按钮
+- 圆角: `6px`
+- 去除大写文本变换
+- 添加过渡动画 `transition: all 0.2s ease-in-out`
+- 使用阴影常量: `SHADOWS.BUTTON.DARK.DEFAULT`
+
+### 卡片
+- 圆角: `6px`
+- 添加悬停阴影效果
+- 阴影引用: `SHADOWS.CARD.LIGHT.DEFAULT`
+- 背景引用: `GRADIENTS.CARD.LIGHT`
+
+### 导航项
+- 选中项左侧边框: `3px solid ${theme.palette.primary.main}`
+- 过渡动画: `transition: all 0.2s ease-in-out`
+
+### 图表
+- 使用 `metricColors` 常量引用颜色，不要硬编码
+
+### 滚动条
+- 使用透明度表示状态变化
+- 圆角: `4px`
+
+## 响应式设计
+
+- 小屏幕设备调整文本大小和内边距
+- 移动设备上默认隐藏侧边栏
+- 确保交互元素有足够大的点击区域
+- 使用 Material UI 的断点系统保持一致性
+
+## 最佳实践
+
+- **避免硬编码颜色值**：始终使用主题常量
+- **使用相对单位**：使用 `rem` 或 `em` 而非像素
+- **统一使用圆角值**：保持圆角视觉统一性
+- **使用主题变量**：使用 `theme.palette` 而非直接颜色值
+- **添加过渡动画**：所有状态变化添加适当的过渡效果

@@ -38,8 +38,12 @@ import {
   TooltipProps,
   Stack,
   Collapse,
-  ButtonGroup,
   Link,
+  useMediaQuery,
+  useTheme,
+  Drawer,
+  Fab,
+  ListItemButton,
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
 import {
@@ -62,11 +66,18 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Storage as StorageIcon,
   Launch as LaunchIcon,
+  Extension as ExtensionIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Method, Plugin, PluginConfig, pluginsApi, MethodType } from '../../services/api/plugins'
+import { Method, Plugin, PluginConfig, pluginsApi } from '../../services/api/plugins'
 import { configApi, ModelTypeOption } from '../../services/api/config'
 import { useNavigate } from 'react-router-dom'
+import { 
+  pluginTypeColors, 
+  pluginTypeTexts, 
+  configTypeColors, 
+  methodTypeColors
+} from '../../theme/constants'
 
 // 自定义提示样式，支持富文本
 const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -87,33 +98,6 @@ const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
     },
   },
 }))
-
-// 方法类型对应的颜色映射
-const METHOD_TYPE_COLORS: Record<MethodType, 'primary' | 'success' | 'warning' | 'info'> = {
-  tool: 'primary',
-  behavior: 'success',
-  agent: 'warning',
-  multimodal_agent: 'info',
-}
-
-// 配置类型颜色映射
-const CONFIG_TYPE_COLORS: Record<string, 'primary' | 'success' | 'warning' | 'info' | 'default'> = {
-  str: 'warning',
-  int: 'info',
-  float: 'info',
-  bool: 'success',
-  list: 'primary',
-}
-
-// 插件类型对应的颜色映射
-const PLUGIN_TYPE_COLORS: Record<
-  string,
-  'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'default'
-> = {
-  builtin: 'primary',
-  package: 'info',
-  local: 'warning',
-}
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
@@ -183,7 +167,7 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
               onKeyPress={e => e.key === 'Enter' && handleAddItem()}
               autoComplete="off"
             />
-            <IconButton onClick={handleAddItem} color="primary">
+            <IconButton onClick={handleAddItem} color="primary" sx={{ p: { xs: 1, sm: 1.2 } }}>
               <AddIcon />
             </IconButton>
           </Box>
@@ -192,7 +176,7 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
               <ListItem
                 key={index}
                 secondaryAction={
-                  <IconButton edge="end" onClick={() => handleDeleteItem(index)}>
+                  <IconButton edge="end" onClick={() => handleDeleteItem(index)} sx={{ p: { xs: 1, sm: 1.2 } }}>
                     <DeleteIcon />
                   </IconButton>
                 }
@@ -203,9 +187,14 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
           </List>
         </Stack>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>取消</Button>
-        <Button onClick={handleSave} color="primary">
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={onClose} sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}>取消</Button>
+        <Button 
+          onClick={handleSave} 
+          color="primary" 
+          variant="contained"
+          sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+        >
           保存
         </Button>
       </DialogActions>
@@ -237,6 +226,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [deleteDataId, setDeleteDataId] = useState<number | null>(null)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 列表编辑状态
   const [listEditState, setListEditState] = useState<{
@@ -474,9 +466,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
   // 获取插件类型中文名
   const getPluginTypeText = () => {
-    if (plugin.isBuiltin) return '内置'
-    if (plugin.isPackage) return '云端'
-    return '本地'
+    const type = getPluginType()
+    return pluginTypeTexts[type] || '未知'
   }
 
   // 插件配置项渲染函数
@@ -527,7 +518,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Chip
                     label={`${itemType}[]`}
                     size="small"
-                    color={CONFIG_TYPE_COLORS[itemType] || 'default'}
+                    color={configTypeColors[itemType] || 'default'}
                     variant="outlined"
                     sx={{ mr: 1 }}
                   />
@@ -737,32 +728,66 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   if (!plugin) return null
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-        <IconButton onClick={onBack} sx={{ mr: 2 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        position: 'relative',
+      }}
+    >
+      {/* 返回按钮和标题栏 */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          mb: 2,
+          pb: 1,
+          borderBottom: 1,
+          borderColor: 'divider',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          gap: 1,
+        }}
+      >
+        <IconButton onClick={onBack} edge="start" sx={{ mr: 0.5 }}>
           <ArrowBackIcon />
         </IconButton>
-        <Typography
-          variant="h5"
-          component="div"
-          sx={{ flexGrow: 1, display: 'flex', alignItems: 'center' }}
-        >
-          {plugin.name}
-          <Switch
-            checked={plugin.enabled}
-            onChange={() => onToggleEnabled(plugin.id, !plugin.enabled)}
-            color="success"
-            size="small"
-            sx={{ ml: 1 }}
-          />
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, overflow: 'hidden' }}>
           <Chip
             label={getPluginTypeText()}
             size="small"
-            color={PLUGIN_TYPE_COLORS[getPluginType()]}
-            sx={{ ml: 1 }}
+            color={pluginTypeColors[getPluginType()]}
+            variant="outlined"
+            sx={{ height: 22, fontSize: '0.7rem' }}
           />
-        </Typography>
-        <ButtonGroup variant="outlined" sx={{ mr: 1 }}>
+          <Typography
+            variant={isMobile ? "subtitle1" : "h6"} 
+            component="div"
+            sx={{ 
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {plugin.name}
+          </Typography>
+        </Box>
+        <FormControlLabel
+          control={
+            <Switch
+              checked={plugin.enabled}
+              onChange={e => onToggleEnabled(plugin.id, e.target.checked)}
+              color="primary"
+            />
+          }
+          label={plugin.enabled ? '已启用' : '已禁用'}
+          sx={{ mr: 0, ml: { xs: 0, sm: 1 } }}
+        />
+      </Box>
+
+      {/* 移动端操作按钮组 - 放在选项卡上方 */}
+      {isMobile && (
+        <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           {!plugin.isBuiltin && (
             <Button
               startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
@@ -770,6 +795,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
               }
               color={plugin.isPackage ? 'error' : 'warning'}
+              size="small"
+              variant="outlined"
+              sx={{ flex: '1 0 auto', minWidth: '80px' }}
             >
               {plugin.isPackage ? '删除' : '编辑'}
             </Button>
@@ -779,6 +807,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               startIcon={<RefreshIcon />}
               onClick={() => setUpdateConfirmOpen(true)}
               color="success"
+              size="small"
+              variant="outlined"
+              sx={{ flex: '1 0 auto', minWidth: '80px' }}
             >
               更新
             </Button>
@@ -787,84 +818,166 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             startIcon={<DeleteIcon />}
             onClick={() => setResetDataConfirmOpen(true)}
             color="warning"
+            size="small"
+            variant="outlined"
+            sx={{ flex: '1 0 auto', minWidth: '80px' }}
           >
             重置
           </Button>
-          <Button startIcon={<RefreshIcon />} onClick={() => setReloadConfirmOpen(true)}>
+          <Button 
+            startIcon={<RefreshIcon />} 
+            onClick={() => setReloadConfirmOpen(true)}
+            size="small"
+            variant="outlined"
+            sx={{ flex: '1 0 auto', minWidth: '80px' }}
+          >
             重载
           </Button>
-        </ButtonGroup>
-      </Box>
+        </Box>
+      )}
 
-      <Tabs value={activeTab} onChange={(_, newValue) => setActiveTab(newValue)} sx={{ mb: 2 }}>
-        <Tab
-          icon={<InfoIcon sx={{ fontSize: 20 }} />}
-          label="基本信息"
-          sx={{
-            flexDirection: 'row',
-            '& .MuiTab-iconWrapper': {
-              marginRight: 1,
-              marginBottom: '0 !important',
+      <Box sx={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        mb: 2,
+      }}>
+        <Tabs 
+          value={activeTab} 
+          onChange={(_, newValue) => setActiveTab(newValue)} 
+          sx={{ 
+            '& .MuiTabs-flexContainer': {
+              flexWrap: isMobile ? 'wrap' : 'nowrap',
             },
-            minHeight: 40,
-            padding: '6px 16px',
+            '& .MuiTab-root': {
+              minWidth: isMobile ? 'auto' : 90,
+              px: isSmall ? 1 : 2,
+            }
           }}
-        />
-        {plugin.hasConfig && (
+          variant={isMobile ? "scrollable" : "standard"}
+          scrollButtons="auto"
+        >
           <Tab
-            icon={<SettingsIcon sx={{ fontSize: 20 }} />}
-            label="配置"
+            icon={<InfoIcon sx={{ fontSize: isSmall ? 16 : 20 }} />}
+            label="基本信息"
             sx={{
               flexDirection: 'row',
               '& .MuiTab-iconWrapper': {
                 marginRight: 1,
                 marginBottom: '0 !important',
               },
-              minHeight: 40,
-              padding: '6px 16px',
+              minHeight: isSmall ? 36 : 40,
+              padding: isSmall ? '4px 8px' : '6px 16px',
+              fontSize: isSmall ? '0.8rem' : 'inherit',
             }}
           />
+          {plugin.hasConfig && (
+            <Tab
+              icon={<SettingsIcon sx={{ fontSize: isSmall ? 16 : 20 }} />}
+              label="配置"
+              sx={{
+                flexDirection: 'row',
+                '& .MuiTab-iconWrapper': {
+                  marginRight: 1,
+                  marginBottom: '0 !important',
+                },
+                minHeight: isSmall ? 36 : 40,
+                padding: isSmall ? '4px 8px' : '6px 16px',
+                fontSize: isSmall ? '0.8rem' : 'inherit',
+              }}
+            />
+          )}
+          <Tab
+            icon={<CodeIcon sx={{ fontSize: isSmall ? 16 : 20 }} />}
+            label="方法"
+            sx={{
+              flexDirection: 'row',
+              '& .MuiTab-iconWrapper': {
+                marginRight: 1,
+                marginBottom: '0 !important',
+              },
+              minHeight: isSmall ? 36 : 40,
+              padding: isSmall ? '4px 8px' : '6px 16px',
+              fontSize: isSmall ? '0.8rem' : 'inherit',
+            }}
+          />
+          <Tab
+            icon={<WebhookIcon sx={{ fontSize: isSmall ? 16 : 20 }} />}
+            label="Webhook"
+            sx={{
+              flexDirection: 'row',
+              '& .MuiTab-iconWrapper': {
+                marginRight: 1,
+                marginBottom: '0 !important',
+              },
+              minHeight: isSmall ? 36 : 40,
+              padding: isSmall ? '4px 8px' : '6px 16px',
+              fontSize: isSmall ? '0.8rem' : 'inherit',
+            }}
+          />
+          <Tab
+            icon={<StorageIcon sx={{ fontSize: isSmall ? 16 : 20 }} />}
+            label="数据管理"
+            sx={{
+              flexDirection: 'row',
+              '& .MuiTab-iconWrapper': {
+                marginRight: 1,
+                marginBottom: '0 !important',
+              },
+              minHeight: isSmall ? 36 : 40,
+              padding: isSmall ? '4px 8px' : '6px 16px',
+              fontSize: isSmall ? '0.8rem' : 'inherit',
+            }}
+          />
+        </Tabs>
+
+        {/* 桌面端操作按钮组，放置在选项卡右侧 */}
+        {!isMobile && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {!plugin.isBuiltin && (
+              <Button
+                startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
+                onClick={() =>
+                  plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
+                }
+                color={plugin.isPackage ? 'error' : 'warning'}
+                size="small"
+                variant="outlined"
+              >
+                {plugin.isPackage ? '删除' : '编辑'}
+              </Button>
+            )}
+            {plugin.isPackage && (
+              <Button
+                startIcon={<RefreshIcon />}
+                onClick={() => setUpdateConfirmOpen(true)}
+                color="success"
+                size="small"
+                variant="outlined"
+              >
+                更新
+              </Button>
+            )}
+            <Button
+              startIcon={<DeleteIcon />}
+              onClick={() => setResetDataConfirmOpen(true)}
+              color="warning"
+              size="small"
+              variant="outlined"
+            >
+              重置
+            </Button>
+            <Button 
+              startIcon={<RefreshIcon />} 
+              onClick={() => setReloadConfirmOpen(true)}
+              size="small"
+              variant="outlined"
+            >
+              重载
+            </Button>
+          </Box>
         )}
-        <Tab
-          icon={<CodeIcon sx={{ fontSize: 20 }} />}
-          label="方法"
-          sx={{
-            flexDirection: 'row',
-            '& .MuiTab-iconWrapper': {
-              marginRight: 1,
-              marginBottom: '0 !important',
-            },
-            minHeight: 40,
-            padding: '6px 16px',
-          }}
-        />
-        <Tab
-          icon={<WebhookIcon sx={{ fontSize: 20 }} />}
-          label="Webhook"
-          sx={{
-            flexDirection: 'row',
-            '& .MuiTab-iconWrapper': {
-              marginRight: 1,
-              marginBottom: '0 !important',
-            },
-            minHeight: 40,
-            padding: '6px 16px',
-          }}
-        />
-        <Tab
-          icon={<StorageIcon sx={{ fontSize: 20 }} />}
-          label="数据管理"
-          sx={{
-            flexDirection: 'row',
-            '& .MuiTab-iconWrapper': {
-              marginRight: 1,
-              marginBottom: '0 !important',
-            },
-            minHeight: 40,
-            padding: '6px 16px',
-          }}
-        />
-      </Tabs>
+      </Box>
 
       {/* 基本信息 */}
       {activeTab === 0 && (
@@ -918,13 +1031,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       mb: 2,
+                      flexWrap: isMobile ? 'wrap' : 'nowrap',
                     }}
                   >
                     <Typography variant="subtitle1">插件配置</Typography>
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      sx={{ fontStyle: 'italic' }}
+                      sx={{ 
+                        fontStyle: 'italic',
+                        mt: isMobile ? 1 : 0,
+                        width: isMobile ? '100%' : 'auto'
+                      }}
                     >
                       提示：按 Ctrl+S 可快速保存配置喵～
                     </Typography>
@@ -943,12 +1061,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       },
                     }}
                   >
-                    <Table size="small" stickyHeader>
+                    <Table size={isSmall ? "small" : "medium"} stickyHeader>
                       <TableHead>
                         <TableRow>
-                          <TableCell width="30%">配置项</TableCell>
-                          <TableCell width="10%">类型</TableCell>
-                          <TableCell width="60%">值</TableCell>
+                          <TableCell width={isMobile ? "40%" : "30%"} sx={{ py: isSmall ? 1 : 1.5 }}>配置项</TableCell>
+                          <TableCell width={isMobile ? "15%" : "10%"} sx={{ py: isSmall ? 1 : 1.5 }}>类型</TableCell>
+                          <TableCell width={isMobile ? "45%" : "60%"} sx={{ py: isSmall ? 1 : 1.5 }}>值</TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -956,10 +1074,16 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           .filter(item => !item.is_hidden)
                           .map(item => (
                             <TableRow key={item.key}>
-                              <TableCell component="th" scope="row">
+                              <TableCell component="th" scope="row" sx={{ py: isSmall ? 0.75 : 1.25 }}>
                                 <Box>
                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
+                                    <Typography 
+                                      variant="subtitle2" 
+                                      sx={{ 
+                                        fontWeight: 'bold',
+                                        fontSize: isSmall ? '0.75rem' : '0.875rem', 
+                                      }}
+                                    >
                                       {item.title || item.key}
                                       {item.required && (
                                         <Typography component="span" color="error" sx={{ ml: 0.5 }}>
@@ -978,25 +1102,36 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                         placement="right"
                                       >
                                         <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
-                                          <HelpOutlineIcon fontSize="small" />
+                                          <HelpOutlineIcon sx={{ fontSize: isSmall ? 14 : 16 }} />
                                         </IconButton>
                                       </HtmlTooltip>
                                     )}
                                   </Box>
-                                  <Typography variant="caption" color="text.secondary">
+                                  <Typography 
+                                    variant="caption" 
+                                    color="text.secondary"
+                                    sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}
+                                  >
                                     {item.key}
                                   </Typography>
                                 </Box>
                               </TableCell>
-                              <TableCell>
+                              <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                                 <Chip
                                   label={item.type}
                                   size="small"
-                                  color={CONFIG_TYPE_COLORS[item.type] || 'default'}
+                                  color={configTypeColors[item.type] || 'default'}
                                   variant="outlined"
+                                  sx={{ 
+                                    fontSize: isSmall ? '0.65rem' : '0.75rem',
+                                    height: isSmall ? 20 : 24,
+                                    '& .MuiChip-label': {
+                                      px: isSmall ? 0.5 : 0.75,
+                                    }
+                                  }}
                                 />
                               </TableCell>
-                              <TableCell>
+                              <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                   {renderConfigInput(item)}
                                   {item.ref_model_groups &&
@@ -1016,13 +1151,26 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                           | 'default') || 'primary'
                                       return (
                                         <Box
-                                          sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                                          sx={{ 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: 0.5,
+                                            flexShrink: 0
+                                          }}
                                         >
                                           <Chip
                                             label={chipLabel}
                                             size="small"
                                             color={chipColor}
                                             variant="outlined"
+                                            sx={{ 
+                                              fontSize: isSmall ? '0.65rem' : '0.75rem',
+                                              height: isSmall ? 20 : 24,
+                                              display: isMobile ? 'none' : 'flex',
+                                              '& .MuiChip-label': {
+                                                px: isSmall ? 0.5 : 0.75,
+                                              }
+                                            }}
                                           />
                                           <Tooltip title="配置模型组">
                                             <IconButton
@@ -1051,6 +1199,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   startIcon={<SaveIcon />}
                   onClick={() => handleSaveConfig()}
                   disabled={Object.keys(editingStatus).length === 0 || saveMutation.isPending}
+                  size={isSmall ? "small" : "medium"}
                 >
                   {saveMutation.isPending ? '保存中...' : '保存配置'}
                 </Button>
@@ -1065,40 +1214,60 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       {/* 方法列表 */}
       {activeTab === (plugin.hasConfig ? 2 : 1) && (
         <Card variant="outlined" sx={{ overflow: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
-          <CardContent>
+          <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               插件方法
             </Typography>
             {plugin.methods && plugin.methods.length > 0 ? (
               <TableContainer>
-                <Table size="small">
+                <Table size={isSmall ? "small" : "medium"}>
                   <TableHead>
                     <TableRow>
-                      <TableCell>方法名</TableCell>
-                      <TableCell>类型</TableCell>
-                      <TableCell>描述</TableCell>
+                      <TableCell width={isMobile ? "30%" : "20%"} sx={{ py: isSmall ? 1 : 1.5 }}>方法名</TableCell>
+                      <TableCell width={isMobile ? "25%" : "15%"} sx={{ py: isSmall ? 1 : 1.5 }}>类型</TableCell>
+                      <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>描述</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {plugin.methods.map((method: Method) => (
                       <TableRow key={method.name}>
-                        <TableCell>
+                        <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                           <Typography
                             variant="body2"
-                            sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}
+                            sx={{ 
+                              fontFamily: 'monospace', 
+                              fontWeight: 'bold',
+                              fontSize: isSmall ? '0.7rem' : '0.875rem',
+                              overflowWrap: 'break-word',
+                              wordBreak: 'break-all'
+                            }}
                           >
                             {method.name}
                           </Typography>
                         </TableCell>
-                        <TableCell>
+                        <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                           <Chip
                             label={method.type}
-                            color={METHOD_TYPE_COLORS[method.type]}
+                            color={methodTypeColors[method.type]}
                             size="small"
                             variant="outlined"
+                            sx={{ 
+                              fontSize: isSmall ? '0.65rem' : '0.75rem',
+                              height: isSmall ? 20 : 24,
+                              '& .MuiChip-label': {
+                                px: isSmall ? 0.5 : 0.75,
+                              }
+                            }}
                           />
                         </TableCell>
-                        <TableCell>{method.description}</TableCell>
+                        <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
+                          <Typography 
+                            variant="body2" 
+                            sx={{ fontSize: isSmall ? '0.75rem' : '0.875rem' }}
+                          >
+                            {method.description}
+                          </Typography>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -1116,18 +1285,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       {/* Webhook 列表 */}
       {activeTab === (plugin.hasConfig ? 3 : 2) && (
         <Card variant="outlined" sx={{ overflow: 'auto', maxHeight: 'calc(100vh - 300px)' }}>
-          <CardContent>
+          <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
             <Typography variant="subtitle1" gutterBottom>
               Webhook 接入点
             </Typography>
             {plugin.webhooks && plugin.webhooks.length > 0 ? (
               <TableContainer>
-                <Table size="small">
+                <Table size={isSmall ? "small" : "medium"}>
                   <TableHead>
                     <TableRow>
-                      <TableCell width={150}>接入点</TableCell>
-                      <TableCell>名称</TableCell>
-                      <TableCell width={132} align="center">
+                      <TableCell width={isSmall ? 100 : 150} sx={{ py: isSmall ? 1 : 1.5 }}>接入点</TableCell>
+                      <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>名称</TableCell>
+                      <TableCell width={isSmall ? 80 : 132} align="center" sx={{ py: isSmall ? 1 : 1.5 }}>
                         操作
                       </TableCell>
                       <TableCell width={36} padding="none" />
@@ -1140,12 +1309,25 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           <TableCell>
                             <Typography
                               variant="body2"
-                              sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}
+                              sx={{ 
+                                fontFamily: 'monospace', 
+                                fontWeight: 'bold',
+                                fontSize: isSmall ? '0.7rem' : '0.875rem',
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-all'
+                              }}
                             >
                               {webhook.endpoint}
                             </Typography>
                           </TableCell>
-                          <TableCell>{webhook.name}</TableCell>
+                          <TableCell>
+                            <Typography 
+                              variant="body2"
+                              sx={{ fontSize: isSmall ? '0.75rem' : '0.875rem' }}
+                            >
+                              {webhook.name}
+                            </Typography>
+                          </TableCell>
                           <TableCell align="right">
                             <Button
                               size="small"
@@ -1162,9 +1344,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   backgroundColor: 'transparent',
                                   textDecoration: 'underline',
                                 },
+                                fontSize: isSmall ? '0.7rem' : '0.8rem',
+                                px: isSmall ? 0.5 : 1,
+                                minWidth: 'auto',
+                                '& .MuiButton-startIcon': {
+                                  mr: isSmall ? 0.3 : 0.5,
+                                  '& svg': {
+                                    fontSize: isSmall ? '0.9rem' : '1rem'
+                                  }
+                                }
                               }}
                             >
-                              复制接入点
+                              复制
                             </Button>
                           </TableCell>
                           <TableCell padding="none">
@@ -1181,9 +1372,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               }}
                             >
                               {expandedRows.has(webhook.endpoint) ? (
-                                <KeyboardArrowUpIcon />
+                                <KeyboardArrowUpIcon fontSize={isSmall ? "small" : "medium"} />
                               ) : (
-                                <KeyboardArrowDownIcon />
+                                <KeyboardArrowDownIcon fontSize={isSmall ? "small" : "medium"} />
                               )}
                             </IconButton>
                           </TableCell>
@@ -1205,7 +1396,14 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 <Typography variant="subtitle2" gutterBottom>
                                   描述
                                 </Typography>
-                                <Typography variant="body2" color="text.secondary" sx={{ pl: 2 }}>
+                                <Typography 
+                                  variant="body2" 
+                                  color="text.secondary" 
+                                  sx={{ 
+                                    pl: 2,
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem' 
+                                  }}
+                                >
                                   {webhook.description || '暂无描述'}
                                 </Typography>
                               </Box>
@@ -1239,13 +1437,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </Box>
             ) : pluginData.length > 0 ? (
               <TableContainer>
-                <Table size="small">
+                <Table size={isSmall ? "small" : "medium"}>
                   <TableHead>
                     <TableRow>
-                      <TableCell width={150}>会话</TableCell>
-                      <TableCell width={150}>用户</TableCell>
+                      <TableCell width={isMobile ? 80 : 150}>会话</TableCell>
+                      <TableCell width={isMobile ? 80 : 150}>用户</TableCell>
                       <TableCell>存储键</TableCell>
-                      <TableCell width={132} align="center">
+                      <TableCell width={isMobile ? 100 : 132} align="center">
                         操作
                       </TableCell>
                       <TableCell width={36} padding="none" />
@@ -1256,20 +1454,36 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       <React.Fragment key={data.id}>
                         <TableRow>
                           <TableCell>
-                            <Typography variant="body2">
+                            <Typography 
+                              variant="body2"
+                              sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
+                            >
                               {data.target_chat_key || '全局'}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2">{data.target_user_id || '全局'}</Typography>
+                            <Typography 
+                              variant="body2"
+                              sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
+                            >
+                              {data.target_user_id || '全局'}
+                            </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                fontFamily: 'monospace',
+                                fontSize: isSmall ? '0.7rem' : '0.875rem',
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-all'
+                              }}
+                            >
                               {data.data_key}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            <Stack direction="row" spacing={1} justifyContent="flex-end">
+                            <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap">
                               <Button
                                 size="small"
                                 startIcon={<ContentCopyIcon fontSize="small" />}
@@ -1284,6 +1498,15 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     backgroundColor: 'transparent',
                                     textDecoration: 'underline',
                                   },
+                                  fontSize: isSmall ? '0.7rem' : '0.8rem',
+                                  px: isSmall ? 0.5 : 1,
+                                  minWidth: 'auto',
+                                  '& .MuiButton-startIcon': {
+                                    mr: isSmall ? 0.3 : 0.5,
+                                    '& svg': {
+                                      fontSize: isSmall ? '0.9rem' : '1rem'
+                                    }
+                                  }
                                 }}
                               >
                                 复制
@@ -1302,6 +1525,15 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     backgroundColor: 'transparent',
                                     textDecoration: 'underline',
                                   },
+                                  fontSize: isSmall ? '0.7rem' : '0.8rem',
+                                  px: isSmall ? 0.5 : 1,
+                                  minWidth: 'auto',
+                                  '& .MuiButton-startIcon': {
+                                    mr: isSmall ? 0.3 : 0.5,
+                                    '& svg': {
+                                      fontSize: isSmall ? '0.9rem' : '1rem'
+                                    }
+                                  }
                                 }}
                               >
                                 删除
@@ -1322,9 +1554,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               }}
                             >
                               {expandedDataRows.has(data.id) ? (
-                                <KeyboardArrowUpIcon />
+                                <KeyboardArrowUpIcon fontSize={isSmall ? "small" : "medium"} />
                               ) : (
-                                <KeyboardArrowDownIcon />
+                                <KeyboardArrowDownIcon fontSize={isSmall ? "small" : "medium"} />
                               )}
                             </IconButton>
                           </TableCell>
@@ -1357,6 +1589,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     WebkitLineClamp: 10,
                                     WebkitBoxOrient: 'vertical',
                                     overflow: 'hidden',
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem'
                                   }}
                                 >
                                   {data.data_value}
@@ -1387,14 +1620,21 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             此操作将删除该插件的所有存储数据，包括全局数据、会话数据和用户数据。此操作不可恢复，是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setResetDataConfirmOpen(false)}>取消</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setResetDataConfirmOpen(false)} 
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
           <Button
             onClick={() => {
               resetDataMutation.mutate()
               setResetDataConfirmOpen(false)
             }}
             color="error"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认重置
           </Button>
@@ -1409,14 +1649,21 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             重载插件将重新加载此插件的代码，可能会导致正在进行的操作中断。是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setReloadConfirmOpen(false)}>取消</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setReloadConfirmOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
           <Button
             onClick={() => {
               reloadMutation.mutate()
               setReloadConfirmOpen(false)
             }}
             color="primary"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认
           </Button>
@@ -1439,9 +1686,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             是否仍要继续保存？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSaveWarningOpen(false)}>取消</Button>
-          <Button onClick={() => handleSaveConfig(true)} color="warning">
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setSaveWarningOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={() => handleSaveConfig(true)} 
+            color="warning"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
             继续保存
           </Button>
         </DialogActions>
@@ -1455,14 +1712,21 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             此操作将删除插件包 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>取消</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setDeleteConfirmOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
           <Button
             onClick={() => {
               removePackageMutation.mutate()
               setDeleteConfirmOpen(false)
             }}
             color="error"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认删除
           </Button>
@@ -1487,14 +1751,21 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             至最新版本。更新过程可能会导致当前配置变更，是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setUpdateConfirmOpen(false)}>取消</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setUpdateConfirmOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
           <Button
             onClick={() => {
               updatePackageMutation.mutate()
               setUpdateConfirmOpen(false)
             }}
             color="primary"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认更新
           </Button>
@@ -1509,8 +1780,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             此操作将删除该条存储数据，此操作不可恢复，是否继续？
           </DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteDataConfirmOpen(false)}>取消</Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button 
+            onClick={() => setDeleteDataConfirmOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            取消
+          </Button>
           <Button
             onClick={() => {
               if (deleteDataId !== null) {
@@ -1520,6 +1796,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               }
             }}
             color="error"
+            variant="contained"
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认删除
           </Button>
@@ -1550,6 +1828,10 @@ export default function PluginsManagementPage() {
   const [message, setMessage] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const queryClient = useQueryClient()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
   // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
@@ -1596,6 +1878,16 @@ export default function PluginsManagementPage() {
   // 处理选择插件的逻辑
   const handleSelectPlugin = (plugin: Plugin) => {
     setSelectedPlugin(plugin)
+    if (isMobile) {
+      setDrawerOpen(false)
+    }
+  }
+
+  // 获取插件类型
+  const getPluginType = (plugin: Plugin) => {
+    if (plugin.isBuiltin) return 'builtin'
+    if (plugin.isPackage) return 'package'
+    return 'local'
   }
 
   // 过滤插件列表
@@ -1634,175 +1926,367 @@ export default function PluginsManagementPage() {
     })
 
   return (
-    <Box sx={{ display: 'flex', height: 'calc(100vh - 120px)', flexDirection: 'column', gap: 2 }}>
+    <Box 
+          sx={{
+            display: 'flex',
+        height: 'calc(100vh - 120px)', 
+            flexDirection: 'column',
+        gap: 2, 
+        position: 'relative',
+      }}
+    >
       {/* 主要内容区 */}
       <Box sx={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        {/* 左侧插件列表 */}
-        <Paper
-          sx={{
-            width: 300,
-            overflow: 'hidden',
-            mr: 2,
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-            <TextField
-              placeholder="搜索插件..."
-              size="small"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              variant="outlined"
-              fullWidth
+        {isMobile ? (
+          // 移动端布局
+          <>
+            <Drawer
+              anchor="left"
+              open={drawerOpen}
+              onClose={() => setDrawerOpen(false)}
               sx={{
-                '& .MuiOutlinedInput-root': {
-                  borderRadius: 1,
+                '& .MuiDrawer-paper': {
+                  width: isSmall ? '85%' : '75%',
+                  maxWidth: 300,
+                  boxShadow: 3,
                 },
               }}
-            />
-          </Box>
-
-          <Box
-            sx={{
-              flex: 1,
-              overflow: 'auto',
-              '&::-webkit-scrollbar': {
-                width: '8px',
-              },
-              '&::-webkit-scrollbar-thumb': {
-                backgroundColor: 'rgba(0,0,0,0.2)',
-                borderRadius: '4px',
-              },
-            }}
-          >
-            {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
+            >
+              <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                <TextField
+                  placeholder="搜索插件..."
+                  size="small"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                    },
+                  }}
+                />
               </Box>
-            ) : filteredPlugins.length > 0 ? (
-              <List sx={{ flex: 1 }}>
-                {filteredPlugins.map(plugin => (
-                  <React.Fragment key={plugin.id}>
-                    <ListItem
-                      onClick={() => handleSelectPlugin(plugin)}
-                      sx={{
-                        cursor: 'pointer',
-                        '&:hover': { bgcolor: 'action.hover' },
-                        bgcolor: selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: '50%',
-                          bgcolor: plugin.enabled ? 'success.main' : 'error.main',
-                          mr: 1.5,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            {/* 插件类型标签 */}
-                            {plugin.isBuiltin && (
-                              <Chip
-                                label="内置"
-                                size="small"
-                                color="primary"
-                                sx={{ mr: 1, height: 20 }}
-                              />
-                            )}
-                            {plugin.isPackage && (
-                              <Chip
-                                label="云端"
-                                size="small"
-                                color="info"
-                                sx={{ mr: 1, height: 20 }}
-                              />
-                            )}
-                            {!plugin.isBuiltin && !plugin.isPackage && (
-                              <Chip
-                                label="本地"
-                                size="small"
-                                color="warning"
-                                sx={{ mr: 1, height: 20 }}
-                              />
-                            )}
-                            <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
-                              {plugin.name}
-                            </Typography>
-                            {plugin.hasConfig && (
-                              <Tooltip title="有配置项">
-                                <SettingsIcon
-                                  fontSize="small"
-                                  sx={{ ml: 1, opacity: 0.6, fontSize: 16 }}
-                                />
-                              </Tooltip>
-                            )}
-                          </Box>
-                        }
-                        secondary={
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              textOverflow: 'ellipsis',
-                              overflow: 'hidden',
-                              whiteSpace: 'nowrap',
-                              maxWidth: 200,
-                            }}
-                          >
-                            {plugin.description}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                    <Divider />
-                  </React.Fragment>
-                ))}
-              </List>
-            ) : (
+
               <Box
                 sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  height: '100%',
-                  p: 2,
+                  flex: 1,
+                  overflow: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    borderRadius: '4px',
+                  },
                 }}
               >
-                <Typography variant="body2" color="text.secondary">
-                  没有找到匹配的插件喵～
-                </Typography>
+                {isLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : filteredPlugins.length > 0 ? (
+                  <List sx={{ flex: 1, padding: 0 }}>
+                    {filteredPlugins.map(plugin => (
+                      <React.Fragment key={plugin.id}>
+                        <ListItem
+                          disablePadding
+                          onClick={() => handleSelectPlugin(plugin)}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            bgcolor: selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
+                          }}
+                        >
+                          <ListItemButton sx={{ py: 1 }}>
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                bgcolor: plugin.enabled ? 'success.main' : 'error.main',
+                                mr: 1.5,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                                  <Chip
+                                    label={pluginTypeTexts[getPluginType(plugin)]}
+                                    size="small"
+                                    color={pluginTypeColors[getPluginType(plugin)]}
+                                    variant="outlined"
+                                    sx={{ 
+                                      height: 18, 
+                                      fontSize: '0.65rem'
+                                    }}
+                                  />
+                                  <Typography 
+                                    variant="body1" 
+                                    sx={{ 
+                                      fontWeight: 'bold',
+                                      fontSize: '0.85rem',
+                                      ml: 0.5,
+                                    }}
+                                  >
+                                    {plugin.name}
+                                  </Typography>
+                                  {plugin.hasConfig && (
+                                    <Tooltip title="有配置项">
+                                      <SettingsIcon
+                                        fontSize="small"
+                                        sx={{ ml: 0.5, opacity: 0.6, fontSize: 16 }}
+                                      />
+                                    </Tooltip>
+                                  )}
+                                </Box>
+                              }
+                              secondary={
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textOverflow: 'ellipsis',
+                                    overflow: 'hidden',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: 200,
+                                    fontSize: isSmall ? '0.75rem' : 'inherit'
+                                  }}
+                                >
+                                  {plugin.description}
+                                </Typography>
+                              }
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                        <Divider />
+                      </React.Fragment>
+                    ))}
+                  </List>
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                      p: 2,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      没有找到匹配的插件喵～
+                    </Typography>
+                  </Box>
+                )}
               </Box>
-            )}
-          </Box>
-        </Paper>
+            </Drawer>
 
-        {/* 右侧插件详情 */}
-        <Paper sx={{ flex: 1, p: 2, overflow: 'auto' }}>
-          {selectedPlugin ? (
-            <PluginDetails
-              plugin={selectedPlugin}
-              onBack={() => setSelectedPlugin(null)}
-              onToggleEnabled={handleToggleEnabled}
-            />
-          ) : (
-            <Box
+            {/* 移动端主内容区 */}
+            <Paper sx={{ flex: 1, p: 2, overflow: 'auto' }}>
+              {selectedPlugin ? (
+                <PluginDetails
+                  plugin={selectedPlugin}
+                  onBack={() => setSelectedPlugin(null)}
+                  onToggleEnabled={handleToggleEnabled}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    p: 3,
+                    textAlign: 'center',
+                  }}
+                >
+                  <ExtensionIcon sx={{ fontSize: 60, mb: 2, opacity: 0.7 }} />
+                  <Typography variant="h6" gutterBottom>
+                    欢迎使用插件管理
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    请点击右下角按钮选择一个插件来查看详情喵～
+                  </Typography>
+                  {/* 移除选择插件按钮 */}
+                </Box>
+              )}
+            </Paper>
+          </>
+        ) : (
+          // 桌面端布局
+          <>
+            {/* 左侧插件列表 */}
+            <Paper
               sx={{
+                width: 300,
+                overflow: 'hidden',
+                mr: 2,
                 display: 'flex',
-                justifyContent: 'center',
-                alignItems: 'center',
-                height: '100%',
+                flexDirection: 'column',
               }}
             >
-              <Typography variant="h6" color="text.secondary">
+              <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+                <TextField
+                  placeholder="搜索插件..."
+                  size="small"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                  variant="outlined"
+                  fullWidth
+                  sx={{
+                    '& .MuiOutlinedInput-root': {
+                      borderRadius: 1,
+                    },
+                  }}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  flex: 1,
+                  overflow: 'auto',
+                  '&::-webkit-scrollbar': {
+                    width: '8px',
+                  },
+                  '&::-webkit-scrollbar-thumb': {
+                    backgroundColor: 'rgba(0,0,0,0.2)',
+                    borderRadius: '4px',
+                  },
+                }}
+              >
+                {isLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : filteredPlugins.length > 0 ? (
+                  <List sx={{ flex: 1, padding: 0 }}>
+                    {filteredPlugins.map(plugin => (
+                      <React.Fragment key={plugin.id}>
+                        <ListItem
+                          disablePadding
+                          onClick={() => handleSelectPlugin(plugin)}
+                          sx={{
+                            cursor: 'pointer',
+                            '&:hover': { bgcolor: 'action.hover' },
+                            bgcolor: selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
+                          }}
+                        >
+                          <ListItemButton sx={{ py: isSmall ? 0.75 : 1.25 }}>
+                            <Box
+                              sx={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                bgcolor: plugin.enabled ? 'success.main' : 'error.main',
+                                mr: 1.5,
+                                flexShrink: 0,
+                              }}
+                            />
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Chip
+                                    label={pluginTypeTexts[getPluginType(plugin)]}
+                                    size="small"
+                                    color={pluginTypeColors[getPluginType(plugin)]}
+                                    variant="outlined"
+                                    sx={{ 
+                                      height: 18, 
+                                      fontSize: '0.65rem'
+                                    }}
+                                  />
+                                  <Typography 
+                                    variant="body1" 
+                                    sx={{ 
+                                      fontWeight: 'bold',
+                                      fontSize: '0.85rem',
+                                      ml: 0.5,
+                                    }}
+                                  >
+                                    {plugin.name}
+                                  </Typography>
+                                  {plugin.hasConfig && (
+                                    <Tooltip title="有配置项">
+                                      <SettingsIcon
+                                        fontSize="small"
+                                        sx={{ ml: 0.5, opacity: 0.6, fontSize: 16 }}
+                                      />
+                                    </Tooltip>
+                                  )}
+                                </Box>
+                              }
+                              secondary={
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    textOverflow: 'ellipsis',
+                                    overflow: 'hidden',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: 200,
+                                    fontSize: isSmall ? '0.75rem' : 'inherit'
+                                  }}
+                                >
+                                  {plugin.description}
+                                </Typography>
+                              }
+                            />
+                          </ListItemButton>
+                        </ListItem>
+                        <Divider />
+                      </React.Fragment>
+                    ))}
+                  </List>
+                ) : (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      height: '100%',
+                      p: 2,
+                    }}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      没有找到匹配的插件喵～
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </Paper>
+
+            {/* 右侧插件详情 */}
+            <Paper sx={{ flex: 1, p: 2, overflow: 'auto' }}>
+              {selectedPlugin ? (
+                <PluginDetails
+                  plugin={selectedPlugin}
+                  onBack={() => setSelectedPlugin(null)}
+                  onToggleEnabled={handleToggleEnabled}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    p: 3,
+                    textAlign: 'center',
+                  }}
+                >
+                  <ExtensionIcon sx={{ fontSize: 60, mb: 2, opacity: 0.7 }} />
+                  <Typography variant="h6" gutterBottom>
+                    欢迎使用插件管理
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
                 请从左侧选择一个插件查看详情喵～
               </Typography>
-            </Box>
-          )}
-        </Paper>
+                </Box>
+              )}
+            </Paper>
+          </>
+        )}
       </Box>
 
       <Snackbar
@@ -1820,6 +2304,24 @@ export default function PluginsManagementPage() {
           {message}
         </Alert>
       </Snackbar>
+      
+      {/* 移动端展示插件列表的Fab按钮 - 始终可见 */}
+      {isMobile && (
+        <Fab
+          color="primary"
+          size={isSmall ? "medium" : "large"}
+          onClick={() => setDrawerOpen(true)}
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 1099,
+            boxShadow: 3,
+          }}
+        >
+          <ExtensionIcon />
+        </Fab>
+      )}
     </Box>
   )
 }

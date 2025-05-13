@@ -19,6 +19,8 @@ import {
   Button,
   Chip,
   Link,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material'
 import {
   Terminal as TerminalIcon,
@@ -39,12 +41,14 @@ import {
   Face as FaceIcon,
   AccountCircle as AccountCircleIcon,
   CloudDownload as CloudDownloadIcon,
+  Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
-import { useTheme } from '@mui/material/styles'
 import { useColorMode } from '../stores/theme'
 import { configApi } from '../services/api/config'
 import { motion } from 'framer-motion'
+import { GRADIENTS, SHADOWS } from '../theme/constants'
 
 interface PageConfig {
   path: string
@@ -144,6 +148,15 @@ export default function MainLayout() {
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
+  const [drawerOpen, setDrawerOpen] = useState(true)
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const isDark = theme.palette.mode === 'dark'
+
+  // 当检测到移动设备时，默认关闭抽屉
+  useEffect(() => {
+    setDrawerOpen(!isMobile)
+  }, [isMobile])
 
   const getCurrentPage = () => {
     const currentPath = location.pathname
@@ -168,17 +181,34 @@ export default function MainLayout() {
     navigate('/login')
   }
 
+  const handleMenuItemClick = (path?: string, key?: string) => {
+    if (key && path === undefined) {
+      // 如果是带子菜单的项，切换展开状态
+      setOpenMenus(prev => ({
+        ...prev,
+        [key]: !prev[key],
+      }))
+    } else if (path) {
+      // 如果是导航项，跳转到对应路径
+      navigate(path)
+      // 在移动端上，点击菜单项后自动收起侧边栏
+      if (isMobile) {
+        setDrawerOpen(false)
+      }
+    }
+  }
+
   const drawer = (
     <Box className="h-full flex flex-col">
       <Toolbar sx={{ overflow: 'visible' }}>
         <Box
-          className="flex items-center w-full justify-center relative -ml-4 pt-4"
+          className="flex items-center w-full justify-between relative pt-4"
           sx={{ overflow: 'visible' }}
         >
           <Typography
             variant="h6"
             noWrap
-            className="relative font-sans font-black tracking-[0.2rem] select-none cursor-default text-[1.3rem] transition-transform duration-300 hover:scale-105"
+            className="relative font-sans font-black tracking-[0.2rem] select-none cursor-default text-[1.3rem] transition-transform duration-300 hover:scale-105 mx-auto"
             sx={{
               overflow: 'visible',
               '@keyframes bounce': {
@@ -186,8 +216,9 @@ export default function MainLayout() {
                 '100%': { transform: 'translateY(-3px)' },
               },
               '@keyframes wave': {
-                '0%, 100%': { transform: 'rotate(-2deg)' },
+                '0%': { transform: 'rotate(-2deg)' },
                 '50%': { transform: 'rotate(2deg)' },
+                '100%': { transform: 'rotate(-2deg)' },
               },
               '& .highlight, & .text': {
                 display: 'inline-block',
@@ -201,7 +232,7 @@ export default function MainLayout() {
                 fontSize: '1.5rem',
                 textShadow:
                   theme.palette.mode === 'dark'
-                    ? '0 0 2px rgba(255,255,255,0.1), 0 0 2px rgba(255,255,255,0.1), 0 0 2px rgba(255,255,255,0.1)'
+                    ? '0 0 3px rgba(255,255,255,0.15), 0 0 6px rgba(255,100,100,0.1), 0 0 10px rgba(255,100,100,0.1)'
                     : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
                 '&:not(:hover)': {
                   animation: 'none',
@@ -265,41 +296,42 @@ export default function MainLayout() {
           </Typography>
         </Box>
       </Toolbar>
-      <List className="flex-grow">
+      <List className="flex-grow overflow-y-auto">
         {menuItems.map(item => (
           <Box key={item.text}>
             <ListItem disablePadding>
               <ListItemButton
-                onClick={() => {
-                  if (item.children && item.key) {
-                    setOpenMenus(prev => ({
-                      ...prev,
-                      [item.key]: !prev[item.key],
-                    }))
-                  } else {
-                    navigate(item.path!)
-                  }
-                }}
+                onClick={() => handleMenuItemClick(item.path, item.key)}
                 selected={!item.children && location.pathname === item.path}
                 sx={{
                   '&.Mui-selected': {
-                    backgroundColor:
-                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
+                    backgroundColor: isDark ? 'rgba(240, 84, 84, 0.15)' : 'rgba(234, 82, 82, 0.08)',
+                    borderLeft: `3px solid ${theme.palette.primary.main}`,
                     '&:hover': {
-                      backgroundColor:
-                        theme.palette.mode === 'dark'
-                          ? 'rgba(255,255,255,0.12)'
-                          : 'rgba(0,0,0,0.08)',
+                      backgroundColor: isDark
+                        ? 'rgba(240, 84, 84, 0.25)'
+                        : 'rgba(234, 82, 82, 0.12)',
                     },
                   },
                   '&:hover': {
                     backgroundColor:
-                      theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(240, 84, 84, 0.08)'
+                        : 'rgba(234, 82, 82, 0.05)',
                   },
+                  py: isSmall ? 1 : 1.5,
+                  borderLeft: '3px solid transparent',
+                  transition: 'all 0.2s ease-in-out',
                 }}
               >
                 <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{
+                    fontSize: isSmall ? '0.9rem' : 'inherit',
+                    whiteSpace: 'nowrap',
+                  }}
+                />
                 {item.children &&
                   item.key &&
                   (openMenus[item.key] ? <ExpandLessIcon /> : <ExpandMoreIcon />)}
@@ -311,32 +343,45 @@ export default function MainLayout() {
                   {item.children.map(child => (
                     <ListItemButton
                       key={child.text}
-                      onClick={() => navigate(child.path)}
+                      onClick={() => {
+                        navigate(child.path)
+                        if (isMobile) {
+                          setDrawerOpen(false)
+                        }
+                      }}
                       selected={location.pathname === child.path}
                       sx={{
                         pl: 4,
+                        py: isSmall ? 0.75 : 1.5,
                         '&.Mui-selected': {
-                          backgroundColor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.08)'
-                              : 'rgba(0,0,0,0.05)',
+                          backgroundColor: isDark
+                            ? 'rgba(240, 84, 84, 0.15)'
+                            : 'rgba(234, 82, 82, 0.08)',
+                          borderLeft: `3px solid ${theme.palette.primary.main}`,
                           '&:hover': {
-                            backgroundColor:
-                              theme.palette.mode === 'dark'
-                                ? 'rgba(255,255,255,0.12)'
-                                : 'rgba(0,0,0,0.08)',
+                            backgroundColor: isDark
+                              ? 'rgba(240, 84, 84, 0.25)'
+                              : 'rgba(234, 82, 82, 0.12)',
                           },
                         },
                         '&:hover': {
                           backgroundColor:
                             theme.palette.mode === 'dark'
-                              ? 'rgba(255,255,255,0.05)'
-                              : 'rgba(0,0,0,0.03)',
+                              ? 'rgba(240, 84, 84, 0.08)'
+                              : 'rgba(234, 82, 82, 0.05)',
                         },
+                        borderLeft: '3px solid transparent',
+                        transition: 'all 0.2s ease-in-out',
                       }}
                     >
                       <ListItemIcon>{child.icon}</ListItemIcon>
-                      <ListItemText primary={child.text} />
+                      <ListItemText
+                        primary={child.text}
+                        primaryTypographyProps={{
+                          fontSize: isSmall ? '0.85rem' : 'inherit',
+                          whiteSpace: 'nowrap',
+                        }}
+                      />
                     </ListItemButton>
                   ))}
                 </List>
@@ -350,16 +395,27 @@ export default function MainLayout() {
           <ListItemButton
             onClick={handleLogout}
             sx={{
+              py: isSmall ? 1 : 1.5, // 在移动端调整垂直内边距
               '&:hover': {
                 backgroundColor:
-                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
               },
+              transition: 'all 0.2s ease-in-out',
             }}
           >
             <ListItemIcon>
               <LogoutIcon />
             </ListItemIcon>
-            <ListItemText primary="退出登录" secondary={userInfo?.username} />
+            <ListItemText
+              primary="退出登录"
+              secondary={userInfo?.username}
+              primaryTypographyProps={{
+                fontSize: isSmall ? '0.9rem' : 'inherit',
+              }}
+              secondaryTypographyProps={{
+                fontSize: isSmall ? '0.75rem' : 'inherit',
+              }}
+            />
           </ListItemButton>
         </ListItem>
       </List>
@@ -405,42 +461,63 @@ export default function MainLayout() {
   }, [])
 
   return (
-    <Box className="flex">
+    <Box
+      className="flex"
+      sx={{
+        background: isDark ? GRADIENTS.BACKGROUND.DARK.PRIMARY : GRADIENTS.BACKGROUND.LIGHT.PRIMARY,
+        minHeight: '100vh',
+        transition: 'background 0.5s ease',
+      }}
+    >
       <AppBar
         position="fixed"
         sx={{
-          width: { xs: '100%', sm: `calc(100% - 240px)` },
-          ml: { xs: 0, sm: '240px' },
+          width: {
+            xs: '100%',
+            md: drawerOpen ? `calc(100% - 240px)` : '100%',
+          },
+          ml: {
+            xs: 0,
+            md: drawerOpen ? '240px' : 0,
+          },
+          transition: theme =>
+            theme.transitions.create(['width', 'margin-left'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.leavingScreen,
+            }),
           backdropFilter: 'blur(8px)',
-          backgroundColor:
-            theme.palette.mode === 'dark'
-              ? theme.palette.background.default
-              : theme.palette.primary.main,
-          boxShadow:
-            theme.palette.mode === 'dark'
-              ? '0 1px 3px 0 rgba(0, 0, 0, 0.4)'
-              : '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-          color:
-            theme.palette.mode === 'dark'
-              ? theme.palette.text.primary
-              : theme.palette.primary.contrastText,
+          backgroundColor: 'transparent',
+          backgroundImage: isDark ? GRADIENTS.APP_BAR.DARK : GRADIENTS.APP_BAR.LIGHT,
+          boxShadow: isDark ? SHADOWS.APP_BAR.DARK : SHADOWS.APP_BAR.LIGHT,
+          borderBottom: isDark ? '1px solid rgba(234, 82, 82, 0.15)' : 'none',
+          color: isDark ? theme.palette.text.primary : theme.palette.primary.contrastText,
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
-        <Toolbar>
-          <Box className="flex items-center gap-2 flex-grow select-none">
+        <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={() => setDrawerOpen(!drawerOpen)}
+            sx={{ mr: 2 }}
+            aria-label={drawerOpen ? '收起侧边栏' : '展开侧边栏'}
+          >
+            {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
+          </IconButton>
+          <Box className="flex items-center gap-2 flex-grow select-none overflow-hidden">
             {getCurrentPage()?.icon}
             <Typography
               variant="h6"
               noWrap
               component="div"
-              className="font-medium select-none"
+              className="font-medium select-none text-ellipsis overflow-hidden"
               sx={{
                 color: 'inherit',
+                fontSize: { xs: '1rem', sm: '1.25rem' },
                 textShadow:
                   theme.palette.mode === 'dark'
-                    ? '0 0 2px rgba(255,255,255,0.1)'
-                    : '0 0 2px rgba(0,0,0,0.1)',
+                    ? '0 0 2px rgba(255,255,255,0.15)'
+                    : '0 0 2px rgba(0,0,0,0.15)',
               }}
             >
               {getCurrentTitle()}
@@ -454,11 +531,17 @@ export default function MainLayout() {
           <Button
             variant="text"
             color="inherit"
-            size="large"
+            size={isSmall ? 'small' : 'large'}
             startIcon={<GitHubIcon />}
             onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
-            className="mr-1 normal-case min-w-[100px] transition-colors"
+            className="normal-case transition-colors"
             sx={{
+              mr: { xs: 0, sm: 1 },
+              ml: { xs: 1, sm: 2 },
+              minWidth: { xs: 'auto', sm: '100px' },
+              '& .MuiButton-startIcon': {
+                mr: { xs: 0, sm: 1 },
+              },
               '&:hover': {
                 backgroundColor:
                   theme.palette.mode === 'dark'
@@ -467,38 +550,69 @@ export default function MainLayout() {
               },
             }}
           >
-            Stars {starCount !== null ? starCount : '...'}
+            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+              Stars {starCount !== null ? starCount : '...'}
+            </Box>
           </Button>
         </Toolbar>
       </AppBar>
-      <Box component="nav" sx={{ width: { sm: 240 }, flexShrink: { sm: 0 } }}>
+      <Box
+        component="nav"
+        sx={{
+          width: { sm: drawerOpen ? 240 : 0 },
+          flexShrink: { sm: 0 },
+          transition: theme =>
+            theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+        }}
+      >
         <Drawer
-          variant="permanent"
+          variant={isMobile ? 'temporary' : 'permanent'}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
           sx={{
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: 240,
+              transition: theme =>
+                theme.transitions.create('width', {
+                  easing: theme.transitions.easing.sharp,
+                  duration: theme.transitions.duration.enteringScreen,
+                }),
             },
+            display: { xs: 'block', sm: drawerOpen ? 'block' : 'none' },
           }}
-          open
         >
           {drawer}
         </Drawer>
       </Box>
       <Box
         component="main"
-        className="flex-grow p-3 sm:w-[calc(100%-240px)] h-screen overflow-hidden flex flex-col"
+        className="flex-grow p-3 h-screen overflow-hidden flex flex-col"
+        sx={{
+          width: {
+            xs: '100%',
+            md: drawerOpen ? 'calc(100% - 240px)' : '100%',
+          },
+          transition: theme =>
+            theme.transitions.create('width', {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
+        }}
       >
-        <Toolbar className="flex-shrink-0" />
+        <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
           key={location.key}
-          initial={{ opacity: 0, x: 20, scale: 0.93 }}
+          initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{
             duration: 0.36,
             ease: [0.4, 0, 0.2, 1],
           }}
-          className="h-full flex-grow overflow-auto"
+          className="h-full flex-grow overflow-auto bg-transparent"
         >
           <Outlet />
         </motion.div>

@@ -38,4 +38,19 @@ export function formatLastActiveTime(timestamp: number): string {
 
   const months = Math.floor(diff / 2592000)
   return `${months}月前`
-} 
+}
+
+export function formatTimestampToTime(timestamp: string | number): string {
+  // 检查参数类型并转换为数字
+  const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+
+  // 创建日期对象
+  const date = new Date(numTimestamp)
+
+  // 格式化时间 HH:MM:SS
+  const hours = date.getHours().toString().padStart(2, '0')
+  const minutes = date.getMinutes().toString().padStart(2, '0')
+  const seconds = date.getSeconds().toString().padStart(2, '0')
+
+  return `${hours}:${minutes}:${seconds}`
+}

@@ -23,16 +23,24 @@ import {
 } from '@mui/material'
 import {
   Search as SearchIcon,
+  Clear as ClearIcon,
+  InfoOutlined as InfoIcon,
+  Add as AddIcon,
   CloudDownload as CloudDownloadIcon,
   Done as DoneIcon,
-  Info as InfoIcon,
-  Add as AddIcon,
 } from '@mui/icons-material'
 import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useNavigate } from 'react-router-dom'
+import { 
+  GRADIENTS, 
+  SHADOWS, 
+  BORDERS, 
+  BORDER_RADIUS,
+  CARD_LAYOUT 
+} from '../../theme/constants'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -62,6 +70,7 @@ const PresetCard = ({
   onShowDetail: () => void
 }) => {
   const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
 
   return (
@@ -70,13 +79,22 @@ const PresetCard = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        transition: 'all 0.3s',
-        borderRadius: 2,
+        transition: CARD_LAYOUT.TRANSITION,
+        borderRadius: BORDER_RADIUS.DEFAULT,
         overflow: 'hidden',
         '&:hover': {
-          boxShadow: theme.shadows[6],
+          boxShadow: isDark 
+            ? SHADOWS.CARD.DARK.HOVER
+            : SHADOWS.CARD.LIGHT.HOVER,
           transform: 'translateY(-2px)',
         },
+        background: isDark 
+          ? GRADIENTS.CARD.DARK
+          : GRADIENTS.CARD.LIGHT,
+        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+        border: isDark 
+          ? BORDERS.CARD.DARK
+          : BORDERS.CARD.LIGHT,
         position: 'relative',
       }}
     >
@@ -519,7 +537,7 @@ export default function PresetsMarket() {
               endAdornment: searchKeyword && (
                 <InputAdornment position="end">
                   <IconButton size="small" onClick={handleSearchInputClear}>
-                    &times;
+                    <ClearIcon fontSize="small" />
                   </IconButton>
                 </InputAdornment>
               ),

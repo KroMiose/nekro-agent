@@ -9,6 +9,8 @@ import {
   Chip,
   Grid,
   Paper,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import { useQuery } from '@tanstack/react-query'
@@ -22,6 +24,10 @@ interface UserDetailProps {
 }
 
 const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['user', userId],
     queryFn: () => getUserDetail(userId),
@@ -33,7 +39,7 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '无'
     try {
-      return format(new Date(dateString), 'yyyy-MM-dd HH:mm:ss')
+      return format(new Date(dateString), isMobile ? 'MM-dd HH:mm' : 'yyyy-MM-dd HH:mm:ss')
     } catch {
       return '无效日期'
     }
@@ -75,18 +81,18 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400 } },
+        sx: { width: { xs: '100%', sm: 400, md: 450 } },
       }}
     >
-      <Box sx={{ p: 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">用户详情</Typography>
-          <IconButton onClick={onClose} size="small">
+      <Box sx={{ p: isSmall ? 1.5 : 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: isSmall ? 1 : 2 }}>
+          <Typography variant={isSmall ? "h6" : "h5"}>用户详情</Typography>
+          <IconButton onClick={onClose} size={isSmall ? "small" : "medium"}>
             <CloseIcon />
           </IconButton>
         </Box>
 
-        <Divider sx={{ mb: 2 }} />
+        <Divider sx={{ mb: isSmall ? 1.5 : 2 }} />
 
         {isLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
@@ -95,42 +101,52 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
         ) : error ? (
           <Typography color="error">加载失败: {String(error)}</Typography>
         ) : user ? (
-          <Box>
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+          <Box sx={{ 
+            '& .MuiPaper-root': { 
+              p: isSmall ? 1.5 : 2,
+              mb: isSmall ? 1.5 : 2 
+            }
+          }}>
+            <Paper>
+              <Typography 
+                variant={isSmall ? "subtitle2" : "subtitle1"} 
+                gutterBottom 
+                fontWeight="bold"
+                sx={{ mb: isSmall ? 1 : 1.5 }}
+              >
                 基本信息
               </Typography>
 
-              <Grid container spacing={1}>
+              <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     用户ID
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant="body2">{user.id}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.id}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     用户名
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant="body2">{user.username}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.username}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     QQ号
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant="body2">{user.bind_qq}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.bind_qq}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     权限等级
                   </Typography>
                 </Grid>
@@ -148,65 +164,121 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                         | 'warning'
                     }
                     size="small"
+                    sx={{ 
+                      height: isSmall ? 20 : 24, 
+                      '& .MuiChip-label': { 
+                        px: isSmall ? 0.5 : 0.8,
+                        fontSize: isSmall ? '0.65rem' : '0.75rem'
+                      } 
+                    }}
                   />
                 </Grid>
               </Grid>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+            <Paper>
+              <Typography 
+                variant={isSmall ? "subtitle2" : "subtitle1"} 
+                gutterBottom 
+                fontWeight="bold"
+                sx={{ mb: isSmall ? 1 : 1.5 }}
+              >
                 状态信息
               </Typography>
 
-              <Grid container spacing={1}>
+              <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     账户状态
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
                   {!user.is_active ? (
-                    <Chip label="已封禁" color="error" size="small" />
+                    <Chip 
+                      label="已封禁" 
+                      color="error" 
+                      size="small" 
+                      sx={{ 
+                        height: isSmall ? 20 : 24, 
+                        '& .MuiChip-label': { 
+                          px: isSmall ? 0.5 : 0.8,
+                          fontSize: isSmall ? '0.65rem' : '0.75rem'
+                        } 
+                      }}
+                    />
                   ) : (
-                    <Chip label="正常" color="success" size="small" />
+                    <Chip 
+                      label="正常" 
+                      color="success" 
+                      size="small" 
+                      sx={{ 
+                        height: isSmall ? 20 : 24, 
+                        '& .MuiChip-label': { 
+                          px: isSmall ? 0.5 : 0.8,
+                          fontSize: isSmall ? '0.65rem' : '0.75rem'
+                        } 
+                      }}
+                    />
                   )}
                 </Grid>
 
                 {!user.is_active && (
                   <>
                     <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                         封禁截止
                       </Typography>
                     </Grid>
                     <Grid item xs={8}>
-                      <Typography variant="body2">{formatDate(user.ban_until)}</Typography>
+                      <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.ban_until)}</Typography>
                     </Grid>
                   </>
                 )}
 
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     触发权限
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
                   {user.is_prevent_trigger ? (
-                    <Chip label="禁止触发" color="warning" size="small" />
+                    <Chip 
+                      label="禁止触发" 
+                      color="warning" 
+                      size="small" 
+                      sx={{ 
+                        height: isSmall ? 20 : 24, 
+                        '& .MuiChip-label': { 
+                          px: isSmall ? 0.5 : 0.8,
+                          fontSize: isSmall ? '0.65rem' : '0.75rem'
+                        } 
+                      }}
+                    />
                   ) : (
-                    <Chip label="允许触发" color="success" size="small" />
+                    <Chip 
+                      label="允许触发" 
+                      color="success" 
+                      size="small" 
+                      sx={{ 
+                        height: isSmall ? 20 : 24, 
+                        '& .MuiChip-label': { 
+                          px: isSmall ? 0.5 : 0.8,
+                          fontSize: isSmall ? '0.65rem' : '0.75rem'
+                        } 
+                      }}
+                    />
                   )}
                 </Grid>
 
                 {!user.is_prevent_trigger && (
                   <>
                     <Grid item xs={4}>
-                      <Typography variant="body2" color="text.secondary">
+                      <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                         禁止触发截止
                       </Typography>
                     </Grid>
                     <Grid item xs={8}>
-                      <Typography variant="body2">
+                      <Typography variant={isSmall ? "caption" : "body2"}>
                         {formatDate(user.prevent_trigger_until)}
                       </Typography>
                     </Grid>
@@ -215,35 +287,45 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
               </Grid>
             </Paper>
 
-            <Paper sx={{ p: 2, mb: 2 }}>
-              <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+            <Paper>
+              <Typography 
+                variant={isSmall ? "subtitle2" : "subtitle1"} 
+                gutterBottom 
+                fontWeight="bold"
+                sx={{ mb: isSmall ? 1 : 1.5 }}
+              >
                 其他信息
               </Typography>
 
-              <Grid container spacing={1}>
+              <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     创建时间
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant="body2">{formatDate(user.create_time)}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.create_time)}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
                     更新时间
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant="body2">{formatDate(user.update_time)}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.update_time)}</Typography>
                 </Grid>
               </Grid>
             </Paper>
 
             {user.ext_data && Object.keys(user.ext_data).length > 0 && (
-              <Paper sx={{ p: 2 }}>
-                <Typography variant="subtitle1" gutterBottom fontWeight="bold">
+              <Paper>
+                <Typography 
+                  variant={isSmall ? "subtitle2" : "subtitle1"} 
+                  gutterBottom 
+                  fontWeight="bold"
+                  sx={{ mb: isSmall ? 1 : 1.5 }}
+                >
                   扩展数据
                 </Typography>
 
@@ -254,7 +336,8 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                     backgroundColor: 'background.default',
                     borderRadius: 1,
                     overflow: 'auto',
-                    fontSize: '0.75rem',
+                    fontSize: isSmall ? '0.65rem' : '0.75rem',
+                    maxHeight: isSmall ? '120px' : '200px',
                   }}
                 >
                   {JSON.stringify(user.ext_data, null, 2)}

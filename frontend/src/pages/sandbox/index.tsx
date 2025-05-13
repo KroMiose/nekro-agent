@@ -18,6 +18,11 @@ import {
   Tooltip,
   Stack,
   CircularProgress,
+  useMediaQuery,
+  useTheme,
+  Grid,
+  Snackbar,
+  Alert,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -27,6 +32,7 @@ import {
   Code as CodeIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { sandboxApi } from '../../services/api/sandbox'
@@ -40,6 +46,10 @@ export default function SandboxPage() {
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
   const { mode } = useColorMode()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const [copyMessage, setCopyMessage] = useState<string | null>(null)
 
   const { data: stats } = useQuery({
     queryKey: ['sandbox-stats'],
@@ -76,9 +86,89 @@ export default function SandboxPage() {
     }))
   }
 
-  return (
-    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-hidden p-2">
-      {/* 统计卡片 */}
+  // 复制内容到剪贴板函数
+  const copyToClipboard = (text: string | null, contentType: string) => {
+    if (!text) {
+      setCopyMessage('无内容可复制～');
+      setTimeout(() => setCopyMessage(null), 3000);
+      return;
+    }
+    
+    navigator.clipboard.writeText(text)
+      .then(() => {
+        setCopyMessage(`${contentType}已复制到剪贴板喵～`);
+        setTimeout(() => setCopyMessage(null), 3000);
+      })
+      .catch(() => {
+        setCopyMessage('复制失败，请重试～');
+        setTimeout(() => setCopyMessage(null), 3000);
+      });
+  };
+
+  // 统计卡片渲染
+  const renderStatsCards = () => (
+    isMobile ? (
+      <Grid container spacing={2} className="flex-shrink-0 mb-2">
+        <Grid item xs={6}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
+              <Typography color="textSecondary" variant={isSmall ? "caption" : "body2"} className="mb-1">
+                总执行次数
+              </Typography>
+              <Typography variant={isSmall ? "h5" : "h4"}>{stats?.total || 0}</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={6}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
+              <Typography color="textSecondary" variant={isSmall ? "caption" : "body2"} className="mb-1">
+                成功次数
+              </Typography>
+              <Typography variant={isSmall ? "h5" : "h4"} color="success.main">
+                {stats?.success || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
+              <Typography color="textSecondary" variant={isSmall ? "caption" : "body2"} className="mb-1">
+                代理执行次数
+              </Typography>
+              <Typography variant={isSmall ? "h6" : "h5"} color="info.main">
+                {stats?.agent_count || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
+              <Typography color="textSecondary" variant={isSmall ? "caption" : "body2"} className="mb-1">
+                失败次数
+              </Typography>
+              <Typography variant={isSmall ? "h6" : "h5"} color="error.main">
+                {stats?.failed || 0}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={4}>
+          <Card sx={{ height: '100%' }}>
+            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
+              <Typography color="textSecondary" variant={isSmall ? "caption" : "body2"} className="mb-1">
+                成功率
+              </Typography>
+              <Typography variant={isSmall ? "h6" : "h5"}>
+                {stats?.success_rate || 0}%
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    ) : (
       <Stack direction="row" spacing={2} className="flex-shrink-0">
         <Card sx={{ flex: 1 }}>
           <CardContent>
@@ -127,115 +217,198 @@ export default function SandboxPage() {
           </CardContent>
         </Card>
       </Stack>
+    )
+  );
+
+  return (
+    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-hidden p-2">
+      {/* 统计卡片 */}
+      {renderStatsCards()}
 
       {/* 日志表格 */}
       <Paper className="flex-1 flex flex-col overflow-hidden">
         <TableContainer className="flex-1 overflow-auto">
-          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: '900px' }}>
+          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: isMobile ? '600px' : '900px' }}>
             <TableHead>
               <TableRow>
-                <TableCell padding="checkbox" sx={{ width: '48px' }} />
-                <TableCell sx={{ width: '10%', minWidth: '100px' }}>状态</TableCell>
-                <TableCell sx={{ width: '10%', minWidth: '100px' }}>停止类型</TableCell>
-                <TableCell sx={{ width: '12%', minWidth: '120px' }}>触发用户</TableCell>
-                <TableCell sx={{ width: '15%', minWidth: '160px' }}>会话标识</TableCell>
-                <TableCell sx={{ width: '16%', minWidth: '100px' }}>使用模型</TableCell>
-                <TableCell sx={{ width: '160px', textAlign: 'left' }}>
-                  生成耗时 | 执行耗时
-                </TableCell>
-                <TableCell sx={{ width: '20%', minWidth: '150px' }}>执行时间</TableCell>
+                <TableCell padding="checkbox" sx={{ 
+                  width: isMobile ? '28px' : '48px', 
+                  py: isSmall ? 1 : 1.5,
+                  minWidth: isMobile ? '28px' : '48px',
+                  maxWidth: isMobile ? '28px' : '48px'
+                }} />
+                <TableCell sx={{ 
+                  width: isMobile ? '15%' : '10%', 
+                  minWidth: isMobile ? '80px' : '100px', 
+                  py: isSmall ? 1 : 1.5 
+                }}>状态</TableCell>
+                <TableCell sx={{ 
+                  width: isMobile ? '18%' : '10%', 
+                  minWidth: isMobile ? '90px' : '100px', 
+                  py: isSmall ? 1 : 1.5 
+                }}>停止类型</TableCell>
+                {!isMobile && (
+                  <TableCell sx={{ width: '12%', minWidth: '120px', py: isSmall ? 1 : 1.5 }}>触发用户</TableCell>
+                )}
+                <TableCell sx={{ width: isMobile ? '20%' : '15%', minWidth: isMobile ? '100px' : '160px', py: isSmall ? 1 : 1.5 }}>会话标识</TableCell>
+                <TableCell sx={{ width: isMobile ? '20%' : '16%', minWidth: isMobile ? '80px' : '100px', py: isSmall ? 1 : 1.5 }}>使用模型</TableCell>
+                {!isSmall && (
+                  <TableCell sx={{ width: '160px', textAlign: 'left', py: isSmall ? 1 : 1.5 }}>
+                    生成耗时 | 执行耗时
+                  </TableCell>
+                )}
+                <TableCell sx={{ width: isMobile ? '20%' : '20%', minWidth: isMobile ? '90px' : '150px', py: isSmall ? 1 : 1.5 }}>执行时间</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {isLoading && !isPlaceholderData ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-3">
+                  <TableCell colSpan={isMobile ? (isSmall ? 6 : 7) : 8} className="text-center py-3">
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
               ) : (
                 logs?.items.map(log => (
                   <React.Fragment key={log.id}>
-                    <TableRow hover>
-                      <TableCell padding="checkbox">
-                        <IconButton size="small" onClick={() => toggleRow(log.id)}>
+                    <TableRow 
+                      hover
+                      onClick={() => toggleRow(log.id)}
+                      sx={{ 
+                        cursor: 'pointer',
+                        '&:hover': {
+                          backgroundColor: theme => theme.palette.action.hover,
+                        }
+                      }}
+                    >
+                      <TableCell padding="checkbox" sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        width: isMobile ? '28px' : '48px', 
+                        minWidth: isMobile ? '28px' : '48px',
+                        maxWidth: isMobile ? '28px' : '48px'
+                      }}>
+                        <IconButton 
+                          size="small" 
+                          onClick={(e) => {
+                            e.stopPropagation(); // 防止事件冒泡触发行点击
+                            toggleRow(log.id);
+                          }}
+                        >
                           {expandedRows[log.id] ? (
-                            <KeyboardArrowUpIcon />
+                            <KeyboardArrowUpIcon fontSize={isSmall ? "small" : "medium"} />
                           ) : (
-                            <KeyboardArrowDownIcon />
+                            <KeyboardArrowDownIcon fontSize={isSmall ? "small" : "medium"} />
                           )}
                         </IconButton>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
                         <Tooltip title={log.success ? '执行成功' : '执行失败'}>
                           <Chip
-                            icon={log.success ? <CheckCircleIcon /> : <ErrorIcon />}
+                            icon={log.success ? <CheckCircleIcon fontSize={isSmall ? "small" : "medium"} /> : <ErrorIcon fontSize={isSmall ? "small" : "medium"} />}
                             label={log.success ? '成功' : '失败'}
                             color={log.success ? 'success' : 'error'}
                             size="small"
+                            sx={{ 
+                              height: isSmall ? 20 : 24,
+                              fontSize: isSmall ? '0.65rem' : '0.75rem',
+                              '& .MuiChip-label': {
+                                px: isSmall ? 0.5 : 0.75,
+                              }
+                            }}
                           />
                         </Tooltip>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
                         <Chip
                           label={getStopTypeText(log.stop_type)}
                           color={getStopTypeColor(log.stop_type)}
                           size="small"
+                          sx={{ 
+                            height: isSmall ? 20 : 24,
+                            fontSize: isSmall ? '0.65rem' : '0.75rem',
+                            '& .MuiChip-label': {
+                              px: isSmall ? 0.5 : 0.75,
+                            }
+                          }}
                         />
                       </TableCell>
-                      <TableCell>{log.trigger_user_name}</TableCell>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                      {!isMobile && (
+                        <TableCell sx={{ py: isSmall ? 0.75 : 1.5, fontSize: isSmall ? '0.75rem' : 'inherit' }}>{log.trigger_user_name}</TableCell>
+                      )}
+                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontFamily: 'monospace',
+                            fontSize: isSmall ? '0.65rem' : '0.75rem',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}
+                        >
                           {log.chat_key}
                         </Typography>
                       </TableCell>
-                      <TableCell>
-                        <Typography variant="body2">{log.use_model || '未知'}</Typography>
-                      </TableCell>
-                      <TableCell>
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          sx={{
-                            '& > *:first-of-type': { width: '50px', textAlign: 'right' },
-                            '& > *:last-of-type': { width: '50px' },
+                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            fontSize: isSmall ? '0.7rem' : '0.875rem',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
                           }}
                         >
-                          <Tooltip title="生成耗时">
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color:
-                                  log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
-                              }}
-                            >
-                              {(log.generation_time_ms / 1000).toFixed(2)}s
-                            </Typography>
-                          </Tooltip>
-                          <Typography variant="body2" color="textSecondary" sx={{ px: 1 }}>
-                            |
-                          </Typography>
-                          <Tooltip title="执行耗时">
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
-                              }}
-                            >
-                              {log.exec_time_ms}ms
-                            </Typography>
-                          </Tooltip>
-                        </Stack>
+                          {log.use_model || '未知'}
+                        </Typography>
                       </TableCell>
-                      <TableCell>{log.create_time}</TableCell>
+                      {!isSmall && (
+                        <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            sx={{
+                              '& > *:first-of-type': { width: '50px', textAlign: 'right' },
+                              '& > *:last-of-type': { width: '50px' },
+                            }}
+                          >
+                            <Tooltip title="生成耗时">
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color:
+                                    log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
+                                  fontSize: isSmall ? '0.7rem' : '0.875rem'
+                                }}
+                              >
+                                {(log.generation_time_ms / 1000).toFixed(2)}s
+                              </Typography>
+                            </Tooltip>
+                            <Typography variant="body2" color="textSecondary" sx={{ px: 1, fontSize: isSmall ? '0.7rem' : '0.875rem' }}>
+                              |
+                            </Typography>
+                            <Tooltip title="执行耗时">
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
+                                  fontSize: isSmall ? '0.7rem' : '0.875rem'
+                                }}
+                              >
+                                {log.exec_time_ms}ms
+                              </Typography>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                      )}
+                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5, fontSize: isSmall ? '0.7rem' : '0.875rem' }}>
+                        {isMobile ? log.create_time.split(' ')[1] : log.create_time}
+                      </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
+                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={isMobile ? (isSmall ? 6 : 7) : 8}>
                         <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
                           <Box
                             sx={{
                               py: 2,
-                              px: 3,
+                              px: isMobile ? 2 : 3,
                               maxWidth: '100%',
                               overflow: 'hidden',
                             }}
@@ -247,6 +420,7 @@ export default function SandboxPage() {
                                   mb: 3,
                                   maxWidth: '100%',
                                   overflow: 'hidden',
+                                  position: 'relative',
                                 }}
                               >
                                 <Stack
@@ -255,8 +429,17 @@ export default function SandboxPage() {
                                   alignItems="center"
                                   sx={{ mb: 1 }}
                                 >
-                                  <PsychologyIcon color="info" />
-                                  <Typography variant="subtitle1">思维链信息：</Typography>
+                                  <PsychologyIcon color="info" fontSize={isSmall ? "small" : "medium"} />
+                                  <Typography variant={isSmall ? "subtitle2" : "subtitle1"}>思维链信息：</Typography>
+                                  <Tooltip title="复制思维链">
+                                    <IconButton 
+                                      size="small" 
+                                      onClick={() => copyToClipboard(log.thought_chain, '思维链')}
+                                      sx={{ ml: 'auto' }}
+                                    >
+                                      <ContentCopyIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
                                 </Stack>
                                 <Paper
                                   variant="outlined"
@@ -268,7 +451,7 @@ export default function SandboxPage() {
                                 >
                                   <Box
                                     sx={{
-                                      p: 2,
+                                      p: isSmall ? 1.5 : 2,
                                       maxWidth: '100%',
                                       overflow: 'hidden',
                                       '& pre': {
@@ -279,6 +462,7 @@ export default function SandboxPage() {
                                         color: mode === 'dark' ? '#D4D4D4' : 'inherit',
                                         maxWidth: '100%',
                                         overflow: 'hidden',
+                                        fontSize: isSmall ? '0.75rem' : '0.875rem',
                                       },
                                     }}
                                   >
@@ -295,9 +479,23 @@ export default function SandboxPage() {
                                 spacing={1}
                                 alignItems="center"
                                 className="mb-1"
+                                sx={{ 
+                                  justifyContent: 'space-between', 
+                                  flexWrap: 'wrap'
+                                }}
                               >
-                                <CodeIcon color="info" />
-                                <Typography variant="subtitle1">执行代码：</Typography>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                  <CodeIcon color="info" fontSize={isSmall ? "small" : "medium"} />
+                                  <Typography variant={isSmall ? "subtitle2" : "subtitle1"}>执行代码：</Typography>
+                                </Box>
+                                <Tooltip title="复制代码">
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => copyToClipboard(log.code_text, '代码')}
+                                  >
+                                    <ContentCopyIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
                               </Stack>
                               <Paper variant="outlined" className="overflow-hidden w-full">
                                 <Box className="w-full overflow-auto">
@@ -307,9 +505,9 @@ export default function SandboxPage() {
                                     showLineNumbers={true}
                                     customStyle={{
                                       margin: 0,
-                                      padding: '16px',
-                                      maxHeight: '400px',
-                                      fontSize: '14px',
+                                      padding: isSmall ? '12px' : '16px',
+                                      maxHeight: isSmall ? '300px' : '400px',
+                                      fontSize: isSmall ? '12px' : '14px',
                                       background: 'inherit',
                                     }}
                                     wrapLines={true}
@@ -329,9 +527,23 @@ export default function SandboxPage() {
                                   spacing={1}
                                   alignItems="center"
                                   className="mb-1"
+                                  sx={{ 
+                                    justifyContent: 'space-between', 
+                                    flexWrap: 'wrap'
+                                  }}
                                 >
-                                  <TimerIcon color="info" />
-                                  <Typography variant="subtitle1">执行输出：</Typography>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <TimerIcon color="info" fontSize={isSmall ? "small" : "medium"} />
+                                    <Typography variant={isSmall ? "subtitle2" : "subtitle1"}>执行输出：</Typography>
+                                  </Box>
+                                  <Tooltip title="复制输出">
+                                    <IconButton 
+                                      size="small" 
+                                      onClick={() => copyToClipboard(log.outputs, '执行输出')}
+                                    >
+                                      <ContentCopyIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
                                 </Stack>
                                 <Paper variant="outlined" className="overflow-hidden w-full">
                                   <Box className="w-full overflow-auto">
@@ -340,9 +552,9 @@ export default function SandboxPage() {
                                       style={mode === 'dark' ? vscDarkPlus : oneLight}
                                       customStyle={{
                                         margin: 0,
-                                        padding: '16px',
-                                        maxHeight: '300px',
-                                        fontSize: '14px',
+                                        padding: isSmall ? '12px' : '16px',
+                                        maxHeight: isSmall ? '200px' : '300px',
+                                        fontSize: isSmall ? '12px' : '14px',
                                         background: 'inherit',
                                       }}
                                       wrapLines={true}
@@ -372,9 +584,31 @@ export default function SandboxPage() {
           page={page}
           onPageChange={handleChangePage}
           onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="每页行数"
+          labelRowsPerPage={isSmall ? "每页" : "每页行数"}
+          labelDisplayedRows={({ from, to, count }) => 
+            isSmall 
+              ? `${from}-${to}/${count}`
+              : `${from}-${to} / 共${count}项`
+          }
         />
       </Paper>
+      
+      {/* 复制成功提示 */}
+      <Snackbar
+        open={!!copyMessage}
+        autoHideDuration={3000}
+        onClose={() => setCopyMessage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setCopyMessage(null)} 
+          severity="success" 
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {copyMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }

@@ -8,6 +8,7 @@ import {
   CircularProgress,
   Alert,
   useTheme,
+  useMediaQuery,
 } from '@mui/material'
 import {
   Code as CodeIcon,
@@ -29,6 +30,7 @@ import {
 import { PieChart, Pie, Cell, Legend, Tooltip } from 'recharts'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
+import { GRADIENTS, SHADOWS, BORDERS, BORDER_RADIUS, CARD_LAYOUT } from '../../theme/constants'
 
 // 统计卡片组件
 const StatCard = ({
@@ -43,24 +45,39 @@ const StatCard = ({
   color: string
 }) => {
   const theme = useTheme()
+  const isDark = theme.palette.mode === 'dark'
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   return (
     <Card
       sx={{
         flex: 1,
         transition: 'all 0.3s ease',
+        borderRadius: BORDER_RADIUS.MEDIUM,
+        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+        boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
         '&:hover': {
-          boxShadow: theme.shadows[4],
+          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
         },
       }}
     >
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Box>
-            <Typography variant="body2" color="text.secondary">
+            <Typography 
+              variant="body2" 
+              color="text.secondary"
+              sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+            >
               {title}
             </Typography>
-            <Typography variant="h4" component="div" sx={{ mt: 1, fontWeight: 'medium' }}>
+            <Typography 
+              variant={isMobile ? "h5" : "h4"} 
+              component="div" 
+              sx={{ mt: 1, fontWeight: 'medium' }}
+            >
               {value}
             </Typography>
           </Box>
@@ -72,8 +89,8 @@ const StatCard = ({
               bgcolor: `${color}20`,
               color: color,
               borderRadius: '50%',
-              width: 48,
-              height: 48,
+              width: isMobile ? 40 : 48,
+              height: isMobile ? 40 : 48,
             }}
           >
             {icon}
@@ -98,18 +115,21 @@ interface PieTooltipProps {
 
 const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isDark = theme.palette.mode === 'dark'
 
   if (active && payload && payload.length) {
     const item = payload[0].payload
     return (
       <Box
         sx={{
-          bgcolor: theme.palette.background.paper,
+          bgcolor: isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
-          p: 1.5,
+          p: isMobile ? 1 : 1.5,
           borderRadius: 1,
-          minWidth: 120,
+          minWidth: isMobile ? 100 : 120,
+          fontSize: isMobile ? '0.75rem' : '0.875rem',
           transition: 'all 0.2s ease',
           animation: 'fadeIn 0.3s ease-in-out',
           '@keyframes fadeIn': {
@@ -118,13 +138,31 @@ const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
           },
         }}
       >
-        <Typography variant="body2" color="text.primary" fontWeight="medium" sx={{ mb: 0.5 }}>
+        <Typography 
+          variant="body2" 
+          color="text.primary" 
+          fontWeight="medium" 
+          sx={{ 
+            mb: 0.5,
+            fontSize: isMobile ? '0.75rem' : '0.875rem'
+          }}
+        >
           {item.version}
         </Typography>
-        <Typography variant="body2" fontWeight="bold" color="text.primary">
+        <Typography 
+          variant="body2" 
+          fontWeight="bold" 
+          color="text.primary"
+          sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+        >
           数量: {item.count}
         </Typography>
-        <Typography variant="body2" fontWeight="bold" color="text.primary">
+        <Typography 
+          variant="body2" 
+          fontWeight="bold" 
+          color="text.primary"
+          sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+        >
           占比: {((item.count / item.total) * 100).toFixed(1)}%
         </Typography>
       </Box>
@@ -144,17 +182,20 @@ interface LineTooltipProps {
 
 const CustomLineTooltip = ({ active, payload, label }: LineTooltipProps) => {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isDark = theme.palette.mode === 'dark'
 
   if (active && payload && payload.length) {
     return (
       <Box
         sx={{
-          bgcolor: theme.palette.background.paper,
+          bgcolor: isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
-          p: 1.5,
+          p: isMobile ? 1 : 1.5,
           borderRadius: 1,
-          minWidth: 120,
+          minWidth: isMobile ? 100 : 120,
+          fontSize: isMobile ? '0.75rem' : '0.875rem',
           transition: 'all 0.2s ease',
           animation: 'fadeIn 0.3s ease-in-out',
           '@keyframes fadeIn': {
@@ -163,10 +204,23 @@ const CustomLineTooltip = ({ active, payload, label }: LineTooltipProps) => {
           },
         }}
       >
-        <Typography variant="body2" color="text.primary" fontWeight="medium" sx={{ mb: 0.5 }}>
+        <Typography 
+          variant="body2" 
+          color="text.primary" 
+          fontWeight="medium" 
+          sx={{ 
+            mb: 0.5,
+            fontSize: isMobile ? '0.75rem' : '0.875rem'
+          }}
+        >
           日期: {label}
         </Typography>
-        <Typography variant="body2" fontWeight="bold" color="text.primary">
+        <Typography 
+          variant="body2" 
+          fontWeight="bold" 
+          color="text.primary"
+          sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
+        >
           新增实例: {payload[0].value}
         </Typography>
       </Box>
@@ -186,6 +240,8 @@ export default function CommunityStats() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const isDark = theme.palette.mode === 'dark'
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -227,25 +283,25 @@ export default function CommunityStats() {
     }))
 
     return (
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 320}>
         <LineChart
           data={chartData}
           margin={{
             top: 20,
-            right: 30,
-            left: 20,
+            right: isMobile ? 10 : 30,
+            left: isMobile ? 10 : 20,
             bottom: 5,
           }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />
           <XAxis
             dataKey="date"
-            tick={{ fill: theme.palette.text.secondary }}
+            tick={{ fill: theme.palette.text.secondary, fontSize: isMobile ? 10 : 12 }}
             stroke={theme.palette.divider}
           />
           <YAxis
             allowDecimals={false}
-            tick={{ fill: theme.palette.text.secondary }}
+            tick={{ fill: theme.palette.text.secondary, fontSize: isMobile ? 10 : 12 }}
             stroke={theme.palette.divider}
           />
           <RechartsTooltip
@@ -256,12 +312,12 @@ export default function CommunityStats() {
             type="monotone"
             dataKey="count"
             stroke={theme.palette.primary.main}
-            activeDot={{ r: 8, fill: theme.palette.primary.main, strokeWidth: 0 }}
+            activeDot={{ r: isMobile ? 6 : 8, fill: theme.palette.primary.main, strokeWidth: 0 }}
             dot={{
               fill: theme.palette.background.paper,
               stroke: theme.palette.primary.main,
               strokeWidth: 2,
-              r: 4,
+              r: isMobile ? 3 : 4,
             }}
             strokeWidth={2}
           />
@@ -284,7 +340,7 @@ export default function CommunityStats() {
     }))
 
     return (
-      <ResponsiveContainer width="100%" height={320}>
+      <ResponsiveContainer width="100%" height={isMobile ? 280 : 320}>
         <PieChart>
           <defs>
             {enhancedData.map((_entry: VersionData, index: number) => {
@@ -306,10 +362,10 @@ export default function CommunityStats() {
           </defs>
           <Pie
             data={enhancedData}
-            cx="40%"
+            cx={isMobile ? "35%" : "40%"}
             cy="50%"
             labelLine={false}
-            outerRadius={100}
+            outerRadius={isMobile ? 80 : 100}
             fill="#8884d8"
             dataKey="count"
             nameKey="version"
@@ -331,7 +387,7 @@ export default function CommunityStats() {
                   }
                   textAnchor={x > (cx as number) ? 'start' : 'end'}
                   dominantBaseline="central"
-                  fontSize={12}
+                  fontSize={isMobile ? 10 : 12}
                   fontWeight="bold"
                 >
                   {`${(percent * 100).toFixed(0)}%`}
@@ -356,13 +412,13 @@ export default function CommunityStats() {
             layout="vertical"
             verticalAlign="middle"
             align="right"
-            wrapperStyle={{ paddingRight: 20 }}
+            wrapperStyle={{ paddingRight: isMobile ? 0 : 20 }}
             formatter={value => (
               <span
                 style={{
                   color: theme.palette.text.primary,
                   fontWeight: 'medium',
-                  fontSize: '0.875rem',
+                  fontSize: isMobile ? '0.75rem' : '0.875rem',
                   paddingLeft: 4,
                   paddingRight: 4,
                 }}
@@ -379,30 +435,30 @@ export default function CommunityStats() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '70vh' }}>
-        <CircularProgress />
+        <CircularProgress size={isMobile ? 40 : 48} thickness={isMobile ? 3 : 4} />
       </Box>
     )
   }
 
   if (error) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error}</Alert>
+      <Box sx={{ p: isMobile ? 2 : 3 }}>
+        <Alert severity="error" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>{error}</Alert>
       </Box>
     )
   }
 
   if (!stats) {
     return (
-      <Box sx={{ p: 3 }}>
-        <Alert severity="info">暂无统计数据</Alert>
+      <Box sx={{ p: isMobile ? 2 : 3 }}>
+        <Alert severity="info" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>暂无统计数据</Alert>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Grid container spacing={3} sx={{ mb: 4 }}>
+    <Box sx={{ p: isMobile ? 2 : 3 }}>
+      <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 2 : 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="实例总数"
@@ -437,14 +493,19 @@ export default function CommunityStats() {
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={isMobile ? 2 : 3}>
         <Grid item xs={12} md={6}>
           <Card
             sx={{
               transition: 'all 0.3s ease',
-              height: 400,
+              height: isMobile ? 350 : 400,
+              borderRadius: BORDER_RADIUS.MEDIUM,
+              background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+              backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+              border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+              boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
               '&:hover': {
-                boxShadow: theme.shadows[4],
+                boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
               },
             }}
           >
@@ -460,9 +521,14 @@ export default function CommunityStats() {
           <Card
             sx={{
               transition: 'all 0.3s ease',
-              height: 400,
+              height: isMobile ? 350 : 400,
+              borderRadius: BORDER_RADIUS.MEDIUM,
+              background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+              backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
+              border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+              boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
               '&:hover': {
-                boxShadow: theme.shadows[4],
+                boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
               },
             }}
           >
@@ -476,7 +542,7 @@ export default function CommunityStats() {
         </Grid>
       </Grid>
 
-      <Box sx={{ mt: 4 }}>
+      <Box sx={{ mt: isMobile ? 2 : 4 }}>
         <Typography variant="subtitle1" color="text.secondary" gutterBottom>
           最后更新时间:{' '}
           {format(new Date(stats.lastUpdated), 'yyyy-MM-dd HH:mm:ss', { locale: zhCN })}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Box, Tabs, Tab, Grid, Stack } from '@mui/material'
+import { Box, Tabs, Tab, Grid, Stack, useMediaQuery, useTheme } from '@mui/material'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   Message as MessageIcon,
@@ -24,6 +24,10 @@ const DashboardContent: React.FC = () => {
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
   const [streamCancel, setStreamCancel] = useState<(() => void) | null>(null)
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 处理实时数据
   const handleRealTimeData = useCallback((data: string) => {
@@ -125,52 +129,133 @@ const DashboardContent: React.FC = () => {
   }
 
   return (
-    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-auto p-2">
+    <Box 
+      className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-auto p-2"
+    >
       {/* 时间范围选择器 */}
-      <Tabs value={timeRange} onChange={handleTimeRangeChange} className="mb-2">
+      <Tabs 
+        value={timeRange} 
+        onChange={handleTimeRangeChange} 
+        className="mb-2"
+        variant={isSmallMobile ? "fullWidth" : "standard"}
+        sx={{
+          '.MuiTabs-indicator': {
+            backgroundColor: theme.palette.primary.main,
+          },
+          '.MuiTab-root': {
+            color: theme.palette.text.secondary,
+            '&.Mui-selected': {
+              color: theme.palette.primary.main,
+            },
+            transition: 'all 0.2s ease',
+          },
+        }}
+      >
         <Tab value="day" label="今天" />
         <Tab value="week" label="本周" />
         <Tab value="month" label="本月" />
       </Tabs>
 
-      {/* 统计卡片 */}
-      <Stack direction="row" spacing={2} className="flex-shrink-0">
-        <StatCard
-          title="总消息数"
-          value={overview?.total_messages || 0}
-          loading={overviewLoading}
-          icon={<MessageIcon />}
-        />
-        <StatCard
-          title="活跃会话"
-          value={overview?.active_sessions || 0}
-          loading={overviewLoading}
-          icon={<GroupIcon />}
-        />
-        <StatCard
-          title="独立用户"
-          value={overview?.unique_users || 0}
-          loading={overviewLoading}
-          icon={<MessageIcon />}
-        />
-        <StatCard
-          title="沙盒执行"
-          value={overview?.total_sandbox_calls || 0}
-          loading={overviewLoading}
-          icon={<CodeIcon />}
-        />
-        <StatCard
-          title="执行成功率"
-          value={`${overview?.success_rate || 0}%`}
-          loading={overviewLoading}
-          icon={<CheckCircleIcon />}
-          color={(overview?.success_rate || 0) >= 90 ? 'success.main' : 'warning.main'}
-        />
-      </Stack>
+      {/* 统计卡片 - 移动端改为两行显示 */}
+      {isMobile ? (
+        <Grid container spacing={2} className="flex-shrink-0">
+          <Grid item xs={6} sm={6}>
+            <StatCard
+              title="总消息数"
+              value={overview?.total_messages || 0}
+              loading={overviewLoading}
+              icon={<MessageIcon />}
+            />
+          </Grid>
+          <Grid item xs={6} sm={6}>
+            <StatCard
+              title="活跃会话"
+              value={overview?.active_sessions || 0}
+              loading={overviewLoading}
+              icon={<GroupIcon />}
+            />
+          </Grid>
+          <Grid item xs={6} sm={6}>
+            <StatCard
+              title="独立用户"
+              value={overview?.unique_users || 0}
+              loading={overviewLoading}
+              icon={<MessageIcon />}
+            />
+          </Grid>
+          <Grid item xs={6} sm={6}>
+            <StatCard
+              title="沙盒执行"
+              value={overview?.total_sandbox_calls || 0}
+              loading={overviewLoading}
+              icon={<CodeIcon />}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <StatCard
+              title="执行成功率"
+              value={`${overview?.success_rate || 0}%`}
+              loading={overviewLoading}
+              icon={<CheckCircleIcon />}
+              color={(overview?.success_rate || 0) >= 90 ? 'success.main' : 'warning.main'}
+            />
+          </Grid>
+        </Grid>
+      ) : (
+        <Stack 
+          direction="row" 
+          spacing={2} 
+          className="flex-shrink-0"
+          sx={{ 
+            overflowX: 'auto',
+            pb: 1,
+            '&::-webkit-scrollbar': {
+              height: 8,
+            },
+            '&::-webkit-scrollbar-thumb': {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+              borderRadius: 4,
+            },
+          }}
+        >
+          <StatCard
+            title="总消息数"
+            value={overview?.total_messages || 0}
+            loading={overviewLoading}
+            icon={<MessageIcon />}
+          />
+          <StatCard
+            title="活跃会话"
+            value={overview?.active_sessions || 0}
+            loading={overviewLoading}
+            icon={<GroupIcon />}
+          />
+          <StatCard
+            title="独立用户"
+            value={overview?.unique_users || 0}
+            loading={overviewLoading}
+            icon={<MessageIcon />}
+          />
+          <StatCard
+            title="沙盒执行"
+            value={overview?.total_sandbox_calls || 0}
+            loading={overviewLoading}
+            icon={<CodeIcon />}
+          />
+          <StatCard
+            title="执行成功率"
+            value={`${overview?.success_rate || 0}%`}
+            loading={overviewLoading}
+            icon={<CheckCircleIcon />}
+            color={(overview?.success_rate || 0) >= 90 ? 'success.main' : 'warning.main'}
+          />
+        </Stack>
+      )}
 
       {/* 趋势图和实时数据 */}
       <Grid container spacing={2}>
-        <Grid item xs={12} md={8}>
+        {/* 在移动端上，RealTimeStats 和 TrendsChart 各占一行 */}
+        <Grid item xs={12} lg={8}>
           <RealTimeStats
             title="实时数据"
             data={realTimeData}
@@ -178,7 +263,7 @@ const DashboardContent: React.FC = () => {
             onGranularityChange={handleGranularityChange}
           />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} lg={4}>
           <TrendsChart
             title="概览"
             data={trends}
@@ -211,16 +296,16 @@ const DashboardContent: React.FC = () => {
         </Grid>
       </Grid>
 
-      {/* 分布统计与排名 */}
+      {/* 分布统计与排名 - 移动端上改为垂直布局 */}
       <Grid container spacing={2}>
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} lg={8}>
           <DistributionsCard
             stopTypeData={distributions?.stop_type}
             messageTypeData={distributions?.message_type}
             loading={distributionsLoading}
           />
         </Grid>
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} lg={4}>
           <RankingList title="活跃排名" data={activeUsers} loading={usersLoading} type="users" />
         </Grid>
       </Grid>

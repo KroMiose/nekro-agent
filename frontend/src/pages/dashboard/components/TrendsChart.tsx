@@ -7,7 +7,8 @@ import {
   CircularProgress,
   useTheme,
   alpha,
-  Theme
+  Theme,
+  useMediaQuery
 } from '@mui/material'
 import {
   XAxis,
@@ -22,7 +23,7 @@ import {
 } from 'recharts'
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns'
 import { TrendDataPoint } from '../../../services/api/dashboard'
-import { metricColors, metricNames } from '../../../theme/constants'
+import { metricColors, metricNames, GRADIENTS, SHADOWS } from '../../../theme/constants'
 
 interface TrendsChartProps {
   title: string
@@ -100,6 +101,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
   timeRange = 'day',
 }) => {
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 根据时间范围选择合适的日期格式
   const getDateFormat = () => {
@@ -182,12 +184,22 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
       sx={{
         transition: 'all 0.3s ease',
         '&:hover': {
-          boxShadow: theme.shadows[4],
+          boxShadow: theme.palette.mode === 'dark' 
+            ? SHADOWS.CARD.DARK.HOVER
+            : SHADOWS.CARD.LIGHT.HOVER,
         },
+        background: theme.palette.mode === 'dark' 
+          ? GRADIENTS.CARD.DARK
+          : GRADIENTS.CARD.LIGHT,
+        backdropFilter: 'blur(10px)',
+        border: theme.palette.mode === 'dark' 
+          ? '1px solid rgba(102, 36, 36, 0.08)'
+          : `1px solid rgba(234, 82, 82, 0.05)`,
+        borderRadius: '6px',
       }}
     >
       <CardContent className="h-full">
-        <Typography variant="h6" gutterBottom>
+        <Typography variant="h6" gutterBottom color="text.primary">
           {title}
         </Typography>
 
@@ -202,15 +214,15 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
             </Typography>
           </Box>
         ) : (
-          <Box className="h-[300px]">
+          <Box className={isMobile ? "h-[250px]" : "h-[350px]"}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={data}
                 margin={{
                   top: 5,
-                  right: 30,
-                  left: 20,
-                  bottom: 5,
+                  right: isMobile ? 10 : 40,
+                  left: isMobile ? 0 : 20,
+                  bottom: isMobile ? 5 : 20,
                 }}
               >
                 <CartesianGrid strokeDasharray="3 3" stroke={alpha(theme.palette.divider, 0.7)} />
@@ -218,10 +230,16 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   dataKey="timestamp"
                   tickFormatter={formatTimestamp}
                   stroke={theme.palette.text.secondary}
-                  tick={{ fontSize: 12 }}
-                  minTickGap={10}
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  minTickGap={60}
+                  interval="preserveEnd"
+                  tickCount={isMobile ? 4 : 6}
                 />
-                <YAxis stroke={theme.palette.text.secondary} tick={{ fontSize: 12 }} />
+                <YAxis 
+                  stroke={theme.palette.text.secondary} 
+                  tick={{ fontSize: isMobile ? 10 : 12 }}
+                  width={isMobile ? 30 : 40}
+                />
                 <Tooltip
                   content={<CustomTooltip theme={theme as Theme} timeRange={timeRange} />}
                   formatter={formatTooltipValue}
@@ -229,7 +247,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   animationDuration={400}
                   animationEasing="ease-in-out"
                 />
-                <Legend wrapperStyle={{ paddingTop: 10 }} iconSize={10} iconType="circle" />
+                <Legend 
+                  wrapperStyle={{ paddingTop: isMobile ? 5 : 10 }} 
+                  iconSize={isMobile ? 8 : 10} 
+                  iconType="circle" 
+                />
                 
                 <defs>
                   {metrics.map(metric => {
@@ -252,9 +274,9 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                       dataKey={metric}
                       name={metricNames[metric as keyof typeof metricNames] || metric}
                       stroke={color}
-                      strokeWidth={2.5}
+                      strokeWidth={isMobile ? 1.5 : 2.5}
                       dot={false}
-                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      activeDot={{ r: isMobile ? 4 : 6, strokeWidth: 0 }}
                       animationDuration={500}
                       animationEasing="ease-out"
                       fill={`url(#color${metric})`}
@@ -268,9 +290,9 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   <ReferenceLine
                     x={currentTimePoint}
                     stroke="#ff5722"
-                    strokeWidth={2}
+                    strokeWidth={isMobile ? 1 : 2}
                     strokeDasharray="5 5"
-                    label={{
+                    label={isMobile ? undefined : {
                       value: '现在',
                       position: 'insideTopRight',
                       fill: theme.palette.text.primary,
