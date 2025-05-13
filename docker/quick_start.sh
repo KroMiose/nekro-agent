@@ -6,15 +6,15 @@ USE_GITCODE=false
 # 解析命令行参数
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
-        -g|--gitcode)
-            USE_GITCODE=true
-            shift # 移除 --gitcode
-            ;;
-        *)
-            # 未知选项
-            echo "未知选项: $1"
-            exit 1
-            ;;
+    -g | --gitcode)
+        USE_GITCODE=true
+        shift # 移除 --gitcode
+        ;;
+    *)
+        # 未知选项
+        echo "未知选项: $1"
+        exit 1
+        ;;
     esac
 done
 
@@ -67,8 +67,8 @@ if ! command -v docker-compose &>/dev/null; then
     if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
         echo "正在安装 Docker Compose..."
         if ! sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
-            echo "Error: Docker Compose 下载失败，请检查您的网络连接。"
-            echo "您也可以尝试使用 pip 安装：sudo pip install docker-compose -i https://pypi.tuna.tsinghua.edu.cn/simple"
+            echo "Error: Docker Compose 下载失败，请检查您的网络连接，或使用以下命令手动安装："
+            echo "curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
             exit 1
         fi
         if ! sudo chmod +x /usr/local/bin/docker-compose; then
