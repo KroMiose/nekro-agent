@@ -257,6 +257,11 @@ class PluginConfig(ConfigBase):
         title="启用 At 功能",
         description="关闭后 AI 发送的 At 消息将被解析为纯文本用户名，避免反复打扰用户",
     )
+    SESSION_ENABLE_FAILED_LLM_FEEDBACK: bool = Field(
+        default=True,
+        title="启用失败 LLM 反馈",
+        description="启用后 AI 调用 LLM 失败时会发送反馈",
+    )
 
     """沙盒配置"""
     SANDBOX_IMAGE_NAME: str = Field(default="kromiose/nekro-agent-sandbox", title="沙盒镜像名称")

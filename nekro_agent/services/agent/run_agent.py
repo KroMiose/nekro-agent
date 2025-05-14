@@ -235,7 +235,7 @@ async def send_agent_request(
             ),
             encoding="utf-8",
         )
-        if chat_key:
+        if chat_key and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
             from nekro_agent.services.chat import chat_service
 
             await chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
