@@ -1036,7 +1036,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     except Exception as e:
         logger.error(f"向量搜索失败: {e}")
         msg = OpenAIChatMessage.from_text(
-            "assistant",
+            "user",
             f"Failed to search emotions: {e}. Please try again later or check your query.",
         )
         return msg.to_dict()
@@ -1044,7 +1044,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     # 检查是否有结果
     if not search_results:
         msg = OpenAIChatMessage.from_text(
-            "assistant",
+            "user",
             f"No emotions found for query: '{query}'. Try another search term or collect more emotions.",
         )
         return msg.to_dict()
