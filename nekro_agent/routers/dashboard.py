@@ -38,7 +38,13 @@ async def get_dashboard_overview(
     start_time = await get_time_range(time_range)
 
     total_messages = await DBChatMessage.filter(create_time__gte=start_time).count()
-    active_sessions = await DBChatChannel.filter(update_time__gte=start_time).count()
+    active_sessions = len(
+        await DBChatMessage.filter(
+            create_time__gte=start_time,
+        )
+        .distinct()
+        .values_list("chat_key", flat=True),
+    )
     unique_users = await DBChatMessage.filter(create_time__gte=start_time).distinct().values_list("sender_id", flat=True)
     total_sandbox_calls = await DBExecCode.filter(create_time__gte=start_time).count()
     success_calls = await DBExecCode.filter(create_time__gte=start_time, success=True).count()
