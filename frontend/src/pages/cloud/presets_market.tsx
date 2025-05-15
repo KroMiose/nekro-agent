@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Box,
   Typography,
@@ -64,7 +64,12 @@ const PresetCard = ({
   onDownload: () => void
   onShowDetail: () => void
 }) => {
+  const theme = useTheme()
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
+
+  // 显式依赖theme以确保主题切换时重新渲染
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const cardBackground = useMemo(() => UI_STYLES.GRADIENTS.CARD.DEFAULT, [theme.palette.mode])
 
   return (
     <Card
@@ -79,7 +84,7 @@ const PresetCard = ({
           boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        background: cardBackground,
         backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
         border: UI_STYLES.BORDERS.CARD.DEFAULT,
         boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
@@ -200,6 +205,18 @@ const PresetDetailDialog = ({
 }) => {
   const theme = useTheme()
 
+  // 显式依赖theme以确保主题切换时重新渲染
+  const dialogBackground = useMemo(
+    () => (theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'),
+    [theme.palette.mode]
+  )
+
+  // 额外创建内容区域背景样式
+  const contentBackground = useMemo(
+    () => (theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.03)'),
+    [theme.palette.mode]
+  )
+
   if (!preset) return null
 
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
@@ -222,7 +239,7 @@ const PresetDetailDialog = ({
         sx={{
           px: 3,
           py: 2,
-          background: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          background: dialogBackground,
           borderBottom: '1px solid',
           borderColor: 'divider',
         }}
@@ -289,8 +306,7 @@ const PresetDetailDialog = ({
                 variant="body1"
                 paragraph
                 sx={{
-                  backgroundColor:
-                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  backgroundColor: dialogBackground,
                   p: 2,
                   borderRadius: 1,
                   borderLeft: '4px solid',
@@ -329,8 +345,7 @@ const PresetDetailDialog = ({
               variant="body2"
               sx={{
                 whiteSpace: 'pre-wrap',
-                bgcolor:
-                  theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.03)',
+                bgcolor: contentBackground,
                 p: 2.5,
                 borderRadius: 2,
                 border: '1px solid',

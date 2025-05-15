@@ -17,7 +17,7 @@ export const stopTypeColors = {
 // 获取颜色值函数
 function getMetricColor(type: string): string {
   const palette = getCurrentExtendedPalette()
-  switch(type) {
+  switch (type) {
     case 'success_calls':
       return palette.success
     case 'failed_calls':
@@ -53,8 +53,17 @@ export function getStopTypeText(stopType: number): string {
 }
 
 // 获取停止类型颜色
-export function getStopTypeColor(stopType: number): 'success' | 'error' | 'warning' | 'info' | 'default' | 'primary' | 'secondary' {
-  return (stopTypeColors[stopType as ExecStopType] || 'default') as 'success' | 'error' | 'warning' | 'info' | 'default' | 'primary' | 'secondary'
+export function getStopTypeColor(
+  stopType: number
+): 'success' | 'error' | 'warning' | 'info' | 'default' | 'primary' | 'secondary' {
+  return (stopTypeColors[stopType as ExecStopType] || 'default') as
+    | 'success'
+    | 'error'
+    | 'warning'
+    | 'info'
+    | 'default'
+    | 'primary'
+    | 'secondary'
 }
 
 // 获取停止类型颜色值
@@ -64,19 +73,15 @@ export function getStopTypeColorValue(stopType: number): string {
 
 // 获取消息类型颜色
 export function getMessageTypeColor(messageType: string): string {
+  const palette = getCurrentExtendedPalette()
+
   switch (messageType.toLowerCase()) {
-    case 'user':
-      return '#4CAF50'
-    case 'assistant':
-      return '#2196F3'
-    case 'system':
-      return '#FFC107'
-    case 'function':
-      return '#9C27B0'
-    case 'tool':
-      return '#FF5722'
+    case '群聊消息':
+      return palette.primary.main // 群聊使用主色调
+    case '私聊消息':
+      return palette.secondary.main // 私聊使用辅助色调
     default:
-      return '#9E9E9E'
+      return '#9E9E9E' // 默认使用灰色
   }
 }
 
@@ -89,4 +94,4 @@ export const LEGACY_COLORS = {
   WARNING: '#ff9800',
   INFO: '#2196f3',
   DEFAULT: '#9e9e9e',
-} 
+}

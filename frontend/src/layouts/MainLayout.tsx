@@ -584,7 +584,10 @@ export default function MainLayout() {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: 240,
-              backgroundColor: theme => alpha(theme.palette.background.paper, 0.66),
+              backgroundColor: theme =>
+                theme.palette.mode === 'dark'
+                  ? alpha(theme.palette.background.paper, 0.66)
+                  : alpha(theme.palette.background.paper, 0.86),
               backdropFilter: 'blur(8px)',
               transition: theme =>
                 theme.transitions.create('width', {
@@ -629,7 +632,9 @@ export default function MainLayout() {
             backdropFilter: 'blur(6px)',
             WebkitBackdropFilter: 'blur(6px)',
             background:
-              theme.palette.mode === 'dark' ? 'rgba(32, 32, 32, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+              theme.palette.mode === 'dark'
+                ? 'rgba(32, 32, 32, 0.48)'
+                : 'rgba(255, 255, 255, 0.68)',
             boxShadow: `0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`,
             border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
             position: 'relative',

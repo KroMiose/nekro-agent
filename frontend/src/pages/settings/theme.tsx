@@ -452,8 +452,8 @@ export default function ThemeConfigPage() {
       return
     }
 
-    // 检查文件大小 (限制10MB)
-    if (file.size > 10 * 1024 * 1024) {
+    // 检查文件大小 (限制 24 MB)
+    if (file.size > 24 * 1024 * 1024) {
       notification.error('文件大小不能超过10MB')
       return
     }
@@ -578,18 +578,18 @@ export default function ThemeConfigPage() {
 
       if (response.code === 200) {
         notification.success('壁纸删除成功')
-        
+
         // 找到被删除的壁纸
-        const deletedWallpaper = wallpapers.find(wp => wp.id === wallpaperId);
-        
+        const deletedWallpaper = wallpapers.find(wp => wp.id === wallpaperId)
+
         // 如果当前使用的壁纸被删除，则标记为无效
         if (deletedWallpaper?.url) {
-          handleWallpaperInvalid(deletedWallpaper.url);
+          handleWallpaperInvalid(deletedWallpaper.url)
         }
 
         // 更新壁纸列表
         await fetchWallpapers()
-        
+
         // 如果预览的壁纸被删除，关闭预览
         if (previewWallpaper?.id === wallpaperId) {
           setPreviewWallpaper(null)
