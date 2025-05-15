@@ -23,6 +23,8 @@ import {
   Grid,
   Snackbar,
   Alert,
+  SxProps,
+  Theme,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -40,6 +42,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
 import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 export default function SandboxPage() {
   const [page, setPage] = useState(0)
@@ -221,43 +224,94 @@ export default function SandboxPage() {
   );
 
   return (
-    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-hidden p-2">
+    <Box sx={{
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 3,
+      overflow: 'hidden',
+      p: 2
+    }}>
       {/* 统计卡片 */}
       {renderStatsCards()}
 
       {/* 日志表格 */}
-      <Paper className="flex-1 flex flex-col overflow-hidden">
-        <TableContainer className="flex-1 overflow-auto">
-          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: isMobile ? '600px' : '900px' }}>
+      <Paper 
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          borderRadius: 1,
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>)
+        }}
+      >
+        <TableContainer
+          sx={{
+            flex: 1,
+            height: isMobile ? 'calc(100vh - 200px)' : 'calc(100vh - 170px)',
+            maxHeight: isMobile ? 'calc(100vh - 200px)' : 'calc(100vh - 170px)',
+            overflow: 'auto',
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>)
+          }}
+        >
+          <Table stickyHeader sx={{ tableLayout: 'fixed', minWidth: isMobile ? '750px' : '950px' }}>
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox" sx={{ 
                   width: isMobile ? '28px' : '48px', 
                   py: isSmall ? 1 : 1.5,
                   minWidth: isMobile ? '28px' : '48px',
-                  maxWidth: isMobile ? '28px' : '48px'
+                  maxWidth: isMobile ? '28px' : '48px',
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                 }} />
                 <TableCell sx={{ 
-                  width: isMobile ? '15%' : '10%', 
-                  minWidth: isMobile ? '80px' : '100px', 
-                  py: isSmall ? 1 : 1.5 
+                  width: isMobile ? '10%' : '8%', 
+                  minWidth: isMobile ? '60px' : '80px', 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                 }}>状态</TableCell>
                 <TableCell sx={{ 
-                  width: isMobile ? '18%' : '10%', 
-                  minWidth: isMobile ? '90px' : '100px', 
-                  py: isSmall ? 1 : 1.5 
+                  width: isMobile ? '12%' : '8%', 
+                  minWidth: isMobile ? '70px' : '90px', 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                 }}>停止类型</TableCell>
                 {!isMobile && (
-                  <TableCell sx={{ width: '12%', minWidth: '120px', py: isSmall ? 1 : 1.5 }}>触发用户</TableCell>
+                  <TableCell sx={{ 
+                    width: '12%', 
+                    minWidth: '120px', 
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                  }}>触发用户</TableCell>
                 )}
-                <TableCell sx={{ width: isMobile ? '20%' : '15%', minWidth: isMobile ? '100px' : '160px', py: isSmall ? 1 : 1.5 }}>会话标识</TableCell>
-                <TableCell sx={{ width: isMobile ? '20%' : '16%', minWidth: isMobile ? '80px' : '100px', py: isSmall ? 1 : 1.5 }}>使用模型</TableCell>
-                {!isSmall && (
-                  <TableCell sx={{ width: '160px', textAlign: 'left', py: isSmall ? 1 : 1.5 }}>
-                    生成耗时 | 执行耗时
-                  </TableCell>
-                )}
-                <TableCell sx={{ width: isMobile ? '20%' : '20%', minWidth: isMobile ? '90px' : '150px', py: isSmall ? 1 : 1.5 }}>执行时间</TableCell>
+                <TableCell sx={{ 
+                  width: isMobile ? '15%' : '15%', 
+                  minWidth: isMobile ? '90px' : '150px', 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>会话标识</TableCell>
+                <TableCell sx={{ 
+                  width: isMobile ? '23%' : '22%', 
+                  minWidth: isMobile ? '120px' : '180px', 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>使用模型</TableCell>
+                <TableCell sx={{ 
+                  width: isMobile ? '23%' : '150px', 
+                  textAlign: 'left', 
+                  py: isSmall ? 1 : 1.5,
+                  minWidth: isMobile ? '110px' : '150px',
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>
+                  {isMobile ? "耗时(生成|执行)" : "生成耗时 | 执行耗时"}
+                </TableCell>
+                <TableCell sx={{ 
+                  width: isMobile ? '12%' : '15%', 
+                  minWidth: isMobile ? '70px' : '120px', 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>执行时间</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -275,16 +329,20 @@ export default function SandboxPage() {
                       onClick={() => toggleRow(log.id)}
                       sx={{ 
                         cursor: 'pointer',
-                        '&:hover': {
-                          backgroundColor: theme => theme.palette.action.hover,
-                        }
+                        minHeight: isMobile ? '60px' : 'inherit',
+                        '& > td': isMobile ? {
+                          verticalAlign: 'top',
+                          paddingTop: isSmall ? '8px' : '12px'
+                        } : {},
+                        ...(UNIFIED_TABLE_STYLES.row as SxProps<Theme>)
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ 
                         py: isSmall ? 0.75 : 1.5,
                         width: isMobile ? '28px' : '48px', 
                         minWidth: isMobile ? '28px' : '48px',
-                        maxWidth: isMobile ? '28px' : '48px'
+                        maxWidth: isMobile ? '28px' : '48px',
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
                       }}>
                         <IconButton 
                           size="small" 
@@ -300,41 +358,42 @@ export default function SandboxPage() {
                           )}
                         </IconButton>
                       </TableCell>
-                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
                         <Tooltip title={log.success ? '执行成功' : '执行失败'}>
                           <Chip
                             icon={log.success ? <CheckCircleIcon fontSize={isSmall ? "small" : "medium"} /> : <ErrorIcon fontSize={isSmall ? "small" : "medium"} />}
                             label={log.success ? '成功' : '失败'}
                             color={log.success ? 'success' : 'error'}
                             size="small"
-                            sx={{ 
-                              height: isSmall ? 20 : 24,
-                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                              '& .MuiChip-label': {
-                                px: isSmall ? 0.5 : 0.75,
-                              }
-                            }}
+                            sx={CHIP_VARIANTS.base(isSmall)}
                           />
                         </Tooltip>
                       </TableCell>
-                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
                         <Chip
                           label={getStopTypeText(log.stop_type)}
                           color={getStopTypeColor(log.stop_type)}
                           size="small"
-                          sx={{ 
-                            height: isSmall ? 20 : 24,
-                            fontSize: isSmall ? '0.65rem' : '0.75rem',
-                            '& .MuiChip-label': {
-                              px: isSmall ? 0.5 : 0.75,
-                            }
-                          }}
+                          sx={CHIP_VARIANTS.getStopTypeChip(log.stop_type, isSmall)}
                         />
                       </TableCell>
                       {!isMobile && (
-                        <TableCell sx={{ py: isSmall ? 0.75 : 1.5, fontSize: isSmall ? '0.75rem' : 'inherit' }}>{log.trigger_user_name}</TableCell>
+                        <TableCell sx={{ 
+                          py: isSmall ? 0.75 : 1.5, 
+                          fontSize: isSmall ? '0.75rem' : 'inherit',
+                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                        }}>{log.trigger_user_name}</TableCell>
                       )}
-                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
                         <Typography 
                           variant="body2" 
                           sx={{ 
@@ -347,63 +406,102 @@ export default function SandboxPage() {
                           {log.chat_key}
                         </Typography>
                       </TableCell>
-                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        height: isMobile ? 'auto' : 'inherit',
+                        minHeight: isMobile ? '48px' : 'inherit',
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
                         <Typography 
                           variant="body2" 
                           sx={{ 
                             fontSize: isSmall ? '0.7rem' : '0.875rem',
                             overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            textOverflow: isMobile ? 'clip' : 'ellipsis',
+                            whiteSpace: isMobile ? 'normal' : 'nowrap',
+                            wordBreak: isMobile ? 'break-word' : 'normal',
+                            maxWidth: '100%',
+                            fontFamily: 'monospace',
+                            lineHeight: isMobile ? 1.2 : 'normal',
+                            display: '-webkit-box',
+                            WebkitLineClamp: isMobile ? 3 : 1,
+                            WebkitBoxOrient: 'vertical',
+                            pr: isMobile ? 0.5 : 0
                           }}
                         >
                           {log.use_model || '未知'}
                         </Typography>
                       </TableCell>
-                      {!isSmall && (
-                        <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
-                          <Stack
-                            direction="row"
-                            alignItems="center"
-                            sx={{
-                              '& > *:first-of-type': { width: '50px', textAlign: 'right' },
-                              '& > *:last-of-type': { width: '50px' },
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          spacing={isMobile ? 0.5 : 1}
+                          sx={{
+                            '& > *:first-of-type': { 
+                              width: isMobile ? '35px' : '50px', 
+                              textAlign: 'right',
+                              fontSize: isMobile ? '0.65rem' : (isSmall ? '0.7rem' : '0.875rem')
+                            },
+                            '& > *:last-of-type': { 
+                              width: isMobile ? '35px' : '50px',
+                              fontSize: isMobile ? '0.65rem' : (isSmall ? '0.7rem' : '0.875rem')
+                            },
+                          }}
+                        >
+                          <Tooltip title="生成耗时">
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color:
+                                  log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
+                                fontSize: 'inherit'
+                              }}
+                            >
+                              {(log.generation_time_ms / 1000).toFixed(isMobile ? 1 : 2)}s
+                            </Typography>
+                          </Tooltip>
+                          <Typography 
+                            variant="body2" 
+                            color="textSecondary" 
+                            sx={{ 
+                              px: isMobile ? 0.5 : 1, 
+                              fontSize: 'inherit'
                             }}
                           >
-                            <Tooltip title="生成耗时">
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  color:
-                                    log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
-                                  fontSize: isSmall ? '0.7rem' : '0.875rem'
-                                }}
-                              >
-                                {(log.generation_time_ms / 1000).toFixed(2)}s
-                              </Typography>
-                            </Tooltip>
-                            <Typography variant="body2" color="textSecondary" sx={{ px: 1, fontSize: isSmall ? '0.7rem' : '0.875rem' }}>
-                              |
+                            |
+                          </Typography>
+                          <Tooltip title="执行耗时">
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
+                                fontSize: 'inherit'
+                              }}
+                            >
+                              {isMobile && log.exec_time_ms > 1000 
+                                ? `${(log.exec_time_ms/1000).toFixed(1)}s` 
+                                : `${log.exec_time_ms}ms`}
                             </Typography>
-                            <Tooltip title="执行耗时">
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
-                                  fontSize: isSmall ? '0.7rem' : '0.875rem'
-                                }}
-                              >
-                                {log.exec_time_ms}ms
-                              </Typography>
-                            </Tooltip>
-                          </Stack>
-                        </TableCell>
-                      )}
-                      <TableCell sx={{ py: isSmall ? 0.75 : 1.5, fontSize: isSmall ? '0.7rem' : '0.875rem' }}>
+                          </Tooltip>
+                        </Stack>
+                      </TableCell>
+                      <TableCell sx={{ 
+                        py: isSmall ? 0.75 : 1.5, 
+                        fontSize: isSmall ? '0.7rem' : '0.875rem',
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                      }}>
                         {isMobile ? log.create_time.split(' ')[1] : log.create_time}
                       </TableCell>
                     </TableRow>
                     <TableRow>
-                      <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={isMobile ? (isSmall ? 6 : 7) : 8}>
+                      <TableCell 
+                        style={{ paddingBottom: 0, paddingTop: 0 }} 
+                        colSpan={isMobile ? (isSmall ? 6 : 7) : 8}
+                      >
                         <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
                           <Box
                             sx={{
@@ -453,7 +551,18 @@ export default function SandboxPage() {
                                     sx={{
                                       p: isSmall ? 1.5 : 2,
                                       maxWidth: '100%',
-                                      overflow: 'hidden',
+                                      maxHeight: isSmall ? '200px' : '300px',
+                                      overflow: 'auto',
+                                      '&::-webkit-scrollbar': {
+                                        width: '6px',
+                                        height: '6px',
+                                      },
+                                      '&::-webkit-scrollbar-thumb': {
+                                        backgroundColor: theme.palette.mode === 'dark' 
+                                          ? 'rgba(255, 235, 235, 0.16)' 
+                                          : 'rgba(0, 0, 0, 0.2)',
+                                        borderRadius: '3px',
+                                      },
                                       '& pre': {
                                         margin: 0,
                                         whiteSpace: 'pre-wrap',
@@ -461,7 +570,6 @@ export default function SandboxPage() {
                                         overflowWrap: 'break-word',
                                         color: mode === 'dark' ? '#D4D4D4' : 'inherit',
                                         maxWidth: '100%',
-                                        overflow: 'hidden',
                                         fontSize: isSmall ? '0.75rem' : '0.875rem',
                                       },
                                     }}
@@ -498,7 +606,19 @@ export default function SandboxPage() {
                                 </Tooltip>
                               </Stack>
                               <Paper variant="outlined" className="overflow-hidden w-full">
-                                <Box className="w-full overflow-auto">
+                                <Box className="w-full overflow-auto" sx={{ 
+                                  maxHeight: isSmall ? '300px' : '400px',
+                                  '&::-webkit-scrollbar': {
+                                    width: '6px',
+                                    height: '6px',
+                                  },
+                                  '&::-webkit-scrollbar-thumb': {
+                                    backgroundColor: theme.palette.mode === 'dark' 
+                                      ? 'rgba(255, 235, 235, 0.16)' 
+                                      : 'rgba(0, 0, 0, 0.2)',
+                                    borderRadius: '3px',
+                                  },
+                                }}>
                                   <SyntaxHighlighter
                                     language="python"
                                     style={mode === 'dark' ? vscDarkPlus : oneLight}
@@ -506,7 +626,7 @@ export default function SandboxPage() {
                                     customStyle={{
                                       margin: 0,
                                       padding: isSmall ? '12px' : '16px',
-                                      maxHeight: isSmall ? '300px' : '400px',
+                                      maxHeight: 'none',
                                       fontSize: isSmall ? '12px' : '14px',
                                       background: 'inherit',
                                     }}
@@ -546,14 +666,26 @@ export default function SandboxPage() {
                                   </Tooltip>
                                 </Stack>
                                 <Paper variant="outlined" className="overflow-hidden w-full">
-                                  <Box className="w-full overflow-auto">
+                                  <Box className="w-full overflow-auto" sx={{ 
+                                    maxHeight: isSmall ? '200px' : '300px',
+                                    '&::-webkit-scrollbar': {
+                                      width: '6px',
+                                      height: '6px',
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                      backgroundColor: theme.palette.mode === 'dark' 
+                                        ? 'rgba(255, 235, 235, 0.16)' 
+                                        : 'rgba(0, 0, 0, 0.2)',
+                                      borderRadius: '3px',
+                                    },
+                                  }}>
                                     <SyntaxHighlighter
                                       language="text"
                                       style={mode === 'dark' ? vscDarkPlus : oneLight}
                                       customStyle={{
                                         margin: 0,
                                         padding: isSmall ? '12px' : '16px',
-                                        maxHeight: isSmall ? '200px' : '300px',
+                                        maxHeight: 'none',
                                         fontSize: isSmall ? '12px' : '14px',
                                         background: 'inherit',
                                       }}

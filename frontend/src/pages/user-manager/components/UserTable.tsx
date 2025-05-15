@@ -28,6 +28,8 @@ import {
   FormControlLabel,
   useTheme,
   useMediaQuery,
+  SxProps,
+  Theme,
 } from '@mui/material'
 import type { WheelEvent as ReactWheelEvent } from 'react'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -36,10 +38,11 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import BlockIcon from '@mui/icons-material/Block'
 import LockIcon from '@mui/icons-material/Lock'
 import KeyIcon from '@mui/icons-material/Key'
-import { User, UserUpdateData, UserStatus, getUserStatus } from '../../../services/api/user-manager'
+import { User, UserUpdateData, getUserStatus } from '../../../services/api/user-manager'
 import { format } from 'date-fns'
 import RcSlider from 'rc-slider'
 import 'rc-slider/assets/index.css'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
 
 // 定义视觉隐藏样式，替代 visuallyHidden
 const srOnlyStyle = {
@@ -82,6 +85,8 @@ interface UserTableProps {
   onResetPassword: (params: { id: number; password: string }) => Promise<unknown>
   onUpdateUser: (params: { id: number; data: UserUpdateData }) => Promise<unknown>
   showEditButton?: boolean
+  tableContainerProps?: React.ComponentProps<typeof TableContainer>
+  tableProps?: React.ComponentProps<typeof Table>
 }
 
 const UserTable: React.FC<UserTableProps> = ({
@@ -98,7 +103,9 @@ const UserTable: React.FC<UserTableProps> = ({
   onSetPreventTrigger,
   onResetPassword,
   onUpdateUser,
-  showEditButton = true,
+  showEditButton = false,
+  tableContainerProps,
+  tableProps,
 }) => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [banDialogOpen, setBanDialogOpen] = useState(false)
@@ -272,34 +279,6 @@ const UserTable: React.FC<UserTableProps> = ({
         return '超级管理员'
       default:
         return `未知(${permLevel})`
-    }
-  }
-
-  const getRoleColor = (permLevel: number) => {
-    switch (permLevel) {
-      case 0:
-        return 'default'
-      case 1:
-        return 'primary'
-      case 2:
-        return 'secondary'
-      case 3:
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
-
-  const getStatusColor = (status: UserStatus) => {
-    switch (status) {
-      case UserStatus.Normal:
-        return 'success'
-      case UserStatus.Passive:
-        return 'warning'
-      case UserStatus.Banned:
-        return 'error'
-      default:
-        return 'default'
     }
   }
 
@@ -543,13 +522,39 @@ const UserTable: React.FC<UserTableProps> = ({
     )
   }
 
+  // 从tableContainerProps中提取sx并删除它，避免重复
+  const { sx: containerSx, ...restTableContainerProps } = tableContainerProps || {}
+
+  // 合并sx属性
+  const mergedSx = {
+    ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
+    ...((containerSx as SxProps<Theme>) || {}),
+  }
+
   return (
     <Box className="flex-1 flex flex-col overflow-hidden">
-      <TableContainer className="flex-1 overflow-auto">
-        <Table size={isSmall ? "small" : "medium"} stickyHeader>
+      <TableContainer className="flex-1 overflow-auto" sx={mergedSx} {...restTableContainerProps}>
+        <Table
+          stickyHeader
+          size={isSmall ? 'small' : 'medium'}
+          sx={{
+            width: '100%',
+            minWidth: isMobile ? '600px' : '900px',
+            tableLayout: 'fixed',
+            ...(tableProps?.sx || {}),
+          }}
+          {...tableProps}
+        >
           <TableHead>
             <TableRow>
-              <TableCell>
+              <TableCell
+                sx={{
+                  width: '60px',
+                  minWidth: '60px',
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                }}
+              >
                 <TableSortLabel
                   active={sorting.field === 'id'}
                   direction={sorting.field === 'id' ? sorting.order : 'asc'}
@@ -563,7 +568,13 @@ const UserTable: React.FC<UserTableProps> = ({
                   ) : null}
                 </TableSortLabel>
               </TableCell>
-              <TableCell>
+              <TableCell
+                sx={{
+                  width: isMobile ? '25%' : '20%',
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                }}
+              >
                 <TableSortLabel
                   active={sorting.field === 'username'}
                   direction={sorting.field === 'username' ? sorting.order : 'asc'}
@@ -578,12 +589,42 @@ const UserTable: React.FC<UserTableProps> = ({
                 </TableSortLabel>
               </TableCell>
               {!isSmall && (
-                <TableCell>QQ号</TableCell>
+                <TableCell
+                  sx={{
+                    width: '15%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  QQ号
+                </TableCell>
               )}
-              <TableCell>权限</TableCell>
-              <TableCell>状态</TableCell>
+              <TableCell
+                sx={{
+                  width: isMobile ? '15%' : '10%',
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                }}
+              >
+                权限
+              </TableCell>
+              <TableCell
+                sx={{
+                  width: isMobile ? '15%' : '10%',
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                }}
+              >
+                状态
+              </TableCell>
               {!isMobile && (
-                <TableCell>
+                <TableCell
+                  sx={{
+                    width: '20%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   <TableSortLabel
                     active={sorting.field === 'create_time'}
                     direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
@@ -598,19 +639,28 @@ const UserTable: React.FC<UserTableProps> = ({
                   </TableSortLabel>
                 </TableCell>
               )}
-              <TableCell align="center">操作</TableCell>
+              <TableCell
+                align="center"
+                sx={{
+                  width: isMobile ? 'auto' : '15%',
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                }}
+              >
+                操作
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={isMobile ? 6 : 8} align="center">
+                <TableCell colSpan={isMobile ? (isSmall ? 5 : 5) : 7} align="center" sx={{ py: 4 }}>
                   <CircularProgress size={24} />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={isMobile ? 6 : 8} align="center">
+                <TableCell colSpan={isMobile ? (isSmall ? 5 : 5) : 7} align="center" sx={{ py: 4 }}>
                   暂无数据
                 </TableCell>
               </TableRow>
@@ -618,76 +668,91 @@ const UserTable: React.FC<UserTableProps> = ({
               users.map(user => {
                 const status = getUserStatus(user)
                 return (
-                  <TableRow key={user.id} hover>
-                    <TableCell>{user.id}</TableCell>
-                    <TableCell>{user.username}</TableCell>
+                  <TableRow key={user.id} hover sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
+                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                      {user.id}
+                    </TableCell>
+                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                      {user.username}
+                    </TableCell>
                     {!isSmall && (
-                      <TableCell>{user.bind_qq}</TableCell>
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        {user.bind_qq}
+                      </TableCell>
                     )}
-                    <TableCell>
+                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                       <Chip
                         label={getRoleLabel(user.perm_level)}
-                        color={
-                          getRoleColor(user.perm_level) as
-                            | 'default'
-                            | 'primary'
-                            | 'secondary'
-                            | 'error'
-                            | 'info'
-                            | 'success'
-                            | 'warning'
-                        }
                         size="small"
-                        sx={{ height: isSmall ? 20 : 24, fontSize: isSmall ? '0.65rem' : '0.75rem' }}
+                        sx={CHIP_VARIANTS.getRoleChip(user.perm_level, isSmall)}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                       <Chip
                         label={status}
                         size="small"
-                        color={getStatusColor(status)}
-                        sx={{ height: isSmall ? 20 : 24, fontSize: isSmall ? '0.65rem' : '0.75rem' }}
+                        sx={CHIP_VARIANTS.getUserStatusChip(status, isSmall)}
                       />
                     </TableCell>
                     {!isMobile && (
-                      <TableCell>{formatDate(user.create_time)}</TableCell>
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        {formatDate(user.create_time)}
+                      </TableCell>
                     )}
-                    <TableCell align="center">
+                    <TableCell align="center" sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                       <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                         <Tooltip title="查看详情">
-                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => onViewDetail(user.id)}>
-                            <VisibilityIcon fontSize={isSmall ? "small" : "medium"} />
+                          <IconButton
+                            size={isSmall ? 'small' : 'medium'}
+                            onClick={() => onViewDetail(user.id)}
+                          >
+                            <VisibilityIcon fontSize={isSmall ? 'small' : 'medium'} />
                           </IconButton>
                         </Tooltip>
                         {showEditButton && !isSmall && (
                           <Tooltip title="编辑用户">
-                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleEditClick(user)}>
-                              <EditIcon fontSize={isSmall ? "small" : "medium"} />
+                            <IconButton
+                              size={isSmall ? 'small' : 'medium'}
+                              onClick={() => handleEditClick(user)}
+                            >
+                              <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
                         )}
                         <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
-                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleBanClick(user)}>
-                            <BlockIcon fontSize={isSmall ? "small" : "medium"} />
+                          <IconButton
+                            size={isSmall ? 'small' : 'medium'}
+                            onClick={() => handleBanClick(user)}
+                          >
+                            <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
                           </IconButton>
                         </Tooltip>
                         {!isSmall && (
                           <Tooltip title={!user.is_prevent_trigger ? '禁止触发' : '恢复触发'}>
-                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handlePreventTriggerClick(user)}>
-                              <LockIcon fontSize={isSmall ? "small" : "medium"} />
+                            <IconButton
+                              size={isSmall ? 'small' : 'medium'}
+                              onClick={() => handlePreventTriggerClick(user)}
+                            >
+                              <LockIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
                         )}
                         {!isSmall && (
                           <Tooltip title="重置密码">
-                            <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleResetPasswordClick(user)}>
-                              <KeyIcon fontSize={isSmall ? "small" : "medium"} />
+                            <IconButton
+                              size={isSmall ? 'small' : 'medium'}
+                              onClick={() => handleResetPasswordClick(user)}
+                            >
+                              <KeyIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
                         )}
                         <Tooltip title="删除用户">
-                          <IconButton size={isSmall ? "small" : "medium"} onClick={() => handleDeleteClick(user)}>
-                            <DeleteIcon fontSize={isSmall ? "small" : "medium"} />
+                          <IconButton
+                            size={isSmall ? 'small' : 'medium'}
+                            onClick={() => handleDeleteClick(user)}
+                          >
+                            <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
                           </IconButton>
                         </Tooltip>
                       </Box>
@@ -708,8 +773,8 @@ const UserTable: React.FC<UserTableProps> = ({
         page={pagination.page - 1}
         onPageChange={handleChangePage}
         onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage={isSmall ? "每页:" : "每页行数:"}
-        labelDisplayedRows={({ from, to, count }) => 
+        labelRowsPerPage={isSmall ? '每页:' : '每页行数:'}
+        labelDisplayedRows={({ from, to, count }) =>
           isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}条`
         }
         sx={{
@@ -728,42 +793,30 @@ const UserTable: React.FC<UserTableProps> = ({
       />
 
       {/* 删除确认对话框 */}
-      <Dialog 
-        open={deleteDialogOpen} 
+      <Dialog
+        open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         fullWidth
         maxWidth="xs"
       >
         <DialogTitle>确认删除</DialogTitle>
         <DialogContent>
-          <Typography variant={isSmall ? "body2" : "body1"}>
+          <Typography variant={isSmall ? 'body2' : 'body1'}>
             确定要删除用户 "{selectedUser?.username}" 吗？此操作不可撤销。
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
-          <Button 
-            onClick={() => setDeleteDialogOpen(false)}
-            size={isSmall ? "small" : "medium"}
-          >
+          <Button onClick={() => setDeleteDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
             取消
           </Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error"
-            size={isSmall ? "small" : "medium"}
-          >
+          <Button onClick={handleDeleteConfirm} color="error" size={isSmall ? 'small' : 'medium'}>
             删除
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 封禁/解封对话框 */}
-      <Dialog 
-        open={banDialogOpen} 
-        onClose={() => setBanDialogOpen(false)}
-        fullWidth
-        maxWidth="sm"
-      >
+      <Dialog open={banDialogOpen} onClose={() => setBanDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>{selectedUser?.is_active ? '封禁用户' : '解除封禁'}</DialogTitle>
         <DialogContent sx={{ px: isSmall ? 2 : 3, pt: isSmall ? 1 : 2 }}>
           {selectedUser?.is_active ? (
@@ -775,23 +828,16 @@ const UserTable: React.FC<UserTableProps> = ({
               title="请设置封禁时长："
             />
           ) : (
-            <Typography sx={{ pt: isSmall ? 0.5 : 1 }} variant={isSmall ? "body2" : "body1"}>
+            <Typography sx={{ pt: isSmall ? 0.5 : 1 }} variant={isSmall ? 'body2' : 'body1'}>
               确定要解除对用户 "{selectedUser?.username}" 的封禁吗？
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
-          <Button 
-            onClick={() => setBanDialogOpen(false)}
-            size={isSmall ? "small" : "medium"}
-          >
+          <Button onClick={() => setBanDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
             取消
           </Button>
-          <Button 
-            onClick={handleBanConfirm} 
-            color="primary"
-            size={isSmall ? "small" : "medium"}
-          >
+          <Button onClick={handleBanConfirm} color="primary" size={isSmall ? 'small' : 'medium'}>
             确定
           </Button>
         </DialogActions>

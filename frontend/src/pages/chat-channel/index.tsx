@@ -24,24 +24,22 @@ import {
   Tabs,
   Tab,
 } from '@mui/material'
-import { 
-  Search as SearchIcon, 
-  Clear as ClearIcon, 
+import {
+  Search as SearchIcon,
+  Clear as ClearIcon,
   ArrowBack as ArrowBackIcon,
-  List as ListIcon, 
+  List as ListIcon,
   Info as InfoIcon,
   Block as BlockIcon,
   RestartAlt as RestartAltIcon,
   Group as GroupIcon,
-  AccessTime as AccessTimeIcon,
-  Message as MessageIcon,
-  Person as PersonIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import MessageHistory from './components/detail-tabs/MessageHistory'
+import BasicInfo from './components/detail-tabs/BasicInfo'
 
 export default function ChatChannelPage() {
   const [search, setSearch] = useState('')
@@ -68,6 +66,13 @@ export default function ChatChannelPage() {
         chat_type: chatType || undefined,
         is_active: isActive === '' ? undefined : isActive === 'true',
       }),
+  })
+
+  // 查询当前选中会话的详情
+  const { data: channelDetail } = useQuery({
+    queryKey: ['chat-channel-detail', selectedChatKey],
+    queryFn: () => selectedChatKey ? chatChannelApi.getDetail(selectedChatKey) : null,
+    enabled: !!selectedChatKey,
   })
 
   // 处理搜索
@@ -125,7 +130,7 @@ export default function ChatChannelPage() {
           {/* 搜索框 */}
           <TextField
             fullWidth
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
             placeholder="搜索会话..."
             value={search}
             onChange={handleSearch}
@@ -146,7 +151,7 @@ export default function ChatChannelPage() {
           />
 
           {/* 筛选选项 */}
-          <Stack direction={isSmall ? "column" : "row"} spacing={1}>
+          <Stack direction={isSmall ? 'column' : 'row'} spacing={1}>
             <FormControl size="small" fullWidth>
               <InputLabel>类型</InputLabel>
               <Select value={chatType} label="类型" onChange={handleChatTypeChange}>
@@ -191,8 +196,8 @@ export default function ChatChannelPage() {
             setPageSize(parseInt(event.target.value, 10))
             setPage(1)
           }}
-          labelRowsPerPage={isSmall ? "" : "每页"}
-          labelDisplayedRows={({ from, to, count }) => 
+          labelRowsPerPage={isSmall ? '' : '每页'}
+          labelDisplayedRows={({ from, to, count }) =>
             isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}项`
           }
           sx={{
@@ -219,32 +224,32 @@ export default function ChatChannelPage() {
       {isMobile && selectedChatKey && (
         <Box sx={{ bgcolor: 'background.paper' }}>
           {/* 顶部导航栏 */}
-          <AppBar 
-            position="static" 
-            color="primary" 
+          <AppBar
+            position="static"
+            color="primary"
             elevation={0}
-            sx={{ 
+            sx={{
               boxShadow: 1,
-              background: theme => 
-                theme.palette.mode === 'dark' 
-                  ? 'linear-gradient(90deg, rgba(234,82,82,0.8) 0%, rgba(234,82,82,0.6) 100%)' 
+              background: theme =>
+                theme.palette.mode === 'dark'
+                  ? 'linear-gradient(90deg, rgba(234,82,82,0.8) 0%, rgba(234,82,82,0.6) 100%)'
                   : 'linear-gradient(90deg, rgba(234,82,82,0.9) 0%, rgba(234,82,82,0.7) 100%)',
               color: '#fff',
             }}
           >
             <Toolbar variant="dense" sx={{ minHeight: { xs: 48, sm: 56 }, py: 0.5 }}>
-              <IconButton 
-                edge="start" 
-                color="inherit" 
-                onClick={handleBackToList} 
+              <IconButton
+                edge="start"
+                color="inherit"
+                onClick={handleBackToList}
                 sx={{ mr: 1 }}
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
               >
                 <ArrowBackIcon />
               </IconButton>
-              <Typography 
-                variant={isSmall ? "subtitle2" : "subtitle1"} 
-                component="div" 
+              <Typography
+                variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                component="div"
                 sx={{ flexGrow: 1 }}
                 noWrap
               >
@@ -258,60 +263,62 @@ export default function ChatChannelPage() {
             {/* 会话名称和状态 */}
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
               <GroupIcon color="primary" sx={{ mr: 1.5, fontSize: isSmall ? 20 : 24 }} />
-              <Typography 
-                variant={isSmall ? "h6" : "h5"} 
-                component="h1" 
-                sx={{ 
+              <Typography
+                variant={isSmall ? 'h6' : 'h5'}
+                component="h1"
+                sx={{
                   fontWeight: 'medium',
                   lineHeight: 1.3,
-                  wordBreak: 'break-word'
+                  wordBreak: 'break-word',
                 }}
               >
-                未命名会话
+                {channelDetail?.channel_name || '未命名会话'}
               </Typography>
-              <Box 
-                sx={{ 
-                  width: 8, 
-                  height: 8, 
-                  borderRadius: '50%', 
-                  bgcolor: 'success.main',
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: channelDetail?.is_active ? 'success.main' : 'text.disabled',
                   ml: 1.5,
-                  flexShrink: 0
-                }} 
+                  flexShrink: 0,
+                }}
               />
             </Box>
 
             {/* 会话ID，放在名称下方 */}
-            <Typography 
-              variant="caption" 
-              color="text.secondary" 
+            <Typography
+              variant="caption"
+              color="text.secondary"
               component="div"
-              sx={{ 
-                fontFamily: 'monospace', 
+              sx={{
+                fontFamily: 'monospace',
                 mb: 2,
-                display: 'block'
+                display: 'block',
               }}
             >
-              group_636925153
+              {selectedChatKey}
             </Typography>
 
             {/* 操作按钮组，垂直方向排列 */}
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-              <Button 
-                color="error" 
-                variant="outlined" 
+              <Button
+                color="error"
+                variant="outlined"
                 startIcon={<BlockIcon />}
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 sx={{ flex: 1 }}
+                onClick={() => channelDetail && chatChannelApi.setActive(selectedChatKey!, !channelDetail.is_active)}
               >
-                停用
+                {channelDetail?.is_active ? '停用' : '激活'}
               </Button>
-              <Button 
-                color="warning" 
-                variant="outlined" 
+              <Button
+                color="warning"
+                variant="outlined"
                 startIcon={<RestartAltIcon />}
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 sx={{ flex: 1 }}
+                onClick={() => selectedChatKey && chatChannelApi.reset(selectedChatKey)}
               >
                 重置
               </Button>
@@ -319,9 +326,9 @@ export default function ChatChannelPage() {
           </Box>
 
           {/* 标签页切换 */}
-          <Tabs 
-            value={activeTab} 
-            onChange={handleTabChange} 
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
             variant="fullWidth"
             sx={{
               borderBottom: 1,
@@ -330,111 +337,44 @@ export default function ChatChannelPage() {
               '& .MuiTab-root': {
                 minHeight: isSmall ? 40 : 48,
                 fontSize: isSmall ? '0.8rem' : '0.875rem',
-              }
+              },
             }}
           >
             <Tab label="基础信息" />
             <Tab label="消息记录" />
           </Tabs>
-          
-          {/* 示例信息内容（基础信息标签页） */}
-          {activeTab === 0 && (
-            <Box sx={{ p: 2 }}>
-              <Stack spacing={2}>
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  <PersonIcon color="primary" />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" color="text.secondary">当前人设</Typography>
-                    <Typography variant="body1">后藤独</Typography>
-                  </Box>
-                  <Button 
-                    variant="outlined" 
-                    size="small" 
-                    sx={{ flexShrink: 0 }}
-                  >
-                    选择人设
-                  </Button>
-                </Paper>
-                
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  <MessageIcon color="info" />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" color="text.secondary">消息数量</Typography>
-                    <Typography variant="body1">484 条消息</Typography>
-                  </Box>
-                </Paper>
-                
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  <PersonIcon color="success" />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" color="text.secondary">参与用户数</Typography>
-                    <Typography variant="body1">7 位用户</Typography>
-                  </Box>
-                </Paper>
-                
-                <Paper 
-                  variant="outlined" 
-                  sx={{ 
-                    p: 2, 
-                    display: 'flex', 
-                    alignItems: 'center',
-                    gap: 2
-                  }}
-                >
-                  <AccessTimeIcon color="warning" />
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" color="text.secondary">对话开始时间</Typography>
-                    <Typography variant="body1">2025-04-28 10:36:55</Typography>
-                  </Box>
-                </Paper>
-              </Stack>
+
+          {/* 基础信息标签页 */}
+          {activeTab === 0 && channelDetail && (
+            <Box sx={{ p: 0, overflow: 'auto' }}>
+              <BasicInfo channel={channelDetail} />
             </Box>
           )}
-          
+
           {/* 消息记录标签页内容 */}
           {activeTab === 1 && selectedChatKey && (
-            <Box sx={{ 
-              p: 1.5, 
-              height: 'calc(100vh - 250px)', 
-              overflow: 'auto',
-              display: 'flex',
-              flexDirection: 'column'
-            }}>
-              <Box sx={{ 
-                flex: 1, 
-                display: 'flex', 
-                flexDirection: 'column'
-              }}>
+            <Box
+              sx={{
+                p: 1.5,
+                height: 'calc(100vh - 250px)',
+                overflow: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
                 <MessageHistory chatKey={selectedChatKey} />
               </Box>
-              
-              <Typography 
-                variant="caption" 
-                align="center" 
+
+              <Typography
+                variant="caption"
+                align="center"
                 color="text.secondary"
                 sx={{ mt: 1, opacity: 0.7, fontSize: '0.7rem' }}
               >
@@ -444,7 +384,7 @@ export default function ChatChannelPage() {
           )}
         </Box>
       )}
-      
+
       {selectedChatKey ? (
         <Box className="flex-1 overflow-auto">
           {!isMobile && <ChatChannelDetail chatKey={selectedChatKey} />}
@@ -454,9 +394,9 @@ export default function ChatChannelPage() {
           <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
           <Typography color="textSecondary">请选择一个会话查看详情</Typography>
           {isMobile && (
-            <Button 
-              onClick={toggleDrawer} 
-              variant="outlined" 
+            <Button
+              onClick={toggleDrawer}
+              variant="outlined"
               startIcon={<ListIcon />}
               sx={{ mt: 2 }}
             >
@@ -474,9 +414,7 @@ export default function ChatChannelPage() {
         // 移动端布局
         <>
           {/* 主内容区 - 会话详情 */}
-          <Paper className="w-full flex-1 overflow-hidden">
-            {renderChannelDetail()}
-          </Paper>
+          <Paper className="w-full flex-1 overflow-hidden">{renderChannelDetail()}</Paper>
 
           {/* 抽屉式侧边栏 - 会话列表 */}
           <Drawer
@@ -487,7 +425,7 @@ export default function ChatChannelPage() {
               sx: {
                 width: isSmall ? '85%' : '320px',
                 maxWidth: '100%',
-              }
+              },
             }}
           >
             {renderChannelList()}
@@ -514,9 +452,7 @@ export default function ChatChannelPage() {
         // 桌面端布局
         <>
           {/* 左侧详情面板 */}
-          <Paper className="flex-1 overflow-hidden">
-            {renderChannelDetail()}
-          </Paper>
+          <Paper className="flex-1 overflow-hidden">{renderChannelDetail()}</Paper>
 
           {/* 右侧会话列表 */}
           <Paper className="w-[320px] flex-shrink-0 flex flex-col overflow-hidden">

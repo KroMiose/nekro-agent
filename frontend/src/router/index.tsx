@@ -2,8 +2,6 @@ import { createHashRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import LoginPage from '../pages/login'
 import LogsPage from '../pages/logs'
-import SettingsPage from '../pages/settings'
-import ModelGroupsPage from '../pages/settings/model_group'
 import PluginsManagementPage from '../pages/plugins/management'
 import PluginsEditorPage from '../pages/plugins/editor'
 import ChatChannelPage from '../pages/chat-channel'
@@ -16,6 +14,9 @@ import CloudCommunityPage from '../pages/cloud/telemetry'
 import CloudPresetsMarketPage from '../pages/cloud/presets_market'
 import CloudPluginsMarketPage from '../pages/cloud/plugins_market'
 import NapCatPage from '../pages/protocols/napcat'
+import SystemSettings from '../pages/settings/system'
+import ModelGroupSettings from '../pages/settings/model_group'
+import ThemeSettings from '../pages/settings/theme'
 
 const router = createHashRouter([
   {
@@ -74,11 +75,11 @@ const router = createHashRouter([
       },
       {
         path: 'settings',
-        element: <SettingsPage />,
-      },
-      {
-        path: 'settings/model-groups',
-        element: <ModelGroupsPage />,
+        children: [
+          { path: 'system', element: <SystemSettings /> },
+          { path: 'model-groups', element: <ModelGroupSettings /> },
+          { path: 'theme', element: <ThemeSettings /> },
+        ],
       },
       {
         path: 'profile',

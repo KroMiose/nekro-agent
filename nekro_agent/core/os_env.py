@@ -68,6 +68,7 @@ PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"
 NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"
 NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"
 EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
+WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
 

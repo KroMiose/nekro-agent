@@ -2,38 +2,36 @@ import React, { useMemo } from 'react'
 import {
   Card,
   CardContent,
-  Typography,
   Box,
-  Select,
-  MenuItem,
+  Typography,
+  useTheme,
+  useMediaQuery,
+  Theme,
   FormControl,
   InputLabel,
-  useTheme,
-  alpha,
-  useMediaQuery,
+  Select,
   SelectChangeEvent,
-  Theme,
+  alpha,
+  MenuItem,
 } from '@mui/material'
 import {
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
+  Legend,
   Area,
   ComposedChart,
 } from 'recharts'
-import { RealTimeDataPoint } from '../../../services/api/dashboard'
 import { formatTimestampToTime } from '../../../utils/time'
+import { RealTimeDataPoint } from '../../../services/api/dashboard'
 import {
-  GRADIENTS,
-  SHADOWS,
-  COLORS,
-  BORDERS,
+  UI_STYLES,
   BORDER_RADIUS,
-  SCROLLBARS,
-} from '../../../theme/constants'
+  metricColors
+} from '../../../theme/themeConfig'
+import { LAYOUT } from '../../../theme/variants'
 
 interface RealTimeStatsProps {
   title: string
@@ -55,17 +53,15 @@ interface CustomTooltipProps {
 }
 
 const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, theme }) => {
-  const isDark = theme.palette.mode === 'dark'
-
   if (active && payload && payload.length) {
     return (
       <Box
         className="p-3 rounded-md shadow-lg"
         sx={{
           bgcolor: theme.palette.background.paper,
-          border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+          border: UI_STYLES.BORDERS.CARD.DEFAULT,
           borderRadius: BORDER_RADIUS.SMALL,
-          boxShadow: theme.palette.mode === 'dark' ? '0 4px 12px rgba(0, 0, 0, 0.4)' : '0 2px 8px rgba(0, 0, 0, 0.1)',
+          boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
           transition: 'all 0.2s ease',
           animation: 'fadeIn 0.3s ease-in-out',
           '@keyframes fadeIn': {
@@ -104,27 +100,27 @@ const granularityOptions = [
   { value: 60, label: '1小时' },
 ]
 
-// 指标配置
-const metrics = [
+// 指标配置 - 直接使用动态颜色系统
+const getMetrics = () => [
   {
     id: 'messages',
     name: '消息数',
-    color: COLORS.SECONDARY.LIGHT,
+    color: metricColors.messages,
   },
   {
     id: 'sandbox_calls',
     name: '沙盒调用',
-    color: COLORS.WARNING,
+    color: metricColors.sandbox_calls,
   },
   {
     id: 'success_calls',
     name: '成功调用',
-    color: COLORS.SUCCESS,
+    color: metricColors.success_calls,
   },
   {
     id: 'failed_calls',
     name: '失败调用',
-    color: COLORS.ERROR,
+    color: metricColors.failed_calls,
   },
 ]
 
@@ -134,6 +130,15 @@ const CHART_HEIGHT = {
   DESKTOP: 350,
 }
 
+// 定义滚动条样式
+const scrollbar = {
+  WIDTH: '6px',
+  HEIGHT: '6px',
+  TRACK: (theme: Theme) => alpha(theme.palette.divider, 0.1),
+  THUMB: (theme: Theme) => alpha(theme.palette.primary.main, 0.2),
+  THUMB_HOVER: (theme: Theme) => alpha(theme.palette.primary.main, 0.3)
+}
+
 export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
   title,
   data,
@@ -141,8 +146,10 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
   onGranularityChange,
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  
+  // 获取当前主题下的指标配置
+  const metricsConfig = useMemo(() => getMetrics(), [])
 
   // 处理粒度变更
   const handleGranularityChange = (value: number) => {
@@ -167,21 +174,18 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
     })
   }, [data])
 
-  // 获取当前主题的滚动条样式
-  const scrollbar = isDark ? SCROLLBARS.DEFAULT.DARK : SCROLLBARS.DEFAULT.LIGHT
-
   return (
     <Card
       className="w-full h-full"
       sx={{
-        transition: 'all 0.3s ease',
+        transition: LAYOUT.TRANSITION.DEFAULT,
         '&:hover': {
-          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-        backdropFilter: 'blur(10px)',
-        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
         borderRadius: BORDER_RADIUS.DEFAULT,
       }}
     >
@@ -251,14 +255,14 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                 height: scrollbar.HEIGHT,
               },
               '&::-webkit-scrollbar-track': {
-                background: scrollbar.TRACK,
+                background: scrollbar.TRACK(theme),
                 borderRadius: BORDER_RADIUS.SMALL,
               },
               '&::-webkit-scrollbar-thumb': {
-                background: scrollbar.THUMB,
+                background: scrollbar.THUMB(theme),
                 borderRadius: BORDER_RADIUS.SMALL,
                 '&:hover': {
-                  background: scrollbar.THUMB_HOVER,
+                  background: scrollbar.THUMB_HOVER(theme),
                 },
               },
               mt: 2,
@@ -281,7 +285,7 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                     vertical={false}
                   />
                   <defs>
-                    {metrics.map((metric) => (
+                    {metricsConfig.map((metric) => (
                       <linearGradient key={`gradient-${metric.id}`} id={`color${metric.id}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={metric.color} stopOpacity={0.3}/>
                         <stop offset="95%" stopColor={metric.color} stopOpacity={0}/>
@@ -322,7 +326,7 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                       </span>
                     )}
                   />
-                  {metrics.map(metric => (
+                  {metricsConfig.map(metric => (
                     <Area
                       key={metric.id}
                       type="monotone"
@@ -330,8 +334,6 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                       name={metric.name}
                       stroke={metric.color}
                       strokeWidth={isMobile ? 1.5 : 2.5}
-                      fill={`url(#color${metric.id})`}
-                      fillOpacity={1}
                       activeDot={{ 
                         r: isMobile ? 4 : 6, 
                         strokeWidth: 0, 
@@ -342,6 +344,8 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                       animationDuration={800}
                       animationEasing="ease-out"
                       connectNulls={true}
+                      fill={`url(#color${metric.id})`}
+                      fillOpacity={1}
                     />
                   ))}
                 </ComposedChart>

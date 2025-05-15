@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Box,
@@ -6,13 +6,16 @@ import {
   TextField,
   Button,
   Typography,
-  Alert,
   useTheme,
   useMediaQuery,
   InputAdornment,
   IconButton,
   CircularProgress,
   Link,
+  Container,
+  Fade,
+  Checkbox,
+  FormControlLabel,
 } from '@mui/material'
 import {
   Person as PersonIcon,
@@ -22,28 +25,66 @@ import {
 } from '@mui/icons-material'
 import { authApi } from '../../services/api/auth'
 import { useAuthStore } from '../../stores/auth'
-import { GRADIENTS, SHADOWS, BORDERS, BORDER_RADIUS, CARD_LAYOUT } from '../../theme/constants'
+import { UI_STYLES, getCurrentThemeMode } from '../../theme/themeApi'
+import { BORDER_RADIUS, INPUT_VARIANTS, BUTTON_VARIANTS } from '../../theme/variants'
+import { ThemeToggleButton } from '../../theme'
+import { motion } from 'framer-motion'
+import { useNotification } from '../../hooks/useNotification'
+import { useWallpaperStore } from '../../stores/wallpaper'
+import WallpaperBackground from '../../components/common/WallpaperBackground'
+import { useGitHubStarStore } from '../../stores/githubStar'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const { setToken, setUserInfo } = useAuthStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [agreeTerms, setAgreeTerms] = useState(false)
   const theme = useTheme()
+  const themeMode = getCurrentThemeMode()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const isDark = theme.palette.mode === 'dark'
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'))
+  const notification = useNotification()
+
+  // 使用壁纸store
+  const {
+    loginWallpaper,
+    loginWallpaperMode,
+    loginWallpaperBlur,
+    loginWallpaperDim,
+  } = useWallpaperStore()
+
+  // 延迟显示表单，创建更流畅的加载体验
+  useEffect(() => {
+    const timer = setTimeout(() => setShowForm(true), 300)
+    return () => clearTimeout(timer)
+  }, [])
+
+  // 从localStorage读取协议同意状态
+  useEffect(() => {
+    const savedAgreement = localStorage.getItem('nekro_terms_agreed')
+    if (savedAgreement === 'true') {
+      setAgreeTerms(true)
+    }
+  }, [])
+
+  // 保存协议同意状态到localStorage
+  const handleAgreeTermsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked
+    setAgreeTerms(newValue)
+    localStorage.setItem('nekro_terms_agreed', newValue.toString())
+  }
 
   const handleLogin = async () => {
     if (!username || !password) {
-      setError('请输入用户名和密码')
+      notification.warning('请输入用户名和密码')
       return
     }
 
     try {
-      setError('')
       setLoading(true)
 
       // 登录获取token
@@ -64,15 +105,41 @@ export default function LoginPage() {
       setUserInfo(userInfo)
       console.log('User info set, preparing to navigate...')
 
+      // 提示登录成功
+      notification.success('登录成功')
+
+      // 异步检查GitHub Star状态，不阻塞登录流程
+      const checkGitHubStar = async () => {
+        try {
+          const { checkStarStatus } = useGitHubStarStore.getState()
+
+          // 异步检查，不显示通知，检查失败也不影响登录
+          await checkStarStatus(
+            { force: false, clearCache: false, showNotification: false },
+            {
+              resetDefaults: true,
+              onStarred: () => {},
+              onNotStarred: () => {},
+              onError: () => {},
+            }
+          )
+        } catch (error) {
+          console.error('GitHub Star状态检查异常:', error)
+        }
+      }
+
+      // 启动异步检查
+      checkGitHubStar()
+
       // 跳转到首页
       navigate('/')
       console.log('Navigation triggered')
     } catch (error) {
       console.error('Login error:', error)
       if (error instanceof Error) {
-        setError(error.message || '登录失败，请检查用户名和密码')
+        notification.error(error.message || '登录失败，请检查用户名和密码')
       } else {
-        setError('登录失败，请检查用户名和密码')
+        notification.error('登录失败，请检查用户名和密码')
       }
     } finally {
       setLoading(false)
@@ -92,256 +159,815 @@ export default function LoginPage() {
   return (
     <Box
       sx={{
-        height: '100vh',
+        minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: isDark ? GRADIENTS.BACKGROUND.DARK.PRIMARY : GRADIENTS.BACKGROUND.LIGHT.PRIMARY,
+        background: UI_STYLES.BACKGROUND.PRIMARY,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         position: 'relative',
         overflow: 'hidden',
-        p: 2,
+        p: { xs: 2, md: 4 },
       }}
     >
-      {/* 装饰性背景元素 */}
-      <Box
-        sx={{
-          position: 'absolute',
-          top: '-10%',
-          left: '-5%',
-          width: '120%',
-          height: '120%',
-          backgroundImage: `radial-gradient(circle at 30% 30%, ${theme.palette.primary.light}20 0%, transparent 25%), 
-                            radial-gradient(circle at 70% 70%, ${theme.palette.primary.main}15 0%, transparent 30%)`,
-          opacity: 0.8,
-          zIndex: 0,
-        }}
-      />
-
-      <Paper
-        elevation={0}
-        sx={{
-          p: isMobile ? 3 : 4,
-          width: '100%',
-          maxWidth: 420,
-          position: 'relative',
-          zIndex: 1,
-          boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
-          borderRadius: BORDER_RADIUS.MEDIUM,
-          background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-          backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-          border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-          transition: 'all 0.3s ease',
-          '&:hover': {
-            boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
-          },
-        }}
-      >
-        <Box sx={{ textAlign: 'center', mb: 4 }}>
+      {/* 壁纸背景 */}
+      {loginWallpaper ? (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 0,
+          }}
+        >
+          <WallpaperBackground
+            wallpaperUrl={loginWallpaper}
+            mode={loginWallpaperMode as 'cover' | 'contain' | 'repeat' | 'center'}
+            blur={loginWallpaperBlur}
+            dim={loginWallpaperDim}
+          />
+        </Box>
+      ) : (
+        // 默认背景元素 - 当没有设置壁纸时显示
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            overflow: 'hidden',
+            zIndex: 0,
+          }}
+        >
+          {/* 波浪渐变背景 */}
           <Box
             sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              mb: 2,
+              position: 'absolute',
+              top: '-10%',
+              left: '-5%',
+              width: '120%',
+              height: '120%',
+              backgroundImage: `radial-gradient(circle at 30% 30%, ${theme.palette.primary.light}25 0%, transparent 25%), 
+                            radial-gradient(circle at 70% 70%, ${theme.palette.primary.main}20 0%, transparent 30%)`,
+              opacity: 0.7,
+              zIndex: 0,
             }}
-          >
-            <Box
-              component="img"
-              src="/logo.png"
-              alt="Nekro Agent Logo"
-              sx={{
-                width: isMobile ? 90 : 120,
-                height: 'auto',
-                mb: 1,
-                objectFit: 'contain',
-                filter: isDark
-                  ? 'drop-shadow(0 2px 2px rgba(255,255,255,0.2))'
-                  : 'drop-shadow(0 2px 2px rgba(0,0,0,0.1))',
-                transition: 'all 0.3s ease',
+          />
+
+          {/* 动态渐变背景 */}
+          <motion.div
+            animate={{
+              background: [
+                `linear-gradient(135deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
+                `linear-gradient(225deg, ${theme.palette.primary.main}05, ${theme.palette.secondary.main}10)`,
+                `linear-gradient(315deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
+                `linear-gradient(45deg, ${theme.palette.primary.main}05, ${theme.palette.secondary.main}10)`,
+                `linear-gradient(135deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
+              ],
+            }}
+            transition={{
+              duration: 20,
+              repeat: Infinity,
+              ease: 'linear',
+            }}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              opacity: 0.4,
+              zIndex: 0,
+            }}
+          />
+
+          {/* 动态装饰元素 */}
+          <motion.div
+            initial={{ opacity: 0.1 }}
+            animate={{
+              opacity: [0.1, 0.3, 0.1],
+              y: [0, -5, 0],
+              width: isMobile ? ['130%', '150%', '130%'] : ['100%', '120%', '100%'],
+              boxShadow: [
+                `0 0 10px 1px ${theme.palette.primary.main}40`,
+                `0 0 25px 2px ${theme.palette.primary.main}60`,
+                `0 0 10px 1px ${theme.palette.primary.main}40`,
+              ],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              repeatType: 'loop',
+            }}
+            style={{
+              position: 'absolute',
+              height: '1px',
+              backgroundColor: theme.palette.primary.main,
+              top: '15%',
+              left: '-10%',
+              zIndex: 1,
+            }}
+          />
+
+          <motion.div
+            initial={{ opacity: 0.1 }}
+            animate={{
+              opacity: [0.1, 0.35, 0.1],
+              y: [0, 5, 0],
+              width: isMobile ? ['130%', '150%', '130%'] : ['100%', '120%', '100%'],
+              boxShadow: [
+                `0 0 10px 1px ${theme.palette.secondary.main}40`,
+                `0 0 25px 2px ${theme.palette.secondary.main}60`,
+                `0 0 10px 1px ${theme.palette.secondary.main}40`,
+              ],
+            }}
+            transition={{
+              duration: 7,
+              repeat: Infinity,
+              ease: 'easeInOut',
+              repeatType: 'loop',
+            }}
+            style={{
+              position: 'absolute',
+              height: '1px',
+              backgroundColor: theme.palette.secondary.main,
+              bottom: '20%',
+              right: '-10%',
+              zIndex: 1,
+            }}
+          />
+
+          {/* 水平线内部流光效果 */}
+          <motion.div
+            animate={{
+              x: ['-100%', '100%'],
+              opacity: [0, 1, 1, 0],
+            }}
+            transition={{
+              duration: 3,
+              repeat: Infinity,
+              ease: 'linear',
+              repeatType: 'loop',
+              times: [0, 0.1, 0.9, 1],
+            }}
+            style={{
+              position: 'absolute',
+              width: '30%',
+              height: '1px',
+              background: `linear-gradient(to right, transparent, ${theme.palette.primary.light}, transparent)`,
+              top: '15%',
+              left: '0%',
+              zIndex: 2,
+            }}
+          />
+
+          <motion.div
+            animate={{
+              x: ['100%', '-100%'],
+              opacity: [0, 1, 1, 0],
+            }}
+            transition={{
+              duration: 3.5,
+              repeat: Infinity,
+              ease: 'linear',
+              repeatType: 'loop',
+              times: [0, 0.1, 0.9, 1],
+            }}
+            style={{
+              position: 'absolute',
+              width: '30%',
+              height: '1px',
+              background: `linear-gradient(to left, transparent, ${theme.palette.secondary.light}, transparent)`,
+              bottom: '20%',
+              right: '0%',
+              zIndex: 2,
+            }}
+          />
+
+          {/* 动态粒子光点 */}
+          {[...Array(8)].map((_, i) => (
+            <motion.div
+              key={`particle-${i}`}
+              initial={{
+                x: Math.random() * 100 + '%',
+                y: Math.random() * 100 + '%',
+                opacity: 0,
+              }}
+              animate={{
+                x: [
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                ],
+                y: [
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                  Math.random() * 100 + '%',
+                ],
+                opacity: [0, 0.6, 0.4, 0],
+                scale: [0.8, 1.2, 1, 0.8],
+              }}
+              transition={{
+                duration: 10 + Math.random() * 20,
+                repeat: Infinity,
+                ease: 'linear',
+                delay: i * 2,
+              }}
+              style={{
+                position: 'absolute',
+                width: Math.random() * 4 + 2,
+                height: Math.random() * 4 + 2,
+                borderRadius: '50%',
+                background: i % 2 === 0 ? theme.palette.primary.main : theme.palette.secondary.main,
+                boxShadow:
+                  i % 2 === 0
+                    ? `0 0 8px 2px ${theme.palette.primary.main}40`
+                    : `0 0 8px 2px ${theme.palette.secondary.main}40`,
+                opacity: 0.3,
+                zIndex: 1,
+              }}
+            />
+          ))}
+
+          {/* 交叉斜线光效 */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 }}
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: isMobile ? '80%' : '100%',
+              background: `linear-gradient(to bottom, transparent, ${theme.palette.primary.light}, transparent)`,
+              left: '30%',
+              top: '0%',
+              transform: 'rotate(35deg)',
+              boxShadow: `0 0 15px ${theme.palette.primary.light}`,
+              opacity: 0.12,
+              zIndex: 1,
+            }}
+          />
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 0.3, scale: 1 }}
+            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.5 }}
+            style={{
+              position: 'absolute',
+              width: '1px',
+              height: isMobile ? '60%' : '80%',
+              background: `linear-gradient(to bottom, transparent, ${theme.palette.secondary.light}, transparent)`,
+              right: '35%',
+              top: '10%',
+              transform: 'rotate(-40deg)',
+              boxShadow: `0 0 15px ${theme.palette.secondary.light}`,
+              opacity: 0.12,
+              zIndex: 1,
+            }}
+          />
+
+          {/* 脉冲圆形光效 */}
+          <Box sx={{ position: 'absolute', left: '15%', bottom: '20%', zIndex: 1 }}>
+            <motion.div
+              initial={{ opacity: 0.1, scale: 0.6 }}
+              animate={{ opacity: [0.05, 0.2, 0.05], scale: [0.8, 1.2, 0.8] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              style={{
+                width: isMobile ? 100 : 180,
+                height: isMobile ? 100 : 180,
+                borderRadius: '50%',
+                background: `radial-gradient(circle, ${theme.palette.primary.light}30 0%, transparent 70%)`,
+                opacity: 0.15,
               }}
             />
           </Box>
-          <Typography
-            variant={isMobile ? 'h5' : 'h4'}
-            sx={{
-              fontWeight: 500,
-              color: theme.palette.primary.main,
-              mb: 1,
-            }}
-          >
-            Nekro Agent
-          </Typography>
-          <Typography
-            variant="subtitle1"
-            color="text.disabled"
-            sx={{ fontSize: isMobile ? '0.9rem' : '1rem' }}
-          >
-            ~开始极致优雅的智能体交互之旅~
-          </Typography>
-        </Box>
 
-        <Box component="form" sx={{ mt: 2 }}>
-          <TextField
-            fullWidth
-            label="用户名"
-            value={username}
-            onChange={e => setUsername(e.target.value)}
-            onKeyPress={handleKeyPress}
-            margin="normal"
-            autoFocus
-            size={isMobile ? 'small' : 'medium'}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <PersonIcon color="action" fontSize={isMobile ? 'small' : 'medium'} />
-                </InputAdornment>
-              ),
+          {/* 浮动流光线条 */}
+          <motion.div
+            animate={{
+              x: ['-100%', '200%'],
+              opacity: [0, 1, 1, 0],
             }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'divider',
-                  transition: 'all 0.2s',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'primary.light',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
-                },
-              },
+            transition={{
+              duration: 12,
+              repeat: Infinity,
+              ease: 'linear',
+              repeatType: 'loop',
+              times: [0, 0.1, 0.9, 1],
             }}
-          />
-          <TextField
-            fullWidth
-            label="密码"
-            type={showPassword ? 'text' : 'password'}
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            onKeyPress={handleKeyPress}
-            margin="normal"
-            size={isMobile ? 'small' : 'medium'}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <LockIcon color="action" fontSize={isMobile ? 'small' : 'medium'} />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <IconButton
-                    aria-label="toggle password visibility"
-                    onClick={toggleShowPassword}
-                    edge="end"
-                    size={isMobile ? 'small' : 'medium'}
-                  >
-                    {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '& fieldset': {
-                  borderColor: 'divider',
-                  transition: 'all 0.2s',
-                },
-                '&:hover fieldset': {
-                  borderColor: 'primary.light',
-                },
-                '&.Mui-focused fieldset': {
-                  borderColor: 'primary.main',
-                },
-              },
+            style={{
+              position: 'absolute',
+              width: '100%',
+              height: '1px',
+              background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}40, transparent)`,
+              top: '40%',
+              opacity: 0.2,
+              zIndex: 1,
             }}
           />
 
-          {error && (
-            <Alert
-              severity="error"
-              sx={{
-                mt: 2,
-                '& .MuiAlert-message': {
-                  fontSize: isMobile ? '0.8rem' : '0.9rem',
-                },
-              }}
-            >
-              {error}
-            </Alert>
-          )}
-
-          <Button
-            fullWidth
-            variant="contained"
-            onClick={handleLogin}
-            disabled={loading || !username || !password}
-            sx={{
-              mt: 3,
-              mb: 2,
-              py: 1.2,
-              background: theme.palette.primary.main,
-              boxShadow: isDark ? SHADOWS.BUTTON.DARK.DEFAULT : SHADOWS.BUTTON.LIGHT.DEFAULT,
-              '&:hover': {
-                background: theme.palette.primary.dark,
-                boxShadow: isDark ? SHADOWS.BUTTON.DARK.HOVER : SHADOWS.BUTTON.LIGHT.HOVER,
-              },
-              borderRadius: BORDER_RADIUS.DEFAULT,
-              textTransform: 'none',
-              fontSize: '1rem',
-              minHeight: 48,
-              position: 'relative',
+          <motion.div
+            animate={{
+              x: ['200%', '-100%'],
+              opacity: [0, 1, 1, 0],
             }}
-          >
-            {loading ? (
-              <CircularProgress
-                size={24}
-                sx={{
-                  color: 'white',
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  marginTop: '-12px',
-                  marginLeft: '-12px',
-                }}
-              />
-            ) : (
-              '登录'
-            )}
-          </Button>
+            transition={{
+              duration: 15,
+              repeat: Infinity,
+              ease: 'linear',
+              repeatType: 'loop',
+              times: [0, 0.1, 0.9, 1],
+            }}
+            style={{
+              position: 'absolute',
+              width: '80%',
+              height: '1px',
+              background: `linear-gradient(90deg, transparent, ${theme.palette.secondary.main}40, transparent)`,
+              top: '65%',
+              opacity: 0.15,
+              zIndex: 1,
+            }}
+          />
 
+          {/* 激光束效果 */}
+          <motion.div
+            animate={{
+              height: ['0%', '100%', '100%', '0%'],
+              opacity: [0, 0.4, 0.4, 0],
+            }}
+            transition={{
+              duration: 8,
+              repeat: Infinity,
+              ease: 'linear',
+              repeatType: 'loop',
+              times: [0, 0.4, 0.6, 1],
+            }}
+            style={{
+              position: 'absolute',
+              width: '1px',
+              left: '80%',
+              top: '0',
+              background: `linear-gradient(to bottom, transparent, ${theme.palette.primary.main}, transparent)`,
+              boxShadow: `0 0 20px 2px ${theme.palette.primary.main}`,
+              zIndex: 1,
+            }}
+          />
+
+          {/* 脉冲环效果 */}
           <Box
             sx={{
-              display: 'flex',
-              justifyContent: 'center',
-              mt: 3,
-              opacity: 0.8,
-              fontSize: isMobile ? '0.7rem' : '0.8rem',
+              position: 'absolute',
+              right: '15%',
+              top: '25%',
+              zIndex: 1,
             }}
           >
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 0.5,
-              }}
-            >
-              © {new Date().getFullYear()}
-              <Link
-                href="https://github.com/KroMiose/nekro-agent"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Nekro Agent
-              </Link>
-              . 版权所有.
-            </Typography>
+            {[...Array(3)].map((_, i) => (
+              <motion.div
+                key={`pulse-ring-${i}`}
+                initial={{ scale: 0.4, opacity: 0.8 }}
+                animate={{ scale: 2, opacity: 0 }}
+                transition={{
+                  duration: 3,
+                  repeat: Infinity,
+                  delay: i * 1,
+                  ease: 'easeOut',
+                }}
+                style={{
+                  position: 'absolute',
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  border: `1px solid ${theme.palette.secondary.main}40`,
+                  boxShadow: `0 0 10px ${theme.palette.secondary.main}20`,
+                }}
+              />
+            ))}
           </Box>
         </Box>
-      </Paper>
+      )}
+
+      {/* 主题切换按钮 - 顶部右侧 */}
+      <Box
+        sx={{
+          position: 'absolute',
+          top: { xs: 12, md: 20 },
+          right: { xs: 12, md: 20 },
+          zIndex: 10,
+        }}
+      >
+        <ThemeToggleButton />
+      </Box>
+
+      <Container maxWidth="lg" sx={{ display: 'flex', justifyContent: 'center', zIndex: 2 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: { xs: 3, md: 6 },
+            width: '100%',
+            maxWidth: { xs: '100%', md: '1000px' },
+          }}
+        >
+          {/* 左侧品牌区域 - 仅在平板及以上尺寸显示 */}
+          {!isMobile && (
+            <Fade in={showForm} timeout={800}>
+              <Box
+                sx={{
+                  flex: { md: 1 },
+                  textAlign: 'center',
+                  display: { xs: 'none', sm: 'flex' },
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  p: { sm: 2, md: 4 },
+                }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.5, ease: 'easeOut' }}
+                >
+                  <Box
+                    component="img"
+                    src="/logo.png"
+                    alt="Nekro Agent Logo"
+                    sx={{
+                      width: { sm: 180, md: 240 },
+                      height: 'auto',
+                      objectFit: 'contain',
+                      filter:
+                        theme.palette.mode === 'dark'
+                          ? 'drop-shadow(0 0 20px rgba(255,255,255,0.2))'
+                          : 'drop-shadow(0 0 20px rgba(0,0,0,0.1))',
+                      mb: 3,
+                      padding: { sm: 0.8, md: 1 },
+                      backgroundColor: 'rgba(255, 192, 203, 0.15)',
+                      borderRadius: '24px',
+                      backdropFilter: 'blur(8px)',
+                      WebkitBackdropFilter: 'blur(8px)',
+                      border: `1px solid rgba(255, 192, 203, ${themeMode === 'dark' ? '0.2' : '0.15'})`,
+                      boxShadow: `0 0 15px rgba(255, 192, 203, ${themeMode === 'dark' ? '0.2' : '0.1'})`,
+                      transition: 'all 0.3s ease',
+                    }}
+                  />
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
+                >
+                  <Typography
+                    variant={isTablet ? 'h5' : 'h3'}
+                    sx={{
+                      fontWeight: 700,
+                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                      textShadow:
+                        themeMode === 'dark'
+                          ? '0 0 30px rgba(255,255,255,0.1)'
+                          : '0 0 30px rgba(0,0,0,0.05)',
+                      letterSpacing: '0.05em',
+                      py: 1,
+                    }}
+                  >
+                    Nekro Agent
+                  </Typography>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 0.8, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4, ease: 'easeOut' }}
+                >
+                  <Typography
+                    variant="h6"
+                    color="text.secondary"
+                    sx={{
+                      mt: 2,
+                      fontWeight: 400,
+                      fontSize: { sm: '0.9rem', md: '1.1rem' },
+                      whiteSpace: 'nowrap',
+                      mx: 'auto',
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    开启优雅智能的交互之旅
+                  </Typography>
+                </motion.div>
+              </Box>
+            </Fade>
+          )}
+
+          {/* 右侧登录表单 */}
+          <Fade in={showForm} timeout={500}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 3, sm: 4 },
+                width: '100%',
+                maxWidth: { xs: '100%', sm: 450 },
+                position: 'relative',
+                zIndex: 2,
+                boxShadow: UI_STYLES.getShadow('medium'),
+                borderRadius: BORDER_RADIUS.MEDIUM,
+                background:
+                  themeMode === 'dark'
+                    ? 'linear-gradient(135deg, rgba(40, 40, 45, 0.65), rgba(25, 25, 30, 0.7))'
+                    : 'linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.6))',
+                backdropFilter: 'blur(20px)',
+                WebkitBackdropFilter: 'blur(20px)',
+                border: UI_STYLES.getBorder(themeMode === 'dark' ? 0.15 : 0.08),
+                transition: 'all 0.3s ease',
+                '&::before': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: BORDER_RADIUS.MEDIUM,
+                  padding: '1px',
+                  background:
+                    themeMode === 'dark'
+                      ? `linear-gradient(135deg, ${theme.palette.primary.main}40, ${theme.palette.secondary.main}30)`
+                      : `linear-gradient(135deg, ${theme.palette.primary.main}30, ${theme.palette.secondary.main}20)`,
+                  WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                  WebkitMaskComposite: 'xor',
+                  maskComposite: 'exclude',
+                  pointerEvents: 'none',
+                },
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: BORDER_RADIUS.MEDIUM,
+                  boxShadow: 'inset 0 0 20px rgba(255, 255, 255, 0.08)',
+                  pointerEvents: 'none',
+                },
+                '&:hover': {
+                  boxShadow: UI_STYLES.getShadow('deep'),
+                  backdropFilter: 'blur(25px)',
+                  WebkitBackdropFilter: 'blur(25px)',
+                },
+              }}
+            >
+              {/* 移动端专用标题区域 */}
+              {isMobile && (
+                <Box sx={{ textAlign: 'center', mb: 3 }}>
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      mb: 1.5,
+                    }}
+                  >
+                    <Box
+                      component="img"
+                      src="/logo.png"
+                      alt="Nekro Agent Logo"
+                      sx={{
+                        width: 120,
+                        height: 'auto',
+                        objectFit: 'contain',
+                        filter:
+                          theme.palette.mode === 'dark'
+                            ? 'drop-shadow(0 2px 2px rgba(255,255,255,0.2))'
+                            : 'drop-shadow(0 2px 2px rgba(0,0,0,0.1))',
+                        padding: 0.6,
+                        backgroundColor: 'rgba(255, 192, 203, 0.15)',
+                        borderRadius: '18px',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        border: `1px solid rgba(255, 192, 203, ${themeMode === 'dark' ? '0.2' : '0.15'})`,
+                        boxShadow: `0 0 10px rgba(255, 192, 203, ${themeMode === 'dark' ? '0.2' : '0.1'})`,
+                      }}
+                    />
+                  </Box>
+                  <Typography
+                    variant="h5"
+                    sx={{
+                      fontWeight: 600,
+                      background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
+                      backgroundClip: 'text',
+                      WebkitBackgroundClip: 'text',
+                      color: 'transparent',
+                    }}
+                  >
+                    Nekro Agent
+                  </Typography>
+                </Box>
+              )}
+
+              <Typography
+                variant={isMobile ? 'subtitle1' : 'h6'}
+                sx={{
+                  mb: 3,
+                  fontWeight: 500,
+                  color: 'text.primary',
+                  textAlign: 'center',
+                }}
+              >
+                欢迎回来
+              </Typography>
+
+              <Box component="form" sx={{ mt: 1 }}>
+                <TextField
+                  fullWidth
+                  label="用户名"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  margin="normal"
+                  autoFocus
+                  size={isMobile ? 'small' : 'medium'}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <PersonIcon color="action" fontSize={isMobile ? 'small' : 'medium'} />
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    ...INPUT_VARIANTS.default.styles,
+                    '.MuiOutlinedInput-root': {
+                      backdropFilter: 'blur(5px)',
+                      backgroundColor:
+                        themeMode === 'dark' ? 'rgba(45, 45, 50, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                    },
+                  }}
+                />
+                <TextField
+                  fullWidth
+                  label="密码"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  margin="normal"
+                  size={isMobile ? 'small' : 'medium'}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <LockIcon color="action" fontSize={isMobile ? 'small' : 'medium'} />
+                      </InputAdornment>
+                    ),
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <IconButton
+                          aria-label="toggle password visibility"
+                          onClick={toggleShowPassword}
+                          edge="end"
+                          size={isMobile ? 'small' : 'medium'}
+                        >
+                          {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  }}
+                  sx={{
+                    ...INPUT_VARIANTS.default.styles,
+                    '.MuiOutlinedInput-root': {
+                      backdropFilter: 'blur(5px)',
+                      backgroundColor:
+                        themeMode === 'dark' ? 'rgba(45, 45, 50, 0.5)' : 'rgba(255, 255, 255, 0.5)',
+                    },
+                  }}
+                />
+
+                {/* 协议同意复选框 */}
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={agreeTerms}
+                      onChange={handleAgreeTermsChange}
+                      size={isMobile ? 'small' : 'medium'}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
+                      我已阅读并同意{' '}
+                      <Link
+                        href="https://github.com/KroMiose/nekro-agent/blob/main/LICENSE"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: theme.palette.primary.main }}
+                      >
+                        项目开源协议
+                      </Link>{' '}
+                      和{' '}
+                      <Link
+                        href="https://community.nekro.ai/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: theme.palette.primary.main }}
+                      >
+                        NekroAI 社区共享协议
+                      </Link>
+                    </Typography>
+                  }
+                  sx={{
+                    mt: 1,
+                    mb: 0.5,
+                    display: 'flex',
+                    color: theme.palette.text.secondary,
+                    '.MuiFormControlLabel-label': {
+                      fontSize: isMobile ? '0.7rem' : '0.75rem',
+                    },
+                  }}
+                />
+
+                <Button
+                  fullWidth
+                  variant="contained"
+                  onClick={handleLogin}
+                  disabled={loading || !username || !password || !agreeTerms}
+                  sx={{
+                    ...BUTTON_VARIANTS.primary.styles,
+                    mt: 3,
+                    mb: 2,
+                    py: isMobile ? 1 : 1.5,
+                    boxShadow: `0 8px 16px ${theme.palette.primary.main}30`,
+                    background: UI_STYLES.GRADIENTS.BUTTON.PRIMARY,
+                    '&:hover': {
+                      transform: 'translateY(-2px)',
+                      boxShadow: `0 12px 20px ${theme.palette.primary.main}40`,
+                    },
+                    minHeight: isMobile ? 40 : 48,
+                    position: 'relative',
+                    letterSpacing: '0.05em',
+                    fontWeight: 500,
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress
+                      size={24}
+                      sx={{
+                        color: 'white',
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        marginTop: '-12px',
+                        marginLeft: '-12px',
+                      }}
+                    />
+                  ) : (
+                    '登录'
+                  )}
+                </Button>
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    mt: 2,
+                    opacity: 0.8,
+                    fontSize: isMobile ? '0.7rem' : '0.8rem',
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                    }}
+                  >
+                    © {new Date().getFullYear()}
+                    <Link
+                      href="https://github.com/KroMiose/nekro-agent"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      sx={{
+                        color: theme.palette.primary.main,
+                        textDecoration: 'none',
+                        '&:hover': {
+                          textDecoration: 'underline',
+                        },
+                      }}
+                    >
+                      Nekro Agent
+                    </Link>
+                    . 版权所有.
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+          </Fade>
+        </Box>
+      </Container>
     </Box>
   )
 }

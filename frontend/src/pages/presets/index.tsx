@@ -16,7 +16,6 @@ import {
   DialogActions,
   Avatar,
   InputAdornment,
-  Collapse,
   Divider,
   Tooltip,
   Alert,
@@ -42,17 +41,14 @@ import {
   Upload as UploadIcon,
   Tag as TagIcon,
   CloudSync as CloudSyncIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material'
 import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
-import {
-  GRADIENTS, 
-  SHADOWS, 
-  BORDERS, 
-  BORDER_RADIUS,
-  CARD_LAYOUT
-} from '../../theme/constants'
+import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
+import { LAYOUT, CHIP_VARIANTS } from '../../theme/variants'
+import { Fade } from '@mui/material'
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -153,7 +149,7 @@ const PresetEditDialog = ({
         if (tagsArray.length >= 8) {
           setErrors(prev => ({
             ...prev,
-            tags: '最多只能添加8个标签'
+            tags: '最多只能添加8个标签',
           }))
           return
         }
@@ -162,7 +158,7 @@ const PresetEditDialog = ({
         if (tagsArray.some(tag => tag.trim().toLowerCase() === value.toLowerCase())) {
           setErrors(prev => ({
             ...prev,
-            tags: '标签不能重复'
+            tags: '标签不能重复',
           }))
           return
         }
@@ -441,7 +437,7 @@ const PresetEditDialog = ({
                               label={tag.trim()}
                               size="small"
                               onDelete={() => handleDeleteTag(tag)}
-                              sx={{ height: 28 }}
+                              sx={{ ...CHIP_VARIANTS.base(true) }}
                             />
                           )
                       )}
@@ -464,7 +460,7 @@ const PresetEditDialog = ({
                       ) : null,
                     }}
                     autoComplete="off"
-                    helperText={errors.tags || "用逗号或回车分隔多个标签，最多8个"}
+                    helperText={errors.tags || '用逗号或回车分隔多个标签，最多8个'}
                   />
                 </Box>
                 <TextField
@@ -567,11 +563,11 @@ const PresetCard = ({
   const [showUnshareDialog, setShowUnshareDialog] = useState(false)
   const [showSyncToCloudDialog, setShowSyncToCloudDialog] = useState(false)
   const [isSfw, setIsSfw] = useState(true)
+  const [agreeToTerms, setAgreeToTerms] = useState(false)
   const [shareLoading, setShareLoading] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
-  const [agreeToTerms, setAgreeToTerms] = useState(false)
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  const isGridLayout = useMediaQuery(theme.breakpoints.up('md'))
 
   // 更新 preset 当 initialPreset 变化时
   useEffect(() => {
@@ -769,21 +765,18 @@ const PresetCard = ({
     <Card
       sx={{
         position: 'relative',
-        transition: CARD_LAYOUT.TRANSITION,
+        transition: LAYOUT.TRANSITION.DEFAULT,
         overflow: 'visible',
+        height: isGridLayout ? '100%' : 'auto',
+        display: 'flex',
+        flexDirection: 'column',
         '&:hover': {
-          boxShadow: isDark 
-            ? SHADOWS.CARD.DARK.HOVER
-            : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: isDark 
-          ? GRADIENTS.CARD.DARK
-          : GRADIENTS.CARD.LIGHT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark 
-          ? BORDERS.CARD.DARK
-          : BORDERS.CARD.LIGHT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
         borderRadius: BORDER_RADIUS.DEFAULT,
         ...(preset.remote_id
           ? {
@@ -808,8 +801,7 @@ const PresetCard = ({
             top: -10,
             right: 16,
             zIndex: 1,
-            fontSize: isSmall ? '0.65rem' : '0.75rem',
-            height: isSmall ? 20 : 24,
+            ...CHIP_VARIANTS.base(isSmall),
           }}
         />
       )}
@@ -825,27 +817,37 @@ const PresetCard = ({
             top: -10,
             right: preset.remote_id ? 110 : 16,
             zIndex: 1,
-            fontSize: isSmall ? '0.65rem' : '0.75rem',
-            height: isSmall ? 20 : 24,
+            ...CHIP_VARIANTS.base(isSmall),
           }}
         />
       )}
 
-      <CardContent sx={{ pt: 3, pb: 1 }}>
-        <Box sx={{ display: 'flex', gap: 2, flexDirection: isMobile && isSmall ? 'column' : 'row' }}>
-          {/* 左侧头像区域 - 固定宽度 */}
-          <Box sx={{ 
-            width: isMobile && isSmall ? '100%' : { xs: '25%', sm: '16.66%' },
-            maxWidth: isMobile && isSmall ? '160px' : 'none',
-            alignSelf: isMobile && isSmall ? 'center' : 'flex-start',
-            mb: isMobile && isSmall ? 2 : 0
-          }}>
+      <CardContent sx={{ pt: 3, pb: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            gap: 2,
+            flexDirection: isGridLayout ? 'row' : isMobile && isSmall ? 'column' : 'row',
+            height: '100%',
+          }}
+        >
+          {/* 左侧头像区域 */}
+          <Box
+            sx={{
+              width: isGridLayout ? 80 : isMobile && isSmall ? '100%' : { xs: '25%', sm: '16.66%' },
+              height: isGridLayout ? 80 : 'auto',
+              flexShrink: 0,
+              maxWidth: isMobile && isSmall && !isGridLayout ? '160px' : 'none',
+              alignSelf: isMobile && isSmall && !isGridLayout ? 'center' : 'flex-start',
+              mb: isMobile && isSmall && !isGridLayout ? 2 : 0,
+            }}
+          >
             <Avatar
               src={preset.avatar}
               alt={preset.name}
               sx={{
                 width: '100%',
-                height: 'auto',
+                height: isGridLayout ? '100%' : 'auto',
                 aspectRatio: '1/1',
                 borderRadius: 2,
                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
@@ -854,7 +856,7 @@ const PresetCard = ({
             />
           </Box>
 
-          {/* 右侧内容区域 - 填充剩余空间并垂直排列 */}
+          {/* 右侧内容区域 */}
           <Box
             sx={{
               flex: 1,
@@ -862,6 +864,7 @@ const PresetCard = ({
               flexDirection: 'column',
               justifyContent: 'space-between',
               minWidth: 0, // 防止内容溢出
+              height: '100%',
             }}
           >
             <Box
@@ -873,23 +876,34 @@ const PresetCard = ({
               }}
             >
               {/* 标题 */}
-              <Typography variant="h6" gutterBottom>
+              <Typography
+                variant={isGridLayout ? 'subtitle1' : 'h6'}
+                gutterBottom
+                sx={{
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 1,
+                  WebkitBoxOrient: 'vertical',
+                }}
+              >
                 {preset.title}
               </Typography>
 
-              {/* 描述 - 占满剩余空间 */}
+              {/* 描述 */}
               <Typography
                 variant="body2"
                 color="text.secondary"
                 sx={{
-                  flex: '1 0 auto', // 关键点：占满剩余空间
+                  flex: '1 0 auto',
                   flexGrow: 1,
                   mb: 1.5,
-                  maxHeight: expanded ? 'none' : '4.5em',
+                  lineHeight: '1.2',
+                  maxHeight: expanded ? 'none' : isGridLayout ? '2.4em' : '4.5em',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   display: '-webkit-box',
-                  WebkitLineClamp: 3,
+                  WebkitLineClamp: isGridLayout ? 2 : 3,
                   WebkitBoxOrient: 'vertical',
                 }}
               >
@@ -899,87 +913,70 @@ const PresetCard = ({
 
             <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
               {/* 标签栏 */}
-              <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap', mb: 1 }}>
-                {tagsArray.length > 0 ? (
-                  tagsArray.map((tag, index) => (
-                    <Chip
-                      key={index}
-                      label={tag.trim()}
-                      size="small"
-                      sx={{
-                        height: 20,
-                        fontSize: '0.7rem',
-                        bgcolor: theme =>
-                          theme.palette.mode === 'dark'
-                            ? 'rgba(255,255,255,0.08)'
-                            : 'rgba(0,0,0,0.05)',
-                      }}
-                    />
-                  ))
-                ) : (
-                  <Typography variant="caption" color="text.disabled">
-                    无标签
-                  </Typography>
-                )}
-              </Box>
+              {(tagsArray.length > 0 || !isGridLayout) && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    gap: 0.5,
+                    flexWrap: 'wrap',
+                    pb: 3,
+                    maxHeight: isGridLayout ? '20px' : 'auto',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {tagsArray.length > 0 ? (
+                    tagsArray.slice(0, isGridLayout ? 3 : undefined).map((tag, index) => (
+                      <Chip
+                        key={index}
+                        label={tag.trim()}
+                        size="small"
+                        sx={{
+                          ...(theme.palette.mode === 'dark'
+                            ? CHIP_VARIANTS.getCustomColorChip('rgba(255,255,255,0.7)', isSmall)
+                            : CHIP_VARIANTS.getCustomColorChip('rgba(0,0,0,0.7)', isSmall)),
+                        }}
+                      />
+                    ))
+                  ) : !isGridLayout ? (
+                    <Typography variant="caption" color="text.disabled">
+                      无标签
+                    </Typography>
+                  ) : null}
+                  {isGridLayout && tagsArray.length > 3 && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ alignSelf: 'center' }}
+                    >
+                      +{tagsArray.length - 3}
+                    </Typography>
+                  )}
+                </Box>
+              )}
 
               {/* 底部信息栏 */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  作者: {preset.author || '未知'}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  最近更新: {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
-                </Typography>
-              </Box>
+              {!isGridLayout && (
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    作者: {preset.author || '未知'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    最近更新: {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
+                  </Typography>
+                </Box>
+              )}
             </Box>
           </Box>
         </Box>
       </CardContent>
 
-      <Collapse in={expanded} timeout="auto" unmountOnExit>
-        <Divider />
-        <CardContent>
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : detailData ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" gutterBottom>
-                  人设内容:
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{
-                    whiteSpace: 'pre-wrap',
-                    bgcolor: 'background.paper',
-                    p: 2,
-                    borderRadius: 1,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    maxHeight: '300px',
-                    overflow: 'auto',
-                  }}
-                >
-                  {detailData.content || '无内容'}
-                </Typography>
-              </Grid>
-            </Grid>
-          ) : (
-            <Typography color="text.secondary">加载失败</Typography>
-          )}
-        </CardContent>
-      </Collapse>
-
-      <CardActions sx={{ justifyContent: 'space-between', pt: 0 }}>
+      <CardActions sx={{ justifyContent: 'space-between', pt: 0, mt: 'auto' }}>
         <Button
           size="small"
           onClick={onExpand}
@@ -1030,6 +1027,85 @@ const PresetCard = ({
           </Tooltip>
         </Box>
       </CardActions>
+
+      {/* 使用MUI Dialog组件实现展开内容 */}
+      <Dialog
+        open={expanded}
+        onClose={onExpand}
+        maxWidth="md"
+        fullWidth
+        TransitionComponent={Fade}
+        transitionDuration={{ enter: 300, exit: 200 }}
+        PaperProps={{
+          elevation: 8,
+          sx: {
+            borderRadius: BORDER_RADIUS.DEFAULT,
+            background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+            backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+            border: UI_STYLES.BORDERS.CARD.DEFAULT,
+            overflow: 'hidden',
+            maxWidth: isMobile ? '95%' : '800px',
+            maxHeight: '80vh',
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
+          <Avatar
+            src={preset.avatar}
+            sx={{ width: 36, height: 36, borderRadius: 1 }}
+            variant="rounded"
+          />
+          <Typography variant="h6" component="div" sx={{ flex: 1 }}>
+            {preset.title}
+          </Typography>
+          <IconButton size="small" onClick={onExpand} edge="end">
+            <CloseIcon />
+          </IconButton>
+        </DialogTitle>
+        <Divider />
+        <DialogContent>
+          {loading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : detailData ? (
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" gutterBottom>
+                  人设内容:
+                </Typography>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    whiteSpace: 'pre-wrap',
+                    bgcolor: 'background.paper',
+                    p: 2,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    maxHeight: '50vh',
+                    overflow: 'auto',
+                  }}
+                >
+                  {detailData.content || '无内容'}
+                </Typography>
+              </Grid>
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    作者: {preset.author || '未知'}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    最近更新: {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
+                  </Typography>
+                </Box>
+              </Grid>
+            </Grid>
+          ) : (
+            <Typography color="text.secondary">加载失败</Typography>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* 共享对话框 */}
       <Dialog open={showShareDialog} onClose={() => setShowShareDialog(false)}>
@@ -1177,6 +1253,9 @@ export default function PresetsPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  // 添加宽屏检测
+  const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'))
+  const isExtraLargeScreen = useMediaQuery(theme.breakpoints.up('xl'))
 
   // 添加全局错误处理函数
   const showError = useCallback((message: string) => {
@@ -1367,12 +1446,19 @@ export default function PresetsPage() {
     />
   )
 
+  // 根据屏幕尺寸决定网格布局的列数
+  const getGridColumns = () => {
+    if (isExtraLargeScreen) return 3 // 超大屏幕显示3列
+    if (isLargeScreen) return 2 // 大屏幕显示2列
+    return 1 // 默认显示1列
+  }
+
   return (
-    <Box className="h-full flex flex-col">
+    <Box className="h-full flex flex-col p-4">
       <Box className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <Box component="form" onSubmit={handleSearch} className="flex" autoComplete="off">
           <TextField
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
             placeholder="搜索人设"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -1395,9 +1481,15 @@ export default function PresetsPage() {
             startIcon={<CloudSyncIcon />}
             onClick={handleRefreshSharedStatus}
             disabled={refreshingShared}
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
           >
-            {refreshingShared ? <CircularProgress size={isSmall ? 16 : 24} /> : isMobile ? '刷新状态' : '刷新共享状态'}
+            {refreshingShared ? (
+              <CircularProgress size={isSmall ? 16 : 24} />
+            ) : isMobile ? (
+              '刷新状态'
+            ) : (
+              '刷新共享状态'
+            )}
           </Button>
           <Button
             variant="contained"
@@ -1406,7 +1498,7 @@ export default function PresetsPage() {
               setEditingPreset(undefined)
               setEditDialog(true)
             }}
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
           >
             创建人设
           </Button>
@@ -1420,7 +1512,13 @@ export default function PresetsPage() {
       ) : presets.length > 0 ? (
         <Grid container spacing={isSmall ? 1.5 : 2}>
           {presets.map(preset => (
-            <Grid item xs={12} key={preset.id}>
+            <Grid
+              item
+              xs={12}
+              md={getGridColumns() === 2 ? 6 : 12}
+              lg={getGridColumns() === 3 ? 4 : 6}
+              key={preset.id}
+            >
               {renderPresetCard(preset)}
             </Grid>
           ))}
@@ -1445,7 +1543,7 @@ export default function PresetsPage() {
               setEditingPreset(undefined)
               setEditDialog(true)
             }}
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
           >
             创建新人设
           </Button>

@@ -29,6 +29,8 @@ import {
   MenuItem,
   useTheme,
   useMediaQuery,
+  SxProps,
+  Theme,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -47,6 +49,7 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { configApi, ModelGroupConfig } from '../../services/api/config'
+import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 interface EditDialogProps {
   open: boolean
@@ -256,22 +259,19 @@ function EditDialog({
             value={config.MODEL_TYPE || 'chat'}
             onChange={e => setConfig({ ...config, MODEL_TYPE: e.target.value })}
             fullWidth
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
           >
             {modelTypes.map(type => (
               <MenuItem key={type.value} value={type.value}>
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {getModelTypeIcon(type.value)}
                   <Box sx={{ ml: 1 }}>
-                    <Typography 
-                      variant="body2"
-                      sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}
-                    >
+                    <Typography variant="body2" sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
                       {type.label}
                     </Typography>
                     {type.description && (
-                      <Typography 
-                        variant="caption" 
+                      <Typography
+                        variant="caption"
                         color="text.secondary"
                         sx={{ fontSize: isSmall ? '0.7rem' : 'inherit' }}
                       >
@@ -289,7 +289,7 @@ function EditDialog({
             onChange={e => setConfig({ ...config, CHAT_PROXY: e.target.value })}
             fullWidth
             autoComplete="off"
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
             inputProps={{
               autoComplete: 'new-password',
               form: {
@@ -303,7 +303,7 @@ function EditDialog({
             onChange={e => setConfig({ ...config, BASE_URL: e.target.value })}
             fullWidth
             autoComplete="off"
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
             inputProps={{
               autoComplete: 'new-password',
               form: {
@@ -318,7 +318,7 @@ function EditDialog({
             type="text"
             fullWidth
             autoComplete="off"
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
             name={`apikey_${Math.random().toString(36).slice(2)}`}
             inputProps={{
               autoComplete: 'new-password',
@@ -335,7 +335,11 @@ function EditDialog({
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowApiKey(!showApiKey)} edge="end" size={isSmall ? "small" : "medium"}>
+                  <IconButton
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    edge="end"
+                    size={isSmall ? 'small' : 'medium'}
+                  >
                     {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
                   </IconButton>
                 </InputAdornment>
@@ -345,13 +349,14 @@ function EditDialog({
 
           {/* 模型功能选项 */}
           <Box className="border-t pt-2 mt-2">
-            <Typography variant="subtitle2" className="mb-2" sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
+            <Typography
+              variant="subtitle2"
+              className="mb-2"
+              sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}
+            >
               模型功能
             </Typography>
-            <Stack 
-              direction={isMobile ? "column" : "row"} 
-              spacing={isMobile ? 1 : 4}
-            >
+            <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 1 : 4}>
               <Tooltip title="启用模型视觉能力，需要模型支持多模态输入">
                 <div>
                   <FormControlLabel
@@ -360,7 +365,7 @@ function EditDialog({
                         checked={config.ENABLE_VISION}
                         onChange={e => setConfig({ ...config, ENABLE_VISION: e.target.checked })}
                         color="primary"
-                        size={isSmall ? "small" : "medium"}
+                        size={isSmall ? 'small' : 'medium'}
                       />
                     }
                     label={
@@ -380,7 +385,7 @@ function EditDialog({
                         checked={config.ENABLE_COT}
                         onChange={e => setConfig({ ...config, ENABLE_COT: e.target.checked })}
                         color="primary"
-                        size={isSmall ? "small" : "medium"}
+                        size={isSmall ? 'small' : 'medium'}
                       />
                     }
                     label={
@@ -399,7 +404,7 @@ function EditDialog({
             onClick={() => setShowAdvanced(!showAdvanced)}
             variant="text"
             className="self-start"
-            size={isSmall ? "small" : "medium"}
+            size={isSmall ? 'small' : 'medium'}
           >
             {showAdvanced ? '收起高级选项 ▼' : '展开高级选项 ▶'}
           </Button>
@@ -417,7 +422,7 @@ function EditDialog({
                   })
                 }
                 fullWidth
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: 0, max: 2 }}
                 helperText="控制输出的随机性 (0-2)"
               />
@@ -432,7 +437,7 @@ function EditDialog({
                   })
                 }
                 fullWidth
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: 0, max: 1 }}
                 helperText="控制输出的多样性 (0-1)"
               />
@@ -447,7 +452,7 @@ function EditDialog({
                   })
                 }
                 fullWidth
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: -2, max: 2 }}
                 helperText="基于生成文本中已出现的内容对新内容的惩罚，越大越倾向产生新话题 (-2 到 2)"
               />
@@ -462,7 +467,7 @@ function EditDialog({
                   })
                 }
                 fullWidth
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: -2, max: 2 }}
                 helperText="基于生成文本中出现的内容频率对新内容的惩罚，越大越倾向产生多样回复 (-2 到 2)"
               />
@@ -471,7 +476,7 @@ function EditDialog({
                 value={config.EXTRA_BODY ?? ''}
                 onChange={e => setConfig({ ...config, EXTRA_BODY: e.target.value || null })}
                 fullWidth
-                size={isSmall ? "small" : "medium"}
+                size={isSmall ? 'small' : 'medium'}
                 multiline
                 rows={3}
                 helperText="额外的请求参数 (JSON 格式)"
@@ -483,15 +488,15 @@ function EditDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button 
+        <Button
           onClick={onClose}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
           取消
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          color="primary" 
+        <Button
+          onClick={handleSubmit}
+          color="primary"
           disabled={!!groupNameError || !groupName}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
@@ -671,17 +676,35 @@ export default function ModelGroupsPage() {
   }
 
   return (
-    <Box className="h-full flex flex-col overflow-hidden">
+    <Box
+      sx={{
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        p: 2,
+      }}
+    >
       {/* 顶部工具栏 */}
-      <Box className="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap gap-2">
-        <Alert 
-          severity="info" 
-          className={isMobile ? "w-full" : "mr-4"}
-          sx={{ 
+      <Box
+        sx={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 2,
+          flexShrink: 0,
+          flexWrap: 'wrap',
+          gap: 1,
+        }}
+      >
+        <Alert
+          severity="info"
+          className={isMobile ? 'w-full' : 'mr-4'}
+          sx={{
             py: isSmall ? 0.5 : 1,
             '& .MuiAlert-message': {
-              fontSize: isSmall ? '0.75rem' : 'inherit'
-            }
+              fontSize: isSmall ? '0.75rem' : 'inherit',
+            },
           }}
         >
           需要 API 密钥？可访问{' '}
@@ -690,15 +713,15 @@ export default function ModelGroupsPage() {
           </Link>{' '}
           获取专属密钥哦～
         </Alert>
-        <Button 
-          variant="contained" 
-          startIcon={<AddIcon />} 
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
           onClick={handleAdd}
-          size={isSmall ? "small" : "medium"}
-          sx={{ 
+          size={isSmall ? 'small' : 'medium'}
+          sx={{
             ml: isMobile ? 0 : 'auto',
             minWidth: { xs: 120, sm: 140 },
-            minHeight: { xs: 36, sm: 40 } 
+            minHeight: { xs: 36, sm: 40 },
           }}
         >
           新建模型组
@@ -706,49 +729,89 @@ export default function ModelGroupsPage() {
       </Box>
 
       {/* 表格容器 */}
-      <Paper className="flex-1 flex flex-col min-h-0 overflow-hidden" elevation={3}>
-        <TableContainer className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-          <Table stickyHeader size={isSmall ? "small" : "medium"} sx={{ minWidth: isMobile ? 650 : 900 }}>
+      <Paper
+        elevation={3}
+        sx={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          overflow: 'hidden',
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>)
+        }}
+      >
+        <TableContainer
+          sx={{
+            flex: 1,
+            overflow: 'auto',
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>)
+          }}
+        >
+          <Table
+            stickyHeader
+            size={isSmall ? 'small' : 'medium'}
+            sx={{ minWidth: isMobile ? 650 : 900 }}
+          >
             <TableHead>
               <TableRow>
-                <TableCell 
-                  width={isMobile ? "15%" : "12%"}
-                  sx={{ py: isSmall ? 1 : 1.5 }}
-                >组名</TableCell>
-                <TableCell 
-                  width={isMobile ? "15%" : "12%"}
-                  sx={{ py: isSmall ? 1 : 1.5 }}
-                >模型名称</TableCell>
-                <TableCell 
-                  width={isMobile ? "15%" : "10%"}
-                  sx={{ py: isSmall ? 1 : 1.5 }}
-                >模型类型</TableCell>
+                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) 
+                }}>
+                  组名
+                </TableCell>
+                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>
+                  模型名称
+                </TableCell>
+                <TableCell width={isMobile ? '15%' : '10%'} sx={{ 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>
+                  模型类型
+                </TableCell>
                 {!isSmall && (
-                  <TableCell 
-                    width="20%"
-                    sx={{ py: isSmall ? 1 : 1.5 }}
-                  >API地址</TableCell>
+                  <TableCell width="20%" sx={{ 
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                  }}>
+                    API地址
+                  </TableCell>
                 )}
                 {!isMobile && (
-                  <TableCell 
-                    width="13%"
-                    sx={{ py: isSmall ? 1 : 1.5 }}
-                  >代理地址</TableCell>
+                  <TableCell width="13%" sx={{ 
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                  }}>
+                    代理地址
+                  </TableCell>
                 )}
-                <TableCell 
-                  width={isMobile ? "25%" : "18%"}
-                  sx={{ py: isSmall ? 1 : 1.5 }}
-                >功能</TableCell>
-                <TableCell 
-                  width={isMobile ? "30%" : "15%"}
-                  sx={{ py: isSmall ? 1 : 1.5 }}
-                >操作</TableCell>
+                <TableCell width={isMobile ? '25%' : '18%'} sx={{ 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>
+                  功能
+                </TableCell>
+                <TableCell width={isMobile ? '30%' : '15%'} sx={{ 
+                  py: isSmall ? 1 : 1.5,
+                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
+                }}>
+                  操作
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {Object.entries(modelGroups).map(([name, config]) => (
-                <TableRow key={name}>
-                  <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                <TableRow 
+                  key={name}
+                  sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}
+                >
+                  <TableCell sx={{ 
+                    py: isSmall ? 0.75 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                  }}>
                     <Typography
                       className={name === 'default' ? 'font-bold' : ''}
                       variant="subtitle2"
@@ -757,62 +820,73 @@ export default function ModelGroupsPage() {
                       {name}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                  <TableCell sx={{ 
+                    py: isSmall ? 0.75 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                  }}>
                     <Typography
                       variant="body2"
-                      sx={{ 
+                      sx={{
                         fontSize: isSmall ? '0.75rem' : 'inherit',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        maxWidth: isMobile ? 100 : 150
+                        maxWidth: isMobile ? 100 : 150,
                       }}
                     >
                       {config.CHAT_MODEL}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                  <TableCell sx={{ 
+                    py: isSmall ? 0.75 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                  }}>
                     <Chip
                       icon={getModelTypeIcon(config.MODEL_TYPE)}
                       label={getModelTypeLabel(config.MODEL_TYPE)}
                       size="small"
                       color={getModelTypeColor(config.MODEL_TYPE)}
                       variant="outlined"
-                      sx={{ 
+                      sx={{
                         height: isSmall ? 20 : 24,
                         fontSize: isSmall ? '0.65rem' : '0.75rem',
                         '& .MuiChip-label': {
                           px: isSmall ? 0.5 : 0.75,
-                        }
+                        },
                       }}
                     />
                   </TableCell>
                   {!isSmall && (
-                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                    <TableCell sx={{ 
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                    }}>
                       <BlurredText>{config.BASE_URL}</BlurredText>
                     </TableCell>
                   )}
                   {!isMobile && (
-                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                    <TableCell sx={{ 
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                    }}>
                       <Typography
                         variant="body2"
-                        sx={{ 
+                        sx={{
                           fontSize: isSmall ? '0.75rem' : 'inherit',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         {config.CHAT_PROXY || '-'}
                       </Typography>
                     </TableCell>
                   )}
-                  <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
-                    <Stack 
-                      direction="row" 
-                      spacing={0.5}
-                      flexWrap={isSmall ? "wrap" : "nowrap"}
-                    >
+                  <TableCell sx={{ 
+                    py: isSmall ? 0.75 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                  }}>
+                    <Stack direction="row" spacing={0.5} flexWrap={isSmall ? 'wrap' : 'nowrap'}>
                       <Tooltip title={config.ENABLE_VISION ? '支持视觉功能' : '不支持视觉功能'}>
                         <Chip
                           icon={<ImageIcon fontSize="small" />}
@@ -820,7 +894,7 @@ export default function ModelGroupsPage() {
                           size="small"
                           color={config.ENABLE_VISION ? 'primary' : 'default'}
                           variant={config.ENABLE_VISION ? 'filled' : 'outlined'}
-                          sx={{ 
+                          sx={{
                             height: isSmall ? 20 : 24,
                             fontSize: isSmall ? '0.65rem' : '0.75rem',
                             '& .MuiChip-label': {
@@ -829,7 +903,7 @@ export default function ModelGroupsPage() {
                             '& .MuiChip-icon': {
                               fontSize: isSmall ? '0.9rem' : '1rem',
                               ml: isSmall ? 0.3 : 0.5,
-                            }
+                            },
                           }}
                         />
                       </Tooltip>
@@ -840,7 +914,7 @@ export default function ModelGroupsPage() {
                           size="small"
                           color={config.ENABLE_COT ? 'secondary' : 'default'}
                           variant={config.ENABLE_COT ? 'filled' : 'outlined'}
-                          sx={{ 
+                          sx={{
                             height: isSmall ? 20 : 24,
                             fontSize: isSmall ? '0.65rem' : '0.75rem',
                             '& .MuiChip-label': {
@@ -849,18 +923,21 @@ export default function ModelGroupsPage() {
                             '& .MuiChip-icon': {
                               fontSize: isSmall ? '0.9rem' : '1rem',
                               ml: isSmall ? 0.3 : 0.5,
-                            }
+                            },
                           }}
                         />
                       </Tooltip>
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
-                    <Stack 
-                      direction="row" 
-                      spacing={0.5} 
+                  <TableCell sx={{ 
+                    py: isSmall ? 0.75 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
+                  }}>
+                    <Stack
+                      direction="row"
+                      spacing={0.5}
                       justifyContent="flex-start"
-                      flexWrap={isSmall ? "wrap" : "nowrap"}
+                      flexWrap={isSmall ? 'wrap' : 'nowrap'}
                     >
                       <Tooltip title="访问API提供商" arrow>
                         <IconButton
@@ -870,27 +947,27 @@ export default function ModelGroupsPage() {
                           disabled={!config.BASE_URL}
                           sx={{ p: isSmall ? 0.5 : 1 }}
                         >
-                          <LaunchIcon fontSize={isSmall ? "small" : "medium"} />
+                          <LaunchIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="编辑模型组" arrow>
-                        <IconButton 
-                          onClick={() => handleEdit(name)} 
-                          size="small" 
+                        <IconButton
+                          onClick={() => handleEdit(name)}
+                          size="small"
                           color="warning"
                           sx={{ p: isSmall ? 0.5 : 1 }}
                         >
-                          <EditIcon fontSize={isSmall ? "small" : "medium"} />
+                          <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="复制模型组" arrow>
-                        <IconButton 
-                          onClick={() => handleCopy(name)} 
-                          size="small" 
+                        <IconButton
+                          onClick={() => handleCopy(name)}
+                          size="small"
                           color="info"
                           sx={{ p: isSmall ? 0.5 : 1 }}
                         >
-                          <ContentCopyIcon fontSize={isSmall ? "small" : "medium"} />
+                          <ContentCopyIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
                       <Tooltip
@@ -905,7 +982,7 @@ export default function ModelGroupsPage() {
                             disabled={name === 'default'}
                             sx={{ p: isSmall ? 0.5 : 1 }}
                           >
-                            <DeleteIcon fontSize={isSmall ? "small" : "medium"} />
+                            <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
                           </IconButton>
                         </span>
                       </Tooltip>
@@ -930,8 +1007,8 @@ export default function ModelGroupsPage() {
       />
 
       {/* 删除确认对话框 */}
-      <Dialog 
-        open={deleteDialogOpen} 
+      <Dialog
+        open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
         fullWidth
         maxWidth="xs"
@@ -943,14 +1020,14 @@ export default function ModelGroupsPage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setDeleteDialogOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             取消
           </Button>
-          <Button 
-            onClick={() => handleDelete(deletingGroupName)} 
+          <Button
+            onClick={() => handleDelete(deletingGroupName)}
             color="error"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >

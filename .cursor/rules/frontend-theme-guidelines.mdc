@@ -1,106 +1,299 @@
 ---
 description: 
-globs: *.tsx
+globs: *.tsx,frontend/**/*.*
 alwaysApply: false
 ---
-# 前端主题设计规范
+# 前端主题系统开发指南
 
-## 颜色系统
+## 主题系统架构
 
-### 颜色引用原则
-- **避免硬编码颜色值**：所有颜色应该从主题常量中引用或添加，严格禁止任何硬编码颜色行为！！！
-- **统一使用颜色常量**：通过 `COLORS`, `GRADIENTS`, `SHADOWS` 等从 `theme/constants.ts` 导入
-- **兼容旧版本引用**：对于不兼容的组件，使用 `LEGACY_COLORS` 提供的兼容值
+主题系统采用分层架构设计，将主题定义与使用完全分离，支持多主题扩展。
 
-### 调色板结构
-- **主题主色**：使用 `COLORS.PRIMARY` 对象（而非直接使用颜色值）
-  - 亮色模式: `COLORS.PRIMARY.LIGHT`
-  - 暗色模式: `COLORS.PRIMARY.DARK`
-  - 注意: 不要使用 `'#EA5252'` 这类硬编码值
+### 核心文件结构
 
-### 辅助色
-- 通过 `COLORS.SECONDARY` 对象引用
-- 提供亮暗模式变体和高亮变体
-- 避免直接使用颜色码值
+- `palette.ts` - 调色板定义，包含所有主题的原始颜色配置
+- `themeConfig.ts` - 主题配置与管理，提供主题获取和切换的核心功能
+- `variants.ts` - 组件样式变体，定义各种UI组件的通用样式变体
+- `ThemeProvider.tsx` - 主题提供者组件，为整个应用提供主题
+- `ThemeToggleButton.tsx` - 主题切换按钮组件，用于切换主题模式
+- `index.tsx` - 主题入口文件，统一导出所有主题相关组件和功能
 
-### 状态色
-- 成功: `COLORS.SUCCESS`
-- 错误: `COLORS.ERROR`
-- 警告: `COLORS.WARNING`
-- 信息: `COLORS.INFO`
+## 基本原则
 
-## 渐变色与阴影
+- **严禁硬编码颜色值**：禁止在组件中使用硬编码的颜色值，必须从主题系统中获取
+- **禁止使用主题判断条件**：不要使用 `theme.palette.mode === 'dark'` 这类条件判断，应使用动态属性
+- **支持多主题模式**：系统支持亮色、暗色和跟随系统三种模式，未来可扩展为更多自定义主题
+- **组件样式变体化**：使用预定义的样式变体，而非在每个组件中重复定义样式
+- **调色板与使用分离**：调色板定义与样式使用完全分离，便于主题扩展和统一管理
+- **持续更新**：当实现发生变化或者追加新的重要知识时，持续更新本文档的内容保持其最新且可用
 
-### 背景渐变
-- 通过 `GRADIENTS` 常量引用
-- 例如: `GRADIENTS.BACKGROUND.DARK.PRIMARY`
+## 主题使用指南
 
-### 阴影系统
-- 通过 `SHADOWS` 常量引用
-- 例如: `SHADOWS.CARD.DARK.HOVER`
+### 获取主题配置
 
-## 圆角系统
+通过主题配置管理函数获取当前主题配置：
 
-### 组件圆角规范
-- **小圆角(默认)**: `6px` - 适用于大多数组件，包括卡片、按钮等
-- **中等圆角**: `8px` - 适用于对话框、大型容器等
-- **大圆角**: `12px` - 仅用于特殊强调组件
-- **圆形**: `50%` 或 `rounded-full` - 用于头像、徽章等
+```tsx
+import { getCurrentThemeMode, getCurrentPalette, getCurrentUIElements } from '../../theme/themeConfig';
 
-### 圆角使用原则
-- 保持统一: 同类组件使用相同的圆角值
-- 层次感: 子组件圆角应小于或等于父组件
-- 避免过大圆角: 不要使用超过 `12px` 的圆角，除非设计特殊需求
+// 获取当前主题模式 ('light' | 'dark')
+const mode = getCurrentThemeMode();
 
-## 边框样式
+// 获取当前主题的调色板
+const palette = getCurrentPalette();
 
-### 卡片/内容区域
-- 暗色模式: `1px solid rgba(102, 36, 36, 0.08)`
-- 亮色模式: `1px solid rgba(234, 82, 82, 0.05)`
+// 获取当前主题的UI元素配置
+const uiElements = getCurrentUIElements();
 
-### 导航项选中态
-- 边框颜色: 使用 `theme.palette.primary.main`
-- 边框宽度: `3px`
+// 根据路径获取当前主题的特定配置项
+import { getThemeToken } from '../../theme/themeConfig';
+const palette = getThemeToken('palette');
+const ui = getThemeToken('ui');
+```
 
-### 分隔线
-- 使用 `theme.palette.divider`
+### 使用组件级样式
 
-## 组件样式指南
+对于特定组件的样式，使用预定义的组件级样式：
 
-### 按钮
-- 圆角: `6px`
-- 去除大写文本变换
-- 添加过渡动画 `transition: all 0.2s ease-in-out`
-- 使用阴影常量: `SHADOWS.BUTTON.DARK.DEFAULT`
+```tsx
+import { LOG_TABLE_STYLES, LOGIN_PAGE_STYLES } from '../../theme/themeConfig';
 
-### 卡片
-- 圆角: `6px`
-- 添加悬停阴影效果
-- 阴影引用: `SHADOWS.CARD.LIGHT.DEFAULT`
-- 背景引用: `GRADIENTS.CARD.LIGHT`
+// 在组件中使用
+<Box sx={{
+  backgroundColor: LOG_TABLE_STYLES.SEVERITY.INFO.backgroundColor,
+  color: LOG_TABLE_STYLES.SEVERITY.INFO.color
+}} />
 
-### 导航项
-- 选中项左侧边框: `3px solid ${theme.palette.primary.main}`
-- 过渡动画: `transition: all 0.2s ease-in-out`
+// 登录页使用
+<Paper sx={{
+  boxShadow: LOGIN_PAGE_STYLES.SHADOW.CARD,
+  background: LOGIN_PAGE_STYLES.CARD,
+  border: LOGIN_PAGE_STYLES.BORDER
+}} />
+```
 
-### 图表
-- 使用 `metricColors` 常量引用颜色，不要硬编码
+### 使用样式变体
 
-### 滚动条
-- 使用透明度表示状态变化
-- 圆角: `4px`
+样式变体是预定义的样式配置，用于快速应用常见样式：
 
-## 响应式设计
+```tsx
+import { 
+  CARD_VARIANTS, 
+  BUTTON_VARIANTS, 
+  INPUT_VARIANTS, 
+  SCROLLBAR_VARIANTS
+} from '../../theme/variants';
 
-- 小屏幕设备调整文本大小和内边距
-- 移动设备上默认隐藏侧边栏
-- 确保交互元素有足够大的点击区域
-- 使用 Material UI 的断点系统保持一致性
+// 卡片变体
+<Card sx={CARD_VARIANTS.default.styles} />
+<Card sx={CARD_VARIANTS.flat.styles} />
+<Card sx={CARD_VARIANTS.transparent.styles} />
+
+// 按钮变体
+<Button sx={BUTTON_VARIANTS.primary.styles} />
+<Button sx={BUTTON_VARIANTS.secondary.styles} />
+
+// 输入框变体
+<TextField sx={INPUT_VARIANTS.default.styles} />
+
+// 滚动条样式
+<Box sx={SCROLLBAR_VARIANTS.default.styles} />
+<Box sx={SCROLLBAR_VARIANTS.thin.styles} />
+```
+
+### 使用主题切换按钮
+
+在应用中添加主题切换按钮：
+
+```tsx
+import { ThemeToggleButton } from '../../theme';
+
+// 使用默认大小
+<ThemeToggleButton />
+
+// 指定大小
+<ThemeToggleButton size="small" />
+```
+
+## 扩展主题系统
+
+### 添加新的主题
+
+要添加新的主题，需要在 `palette.ts` 中定义新的主题配置：
+
+```tsx
+// 在 palette.ts 文件中添加新主题
+export const themes: Record<ThemeKeys, ThemeConfig> = {
+  light: { /* 现有浅色主题 */ },
+  dark: { /* 现有暗色主题 */ },
+  myCustomTheme: {
+    palette: {
+      // 定义调色板
+      primary: {
+        main: '#3F51B5',
+        light: '#3F51B5',
+        dark: '#3F51B5',
+        lighter: '#7986CB',
+        darker: '#303F9F',
+        highlight: '#8C9EFF',
+      },
+      // 其他颜色...
+    },
+    ui: {
+      // 定义UI元素样式
+      background: {
+        main: '#FAFAFA',
+        // 其他背景样式...
+      },
+      // 其他UI样式...
+    }
+  }
+};
+```
+
+### 添加新的组件样式
+
+为特定组件添加专用主题样式：
+
+```tsx
+// 在 themeConfig.ts 文件中添加
+export const NEW_COMPONENT_STYLES = {
+  // 背景样式
+  get BACKGROUND() {
+    const { background } = getCurrentUIElements();
+    const mode = getCurrentThemeMode();
+    return {
+      light: `linear-gradient(...)`,
+      dark: `linear-gradient(...)`
+    }[mode];
+  },
+  // 其他样式...
+};
+```
+
+### 添加新的样式变体
+
+为组件添加新的样式变体：
+
+```tsx
+// 在 variants.ts 文件中添加
+export const MY_COMPONENT_VARIANTS = {
+  // 自定义变体
+  custom: {
+    get styles(): SxProps<Theme> {
+      const { shadow, border, background } = getThemeToken('ui');
+      return {
+        background: background.card,
+        boxShadow: shadow.card,
+        // 其他样式...
+      };
+    },
+  },
+};
+```
+
+## 主题切换原理
+
+主题切换基于 Zustand 状态管理和 React Context：
+
+1. `useColorMode` 存储当前主题模式（light/dark/system）
+2. `ThemeProvider` 根据当前模式创建并提供 MUI 主题
+3. 所有样式通过动态 getter 实时获取当前主题的样式
+
+主题切换顺序为：浅色 -> 暗色 -> 系统 -> 浅色
 
 ## 最佳实践
 
-- **避免硬编码颜色值**：始终使用主题常量
-- **使用相对单位**：使用 `rem` 或 `em` 而非像素
-- **统一使用圆角值**：保持圆角视觉统一性
-- **使用主题变量**：使用 `theme.palette` 而非直接颜色值
-- **添加过渡动画**：所有状态变化添加适当的过渡效果
+1. 使用组件样式变体代替内联样式
+2. 使用预定义的主题配置代替硬编码值
+3. 所有新增页面和组件必须支持浅色和暗色两种主题
+4. 通过扩展现有变体创建新样式，而非从头开始
+5. 为特殊页面创建专用样式对象，便于集中管理
+6. 确保透明度和阴影在两种主题下都有良好表现
+7. 测试所有组件在主题切换时的平滑过渡
+
+## 代码示例
+
+### 卡片组件示例
+
+```tsx
+import { CARD_VARIANTS, BORDER_RADIUS } from '../../theme/variants';
+
+function MyCard({ children }) {
+  return (
+    <Card
+      sx={{
+        ...CARD_VARIANTS.default.styles,
+        borderRadius: BORDER_RADIUS.LARGE,
+        padding: 3,
+        // 扩展默认样式
+      }}
+    >
+      {children}
+    </Card>
+  );
+}
+```
+
+### 表格组件示例
+
+```tsx
+import { LOG_TABLE_STYLES } from '../../theme/themeConfig';
+import { SCROLLBAR_VARIANTS } from '../../theme/variants';
+
+function MyTable() {
+  return (
+    <Box sx={{
+      ...SCROLLBAR_VARIANTS.thin.styles,
+      maxHeight: 400,
+      overflow: 'auto'
+    }}>
+      <Table>
+        <TableHead>
+          <TableRow
+            sx={{
+              '& th': {
+                fontWeight: 600
+              }
+            }}
+          >
+            <TableCell>名称</TableCell>
+            <TableCell>状态</TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          <TableRow>
+            <TableCell>示例数据</TableCell>
+            <TableCell>
+              <Box sx={{
+                ...LOG_TABLE_STYLES.SEVERITY.SUCCESS,
+                display: 'inline-block',
+                padding: '3px 8px',
+                borderRadius: '4px'
+              }}>
+                成功
+              </Box>
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </Box>
+  );
+}
+```
+
+## 错误与修复
+
+### 常见错误
+
+1. 直接使用颜色代码：`color: '#ff0000'` ❌
+2. 使用主题判断：`theme.palette.mode === 'dark'` ❌
+3. 在组件中混合使用多种获取主题方式 ❌
+4. 使用固定阴影值而非主题提供的阴影 ❌
+
+### 正确做法
+
+1. 使用调色板颜色：`color: palette.error` ✅
+2. 使用样式变体：`sx={CARD_VARIANTS.default.styles}` ✅ 
+3. 使用组件级样式：`boxShadow: LOGIN_PAGE_STYLES.SHADOW.CARD` ✅
+4. 始终使用相对不透明度：`alpha(theme.palette.primary.main, 0.2)` ✅

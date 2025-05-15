@@ -56,7 +56,7 @@ import {
 import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
-import { GRADIENTS, SHADOWS, BORDERS, BORDER_RADIUS, CARD_LAYOUT } from '../../theme/constants'
+import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -92,7 +92,7 @@ const PluginCard = ({
   onShowDetail: () => void
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
 
@@ -123,12 +123,12 @@ const PluginCard = ({
         flexDirection: 'column',
         transition: 'all 0.2s ease-in-out',
         borderRadius: BORDER_RADIUS.MEDIUM,
-        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-        boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
+        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
         '&:hover': {
-          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
         },
       }}
     >
@@ -249,7 +249,7 @@ const PluginCard = ({
         sx={{
           justifyContent: 'space-between',
           p: 1.5,
-          bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          bgcolor: UI_STYLES.SELECTED,
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
@@ -351,7 +351,7 @@ const PluginCard = ({
                 onClick={onUpdate}
                 color="primary"
               >
-                同步最新
+                更新
               </Button>
             )}
 
@@ -398,7 +398,7 @@ const PluginDetailDialog = ({
   onEdit?: () => void
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
 
@@ -435,10 +435,10 @@ const PluginDetailDialog = ({
         sx: {
           borderRadius: BORDER_RADIUS.MEDIUM,
           overflow: 'hidden',
-          background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-          backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-          border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-          boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
+          background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+          backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+          border: UI_STYLES.BORDERS.CARD.DEFAULT,
+          boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
         },
       }}
     >
@@ -446,7 +446,7 @@ const PluginDetailDialog = ({
         sx={{
           px: 3,
           py: 2,
-          background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          background: UI_STYLES.SELECTED,
           borderBottom: '1px solid',
           borderColor: 'divider',
           display: 'flex',
@@ -529,7 +529,7 @@ const PluginDetailDialog = ({
                 variant="body1"
                 paragraph
                 sx={{
-                  backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  backgroundColor: UI_STYLES.GRADIENTS.CARD.DEFAULT,
                   p: 2,
                   borderRadius: BORDER_RADIUS.SMALL,
                   borderLeft: '4px solid',

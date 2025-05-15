@@ -26,11 +26,15 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
+  PieChart, 
+  Pie, 
+  Cell, 
+  Legend
 } from 'recharts'
-import { PieChart, Pie, Cell, Legend, Tooltip } from 'recharts'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { GRADIENTS, SHADOWS, BORDERS, BORDER_RADIUS, CARD_LAYOUT } from '../../theme/constants'
+import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
+import { LAYOUT } from '../../theme/variants'
 
 // 统计卡片组件
 const StatCard = ({
@@ -45,58 +49,59 @@ const StatCard = ({
   color: string
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-
+  
   return (
     <Card
       sx={{
-        flex: 1,
-        transition: 'all 0.3s ease',
+        p: 2,
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: LAYOUT.TRANSITION.DEFAULT,
         borderRadius: BORDER_RADIUS.MEDIUM,
-        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-        boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
+        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
         '&:hover': {
-          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
         },
       }}
     >
-      <CardContent>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Box>
-            <Typography 
-              variant="body2" 
-              color="text.secondary"
-              sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
-            >
-              {title}
-            </Typography>
-            <Typography 
-              variant={isMobile ? "h5" : "h4"} 
-              component="div" 
-              sx={{ mt: 1, fontWeight: 'medium' }}
-            >
-              {value}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: `${color}20`,
-              color: color,
-              borderRadius: '50%',
-              width: isMobile ? 40 : 48,
-              height: isMobile ? 40 : 48,
-            }}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Box>
+          <Typography 
+            variant="body2" 
+            color="text.secondary"
+            sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
           >
-            {icon}
-          </Box>
+            {title}
+          </Typography>
+          <Typography 
+            variant={isMobile ? "h5" : "h4"}
+            component="div" 
+            sx={{ mt: 1, fontWeight: 'medium' }}
+          >
+            {value}
+          </Typography>
         </Box>
-      </CardContent>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: `${UI_STYLES.getAlphaColor(color, 0.15)}`,
+            color: color,
+            borderRadius: '50%',
+            width: isMobile ? 40 : 48,
+            height: isMobile ? 40 : 48,
+          }}
+        >
+          {icon}
+        </Box>
+      </Box>
     </Card>
   )
 }
@@ -116,26 +121,19 @@ interface PieTooltipProps {
 const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const isDark = theme.palette.mode === 'dark'
 
   if (active && payload && payload.length) {
     const item = payload[0].payload
     return (
       <Box
         sx={{
-          bgcolor: isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
           p: isMobile ? 1 : 1.5,
           borderRadius: 1,
           minWidth: isMobile ? 100 : 120,
           fontSize: isMobile ? '0.75rem' : '0.875rem',
-          transition: 'all 0.2s ease',
-          animation: 'fadeIn 0.3s ease-in-out',
-          '@keyframes fadeIn': {
-            '0%': { opacity: 0, transform: 'translateY(5px)' },
-            '100%': { opacity: 1, transform: 'translateY(0)' },
-          },
         }}
       >
         <Typography 
@@ -183,25 +181,18 @@ interface LineTooltipProps {
 const CustomLineTooltip = ({ active, payload, label }: LineTooltipProps) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const isDark = theme.palette.mode === 'dark'
 
   if (active && payload && payload.length) {
     return (
       <Box
         sx={{
-          bgcolor: isDark ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
           p: isMobile ? 1 : 1.5,
           borderRadius: 1,
           minWidth: isMobile ? 100 : 120,
           fontSize: isMobile ? '0.75rem' : '0.875rem',
-          transition: 'all 0.2s ease',
-          animation: 'fadeIn 0.3s ease-in-out',
-          '@keyframes fadeIn': {
-            '0%': { opacity: 0, transform: 'translateY(5px)' },
-            '100%': { opacity: 1, transform: 'translateY(0)' },
-          },
         }}
       >
         <Typography 
@@ -235,13 +226,12 @@ interface VersionData {
   total: number
 }
 
-export default function CommunityStats() {
+export default function TelemetryStats() {
   const [stats, setStats] = useState<CommunityStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const isDark = theme.palette.mode === 'dark'
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -277,7 +267,7 @@ export default function CommunityStats() {
 
   const renderLineChart = (data: CommunityStats['newInstancesTrend']) => {
     // 处理日期格式
-    const chartData = data.map(item => ({
+    const chartData = data.map((item: {date: string, count: number}) => ({
       date: formatDate(item.date),
       count: item.count,
     }))
@@ -328,7 +318,7 @@ export default function CommunityStats() {
 
   const renderPieChart = (data: CommunityStats['versionDistribution']) => {
     // 计算总数用于百分比计算
-    const total = data.reduce((sum, item) => sum + item.count, 0)
+    const total = data.reduce((sum: number, item: {version: string, count: number}) => sum + item.count, 0)
 
     // 先按版本字符串排序数据
     const sortedData = [...data].sort((a, b) => a.version.localeCompare(b.version))
@@ -380,11 +370,7 @@ export default function CommunityStats() {
                 <text
                   x={x}
                   y={y}
-                  fill={
-                    theme.palette.mode === 'dark'
-                      ? theme.palette.grey[100]
-                      : theme.palette.grey[800]
-                  }
+                  fill={theme.palette.mode === 'dark' ? theme.palette.grey[100] : theme.palette.grey[800]}
                   textAnchor={x > (cx as number) ? 'start' : 'end'}
                   dominantBaseline="central"
                   fontSize={isMobile ? 10 : 12}
@@ -404,7 +390,7 @@ export default function CommunityStats() {
               />
             ))}
           </Pie>
-          <Tooltip
+          <RechartsTooltip
             content={<CustomPieTooltip />}
             wrapperStyle={{ zIndex: 1000, outline: 'none' }}
           />
@@ -413,7 +399,7 @@ export default function CommunityStats() {
             verticalAlign="middle"
             align="right"
             wrapperStyle={{ paddingRight: isMobile ? 0 : 20 }}
-            formatter={value => (
+            formatter={(value: string) => (
               <span
                 style={{
                   color: theme.palette.text.primary,
@@ -462,17 +448,17 @@ export default function CommunityStats() {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="实例总数"
-            value={stats.totalInstances}
+            value={formatNumber(stats.totalInstances)}
             icon={<StorageIcon />}
-            color="#3f51b5"
+            color={theme.palette.primary.main}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="活跃实例"
-            value={stats.activeInstances}
+            value={formatNumber(stats.activeInstances)}
             icon={<CheckCircleIcon />}
-            color="#4caf50"
+            color={theme.palette.success.main}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -480,7 +466,7 @@ export default function CommunityStats() {
             title="总用户数"
             value={formatNumber(stats.totalUsers)}
             icon={<PeopleIcon />}
-            color="#ff9800"
+            color={theme.palette.warning.main}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -488,7 +474,7 @@ export default function CommunityStats() {
             title="沙盒调用"
             value={formatNumber(stats.totalSandboxCalls)}
             icon={<CodeIcon />}
-            color="#e91e63"
+            color={theme.palette.secondary.main}
           />
         </Grid>
       </Grid>
@@ -497,15 +483,15 @@ export default function CommunityStats() {
         <Grid item xs={12} md={6}>
           <Card
             sx={{
-              transition: 'all 0.3s ease',
+              transition: LAYOUT.TRANSITION.DEFAULT,
               height: isMobile ? 350 : 400,
               borderRadius: BORDER_RADIUS.MEDIUM,
-              background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-              backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-              border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-              boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
+              background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+              backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+              border: UI_STYLES.BORDERS.CARD.DEFAULT,
+              boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
               '&:hover': {
-                boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+                boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
               },
             }}
           >
@@ -520,15 +506,15 @@ export default function CommunityStats() {
         <Grid item xs={12} md={6}>
           <Card
             sx={{
-              transition: 'all 0.3s ease',
+              transition: LAYOUT.TRANSITION.DEFAULT,
               height: isMobile ? 350 : 400,
               borderRadius: BORDER_RADIUS.MEDIUM,
-              background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
-              backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-              border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
-              boxShadow: isDark ? SHADOWS.CARD.DARK.DEFAULT : SHADOWS.CARD.LIGHT.DEFAULT,
+              background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+              backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+              border: UI_STYLES.BORDERS.CARD.DEFAULT,
+              boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
               '&:hover': {
-                boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+                boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
               },
             }}
           >

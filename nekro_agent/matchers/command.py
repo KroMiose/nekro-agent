@@ -28,6 +28,7 @@ from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.sandbox.runner import limited_run_code
+from nekro_agent.systems.cloud.api.auth import check_official_repos_starred
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
@@ -902,3 +903,31 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await finish_with(matcher, message="数据库重置完成")
     else:
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
+
+
+@on_command("github_stars", aliases={"github-stars"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """检查用户是否已Star官方GitHub仓库"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    try:
+        result = await check_official_repos_starred()
+
+        if not result.success:
+            await finish_with(matcher, message=f"检查GitHub Star状态失败: {result.message}")
+
+        if not result.data:
+            await finish_with(matcher, message="获取Star状态数据为空")
+
+        # 构建响应消息
+        starred = ", ".join(result.data.starred_repositories) if result.data.starred_repositories else "无"
+        unstarred = ", ".join(result.data.unstarred_repositories) if result.data.unstarred_repositories else "无"
+        status = "已Star所有官方仓库" if result.data.all_starred else "还有未Star的官方仓库"
+
+        message = f"=> [GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+
+    except Exception as e:
+        logger.error(f"检查GitHub Star状态时发生错误: {e}")
+        await finish_with(matcher, message=f"执行失败: {e}")
+    else:
+        await finish_with(matcher, message=message)

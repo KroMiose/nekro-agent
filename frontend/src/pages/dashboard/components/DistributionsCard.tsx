@@ -12,16 +12,17 @@ import {
 import { PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip } from 'recharts'
 import { DistributionItem } from '../../../services/api/dashboard'
 import {
-  getStopTypeText,
-  stopTypeColorValues,
-  LEGACY_COLORS,
-  GRADIENTS,
-  SHADOWS,
-  getMessageTypeColor,
-  BORDERS,
+  UI_STYLES,
   BORDER_RADIUS,
-  CARD_LAYOUT,
-} from '../../../theme/constants'
+  CARD_LAYOUT
+} from '../../../theme/themeConfig'
+import {
+  getStopTypeText,
+  getStopTypeColorValue,
+  getMessageTypeColor,
+  LEGACY_COLORS
+} from '../../../theme/utils'
+import { LAYOUT } from '../../../theme/variants'
 
 interface DistributionsCardProps {
   stopTypeData?: DistributionItem[]
@@ -98,7 +99,6 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
   loading = false,
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 计算总计
@@ -110,9 +110,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
     return stopTypeData.map((item: DistributionItem) => ({
       name: getStopTypeText(Number(item.label)),
       value: item.value,
-      color:
-        stopTypeColorValues[Number(item.label) as keyof typeof stopTypeColorValues] ||
-        LEGACY_COLORS.DEFAULT,
+      color: getStopTypeColorValue(Number(item.label)) || LEGACY_COLORS.DEFAULT,
       dataTotal: stopTypeTotal, // 添加数据集总值
     }))
   }, [stopTypeData, stopTypeTotal])
@@ -136,13 +134,13 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
     <Card
       className="w-full h-full"
       sx={{
-        transition: CARD_LAYOUT.TRANSITION,
+        transition: LAYOUT.TRANSITION.DEFAULT,
         '&:hover': {
-          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
         },
-        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
         backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
         borderRadius: BORDER_RADIUS.DEFAULT,
       }}
     >
@@ -152,16 +150,22 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
         </Typography>
 
         {loading ? (
-          <Box className="flex justify-center items-center" sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box
+            className="flex justify-center items-center"
+            sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}
+          >
             <CircularProgress />
           </Box>
         ) : formattedStopTypeData.length === 0 && formattedMessageTypeData.length === 0 ? (
-          <Box className="flex justify-center items-center" sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box
+            className="flex justify-center items-center"
+            sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}
+          >
             <Typography variant="body2" color="text.secondary">
               暂无数据
             </Typography>
           </Box>
-        ) :
+        ) : (
           <Grid container spacing={2}>
             {formattedStopTypeData.length > 0 && (
               <Grid item xs={12} md={formattedMessageTypeData.length > 0 ? 6 : 12}>
@@ -173,7 +177,11 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                 >
                   执行类型分布
                 </Typography>
-                <Box height={isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP}>
+                <Box
+                  height={
+                    isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                  }
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -218,7 +226,11 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                 >
                   消息类型分布
                 </Typography>
-                <Box height={isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP}>
+                <Box
+                  height={
+                    isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                  }
+                >
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -254,7 +266,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
               </Grid>
             )}
           </Grid>
-        }
+        )}
       </CardContent>
     </Card>
   )

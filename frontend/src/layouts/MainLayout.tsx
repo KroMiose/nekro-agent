@@ -12,10 +12,7 @@ import {
   ListItemIcon,
   ListItemText,
   IconButton,
-  Tooltip,
   Collapse,
-  Alert,
-  Snackbar,
   Button,
   Chip,
   Link,
@@ -26,8 +23,6 @@ import {
   Terminal as TerminalIcon,
   Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Brightness4 as Brightness4Icon,
-  Brightness7 as Brightness7Icon,
   Storage as StorageIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
@@ -43,12 +38,18 @@ import {
   CloudDownload as CloudDownloadIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
+  Palette as PaletteIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
-import { useColorMode } from '../stores/theme'
 import { configApi } from '../services/api/config'
 import { motion } from 'framer-motion'
-import { GRADIENTS, SHADOWS } from '../theme/constants'
+import { UI_STYLES } from '../theme/themeApi'
+import ThemeToggleButton from '../theme/ThemeToggleButton'
+import { useNotification } from '../hooks/useNotification'
+import { alpha } from '@mui/material/styles'
+import { CHIP_VARIANTS } from '../theme/variants'
+import { useWallpaperStore } from '../stores/wallpaper'
+import WallpaperBackground from '../components/common/WallpaperBackground'
 
 interface PageConfig {
   path: string
@@ -109,8 +110,9 @@ const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
     text: '系统配置',
     icon: <SettingsIcon />,
     children: [
-      { path: '/settings', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
+      { path: '/settings/system', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
       { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
+      { path: '/settings/theme', text: '调色盘', icon: <PaletteIcon />, parent: 'settings' },
     ],
   },
   { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
@@ -143,15 +145,17 @@ export default function MainLayout() {
   const location = useLocation()
   const { userInfo, logout } = useAuthStore()
   const theme = useTheme()
-  const { toggleColorMode } = useColorMode()
-  const [message, setMessage] = useState<string>('')
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [drawerOpen, setDrawerOpen] = useState(true)
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
-  const isDark = theme.palette.mode === 'dark'
+  const notification = useNotification()
+
+  // 使用壁纸store
+  const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =
+    useWallpaperStore()
 
   // 当检测到移动设备时，默认关闭抽屉
   useEffect(() => {
@@ -179,6 +183,7 @@ export default function MainLayout() {
   const handleLogout = () => {
     logout()
     navigate('/login')
+    notification.info('已退出登录')
   }
 
   const handleMenuItemClick = (path?: string, key?: string) => {
@@ -231,9 +236,7 @@ export default function MainLayout() {
                 fontWeight: 900,
                 fontSize: '1.5rem',
                 textShadow:
-                  theme.palette.mode === 'dark'
-                    ? '0 0 3px rgba(255,255,255,0.15), 0 0 6px rgba(255,100,100,0.1), 0 0 10px rgba(255,100,100,0.1)'
-                    : '0 0 10px rgba(0,0,0,0.2), 0 0 20px rgba(0,0,0,0.1)',
+                  '0 0 10px rgba(255,255,255,0.1), 0 0 20px rgba(255,100,100,0.05), 0 0 30px rgba(255,100,100,0.05)',
                 '&:not(:hover)': {
                   animation: 'none',
                   transform: 'translateY(0)',
@@ -243,10 +246,7 @@ export default function MainLayout() {
               '& .text': {
                 fontWeight: 800,
                 fontSize: '1.2rem',
-                textShadow:
-                  theme.palette.mode === 'dark'
-                    ? '0 0 3px rgba(255,255,255,0.2)'
-                    : '0 0 3px rgba(0,0,0,0.1)',
+                textShadow: '0 0 5px rgba(255,255,255,0.15)',
                 '&:not(:hover)': {
                   animation: 'none',
                   transform: 'rotate(0)',
@@ -273,19 +273,18 @@ export default function MainLayout() {
               label={`v ${version}`}
               size="small"
               variant="outlined"
-              className="version-tag absolute -top-3.5 -right-11 h-4"
+              className="version-tag absolute -top-3.5 -right-9 h-4"
               sx={{
+                ...CHIP_VARIANTS.base(true),
                 fontSize: '0.65rem',
                 letterSpacing: '-0.02em',
-                backgroundColor: 'transparent',
-                borderColor:
-                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.15)',
-                color:
-                  theme.palette.mode === 'dark'
-                    ? theme.palette.primary.light
-                    : theme.palette.primary.main,
+                backgroundColor: theme.palette.background.paper,
+                borderColor: 'rgba(255,255,255,0.2)',
+                color: theme.palette.primary.light,
                 transition: 'transform 0.3s ease',
                 transform: 'scale(1)',
+                height: '18px',
+                minWidth: 'auto',
                 '.MuiChip-label': {
                   px: 0.5,
                   py: 0,
@@ -305,21 +304,16 @@ export default function MainLayout() {
                 selected={!item.children && location.pathname === item.path}
                 sx={{
                   '&.Mui-selected': {
-                    backgroundColor: isDark ? 'rgba(240, 84, 84, 0.15)' : 'rgba(234, 82, 82, 0.08)',
-                    borderLeft: `3px solid ${theme.palette.primary.main}`,
+                    backgroundColor: UI_STYLES.SELECTED,
+                    borderLeft: UI_STYLES.BORDERS.MENU.ACTIVE,
                     '&:hover': {
-                      backgroundColor: isDark
-                        ? 'rgba(240, 84, 84, 0.25)'
-                        : 'rgba(234, 82, 82, 0.12)',
+                      backgroundColor: UI_STYLES.SELECTED_HOVER,
                     },
                   },
                   '&:hover': {
-                    backgroundColor:
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(240, 84, 84, 0.08)'
-                        : 'rgba(234, 82, 82, 0.05)',
+                    backgroundColor: UI_STYLES.HOVER,
                   },
-                  py: isSmall ? 1 : 1.5,
+                  py: 1,
                   borderLeft: '3px solid transparent',
                   transition: 'all 0.2s ease-in-out',
                 }}
@@ -354,21 +348,14 @@ export default function MainLayout() {
                         pl: 4,
                         py: isSmall ? 0.75 : 1.5,
                         '&.Mui-selected': {
-                          backgroundColor: isDark
-                            ? 'rgba(240, 84, 84, 0.15)'
-                            : 'rgba(234, 82, 82, 0.08)',
-                          borderLeft: `3px solid ${theme.palette.primary.main}`,
+                          backgroundColor: UI_STYLES.SELECTED,
+                          borderLeft: UI_STYLES.BORDERS.MENU.ACTIVE,
                           '&:hover': {
-                            backgroundColor: isDark
-                              ? 'rgba(240, 84, 84, 0.25)'
-                              : 'rgba(234, 82, 82, 0.12)',
+                            backgroundColor: UI_STYLES.SELECTED_HOVER,
                           },
                         },
                         '&:hover': {
-                          backgroundColor:
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(240, 84, 84, 0.08)'
-                              : 'rgba(234, 82, 82, 0.05)',
+                          backgroundColor: UI_STYLES.HOVER,
                         },
                         borderLeft: '3px solid transparent',
                         transition: 'all 0.2s ease-in-out',
@@ -397,8 +384,7 @@ export default function MainLayout() {
             sx={{
               py: isSmall ? 1 : 1.5, // 在移动端调整垂直内边距
               '&:hover': {
-                backgroundColor:
-                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.04)',
+                backgroundColor: UI_STYLES.HOVER,
               },
               transition: 'all 0.2s ease-in-out',
             }}
@@ -419,7 +405,10 @@ export default function MainLayout() {
           </ListItemButton>
         </ListItem>
       </List>
-      <Box className="pb-2 -mt-2 text-center">
+      <Box
+        className="pb-2 -mt-2 text-center border-t"
+        sx={{ borderColor: 'rgba(128,128,128,0.2)' }}
+      >
         <Typography variant="caption" color="text.secondary">
           © {new Date().getFullYear()}{' '}
           <Link
@@ -464,11 +453,36 @@ export default function MainLayout() {
     <Box
       className="flex"
       sx={{
-        background: isDark ? GRADIENTS.BACKGROUND.DARK.PRIMARY : GRADIENTS.BACKGROUND.LIGHT.PRIMARY,
+        position: 'relative',
+        background: UI_STYLES.BACKGROUND.PRIMARY,
+        backgroundColor: theme.palette.mode === 'dark' ? '#181818' : '#f8f8f8',
         minHeight: '100vh',
         transition: 'background 0.5s ease',
       }}
     >
+      {/* 壁纸背景组件 */}
+      {mainWallpaper && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 0,
+            overflow: 'hidden',
+          }}
+        >
+          <WallpaperBackground
+            wallpaperUrl={mainWallpaper}
+            mode={mainWallpaperMode as 'cover' | 'contain' | 'repeat' | 'center'}
+            blur={mainWallpaperBlur}
+            dim={mainWallpaperDim}
+          />
+        </Box>
+      )}
+
+      {/* 其余布局内容，添加相对定位确保在壁纸上层 */}
       <AppBar
         position="fixed"
         sx={{
@@ -485,12 +499,14 @@ export default function MainLayout() {
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.leavingScreen,
             }),
-          backdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(12px)',
           backgroundColor: 'transparent',
-          backgroundImage: isDark ? GRADIENTS.APP_BAR.DARK : GRADIENTS.APP_BAR.LIGHT,
-          boxShadow: isDark ? SHADOWS.APP_BAR.DARK : SHADOWS.APP_BAR.LIGHT,
-          borderBottom: isDark ? '1px solid rgba(234, 82, 82, 0.15)' : 'none',
-          color: isDark ? theme.palette.text.primary : theme.palette.primary.contrastText,
+          backgroundImage: `linear-gradient(90deg, ${alpha(theme.palette.primary.dark, 0.75)}, ${alpha(theme.palette.primary.main, 0.75)})`,
+          boxShadow:
+            '0 4px 15px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 10px rgba(0, 0, 0, 0.03)',
+          borderBottom:
+            theme.palette.mode === 'dark' ? `1px solid rgba(255, 255, 255, 0.08)` : 'none',
+          color: 'inherit',
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
@@ -514,20 +530,15 @@ export default function MainLayout() {
               sx={{
                 color: 'inherit',
                 fontSize: { xs: '1rem', sm: '1.25rem' },
-                textShadow:
-                  theme.palette.mode === 'dark'
-                    ? '0 0 2px rgba(255,255,255,0.15)'
-                    : '0 0 2px rgba(0,0,0,0.15)',
+                textShadow: '0 0 2px rgba(255,255,255,0.15)',
               }}
             >
               {getCurrentTitle()}
             </Typography>
           </Box>
-          <Tooltip title={theme.palette.mode === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}>
-            <IconButton onClick={toggleColorMode} color="inherit">
-              {theme.palette.mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
-          </Tooltip>
+
+          <ThemeToggleButton />
+
           <Button
             variant="text"
             color="inherit"
@@ -543,10 +554,7 @@ export default function MainLayout() {
                 mr: { xs: 0, sm: 1 },
               },
               '&:hover': {
-                backgroundColor:
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(255, 255, 255, 0.1)'
-                    : 'rgba(255, 255, 255, 0.2)',
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
               },
             }}
           >
@@ -576,6 +584,8 @@ export default function MainLayout() {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: 240,
+              backgroundColor: theme => alpha(theme.palette.background.paper, 0.66),
+              backdropFilter: 'blur(8px)',
               transition: theme =>
                 theme.transitions.create('width', {
                   easing: theme.transitions.easing.sharp,
@@ -592,6 +602,8 @@ export default function MainLayout() {
         component="main"
         className="flex-grow p-3 h-screen overflow-hidden flex flex-col"
         sx={{
+          position: 'relative',
+          zIndex: 1, // 确保主内容在壁纸上层
           width: {
             xs: '100%',
             md: drawerOpen ? 'calc(100% - 240px)' : '100%',
@@ -612,22 +624,35 @@ export default function MainLayout() {
             duration: 0.36,
             ease: [0.4, 0, 0.2, 1],
           }}
-          className="h-full flex-grow overflow-auto bg-transparent"
+          className="h-full flex-grow overflow-auto rounded-xl"
+          style={{
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            background:
+              theme.palette.mode === 'dark' ? 'rgba(32, 32, 32, 0.8)' : 'rgba(255, 255, 255, 0.8)',
+            boxShadow: `0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`,
+            border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
+            position: 'relative',
+            overflow: 'hidden',
+          }}
         >
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              height: '2px',
+              background: `linear-gradient(90deg, 
+                ${alpha(theme.palette.primary.main, 0.3)}, 
+                ${alpha(theme.palette.secondary.main, 0.3)})`,
+              opacity: 0.4,
+              zIndex: 1,
+            }}
+          />
           <Outlet />
         </motion.div>
       </Box>
-
-      <Snackbar
-        open={!!message}
-        autoHideDuration={3000}
-        onClose={() => setMessage('')}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setMessage('')} severity="info" variant="filled" className="w-full">
-          {message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

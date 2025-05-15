@@ -23,7 +23,7 @@ import {
 } from 'recharts'
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns'
 import { TrendDataPoint } from '../../../services/api/dashboard'
-import { metricColors, metricNames, GRADIENTS, SHADOWS } from '../../../theme/constants'
+import { UI_STYLES, BORDER_RADIUS, metricColors, metricNames } from '../../../theme/themeConfig'
 
 interface TrendsChartProps {
   title: string
@@ -178,24 +178,21 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
   const currentTimeIndex = findCurrentTimeIndex()
   const currentTimePoint = currentTimeIndex !== null ? data[currentTimeIndex]?.timestamp : null
 
+  // 使用metricColors
+  const metricColorMap = metricColors;
+
   return (
     <Card
       className="w-full h-full"
       sx={{
-        transition: 'all 0.3s ease',
+        transition: UI_STYLES.CARD_LAYOUT.TRANSITION,
         '&:hover': {
-          boxShadow: theme.palette.mode === 'dark' 
-            ? SHADOWS.CARD.DARK.HOVER
-            : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
         },
-        background: theme.palette.mode === 'dark' 
-          ? GRADIENTS.CARD.DARK
-          : GRADIENTS.CARD.LIGHT,
-        backdropFilter: 'blur(10px)',
-        border: theme.palette.mode === 'dark' 
-          ? '1px solid rgba(102, 36, 36, 0.08)'
-          : `1px solid rgba(234, 82, 82, 0.05)`,
-        borderRadius: '6px',
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
+        borderRadius: BORDER_RADIUS.DEFAULT,
       }}
     >
       <CardContent className="h-full">
@@ -255,7 +252,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                 
                 <defs>
                   {metrics.map(metric => {
-                    const color = metricColors[metric as keyof typeof metricColors] || '#8884d8';
+                    const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8';
                     return (
                       <linearGradient key={`gradient-${metric}`} id={`color${metric}`} x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
@@ -266,7 +263,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                 </defs>
                 
                 {metrics.map(metric => {
-                  const color = metricColors[metric as keyof typeof metricColors] || '#8884d8';
+                  const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8';
                   return (
                     <Area
                       key={metric}

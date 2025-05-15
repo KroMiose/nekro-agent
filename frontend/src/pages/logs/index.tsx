@@ -24,22 +24,15 @@ import {
   Typography,
   Drawer,
   Fab,
+  SxProps,
+  Theme,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { LogEntry, logsApi } from '../../services/api/logs'
 import DownloadIcon from '@mui/icons-material/Download'
 import FilterAltIcon from '@mui/icons-material/FilterAlt'
 import CloseIcon from '@mui/icons-material/Close'
-
-const LOG_LEVEL_COLORS = {
-  ERROR: 'error',
-  WARNING: 'warning',
-  SUCCESS: 'success',
-  INFO: 'info',
-  DEBUG: 'secondary',
-  TRACE: 'default',
-  CRITICAL: 'error',
-} as const
+import { LOG_TABLE_STYLES, CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
@@ -181,7 +174,7 @@ export default function LogsPage() {
         fullWidth
       >
         <MenuItem value="">全部</MenuItem>
-        {Object.keys(LOG_LEVEL_COLORS).map(level => (
+        {Object.keys(LOG_TABLE_STYLES.SEVERITY).map(level => (
           <MenuItem key={level} value={level}>
             {level}
           </MenuItem>
@@ -282,6 +275,7 @@ export default function LogsPage() {
         display: 'flex',
         flexDirection: 'column',
         height: 'calc(100vh - 90px)',
+        p: 2,
       }}
     >
       {/* 连接状态提示 */}
@@ -332,7 +326,7 @@ export default function LogsPage() {
             sx={{ width: 120 }}
           >
             <MenuItem value="">全部</MenuItem>
-            {Object.keys(LOG_LEVEL_COLORS).map(level => (
+            {Object.keys(LOG_TABLE_STYLES.SEVERITY).map(level => (
               <MenuItem key={level} value={level}>
                 {level}
               </MenuItem>
@@ -391,9 +385,24 @@ export default function LogsPage() {
       {/* 日志表格 */}
       <Paper
         elevation={3}
-        sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+        sx={{
+          flexGrow: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
+        }}
       >
-        <TableContainer ref={tableContainerRef} sx={{ flexGrow: 1 }}>
+        <TableContainer
+          ref={tableContainerRef}
+          sx={{
+            height: 'calc(100vh - 170px)',
+            maxHeight: 'calc(100vh - 170px)',
+            overflow: 'auto',
+            borderRadius: 1,
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
+          }}
+        >
           <Table stickyHeader size={isSmall ? 'small' : 'medium'}>
             <TableHead>
               <TableRow>
@@ -402,15 +411,18 @@ export default function LogsPage() {
                   sx={{
                     minWidth: isMobile ? 90 : 180,
                     py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   时间
                 </TableCell>
                 <TableCell
                   width={isMobile ? '60px' : '80px'}
+                  align="center"
                   sx={{
                     minWidth: isMobile ? 60 : 80,
                     py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   级别
@@ -419,6 +431,7 @@ export default function LogsPage() {
                   sx={{
                     minWidth: isMobile ? 150 : 300,
                     py: isSmall ? 1 : 1.5,
+                    ...UNIFIED_TABLE_STYLES.header,
                   }}
                 >
                   消息
@@ -430,6 +443,7 @@ export default function LogsPage() {
                       sx={{
                         minWidth: 120,
                         py: isSmall ? 1 : 1.5,
+                        ...UNIFIED_TABLE_STYLES.header,
                       }}
                     >
                       来源
@@ -439,6 +453,7 @@ export default function LogsPage() {
                       sx={{
                         minWidth: 180,
                         py: isSmall ? 1 : 1.5,
+                        ...UNIFIED_TABLE_STYLES.header,
                       }}
                     >
                       位置
@@ -456,37 +471,37 @@ export default function LogsPage() {
                       log.message.toLowerCase().includes(filters.message.toLowerCase()))
                 )
                 .map((log, index) => (
-                  <TableRow key={index}>
+                  <TableRow
+                    key={`${log.timestamp}-${log.message}-${index}`}
+                    sx={UNIFIED_TABLE_STYLES.row}
+                  >
                     <TableCell
                       sx={{
                         whiteSpace: 'nowrap',
                         py: isSmall ? 0.75 : 1.5,
                         fontSize: isSmall ? '0.75rem' : 'inherit',
+                        ...UNIFIED_TABLE_STYLES.cell,
                       }}
                     >
                       {isMobile ? log.timestamp.split(' ')[1] : log.timestamp}
                     </TableCell>
-                    <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
+                    <TableCell
+                      sx={{
+                        py: isSmall ? 0.75 : 1.5,
+                        ...UNIFIED_TABLE_STYLES.cell,
+                      }}
+                    >
                       <Chip
                         label={log.level}
-                        color={
-                          LOG_LEVEL_COLORS[log.level as keyof typeof LOG_LEVEL_COLORS] || 'default'
-                        }
                         size="small"
-                        sx={{
-                          height: isSmall ? 20 : 24,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem',
-                          '& .MuiChip-label': {
-                            px: isSmall ? 0.5 : 0.75,
-                          },
-                        }}
+                        sx={CHIP_VARIANTS.getLogLevelChip(log.level, isSmall)}
                       />
                     </TableCell>
                     <TableCell
                       sx={{
-                        wordBreak: 'break-word',
                         py: isSmall ? 0.75 : 1.5,
                         fontSize: isSmall ? '0.75rem' : 'inherit',
+                        ...UNIFIED_TABLE_STYLES.cell,
                       }}
                     >
                       {log.message}
@@ -498,6 +513,7 @@ export default function LogsPage() {
                             whiteSpace: 'nowrap',
                             py: isSmall ? 0.75 : 1.5,
                             fontSize: isSmall ? '0.75rem' : 'inherit',
+                            ...UNIFIED_TABLE_STYLES.cell,
                           }}
                         >
                           {log.source}
@@ -507,6 +523,7 @@ export default function LogsPage() {
                             whiteSpace: 'nowrap',
                             py: isSmall ? 0.75 : 1.5,
                             fontSize: isSmall ? '0.75rem' : 'inherit',
+                            ...UNIFIED_TABLE_STYLES.cell,
                           }}
                         >{`${log.function}:${log.line}`}</TableCell>
                       </>

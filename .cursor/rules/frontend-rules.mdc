@@ -18,8 +18,68 @@ alwaysApply: false
 
 # 主题相关
 
+* 主题系统: 请参考详细的 [前端主题系统开发指南](mdc:.cursor/rules/frontend-theme-guidelines.mdc)
 * 主题控制: [theme.ts](mdc:frontend/src/stores/theme.ts) (深色/浅色)
-* 主题定义: [constants.ts](mdc:frontend/src/theme/constants.ts), [index.tsx](mdc:frontend/src/theme/index.tsx), [utils.ts](mdc:frontend/src/theme/utils.ts)
+* 主题定义: [palette.ts](mdc:frontend/src/theme/palette.ts), [themeConfig.ts](mdc:frontend/src/theme/themeConfig.ts), [variants.ts](mdc:frontend/src/theme/variants.ts), [ThemeProvider.tsx](mdc:frontend/src/theme/ThemeProvider.tsx)
+
+# 通知系统
+
+系统采用统一的通知组件系统，禁止直接使用原生的MUI Snackbar组件。
+
+## 核心组件和文件
+
+* 通知组件: [NekroNotification.tsx](mdc:frontend/src/components/common/NekroNotification.tsx) - 自定义通知组件，包含毛玻璃效果
+* 通知提供者: [NotificationProvider.tsx](mdc:frontend/src/components/common/NotificationProvider.tsx) - 全局通知提供者
+* 通知Hook: [useNotification.ts](mdc:frontend/src/hooks/useNotification.ts) - 提供便捷的通知方法
+
+## 通知系统使用指南
+
+### 基本用法
+
+```tsx
+// 导入通知hook
+import { useNotification } from '../../hooks/useNotification'
+
+// 在组件中使用
+function MyComponent() {
+  // 获取通知实例
+  const notification = useNotification()
+  
+  // 显示不同类型的通知
+  notification.success('操作成功！')
+  notification.error('发生错误')
+  notification.warning('请注意')
+  notification.info('提示信息')
+  
+  // 自定义参数
+  notification.success('自定义配置', {
+    autoHideDuration: 5000, // 自动隐藏时间
+    anchorOrigin: { vertical: 'bottom', horizontal: 'right' } // 位置
+  })
+  
+  // 关闭通知
+  const key = notification.info('可关闭的通知')
+  notification.close(key) // 关闭特定通知
+  notification.closeAll() // 关闭所有通知
+  
+  return (...)
+}
+```
+
+## 设计原则
+
+1. **统一性**: 所有通知必须使用统一的样式和行为
+2. **主题集成**: 通知样式必须随主题变化而变化，具备毛玻璃效果
+3. **可扩展性**: 可根据需要扩展新的通知类型或样式
+4. **简单易用**: 提供简洁的API，降低使用门槛
+
+## 最佳实践
+
+* 为用户操作提供及时反馈，特别是异步操作
+* 错误通知显示时间应比其他类型长，默认为5秒
+* 使用适当的通知类型 - success、error、warning、info
+* 通知文本应简洁明了，不超过一行
+* 对于重要或需要用户交互的信息，考虑使用对话框而非通知
 
 # 流式请求
 

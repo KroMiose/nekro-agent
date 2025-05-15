@@ -76,8 +76,11 @@ import {
   pluginTypeColors, 
   pluginTypeTexts, 
   configTypeColors, 
-  methodTypeColors
-} from '../../theme/constants'
+  methodTypeColors,
+  methodTypeTexts,
+  methodTypeDescriptions
+} from '../../theme/variants'
+import { CHIP_VARIANTS } from '../../theme/variants'
 
 // 自定义提示样式，支持富文本
 const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
@@ -520,7 +523,10 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     size="small"
                     color={configTypeColors[itemType] || 'default'}
                     variant="outlined"
-                    sx={{ mr: 1 }}
+                    sx={{ 
+                      ...CHIP_VARIANTS.base(isSmall),
+                      mr: 1 
+                    }}
                   />
                 </InputAdornment>
               ),
@@ -1122,13 +1128,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   size="small"
                                   color={configTypeColors[item.type] || 'default'}
                                   variant="outlined"
-                                  sx={{ 
-                                    fontSize: isSmall ? '0.65rem' : '0.75rem',
-                                    height: isSmall ? 20 : 24,
-                                    '& .MuiChip-label': {
-                                      px: isSmall ? 0.5 : 0.75,
-                                    }
-                                  }}
+                                  sx={CHIP_VARIANTS.base(isSmall)}
                                 />
                               </TableCell>
                               <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
@@ -1164,12 +1164,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                             color={chipColor}
                                             variant="outlined"
                                             sx={{ 
-                                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                                              height: isSmall ? 20 : 24,
+                                              ...CHIP_VARIANTS.base(isSmall),
                                               display: isMobile ? 'none' : 'flex',
-                                              '& .MuiChip-label': {
-                                                px: isSmall ? 0.5 : 0.75,
-                                              }
                                             }}
                                           />
                                           <Tooltip title="配置模型组">
@@ -1246,19 +1242,15 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
-                          <Chip
-                            label={method.type}
-                            color={methodTypeColors[method.type]}
-                            size="small"
-                            variant="outlined"
-                            sx={{ 
-                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                              height: isSmall ? 20 : 24,
-                              '& .MuiChip-label': {
-                                px: isSmall ? 0.5 : 0.75,
-                              }
-                            }}
-                          />
+                          <Tooltip title={methodTypeDescriptions[method.type] || ''} arrow placement="top">
+                            <Chip
+                              label={methodTypeTexts[method.type] || method.type}
+                              color={methodTypeColors[method.type]}
+                              size="small"
+                              variant="outlined"
+                              sx={CHIP_VARIANTS.base(isSmall)}
+                            />
+                          </Tooltip>
                         </TableCell>
                         <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                           <Typography 
@@ -2187,14 +2179,11 @@ export default function PluginsManagementPage() {
                               primary={
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                                   <Chip
-                                    label={pluginTypeTexts[getPluginType(plugin)]}
-                                    size="small"
                                     color={pluginTypeColors[getPluginType(plugin)]}
+                                    size="small"
                                     variant="outlined"
-                                    sx={{ 
-                                      height: 18, 
-                                      fontSize: '0.65rem'
-                                    }}
+                                    label={pluginTypeTexts[getPluginType(plugin)]}
+                                    sx={CHIP_VARIANTS.base(isSmall)}
                                   />
                                   <Typography 
                                     variant="body1" 

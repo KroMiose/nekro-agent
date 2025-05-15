@@ -5,7 +5,7 @@ import { config } from '../../config/env'
 // 创建 axios 实例
 const axiosInstance = axios.create({
   baseURL: config.apiBaseUrl,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

@@ -16,13 +16,12 @@ import {
 } from '@mui/material'
 import { RankingItem } from '../../../services/api/dashboard'
 import { 
-  GRADIENTS, 
-  SHADOWS, 
-  BORDERS, 
-  BORDER_RADIUS, 
-  SCROLLBARS,
-  CARD_LAYOUT
-} from '../../../theme/constants'
+  UI_STYLES,
+  BORDER_RADIUS,
+  CARD_LAYOUT,
+  getCurrentThemeMode
+} from '../../../theme/themeConfig'
+import { LAYOUT } from '../../../theme/variants'
 
 interface RankingListProps {
   title: string
@@ -38,7 +37,7 @@ export const RankingList: React.FC<RankingListProps> = ({
   type,
 }) => {
   const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
+  const themeMode = getCurrentThemeMode()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
 
   // 生成头像背景颜色
@@ -62,20 +61,45 @@ export const RankingList: React.FC<RankingListProps> = ({
     return `${index + 1}`
   }
 
-  // 获取当前主题的滚动条样式
-  const scrollbar = isDark ? SCROLLBARS.DEFAULT.DARK : SCROLLBARS.DEFAULT.LIGHT
+  // 排名样式定义
+  const rankingStyles = {
+    AVATAR_OPACITY: {
+      light: 0.1,
+      dark: 0.2
+    },
+    HOVER_BG: {
+      light: (color: string) => alpha(color, 0.05),
+      dark: (color: string) => alpha(color, 0.12)
+    },
+    NORMAL_BG: {
+      light: alpha(theme.palette.grey[500], 0.1),
+      dark: alpha(theme.palette.grey[700], 0.2)
+    },
+    TEXT_COLOR: {
+      light: theme.palette.primary.main,
+      dark: theme.palette.primary.light
+    }
+  }
+
+  // 滚动条样式定义
+  const scrollbar = {
+    WIDTH: '6px',
+    TRACK: alpha(theme.palette.divider, 0.1),
+    THUMB: alpha(theme.palette.primary.main, 0.2),
+    THUMB_HOVER: alpha(theme.palette.primary.main, 0.3)
+  }
 
   return (
     <Card 
       className="w-full h-full"
       sx={{
-        transition: CARD_LAYOUT.TRANSITION,
+        transition: LAYOUT.TRANSITION.DEFAULT,
         '&:hover': {
-          boxShadow: isDark ? SHADOWS.CARD.DARK.HOVER : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
         },
-        background: isDark ? GRADIENTS.CARD.DARK : GRADIENTS.CARD.LIGHT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
         backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark ? BORDERS.CARD.DARK : BORDERS.CARD.LIGHT,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
         borderRadius: BORDER_RADIUS.DEFAULT,
       }}
     >
@@ -125,12 +149,10 @@ export const RankingList: React.FC<RankingListProps> = ({
                     borderRadius: 1,
                     mb: 1,
                     bgcolor:
-                      index < 3 ? alpha(getAvatarBg(index), isDark ? 0.15 : 0.1) : 'transparent',
+                      index < 3 ? alpha(getAvatarBg(index), rankingStyles.AVATAR_OPACITY[themeMode]) : 'transparent',
                     transition: 'all 0.2s ease',
                     '&:hover': {
-                      bgcolor: isDark
-                        ? alpha(theme.palette.primary.main, 0.1)
-                        : alpha(theme.palette.primary.main, 0.05),
+                      bgcolor: rankingStyles.HOVER_BG[themeMode](theme.palette.primary.main),
                       transform: 'translateX(4px)',
                     },
                   }}
@@ -141,10 +163,8 @@ export const RankingList: React.FC<RankingListProps> = ({
                       bgcolor:
                         index < 3
                           ? getAvatarBg(index)
-                          : isDark
-                            ? 'rgba(255,255,255,0.1)'
-                            : 'rgba(0,0,0,0.1)',
-                      color: index < 3 ? '#fff' : theme.palette.text.primary,
+                          : rankingStyles.NORMAL_BG[themeMode],
+                      color: index < 3 ? '#fff' : rankingStyles.TEXT_COLOR[themeMode],
                       fontWeight: 'bold',
                       fontSize: index < 3 ? '1.2rem' : '0.9rem',
                     }}
@@ -179,10 +199,7 @@ export const RankingList: React.FC<RankingListProps> = ({
                     className="ml-auto"
                     sx={{
                       fontWeight: 'bold',
-                      color:
-                        theme.palette.mode === 'dark'
-                          ? theme.palette.primary.light
-                          : theme.palette.primary.main,
+                      color: rankingStyles.TEXT_COLOR[themeMode],
                     }}
                   >
                     {item.value}

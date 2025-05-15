@@ -19,10 +19,18 @@ import {
   DialogActions,
   IconButton,
   Tooltip,
-  Snackbar,
   DialogContentText,
   ButtonGroup,
   Menu,
+  useTheme,
+  useMediaQuery,
+  Stack,
+  Fab,
+  Tabs,
+  Tab,
+  Drawer,
+  AppBar,
+  Toolbar,
 } from '@mui/material'
 import {
   Save as SaveIcon,
@@ -37,11 +45,16 @@ import {
   ContentCopy as ContentCopyIcon,
   Clear as ClearIcon,
   Block as BlockIcon,
+  Code as CodeIcon,
+  Edit as EditIcon,
+  Menu as MenuIcon,
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
-import { useTheme } from '@mui/material/styles'
 import { pluginEditorApi, streamGenerateCode } from '../../services/api/plugin-editor'
 import { reloadPlugins } from '../../services/api/plugins'
+import { alpha } from '@mui/material/styles'
+import { useNotification } from '../../hooks/useNotification'
+import { CARD_STYLES, BORDER_RADIUS } from '../../theme/variants'
 
 // 新建插件对话框组件
 interface NewPluginDialogProps {
@@ -130,8 +143,6 @@ export default function PluginsEditorPage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [isApplying, setIsApplying] = useState(false)
   const [error, setError] = useState<string>('')
-  const [success, setSuccess] = useState<string>('')
-  const [generatedCode, setGeneratedCode] = useState<string>('')
   const [isNewPluginDialogOpen, setIsNewPluginDialogOpen] = useState(false)
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -140,51 +151,113 @@ export default function PluginsEditorPage() {
   const [reloadExtDialogOpen, setReloadExtDialogOpen] = useState(false)
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const [isDisableDialogOpen, setIsDisableDialogOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
   const open = Boolean(anchorEl)
   const theme = useTheme()
   const generatedCodeRef = useRef<HTMLDivElement>(null)
   const [isCopied, setIsCopied] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
+  const [generatedCode, setGeneratedCode] = useState<string>('')
+  
+  // 使用ref追踪加载状态，防止循环加载
+  const isLoadingFilesRef = useRef(false)
+  const isLoadingContentRef = useRef(false)
+  const initializedRef = useRef(false)
+  const prevSelectedFileRef = useRef<string>('')
 
-  // 加载文件列表
+  // 响应式设计
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+
+  // 使用新的通知系统
+  const notification = useNotification()
+
+  // 页面初始化时加载文件列表
   useEffect(() => {
+    // 如果已经初始化过或正在加载文件列表，则不执行
+    if (initializedRef.current || isLoadingFilesRef.current) return
+    
     const loadFiles = async () => {
+      isLoadingFilesRef.current = true
       try {
+        console.log('初始化加载文件列表')
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
-        if (files.length > 0 && !selectedFile) {
-          setSelectedFile(files[0])
+        
+        // 仅在第一次加载时自动选择第一个文件
+        if (files.length > 0 && !selectedFile && !initializedRef.current) {
+          const firstFile = files[0]
+          console.log('选择第一个文件:', firstFile)
+          setSelectedFile(firstFile)
+          prevSelectedFileRef.current = firstFile
+          
+          // 直接加载第一个文件内容
+          isLoadingContentRef.current = true
+          try {
+            const content = await pluginEditorApi.getPluginFileContent(firstFile)
+            setCode(content || '')
+            setOriginalCode(content || '')
+            setHasUnsavedChanges(false)
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error)
+            console.error('加载初始文件内容失败:', errorMsg)
+            notification.error('加载初始文件内容失败: ' + errorMsg)
+          } finally {
+            isLoadingContentRef.current = false
+          }
         }
-      } catch (err: unknown) {
+        
+        // 标记为已初始化
+        initializedRef.current = true
+      } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '未知错误'
+        console.error('加载文件列表失败:', err)
         setError('加载文件列表失败: ' + errorMessage)
-        console.error('Failed to load files:', err)
+        notification.error('加载文件列表失败: ' + errorMessage)
+      } finally {
+        isLoadingFilesRef.current = false
       }
     }
+    
     loadFiles()
-  }, [selectedFile])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notification]) // 有意省略selectedFile以避免循环加载
 
   // 加载选中文件的内容
   useEffect(() => {
+    if (!selectedFile || isLoadingContentRef.current) return
+    
+    // 如果文件没变且已有内容，不重新加载
+    if (selectedFile === prevSelectedFileRef.current && code) return
+    
     const loadFileContent = async () => {
-      if (!selectedFile) return
+      console.log('加载文件内容:', selectedFile)
+      isLoadingContentRef.current = true
       setIsLoading(true)
+      prevSelectedFileRef.current = selectedFile
+      
       try {
         const content = await pluginEditorApi.getPluginFileContent(selectedFile)
         setCode(content || '')
         setOriginalCode(content || '')
         setHasUnsavedChanges(false)
         setError('')
-      } catch (err: unknown) {
+      } catch (err) {
         const errorMessage = err instanceof Error ? err.message : '未知错误'
         setError('加载文件内容失败: ' + errorMessage)
+        notification.error('加载文件内容失败: ' + errorMessage)
         console.error('Failed to load file content:', err)
       } finally {
         setIsLoading(false)
+        isLoadingContentRef.current = false
       }
     }
+    
     loadFileContent()
-  }, [selectedFile])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFile, notification]) // 有意省略code以避免循环加载
 
   // 保存文件内容
   const handleSave = useCallback(async () => {
@@ -194,14 +267,15 @@ export default function PluginsEditorPage() {
       await pluginEditorApi.savePluginFile(selectedFile, code)
       setOriginalCode(code)
       setHasUnsavedChanges(false)
-      setSuccess('保存成功')
+      notification.success('保存成功')
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
       setError('保存失败: ' + errorMessage)
+      notification.error('保存失败: ' + errorMessage)
     } finally {
       setIsSaving(false)
     }
-  }, [code, selectedFile, setError, setHasUnsavedChanges, setIsSaving, setOriginalCode, setSuccess])
+  }, [code, selectedFile, notification])
 
   // 监听保存快捷键
   useEffect(() => {
@@ -229,7 +303,7 @@ export default function PluginsEditorPage() {
   // 生成代码
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      setError('请输入提示词')
+      notification.error('请输入提示词')
       return
     }
 
@@ -264,6 +338,7 @@ export default function PluginsEditorPage() {
               })
             } else if (jsonData.type === 'error') {
               setError(jsonData.error)
+              notification.error(jsonData.error)
               setIsGenerating(false)
               setAbortController(null)
             } else if (jsonData.type === 'done') {
@@ -277,7 +352,7 @@ export default function PluginsEditorPage() {
         error => {
           if (error.name !== 'AbortError') {
             console.error('生成代码失败:', error)
-            setError(`生成代码失败: ${error.message}`)
+            notification.error(`生成代码失败: ${error.message}`)
           }
           setIsGenerating(false)
           setAbortController(null)
@@ -291,7 +366,7 @@ export default function PluginsEditorPage() {
       }
     } catch (err) {
       console.error('启动代码生成失败:', err)
-      setError('启动代码生成失败')
+      notification.error('启动代码生成失败')
       setIsGenerating(false)
       setAbortController(null)
     }
@@ -312,9 +387,16 @@ export default function PluginsEditorPage() {
       const result = await pluginEditorApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
       setCode(result || '')
       setHasUnsavedChanges(true)
-      setSuccess('代码应用成功')
+      notification.success('代码应用成功')
+
+      // 在移动设备上，自动切换到编辑器标签
+      if (isMobile) {
+        setActiveTab(0)
+      }
     } catch (error) {
-      setError(error instanceof Error ? error.message : '代码应用失败')
+      const errorMsg = error instanceof Error ? error.message : '代码应用失败'
+      setError(errorMsg)
+      notification.error(errorMsg)
     } finally {
       setIsApplying(false)
     }
@@ -323,32 +405,22 @@ export default function PluginsEditorPage() {
   // 处理文件选择
   const handleFileSelect = async (event: SelectChangeEvent<string>) => {
     const newSelectedFile = event.target.value
+    
     if (newSelectedFile !== selectedFile) {
       if (hasUnsavedChanges && selectedFile) {
-        setHasUnsavedChanges(false)
         setFileToDelete(selectedFile)
         setDeleteDialogOpen(true)
         return
       }
 
+      // 避免重复加载
+      if (isLoadingContentRef.current) return
+      
+      // 直接设置选择的文件
       setSelectedFile(newSelectedFile)
-      if (newSelectedFile) {
-        setIsLoading(true)
-        try {
-          const content = await pluginEditorApi.getPluginFileContent(newSelectedFile)
-          setCode(content || '')
-          setOriginalCode(content || '')
-          setHasUnsavedChanges(false)
-        } catch (error) {
-          setError(`获取文件内容失败: ${error}`)
-          setCode('')
-          setOriginalCode('')
-        } finally {
-          setIsLoading(false)
-        }
-      } else {
-        setCode('')
-        setOriginalCode('')
+      
+      if (isMobile) {
+        setDrawerOpen(false)
       }
     }
   }
@@ -358,6 +430,7 @@ export default function PluginsEditorPage() {
     setCode(originalCode)
     setHasUnsavedChanges(false)
     setIsResetDialogOpen(false)
+    notification.info('代码已重置')
   }
 
   // 处理代码变更
@@ -376,7 +449,7 @@ export default function PluginsEditorPage() {
     if (!file) return
 
     if (!file.name.endsWith('.py')) {
-      setError('只能导入 Python 文件')
+      notification.error('只能导入 Python 文件')
       return
     }
 
@@ -389,10 +462,10 @@ export default function PluginsEditorPage() {
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
         setSelectedFile(file.name)
-        setError('')
+        notification.success('文件导入成功')
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : '未知错误'
-        setError('导入文件失败: ' + errorMessage)
+        notification.error('导入文件失败: ' + errorMessage)
       }
     }
     reader.readAsText(file)
@@ -402,78 +475,128 @@ export default function PluginsEditorPage() {
   const handleCreateNewPlugin = async (name: string, description: string) => {
     const fileName = `${name}.py`
     try {
+      setIsLoading(true)
+      isLoadingContentRef.current = true
+      
       // 获取模板内容
       const template = await pluginEditorApi.generatePluginTemplate(name, description)
       // 保存文件
       await pluginEditorApi.savePluginFile(fileName, template || '')
+      
       // 重新加载文件列表
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
+      
+      // 更新编辑器内容
       setSelectedFile(fileName)
-      setError('')
+      prevSelectedFileRef.current = fileName
+      setCode(template || '')
+      setOriginalCode(template || '')
+      setHasUnsavedChanges(false)
       setIsNewPluginDialogOpen(false)
-    } catch (err: unknown) {
+      notification.success('插件创建成功')
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError('创建插件失败: ' + errorMessage)
+      notification.error('创建插件失败: ' + errorMessage)
       console.error('Failed to create extension:', err)
+    } finally {
+      setIsLoading(false)
+      isLoadingContentRef.current = false
     }
   }
 
+  // 处理删除文件
   const handleDeleteConfirm = async () => {
     if (fileToDelete) {
       try {
+        setIsLoading(true)
+        isLoadingFilesRef.current = true
+        
         await pluginEditorApi.deletePluginFile(fileToDelete)
-        setSuccess('文件删除成功')
-        // 如果删除的是当前选中的文件，清空编辑器
-        if (fileToDelete === selectedFile) {
-          setSelectedFile('')
-          setCode('')
-        }
+        notification.success('文件删除成功')
+        
         // 重新加载文件列表
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
+        
+        // 如果删除的是当前选中的文件，清空编辑器并选择新的文件（如果有）
+        if (fileToDelete === selectedFile) {
+          setCode('')
+          setOriginalCode('')
+          
+          if (files.length > 0) {
+            const newSelectedFile = files[0]
+            setSelectedFile(newSelectedFile)
+            prevSelectedFileRef.current = newSelectedFile
+            
+            // 加载新选中的文件内容
+            try {
+              isLoadingContentRef.current = true
+              const content = await pluginEditorApi.getPluginFileContent(newSelectedFile)
+              setCode(content || '')
+              setOriginalCode(content || '')
+              setHasUnsavedChanges(false)
+            } catch (error) {
+              console.error('加载新文件内容失败:', error)
+            } finally {
+              isLoadingContentRef.current = false
+            }
+          } else {
+            setSelectedFile('')
+            prevSelectedFileRef.current = ''
+          }
+        }
       } catch (error) {
-        setError('删除失败: ' + (error instanceof Error ? error.message : String(error)))
+        const errorMsg = error instanceof Error ? error.message : String(error)
+        notification.error('删除失败: ' + errorMsg)
+      } finally {
+        setIsLoading(false)
+        isLoadingFilesRef.current = false
+        setDeleteDialogOpen(false)
+        setFileToDelete('')
       }
-      setDeleteDialogOpen(false)
-      setFileToDelete('')
     }
   }
 
   // 重载插件
   const handleReloadExt = async () => {
     if (!selectedFile) {
-      setError('请先选择一个插件文件')
+      notification.error('请先选择一个插件文件')
       return
     }
 
     try {
       setIsGenerating(true)
+      isLoadingFilesRef.current = true // 防止加载插件同时加载文件列表
+      
       // 获取模块名称：去掉扩展名(.py或.disabled)的文件名
       const moduleName = selectedFile.replace(/\.(py|disabled)$/, '')
       if (!moduleName) {
-        setError('无法获取有效的模块名')
+        notification.error('无法获取有效的模块名')
         return
       }
 
       const result = await reloadPlugins(moduleName)
       if (!result.success) {
-        setError(result.errorMsg || '重载插件失败: 未知错误')
+        notification.error(result.errorMsg || '重载插件失败: 未知错误')
         setReloadExtDialogOpen(false)
         return
       }
 
-      // 重新加载文件列表
+      // 重新加载文件列表但不自动选择文件
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      setSuccess(`插件 ${moduleName} 重载成功`)
+      
+      // 保持当前选中文件不变
+      notification.success(`插件 ${moduleName} 重载成功`)
       setReloadExtDialogOpen(false)
-    } catch (err: unknown) {
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError(errorMessage)
+      notification.error(errorMessage)
       console.error('Failed to reload plugins:', err)
     } finally {
       setIsGenerating(false)
+      isLoadingFilesRef.current = false // 恢复文件列表加载状态
     }
   }
 
@@ -485,27 +608,43 @@ export default function PluginsEditorPage() {
     setAnchorEl(null)
   }
 
+  // 处理启用/禁用插件
   const handleTogglePlugin = async () => {
     if (!selectedFile) return
 
     try {
+      setIsLoading(true)
+      isLoadingContentRef.current = true
+      
       const isDisabled = selectedFile.endsWith('.disabled')
       const newFileName = isDisabled
         ? selectedFile.replace('.disabled', '')
         : `${selectedFile}.disabled`
 
+      // 保存文件内容到新文件名
       await pluginEditorApi.savePluginFile(newFileName, code)
+      // 删除旧文件
       await pluginEditorApi.deletePluginFile(selectedFile)
 
-      // 更新文件列表和选中文件
+      // 更新状态
+      setSelectedFile(newFileName)
+      prevSelectedFileRef.current = newFileName
+      setHasUnsavedChanges(false)
+      
+      // 更新文件列表
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      setSelectedFile(newFileName)
 
-      setSuccess(`插件${isDisabled ? '启用' : '禁用'}成功，请重载插件使更改生效`)
-      setIsDisableDialogOpen(false)
+      notification.success(`插件${isDisabled ? '启用' : '禁用'}成功，请重载插件使更改生效`)
     } catch (err) {
-      setError(`${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}插件失败: ${err}`)
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      notification.error(
+        `${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}插件失败: ${errorMsg}`
+      )
+    } finally {
+      setIsLoading(false)
+      isLoadingContentRef.current = false
+      setIsDisableDialogOpen(false)
     }
   }
 
@@ -513,676 +652,1435 @@ export default function PluginsEditorPage() {
     if (generatedCode) {
       navigator.clipboard.writeText(generatedCode)
       setIsCopied(true)
+      notification.success('代码已复制到剪贴板')
       setTimeout(() => setIsCopied(false), 2000)
     }
   }
 
   const handleClearCode = () => {
     setGeneratedCode('')
+    notification.info('生成结果已清空')
   }
 
+  // 切换抽屉
+  const toggleDrawer = () => {
+    setDrawerOpen(!drawerOpen)
+  }
+
+  // 移动端Tab切换
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue)
+  }
+
+  // 渲染文件选择器
+  const renderFileSelector = () => (
+    <Box sx={{ mb: 2 }}>
+      <FormControl fullWidth>
+        <InputLabel>选择插件文件</InputLabel>
+        <Select
+          value={selectedFile}
+          label="选择插件文件"
+          onChange={handleFileSelect}
+          sx={{
+            '& .MuiSelect-select': {
+              paddingY: isSmall ? 1 : 1.5,
+            },
+            '& .MuiListItem-root.Mui-selected': {
+              backgroundColor: theme => 
+                alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.1),
+              color: theme => theme.palette.primary.main,
+              fontWeight: 'bold'
+            }
+          }}
+          MenuProps={{
+            PaperProps: {
+              sx: {
+                '& .MuiMenuItem-root.Mui-selected': {
+                  backgroundColor: theme => 
+                    alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.1),
+                  color: theme => theme.palette.primary.main,
+                  fontWeight: 'bold'
+                }
+              }
+            }
+          }}
+        >
+          {files.map(file => {
+            const isDisabled = file.endsWith('.disabled')
+            return (
+              <MenuItem
+                key={file}
+                value={file}
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  color: isDisabled ? 'text.disabled' : 'text.primary',
+                  ...(isDisabled && {
+                    background: theme =>
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(255, 0, 0, 0.08)'
+                        : 'rgba(255, 0, 0, 0.05)',
+                    fontStyle: 'italic',
+                  }),
+                  '&.Mui-selected': {
+                    backgroundColor: theme => 
+                      alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.1),
+                    color: theme => theme.palette.mode === 'dark' 
+                      ? theme.palette.primary.light 
+                      : theme.palette.primary.main,
+                    fontWeight: 'bold'
+                  },
+                  '&.Mui-selected.Mui-disabled': {
+                    color: theme => alpha(theme.palette.error.main, 0.7),
+                    fontWeight: 'bold',
+                    opacity: 0.8
+                  }
+                }}
+              >
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
+                  {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
+                </Box>
+              </MenuItem>
+            )
+          })}
+        </Select>
+      </FormControl>
+    </Box>
+  )
+
+  // 渲染文件操作按钮
+  const renderFileActions = () => (
+    <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+      <Tooltip title="新建插件">
+        <IconButton
+          color="primary"
+          onClick={() => setIsNewPluginDialogOpen(true)}
+          size={isSmall ? 'small' : 'medium'}
+        >
+          <AddIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="导入插件">
+        <IconButton color="primary" component="label" size={isSmall ? 'small' : 'medium'}>
+          <input type="file" hidden accept=".py" onChange={handleImportFile} />
+          <UploadIcon />
+        </IconButton>
+      </Tooltip>
+      <Tooltip title="保存 (Ctrl+S)">
+        <span>
+          <IconButton
+            color="primary"
+            onClick={handleSave}
+            disabled={!hasUnsavedChanges || isSaving}
+            size={isSmall ? 'small' : 'medium'}
+          >
+            {isSaving ? <CircularProgress size={isSmall ? 18 : 24} /> : <SaveIcon />}
+          </IconButton>
+        </span>
+      </Tooltip>
+    </Box>
+  )
+
+  // 渲染操作区按钮组
+  const renderOperationButtons = () => (
+    <ButtonGroup variant="outlined" fullWidth sx={{ flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+      <Button
+        startIcon={<RefreshIcon />}
+        onClick={() => setIsResetDialogOpen(true)}
+        disabled={!hasUnsavedChanges}
+        color="warning"
+        sx={{
+          flex: isMobile ? '1 1 calc(50% - 4px)' : 'auto',
+          mb: isMobile ? 1 : 0,
+        }}
+        size={isSmall ? 'small' : 'medium'}
+      >
+        {isSmall ? '重置' : '重置代码'}
+      </Button>
+      <Tooltip title="修改后的插件需要重载才能生效" arrow placement="top">
+        <Button
+          startIcon={<ExtensionIcon />}
+          onClick={() => setReloadExtDialogOpen(true)}
+          color="primary"
+          sx={{
+            flex: isMobile ? '1 1 calc(50% - 4px)' : 'auto',
+            mb: isMobile ? 1 : 0,
+          }}
+          size={isSmall ? 'small' : 'medium'}
+        >
+          {isSmall ? '重载' : '重载插件'}
+        </Button>
+      </Tooltip>
+      <Button
+        startIcon={<PowerIcon />}
+        onClick={() => setIsDisableDialogOpen(true)}
+        disabled={!selectedFile}
+        color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
+        sx={{
+          flex: isMobile ? '1 1 calc(50% - 4px)' : 'auto',
+          mb: isMobile ? 1 : 0,
+        }}
+        size={isSmall ? 'small' : 'medium'}
+      >
+        {isSmall
+          ? selectedFile?.endsWith('.disabled')
+            ? '启用'
+            : '禁用'
+          : selectedFile?.endsWith('.disabled')
+            ? '启用插件'
+            : '禁用插件'}
+      </Button>
+      <Button
+        id="more-button"
+        aria-controls={open ? 'more-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        onClick={handleMenuClick}
+        sx={{
+          maxWidth: isMobile ? 'calc(50% - 4px)' : '50px',
+          flex: isMobile ? '1 1 calc(50% - 4px)' : 'auto',
+        }}
+        size={isSmall ? 'small' : 'medium'}
+      >
+        <MoreVertIcon />
+      </Button>
+    </ButtonGroup>
+  )
+
+  // 渲染主结构
   return (
     <Box
       sx={{
-        display: 'flex',
-        gap: 2,
         height: 'calc(100vh - 90px)',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* 左侧编辑器区域 */}
-      <Paper
-        elevation={3}
-        sx={{
-          flex: 2,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          p: 2,
-          minWidth: 0,
-        }}
-      >
-        {/* 顶部工具栏 */}
-        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
-          <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
-            <FormControl sx={{ flex: 1 }}>
-              <InputLabel>选择插件文件</InputLabel>
-              <Select value={selectedFile} label="选择插件文件" onChange={handleFileSelect}>
-                {files.map(file => {
-                  const isDisabled = file.endsWith('.disabled')
-                  return (
-                    <MenuItem
-                      key={file}
-                      value={file}
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        color: isDisabled ? 'text.disabled' : 'text.primary',
-                        ...(isDisabled && {
-                          background: theme =>
-                            theme.palette.mode === 'dark'
-                              ? 'rgba(255, 0, 0, 0.08)'
-                              : 'rgba(255, 0, 0, 0.05)',
-                          fontStyle: 'italic',
-                        }),
-                      }}
-                    >
-                      <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {isDisabled && (
-                          <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />
-                        )}
-                        {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
-                      </Box>
-                    </MenuItem>
-                  )
-                })}
-              </Select>
-            </FormControl>
-            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-              <Tooltip title="新建插件">
-                <IconButton color="primary" onClick={() => setIsNewPluginDialogOpen(true)}>
-                  <AddIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="导入插件">
-                <IconButton color="primary" component="label">
-                  <input type="file" hidden accept=".py" onChange={handleImportFile} />
-                  <UploadIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="保存 (Ctrl+S)">
+      {/* 移动设备顶部导航栏 */}
+      {isMobile && (
+        <AppBar
+          position="static"
+          color="default"
+          elevation={0}
+          sx={{
+            backgroundColor: 'transparent',
+            backdropFilter: 'blur(10px)',
+            borderBottom: `1px solid ${alpha(theme.palette.primary.main, 0.1)}`,
+            mb: 2,
+          }}
+        >
+          <Toolbar variant="dense" disableGutters sx={{ px: 1 }}>
+            <IconButton color="inherit" edge="start" onClick={toggleDrawer} sx={{ mr: 1 }}>
+              <MenuIcon />
+            </IconButton>
+            <Typography
+              variant="subtitle1"
+              component="div"
+              sx={{ flexGrow: 1, fontWeight: 'medium' }}
+            >
+              {selectedFile ? selectedFile : '插件编辑器'}
+            </Typography>
+            {selectedFile && (
+              <Tooltip 
+                title={hasUnsavedChanges ? '保存 (Ctrl+S)' : '已保存'} 
+                arrow
+                placement="bottom"
+              >
                 <span>
                   <IconButton
                     color="primary"
                     onClick={handleSave}
                     disabled={!hasUnsavedChanges || isSaving}
+                    size="small"
+                    sx={{
+                      backgroundColor: hasUnsavedChanges ? 
+                        theme => alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                      '&:hover': {
+                        backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
+                      }
+                    }}
                   >
-                    {isSaving ? <CircularProgress size={24} /> : <SaveIcon />}
+                    {isSaving ? <CircularProgress size={18} /> : <SaveIcon />}
                   </IconButton>
                 </span>
               </Tooltip>
-            </Box>
-          </Box>
-        </Box>
-
-        {/* 错误提示 */}
-        {error && (
-          <Alert severity="error" onClose={() => setError('')}>
-            {error}
-          </Alert>
-        )}
-
-        {/* 成功提示 */}
-        <Snackbar
-          open={!!success}
-          autoHideDuration={3000}
-          onClose={() => setSuccess('')}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert onClose={() => setSuccess('')} severity="success" sx={{ width: '100%' }}>
-            {success}
-          </Alert>
-        </Snackbar>
-
-        {/* 代码编辑器 */}
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            border: 1,
-            borderColor: 'divider',
-            borderRadius: 1,
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {(isLoading || isApplying) && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
+            )}
+          </Toolbar>
+          <Tabs
+            value={activeTab}
+            onChange={handleTabChange}
+            variant="fullWidth"
+            indicatorColor="primary"
+            textColor="primary"
+            sx={{
+              '& .MuiTab-root': {
+                color: theme => alpha(theme.palette.common.white, 0.7),
+                minHeight: '36px',
+                padding: '6px 12px',
+                '&.Mui-selected': {
+                  color: 'common.white',
+                  fontWeight: 'bold',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+                }
+              },
+              '& .MuiTabs-indicator': {
+                backgroundColor: 'common.white',
+                height: 3
+              }
+            }}
+          >
+            <Tab 
+              icon={<CodeIcon fontSize="small" />} 
+              iconPosition="start"
+              label="编辑器" 
+              sx={{ 
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                backgroundColor: theme =>
-                  `${theme.palette.background.paper}${isApplying ? '80' : 'FF'}`,
-                zIndex: 1,
-                transition: 'background-color 0.3s ease',
+                gap: '4px',
+                '& .MuiTab-iconWrapper': {
+                  marginRight: 0,
+                  marginBottom: '0 !important'
+                }
+              }}
+            />
+            <Tab 
+              icon={<EditIcon fontSize="small" />} 
+              iconPosition="start"
+              label="生成器" 
+              sx={{ 
+                display: 'flex',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                '& .MuiTab-iconWrapper': {
+                  marginRight: 0,
+                  marginBottom: '0 !important'
+                }
+              }}
+            />
+          </Tabs>
+        </AppBar>
+      )}
+
+      {/* 移动端侧边抽屉 */}
+      {isMobile && (
+        <Drawer
+          anchor="left"
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          sx={{
+            '& .MuiDrawer-paper': {
+              width: '80%',
+              maxWidth: 320,
+              p: 2,
+              pt: 8,
+            },
+          }}
+        >
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6">文件管理</Typography>
+          </Box>
+          {renderFileSelector()}
+
+          <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setIsNewPluginDialogOpen(true)
+                setDrawerOpen(false)
+              }}
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium'
               }}
             >
-              <CircularProgress size={40} sx={{ mb: 2 }} />
-              <Typography>{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
-            </Box>
-          )}
-          <Editor
-            height="100%"
-            defaultLanguage="python"
-            theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
-            value={code}
-            onChange={handleCodeChange}
-            loading={<CircularProgress />}
-            options={{
-              minimap: { enabled: false },
-              fontSize: 14,
-              tabSize: 4,
-              insertSpaces: true,
-              autoIndent: 'full',
-              formatOnPaste: true,
-              formatOnType: true,
-              scrollBeyondLastLine: false,
-            }}
-          />
-        </Box>
-      </Paper>
-
-      {/* 右侧区域 */}
-      <Paper
-        elevation={3}
-        sx={{
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2,
-          p: 2,
-          minWidth: '420px',
-        }}
-      >
-        {/* 操作区 */}
-        <Box>
-          <Typography variant="h6" sx={{ mb: 1 }}>
-            操作区
-          </Typography>
-          <ButtonGroup variant="outlined" fullWidth>
+              新建插件
+            </Button>
             <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
+              component="label"
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium'
+              }}
+            >
+              导入插件
+              <input type="file" hidden accept=".py" onChange={handleImportFile} />
+            </Button>
+          </Box>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="h6" sx={{ mb: 1 }}>
+            操作
+          </Typography>
+          <Stack spacing={1}>
+            <Button
+              variant="outlined"
               startIcon={<RefreshIcon />}
-              onClick={() => setIsResetDialogOpen(true)}
+              onClick={() => {
+                setIsResetDialogOpen(true)
+                setDrawerOpen(false)
+              }}
               disabled={!hasUnsavedChanges}
               color="warning"
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium',
+                opacity: hasUnsavedChanges ? 1 : 0.7
+              }}
             >
               重置代码
             </Button>
-            <Tooltip title="修改后的插件需要重载才能生效" arrow placement="top">
-              <Button
-                startIcon={<ExtensionIcon />}
-                onClick={() => setReloadExtDialogOpen(true)}
-                color="primary"
-              >
-                重载插件
-              </Button>
-            </Tooltip>
+
             <Button
+              variant="outlined"
+              startIcon={<ExtensionIcon />}
+              onClick={() => {
+                setReloadExtDialogOpen(true)
+                setDrawerOpen(false)
+              }}
+              color="primary"
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium'
+              }}
+            >
+              重载插件
+            </Button>
+
+            <Button
+              variant="outlined"
               startIcon={<PowerIcon />}
-              onClick={() => setIsDisableDialogOpen(true)}
+              onClick={() => {
+                setIsDisableDialogOpen(true)
+                setDrawerOpen(false)
+              }}
               disabled={!selectedFile}
               color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium',
+                ...(selectedFile?.endsWith('.disabled') && {
+                  borderColor: theme => alpha(theme.palette.success.main, 0.5),
+                  color: 'success.main',
+                  '&:hover': {
+                    borderColor: 'success.main',
+                    backgroundColor: theme => alpha(theme.palette.success.main, 0.1),
+                  }
+                }),
+                ...(!selectedFile?.endsWith('.disabled') && selectedFile && {
+                  borderColor: theme => alpha(theme.palette.warning.main, 0.5),
+                  color: 'warning.main',
+                  '&:hover': {
+                    borderColor: 'warning.main',
+                    backgroundColor: theme => alpha(theme.palette.warning.main, 0.1),
+                  }
+                })
+              }}
             >
               {selectedFile?.endsWith('.disabled') ? '启用插件' : '禁用插件'}
             </Button>
+
             <Button
-              id="more-button"
-              aria-controls={open ? 'more-menu' : undefined}
-              aria-haspopup="true"
-              aria-expanded={open ? 'true' : undefined}
-              onClick={handleMenuClick}
-              sx={{ maxWidth: '50px' }}
+              variant="outlined"
+              startIcon={<DeleteIcon />}
+              onClick={() => {
+                if (selectedFile) {
+                  setFileToDelete(selectedFile)
+                  setDeleteDialogOpen(true)
+                  setDrawerOpen(false)
+                } else {
+                  notification.error('请先选择一个文件')
+                }
+              }}
+              disabled={!selectedFile}
+              color="error"
+              size={isSmall ? 'small' : 'medium'}
+              fullWidth
+              sx={{
+                fontWeight: 'medium',
+                opacity: selectedFile ? 1 : 0.7
+              }}
             >
-              <MoreVertIcon />
+              删除插件
             </Button>
-          </ButtonGroup>
-          <Menu
-            id="more-menu"
-            anchorEl={anchorEl}
-            open={open}
-            onClose={handleMenuClose}
-            MenuListProps={{
-              'aria-labelledby': 'more-button',
-            }}
-          >
-            <MenuItem
-              onClick={async () => {
-                if (selectedFile) {
-                  try {
-                    // 如果存在导出功能，使用导出功能，否则提示功能不可用
-                    if (typeof pluginEditorApi.exportPluginFile === 'function') {
-                      await pluginEditorApi.exportPluginFile(selectedFile)
-                      setSuccess('文件导出成功')
-                    } else {
-                      setError('导出功能暂不可用')
-                    }
-                  } catch (err) {
-                    setError('文件导出失败: ' + (err instanceof Error ? err.message : String(err)))
-                  }
-                }
-                handleMenuClose()
-              }}
-              disabled={!selectedFile}
-            >
-              导出
-            </MenuItem>
-            <MenuItem
-              onClick={async () => {
-                if (selectedFile) {
-                  try {
-                    await pluginEditorApi.deletePluginFile(selectedFile)
-                    setSuccess('文件删除成功')
-                    // 重新加载文件列表
-                    const files = await pluginEditorApi.getPluginFiles()
-                    setFiles(files)
-                    setSelectedFile('')
-                    setCode('')
-                  } catch (err) {
-                    setError('删除失败: ' + (err instanceof Error ? err.message : String(err)))
-                  }
-                }
-                handleMenuClose()
-              }}
-              disabled={!selectedFile}
-            >
-              <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-              删除
-            </MenuItem>
-          </Menu>
-        </Box>
+          </Stack>
+        </Drawer>
+      )}
 
-        <Divider />
-
-        <Typography variant="h6">插件需求</Typography>
-
-        {/* 提示词输入框 */}
-        <TextField
-          multiline
-          rows={4}
-          value={prompt}
-          onChange={e => setPrompt(e.target.value)}
-          label="需求提示词"
-          placeholder="描述你想要实现的插件功能..."
-          onKeyDown={e => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-              e.preventDefault()
-              if (prompt.trim() && !isGenerating) {
-                handleGenerate()
-              }
-            }
-          }}
-        />
-
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
-          onClick={handleGenerate}
-          disabled={!prompt.trim() || isApplying}
-          sx={{
-            position: 'relative',
-            overflow: 'hidden',
-            background: theme => theme.palette.primary.main,
-            color: 'white !important',
-            '& .MuiButton-startIcon': {
-              color: 'white',
-            },
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: `linear-gradient(45deg, 
-                #FF6B6B, 
-                #4ECDC4,
-                #45B7D1,
-                #96C93D,
-                #FF6B6B
-              )`,
-              backgroundSize: '400% 400%',
-              opacity: 0.7,
-              transition: 'opacity 0.3s ease',
-              animation: isGenerating
-                ? 'gradient-fast 3s ease infinite'
-                : 'gradient 10s ease infinite',
-            },
-            '&:hover::before': {
-              opacity: 1,
-            },
-            '& > *': {
-              position: 'relative',
-              zIndex: 1,
-              color: 'white',
-            },
-            '@keyframes gradient': {
-              '0%': {
-                backgroundPosition: '0% 50%',
-              },
-              '50%': {
-                backgroundPosition: '100% 50%',
-              },
-              '100%': {
-                backgroundPosition: '0% 50%',
-              },
-            },
-            '@keyframes gradient-fast': {
-              '0%': {
-                backgroundPosition: '0% 50%',
-                transform: 'scale(1)',
-              },
-              '50%': {
-                backgroundPosition: '100% 50%',
-                transform: 'scale(1.02)',
-              },
-              '100%': {
-                backgroundPosition: '0% 50%',
-                transform: 'scale(1)',
-              },
-            },
-            '&:disabled': {
-              '&::before': {
-                opacity: 0.2,
-              },
-              '& > *': {
-                color: 'rgba(255, 255, 255, 0.7)',
-              },
-            },
-          }}
-        >
-          {isGenerating ? (
-            <>
-              <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
-              <Box
-                component="span"
-                sx={{
-                  color: 'white',
-                  fontWeight: 'bold',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
-                  fontSize: '1rem',
-                }}
-              >
-                点击中断生成
-              </Box>
-            </>
-          ) : (
-            <>
-              <Box
-                component="span"
-                sx={{
-                  color: 'white',
-                  fontWeight: 'bold',
-                  textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
-                  fontSize: '1rem',
-                }}
-              >
-                AI 生成
-              </Box>
-              <Box
-                component="span"
-                sx={{
-                  ml: 1,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  opacity: 0.8,
-                  px: 0.5,
-                }}
-              >
-                <Box
-                  component="span"
-                  sx={{
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '2px 6px',
-                    background: 'rgba(255,255,255,0.1)',
-                    fontFamily: '"Segoe UI", system-ui, sans-serif',
-                  }}
-                >
-                  {navigator.platform.includes('Mac') ? (
-                    '⌘'
-                  ) : (
-                    <Box
-                      component="span"
-                      sx={{
-                        '& > span:first-of-type': { fontSize: '0.9em' },
-                        '& > span:last-of-type': { fontSize: '0.85em' },
-                      }}
-                    >
-                      <span>c</span>
-                      <span>trl</span>
-                    </Box>
-                  )}
-                </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    opacity: 0.6,
-                    px: 0.5,
-                    fontSize: '0.85em',
-                    color: 'rgba(255,255,255,0.8)',
-                  }}
-                >
-                  +
-                </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    border: '1px solid rgba(255,255,255,0.3)',
-                    borderRadius: '4px',
-                    padding: '2px 6px',
-                    background: 'rgba(255,255,255,0.1)',
-                    fontFamily: '"Segoe UI", system-ui, sans-serif',
-                  }}
-                >
-                  ↵
-                </Box>
-              </Box>
-            </>
-          )}
-        </Button>
-
-        <Divider />
-        {/* 生成结果区域 */}
+      {/* 桌面布局 */}
+      {!isMobile ? (
         <Box
           sx={{
-            flex: 1,
-            minHeight: 0,
-            border: 1,
-            borderColor: 'divider',
-            borderRadius: 1,
-            overflow: 'hidden',
-            position: 'relative',
             display: 'flex',
-            flexDirection: 'column',
+            gap: 2,
+            height: '100%',
           }}
         >
-          {isApplying && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: 'rgba(0, 0, 0, 0.3)',
-                zIndex: 1,
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          )}
-          <Box
+          {/* 左侧编辑器区域 */}
+          <Paper
+            elevation={3}
             sx={{
-              flex: 1,
-              minHeight: 0,
-              overflow: 'auto',
-              position: 'relative',
+              ...CARD_STYLES.default.styles,
+              flex: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              p: 2,
+              minWidth: 0,
             }}
           >
-            {generatedCode ? (
-              <Paper
-                ref={generatedCodeRef}
-                elevation={0}
-                sx={{
-                  p: 2,
-                  height: '100%',
-                  overflow: 'auto',
-                  bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
-                  fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
-                  fontSize: '14px',
-                  lineHeight: '1.5',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-all',
-                  '&::-webkit-scrollbar': {
-                    width: '8px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: 'transparent',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: theme.palette.mode === 'dark' ? '#555' : '#ccc',
-                    borderRadius: '4px',
-                  },
+            {/* 顶部工具栏 */}
+            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'space-between' }}>
+              <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
+                <FormControl sx={{ flex: 1 }}>
+                  <InputLabel>选择插件文件</InputLabel>
+                  <Select 
+                    value={selectedFile} 
+                    label="选择插件文件" 
+                    onChange={handleFileSelect}
+                    MenuProps={{
+                      PaperProps: {
+                        sx: {
+                          maxHeight: 300,
+                          '& .MuiMenuItem-root.Mui-selected': {
+                            backgroundColor: theme => 
+                              alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.1),
+                            color: theme => theme.palette.mode === 'dark' 
+                              ? theme.palette.primary.light 
+                              : theme.palette.primary.main,
+                            fontWeight: 'bold'
+                          }
+                        }
+                      }
+                    }}
+                  >
+                    {files.map(file => {
+                      const isDisabled = file.endsWith('.disabled')
+                      return (
+                        <MenuItem
+                          key={file}
+                          value={file}
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            color: isDisabled ? 'text.disabled' : 'text.primary',
+                            ...(isDisabled && {
+                              background: theme =>
+                                theme.palette.mode === 'dark'
+                                  ? 'rgba(255, 0, 0, 0.08)'
+                                  : 'rgba(255, 0, 0, 0.05)',
+                              fontStyle: 'italic',
+                            }),
+                            '&.Mui-selected': {
+                              backgroundColor: theme => 
+                                alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.1),
+                              color: theme => theme.palette.mode === 'dark' 
+                                ? theme.palette.primary.light 
+                                : theme.palette.primary.main,
+                              fontWeight: 'bold'
+                            },
+                            '&.Mui-selected.Mui-disabled': {
+                              color: theme => alpha(theme.palette.error.main, 0.8),
+                              fontWeight: 'bold',
+                              opacity: 0.9,
+                              textShadow: '0 0 1px rgba(0,0,0,0.2)'
+                            }
+                          }}
+                        >
+                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
+                            {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
+                          </Box>
+                        </MenuItem>
+                      )
+                    })}
+                  </Select>
+                </FormControl>
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                  {renderFileActions()}
+                </Box>
+              </Box>
+            </Box>
+
+            {/* 错误提示 */}
+            {error && (
+              <Alert severity="error" onClose={() => setError('')}>
+                {error}
+              </Alert>
+            )}
+
+            {/* 代码编辑器 */}
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 0,
+                border: 1,
+                borderColor: 'divider',
+                borderRadius: BORDER_RADIUS.DEFAULT,
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              {(isLoading || isApplying) && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: theme =>
+                      `${alpha(theme.palette.background.paper, isApplying ? 0.8 : 1)}`,
+                    zIndex: 1,
+                    backdropFilter: 'blur(4px)',
+                    transition: 'background-color 0.3s ease',
+                  }}
+                >
+                  <CircularProgress size={40} sx={{ mb: 2 }} />
+                  <Typography>{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
+                </Box>
+              )}
+              <Editor
+                height="100%"
+                defaultLanguage="python"
+                theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
+                value={code}
+                onChange={handleCodeChange}
+                loading={<CircularProgress />}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  tabSize: 4,
+                  insertSpaces: true,
+                  autoIndent: 'full',
+                  formatOnPaste: true,
+                  formatOnType: true,
+                  scrollBeyondLastLine: false,
+                }}
+              />
+            </Box>
+          </Paper>
+
+          {/* 右侧区域 */}
+          <Paper
+            elevation={3}
+            sx={{
+              ...CARD_STYLES.default.styles,
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              p: 2,
+              minWidth: 0,
+              maxWidth: '420px',
+              overflow: 'hidden',
+            }}
+          >
+            {/* 操作区 */}
+            <Box>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                操作区
+              </Typography>
+              {renderOperationButtons()}
+              <Menu
+                id="more-menu"
+                anchorEl={anchorEl}
+                open={open}
+                onClose={handleMenuClose}
+                MenuListProps={{
+                  'aria-labelledby': 'more-button',
                 }}
               >
-                {generatedCode}
-              </Paper>
-            ) : (
-              <Box
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'text.secondary',
-                }}
-              >
-                {isGenerating ? (
-                  <Box sx={{ textAlign: 'center' }}>
-                    <CircularProgress size={40} sx={{ mb: 2 }} />
-                    <Typography>正在生成代码...</Typography>
+                <MenuItem
+                  onClick={async () => {
+                    if (selectedFile) {
+                      try {
+                        // 如果存在导出功能，使用导出功能，否则提示功能不可用
+                        if (typeof pluginEditorApi.exportPluginFile === 'function') {
+                          await pluginEditorApi.exportPluginFile(selectedFile)
+                          notification.success('文件导出成功')
+                        } else {
+                          notification.error('导出功能暂不可用')
+                        }
+                      } catch (err) {
+                        notification.error(
+                          '文件导出失败: ' + (err instanceof Error ? err.message : String(err))
+                        )
+                      }
+                    }
+                    handleMenuClose()
+                  }}
+                  disabled={!selectedFile}
+                >
+                  导出
+                </MenuItem>
+                <MenuItem
+                  onClick={async () => {
+                    if (selectedFile) {
+                      try {
+                        await pluginEditorApi.deletePluginFile(selectedFile)
+                        notification.success('文件删除成功')
+                        // 重新加载文件列表
+                        const files = await pluginEditorApi.getPluginFiles()
+                        setFiles(files)
+                        setSelectedFile('')
+                        setCode('')
+                      } catch (err) {
+                        notification.error(
+                          '删除失败: ' + (err instanceof Error ? err.message : String(err))
+                        )
+                      }
+                    }
+                    handleMenuClose()
+                  }}
+                  disabled={!selectedFile}
+                >
+                  <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+                  删除
+                </MenuItem>
+              </Menu>
+            </Box>
+
+            <Divider />
+
+            {/* 生成器内容 */}
+            {activeTab === 1 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'hidden' }}>
+                <Paper
+                  elevation={3}
+                  sx={{
+                    ...CARD_STYLES.default.styles,
+                    p: 1.5, // 减少内边距
+                    mb: 1, // 减少下边距
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
+                    插件需求
+                  </Typography>
+
+                  <TextField
+                    multiline
+                    rows={2} // 减少行数，节省空间
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    label="需求提示词"
+                    placeholder="描述你想要实现的插件功能..."
+                    onKeyDown={e => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault()
+                        if (prompt.trim() && !isGenerating) {
+                          handleGenerate()
+                        }
+                      }
+                    }}
+                    size="small" // 使用小号输入框
+                    sx={{ mb: 1 }} // 减少下边距
+                    fullWidth
+                  />
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
+                    onClick={handleGenerate}
+                    disabled={!prompt.trim() || isApplying}
+                    size="small" // 使用小号按钮
+                    sx={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: theme => theme.palette.primary.main,
+                      color: 'white !important',
+                      py: 0.75, // 调整内边距
+                      '& .MuiButton-startIcon': {
+                        color: 'white',
+                        margin: 0, // 减少图标边距
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: `linear-gradient(45deg, 
+                          #FF6B6B, 
+                          #4ECDC4,
+                          #45B7D1,
+                          #96C93D,
+                          #FF6B6B
+                        )`,
+                        backgroundSize: '400% 400%',
+                        opacity: 0.7,
+                        transition: 'opacity 0.3s ease',
+                        animation: isGenerating
+                          ? 'gradient-fast 3s ease infinite'
+                          : 'gradient 10s ease infinite',
+                      },
+                      '&:hover::before': {
+                        opacity: 1,
+                      },
+                      '& > *': {
+                        position: 'relative',
+                        zIndex: 1,
+                        color: 'white',
+                      },
+                      '&:disabled': {
+                        '&::before': {
+                          opacity: 0.2,
+                        },
+                        '& > *': {
+                          color: 'rgba(255, 255, 255, 0.7)',
+                        },
+                      },
+                    }}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                        <Box
+                          component="span"
+                          sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          点击中断生成
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <Box
+                          component="span"
+                          sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          AI 生成 (Ctrl+Enter)
+                        </Box>
+                      </>
+                    )}
+                  </Button>
+                </Paper>
+
+                <Paper
+                  elevation={3}
+                  sx={{
+                    ...CARD_STYLES.default.styles,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    p: 1.5, // 减少内边距
+                    minHeight: 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
+                    生成结果
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minHeight: 0,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: BORDER_RADIUS.DEFAULT,
+                      overflow: 'hidden',
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    {isApplying && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: 'rgba(0, 0, 0, 0.3)',
+                          backdropFilter: 'blur(4px)',
+                          zIndex: 1,
+                        }}
+                      >
+                        <CircularProgress size={32} />
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        overflow: 'auto',
+                        position: 'relative',
+                      }}
+                    >
+                      {generatedCode ? (
+                        <Paper
+                          ref={generatedCodeRef}
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            height: '100%',
+                            overflow: 'auto',
+                            bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
+                            fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                            fontSize: '13px',
+                            lineHeight: '1.5',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          {generatedCode}
+                        </Paper>
+                      ) : (
+                        <Box
+                          sx={{
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'text.secondary',
+                          }}
+                        >
+                          {isGenerating ? (
+                            <Box sx={{ textAlign: 'center' }}>
+                              <CircularProgress size={32} sx={{ mb: 1 }} />
+                              <Typography variant="body2">正在生成代码...</Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2">生成的代码将在这里显示...</Typography>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                    <Divider />
+                    <Box
+                      sx={{
+                        p: 1, // 减少内边距
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
+                          <Button
+                            startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
+                            onClick={handleCopyCode}
+                            disabled={!generatedCode}
+                            size="small" // 使用小号按钮
+                            variant="outlined"
+                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                          >
+                            {isCopied ? '已复制' : '复制'}
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title="清空生成结果">
+                          <Button
+                            startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
+                            onClick={handleClearCode}
+                            disabled={!generatedCode}
+                            color="warning"
+                            size="small"
+                            variant="outlined"
+                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                          >
+                            清空
+                          </Button>
+                        </Tooltip>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleApplyCode}
+                        startIcon={<SaveIcon sx={{ fontSize: '0.9rem' }} />}
+                        disabled={!generatedCode || isGenerating}
+                        size="small"
+                        sx={{
+                          py: 0.5,
+                          px: 1,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          background: theme => theme.palette.success.main,
+                          color: 'white !important',
+                          '& .MuiButton-startIcon': {
+                            color: 'white',
+                            marginRight: '4px',
+                          },
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: `linear-gradient(45deg, 
+                              #4CAF50,
+                              #81C784,
+                              #66BB6A,
+                              #43A047,
+                              #4CAF50
+                            )`,
+                            backgroundSize: '400% 400%',
+                            opacity: 0.7,
+                            transition: 'opacity 0.3s ease',
+                            animation: 'gradient 10s ease infinite',
+                          },
+                          '&:hover::before': {
+                            opacity: 1,
+                          },
+                          '& > *': {
+                            position: 'relative',
+                            zIndex: 1,
+                            color: 'white',
+                          },
+                          '&:disabled': {
+                            '&::before': {
+                              opacity: 0.2,
+                            },
+                            '& > *': {
+                              color: 'rgba(255, 255, 255, 0.7)',
+                            },
+                          },
+                        }}
+                      >
+                        {isApplying ? '应用中...' : '应用'}
+                      </Button>
+                    </Box>
                   </Box>
-                ) : (
-                  <Typography>生成的代码将在这里显示...</Typography>
-                )}
+                </Paper>
+              </Box>
+            )}
+          </Paper>
+        </Box>
+      ) : (
+        /* 移动端布局 */
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden' }}>
+          {/* 分页内容 */}
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden' }}>
+            {/* 编辑器内容 */}
+            {activeTab === 0 && (
+              <Paper
+                elevation={3}
+                sx={{
+                  ...CARD_STYLES.default.styles,
+                  flex: 1,
+                  p: 1.5,
+                  mb: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  overflow: 'hidden',
+                }}
+              >
+                {/* 代码编辑器 */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: BORDER_RADIUS.DEFAULT,
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  {(isLoading || isApplying) && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        backgroundColor: theme =>
+                          `${alpha(theme.palette.background.paper, isApplying ? 0.8 : 1)}`,
+                        backdropFilter: 'blur(4px)',
+                        zIndex: 1,
+                      }}
+                    >
+                      <CircularProgress size={36} sx={{ mb: 1 }} />
+                      <Typography variant="body2">{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
+                    </Box>
+                  )}
+                  <Editor
+                    height="100%"
+                    defaultLanguage="python"
+                    theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
+                    value={code}
+                    onChange={handleCodeChange}
+                    loading={<CircularProgress />}
+                    options={{
+                      minimap: { enabled: false },
+                      fontSize: 14,
+                      tabSize: 4,
+                      insertSpaces: true,
+                      autoIndent: 'full',
+                      formatOnPaste: true,
+                      formatOnType: true,
+                      scrollBeyondLastLine: false,
+                    }}
+                  />
+                </Box>
+              </Paper>
+            )}
+
+            {/* 生成器内容 */}
+            {activeTab === 1 && (
+              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'hidden' }}>
+                <Paper
+                  elevation={3}
+                  sx={{
+                    ...CARD_STYLES.default.styles,
+                    p: 1.5, // 减少内边距
+                    mb: 1, // 减少下边距
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
+                    插件需求
+                  </Typography>
+
+                  <TextField
+                    multiline
+                    rows={2} // 减少行数，节省空间
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    label="需求提示词"
+                    placeholder="描述你想要实现的插件功能..."
+                    onKeyDown={e => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                        e.preventDefault()
+                        if (prompt.trim() && !isGenerating) {
+                          handleGenerate()
+                        }
+                      }
+                    }}
+                    size="small" // 使用小号输入框
+                    sx={{ mb: 1 }} // 减少下边距
+                    fullWidth
+                  />
+
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
+                    onClick={handleGenerate}
+                    disabled={!prompt.trim() || isApplying}
+                    size="small" // 使用小号按钮
+                    sx={{
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: theme => theme.palette.primary.main,
+                      color: 'white !important',
+                      py: 0.75, // 调整内边距
+                      '& .MuiButton-startIcon': {
+                        color: 'white',
+                        margin: 0, // 减少图标边距
+                      },
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: `linear-gradient(45deg, 
+                          #FF6B6B, 
+                          #4ECDC4,
+                          #45B7D1,
+                          #96C93D,
+                          #FF6B6B
+                        )`,
+                        backgroundSize: '400% 400%',
+                        opacity: 0.7,
+                        transition: 'opacity 0.3s ease',
+                        animation: isGenerating
+                          ? 'gradient-fast 3s ease infinite'
+                          : 'gradient 10s ease infinite',
+                      },
+                      '&:hover::before': {
+                        opacity: 1,
+                      },
+                      '& > *': {
+                        position: 'relative',
+                        zIndex: 1,
+                        color: 'white',
+                      },
+                      '&:disabled': {
+                        '&::before': {
+                          opacity: 0.2,
+                        },
+                        '& > *': {
+                          color: 'rgba(255, 255, 255, 0.7)',
+                        },
+                      },
+                    }}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                        <Box
+                          component="span"
+                          sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          点击中断生成
+                        </Box>
+                      </>
+                    ) : (
+                      <>
+                        <Box
+                          component="span"
+                          sx={{
+                            color: 'white',
+                            fontWeight: 'bold',
+                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                            fontSize: '0.85rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          AI 生成 (Ctrl+Enter)
+                        </Box>
+                      </>
+                    )}
+                  </Button>
+                </Paper>
+
+                <Paper
+                  elevation={3}
+                  sx={{
+                    ...CARD_STYLES.default.styles,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    p: 1.5, // 减少内边距
+                    minHeight: 0,
+                    overflow: 'hidden',
+                  }}
+                >
+                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
+                    生成结果
+                  </Typography>
+
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minHeight: 0,
+                      border: 1,
+                      borderColor: 'divider',
+                      borderRadius: BORDER_RADIUS.DEFAULT,
+                      overflow: 'hidden',
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
+                    }}
+                  >
+                    {isApplying && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          bgcolor: 'rgba(0, 0, 0, 0.3)',
+                          backdropFilter: 'blur(4px)',
+                          zIndex: 1,
+                        }}
+                      >
+                        <CircularProgress size={32} />
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        flex: 1,
+                        minHeight: 0,
+                        overflow: 'auto',
+                        position: 'relative',
+                      }}
+                    >
+                      {generatedCode ? (
+                        <Paper
+                          ref={generatedCodeRef}
+                          elevation={0}
+                          sx={{
+                            p: 1.5,
+                            height: '100%',
+                            overflow: 'auto',
+                            bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
+                            fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                            fontSize: '13px',
+                            lineHeight: '1.5',
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-all',
+                          }}
+                        >
+                          {generatedCode}
+                        </Paper>
+                      ) : (
+                        <Box
+                          sx={{
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'text.secondary',
+                          }}
+                        >
+                          {isGenerating ? (
+                            <Box sx={{ textAlign: 'center' }}>
+                              <CircularProgress size={32} sx={{ mb: 1 }} />
+                              <Typography variant="body2">正在生成代码...</Typography>
+                            </Box>
+                          ) : (
+                            <Typography variant="body2">生成的代码将在这里显示...</Typography>
+                          )}
+                        </Box>
+                      )}
+                    </Box>
+                    <Divider />
+                    <Box
+                      sx={{
+                        p: 1, // 减少内边距
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', gap: 0.5 }}>
+                        <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
+                          <Button
+                            startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
+                            onClick={handleCopyCode}
+                            disabled={!generatedCode}
+                            size="small" // 使用小号按钮
+                            variant="outlined"
+                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                          >
+                            {isCopied ? '已复制' : '复制'}
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title="清空生成结果">
+                          <Button
+                            startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
+                            onClick={handleClearCode}
+                            disabled={!generatedCode}
+                            color="warning"
+                            size="small"
+                            variant="outlined"
+                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                          >
+                            清空
+                          </Button>
+                        </Tooltip>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        onClick={handleApplyCode}
+                        startIcon={<SaveIcon sx={{ fontSize: '0.9rem' }} />}
+                        disabled={!generatedCode || isGenerating}
+                        size="small"
+                        sx={{
+                          py: 0.5,
+                          px: 1,
+                          position: 'relative',
+                          overflow: 'hidden',
+                          background: theme => theme.palette.success.main,
+                          color: 'white !important',
+                          '& .MuiButton-startIcon': {
+                            color: 'white',
+                            marginRight: '4px',
+                          },
+                          '&::before': {
+                            content: '""',
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: `linear-gradient(45deg, 
+                              #4CAF50,
+                              #81C784,
+                              #66BB6A,
+                              #43A047,
+                              #4CAF50
+                            )`,
+                            backgroundSize: '400% 400%',
+                            opacity: 0.7,
+                            transition: 'opacity 0.3s ease',
+                            animation: 'gradient 10s ease infinite',
+                          },
+                          '&:hover::before': {
+                            opacity: 1,
+                          },
+                          '& > *': {
+                            position: 'relative',
+                            zIndex: 1,
+                            color: 'white',
+                          },
+                          '&:disabled': {
+                            '&::before': {
+                              opacity: 0.2,
+                            },
+                            '& > *': {
+                              color: 'rgba(255, 255, 255, 0.7)',
+                            },
+                          },
+                        }}
+                      >
+                        {isApplying ? '应用中...' : '应用'}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Paper>
               </Box>
             )}
           </Box>
-          <Divider />
-          <Box
-            sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <ButtonGroup size="small" variant="outlined">
-              <Tooltip title={isCopied ? '已复制！' : '复制代码'}>
-                <Button
-                  startIcon={<ContentCopyIcon />}
-                  onClick={handleCopyCode}
-                  disabled={!generatedCode}
-                >
-                  {isCopied ? '已复制' : '复制'}
-                </Button>
-              </Tooltip>
-              <Tooltip title="清空生成结果">
-                <Button
-                  startIcon={<ClearIcon />}
-                  onClick={handleClearCode}
-                  disabled={!generatedCode}
-                  color="warning"
-                >
-                  清空
-                </Button>
-              </Tooltip>
-            </ButtonGroup>
-            <Button
-              variant="contained"
-              color="success"
-              onClick={handleApplyCode}
-              startIcon={<SaveIcon />}
-              disabled={!generatedCode || isGenerating}
-              sx={{
-                position: 'relative',
-                overflow: 'hidden',
-                background: theme => theme.palette.success.main,
-                color: 'white !important',
-                '& .MuiButton-startIcon': {
-                  color: 'white',
-                },
-                '&::before': {
-                  content: '""',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  background: `linear-gradient(45deg, 
-                    #4CAF50,
-                    #81C784,
-                    #66BB6A,
-                    #43A047,
-                    #4CAF50
-                  )`,
-                  backgroundSize: '400% 400%',
-                  opacity: 0.7,
-                  transition: 'opacity 0.3s ease',
-                  animation: 'gradient 10s ease infinite',
-                },
-                '&:hover::before': {
-                  opacity: 1,
-                },
-                '& > *': {
-                  position: 'relative',
-                  zIndex: 1,
-                  color: 'white',
-                },
-                '&:disabled': {
-                  '&::before': {
-                    opacity: 0.2,
-                  },
-                  '& > *': {
-                    color: 'rgba(255, 255, 255, 0.7)',
-                  },
-                },
-              }}
-            >
-              {isApplying ? (
-                <>
-                  <CircularProgress size={24} sx={{ mr: 1, color: 'white' }} />
-                  <Box
-                    component="span"
-                    sx={{
-                      color: 'white',
-                      fontWeight: 'bold',
-                      textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
-                      fontSize: '1rem',
-                    }}
-                  >
-                    正在应用...
-                  </Box>
-                </>
-              ) : (
-                <>
-                  <Box
-                    component="span"
-                    sx={{
-                      color: 'white',
-                      fontWeight: 'bold',
-                      textShadow: '0 2px 4px rgba(0,0,0,0.5), 0 0 2px rgba(0,0,0,0.4)',
-                      fontSize: '1rem',
-                    }}
-                  >
-                    应用到编辑器
-                  </Box>
-                </>
-              )}
-            </Button>
-          </Box>
         </Box>
-      </Paper>
+      )}
 
       {/* 新建插件对话框 */}
       <NewPluginDialog
@@ -1221,12 +2119,12 @@ export default function PluginsEditorPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Add new reload plugin dialog */}
+      {/* 重载插件对话框 */}
       <Dialog open={reloadExtDialogOpen} onClose={() => setReloadExtDialogOpen(false)}>
         <DialogTitle>确认重载插件</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            这将重新加载当前插件文件 "{selectedFile.replace(/\.(py|disabled)$/, '')}"
+            这将重新加载当前插件文件 "{selectedFile?.replace(/\.(py|disabled)$/, '')}"
             并更新应用。确定要继续吗？
           </DialogContentText>
         </DialogContent>
@@ -1238,7 +2136,7 @@ export default function PluginsEditorPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Add new disable plugin dialog */}
+      {/* 启用/禁用插件对话框 */}
       <Dialog open={isDisableDialogOpen} onClose={() => setIsDisableDialogOpen(false)}>
         <DialogTitle>
           {selectedFile?.endsWith('.disabled') ? '确认启用插件' : '确认禁用插件'}
@@ -1261,6 +2159,44 @@ export default function PluginsEditorPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 错误信息显示 */}
+      {error && (
+        <Alert
+          severity="error"
+          onClose={() => setError('')}
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            maxWidth: '90%',
+            width: 'auto',
+            zIndex: 9999,
+            boxShadow: theme => `0 4px 20px ${alpha(theme.palette.error.main, 0.25)}`,
+          }}
+        >
+          {error}
+        </Alert>
+      )}
+
+      {/* 移动端底部保存按钮 */}
+      {isMobile && hasUnsavedChanges && (
+        <Fab
+          color="primary"
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            right: 16,
+            zIndex: 1000,
+            boxShadow: theme => `0 4px 12px ${alpha(theme.palette.primary.main, 0.4)}`,
+          }}
+          onClick={handleSave}
+          disabled={isSaving}
+        >
+          {isSaving ? <CircularProgress size={24} color="inherit" /> : <SaveIcon />}
+        </Fab>
+      )}
     </Box>
   )
 }

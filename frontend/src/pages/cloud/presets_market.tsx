@@ -34,13 +34,8 @@ import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useNavigate } from 'react-router-dom'
-import { 
-  GRADIENTS, 
-  SHADOWS, 
-  BORDERS, 
-  BORDER_RADIUS,
-  CARD_LAYOUT 
-} from '../../theme/constants'
+import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
+import { LAYOUT, CHIP_VARIANTS } from '../../theme/variants'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -69,8 +64,6 @@ const PresetCard = ({
   onDownload: () => void
   onShowDetail: () => void
 }) => {
-  const theme = useTheme()
-  const isDark = theme.palette.mode === 'dark'
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
 
   return (
@@ -79,22 +72,17 @@ const PresetCard = ({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        transition: CARD_LAYOUT.TRANSITION,
+        transition: LAYOUT.TRANSITION.DEFAULT,
         borderRadius: BORDER_RADIUS.DEFAULT,
         overflow: 'hidden',
         '&:hover': {
-          boxShadow: isDark 
-            ? SHADOWS.CARD.DARK.HOVER
-            : SHADOWS.CARD.LIGHT.HOVER,
+          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: isDark 
-          ? GRADIENTS.CARD.DARK
-          : GRADIENTS.CARD.LIGHT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: isDark 
-          ? BORDERS.CARD.DARK
-          : BORDERS.CARD.LIGHT,
+        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
+        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
+        border: UI_STYLES.BORDERS.CARD.DEFAULT,
+        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
         position: 'relative',
       }}
     >
@@ -158,10 +146,8 @@ const PresetCard = ({
                 label={tag.trim()}
                 size="small"
                 sx={{
-                  height: 24,
-                  fontSize: '0.75rem',
-                  bgcolor: theme =>
-                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+                  ...CHIP_VARIANTS.base(false),
+                  bgcolor: UI_STYLES.HOVER,
                   fontWeight: 500,
                   borderRadius: 1,
                 }}
@@ -179,8 +165,7 @@ const PresetCard = ({
         sx={{
           justifyContent: 'space-between',
           p: 1.5,
-          bgcolor: theme =>
-            theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          bgcolor: UI_STYLES.SELECTED,
           borderTop: '1px solid',
           borderColor: 'divider',
         }}
@@ -272,6 +257,7 @@ const PresetDetailDialog = ({
                         label={tag.trim()}
                         size="small"
                         sx={{
+                          ...CHIP_VARIANTS.base(false),
                           margin: '2px',
                           bgcolor:
                             theme.palette.mode === 'dark'

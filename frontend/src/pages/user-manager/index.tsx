@@ -9,6 +9,9 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
+  SxProps,
+  Theme,
+  TableContainer,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
 import UserTable from './components/UserTable'
@@ -16,6 +19,7 @@ import UserDetail from './components/UserDetail'
 import UserForm from './components/UserForm'
 import { useUserData } from './hooks/useUserData'
 import { UserFormData } from '../../services/api/user-manager'
+import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 const UserManagerPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -95,49 +99,70 @@ const UserManagerPage: React.FC = () => {
   }
 
   return (
-    <Box className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-hidden p-3">
-      <Paper className="flex-1 flex flex-col overflow-hidden">
-        <Box
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: 'calc(100vh - 90px)',
+        p: 2,
+        gap: 2,
+      }}
+    >
+      {/* 搜索栏 */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          pl: 1,
+          flexShrink: 0,
+          flexDirection: isSmall ? 'column' : 'row',
+        }}
+      >
+        <TextField
+          placeholder="搜索用户名或QQ号"
+          size="small"
+          fullWidth={isSmall}
+          value={searchTerm}
+          onChange={e => setSearchTerm(e.target.value)}
+          onKeyPress={e => e.key === 'Enter' && handleSearch()}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          variant="contained"
+          onClick={handleSearch}
+          size={isSmall ? 'small' : 'medium'}
+          sx={{ minWidth: isSmall ? '100%' : 'auto' }}
+        >
+          搜索
+        </Button>
+      </Box>
+
+      {/* 用户表格 */}
+      <Paper
+        elevation={3}
+        sx={{
+          flexGrow: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
+        }}
+      >
+        <TableContainer
           sx={{
-            p: isSmall ? 1.5 : 2,
-            borderBottom: 1,
-            borderColor: 'divider',
+            height: 'calc(100vh - 170px)',
+            maxHeight: 'calc(100vh - 170px)',
+            overflow: 'auto',
+            borderRadius: 1,
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
           }}
         >
-          <Box
-            sx={{
-              display: 'flex',
-              gap: 1,
-              flexDirection: isSmall ? 'column' : 'row',
-            }}
-          >
-            <TextField
-              placeholder="搜索用户名或QQ号"
-              size="small"
-              fullWidth={isSmall}
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              onKeyPress={e => e.key === 'Enter' && handleSearch()}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Button
-              variant="contained"
-              onClick={handleSearch}
-              size={isSmall ? 'small' : 'medium'}
-              sx={{ minWidth: isSmall ? '100%' : 'auto' }}
-            >
-              搜索
-            </Button>
-          </Box>
-        </Box>
-
-        <Box className="flex-1 flex flex-col overflow-hidden">
           <UserTable
             users={users}
             total={total}
@@ -152,9 +177,16 @@ const UserManagerPage: React.FC = () => {
             onSetPreventTrigger={setPreventTrigger}
             onResetPassword={resetPassword}
             onUpdateUser={updateUser}
-            showEditButton={!isMobile}
+            showEditButton={!isMobile && false}
+            tableProps={{
+              stickyHeader: true,
+              sx: {
+                tableLayout: 'fixed',
+                minWidth: isMobile ? '600px' : '900px',
+              },
+            }}
           />
-        </Box>
+        </TableContainer>
       </Paper>
 
       {/* 用户详情抽屉 */}
