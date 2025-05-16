@@ -3,8 +3,10 @@
  * 提供主题获取和切换的核心功能
  */
 import { useColorMode } from '../stores/theme'
-import { themes, ThemeConfig, ThemeKeys, getAlphaColor, getExtendedPalette, getLighterColor, getDarkerColor } from './palette'
+import { themes, ThemeConfig, ThemeKeys, getAlphaColor, getExtendedPalette } from './palette'
 import { BORDER_RADIUS } from './variants'
+// 导入高级渐变工具
+import AdvancedGradients from './gradients'
 
 // 获取当前主题模式
 export function getCurrentThemeMode(): 'light' | 'dark' {
@@ -84,7 +86,7 @@ export const UI_STYLES = {
     }
   },
   
-  // 获取渐变背景
+  // 获取渐变背景 - 使用高级渐变系统
   getGradient: (type: 'primary' | 'secondary' | 'background' | 'card'): string => {
     const palette = getCurrentExtendedPalette()
     const background = palette.background
@@ -92,19 +94,15 @@ export const UI_STYLES = {
     
     switch (type) {
       case 'primary':
-        return `linear-gradient(90deg, ${getAlphaColor(palette.primary.main, 0.95)}, ${getAlphaColor(palette.primary.light, 0.95)})`
+        return AdvancedGradients.buttonGradient(palette.primary.main);
       case 'secondary':
-        return `linear-gradient(90deg, ${getAlphaColor(palette.secondary.main, 0.95)}, ${getAlphaColor(palette.secondary.light, 0.95)})`
+        return AdvancedGradients.buttonGradient(palette.secondary.main);
       case 'background':
-        return mode === 'light'
-          ? `linear-gradient(135deg, ${getAlphaColor(background.main, 0.85)} 0%, ${getLighterColor(getAlphaColor(background.main, 0.8), 0.05)} 50%, ${getAlphaColor(background.main, 0.85)} 100%)`
-          : `linear-gradient(135deg, ${getAlphaColor(getDarkerColor(background.main, 0.08), 0.9)} 0%, ${getAlphaColor(background.main, 0.85)} 50%, ${getAlphaColor(getDarkerColor(background.main, 0.08), 0.9)} 100%)`
+        return AdvancedGradients.smoothBackground(background.main, mode);
       case 'card':
-        return mode === 'light'
-          ? `linear-gradient(145deg, rgba(255, 255, 255, 0.92), ${getAlphaColor(background.card, 0.85)})`
-          : `linear-gradient(145deg, ${getAlphaColor(getLighterColor(background.paper, 0.05), 0.85)}, ${getAlphaColor(background.paper, 0.75)})`
+        return AdvancedGradients.smoothCard(background.paper, mode);
       default:
-        return 'none'
+        return 'none';
     }
   },
   
@@ -160,9 +158,12 @@ export const UI_STYLES = {
       const palette = getCurrentExtendedPalette()
       const background = palette.background
       
-      return mode === 'light'
-        ? `linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, ${getAlphaColor(background.main, 0.95)} 100%)`
-        : `linear-gradient(180deg, ${getLighterColor(background.paper, 0.05)} 0%, ${background.paper} 100%)`
+      // 使用高级渐变系统
+      return AdvancedGradients.smoothBackground(
+        mode === 'light' ? '#ffffff' : background.paper,
+        mode,
+        mode === 'light' ? 0.95 : 0.85
+      )
     }
   },
 
@@ -170,13 +171,8 @@ export const UI_STYLES = {
   APP_BAR: {
     get DEFAULT() {
       const palette = getCurrentExtendedPalette()
-      const mode = getCurrentThemeMode()
-      const primary = palette.primary
-      
-      // 创建一个更优雅的渐变效果
-      return mode === 'light'
-        ? `linear-gradient(90deg, ${primary.main} 0%, ${primary.light} 100%)`
-        : `linear-gradient(90deg, ${primary.dark} 0%, ${primary.main} 100%)`
+      // 使用高级渐变按钮效果
+      return AdvancedGradients.buttonGradient(palette.primary.main)
     }
   },
 
@@ -212,46 +208,48 @@ export const UI_STYLES = {
     }
   },
 
-  // 兼容旧版GRADIENTS.CARD
+  // 兼容旧版GRADIENTS.CARD - 使用高级渐变
   GRADIENTS: {
     CARD: {
       get DEFAULT() {
-        const mode = getCurrentThemeMode()
         const palette = getCurrentExtendedPalette()
-        return mode === 'light'
-          ? `linear-gradient(135deg, rgba(255, 255, 255, 0.95), ${getAlphaColor(palette.primary.lighter, 0.08)})`
-          : `linear-gradient(135deg, ${getAlphaColor(palette.primary.darker, 0.15)}, ${getAlphaColor(palette.background.paper, 0.95)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothCard(palette.background.paper, mode)
       },
       get STATISTIC() {
-        const mode = getCurrentThemeMode()
         const palette = getCurrentExtendedPalette()
-        return mode === 'light'
-          ? `linear-gradient(135deg, rgba(255, 255, 255, 0.97), ${getAlphaColor(palette.primary.lighter, 0.06)})`
-          : `linear-gradient(135deg, ${getAlphaColor(palette.background.paper, 0.92)}, ${getAlphaColor(palette.primary.darker, 0.12)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothCard(palette.background.paper, mode)
       },
       get SUCCESS() {
         const palette = getCurrentExtendedPalette()
-        return `linear-gradient(135deg, ${getAlphaColor(palette.success, 0.08)}, ${getAlphaColor(palette.success, 0.02)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothBackground(palette.success, mode, 0.08)
       },
       get ERROR() {
         const palette = getCurrentExtendedPalette()
-        return `linear-gradient(135deg, ${getAlphaColor(palette.error, 0.08)}, ${getAlphaColor(palette.error, 0.02)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothBackground(palette.error, mode, 0.08)
       },
       get WARNING() {
         const palette = getCurrentExtendedPalette()
-        return `linear-gradient(135deg, ${getAlphaColor(palette.warning, 0.08)}, ${getAlphaColor(palette.warning, 0.02)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothBackground(palette.warning, mode, 0.08)
       },
       get INFO() {
         const palette = getCurrentExtendedPalette()
-        return `linear-gradient(135deg, ${getAlphaColor(palette.info, 0.08)}, ${getAlphaColor(palette.info, 0.02)})`
+        const mode = getCurrentThemeMode()
+        return AdvancedGradients.smoothBackground(palette.info, mode, 0.08)
       },
     },
     BUTTON: {
       get PRIMARY() {
-        return UI_STYLES.getGradient('primary')
+        const palette = getCurrentExtendedPalette()
+        return AdvancedGradients.buttonGradient(palette.primary.main)
       },
       get SECONDARY() {
-        return UI_STYLES.getGradient('secondary')
+        const palette = getCurrentExtendedPalette()
+        return AdvancedGradients.buttonGradient(palette.secondary.main)
       }
     }
   },
@@ -277,11 +275,9 @@ export const LOG_TABLE_STYLES = {
       return {
         backgroundColor: getAlphaColor(palette.info, 0.15),
         color: palette.info,
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
         borderRadius: '4px',
         padding: '2px 8px',
-        transition: 'all 0.2s ease',
+        transition: 'opacity 0.2s ease',
       }
     },
     // 调试日志
@@ -290,11 +286,9 @@ export const LOG_TABLE_STYLES = {
       return {
         backgroundColor: getAlphaColor(palette.secondary.main, 0.15),
         color: palette.secondary.main,
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
         borderRadius: '4px',
         padding: '2px 8px',
-        transition: 'all 0.2s ease',
+        transition: 'opacity 0.2s ease',
       }
     },
     // 错误日志
@@ -303,11 +297,9 @@ export const LOG_TABLE_STYLES = {
       return {
         backgroundColor: getAlphaColor(palette.error, 0.15),
         color: palette.error,
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
         borderRadius: '4px',
         padding: '2px 8px',
-        transition: 'all 0.2s ease',
+        transition: 'opacity 0.2s ease',
       }
     },
     // 警告日志
@@ -316,11 +308,9 @@ export const LOG_TABLE_STYLES = {
       return {
         backgroundColor: getAlphaColor(palette.warning, 0.15),
         color: palette.warning,
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
         borderRadius: '4px',
         padding: '2px 8px',
-        transition: 'all 0.2s ease',
+        transition: 'opacity 0.2s ease',
       }
     },
     // 成功日志
@@ -329,11 +319,9 @@ export const LOG_TABLE_STYLES = {
       return {
         backgroundColor: getAlphaColor(palette.success, 0.15),
         color: palette.success,
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
         borderRadius: '4px',
         padding: '2px 8px',
-        transition: 'all 0.2s ease',
+        transition: 'opacity 0.2s ease',
       }
     },
   },
@@ -356,18 +344,16 @@ export const LOG_TABLE_STYLES = {
       const mode = getCurrentThemeMode()
       const palette = getCurrentExtendedPalette()
       return {
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
         backgroundColor: mode === 'light' 
-          ? 'rgba(255, 255, 255, 0.85)' 
-          : getAlphaColor(palette.background.paper, 0.85),
+          ? 'rgba(255, 255, 255, 0.95)' 
+          : getAlphaColor(palette.background.paper, 0.95),
         borderRadius: '6px',
         border: `1px solid ${getAlphaColor(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
         boxShadow: mode === 'light'
           ? '0 2px 8px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0, 0, 0, 0.03)'
           : `0 2px 8px rgba(0, 0, 0, 0.25), 0 0 2px rgba(0, 0, 0, 0.1)`,
         overflow: 'hidden',
-        transition: 'all 0.3s ease',
+        transition: 'box-shadow 0.3s ease',
         position: 'relative',
         '&::before': {
           content: '""',
@@ -376,7 +362,7 @@ export const LOG_TABLE_STYLES = {
           left: 0,
           width: '100%',
           height: '2px',
-          background: `linear-gradient(90deg, ${getAlphaColor(palette.primary.main, 0.2)}, ${getAlphaColor(palette.secondary.main, 0.2)})`,
+          backgroundColor: getAlphaColor(palette.primary.main, 0.2),
           opacity: 0.7,
         },
         '&:hover': {
@@ -395,19 +381,14 @@ export const LOG_TABLE_STYLES = {
       return {
         fontWeight: 600,
         backgroundColor: mode === 'light' 
-          ? 'rgba(245, 245, 245, 0.8)' 
-          : getAlphaColor(palette.primary.darker, 0.4),
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
+          ? 'rgba(245, 245, 245, 0.95)' 
+          : getAlphaColor(palette.primary.darker, 0.6),
         boxShadow: mode === 'dark' 
           ? '0 4px 6px -1px rgba(0, 0, 0, 0.15)'
           : '0 4px 6px -1px rgba(0, 0, 0, 0.08)',
         textTransform: 'uppercase',
         fontSize: '0.75rem',
         letterSpacing: '0.02em',
-        backgroundImage: mode === 'light'
-          ? `linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(245, 245, 245, 0.85))`
-          : `linear-gradient(180deg, ${getAlphaColor(palette.primary.darker, 0.5)}, ${getAlphaColor(palette.primary.darker, 0.4)})`,
       }
     }
   }

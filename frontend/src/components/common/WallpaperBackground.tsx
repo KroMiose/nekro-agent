@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import { Box, styled } from '@mui/material'
 import { motion, AnimatePresence } from 'framer-motion'
-import { UI_STYLES } from '../../theme/themeApi'
+import { UI_STYLES, getAnimationDuration, getBlurValue } from '../../theme/themeApi'
 import { useWallpaperStore } from '../../stores/wallpaper'
+import { useColorMode } from '../../stores/theme'
 
 // 背景壁纸容器
 const BackgroundContainer = styled(Box)(() => ({
@@ -42,6 +43,7 @@ const WallpaperBackground: React.FC<WallpaperBackgroundProps> = ({
   const [currentWallpaper, setCurrentWallpaper] = useState<string | null>(wallpaperUrl)
   const [hasError, setHasError] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const { performanceMode } = useColorMode()
   // 从全局store获取壁纸失效处理函数
   const { handleWallpaperInvalid } = useWallpaperStore()
 
@@ -112,12 +114,15 @@ const WallpaperBackground: React.FC<WallpaperBackgroundProps> = ({
   // 获取背景样式
   const getBackgroundStyle = () => {
     if (currentWallpaper && !hasError) {
+      // 根据性能模式调整模糊效果
+      const effectiveBlur = getBlurValue(blur)
+      
       return {
         backgroundImage: `url(${currentWallpaper})`,
         backgroundSize: mode,
         backgroundPosition: 'center',
         backgroundRepeat: mode === 'repeat' ? 'repeat' : 'no-repeat',
-        filter: `blur(${blur}px)`,
+        filter: effectiveBlur > 0 ? `blur(${effectiveBlur}px)` : 'none',
       }
     }
     
@@ -142,16 +147,21 @@ const WallpaperBackground: React.FC<WallpaperBackgroundProps> = ({
     }
   }
 
+  // 根据性能模式决定是否禁用动画
+  const shouldEnableAnimation = () => {
+    return performanceMode !== 'performance'
+  }
+
   return (
     <BackgroundContainer className={className}>
       {/* 壁纸背景 */}
       <AnimatePresence>
         <motion.div
           key={currentWallpaper || 'fallback'}
-          initial={{ opacity: 0 }}
+          initial={shouldEnableAnimation() ? { opacity: 0 } : { opacity: 1 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.5 }}
+          exit={shouldEnableAnimation() ? { opacity: 0 } : { opacity: 1 }}
+          transition={{ duration: getAnimationDuration(0.5) }}
           style={{
             position: 'absolute',
             top: -10,

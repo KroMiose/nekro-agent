@@ -11,11 +11,14 @@ import {
   Paper,
   useTheme,
   useMediaQuery,
+  Button
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import { useQuery } from '@tanstack/react-query'
 import { getUserDetail } from '../../../services/api/user-manager'
 import { format } from 'date-fns'
+import { CHIP_VARIANTS } from '../../../theme/variants'
 
 interface UserDetailProps {
   userId: number
@@ -60,33 +63,49 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
     }
   }
 
-  const getRoleColor = (permLevel: number) => {
-    switch (permLevel) {
-      case 0:
-        return 'default'
-      case 1:
-        return 'primary'
-      case 2:
-        return 'secondary'
-      case 3:
-        return 'error'
-      default:
-        return 'default'
-    }
-  }
-
   return (
     <Drawer
       anchor="right"
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { width: { xs: '100%', sm: 400, md: 450 } },
+        sx: { 
+          width: { xs: '100%', sm: 400, md: 450 },
+          display: 'flex',
+          flexDirection: 'column'
+        },
       }}
     >
-      <Box sx={{ p: isSmall ? 1.5 : 2 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: isSmall ? 1 : 2 }}>
-          <Typography variant={isSmall ? "h6" : "h5"}>用户详情</Typography>
+      <Box sx={{ 
+        p: isSmall ? 1.5 : 2, 
+        flexGrow: 1,
+        overflow: 'auto'
+      }}>
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: isSmall ? 1 : 2,
+            position: 'sticky',
+            top: 0,
+            backgroundColor: 'background.paper',
+            zIndex: 10,
+            pb: 1
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {isMobile && (
+              <IconButton 
+                onClick={onClose} 
+                size={isSmall ? "small" : "medium"}
+                sx={{ mr: 1 }}
+              >
+                <ArrowBackIcon />
+              </IconButton>
+            )}
+            <Typography variant={isSmall ? "h6" : "h5"}>用户详情</Typography>
+          </Box>
           <IconButton onClick={onClose} size={isSmall ? "small" : "medium"}>
             <CloseIcon />
           </IconButton>
@@ -153,24 +172,8 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                 <Grid item xs={8}>
                   <Chip
                     label={getRoleLabel(user.perm_level)}
-                    color={
-                      getRoleColor(user.perm_level) as
-                        | 'default'
-                        | 'primary'
-                        | 'secondary'
-                        | 'error'
-                        | 'info'
-                        | 'success'
-                        | 'warning'
-                    }
                     size="small"
-                    sx={{ 
-                      height: isSmall ? 20 : 24, 
-                      '& .MuiChip-label': { 
-                        px: isSmall ? 0.5 : 0.8,
-                        fontSize: isSmall ? '0.65rem' : '0.75rem'
-                      } 
-                    }}
+                    sx={CHIP_VARIANTS.getRoleChip(user.perm_level, isSmall)}
                   />
                 </Grid>
               </Grid>
@@ -196,28 +199,14 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                   {!user.is_active ? (
                     <Chip 
                       label="已封禁" 
-                      color="error" 
                       size="small" 
-                      sx={{ 
-                        height: isSmall ? 20 : 24, 
-                        '& .MuiChip-label': { 
-                          px: isSmall ? 0.5 : 0.8,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem'
-                        } 
-                      }}
+                      sx={CHIP_VARIANTS.getUserStatusChip('已封禁', isSmall)}
                     />
                   ) : (
                     <Chip 
                       label="正常" 
-                      color="success" 
                       size="small" 
-                      sx={{ 
-                        height: isSmall ? 20 : 24, 
-                        '& .MuiChip-label': { 
-                          px: isSmall ? 0.5 : 0.8,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem'
-                        } 
-                      }}
+                      sx={CHIP_VARIANTS.getUserStatusChip('正常', isSmall)}
                     />
                   )}
                 </Grid>
@@ -244,28 +233,14 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                   {user.is_prevent_trigger ? (
                     <Chip 
                       label="禁止触发" 
-                      color="warning" 
                       size="small" 
-                      sx={{ 
-                        height: isSmall ? 20 : 24, 
-                        '& .MuiChip-label': { 
-                          px: isSmall ? 0.5 : 0.8,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem'
-                        } 
-                      }}
+                      sx={CHIP_VARIANTS.getUserStatusChip('禁止触发', isSmall)}
                     />
                   ) : (
                     <Chip 
                       label="允许触发" 
-                      color="success" 
                       size="small" 
-                      sx={{ 
-                        height: isSmall ? 20 : 24, 
-                        '& .MuiChip-label': { 
-                          px: isSmall ? 0.5 : 0.8,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem'
-                        } 
-                      }}
+                      sx={CHIP_VARIANTS.getUserStatusChip('允许触发', isSmall)}
                     />
                   )}
                 </Grid>
@@ -349,6 +324,24 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
           <Typography>未找到用户数据</Typography>
         )}
       </Box>
+      
+      {isMobile && (
+        <Box sx={{ 
+          p: 2, 
+          borderTop: '1px solid', 
+          borderColor: 'divider',
+          mt: 'auto'
+        }}>
+          <Button 
+            variant="contained" 
+            fullWidth 
+            onClick={onClose}
+            startIcon={<ArrowBackIcon />}
+          >
+            返回
+          </Button>
+        </Box>
+      )}
     </Drawer>
   )
 }

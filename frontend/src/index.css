@@ -4,12 +4,145 @@
 
 :root {
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  
+  /* 性能模式CSS变量 */
+  --nekro-transition-duration: 0.3s;
+  --nekro-animation-duration: 0.5s;
+  --nekro-blur-effect: 12px;
+  --nekro-shadow-strength: 1;
+  --nekro-gradient-opacity: 1;
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+/* 渐变动画关键帧定义 */
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes gradient-fast {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* 性能模式适配 */
+.performance-mode-performance {
+  /* 禁用所有动画效果 */
+  --nekro-transition-duration: 0s !important;
+  --nekro-animation-duration: 0s !important;
+  --nekro-blur-effect: 0px !important;
+  --nekro-shadow-strength: 0 !important;
+  --nekro-gradient-opacity: 0 !important;
+  
+  /* 为性能模式禁用一些CSS效果 */
+  & .MuiPaper-root,
+  & .MuiCard-root,
+  & .MuiDrawer-paper,
+  & .MuiDialog-paper,
+  & .MuiMenu-paper,
+  & .MuiTooltip-tooltip,
+  & .MuiPopover-paper {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    transition: none !important;
+  }
+  
+  & .motion-div {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+  
+  & *:not(.preserve-transition) {
+    transition-duration: 0s !important;
+    animation-duration: 0s !important;
+  }
+}
+
+.performance-mode-balanced {
+  /* 减少动画效果 */
+  --nekro-transition-duration: 0.2s !important;
+  --nekro-animation-duration: 0.3s !important;
+  --nekro-blur-effect: 6px !important;
+  --nekro-shadow-strength: 0.5 !important;
+  --nekro-gradient-opacity: 0.5 !important;
+  
+  /* 为均衡模式简化CSS效果 */
+  & .MuiPaper-root,
+  & .MuiCard-root,
+  & .MuiDrawer-paper,
+  & .MuiDialog-paper,
+  & .MuiMenu-paper,
+  & .MuiTooltip-tooltip,
+  & .MuiPopover-paper {
+    backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+    -webkit-backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  }
+  
+  /* 减少过渡效果持续时间 */
+  & *:not(.preserve-transition) {
+    transition-duration: var(--nekro-transition-duration) !important;
+    animation-duration: var(--nekro-animation-duration) !important;
+  }
+}
+
+.performance-mode-quality {
+  /* 完整的动画效果 */
+  --nekro-transition-duration: 0.3s !important;
+  --nekro-animation-duration: 0.5s !important;
+  --nekro-blur-effect: 12px !important;
+  --nekro-shadow-strength: 1 !important;
+  --nekro-gradient-opacity: 1 !important;
+}
+
+/* 修改framer-motion相关动画 */
+.performance-mode-performance .motion-div {
+  animation: none !important;
+  transition: none !important;
+}
+
+.performance-mode-balanced .motion-div {
+  transition-duration: calc(var(--nekro-transition-duration) * 1.5) !important;
+}
+
+/* 对应用性能配置的按需CSS规则 */
+@supports (backdrop-filter: blur(10px)) {
+  /* 当浏览器支持backdrop-filter时应用这些规则 */
+  .performance-mode-performance .blur-bg {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  
+  .performance-mode-balanced .blur-bg {
+    backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+    -webkit-backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+  }
+  
+  .performance-mode-quality .blur-bg {
+    backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+    -webkit-backdrop-filter: blur(var(--nekro-blur-effect)) !important;
+  }
 }

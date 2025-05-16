@@ -332,7 +332,7 @@ interface ColorDialogState {
 
 // 主题配置页面
 export default function ThemeConfigPage() {
-  const { mode, setColorMode, setThemePreset, setCustomColors } = useColorMode()
+  const { mode, setColorMode, setThemePreset, setCustomColors, performanceMode, setPerformanceMode } = useColorMode()
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const currentMode =
@@ -878,6 +878,20 @@ export default function ThemeConfigPage() {
   // GitHub Star状态
   const { allStarred } = useGitHubStarStore()
 
+  // 添加性能模式处理函数
+  const handlePerformanceModeChange = (newMode: 'performance' | 'balanced' | 'quality') => {
+    setPerformanceMode(newMode)
+    notification.info(
+      `已切换至${
+        newMode === 'performance'
+          ? '性能优先模式'
+          : newMode === 'balanced'
+          ? '均衡模式'
+          : '质量优先模式'
+      }`
+    )
+  }
+
   return (
     <Box className="h-full flex flex-col overflow-auto p-4">
       {/* 主标题和内容容器 */}
@@ -923,6 +937,55 @@ export default function ThemeConfigPage() {
           <Typography variant="body2" color="text.secondary">
             当前模式: {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}
             {mode === 'system' && ` (${theme.palette.mode === 'light' ? '浅色' : '深色'})`}
+          </Typography>
+        </Paper>
+
+        {/* 性能模式控制 */}
+        <Paper className="p-4 mb-4">
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+            <TuneIcon sx={{ mr: 1, color: 'primary.main' }} />
+            <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
+              性能模式
+            </Typography>
+          </Box>
+          
+          <Stack direction="row" spacing={3} className="mb-2">
+            <Button
+              variant={performanceMode === 'performance' ? 'contained' : 'outlined'}
+              startIcon={<FormatColorFillIcon />}
+              onClick={() => handlePerformanceModeChange('performance')}
+              size={isSmall ? 'small' : 'medium'}
+            >
+              性能优先
+            </Button>
+
+            <Button
+              variant={performanceMode === 'balanced' ? 'contained' : 'outlined'}
+              startIcon={<TuneIcon />}
+              onClick={() => handlePerformanceModeChange('balanced')}
+              size={isSmall ? 'small' : 'medium'}
+            >
+              均衡模式
+            </Button>
+
+            <Button
+              variant={performanceMode === 'quality' ? 'contained' : 'outlined'}
+              startIcon={<PaletteIcon />}
+              onClick={() => handlePerformanceModeChange('quality')}
+              size={isSmall ? 'small' : 'medium'}
+            >
+              质量优先
+            </Button>
+          </Stack>
+
+          <Typography variant="body2" color="text.secondary" className="mb-2">
+            当前模式: {
+              performanceMode === 'performance' 
+                ? '性能优先 - 减少视觉效果以提高性能' 
+                : performanceMode === 'balanced' 
+                  ? '均衡模式 - 平衡视觉效果与性能' 
+                  : '质量优先 - 完整视觉效果'
+            }
           </Typography>
         </Paper>
 

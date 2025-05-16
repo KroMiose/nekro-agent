@@ -7,7 +7,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   TableSortLabel,
   IconButton,
   Tooltip,
@@ -30,6 +29,7 @@ import {
   useMediaQuery,
   SxProps,
   Theme,
+  Paper,
 } from '@mui/material'
 import type { WheelEvent as ReactWheelEvent } from 'react'
 import VisibilityIcon from '@mui/icons-material/Visibility'
@@ -43,6 +43,7 @@ import { format } from 'date-fns'
 import RcSlider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
+import TablePaginationStyled from '../../../components/common/TablePaginationStyled'
 
 // 定义视觉隐藏样式，替代 visuallyHidden
 const srOnlyStyle = {
@@ -522,212 +523,209 @@ const UserTable: React.FC<UserTableProps> = ({
     )
   }
 
-  // 从tableContainerProps中提取sx并删除它，避免重复
-  const { sx: containerSx, ...restTableContainerProps } = tableContainerProps || {}
-
-  // 合并sx属性
-  const mergedSx = {
-    ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
-    ...((containerSx as SxProps<Theme>) || {}),
-  }
+  // 从tableContainerProps中提取sx删除
+  const { ...restTableContainerProps } = tableContainerProps || {}
 
   return (
-    <Box className="flex-1 flex flex-col overflow-hidden">
-      <TableContainer className="flex-1 overflow-auto" sx={mergedSx} {...restTableContainerProps}>
-        <Table
-          stickyHeader
-          size={isSmall ? 'small' : 'medium'}
-          sx={{
-            width: '100%',
-            minWidth: isMobile ? '600px' : '900px',
-            tableLayout: 'fixed',
-            ...(tableProps?.sx || {}),
-          }}
-          {...tableProps}
-        >
-          <TableHead>
-            <TableRow>
-              <TableCell
-                sx={{
-                  width: '60px',
-                  minWidth: '60px',
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                }}
-              >
-                <TableSortLabel
-                  active={sorting.field === 'id'}
-                  direction={sorting.field === 'id' ? sorting.order : 'asc'}
-                  onClick={() => handleRequestSort('id')}
-                >
-                  ID
-                  {sorting.field === 'id' ? (
-                    <Box component="span" sx={srOnlyStyle}>
-                      {sorting.order === 'desc' ? '降序排列' : '升序排列'}
-                    </Box>
-                  ) : null}
-                </TableSortLabel>
-              </TableCell>
-              <TableCell
-                sx={{
-                  width: isMobile ? '25%' : '20%',
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                }}
-              >
-                <TableSortLabel
-                  active={sorting.field === 'username'}
-                  direction={sorting.field === 'username' ? sorting.order : 'asc'}
-                  onClick={() => handleRequestSort('username')}
-                >
-                  用户名
-                  {sorting.field === 'username' ? (
-                    <Box component="span" sx={srOnlyStyle}>
-                      {sorting.order === 'desc' ? '降序排列' : '升序排列'}
-                    </Box>
-                  ) : null}
-                </TableSortLabel>
-              </TableCell>
-              {!isSmall && (
+    <Box sx={UNIFIED_TABLE_STYLES.tableLayoutContainer}>
+      <Paper elevation={0} sx={UNIFIED_TABLE_STYLES.tableContentContainer}>
+        <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport} {...restTableContainerProps}>
+          <Table
+            stickyHeader
+            size={isSmall ? 'small' : 'medium'}
+            sx={UNIFIED_TABLE_STYLES.getTableBase(isMobile, isSmall)}
+            {...tableProps}
+          >
+            <TableHead>
+              <TableRow>
                 <TableCell
                   sx={{
-                    width: '15%',
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                  }}
-                >
-                  QQ号
-                </TableCell>
-              )}
-              <TableCell
-                sx={{
-                  width: isMobile ? '15%' : '10%',
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                }}
-              >
-                权限
-              </TableCell>
-              <TableCell
-                sx={{
-                  width: isMobile ? '15%' : '10%',
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                }}
-              >
-                状态
-              </TableCell>
-              {!isMobile && (
-                <TableCell
-                  sx={{
-                    width: '20%',
+                    width: '60px',
+                    minWidth: '60px',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   <TableSortLabel
-                    active={sorting.field === 'create_time'}
-                    direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
-                    onClick={() => handleRequestSort('create_time')}
+                    active={sorting.field === 'id'}
+                    direction={sorting.field === 'id' ? sorting.order : 'asc'}
+                    onClick={() => handleRequestSort('id')}
                   >
-                    创建时间
-                    {sorting.field === 'create_time' ? (
+                    ID
+                    {sorting.field === 'id' ? (
                       <Box component="span" sx={srOnlyStyle}>
                         {sorting.order === 'desc' ? '降序排列' : '升序排列'}
                       </Box>
                     ) : null}
                   </TableSortLabel>
                 </TableCell>
-              )}
-              <TableCell
-                align="center"
-                sx={{
-                  width: isMobile ? 'auto' : '15%',
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                }}
-              >
-                操作
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {loading ? (
-              <TableRow>
-                <TableCell colSpan={isMobile ? (isSmall ? 5 : 5) : 7} align="center" sx={{ py: 4 }}>
-                  <CircularProgress size={24} />
+                <TableCell
+                  sx={{
+                    width: isMobile ? '25%' : '15%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  <TableSortLabel
+                    active={sorting.field === 'username'}
+                    direction={sorting.field === 'username' ? sorting.order : 'asc'}
+                    onClick={() => handleRequestSort('username')}
+                  >
+                    用户名
+                    {sorting.field === 'username' ? (
+                      <Box component="span" sx={srOnlyStyle}>
+                        {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                      </Box>
+                    ) : null}
+                  </TableSortLabel>
+                </TableCell>
+                {!isSmall && (
+                  <TableCell
+                    sx={{
+                      width: '12%',
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
+                    QQ号
+                  </TableCell>
+                )}
+                <TableCell
+                  sx={{
+                    width: isMobile ? '15%' : '10%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  权限
+                </TableCell>
+                <TableCell
+                  sx={{
+                    width: isMobile ? '15%' : '10%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  状态
+                </TableCell>
+                {!isMobile && (
+                  <TableCell
+                    sx={{
+                      width: '15%',
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
+                    <TableSortLabel
+                      active={sorting.field === 'create_time'}
+                      direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
+                      onClick={() => handleRequestSort('create_time')}
+                    >
+                      创建时间
+                      {sorting.field === 'create_time' ? (
+                        <Box component="span" sx={srOnlyStyle}>
+                          {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                        </Box>
+                      ) : null}
+                    </TableSortLabel>
+                  </TableCell>
+                )}
+                <TableCell
+                  align="center"
+                  sx={{
+                    width: isMobile ? '30%' : '18%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  操作
                 </TableCell>
               </TableRow>
-            ) : users.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isMobile ? (isSmall ? 5 : 5) : 7} align="center" sx={{ py: 4 }}>
-                  暂无数据
-                </TableCell>
-              </TableRow>
-            ) : (
-              users.map(user => {
-                const status = getUserStatus(user)
-                return (
-                  <TableRow key={user.id} hover sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
-                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                      {user.id}
-                    </TableCell>
-                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                      {user.username}
-                    </TableCell>
-                    {!isSmall && (
+            </TableHead>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={isMobile ? (isSmall ? 5 : 5) : 7}
+                    align="center"
+                    sx={{ py: 4 }}
+                  >
+                    <CircularProgress size={24} />
+                  </TableCell>
+                </TableRow>
+              ) : users.length === 0 ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={isMobile ? (isSmall ? 5 : 5) : 7}
+                    align="center"
+                    sx={{ py: 4 }}
+                  >
+                    暂无数据
+                  </TableCell>
+                </TableRow>
+              ) : (
+                users.map(user => {
+                  const status = getUserStatus(user)
+                  return (
+                    <TableRow key={user.id} hover sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
                       <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                        {user.bind_qq}
+                        {user.id}
                       </TableCell>
-                    )}
-                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                      <Chip
-                        label={getRoleLabel(user.perm_level)}
-                        size="small"
-                        sx={CHIP_VARIANTS.getRoleChip(user.perm_level, isSmall)}
-                      />
-                    </TableCell>
-                    <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                      <Chip
-                        label={status}
-                        size="small"
-                        sx={CHIP_VARIANTS.getUserStatusChip(status, isSmall)}
-                      />
-                    </TableCell>
-                    {!isMobile && (
                       <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                        {formatDate(user.create_time)}
+                        {user.username}
                       </TableCell>
-                    )}
-                    <TableCell align="center" sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                        <Tooltip title="查看详情">
-                          <IconButton
-                            size={isSmall ? 'small' : 'medium'}
-                            onClick={() => onViewDetail(user.id)}
-                          >
-                            <VisibilityIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          </IconButton>
-                        </Tooltip>
-                        {showEditButton && !isSmall && (
-                          <Tooltip title="编辑用户">
+                      {!isSmall && (
+                        <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                          {user.bind_qq}
+                        </TableCell>
+                      )}
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        <Chip
+                          label={getRoleLabel(user.perm_level)}
+                          size="small"
+                          sx={CHIP_VARIANTS.getRoleChip(user.perm_level, isSmall)}
+                        />
+                      </TableCell>
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        <Chip
+                          label={status}
+                          size="small"
+                          sx={CHIP_VARIANTS.getUserStatusChip(status, isSmall)}
+                        />
+                      </TableCell>
+                      {!isMobile && (
+                        <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                          {formatDate(user.create_time)}
+                        </TableCell>
+                      )}
+                      <TableCell align="center" sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                          <Tooltip title="查看详情">
                             <IconButton
                               size={isSmall ? 'small' : 'medium'}
-                              onClick={() => handleEditClick(user)}
+                              onClick={() => onViewDetail(user.id)}
                             >
-                              <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
+                              <VisibilityIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
-                        )}
-                        <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
-                          <IconButton
-                            size={isSmall ? 'small' : 'medium'}
-                            onClick={() => handleBanClick(user)}
-                          >
-                            <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          </IconButton>
-                        </Tooltip>
-                        {!isSmall && (
+                          {showEditButton && !isSmall && (
+                            <Tooltip title="编辑用户">
+                              <IconButton
+                                size={isSmall ? 'small' : 'medium'}
+                                onClick={() => handleEditClick(user)}
+                              >
+                                <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
+                            <IconButton
+                              size={isSmall ? 'small' : 'medium'}
+                              onClick={() => handleBanClick(user)}
+                            >
+                              <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
+                            </IconButton>
+                          </Tooltip>
                           <Tooltip title={!user.is_prevent_trigger ? '禁止触发' : '恢复触发'}>
                             <IconButton
                               size={isSmall ? 'small' : 'medium'}
@@ -736,8 +734,6 @@ const UserTable: React.FC<UserTableProps> = ({
                               <LockIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
-                        )}
-                        {!isSmall && (
                           <Tooltip title="重置密码">
                             <IconButton
                               size={isSmall ? 'small' : 'medium'}
@@ -746,51 +742,36 @@ const UserTable: React.FC<UserTableProps> = ({
                               <KeyIcon fontSize={isSmall ? 'small' : 'medium'} />
                             </IconButton>
                           </Tooltip>
-                        )}
-                        <Tooltip title="删除用户">
-                          <IconButton
-                            size={isSmall ? 'small' : 'medium'}
-                            onClick={() => handleDeleteClick(user)}
-                          >
-                            <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                )
-              })
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+                          <Tooltip title="删除用户">
+                            <IconButton
+                              size={isSmall ? 'small' : 'medium'}
+                              onClick={() => handleDeleteClick(user)}
+                            >
+                              <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      <TablePagination
-        rowsPerPageOptions={isMobile ? [5, 10, 25] : [5, 10, 25, 50]}
-        component="div"
-        count={total}
-        rowsPerPage={pagination.page_size}
-        page={pagination.page - 1}
-        onPageChange={handleChangePage}
-        onRowsPerPageChange={handleChangeRowsPerPage}
-        labelRowsPerPage={isSmall ? '每页:' : '每页行数:'}
-        labelDisplayedRows={({ from, to, count }) =>
-          isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}条`
-        }
-        sx={{
-          '.MuiTablePagination-selectLabel': {
-            marginBottom: 0,
-            display: isSmall ? 'none' : 'block',
-          },
-          '.MuiTablePagination-displayedRows': {
-            marginBottom: 0,
-            fontSize: isSmall ? '0.75rem' : 'inherit',
-          },
-          '.MuiTablePagination-select': {
-            paddingRight: isSmall ? 0 : 8,
-          },
-        }}
-      />
+        <TablePaginationStyled
+          rowsPerPageOptions={isMobile ? [5, 10, 25] : [5, 10, 25, 50]}
+          component="div"
+          count={total}
+          rowsPerPage={pagination.page_size}
+          page={pagination.page - 1}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          loading={loading}
+          showFirstLastPageButtons={true}
+        />
+      </Paper>
 
       {/* 删除确认对话框 */}
       <Dialog

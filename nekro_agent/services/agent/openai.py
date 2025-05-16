@@ -512,9 +512,6 @@ async def gen_openai_chat_stream(
             async for chunk in stream:
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
-                    logger.debug(
-                        f"收到流式内容片段: {content[:20]}..." if len(content) > 20 else f"收到流式内容片段: {content}",
-                    )
                     yield content
 
     except Exception as e:

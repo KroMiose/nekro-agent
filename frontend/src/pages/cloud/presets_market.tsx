@@ -487,14 +487,14 @@ export default function PresetsMarket() {
 
   if (error && presets.length === 0) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
         <Alert severity="error">{error}</Alert>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
       <Box
         sx={{
           mb: 4,
@@ -515,7 +515,6 @@ export default function PresetsMarket() {
                 ? '0 0 10px rgba(0,0,0,0.2)'
                 : '0 0 15px rgba(0,0,0,0.07)',
             borderRadius: 2,
-            overflow: 'hidden',
           }}
         >
           <TextField

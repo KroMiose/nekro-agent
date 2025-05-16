@@ -1,17 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Box,
   Paper,
   FormControlLabel,
   Switch,
-  TableContainer,
-  Table,
-  TableHead,
-  TableBody,
-  TableRow,
-  TableCell,
-  Chip,
   TextField,
+  Chip,
   Autocomplete,
   MenuItem,
   Alert,
@@ -24,18 +18,27 @@ import {
   Typography,
   Drawer,
   Fab,
-  SxProps,
-  Theme,
+  Divider,
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { LogEntry, logsApi } from '../../services/api/logs'
 import DownloadIcon from '@mui/icons-material/Download'
 import FilterAltIcon from '@mui/icons-material/FilterAlt'
 import CloseIcon from '@mui/icons-material/Close'
-import { LOG_TABLE_STYLES, CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import {
+  LOG_TABLE_STYLES,
+  CHIP_VARIANTS,
+  UNIFIED_TABLE_STYLES,
+  getAlphaColor,
+} from '../../theme/themeApi'
+import { FixedSizeList as List } from 'react-window'
+import AutoSizer from 'react-virtualized-auto-sizer'
+import NekroDialog from '../../components/common/NekroDialog'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
+const ROW_HEIGHT = 36 // 固定行高
 
 export default function LogsPage() {
   const [autoScroll, setAutoScroll] = useState(true)
@@ -44,12 +47,15 @@ export default function LogsPage() {
   const [isDisconnected, setIsDisconnected] = useState(false)
   const [downloadLines, setDownloadLines] = useState<string>('1000')
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false)
-  const tableContainerRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<List>(null)
   const [filters, setFilters] = useState({
     level: '',
     source: '',
     message: '',
   })
+  // 日志详情对话框状态
+  const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -82,13 +88,24 @@ export default function LogsPage() {
     }
   }, [initialLogs])
 
+  // 过滤后的日志数据
+  const filteredLogs = useMemo(() => {
+    return realtimeLogs.filter(
+      log =>
+        (!filters.level || log.level === filters.level) &&
+        (!filters.message || log.message.toLowerCase().includes(filters.message.toLowerCase()))
+    )
+  }, [realtimeLogs, filters])
+
   // 自动滚动到底部
   useEffect(() => {
-    if (autoScroll && tableContainerRef.current) {
-      const container = tableContainerRef.current
-      container.scrollTop = container.scrollHeight
+    if (autoScroll && listRef.current && filteredLogs.length > 0) {
+      // 添加一个小延迟确保列表已经完全渲染
+      setTimeout(() => {
+        listRef.current?.scrollToItem(filteredLogs.length - 1, 'end')
+      }, 50)
     }
-  }, [realtimeLogs, autoScroll])
+  }, [filteredLogs, autoScroll])
 
   // 实时日志订阅
   useEffect(() => {
@@ -146,6 +163,188 @@ export default function LogsPage() {
       lines,
       source: filters.source || undefined,
     })
+  }
+
+  // 处理日志点击，打开详情对话框
+  const handleLogClick = (log: LogEntry) => {
+    setSelectedLog(log)
+    setDialogOpen(true)
+  }
+
+  // 复制日志内容
+  const copyLogContent = (log: LogEntry) => {
+    const logText = `${log.timestamp} [${log.level}] [${log.source}] ${log.message}`
+    navigator.clipboard.writeText(logText).then(
+      () => {
+        console.log('Log copied to clipboard')
+      },
+      err => {
+        console.error('Could not copy log: ', err)
+      }
+    )
+  }
+
+  // 表头组件
+  const TableHeader = () => (
+    <Box
+      sx={{
+        display: 'flex',
+        borderBottom: `1px solid ${theme.palette.divider}`,
+        py: 1,
+        px: 2,
+        ...UNIFIED_TABLE_STYLES.header,
+      }}
+    >
+      <Box
+        sx={{
+          flex: isMobile ? '0 0 90px' : '0 0 120px',
+          fontSize: isSmall ? '0.75rem' : '0.8rem',
+        }}
+      >
+        时间
+      </Box>
+      <Box
+        sx={{
+          flex: '0 0 100px', // 固定宽度，确保一致性
+          fontSize: isSmall ? '0.75rem' : '0.8rem',
+          textAlign: 'center', // 居中对齐
+        }}
+      >
+        级别
+      </Box>
+      <Box
+        sx={{
+          flex: '1 1 auto',
+          fontSize: isSmall ? '0.75rem' : '0.8rem',
+          ml: 1,
+        }}
+      >
+        消息
+      </Box>
+      {isAdvanced && !isMobile && (
+        <Box
+          sx={{
+            flex: '0 0 100px',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+            ml: 1,
+            textAlign: 'right', // 右对齐，与内容保持一致
+            pr: 2, // 右侧内边距，确保文本不会贴边
+          }}
+        >
+          来源
+        </Box>
+      )}
+    </Box>
+  )
+
+  // 日志行渲染器
+  const LogRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
+    const log = filteredLogs[index]
+
+    // 根据日志级别获取样式
+    const severityColor =
+      (LOG_TABLE_STYLES.SEVERITY as Record<string, { backgroundColor: string }>)[log.level]
+        ?.backgroundColor || 'transparent'
+
+    return (
+      <Box
+        style={{ ...style, width: '100%' }}
+        onClick={() => handleLogClick(log)}
+        sx={{
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: LOG_TABLE_STYLES.ROW.HOVER,
+          },
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          pl: 1,
+          width: '100%',
+          ...UNIFIED_TABLE_STYLES.row,
+        }}
+      >
+        {/* 左侧日志级别条 */}
+        <Box
+          sx={{
+            width: 4,
+            height: ROW_HEIGHT - 2,
+            backgroundColor: severityColor,
+            borderRadius: '2px',
+            mr: 1,
+          }}
+        />
+
+        {/* 时间 */}
+        <Box
+          sx={{
+            flex: isMobile ? '0 0 90px' : '0 0 120px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: isSmall ? '0.7rem' : '0.75rem',
+            color: theme.palette.text.secondary,
+          }}
+        >
+          {isMobile ? log.timestamp.split(' ')[1] : log.timestamp}
+        </Box>
+
+        {/* 级别标签 */}
+        <Box
+          sx={{ flex: '0 0 100px', textAlign: 'center', display: 'flex', justifyContent: 'center' }}
+        >
+          {' '}
+          {/* 与表头保持一致 */}
+          <Chip
+            label={log.level}
+            size="small"
+            sx={{
+              ...CHIP_VARIANTS.getLogLevelChip(log.level, isSmall),
+              height: isSmall ? 18 : 20,
+              minWidth: '40px', // 设置最小宽度确保一致性
+              '.MuiChip-label': {
+                px: 1,
+                fontSize: isSmall ? '0.6rem' : '0.65rem',
+                lineHeight: 1,
+                textAlign: 'center', // 确保文本居中
+              },
+            }}
+          />
+        </Box>
+
+        {/* 消息 */}
+        <Box
+          sx={{
+            flex: '1 1 auto',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+            ml: 1,
+          }}
+        >
+          {log.message}
+        </Box>
+
+        {/* 仅在高级模式显示来源 */}
+        {isAdvanced && !isMobile && (
+          <Box
+            sx={{
+              flex: '0 0 100px',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              fontSize: isSmall ? '0.7rem' : '0.75rem',
+              color: theme.palette.text.secondary,
+              ml: 1,
+              textAlign: 'right', // 右对齐，与表头保持一致
+              pr: 2, // 右侧内边距，确保文本不会贴边
+            }}
+          >
+            {log.source}
+          </Box>
+        )}
+      </Box>
+    )
   }
 
   // 过滤器内容组件
@@ -382,7 +581,7 @@ export default function LogsPage() {
         </Box>
       )}
 
-      {/* 日志表格 */}
+      {/* 日志表格 - 使用虚拟滚动 */}
       <Paper
         elevation={3}
         sx={{
@@ -390,149 +589,37 @@ export default function LogsPage() {
           overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
+          ...UNIFIED_TABLE_STYLES.paper,
         }}
       >
-        <TableContainer
-          ref={tableContainerRef}
-          sx={{
-            height: 'calc(100vh - 170px)',
-            maxHeight: 'calc(100vh - 170px)',
-            overflow: 'auto',
-            borderRadius: 1,
-            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
-          }}
-        >
-          <Table stickyHeader size={isSmall ? 'small' : 'medium'}>
-            <TableHead>
-              <TableRow>
-                <TableCell
-                  width={isMobile ? '90px' : '180px'}
-                  sx={{
-                    minWidth: isMobile ? 90 : 180,
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+          <TableHeader />
+          <Box
+            sx={{
+              flexGrow: 1,
+              overflow: 'hidden',
+              ...UNIFIED_TABLE_STYLES.tableViewport,
+            }}
+          >
+            <AutoSizer>
+              {({ height, width }) => (
+                <List
+                  ref={listRef}
+                  height={height}
+                  width={width + 20}
+                  itemCount={filteredLogs.length}
+                  itemSize={ROW_HEIGHT}
+                  overscanCount={20}
+                  style={{
+                    overflowX: 'hidden',
                   }}
                 >
-                  时间
-                </TableCell>
-                <TableCell
-                  width={isMobile ? '60px' : '80px'}
-                  align="center"
-                  sx={{
-                    minWidth: isMobile ? 60 : 80,
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                  }}
-                >
-                  级别
-                </TableCell>
-                <TableCell
-                  sx={{
-                    minWidth: isMobile ? 150 : 300,
-                    py: isSmall ? 1 : 1.5,
-                    ...UNIFIED_TABLE_STYLES.header,
-                  }}
-                >
-                  消息
-                </TableCell>
-                {isAdvanced && !isMobile && (
-                  <>
-                    <TableCell
-                      width="120px"
-                      sx={{
-                        minWidth: 120,
-                        py: isSmall ? 1 : 1.5,
-                        ...UNIFIED_TABLE_STYLES.header,
-                      }}
-                    >
-                      来源
-                    </TableCell>
-                    <TableCell
-                      width="180px"
-                      sx={{
-                        minWidth: 180,
-                        py: isSmall ? 1 : 1.5,
-                        ...UNIFIED_TABLE_STYLES.header,
-                      }}
-                    >
-                      位置
-                    </TableCell>
-                  </>
-                )}
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {realtimeLogs
-                .filter(
-                  log =>
-                    (!filters.level || log.level === filters.level) &&
-                    (!filters.message ||
-                      log.message.toLowerCase().includes(filters.message.toLowerCase()))
-                )
-                .map((log, index) => (
-                  <TableRow
-                    key={`${log.timestamp}-${log.message}-${index}`}
-                    sx={UNIFIED_TABLE_STYLES.row}
-                  >
-                    <TableCell
-                      sx={{
-                        whiteSpace: 'nowrap',
-                        py: isSmall ? 0.75 : 1.5,
-                        fontSize: isSmall ? '0.75rem' : 'inherit',
-                        ...UNIFIED_TABLE_STYLES.cell,
-                      }}
-                    >
-                      {isMobile ? log.timestamp.split(' ')[1] : log.timestamp}
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        py: isSmall ? 0.75 : 1.5,
-                        ...UNIFIED_TABLE_STYLES.cell,
-                      }}
-                    >
-                      <Chip
-                        label={log.level}
-                        size="small"
-                        sx={CHIP_VARIANTS.getLogLevelChip(log.level, isSmall)}
-                      />
-                    </TableCell>
-                    <TableCell
-                      sx={{
-                        py: isSmall ? 0.75 : 1.5,
-                        fontSize: isSmall ? '0.75rem' : 'inherit',
-                        ...UNIFIED_TABLE_STYLES.cell,
-                      }}
-                    >
-                      {log.message}
-                    </TableCell>
-                    {isAdvanced && !isMobile && (
-                      <>
-                        <TableCell
-                          sx={{
-                            whiteSpace: 'nowrap',
-                            py: isSmall ? 0.75 : 1.5,
-                            fontSize: isSmall ? '0.75rem' : 'inherit',
-                            ...UNIFIED_TABLE_STYLES.cell,
-                          }}
-                        >
-                          {log.source}
-                        </TableCell>
-                        <TableCell
-                          sx={{
-                            whiteSpace: 'nowrap',
-                            py: isSmall ? 0.75 : 1.5,
-                            fontSize: isSmall ? '0.75rem' : 'inherit',
-                            ...UNIFIED_TABLE_STYLES.cell,
-                          }}
-                        >{`${log.function}:${log.line}`}</TableCell>
-                      </>
-                    )}
-                  </TableRow>
-                ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                  {LogRow}
+                </List>
+              )}
+            </AutoSizer>
+          </Box>
+        </Box>
       </Paper>
 
       {/* 移动端过滤器抽屉 */}
@@ -569,6 +656,119 @@ export default function LogsPage() {
           </Fab>
         </>
       )}
+
+      {/* 日志详情对话框 - 使用通用NekroDialog组件 */}
+      <NekroDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        maxWidth="md"
+        fullWidth
+        dividers
+        title={
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Chip
+              label={selectedLog?.level}
+              size="small"
+              sx={selectedLog ? CHIP_VARIANTS.getLogLevelChip(selectedLog.level, false) : {}}
+            />
+            <Typography variant="h6">日志详情</Typography>
+          </Box>
+        }
+        titleActions={
+          selectedLog && (
+            <IconButton
+              onClick={() => copyLogContent(selectedLog)}
+              size="small"
+              title="复制日志内容"
+              sx={{ mr: 1 }}
+            >
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          )
+        }
+        actions={
+          <Button
+            onClick={() => setDialogOpen(false)}
+            variant="contained"
+            color="primary"
+            size="small"
+          >
+            关闭
+          </Button>
+        }
+      >
+        {selectedLog && (
+          <Stack spacing={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
+                时间:
+              </Typography>
+              <Typography variant="body2">{selectedLog.timestamp}</Typography>
+            </Box>
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
+                来源:
+              </Typography>
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                {selectedLog.source}
+              </Typography>
+            </Box>
+
+            {isAdvanced && (
+              <>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
+                    模块:
+                  </Typography>
+                  <Typography variant="body2" sx={{ flex: 1 }}>
+                    {selectedLog.function}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
+                    位置:
+                  </Typography>
+                  <Typography variant="body2" sx={{ flex: 1 }}>
+                    行 {selectedLog.line}
+                  </Typography>
+                </Box>
+              </>
+            )}
+
+            <Divider />
+
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                消息内容:
+              </Typography>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: 2,
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word',
+                  backgroundColor: getAlphaColor(
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.background.paper
+                      : theme.palette.background.default,
+                    0.05
+                  ),
+                  maxHeight: '50vh',
+                  overflow: 'auto',
+                  fontFamily: 'monospace',
+                  fontSize: '0.85rem',
+                  borderRadius: 1,
+                  borderColor: 'divider',
+                }}
+              >
+                {selectedLog.message}
+              </Paper>
+            </Box>
+          </Stack>
+        )}
+      </NekroDialog>
     </Box>
   )
 }

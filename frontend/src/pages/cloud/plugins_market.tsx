@@ -2021,14 +2021,14 @@ export default function PluginsMarket() {
 
   if (error && plugins.length === 0) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
         <Alert severity="error">{error}</Alert>
       </Box>
     )
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
       <Box
         sx={{
           mb: 4,

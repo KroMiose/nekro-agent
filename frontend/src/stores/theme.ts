@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
+// 添加性能模式类型
+export type PerformanceMode = 'performance' | 'balanced' | 'quality'
 
 // 主题颜色接口
 export interface ThemeColors {
@@ -18,14 +20,18 @@ interface ColorModeState {
   lightAccent: string
   darkBrand: string
   darkAccent: string
+  // 添加性能模式
+  performanceMode: PerformanceMode
   toggleColorMode: () => void
   setColorMode: (mode: ThemeMode) => void
   setThemePreset: (presetId: string) => void
   setCustomColors: (colors: ThemeColors) => void
   getEffectiveMode: () => 'light' | 'dark'
+  // 添加性能模式设置方法
+  setPerformanceMode: (mode: PerformanceMode) => void
 }
 
-// 检测系统主题偏好
+// 获取系统主题
 const getSystemTheme = (): 'light' | 'dark' => {
   if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
     return 'dark'
@@ -33,44 +39,43 @@ const getSystemTheme = (): 'light' | 'dark' => {
   return 'light'
 }
 
-// 默认主题颜色
-const DEFAULT_COLORS: ThemeColors = {
-  lightBrand: '#EA5252',
-  lightAccent: '#9C6ADE',
-  darkBrand: '#E05252',
-  darkAccent: '#A07BE0',
-}
-
-// 先创建 store，不使用内部引用
+// 创建主题状态管理
 export const useColorMode = create<ColorModeState>()(
   persist(
     (set, get) => ({
-      mode: 'light' as ThemeMode,
-      presetId: 'red',
-      ...DEFAULT_COLORS,
-      toggleColorMode: () => 
-        set(state => {
-          // 在 light、dark 和 system 之间循环切换
-          const modes: ThemeMode[] = ['light', 'dark', 'system']
-          const currentIndex = modes.indexOf(state.mode)
-          const nextIndex = (currentIndex + 1) % modes.length
-          return { mode: modes[nextIndex] }
-        }),
+      mode: 'system' as ThemeMode,
+      presetId: 'kolo',
+      lightBrand: '#7E57C2',
+      lightAccent: '#26A69A',
+      darkBrand: '#9575CD',
+      darkAccent: '#4DB6AC',
+      // 默认使用质量模式
+      performanceMode: 'quality' as PerformanceMode,
+      toggleColorMode: () =>
+        set(state => ({
+          mode: state.mode === 'light' ? 'dark' : state.mode === 'dark' ? 'system' : 'light',
+        })),
       setColorMode: (mode: ThemeMode) => set({ mode }),
       setThemePreset: (presetId: string) => set({ presetId }),
-      setCustomColors: (colors: ThemeColors) => set({
-        presetId: 'custom',
-        ...colors
-      }),
+      setCustomColors: (colors: ThemeColors) => set({ ...colors }),
       getEffectiveMode: (): 'light' | 'dark' => {
         const currentMode = get().mode
-        // 如果是系统模式则获取系统主题，否则返回当前模式
-        // 由于 currentMode 可能是 'system'，需要处理这种情况
-        return currentMode === 'system' ? getSystemTheme() : (currentMode === 'dark' ? 'dark' : 'light')
-      }
+        return currentMode === 'system' ? getSystemTheme() : currentMode as 'light' | 'dark'
+      },
+      // 设置性能模式
+      setPerformanceMode: (performanceMode: PerformanceMode) => set({ performanceMode }),
     }),
     {
       name: 'color-mode',
+      partialize: state => ({
+        mode: state.mode,
+        presetId: state.presetId,
+        lightBrand: state.lightBrand,
+        lightAccent: state.lightAccent,
+        darkBrand: state.darkBrand,
+        darkAccent: state.darkAccent,
+        performanceMode: state.performanceMode,
+      }),
     }
   )
 )

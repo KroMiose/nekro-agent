@@ -160,7 +160,7 @@ export default function PluginsEditorPage() {
   const [isCopied, setIsCopied] = useState(false)
   const [abortController, setAbortController] = useState<AbortController | null>(null)
   const [generatedCode, setGeneratedCode] = useState<string>('')
-  
+
   // 使用ref追踪加载状态，防止循环加载
   const isLoadingFilesRef = useRef(false)
   const isLoadingContentRef = useRef(false)
@@ -178,21 +178,21 @@ export default function PluginsEditorPage() {
   useEffect(() => {
     // 如果已经初始化过或正在加载文件列表，则不执行
     if (initializedRef.current || isLoadingFilesRef.current) return
-    
+
     const loadFiles = async () => {
       isLoadingFilesRef.current = true
       try {
         console.log('初始化加载文件列表')
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
-        
+
         // 仅在第一次加载时自动选择第一个文件
         if (files.length > 0 && !selectedFile && !initializedRef.current) {
           const firstFile = files[0]
           console.log('选择第一个文件:', firstFile)
           setSelectedFile(firstFile)
           prevSelectedFileRef.current = firstFile
-          
+
           // 直接加载第一个文件内容
           isLoadingContentRef.current = true
           try {
@@ -208,7 +208,7 @@ export default function PluginsEditorPage() {
             isLoadingContentRef.current = false
           }
         }
-        
+
         // 标记为已初始化
         initializedRef.current = true
       } catch (err) {
@@ -220,24 +220,24 @@ export default function PluginsEditorPage() {
         isLoadingFilesRef.current = false
       }
     }
-    
+
     loadFiles()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notification]) // 有意省略selectedFile以避免循环加载
 
   // 加载选中文件的内容
   useEffect(() => {
     if (!selectedFile || isLoadingContentRef.current) return
-    
+
     // 如果文件没变且已有内容，不重新加载
     if (selectedFile === prevSelectedFileRef.current && code) return
-    
+
     const loadFileContent = async () => {
       console.log('加载文件内容:', selectedFile)
       isLoadingContentRef.current = true
       setIsLoading(true)
       prevSelectedFileRef.current = selectedFile
-      
+
       try {
         const content = await pluginEditorApi.getPluginFileContent(selectedFile)
         setCode(content || '')
@@ -254,9 +254,9 @@ export default function PluginsEditorPage() {
         isLoadingContentRef.current = false
       }
     }
-    
+
     loadFileContent()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFile, notification]) // 有意省略code以避免循环加载
 
   // 保存文件内容
@@ -405,7 +405,7 @@ export default function PluginsEditorPage() {
   // 处理文件选择
   const handleFileSelect = async (event: SelectChangeEvent<string>) => {
     const newSelectedFile = event.target.value
-    
+
     if (newSelectedFile !== selectedFile) {
       if (hasUnsavedChanges && selectedFile) {
         setFileToDelete(selectedFile)
@@ -415,10 +415,10 @@ export default function PluginsEditorPage() {
 
       // 避免重复加载
       if (isLoadingContentRef.current) return
-      
+
       // 直接设置选择的文件
       setSelectedFile(newSelectedFile)
-      
+
       if (isMobile) {
         setDrawerOpen(false)
       }
@@ -477,16 +477,16 @@ export default function PluginsEditorPage() {
     try {
       setIsLoading(true)
       isLoadingContentRef.current = true
-      
+
       // 获取模板内容
       const template = await pluginEditorApi.generatePluginTemplate(name, description)
       // 保存文件
       await pluginEditorApi.savePluginFile(fileName, template || '')
-      
+
       // 重新加载文件列表
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      
+
       // 更新编辑器内容
       setSelectedFile(fileName)
       prevSelectedFileRef.current = fileName
@@ -511,24 +511,24 @@ export default function PluginsEditorPage() {
       try {
         setIsLoading(true)
         isLoadingFilesRef.current = true
-        
+
         await pluginEditorApi.deletePluginFile(fileToDelete)
         notification.success('文件删除成功')
-        
+
         // 重新加载文件列表
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
-        
+
         // 如果删除的是当前选中的文件，清空编辑器并选择新的文件（如果有）
         if (fileToDelete === selectedFile) {
           setCode('')
           setOriginalCode('')
-          
+
           if (files.length > 0) {
             const newSelectedFile = files[0]
             setSelectedFile(newSelectedFile)
             prevSelectedFileRef.current = newSelectedFile
-            
+
             // 加载新选中的文件内容
             try {
               isLoadingContentRef.current = true
@@ -568,7 +568,7 @@ export default function PluginsEditorPage() {
     try {
       setIsGenerating(true)
       isLoadingFilesRef.current = true // 防止加载插件同时加载文件列表
-      
+
       // 获取模块名称：去掉扩展名(.py或.disabled)的文件名
       const moduleName = selectedFile.replace(/\.(py|disabled)$/, '')
       if (!moduleName) {
@@ -586,7 +586,7 @@ export default function PluginsEditorPage() {
       // 重新加载文件列表但不自动选择文件
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
-      
+
       // 保持当前选中文件不变
       notification.success(`插件 ${moduleName} 重载成功`)
       setReloadExtDialogOpen(false)
@@ -615,7 +615,7 @@ export default function PluginsEditorPage() {
     try {
       setIsLoading(true)
       isLoadingContentRef.current = true
-      
+
       const isDisabled = selectedFile.endsWith('.disabled')
       const newFileName = isDisabled
         ? selectedFile.replace('.disabled', '')
@@ -630,7 +630,7 @@ export default function PluginsEditorPage() {
       setSelectedFile(newFileName)
       prevSelectedFileRef.current = newFileName
       setHasUnsavedChanges(false)
-      
+
       // 更新文件列表
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
@@ -686,23 +686,23 @@ export default function PluginsEditorPage() {
               paddingY: isSmall ? 1 : 1.5,
             },
             '& .MuiListItem-root.Mui-selected': {
-              backgroundColor: theme => 
+              backgroundColor: theme =>
                 alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.1),
               color: theme => theme.palette.primary.main,
-              fontWeight: 'bold'
-            }
+              fontWeight: 'bold',
+            },
           }}
           MenuProps={{
             PaperProps: {
               sx: {
                 '& .MuiMenuItem-root.Mui-selected': {
-                  backgroundColor: theme => 
+                  backgroundColor: theme =>
                     alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.3 : 0.1),
                   color: theme => theme.palette.primary.main,
-                  fontWeight: 'bold'
-                }
-              }
-            }
+                  fontWeight: 'bold',
+                },
+              },
+            },
           }}
         >
           {files.map(file => {
@@ -724,18 +724,19 @@ export default function PluginsEditorPage() {
                     fontStyle: 'italic',
                   }),
                   '&.Mui-selected': {
-                    backgroundColor: theme => 
+                    backgroundColor: theme =>
                       alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.2 : 0.1),
-                    color: theme => theme.palette.mode === 'dark' 
-                      ? theme.palette.primary.light 
-                      : theme.palette.primary.main,
-                    fontWeight: 'bold'
+                    color: theme =>
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.primary.light
+                        : theme.palette.primary.main,
+                    fontWeight: 'bold',
                   },
                   '&.Mui-selected.Mui-disabled': {
                     color: theme => alpha(theme.palette.error.main, 0.7),
                     fontWeight: 'bold',
-                    opacity: 0.8
-                  }
+                    opacity: 0.8,
+                  },
                 }}
               >
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -883,8 +884,8 @@ export default function PluginsEditorPage() {
               {selectedFile ? selectedFile : '插件编辑器'}
             </Typography>
             {selectedFile && (
-              <Tooltip 
-                title={hasUnsavedChanges ? '保存 (Ctrl+S)' : '已保存'} 
+              <Tooltip
+                title={hasUnsavedChanges ? '保存 (Ctrl+S)' : '已保存'}
                 arrow
                 placement="bottom"
               >
@@ -895,11 +896,12 @@ export default function PluginsEditorPage() {
                     disabled={!hasUnsavedChanges || isSaving}
                     size="small"
                     sx={{
-                      backgroundColor: hasUnsavedChanges ? 
-                        theme => alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                      backgroundColor: hasUnsavedChanges
+                        ? theme => alpha(theme.palette.primary.main, 0.1)
+                        : 'transparent',
                       '&:hover': {
                         backgroundColor: theme => alpha(theme.palette.primary.main, 0.2),
-                      }
+                      },
                     }}
                   >
                     {isSaving ? <CircularProgress size={18} /> : <SaveIcon />}
@@ -922,20 +924,20 @@ export default function PluginsEditorPage() {
                 '&.Mui-selected': {
                   color: 'common.white',
                   fontWeight: 'bold',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.2)'
-                }
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                },
               },
               '& .MuiTabs-indicator': {
                 backgroundColor: 'common.white',
-                height: 3
-              }
+                height: 3,
+              },
             }}
           >
-            <Tab 
-              icon={<CodeIcon fontSize="small" />} 
+            <Tab
+              icon={<CodeIcon fontSize="small" />}
               iconPosition="start"
-              label="编辑器" 
-              sx={{ 
+              label="编辑器"
+              sx={{
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -943,15 +945,15 @@ export default function PluginsEditorPage() {
                 gap: '4px',
                 '& .MuiTab-iconWrapper': {
                   marginRight: 0,
-                  marginBottom: '0 !important'
-                }
+                  marginBottom: '0 !important',
+                },
               }}
             />
-            <Tab 
-              icon={<EditIcon fontSize="small" />} 
+            <Tab
+              icon={<EditIcon fontSize="small" />}
               iconPosition="start"
-              label="生成器" 
-              sx={{ 
+              label="生成器"
+              sx={{
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -959,8 +961,8 @@ export default function PluginsEditorPage() {
                 gap: '4px',
                 '& .MuiTab-iconWrapper': {
                   marginRight: 0,
-                  marginBottom: '0 !important'
-                }
+                  marginBottom: '0 !important',
+                },
               }}
             />
           </Tabs>
@@ -998,7 +1000,7 @@ export default function PluginsEditorPage() {
               size={isSmall ? 'small' : 'medium'}
               fullWidth
               sx={{
-                fontWeight: 'medium'
+                fontWeight: 'medium',
               }}
             >
               新建插件
@@ -1010,7 +1012,7 @@ export default function PluginsEditorPage() {
               size={isSmall ? 'small' : 'medium'}
               fullWidth
               sx={{
-                fontWeight: 'medium'
+                fontWeight: 'medium',
               }}
             >
               导入插件
@@ -1037,7 +1039,7 @@ export default function PluginsEditorPage() {
               fullWidth
               sx={{
                 fontWeight: 'medium',
-                opacity: hasUnsavedChanges ? 1 : 0.7
+                opacity: hasUnsavedChanges ? 1 : 0.7,
               }}
             >
               重置代码
@@ -1054,7 +1056,7 @@ export default function PluginsEditorPage() {
               size={isSmall ? 'small' : 'medium'}
               fullWidth
               sx={{
-                fontWeight: 'medium'
+                fontWeight: 'medium',
               }}
             >
               重载插件
@@ -1079,16 +1081,17 @@ export default function PluginsEditorPage() {
                   '&:hover': {
                     borderColor: 'success.main',
                     backgroundColor: theme => alpha(theme.palette.success.main, 0.1),
-                  }
+                  },
                 }),
-                ...(!selectedFile?.endsWith('.disabled') && selectedFile && {
-                  borderColor: theme => alpha(theme.palette.warning.main, 0.5),
-                  color: 'warning.main',
-                  '&:hover': {
-                    borderColor: 'warning.main',
-                    backgroundColor: theme => alpha(theme.palette.warning.main, 0.1),
-                  }
-                })
+                ...(!selectedFile?.endsWith('.disabled') &&
+                  selectedFile && {
+                    borderColor: theme => alpha(theme.palette.warning.main, 0.5),
+                    color: 'warning.main',
+                    '&:hover': {
+                      borderColor: 'warning.main',
+                      backgroundColor: theme => alpha(theme.palette.warning.main, 0.1),
+                    },
+                  }),
               }}
             >
               {selectedFile?.endsWith('.disabled') ? '启用插件' : '禁用插件'}
@@ -1112,7 +1115,7 @@ export default function PluginsEditorPage() {
               fullWidth
               sx={{
                 fontWeight: 'medium',
-                opacity: selectedFile ? 1 : 0.7
+                opacity: selectedFile ? 1 : 0.7,
               }}
             >
               删除插件
@@ -1134,7 +1137,7 @@ export default function PluginsEditorPage() {
           <Paper
             elevation={3}
             sx={{
-              ...CARD_STYLES.default.styles,
+              ...CARD_STYLES.DEFAULT,
               flex: 2,
               display: 'flex',
               flexDirection: 'column',
@@ -1148,24 +1151,28 @@ export default function PluginsEditorPage() {
               <Box sx={{ display: 'flex', gap: 2, flex: 1 }}>
                 <FormControl sx={{ flex: 1 }}>
                   <InputLabel>选择插件文件</InputLabel>
-                  <Select 
-                    value={selectedFile} 
-                    label="选择插件文件" 
+                  <Select
+                    value={selectedFile}
+                    label="选择插件文件"
                     onChange={handleFileSelect}
                     MenuProps={{
                       PaperProps: {
                         sx: {
                           maxHeight: 300,
                           '& .MuiMenuItem-root.Mui-selected': {
-                            backgroundColor: theme => 
-                              alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.1),
-                            color: theme => theme.palette.mode === 'dark' 
-                              ? theme.palette.primary.light 
-                              : theme.palette.primary.main,
-                            fontWeight: 'bold'
-                          }
-                        }
-                      }
+                            backgroundColor: theme =>
+                              alpha(
+                                theme.palette.primary.main,
+                                theme.palette.mode === 'dark' ? 0.25 : 0.1
+                              ),
+                            color: theme =>
+                              theme.palette.mode === 'dark'
+                                ? theme.palette.primary.light
+                                : theme.palette.primary.main,
+                            fontWeight: 'bold',
+                          },
+                        },
+                      },
                     }}
                   >
                     {files.map(file => {
@@ -1187,23 +1194,32 @@ export default function PluginsEditorPage() {
                               fontStyle: 'italic',
                             }),
                             '&.Mui-selected': {
-                              backgroundColor: theme => 
-                                alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.25 : 0.1),
-                              color: theme => theme.palette.mode === 'dark' 
-                                ? theme.palette.primary.light 
-                                : theme.palette.primary.main,
-                              fontWeight: 'bold'
+                              backgroundColor: theme =>
+                                alpha(
+                                  theme.palette.primary.main,
+                                  theme.palette.mode === 'dark' ? 0.25 : 0.1
+                                ),
+                              color: theme =>
+                                theme.palette.mode === 'dark'
+                                  ? theme.palette.primary.light
+                                  : theme.palette.primary.main,
+                              fontWeight: 'bold',
                             },
                             '&.Mui-selected.Mui-disabled': {
                               color: theme => alpha(theme.palette.error.main, 0.8),
                               fontWeight: 'bold',
                               opacity: 0.9,
-                              textShadow: '0 0 1px rgba(0,0,0,0.2)'
-                            }
+                              textShadow: '0 0 1px rgba(0,0,0,0.2)',
+                            },
                           }}
                         >
-                          <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
+                          <Box
+                            component="span"
+                            sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+                          >
+                            {isDisabled && (
+                              <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />
+                            )}
                             {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
                           </Box>
                         </MenuItem>
@@ -1228,7 +1244,6 @@ export default function PluginsEditorPage() {
             <Box
               sx={{
                 flex: 1,
-                minHeight: 0,
                 border: 1,
                 borderColor: 'divider',
                 borderRadius: BORDER_RADIUS.DEFAULT,
@@ -1250,13 +1265,14 @@ export default function PluginsEditorPage() {
                     justifyContent: 'center',
                     backgroundColor: theme =>
                       `${alpha(theme.palette.background.paper, isApplying ? 0.8 : 1)}`,
-                    zIndex: 1,
                     backdropFilter: 'blur(4px)',
-                    transition: 'background-color 0.3s ease',
+                    zIndex: 1,
                   }}
                 >
-                  <CircularProgress size={40} sx={{ mb: 2 }} />
-                  <Typography>{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
+                  <CircularProgress size={36} sx={{ mb: 1 }} />
+                  <Typography variant="body2">
+                    {isLoading ? '加载中...' : '正在应用修订方案...'}
+                  </Typography>
                 </Box>
               )}
               <Editor
@@ -1276,6 +1292,31 @@ export default function PluginsEditorPage() {
                   formatOnType: true,
                   scrollBeyondLastLine: false,
                 }}
+                onMount={editor => {
+                  if (isMobile) {
+                    // 获取Monaco编辑器的DOM元素
+                    const editorElement = editor.getDomNode()
+                    if (editorElement) {
+                      // 阻止编辑器内的触摸事件冒泡到外层容器
+                      editorElement.addEventListener(
+                        'touchmove',
+                        e => {
+                          e.stopPropagation()
+                        },
+                        { passive: true }
+                      )
+
+                      // 找到实际的滚动容器并设置样式
+                      const scrollElement = editorElement.querySelector(
+                        '.monaco-scrollable-element'
+                      )
+                      if (scrollElement instanceof HTMLElement) {
+                        scrollElement.style.overflowY = 'auto'
+                        scrollElement.style.touchAction = 'pan-y'
+                      }
+                    }
+                  }
+                }}
               />
             </Box>
           </Paper>
@@ -1284,7 +1325,7 @@ export default function PluginsEditorPage() {
           <Paper
             elevation={3}
             sx={{
-              ...CARD_STYLES.default.styles,
+              ...CARD_STYLES.DEFAULT,
               flex: 1,
               display: 'flex',
               flexDirection: 'column',
@@ -1362,339 +1403,344 @@ export default function PluginsEditorPage() {
 
             <Divider />
 
-            {/* 生成器内容 */}
-            {activeTab === 1 && (
-              <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'hidden' }}>
-                <Paper
-                  elevation={3}
+            {/* 生成器内容 - PC端不受activeTab影响，始终显示 */}
+            <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, overflowY: 'hidden' }}>
+              <Paper
+                elevation={3}
+                sx={{
+                  ...CARD_STYLES.DEFAULT,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flex: 1,
+                  p: 1.5,
+                  minHeight: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {/* 顶部输入区域 */}
+                <TextField
+                  multiline
+                  rows={4}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  label="修订需求"
+                  placeholder="描述你想要实现的插件功能或修订需求..."
+                  onKeyDown={e => {
+                    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                      e.preventDefault()
+                      if (prompt.trim() && !isGenerating) {
+                        handleGenerate()
+                      }
+                    }
+                  }}
+                  size="small"
+                  sx={{ mb: 1 }}
+                  fullWidth
+                />
+
+                <Button
+                  variant="contained"
+                  color="primary"
+                  fullWidth
+                  startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
+                  onClick={handleGenerate}
+                  disabled={!prompt.trim() || isApplying}
+                  size="small"
                   sx={{
-                    ...CARD_STYLES.default.styles,
-                    p: 1.5, // 减少内边距
-                    mb: 1, // 减少下边距
+                    position: 'relative',
+                    overflow: 'hidden',
+                    background: theme => theme.palette.primary.main,
+                    color: 'white !important',
+                    py: 0.75,
+                    mb: 1.5,
+                    '& .MuiButton-startIcon': {
+                      color: 'white',
+                      margin: 0,
+                    },
+                    '&::before': {
+                      content: '""',
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      background: `linear-gradient(45deg, 
+                        #FF6B6B, 
+                        #4ECDC4,
+                        #45B7D1,
+                        #96C93D,
+                        #FF6B6B
+                      )`,
+                      backgroundSize: '400% 400%',
+                      opacity: 0.7,
+                      transition: 'opacity 0.3s ease',
+                      animation: isGenerating
+                        ? 'gradient-fast 3s ease infinite'
+                        : 'gradient 10s ease infinite',
+                    },
+                    '&:hover': {
+                      transform: 'none', // 覆盖全局按钮悬浮时的移动效果
+                    },
+                    '&:hover::before': {
+                      opacity: 1,
+                    },
+                    '& > *': {
+                      position: 'relative',
+                      zIndex: 1,
+                      color: 'white',
+                    },
+                    '&:disabled': {
+                      '&::before': {
+                        opacity: 0.2,
+                      },
+                      '& > *': {
+                        color: 'rgba(255, 255, 255, 0.7)',
+                      },
+                    },
                   }}
                 >
-                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
-                    插件需求
-                  </Typography>
+                  {isGenerating ? (
+                    <>
+                      <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                      <Box
+                        component="span"
+                        sx={{
+                          color: 'white',
+                          fontWeight: 'bold',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        点击中断生成
+                      </Box>
+                    </>
+                  ) : (
+                    <>
+                      <Box
+                        component="span"
+                        sx={{
+                          color: 'white',
+                          fontWeight: 'bold',
+                          textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        AI 生成 (Ctrl+Enter)
+                      </Box>
+                    </>
+                  )}
+                </Button>
 
-                  <TextField
-                    multiline
-                    rows={2} // 减少行数，节省空间
-                    value={prompt}
-                    onChange={e => setPrompt(e.target.value)}
-                    label="需求提示词"
-                    placeholder="描述你想要实现的插件功能..."
-                    onKeyDown={e => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                        e.preventDefault()
-                        if (prompt.trim() && !isGenerating) {
-                          handleGenerate()
-                        }
-                      }
-                    }}
-                    size="small" // 使用小号输入框
-                    sx={{ mb: 1 }} // 减少下边距
-                    fullWidth
-                  />
-
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    fullWidth
-                    startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
-                    onClick={handleGenerate}
-                    disabled={!prompt.trim() || isApplying}
-                    size="small" // 使用小号按钮
-                    sx={{
-                      position: 'relative',
-                      overflow: 'hidden',
-                      background: theme => theme.palette.primary.main,
-                      color: 'white !important',
-                      py: 0.75, // 调整内边距
-                      '& .MuiButton-startIcon': {
-                        color: 'white',
-                        margin: 0, // 减少图标边距
-                      },
-                      '&::before': {
-                        content: '""',
+                {/* 结果显示区域 */}
+                <Box
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    border: 1,
+                    borderColor: 'divider',
+                    borderRadius: BORDER_RADIUS.DEFAULT,
+                    overflow: 'hidden',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  {isApplying && (
+                    <Box
+                      sx={{
                         position: 'absolute',
                         top: 0,
                         left: 0,
                         right: 0,
                         bottom: 0,
-                        background: `linear-gradient(45deg, 
-                          #FF6B6B, 
-                          #4ECDC4,
-                          #45B7D1,
-                          #96C93D,
-                          #FF6B6B
-                        )`,
-                        backgroundSize: '400% 400%',
-                        opacity: 0.7,
-                        transition: 'opacity 0.3s ease',
-                        animation: isGenerating
-                          ? 'gradient-fast 3s ease infinite'
-                          : 'gradient 10s ease infinite',
-                      },
-                      '&:hover::before': {
-                        opacity: 1,
-                      },
-                      '& > *': {
-                        position: 'relative',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        bgcolor: 'rgba(0, 0, 0, 0.3)',
+                        backdropFilter: 'blur(4px)',
                         zIndex: 1,
-                        color: 'white',
-                      },
-                      '&:disabled': {
-                        '&::before': {
-                          opacity: 0.2,
-                        },
-                        '& > *': {
-                          color: 'rgba(255, 255, 255, 0.7)',
-                        },
-                      },
-                    }}
-                  >
-                    {isGenerating ? (
-                      <>
-                        <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
-                        <Box
-                          component="span"
-                          sx={{
-                            color: 'white',
-                            fontWeight: 'bold',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                            fontSize: '0.85rem',
-                          }}
-                        >
-                          点击中断生成
-                        </Box>
-                      </>
-                    ) : (
-                      <>
-                        <Box
-                          component="span"
-                          sx={{
-                            color: 'white',
-                            fontWeight: 'bold',
-                            textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-                            fontSize: '0.85rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
-                        >
-                          AI 生成 (Ctrl+Enter)
-                        </Box>
-                      </>
-                    )}
-                  </Button>
-                </Paper>
-
-                <Paper
-                  elevation={3}
-                  sx={{
-                    ...CARD_STYLES.default.styles,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: 1,
-                    p: 1.5, // 减少内边距
-                    minHeight: 0,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
-                    生成结果
-                  </Typography>
-
+                      }}
+                    >
+                      <CircularProgress size={32} />
+                    </Box>
+                  )}
                   <Box
                     sx={{
                       flex: 1,
                       minHeight: 0,
-                      border: 1,
-                      borderColor: 'divider',
-                      borderRadius: BORDER_RADIUS.DEFAULT,
-                      overflow: 'hidden',
+                      overflow: 'auto',
                       position: 'relative',
-                      display: 'flex',
-                      flexDirection: 'column',
                     }}
                   >
-                    {isApplying && (
+                    {generatedCode ? (
+                      <Paper
+                        ref={generatedCodeRef}
+                        elevation={0}
+                        sx={{
+                          p: 1.5,
+                          height: '100%',
+                          overflow: 'auto',
+                          bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
+                          fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
+                          fontSize: '13px',
+                          lineHeight: '1.5',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {generatedCode}
+                      </Paper>
+                    ) : (
                       <Box
                         sx={{
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'text.secondary',
+                        }}
+                      >
+                        {isGenerating ? (
+                          <Box sx={{ textAlign: 'center' }}>
+                            <CircularProgress size={32} sx={{ mb: 1 }} />
+                            <Typography variant="body2">正在生成修订方案...</Typography>
+                          </Box>
+                        ) : (
+                          <Typography variant="body2">生成的修订方案将在这里显示...</Typography>
+                        )}
+                      </Box>
+                    )}
+                  </Box>
+                  <Divider />
+                  <Box
+                    sx={{
+                      p: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Box sx={{ display: 'flex', gap: 0.5 }}>
+                      <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
+                        <Button
+                          startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
+                          onClick={handleCopyCode}
+                          disabled={!generatedCode}
+                          size="small"
+                          variant="outlined"
+                          sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                        >
+                          {isCopied ? '已复制' : '复制'}
+                        </Button>
+                      </Tooltip>
+                      <Tooltip title="清空生成结果">
+                        <Button
+                          startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
+                          onClick={handleClearCode}
+                          disabled={!generatedCode}
+                          color="warning"
+                          size="small"
+                          variant="outlined"
+                          sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
+                        >
+                          清空
+                        </Button>
+                      </Tooltip>
+                    </Box>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      onClick={handleApplyCode}
+                      startIcon={<SaveIcon sx={{ fontSize: '0.9rem' }} />}
+                      disabled={!generatedCode || isGenerating}
+                      size="small"
+                      sx={{
+                        position: 'relative',
+                        overflow: 'hidden',
+                        background: theme => theme.palette.success.main,
+                        color: 'white !important',
+                        py: 0.5,
+                        px: 1,
+                        '& .MuiButton-startIcon': {
+                          color: 'white',
+                          marginRight: '4px',
+                        },
+                        '&::before': {
+                          content: '""',
                           position: 'absolute',
                           top: 0,
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: 'rgba(0, 0, 0, 0.3)',
-                          backdropFilter: 'blur(4px)',
-                          zIndex: 1,
-                        }}
-                      >
-                        <CircularProgress size={32} />
-                      </Box>
-                    )}
-                    <Box
-                      sx={{
-                        flex: 1,
-                        minHeight: 0,
-                        overflow: 'auto',
-                        position: 'relative',
-                      }}
-                    >
-                      {generatedCode ? (
-                        <Paper
-                          ref={generatedCodeRef}
-                          elevation={0}
-                          sx={{
-                            p: 1.5,
-                            height: '100%',
-                            overflow: 'auto',
-                            bgcolor: theme.palette.mode === 'dark' ? '#1E1E1E' : '#f5f5f5',
-                            fontFamily: 'Consolas, Monaco, "Andale Mono", monospace',
-                            fontSize: '13px',
-                            lineHeight: '1.5',
-                            whiteSpace: 'pre-wrap',
-                            wordBreak: 'break-all',
-                          }}
-                        >
-                          {generatedCode}
-                        </Paper>
-                      ) : (
-                        <Box
-                          sx={{
-                            height: '100%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'text.secondary',
-                          }}
-                        >
-                          {isGenerating ? (
-                            <Box sx={{ textAlign: 'center' }}>
-                              <CircularProgress size={32} sx={{ mb: 1 }} />
-                              <Typography variant="body2">正在生成代码...</Typography>
-                            </Box>
-                          ) : (
-                            <Typography variant="body2">生成的代码将在这里显示...</Typography>
-                          )}
-                        </Box>
-                      )}
-                    </Box>
-                    <Divider />
-                    <Box
-                      sx={{
-                        p: 1, // 减少内边距
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Box sx={{ display: 'flex', gap: 0.5 }}>
-                        <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
-                          <Button
-                            startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
-                            onClick={handleCopyCode}
-                            disabled={!generatedCode}
-                            size="small" // 使用小号按钮
-                            variant="outlined"
-                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
-                          >
-                            {isCopied ? '已复制' : '复制'}
-                          </Button>
-                        </Tooltip>
-                        <Tooltip title="清空生成结果">
-                          <Button
-                            startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
-                            onClick={handleClearCode}
-                            disabled={!generatedCode}
-                            color="warning"
-                            size="small"
-                            variant="outlined"
-                            sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
-                          >
-                            清空
-                          </Button>
-                        </Tooltip>
-                      </Box>
-                      <Button
-                        variant="contained"
-                        color="success"
-                        onClick={handleApplyCode}
-                        startIcon={<SaveIcon sx={{ fontSize: '0.9rem' }} />}
-                        disabled={!generatedCode || isGenerating}
-                        size="small"
-                        sx={{
-                          py: 0.5,
-                          px: 1,
+                          background: `linear-gradient(45deg, 
+                            #4CAF50,
+                            #81C784,
+                            #66BB6A,
+                            #43A047,
+                            #4CAF50
+                          )`,
+                          backgroundSize: '400% 400%',
+                          opacity: 0.7,
+                          transition: 'opacity 0.3s ease',
+                          animation: 'gradient 10s ease infinite',
+                        },
+                        '&:hover': {
+                          transform: 'none', // 覆盖全局按钮悬浮时的移动效果
+                        },
+                        '&:hover::before': {
+                          opacity: 1,
+                        },
+                        '& > *': {
                           position: 'relative',
-                          overflow: 'hidden',
-                          background: theme => theme.palette.success.main,
-                          color: 'white !important',
-                          '& .MuiButton-startIcon': {
-                            color: 'white',
-                            marginRight: '4px',
-                          },
+                          zIndex: 1,
+                          color: 'white',
+                        },
+                        '&:disabled': {
                           '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            background: `linear-gradient(45deg, 
-                              #4CAF50,
-                              #81C784,
-                              #66BB6A,
-                              #43A047,
-                              #4CAF50
-                            )`,
-                            backgroundSize: '400% 400%',
-                            opacity: 0.7,
-                            transition: 'opacity 0.3s ease',
-                            animation: 'gradient 10s ease infinite',
-                          },
-                          '&:hover::before': {
-                            opacity: 1,
+                            opacity: 0.2,
                           },
                           '& > *': {
-                            position: 'relative',
-                            zIndex: 1,
-                            color: 'white',
+                            color: 'rgba(255, 255, 255, 0.7)',
                           },
-                          '&:disabled': {
-                            '&::before': {
-                              opacity: 0.2,
-                            },
-                            '& > *': {
-                              color: 'rgba(255, 255, 255, 0.7)',
-                            },
-                          },
-                        }}
-                      >
-                        {isApplying ? '应用中...' : '应用'}
-                      </Button>
-                    </Box>
+                        },
+                      }}
+                    >
+                      {isApplying ? '应用中...' : '应用方案'}
+                    </Button>
                   </Box>
-                </Paper>
-              </Box>
-            )}
+                </Box>
+              </Paper>
+            </Box>
           </Paper>
         </Box>
       ) : (
         /* 移动端布局 */
-        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden' }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflowY: 'hidden',
+            WebkitOverflowScrolling: 'touch', // 增强iOS滚动行为
+          }}
+        >
           {/* 分页内容 */}
-          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'hidden' }}>
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              overflowY: 'hidden',
+            }}
+          >
             {/* 编辑器内容 */}
             {activeTab === 0 && (
               <Paper
                 elevation={3}
                 sx={{
-                  ...CARD_STYLES.default.styles,
+                  ...CARD_STYLES.DEFAULT,
                   flex: 1,
                   p: 1.5,
                   mb: 1,
@@ -1733,7 +1779,9 @@ export default function PluginsEditorPage() {
                       }}
                     >
                       <CircularProgress size={36} sx={{ mb: 1 }} />
-                      <Typography variant="body2">{isLoading ? '加载中...' : '正在应用修改意见...'}</Typography>
+                      <Typography variant="body2">
+                        {isLoading ? '加载中...' : '正在应用修订方案...'}
+                      </Typography>
                     </Box>
                   )}
                   <Editor
@@ -1753,6 +1801,31 @@ export default function PluginsEditorPage() {
                       formatOnType: true,
                       scrollBeyondLastLine: false,
                     }}
+                    onMount={editor => {
+                      if (isMobile) {
+                        // 获取Monaco编辑器的DOM元素
+                        const editorElement = editor.getDomNode()
+                        if (editorElement) {
+                          // 阻止编辑器内的触摸事件冒泡到外层容器
+                          editorElement.addEventListener(
+                            'touchmove',
+                            e => {
+                              e.stopPropagation()
+                            },
+                            { passive: true }
+                          )
+
+                          // 找到实际的滚动容器并设置样式
+                          const scrollElement = editorElement.querySelector(
+                            '.monaco-scrollable-element'
+                          )
+                          if (scrollElement instanceof HTMLElement) {
+                            scrollElement.style.overflowY = 'auto'
+                            scrollElement.style.touchAction = 'pan-y'
+                          }
+                        }
+                      }
+                    }}
                   />
                 </Box>
               </Paper>
@@ -1764,18 +1837,19 @@ export default function PluginsEditorPage() {
                 <Paper
                   elevation={3}
                   sx={{
-                    ...CARD_STYLES.default.styles,
-                    p: 1.5, // 减少内边距
-                    mb: 1, // 减少下边距
+                    ...CARD_STYLES.DEFAULT,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flex: 1,
+                    p: 1.5,
+                    minHeight: 0,
+                    overflow: 'hidden',
                   }}
                 >
-                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
-                    插件需求
-                  </Typography>
-
+                  {/* 顶部输入区域 */}
                   <TextField
                     multiline
-                    rows={2} // 减少行数，节省空间
+                    rows={2}
                     value={prompt}
                     onChange={e => setPrompt(e.target.value)}
                     label="需求提示词"
@@ -1788,8 +1862,8 @@ export default function PluginsEditorPage() {
                         }
                       }
                     }}
-                    size="small" // 使用小号输入框
-                    sx={{ mb: 1 }} // 减少下边距
+                    size="small"
+                    sx={{ mb: 1 }}
                     fullWidth
                   />
 
@@ -1800,16 +1874,17 @@ export default function PluginsEditorPage() {
                     startIcon={isGenerating ? undefined : <AutoAwesomeIcon />}
                     onClick={handleGenerate}
                     disabled={!prompt.trim() || isApplying}
-                    size="small" // 使用小号按钮
+                    size="small"
                     sx={{
                       position: 'relative',
                       overflow: 'hidden',
                       background: theme => theme.palette.primary.main,
                       color: 'white !important',
-                      py: 0.75, // 调整内边距
+                      py: 0.75,
+                      mb: 1.5,
                       '& .MuiButton-startIcon': {
                         color: 'white',
-                        margin: 0, // 减少图标边距
+                        margin: 0,
                       },
                       '&::before': {
                         content: '""',
@@ -1831,6 +1906,9 @@ export default function PluginsEditorPage() {
                         animation: isGenerating
                           ? 'gradient-fast 3s ease infinite'
                           : 'gradient 10s ease infinite',
+                      },
+                      '&:hover': {
+                        transform: 'none', // 覆盖全局按钮悬浮时的移动效果
                       },
                       '&:hover::before': {
                         opacity: 1,
@@ -1883,24 +1961,8 @@ export default function PluginsEditorPage() {
                       </>
                     )}
                   </Button>
-                </Paper>
 
-                <Paper
-                  elevation={3}
-                  sx={{
-                    ...CARD_STYLES.default.styles,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flex: 1,
-                    p: 1.5, // 减少内边距
-                    minHeight: 0,
-                    overflow: 'hidden',
-                  }}
-                >
-                  <Typography variant="subtitle2" fontWeight="medium" sx={{ mb: 0.5 }}>
-                    生成结果
-                  </Typography>
-
+                  {/* 结果显示区域 */}
                   <Box
                     sx={{
                       flex: 1,
@@ -1972,10 +2034,10 @@ export default function PluginsEditorPage() {
                           {isGenerating ? (
                             <Box sx={{ textAlign: 'center' }}>
                               <CircularProgress size={32} sx={{ mb: 1 }} />
-                              <Typography variant="body2">正在生成代码...</Typography>
+                              <Typography variant="body2">正在生成修订方案...</Typography>
                             </Box>
                           ) : (
-                            <Typography variant="body2">生成的代码将在这里显示...</Typography>
+                            <Typography variant="body2">生成的修订方案将在这里显示...</Typography>
                           )}
                         </Box>
                       )}
@@ -1983,7 +2045,7 @@ export default function PluginsEditorPage() {
                     <Divider />
                     <Box
                       sx={{
-                        p: 1, // 减少内边距
+                        p: 1,
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -1995,7 +2057,7 @@ export default function PluginsEditorPage() {
                             startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
                             onClick={handleCopyCode}
                             disabled={!generatedCode}
-                            size="small" // 使用小号按钮
+                            size="small"
                             variant="outlined"
                             sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                           >
@@ -2024,12 +2086,12 @@ export default function PluginsEditorPage() {
                         disabled={!generatedCode || isGenerating}
                         size="small"
                         sx={{
-                          py: 0.5,
-                          px: 1,
                           position: 'relative',
                           overflow: 'hidden',
                           background: theme => theme.palette.success.main,
                           color: 'white !important',
+                          py: 0.5,
+                          px: 1,
                           '& .MuiButton-startIcon': {
                             color: 'white',
                             marginRight: '4px',
@@ -2053,6 +2115,9 @@ export default function PluginsEditorPage() {
                             transition: 'opacity 0.3s ease',
                             animation: 'gradient 10s ease infinite',
                           },
+                          '&:hover': {
+                            transform: 'none', // 覆盖全局按钮悬浮时的移动效果
+                          },
                           '&:hover::before': {
                             opacity: 1,
                           },
@@ -2071,7 +2136,7 @@ export default function PluginsEditorPage() {
                           },
                         }}
                       >
-                        {isApplying ? '应用中...' : '应用'}
+                        {isApplying ? '应用中...' : '应用方案'}
                       </Button>
                     </Box>
                   </Box>

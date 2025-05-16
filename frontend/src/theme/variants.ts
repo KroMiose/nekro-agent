@@ -2,58 +2,74 @@
  * 主题样式变体配置文件
  * 用于定义各种UI组件的通用样式变体
  */
-import { SxProps, Theme } from '@mui/material/styles'
-import { alpha } from '@mui/material'
+import { SxProps, Theme, alpha } from '@mui/material'
 import { UI_STYLES } from './themeConfig'
 import { getCurrentExtendedPalette, getCurrentThemeMode } from './themeConfig'
 import { stopTypeColorValues } from './utils'
+import { getShadow, getBackdropFilter, getBackground, getTransition } from './themeApi'
 
 // 圆角常量
 export const BORDER_RADIUS = {
-  SMALL: '3px', // 小圆角 - 用于滚动条等小元素
-  DEFAULT: '6px', // 默认圆角 - 用于卡片、按钮等
-  MEDIUM: '8px', // 中等圆角 - 用于对话框等
-  LARGE: '12px', // 大圆角 - 用于特殊元素
-  FULL: '9999px', // 全圆 - 用于头像、徽章等
+  LARGE: '12px',
+  DEFAULT: '8px',
+  SMALL: '4px',
+  PILL: '9999px',
 }
 
-// 通用布局常量
+// 布局常量
 export const LAYOUT = {
-  SPACING: {
-    XS: '4px',
-    SM: '8px',
-    MD: '16px',
-    LG: '24px',
-    XL: '32px',
+  Z_INDEX: {
+    BACKDROP: 10,
+    DRAWER: 1200,
+    MODAL: 1300,
+    SNACKBAR: 1400,
+    TOOLTIP: 1500,
   },
   TRANSITION: {
-    FAST: 'all 0.2s ease',
-    DEFAULT: 'all 0.3s ease',
-    SLOW: 'all 0.5s ease',
+    DEFAULT: {
+      get transition() {
+        return getTransition('all 0.3s ease')
+      }
+    },
+    SLOW: {
+      get transition() {
+        return getTransition('all 0.5s ease')
+      }
+    },
+    FAST: {
+      get transition() {
+        return getTransition('all 0.15s ease')
+      }
+    }
   },
 }
 
-// 卡片样式变体
-export const CARD_STYLES = {
+// 卡片组件样式变体
+export const CARD_VARIANTS = {
   default: {
     get styles(): SxProps<Theme> {
-      const extendedPalette = getCurrentExtendedPalette()
-      const primary = extendedPalette.primary
-
+      const mode = getCurrentThemeMode()
       return {
-        backgroundColor: extendedPalette.background.paper,
-        backgroundImage: UI_STYLES.getGradient('card'),
-        boxShadow: UI_STYLES.getShadow('light'),
-        border: `1px solid ${alpha(primary.main, 0.12)}`,
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        background: getBackground(
+          mode === 'dark'
+            ? 'rgba(25, 25, 30, 0.85)'
+            : 'rgba(255, 255, 255, 0.9)'
+        ),
+        backdropFilter: getBackdropFilter('blur(12px)'),
+        WebkitBackdropFilter: getBackdropFilter('blur(12px)'),
+        boxShadow: getShadow('0 4px 6px rgba(0, 0, 0, 0.1)'),
+        border: '1px solid',
+        borderColor: mode === 'dark' 
+          ? 'rgba(255, 255, 255, 0.1)' 
+          : 'rgba(0, 0, 0, 0.06)',
         borderRadius: BORDER_RADIUS.DEFAULT,
         '&:hover': {
-          boxShadow: UI_STYLES.getShadow('medium'),
-          borderColor: alpha(primary.main, 0.2),
-        },
+          boxShadow: getShadow('0 6px 12px rgba(0, 0, 0, 0.15)'),
+        }
       }
     },
   },
-
   elevated: {
     get styles(): SxProps<Theme> {
       const extendedPalette = getCurrentExtendedPalette()
@@ -73,38 +89,36 @@ export const CARD_STYLES = {
   },
 }
 
-// 按钮样式变体
+// 按钮组件样式变体
 export const BUTTON_VARIANTS = {
-  // 主按钮
   primary: {
     get styles(): SxProps<Theme> {
+      const palette = getCurrentExtendedPalette()
       return {
-        background: UI_STYLES.getGradient('primary'),
+        background: getBackground(`linear-gradient(45deg, ${palette.primary.main} 0%, ${palette.primary.dark} 100%)`),
         color: '#fff',
-        boxShadow: UI_STYLES.getShadow('light'),
-        borderRadius: BORDER_RADIUS.DEFAULT,
-        transition: LAYOUT.TRANSITION.FAST,
-        textTransform: 'none',
         '&:hover': {
-          boxShadow: UI_STYLES.getShadow('medium'),
-          transform: 'translateY(-1px)',
+          background: getBackground(`linear-gradient(45deg, ${palette.primary.dark} 0%, ${palette.primary.main} 100%)`),
+          boxShadow: getShadow('0 4px 8px rgba(0, 0, 0, 0.15)'),
         },
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        textTransform: 'none',
       }
     },
   },
-  // 次级按钮
   secondary: {
     get styles(): SxProps<Theme> {
+      const primary = getCurrentExtendedPalette().primary
       return {
-        background: UI_STYLES.getGradient('secondary'),
-        color: '#fff',
+        color: primary.main,
+        background: alpha(primary.main, 0.1),
         boxShadow: UI_STYLES.getShadow('light'),
         borderRadius: BORDER_RADIUS.DEFAULT,
-        transition: LAYOUT.TRANSITION.FAST,
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
         textTransform: 'none',
         '&:hover': {
-          boxShadow: UI_STYLES.getShadow('medium'),
-          transform: 'translateY(-1px)',
+          background: alpha(primary.main, 0.2),
         },
       }
     },
@@ -119,7 +133,7 @@ export const INPUT_VARIANTS = {
       const primary = extendedPalette.primary
       return {
         '& .MuiOutlinedInput-root': {
-          transition: LAYOUT.TRANSITION.FAST,
+          transition: LAYOUT.TRANSITION.DEFAULT.transition,
           '& fieldset': {
             borderColor: `${alpha(primary.main, 0.2)}`,
           },
@@ -143,7 +157,7 @@ export const BADGE_VARIANTS = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '4px 8px',
-    borderRadius: BORDER_RADIUS.FULL,
+    borderRadius: BORDER_RADIUS.PILL,
     fontSize: '0.75rem',
     fontWeight: 500,
     height: '22px',
@@ -227,10 +241,10 @@ export const CHIP_VARIANTS = {
       1: '#1976d2', // 用户
       2: '#9c27b0', // 管理员
       3: '#f44336', // 超级管理员
-    };
-    
-    const color = roleColors[permLevel as keyof typeof roleColors] || '#9e9e9e';
-    
+    }
+
+    const color = roleColors[permLevel as keyof typeof roleColors] || '#9e9e9e'
+
     return {
       ...CHIP_VARIANTS.base(isSmall),
       backgroundColor: alpha(color, 0.12),
@@ -243,13 +257,21 @@ export const CHIP_VARIANTS = {
   getUserStatusChip: (status: string, isSmall: boolean = false): SxProps<Theme> => {
     // 状态颜色映射
     const statusColors = {
-      'normal': '#4caf50', // 正常
-      'passive': '#ff9800', // 未激活
-      'banned': '#f44336', // 封禁
-    };
-    
-    const color = statusColors[status.toLowerCase() as keyof typeof statusColors] || '#9e9e9e';
-    
+      // 英文状态名
+      normal: '#4caf50', // 正常
+      passive: '#ff9800', // 未激活
+      banned: '#f44336', // 封禁
+      // 中文状态名
+      正常: '#4caf50',
+      消极: '#ff9800',
+      封禁: '#f44336',
+      已封禁: '#f44336',
+      禁止触发: '#ff9800',
+      允许触发: '#4caf50',
+    }
+
+    const color = statusColors[status as keyof typeof statusColors] || '#9e9e9e'
+
     return {
       ...CHIP_VARIANTS.base(isSmall),
       backgroundColor: alpha(color, 0.12),
@@ -306,9 +328,12 @@ export const methodTypeTexts: Record<string, string> = {
 // 方法类型说明文本
 export const methodTypeDescriptions: Record<string, string> = {
   tool: '提供给 LLM 使用的工具，返回值可以是任意类型，LLM 可获取返回值作进一步处理',
-  agent: '用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用',
-  behavior: '用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中但不触发再次调用',
-  multimodal_agent: '用于提供 LLM 交互反馈，其返回值为一段多模态 message，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用',
+  agent:
+    '用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用',
+  behavior:
+    '用于提供 LLM 交互反馈，其返回值必须为 str 类型，描述 LLM 行为的结果，返回后会被添加到上下文中但不触发再次调用',
+  multimodal_agent:
+    '用于提供 LLM 交互反馈，其返回值为一段多模态 message，描述 LLM 行为的结果，返回后会被添加到上下文中再次调用',
 }
 
 // 统一表格样式变体
@@ -317,16 +342,13 @@ export const UNIFIED_TABLE_STYLES = {
     const palette = getCurrentExtendedPalette()
     const mode = getCurrentThemeMode()
     return {
-      backdropFilter: 'blur(8px)',
-      WebkitBackdropFilter: 'blur(8px)',
-      backgroundColor: mode === 'light' 
-        ? 'rgba(255, 255, 255, 0.78)' 
-        : alpha(palette.background.paper, 0.75),
+      backgroundColor:
+        mode === 'light' ? 'rgba(255, 255, 255, 0.78)' : alpha(palette.background.paper, 0.75),
       borderRadius: BORDER_RADIUS.DEFAULT,
       border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
       boxShadow: UI_STYLES.getShadow('light'),
       overflow: 'hidden',
-      transition: 'all 0.3s ease',
+      transition: 'box-shadow 0.3s ease',
       position: 'relative',
       height: '100%',
       '&::before': {
@@ -336,15 +358,15 @@ export const UNIFIED_TABLE_STYLES = {
         left: 0,
         width: '100%',
         height: '2px',
-        background: `linear-gradient(90deg, ${alpha(palette.primary.main, 0.18)}, ${alpha(palette.secondary.main, 0.18)})`,
+        backgroundColor: alpha(palette.primary.main, 0.2),
         opacity: 0.8,
       },
       '&:hover': {
         boxShadow: UI_STYLES.getShadow('medium'),
-      }
+      },
     }
   },
-  
+
   get header(): SxProps<Theme> {
     const mode = getCurrentThemeMode()
     const palette = getCurrentExtendedPalette()
@@ -353,92 +375,163 @@ export const UNIFIED_TABLE_STYLES = {
       top: 0,
       zIndex: 10,
       fontWeight: 600,
-      backgroundColor: mode === 'light' 
-        ? 'rgba(245, 245, 245, 0.85)' 
-        : alpha(palette.primary.darker, 0.5),
+      backgroundColor:
+        mode === 'light' ? 'rgba(245, 245, 245, 0.85)' : alpha(palette.primary.darker, 0.5),
       backdropFilter: 'blur(8px)',
       WebkitBackdropFilter: 'blur(8px)',
-      boxShadow: mode === 'dark' 
-        ? '0 4px 6px -1px rgba(0, 0, 0, 0.15)' 
-        : '0 4px 6px -1px rgba(0, 0, 0, 0.08)',
+      boxShadow:
+        mode === 'dark'
+          ? '0 4px 6px -1px rgba(0, 0, 0, 0.15)'
+          : '0 4px 6px -1px rgba(0, 0, 0, 0.08)',
       textTransform: 'uppercase',
       fontSize: '0.75rem',
       letterSpacing: '0.02em',
-      backgroundImage: mode === 'light'
-        ? `linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(245, 245, 245, 0.85))`
-        : `linear-gradient(180deg, ${alpha(palette.primary.darker, 0.55)}, ${alpha(palette.primary.darker, 0.45)})`,
     }
   },
-  
+
   get row(): SxProps<Theme> {
     const palette = getCurrentExtendedPalette()
     return {
-      transition: 'background-color 0.2s ease',
+      willChange: 'background-color',
+      transition: 'background-color 0.15s ease',
       '&:hover': {
         backgroundColor: alpha(palette.primary.main, 0.08),
       },
       '&:nth-of-type(odd)': {
-        backgroundColor: getCurrentThemeMode() === 'light' 
-          ? 'rgba(0, 0, 0, 0.02)' 
-          : 'rgba(255, 255, 255, 0.03)',
+        backgroundColor:
+          getCurrentThemeMode() === 'light' ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.03)',
       },
     }
   },
-  
+
   get cell(): SxProps<Theme> {
     const mode = getCurrentThemeMode()
     return {
       fontSize: '0.875rem',
-      backdropFilter: 'blur(4px)',
-      WebkitBackdropFilter: 'blur(4px)',
       borderBottom: `1px solid ${mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.06)'}`,
     }
   },
-  
-  get scrollbar(): SxProps<Theme> {
+
+  get paper(): SxProps<Theme> {
+    const palette = getCurrentExtendedPalette()
     const mode = getCurrentThemeMode()
     return {
+      backgroundColor:
+        mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : alpha(palette.background.paper, 0.95),
+      boxShadow: UI_STYLES.getShadow('light'),
+      borderRadius: BORDER_RADIUS.DEFAULT,
+      border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
+      overflow: 'hidden',
+      transition: 'box-shadow 0.3s ease',
+      '&:hover': {
+        boxShadow: UI_STYLES.getShadow('medium'),
+      },
+    }
+  },
+
+  // 表格布局容器 - 添加固定高度和滚动布局的容器样式
+  get tableLayoutContainer(): SxProps<Theme> {
+    return {
+      height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      gap: '6px',
+    }
+  },
+
+  // 表格内容容器 - 添加滚动的内容容器样式
+  get tableContentContainer(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+    return {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      backgroundColor:
+        mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : alpha(palette.background.paper, 0.95),
+      boxShadow: UI_STYLES.getShadow('light'),
+      borderRadius: BORDER_RADIUS.DEFAULT,
+      border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
+    } as SxProps<Theme>
+  },
+
+  // 表格视口样式 - 可滚动区域
+  get tableViewport(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    return {
+      flex: 1,
+      overflow: 'auto',
+      maxHeight: '100%',
       '&::-webkit-scrollbar': {
         width: '8px',
         height: '8px',
       },
       '&::-webkit-scrollbar-thumb': {
-        backgroundColor: mode === 'dark' 
-          ? 'rgba(255, 255, 255, 0.16)' 
-          : 'rgba(0, 0, 0, 0.2)',
+        backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.2)',
         borderRadius: '4px',
       },
       '&::-webkit-scrollbar-track': {
-        backgroundColor: mode === 'dark' 
-          ? 'rgba(255, 255, 255, 0.04)' 
-          : 'rgba(0, 0, 0, 0.04)',
+        backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
         borderRadius: '4px',
       },
     }
   },
-  
-  get paper(): SxProps<Theme> {
-    const palette = getCurrentExtendedPalette()
-    const mode = getCurrentThemeMode()
+
+  // 表格分页器样式
+  get pagination(): SxProps<Theme> {
     return {
-      backgroundColor: mode === 'light' 
-        ? 'rgba(255, 255, 255, 0.85)' 
-        : alpha(palette.background.paper, 0.8),
-      backgroundImage: mode === 'light'
-        ? 'linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.8))'
-        : `linear-gradient(135deg, ${alpha(palette.background.paper, 0.85)}, ${alpha(palette.background.paper, 0.75)})`,
-      backdropFilter: 'blur(10px)',
-      WebkitBackdropFilter: 'blur(10px)',
-      boxShadow: UI_STYLES.getShadow('light'),
-      borderRadius: BORDER_RADIUS.DEFAULT,
-      border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
-      overflow: 'hidden',
-      transition: 'all 0.3s ease',
-      '&:hover': {
-        boxShadow: UI_STYLES.getShadow('medium'),
-      }
+      borderTop: '1px solid',
+      borderColor: 'divider',
+      flexShrink: 0,
+      '.MuiTablePagination-selectLabel': {
+        marginBottom: 0,
+      },
+      '.MuiTablePagination-displayedRows': {
+        marginBottom: 0,
+      },
+      '.MuiTablePagination-select': {
+        paddingRight: 8,
+      },
+      '.MuiTablePagination-select, .MuiTablePagination-selectIcon': {
+        pointerEvents: 'auto',
+      },
+    } as SxProps<Theme>
+  },
+
+  // 移动端适配的分页器样式
+  getMobilePagination: (isSmall: boolean = false): SxProps<Theme> => {
+    return {
+      borderTop: '1px solid',
+      borderColor: 'divider',
+      flexShrink: 0,
+      '.MuiTablePagination-selectLabel': {
+        marginBottom: 0,
+        display: isSmall ? 'none' : 'block',
+      },
+      '.MuiTablePagination-displayedRows': {
+        marginBottom: 0,
+        fontSize: isSmall ? '0.75rem' : 'inherit',
+      },
+      '.MuiTablePagination-select': {
+        paddingRight: isSmall ? 0 : 8,
+      },
+      '.MuiTablePagination-select, .MuiTablePagination-selectIcon': {
+        pointerEvents: 'auto',
+      },
+    } as SxProps<Theme>
+  },
+
+  // 表格基础样式
+  getTableBase: (isMobile: boolean = false, isSmall: boolean = false): SxProps<Theme> => {
+    return {
+      width: '100%',
+      minWidth: isMobile ? '600px' : '900px',
+      tableLayout: 'fixed',
+      padding: isSmall ? '4px' : '8px',
     }
-  }
+  },
 }
 
 // 导出日志表格样式到包含新的统一样式
@@ -498,13 +591,13 @@ export const LOG_TABLE_STYLES = {
     get HOVER() {
       const palette = getCurrentExtendedPalette()
       return alpha(palette.primary.main, 0.08)
-    }
+    },
   },
   TABLE: {
     get styles(): SxProps<Theme> {
-      return UNIFIED_TABLE_STYLES.container;
-    }
-  }
+      return UNIFIED_TABLE_STYLES.container
+    },
+  },
 }
 
 // 卡片容器样式
@@ -519,11 +612,100 @@ export const CARD_CONTAINER = {
       boxShadow: UI_STYLES.getShadow('light'),
       border: `1px solid ${alpha(primary.main, 0.05)}`,
       borderRadius: BORDER_RADIUS.DEFAULT,
-      transition: LAYOUT.TRANSITION.DEFAULT,
+      transition: LAYOUT.TRANSITION.DEFAULT.transition,
       '&:hover': {
         boxShadow: UI_STYLES.getShadow('medium'),
         borderColor: alpha(primary.main, 0.1),
       },
     }
   },
+}
+
+// 滚动条变体
+export const SCROLLBAR_VARIANTS = {
+  default: {
+    get styles(): SxProps<Theme> {
+      const palette = getCurrentExtendedPalette()
+      return {
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${alpha(palette.primary.main, 0.3)} transparent`,
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        '&::-webkit-scrollbar': {
+          width: '8px',
+          height: '8px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: alpha(palette.primary.main, 0.3),
+          borderRadius: '4px',
+          transition: LAYOUT.TRANSITION.DEFAULT.transition,
+          '&:hover': {
+            background: alpha(palette.primary.main, 0.5),
+          },
+        },
+      }
+    }
+  },
+  thin: {
+    get styles(): SxProps<Theme> {
+      const palette = getCurrentExtendedPalette()
+      return {
+        scrollbarWidth: 'thin',
+        scrollbarColor: `${alpha(palette.primary.main, 0.2)} transparent`,
+        '&::-webkit-scrollbar': {
+          width: '4px',
+          height: '4px',
+        },
+        '&::-webkit-scrollbar-track': {
+          background: 'transparent',
+        },
+        '&::-webkit-scrollbar-thumb': {
+          background: alpha(palette.primary.main, 0.2),
+          borderRadius: '2px',
+          '&:hover': {
+            background: alpha(palette.primary.main, 0.4),
+          },
+        },
+      }
+    }
+  },
+}
+
+// 添加缺失的CARD_STYLES常量
+export const CARD_STYLES = {
+  DEFAULT: {
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
+  },
+  ELEVATED: {
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    boxShadow: '0 8px 25px 0 rgba(0,0,0,0.1)',
+    transition: 'all 0.3s ease',
+  },
+  FLAT: {
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    boxShadow: 'none',
+    transition: 'all 0.3s ease',
+  },
+  INTERACTIVE: {
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    boxShadow: '0 4px 20px 0 rgba(0,0,0,0.05)',
+    transition: 'all 0.3s ease',
+    cursor: 'pointer',
+    '&:hover': {
+      transform: 'translateY(-2px)',
+      boxShadow: '0 8px 25px 0 rgba(0,0,0,0.1)',
+    },
+  }
 }

@@ -43,7 +43,7 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
 import { motion } from 'framer-motion'
-import { UI_STYLES } from '../theme/themeApi'
+import { UI_STYLES, getAnimationDuration, getBackdropFilter, getShadow } from '../theme/themeApi'
 import ThemeToggleButton from '../theme/ThemeToggleButton'
 import { useNotification } from '../hooks/useNotification'
 import { alpha } from '@mui/material/styles'
@@ -586,7 +586,7 @@ export default function MainLayout() {
               width: 240,
               backgroundColor: theme =>
                 theme.palette.mode === 'dark'
-                  ? alpha(theme.palette.background.paper, 0.66)
+                  ? alpha(theme.palette.background.paper, 0.68)
                   : alpha(theme.palette.background.paper, 0.86),
               backdropFilter: 'blur(8px)',
               transition: theme =>
@@ -624,18 +624,18 @@ export default function MainLayout() {
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{
-            duration: 0.36,
+            duration: getAnimationDuration(0.36),
             ease: [0.4, 0, 0.2, 1],
           }}
-          className="h-full flex-grow overflow-auto rounded-xl"
+          className="h-full flex-grow overflow-auto rounded-xl performance-adaptive motion-div"
           style={{
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: getBackdropFilter('blur(6px)'),
+            WebkitBackdropFilter: getBackdropFilter('blur(6px)'),
             background:
               theme.palette.mode === 'dark'
                 ? 'rgba(32, 32, 32, 0.48)'
                 : 'rgba(255, 255, 255, 0.68)',
-            boxShadow: `0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`,
+            boxShadow: getShadow(`0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`),
             border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
             position: 'relative',
             overflow: 'hidden',

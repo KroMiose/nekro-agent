@@ -13,7 +13,6 @@ import {
   Stack,
   Divider,
   SelectChangeEvent,
-  TablePagination,
   useTheme,
   useMediaQuery,
   Drawer,
@@ -40,6 +39,7 @@ import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import MessageHistory from './components/detail-tabs/MessageHistory'
 import BasicInfo from './components/detail-tabs/BasicInfo'
+import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 
 export default function ChatChannelPage() {
   const [search, setSearch] = useState('')
@@ -186,7 +186,7 @@ export default function ChatChannelPage() {
 
       {/* 分页器 */}
       {channelList && channelList.items.length > 0 && (
-        <TablePagination
+        <TablePaginationStyled
           component="div"
           count={channelList.total}
           page={page - 1}
@@ -196,21 +196,19 @@ export default function ChatChannelPage() {
             setPageSize(parseInt(event.target.value, 10))
             setPage(1)
           }}
-          labelRowsPerPage={isSmall ? '' : '每页'}
-          labelDisplayedRows={({ from, to, count }) =>
-            isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}项`
-          }
+          loading={isLoading}
+          showFirstLastPageButtons={false}
+          rowsPerPageOptions={[10, 25]}
           sx={{
             '.MuiTablePagination-selectLabel': {
-              marginBottom: 0,
-              display: isSmall ? 'none' : 'block',
+              display: 'none', // 隐藏「每页」标签
             },
-            '.MuiTablePagination-displayedRows': {
-              marginBottom: 0,
-              fontSize: isSmall ? '0.75rem' : 'inherit',
+            '.MuiTablePagination-toolbar': {
+              minHeight: '48px',
+              padding: '0 8px',
             },
-            '.MuiTablePagination-select': {
-              paddingRight: isSmall ? 0 : 8,
+            '.MuiTablePagination-actions': {
+              marginLeft: '8px', // 减少操作区域的左边距
             },
           }}
         />
