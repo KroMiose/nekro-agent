@@ -268,7 +268,7 @@ export default function SandboxPage() {
     )
 
   return (
-    <Box sx={UNIFIED_TABLE_STYLES.tableLayoutContainer}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 2 }}>
       {/* 统计卡片 */}
       {renderStatsCards()}
 

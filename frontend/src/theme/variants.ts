@@ -14,6 +14,7 @@ export const BORDER_RADIUS = {
   DEFAULT: '8px',
   SMALL: '4px',
   PILL: '9999px',
+  MEDIUM: '10px',
 }
 
 // 布局常量
@@ -530,6 +531,25 @@ export const UNIFIED_TABLE_STYLES = {
       minWidth: isMobile ? '600px' : '900px',
       tableLayout: 'fixed',
       padding: isSmall ? '4px' : '8px',
+    }
+  },
+
+  // 表格滚动条样式
+  get scrollbar(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    return {
+      '&::-webkit-scrollbar': {
+        width: '8px',
+        height: '8px',
+      },
+      '&::-webkit-scrollbar-thumb': {
+        backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.16)' : 'rgba(0, 0, 0, 0.2)',
+        borderRadius: '4px',
+      },
+      '&::-webkit-scrollbar-track': {
+        backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
+        borderRadius: '4px',
+      },
     }
   },
 }
