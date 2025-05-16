@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import shutil
@@ -15,7 +16,12 @@ from nonebot.params import CommandArg
 from nekro_agent.core.config import ModelConfigGroup, config, reload_config, save_config
 from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import SANDBOX_PACKAGE_DIR, SANDBOX_PIP_CACHE_DIR, OsEnv
+from nekro_agent.core.os_env import (
+    PROMPT_ERROR_LOG_DIR,
+    SANDBOX_PACKAGE_DIR,
+    SANDBOX_PIP_CACHE_DIR,
+    OsEnv,
+)
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
@@ -629,6 +635,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "debug_off: 关闭调试模式\n"
             "system <message>: 添加系统消息\n"
             "model_test <model_name1> ...: 测试模型可达性\n"
+            "\n====== [错误日志管理] ======\n"
+            "log_err_list [-p <页码>] [-s <每页数量>]: 查看最近错误日志\n"
+            "log_err_list -a/--all: 查看全部日志目录文件\n"
+            "log_chat_test <日志索引/文件名> [-g <模型组名>]: 测试错误日志\n"
             "\n注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
@@ -905,7 +915,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
 
 
-@on_command("github_stars", aliases={"github-stars"}, priority=5, block=True).handle()
+@on_command("github_stars_check", aliases={"github-stars-check"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     """检查用户是否已Star官方GitHub仓库"""
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -931,3 +941,243 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         await finish_with(matcher, message=f"执行失败: {e}")
     else:
         await finish_with(matcher, message=message)
+
+
+@on_command("log_err_list", aliases={"log-err-list", "log_err_ls", "log-err-ls"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """查看错误日志列表"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    from nekro_agent.services.agent.run_agent import RECENT_ERR_LOGS
+
+    # 解析参数，支持分页
+    args = cmd_content.strip().split()
+    page = 1
+    page_size = 10
+    use_dir_files = False
+
+    for i, _arg in enumerate(args):
+        if _arg == "-p" and i + 1 < len(args):
+            try:
+                page = int(args[i + 1])
+            except ValueError:
+                await finish_with(matcher, message="⚠️ 分页参数格式错误")
+        elif _arg == "-s" and i + 1 < len(args):
+            try:
+                page_size = int(args[i + 1])
+            except ValueError:
+                await finish_with(matcher, message="⚠️ 每页显示数量参数格式错误")
+        elif _arg == "-a" or _arg == "--all":
+            use_dir_files = True
+
+    # 确保页码和页大小合法
+    page = max(1, page)
+    page_size = max(1, min(50, page_size))
+
+    # 获取所有错误日志
+    if use_dir_files:
+        # 从错误日志目录读取所有文件
+        log_dir = Path(PROMPT_ERROR_LOG_DIR)
+        if not log_dir.exists():
+            await finish_with(matcher, message="⚠️ 错误日志目录不存在")
+
+        all_logs = []
+        for file_path in log_dir.glob("*.json"):
+            all_logs.append(file_path)
+
+        # 按修改时间从新到旧排序
+        logs = sorted(all_logs, key=lambda p: p.stat().st_mtime, reverse=True)
+    else:
+        # 使用缓存的最近日志列表，从新到旧排序
+        logs = list(RECENT_ERR_LOGS)
+
+    total_logs = len(logs)
+    total_pages = (total_logs + page_size - 1) // page_size if total_logs > 0 else 1
+
+    # 确保页码不超过总页数
+    page = min(page, total_pages)
+
+    # 计算当前页的日志
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, total_logs)
+    current_page_logs = logs[start_idx:end_idx]
+
+    # 构建响应消息
+    if not current_page_logs:
+        await finish_with(matcher, message="📭 没有错误日志记录")
+
+    result_lines = [f"📋 错误日志列表 (第 {page}/{total_pages} 页，共 {total_logs} 条):"]
+
+    for i, log_path in enumerate(current_page_logs, start=start_idx + 1):
+        # 获取文件修改时间
+        try:
+            mod_time = datetime.fromtimestamp(log_path.stat().st_mtime).strftime("%m-%d %H:%M:%S")
+            result_lines.append(f"{i}. 📄 [{mod_time}] {log_path.name}")
+        except:
+            result_lines.append(f"{i}. 📄 {log_path.name}")
+
+    result_lines.append("\n🔍 使用方法:")
+    result_lines.append("log_err_list -p <页码> -s <每页数量>: 查看最近错误日志列表")
+    result_lines.append("log_err_list -a/--all: 查看错误日志目录中的所有日志文件")
+    result_lines.append("log_chat_test <日志索引/文件名> [-g <模型组名>] [--stream]: 使用错误日志内容测试请求")
+
+    await finish_with(matcher, message="\n".join(result_lines))
+
+
+@on_command("log_chat_test", aliases={"log-chat-test"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """使用错误日志中的对话测试LLM请求"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    from nekro_agent.services.agent.run_agent import RECENT_ERR_LOGS
+
+    # 解析参数
+    args = cmd_content.strip().split()
+    if not args:
+        await finish_with(matcher, message="⚠️ 请指定要测试的日志索引或文件名")
+
+    log_identifier = args[0]
+    model_group_name = config.USE_MODEL_GROUP  # 默认使用主模型组
+    use_stream_mode = False  # 是否使用流式请求
+
+    # 检查是否指定了模型组或流式模式
+    i = 1
+    while i < len(args):
+        if args[i] == "-g" and i + 1 < len(args):
+            model_group_name = args[i + 1]
+            i += 2
+        elif args[i] == "--stream" or args[i] == "-s":
+            use_stream_mode = True
+            i += 1
+        else:
+            i += 1
+
+    # 验证模型组是否存在
+    if model_group_name not in config.MODEL_GROUPS:
+        await finish_with(matcher, message=f"⚠️ 指定的模型组 '{model_group_name}' 不存在")
+
+    model_group = config.MODEL_GROUPS[model_group_name]
+
+    # 查找目标日志文件
+    log_path = None
+    try:
+        # 尝试作为索引解析
+        idx = int(log_identifier) - 1
+        logs = list(RECENT_ERR_LOGS)
+        if 0 <= idx < len(logs):
+            log_path = logs[idx]
+    except ValueError:
+        # 尝试作为文件名匹配队列中的文件
+        for p in RECENT_ERR_LOGS:
+            if log_identifier == p.name:
+                log_path = p
+                break
+
+        # 如果仍未找到，尝试直接在错误日志目录中查找
+        if not log_path:
+            direct_path = Path(PROMPT_ERROR_LOG_DIR) / log_identifier
+            if direct_path.exists() and direct_path.is_file():
+                log_path = direct_path
+
+    if not log_path and not log_identifier.endswith(".json"):
+        direct_path = Path(PROMPT_ERROR_LOG_DIR) / f"{log_identifier}.json"
+        if direct_path.exists() and direct_path.is_file():
+            log_path = direct_path
+
+    if not log_path:
+        await finish_with(
+            matcher,
+            message=f"⚠️ 未找到指定的日志: {log_identifier}\n提示: 可以使用log_err_list命令查看最近的错误日志，或直接指定错误日志目录中的文件名",
+        )
+
+    # 检查日志文件是否存在
+    if not log_path.exists():
+        await finish_with(matcher, message=f"⚠️ 日志文件不存在: {log_path.name}")
+
+    # 读取日志文件内容
+    try:
+        log_content = log_path.read_text(encoding="utf-8")
+        log_data = json.loads(log_content)
+    except Exception as e:
+        await finish_with(matcher, message=f"⚠️ 解析日志文件失败: {e}")
+
+    # 从日志中提取messages
+    try:
+        messages = log_data["request"]["messages"]
+    except KeyError:
+        # 尝试旧格式
+        try:
+            messages = log_data.get("messages", [])
+            if not messages:
+                await finish_with(matcher, message=f"⚠️ 日志中未找到有效的对话内容: {log_path.name}")
+        except (KeyError, AttributeError):
+            await finish_with(matcher, message=f"⚠️ 日志格式不合法或未找到有效的对话内容: {log_path.name}")
+
+    # 测试前的提示信息
+    stream_info = "（流式模式）" if use_stream_mode else ""
+    testing_message = (
+        f"🚀 正在使用 {model_group.CHAT_MODEL} ({model_group_name}) {stream_info}\n测试请求日志: {log_path.name}..."
+    )
+    await matcher.send(testing_message)
+
+    # 发起测试请求
+    start_time = time.time()
+    try:
+        llm_response: OpenAIResponse = await gen_openai_chat_response(
+            model=model_group.CHAT_MODEL,
+            messages=messages,
+            base_url=model_group.BASE_URL,
+            api_key=model_group.API_KEY,
+            stream_mode=use_stream_mode,
+            proxy_url=model_group.CHAT_PROXY,
+            max_wait_time=config.AI_GENERATE_TIMEOUT,
+        )
+        end_time = time.time()
+
+        # 获取响应总长度
+        total_length = len(llm_response.response_content)
+
+        # 截取响应结果的前 64 个字符
+        preview = (
+            llm_response.response_content[:64] + "..."
+            if len(llm_response.response_content) > 64
+            else llm_response.response_content
+        )
+
+        # 构建响应消息
+        elapsed = end_time - start_time
+        # 根据响应时间添加不同的emoji
+        speed_emoji = "⚡" if elapsed < 1 else "🚀" if elapsed < 3 else "🏃" if elapsed < 5 else "🐢"
+
+        # 根据长度选择emoji
+        length_emoji = "📏" if total_length < 100 else "📊" if total_length < 500 else "📜" if total_length < 2000 else "📚"
+
+        result_message = (
+            f"🟢 测试成功！\n"
+            f"📊 测试结果:\n"
+            f"- 模型: {model_group.CHAT_MODEL}\n"
+            f"- 流式模式: {use_stream_mode}\n"
+            f"- 耗时: {speed_emoji} {elapsed:.2f}s\n"
+            f"- 响应预览>\n{preview}\n======\n"
+            f"响应总长度: {length_emoji} {total_length} 字符\n"
+        )
+
+    except Exception as e:
+        end_time = time.time()
+        elapsed = end_time - start_time
+
+        safe_error: str = str(e).replace(model_group.API_KEY, "[API_KEY]").replace(model_group.BASE_URL, "[BASE_URL]")
+
+        await finish_with(
+            matcher,
+            message=(
+                f"🔴 测试失败！\n"
+                f"📊 测试结果:\n"
+                f"- 模型: {model_group.CHAT_MODEL}\n"
+                f"- 流式模式: {use_stream_mode}\n"
+                f"- 耗时: {elapsed:.2f}s\n"
+                f"- 错误信息: {safe_error!s}"
+            ),
+        )
+    else:
+        await finish_with(matcher, message=result_message)

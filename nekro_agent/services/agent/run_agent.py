@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import time
+from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
@@ -9,7 +10,7 @@ import weave
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import ModelConfigGroup, config
-from nekro_agent.core.os_env import PROMPT_LOG_DIR
+from nekro_agent.core.os_env import PROMPT_ERROR_LOG_DIR, PROMPT_LOG_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
@@ -29,6 +30,9 @@ from .templates.practice import (
     PracticePrompt_response_2,
 )
 from .templates.system import SystemPrompt
+
+# 使用deque保存最近100条错误日志路径
+RECENT_ERR_LOGS = deque(maxlen=100)
 
 
 @weave.op(name="run_agent")
@@ -200,6 +204,14 @@ async def send_agent_request(
         config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP] if config.FALLBACK_MODEL_GROUP else model_group
     )
 
+    if config.SAVE_PROMPTS_LOG:
+        log_path = f'{PROMPT_LOG_DIR}/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.json'
+    else:
+        log_path = None
+    err_log_path = (
+        f'{PROMPT_ERROR_LOG_DIR}/chat_err_{model_group.CHAT_MODEL}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.json'
+    )
+
     used_model_group: ModelConfigGroup = model_group  # 记录实际使用的模型组
 
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
@@ -214,12 +226,17 @@ async def send_agent_request(
                 stream_mode=config.AI_REQUEST_STREAM_MODE,
                 proxy_url=use_model_group.CHAT_PROXY,
                 max_wait_time=config.AI_GENERATE_TIMEOUT,
-                log_path=f'{PROMPT_LOG_DIR}/chat_log_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")}.log',
+                log_path=log_path,
+                error_log_path=err_log_path,
             )
         except Exception as e:
             logger.error(
                 f'LLM 请求失败: {e} ｜ 使用模型: {use_model_group.CHAT_MODEL} {"(fallback)" if i == config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else ""}',
             )
+            # 避免重复添加，转换为Path对象并比较绝对路径
+            err_log_path_obj = Path(err_log_path)
+            if not any(str(log_path.absolute()) == str(err_log_path_obj.absolute()) for log_path in RECENT_ERR_LOGS):
+                RECENT_ERR_LOGS.append(err_log_path_obj)
             continue
         else:
             used_model_group = use_model_group  # 记录成功使用的模型组

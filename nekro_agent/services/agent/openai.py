@@ -39,6 +39,7 @@ class OpenAIResponse(BaseModel):
     first_token_cost_ms: int  # 首 token 生成时间
     generation_time_ms: int  # 总生成时间
     stream_mode: bool  # 是否为流式模式
+    log_path: Optional[Union[str, Path]] = None  # 日志文件路径
 
     def gen_log(self, lang: str = "zh") -> str:
         """生成日志"""
@@ -193,8 +194,11 @@ class OpenAIResponse(BaseModel):
         top_p: Optional[float] = None,
         max_tokens: Optional[int] = None,
         stop_words: Optional[List[str]] = None,
-    ) -> None:
+    ) -> bool:
         """保存日志到文件"""
+        if not log_path:
+            return False
+
         path: Path = Path(log_path)
         path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -234,6 +238,36 @@ class OpenAIResponse(BaseModel):
             async with aiofiles.open(path, "w", encoding="utf-8") as f:
                 await f.write(log_text)
 
+        return True
+
+
+class OpenAIErrResponse(OpenAIResponse):
+    error_msg: str  # 错误信息
+
+    @classmethod
+    def create_from_exception(
+        cls,
+        e: Exception,
+        use_model: str,
+        stream_mode: bool,
+        log_path: Optional[Union[str, Path]] = None,
+    ) -> "OpenAIErrResponse":
+        return cls(
+            response_content="",
+            thought_chain="",
+            message_cnt=0,
+            token_consumption=0,
+            token_input=0,
+            token_output=0,
+            use_model=use_model,
+            speed_tokens_per_second=0,
+            first_token_cost_ms=0,
+            generation_time_ms=0,
+            stream_mode=stream_mode,
+            log_path=log_path,
+            error_msg=str(e),
+        )
+
 
 class OpenAIStreamChunk(BaseModel):
     chunk_text: str  # 当前生成的文本
@@ -264,6 +298,7 @@ async def gen_openai_chat_response(
     thought_chain_field_name: str = "reasoning_content",
     chunk_callback: Optional[_AsyncFunc] = None,
     log_path: Optional[Union[str, Path]] = None,
+    error_log_path: Optional[Union[str, Path]] = None,
     log_style: Literal["json", "text", "auto"] = "auto",
 ) -> OpenAIResponse:
     """生成聊天回复内容"""
@@ -294,73 +329,85 @@ async def gen_openai_chat_response(
     first_token_time: Optional[float] = None
 
     # 使用async with语法创建和管理httpx客户端
-    async with httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=10, read=max_wait_time or 3600, write=max_wait_time or 3600, pool=10),
-        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
-    ) as http_client:
-        client = AsyncOpenAI(
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=max_wait_time or 3600, write=max_wait_time or 3600, pool=10),
+            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+        ) as http_client, AsyncOpenAI(
             api_key=api_key.strip() if api_key else None,
             base_url=base_url or _OPENAI_BASE_URL,
             http_client=http_client,
-        )
+        ) as client:
 
-        if stream_mode:
-            res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
-                model=model,
+            if stream_mode:
+                res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    **gen_kwargs,
+                    stream=True,
+                )
+
+                async for chunk in res_stream:
+                    if not first_token_time:
+                        first_token_time = time.time()
+                    chunk_text: Optional[str] = chunk.choices[0].delta.content
+                    if chunk_text:
+                        output += f"{chunk_text}"
+                    if hasattr(chunk.choices[0].delta, thought_chain_field_name):
+                        _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
+                        if _thought_chain:
+                            thought_chain += _thought_chain
+                    else:
+                        _thought_chain = ""
+
+                    if chunk.usage and chunk.usage.total_tokens is not None:
+                        token_consumption += chunk.usage.total_tokens
+
+                    if chunk.usage and chunk.usage.prompt_tokens is not None:
+                        token_input += chunk.usage.prompt_tokens
+
+                    completion_tokens = 0
+                    if chunk.usage and chunk.usage.completion_tokens is not None:
+                        completion_tokens = chunk.usage.completion_tokens
+                    token_output += completion_tokens
+
+                    if chunk_callback and await chunk_callback(
+                        OpenAIStreamChunk(
+                            chunk_text=chunk_text or "",
+                            thought_chain=_thought_chain or "",
+                            token_consumption=token_consumption,
+                            token_input=token_input,
+                            token_output=token_output,
+                        ),
+                    ):
+                        break
+            else:
+                res: ChatCompletion = await client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    **gen_kwargs,
+                )
+                if not res.choices[0].message.content:
+                    raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
+
+                output = res.choices[0].message.content
+                if hasattr(res.choices[0].message, thought_chain_field_name):
+                    thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
+                token_consumption: int = res.usage.total_tokens if res.usage else 0
+                token_input: int = res.usage.prompt_tokens if res.usage else 0
+                token_output: int = res.usage.completion_tokens if res.usage else 0
+
+    except Exception as e:
+        logger.exception(f"OpenAI请求失败: {e}")
+        response = OpenAIErrResponse.create_from_exception(e, use_model=model, stream_mode=stream_mode, log_path=error_log_path)
+        if error_log_path:
+            await response.save_log(
+                log_path=error_log_path,
+                log_style=log_style,
                 messages=messages,
-                **gen_kwargs,
-                stream=True,
+                message_cnt=len(messages) + 1,
             )
-
-            async for chunk in res_stream:
-                if not first_token_time:
-                    first_token_time = time.time()
-                chunk_text: Optional[str] = chunk.choices[0].delta.content
-                if chunk_text:
-                    output += f"{chunk_text}"
-                if hasattr(chunk.choices[0].delta, thought_chain_field_name):
-                    _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
-                    if _thought_chain:
-                        thought_chain += _thought_chain
-                else:
-                    _thought_chain = ""
-
-                if chunk.usage and chunk.usage.total_tokens is not None:
-                    token_consumption += chunk.usage.total_tokens
-
-                if chunk.usage and chunk.usage.prompt_tokens is not None:
-                    token_input += chunk.usage.prompt_tokens
-
-                completion_tokens = 0
-                if chunk.usage and chunk.usage.completion_tokens is not None:
-                    completion_tokens = chunk.usage.completion_tokens
-                token_output += completion_tokens
-
-                if chunk_callback and await chunk_callback(
-                    OpenAIStreamChunk(
-                        chunk_text=chunk_text or "",
-                        thought_chain=_thought_chain or "",
-                        token_consumption=token_consumption,
-                        token_input=token_input,
-                        token_output=token_output,
-                    ),
-                ):
-                    break
-        else:
-            res: ChatCompletion = await client.chat.completions.create(
-                model=model,
-                messages=messages,
-                **gen_kwargs,
-            )
-            if not res.choices[0].message.content:
-                raise ValueError("Chat response is empty! Response: %s", res)
-
-            output = res.choices[0].message.content
-            if hasattr(res.choices[0].message, thought_chain_field_name):
-                thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
-            token_consumption: int = res.usage.total_tokens if res.usage else 0
-            token_input: int = res.usage.prompt_tokens if res.usage else 0
-            token_output: int = res.usage.completion_tokens if res.usage else 0
+        raise
 
     # 时间统计
     _end_time: float = time.time()
@@ -382,6 +429,7 @@ async def gen_openai_chat_response(
         first_token_cost_ms=_first_token_cost_ms or 0,
         generation_time_ms=_generation_time_ms,
         stream_mode=stream_mode,
+        log_path=log_path,
     )
 
     if log_path:
