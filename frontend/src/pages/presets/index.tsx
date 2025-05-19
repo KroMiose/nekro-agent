@@ -1454,7 +1454,7 @@ export default function PresetsPage() {
   }
 
   return (
-    <Box className="h-full flex flex-col p-4">
+    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
       <Box className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <Box component="form" onSubmit={handleSearch} className="flex" autoComplete="off">
           <TextField
