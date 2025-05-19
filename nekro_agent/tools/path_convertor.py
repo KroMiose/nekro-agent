@@ -86,7 +86,7 @@ def convert_to_host_path(
 
     # 设置默认工作目录为 /app
     base_path = Path("/app")
-    
+
     # 如果是相对路径，将其转换为绝对路径
     if not sandbox_path.is_absolute():
         sandbox_path = base_path / sandbox_path
@@ -98,7 +98,9 @@ def convert_to_host_path(
     location = detect_path_location(clean_path)
     if not location:
         logger.warning(f"Unable to detect path location for: {sandbox_path}")
-        raise ValueError(f"Unable to detect path location for: {sandbox_path}")
+        raise ValueError(
+            f"Unable to detect path location for: {sandbox_path}, make sure your path is valid shared path or upload path",
+        )
 
     # 获取相对路径部分
     try:
@@ -114,7 +116,7 @@ def convert_to_host_path(
     if location == PathLocation.SHARED:
         _validate_shared_path(container_key)
         return shared_dir / str(container_key) / relative_path
-    raise ValueError(f"Invalid path location: {location}")
+    raise ValueError(f"Invalid path location: {location}, make sure your path is valid shared path or upload path")
 
 
 def is_url_path(path: str) -> bool:
