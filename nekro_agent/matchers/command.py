@@ -49,6 +49,7 @@ async def command_guard(
     bot: Bot,
     arg: Message,
     matcher: Matcher,
+    trigger_on_off: bool = False,
 ) -> Tuple[str, str, str, ChatType]:
     """指令执行前处理
 
@@ -63,7 +64,7 @@ async def command_guard(
     """
     chat_key, chat_type = await get_chat_info(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
-    if not db_chat_channel.is_active:
+    if not db_chat_channel.is_active and not trigger_on_off:
         await matcher.finish()
     username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
     # 判断是否是禁止使用的用户
@@ -237,7 +238,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("na_on", aliases={"na-on"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, trigger_on_off=True)
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
@@ -246,19 +247,16 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         for channel in await DBChatChannel.all():
             await channel.set_active(True)
         await finish_with(matcher, message="已开启所有群聊的聊天功能")
-        return
     if target_chat_key == "private_*":
         for channel in await DBChatChannel.all():
             if channel.chat_type == ChatType.PRIVATE:
                 await channel.set_active(True)
         await finish_with(matcher, message="已开启所有私聊的聊天功能")
-        return
     if target_chat_key == "group_*":
         for channel in await DBChatChannel.all():
             if channel.chat_type == ChatType.GROUP:
                 await channel.set_active(True)
         await finish_with(matcher, message="已开启所有群聊的聊天功能")
-        return
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     await db_chat_channel.set_active(True)
     await finish_with(matcher, message=f"已开启 {target_chat_key} 的聊天功能")
