@@ -178,8 +178,8 @@ async def get_chat_channel_messages(
     if not channel:
         return Ret.fail(msg="会话不存在")
 
-    # 查询消息
-    query = DBChatMessage.filter(chat_key=chat_key)
+    # 查询消息，只返回conversation_start_time之后的消息
+    query = DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time)
     if before_id:
         query = query.filter(id__lt=before_id)
 

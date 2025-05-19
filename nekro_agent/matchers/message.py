@@ -33,6 +33,10 @@ async def _(
 ):
     chat_key, chat_type = await get_chat_info(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+
+    if not db_chat_channel.is_active:
+        return
+
     # 用户信息处理
     sender_real_nickname: Optional[str] = event.sender.nickname or event.sender.card
     assert sender_real_nickname
