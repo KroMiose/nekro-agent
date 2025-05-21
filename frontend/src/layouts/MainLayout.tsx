@@ -346,7 +346,7 @@ export default function MainLayout() {
                       selected={location.pathname === child.path}
                       sx={{
                         pl: 4,
-                        py: isSmall ? 0.75 : 1.5,
+                        py: isSmall ? 0.75 : 1,
                         '&.Mui-selected': {
                           backgroundColor: UI_STYLES.SELECTED,
                           borderLeft: UI_STYLES.BORDERS.MENU.ACTIVE,
