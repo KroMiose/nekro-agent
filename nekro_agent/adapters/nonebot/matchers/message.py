@@ -11,16 +11,20 @@ from nonebot.adapters.onebot.v11 import (
 )
 from nonebot.matcher import Matcher
 
+from nekro_agent.adapters.nonebot.tools.convertor import convert_chat_message
+from nekro_agent.adapters.nonebot.tools.onebot_util import (
+    gen_chat_text,
+    get_chat_info,
+    get_user_name,
+)
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.user import UserCreate
-from nekro_agent.services.message.convertor import convert_chat_message
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.user.util import query_user_by_bind_qq, user_register
-from nekro_agent.tools.onebot_util import gen_chat_text, get_chat_info, get_user_name
 
 message_matcher: Type[Matcher] = on_message(priority=99999, block=False)
 

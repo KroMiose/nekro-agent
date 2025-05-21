@@ -5,11 +5,11 @@ import shutil
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, NoReturn, Optional, Tuple, Union
+from typing import Dict, List
 
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
+from nonebot.adapters.onebot.v11 import MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
@@ -27,8 +27,6 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
-
-# from nekro_agent.services.extension import get_all_ext_meta_data, reload_ext_workdir
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.services.message.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
@@ -37,86 +35,8 @@ from nekro_agent.services.sandbox.runner import limited_run_code
 from nekro_agent.systems.cloud.api.auth import check_official_repos_starred
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
-from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 
-
-async def finish_with(matcher: Matcher, message: str) -> NoReturn:
-    await matcher.finish(message=f"[Opt Output] {message}")
-
-
-async def command_guard(
-    event: Union[MessageEvent, GroupMessageEvent],
-    bot: Bot,
-    arg: Message,
-    matcher: Matcher,
-    trigger_on_off: bool = False,
-) -> Tuple[str, str, str, ChatType]:
-    """指令执行前处理
-
-    Args:
-        event (Union[MessageEvent, GroupMessageEvent]): 事件对象
-        bot (Bot): Bot 对象
-        arg (Message): 命令参数
-        matcher (Matcher): Matcher 对象
-
-    Returns:
-        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
-    """
-    chat_key, chat_type = await get_chat_info(event=event)
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
-    if not db_chat_channel.is_active and not trigger_on_off:
-        await matcher.finish()
-    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
-    # 判断是否是禁止使用的用户
-    if event.get_user_id() not in config.SUPER_USERS:
-        logger.warning(f"用户 {username} 不在允许的管理用户中")
-        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
-            await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中")
-        else:
-            await matcher.finish()
-
-    cmd_content: str = arg.extract_plain_text().strip()
-    return username, cmd_content, chat_key, chat_type
-
-
-async def reset_command_guard(
-    event: Union[MessageEvent, GroupMessageEvent],
-    bot: Bot,
-    arg: Message,
-    matcher: Matcher,
-) -> Tuple[str, str, str, ChatType]:
-    """Reset指令鉴权"""
-    chat_key, chat_type = await get_chat_info(event=event)
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
-    username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
-    cmd_content: str = arg.extract_plain_text().strip()
-
-    if event.get_user_id() in config.SUPER_USERS:
-        return username, cmd_content, chat_key, chat_type
-
-    # 非超级用户
-    if cmd_content and chat_key != cmd_content:
-        logger.warning(f"用户 {username} 尝试越权操作其他会话")
-        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
-            await finish_with(matcher, "您只能操作当前会话")
-        else:
-            await matcher.finish()
-
-    # 私聊用户允许操作
-    if chat_type == ChatType.PRIVATE:
-        return username, cmd_content, chat_key, chat_type
-
-    # 群聊检查管理员权限
-    if chat_type == ChatType.GROUP and isinstance(event, GroupMessageEvent) and event.sender.role in ["admin", "owner"]:
-        return username, cmd_content, chat_key, chat_type
-
-    # 无权限情况处理
-    logger.warning(f"用户 {username} 不在允许的管理用户中")
-    if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
-        await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中")
-    else:
-        await matcher.finish()
-    raise
+from .guard import command_guard, finish_with, reset_command_guard
 
 
 @on_command("reset", priority=5, block=True).handle()
@@ -848,71 +768,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-# ! 高风险命令
-@on_command("docker_restart", aliases={"docker-restart"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    if not OsEnv.RUN_IN_DOCKER:
-        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
-
-    container_name: str = cmd_content or "nekro_agent"
-    os.system(f"docker restart {container_name}")
-
-
-@on_command("docker_logs", aliases={"docker-logs"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    if not OsEnv.RUN_IN_DOCKER:
-        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
-
-    lines_limit: int = 100
-    container_name: str = cmd_content or "nekro_agent"
-    logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
-    await finish_with(matcher, message=f"容器日志: \n{logs}")
-
-
-@on_command("sh", priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-
-    outputs = os.popen(cmd_content).read()
-    await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
-
-
-DB_RESET_LATEST_TRIGGER_TIME: float = 0
-
-
-@on_command("nekro_db_reset", aliases={"nekro-db-reset"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    global DB_RESET_LATEST_TRIGGER_TIME
-
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-    args = cmd_content.split(" ")
-
-    if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:
-        DB_RESET_LATEST_TRIGGER_TIME = time.time()
-        await finish_with(
-            matcher,
-            message="正在准备执行数据库重置操作！确认继续重置请在 1 分钟内再次使用本命令并使用 `-y` 参数确认",
-        )
-        return
-
-    if "-y" in args:
-        args.remove("-y")
-        if len(args) > 1:
-            await finish_with(matcher, message="参数不合法")
-        if len(args) == 1:
-            await reset_db(args[0])
-            await finish_with(matcher, message=f"数据表 `{args[0]}` 重置完成")
-        else:
-            await reset_db()
-            await finish_with(matcher, message="数据库重置完成")
-    else:
-        await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")
-
-
 @on_command("github_stars_check", aliases={"github-stars-check"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     """检查用户是否已Star官方GitHub仓库"""
@@ -1179,3 +1034,68 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         )
     else:
         await finish_with(matcher, message=result_message)
+
+
+# ! 高风险命令
+@on_command("docker_restart", aliases={"docker-restart"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    container_name: str = cmd_content or "nekro_agent"
+    os.system(f"docker restart {container_name}")
+
+
+@on_command("docker_logs", aliases={"docker-logs"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not OsEnv.RUN_IN_DOCKER:
+        await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
+
+    lines_limit: int = 100
+    container_name: str = cmd_content or "nekro_agent"
+    logs = os.popen(f"docker logs {container_name} --tail {lines_limit}").read()
+    await finish_with(matcher, message=f"容器日志: \n{logs}")
+
+
+@on_command("sh", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    outputs = os.popen(cmd_content).read()
+    await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
+
+
+DB_RESET_LATEST_TRIGGER_TIME: float = 0
+
+
+@on_command("nekro_db_reset", aliases={"nekro-db-reset"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    global DB_RESET_LATEST_TRIGGER_TIME
+
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    args = cmd_content.split(" ")
+
+    if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:
+        DB_RESET_LATEST_TRIGGER_TIME = time.time()
+        await finish_with(
+            matcher,
+            message="正在准备执行数据库重置操作！确认继续重置请在 1 分钟内再次使用本命令并使用 `-y` 参数确认",
+        )
+        return
+
+    if "-y" in args:
+        args.remove("-y")
+        if len(args) > 1:
+            await finish_with(matcher, message="参数不合法")
+        if len(args) == 1:
+            await reset_db(args[0])
+            await finish_with(matcher, message=f"数据表 `{args[0]}` 重置完成")
+        else:
+            await reset_db()
+            await finish_with(matcher, message="数据库重置完成")
+    else:
+        await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")

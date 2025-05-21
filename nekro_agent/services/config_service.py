@@ -6,18 +6,7 @@
 import json
 from enum import Enum
 from pathlib import Path
-from typing import (
-    Any,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    get_args,
-)
+from typing import Any, Dict, List, Literal, Optional, Tuple, TypeVar, get_args
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase

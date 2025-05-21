@@ -12,11 +12,15 @@ from nonebot.params import CommandArg
 from pydantic import BaseModel, Field
 from qdrant_client import models as qdrant_models
 
+from nekro_agent.adapters.nonebot.matchers.command import (
+    command_guard,
+    finish_with,
+    on_command,
+)
 from nekro_agent.api import schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message.message_service import message_service

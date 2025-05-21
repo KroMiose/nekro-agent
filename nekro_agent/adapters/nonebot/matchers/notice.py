@@ -6,6 +6,7 @@ from nonebot import on_notice
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 from nonebot.matcher import Matcher
 
+from nekro_agent.adapters.nonebot.tools.onebot_util import get_chat_info, get_user_name
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -18,7 +19,6 @@ from nekro_agent.services.notice_service import (
     notice_manager,
 )
 from nekro_agent.services.user.util import query_user_by_bind_qq
-from nekro_agent.tools.onebot_util import get_chat_info, get_user_name
 from nekro_agent.tools.time_util import format_duration
 
 

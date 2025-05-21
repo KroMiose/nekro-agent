@@ -4,11 +4,12 @@ from typing import List, Optional, Union
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from pydantic import BaseModel
 
+from nekro_agent.adapters.nonebot.tools.onebot_util import get_user_group_card_name
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR, OsEnv
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
@@ -17,7 +18,6 @@ from nekro_agent.schemas.agent_message import (
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agent.resolver import fix_raw_response
 from nekro_agent.tools.common_util import download_file
-from nekro_agent.tools.onebot_util import get_user_group_card_name
 from nekro_agent.tools.path_convertor import (
     convert_to_host_path,
     is_url_path,

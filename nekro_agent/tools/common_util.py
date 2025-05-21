@@ -1,9 +1,11 @@
+import difflib
 import hashlib
 import random
 import re
 from pathlib import Path
 from typing import Tuple
 
+import aiofiles
 import httpx
 import magic
 import toml
@@ -12,6 +14,7 @@ from PIL import Image
 from nekro_agent.core import logger
 from nekro_agent.core.config import config
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
+from nekro_agent.tools.path_convertor import is_url_path
 
 
 def get_app_version() -> str:
@@ -263,3 +266,48 @@ def limited_text_output(text: str, limit: int = 1000, placeholder: str = "...") 
     left_limit = limit // 2 - len(placeholder) // 2
     right_limit = limit - left_limit
     return text[:left_limit] + placeholder + text[-right_limit:]
+
+
+async def calculate_file_md5(file_path: str, strict: bool = False) -> str:
+    """计算文件的 MD5 值或获取标识
+
+    Args:
+        file_path (str): 文件路径或 URL
+
+    Returns:
+        str: 本地文件返回 MD5 哈希值，URL 返回其链接
+    """
+    # 对于网络资源，直接返回 URL 作为标识
+    if is_url_path(file_path):
+        return hashlib.md5(file_path.encode()).hexdigest()
+
+    # 处理本地文件
+    try:
+        md5_hash = hashlib.md5()
+        async with aiofiles.open(file_path, "rb") as f:
+            while True:
+                chunk = await f.read(4096)
+                if not chunk:
+                    break
+                md5_hash.update(chunk)
+        return md5_hash.hexdigest()
+    except Exception as e:
+        if strict:
+            raise
+        logger.warning(f"计算文件 MD5 失败: {e}")
+        return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
+
+
+def calculate_text_similarity(text1: str, text2: str, min_length: int = 12) -> float:
+    """计算两段文本的相似度
+
+    Args:
+        text1 (str): 第一段文本
+        text2 (str): 第二段文本
+
+    Returns:
+        float: 相似度（0-1）
+    """
+    if len(text1) < min_length or len(text2) < min_length:
+        return 0
+    return difflib.SequenceMatcher(None, text1, text2).ratio()

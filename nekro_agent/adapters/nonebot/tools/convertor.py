@@ -1,8 +1,6 @@
-from fileinput import filename
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union, cast
+from typing import List, Tuple, Union
 
-import json5
 from nonebot.adapters.onebot.v11 import (
     Bot,
     GroupMessageEvent,
@@ -11,6 +9,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageEvent,
 )
 
+from nekro_agent.adapters.nonebot.tools.onebot_util import get_user_group_card_name
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import NAPCAT_TEMPFILE_DIR
@@ -21,14 +20,11 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentFile,
     ChatMessageSegmentImage,
     ChatMessageSegmentType,
-    segments_from_list,
 )
 from nekro_agent.tools.common_util import (
     copy_to_upload_dir,
     download_file,
 )
-from nekro_agent.tools.onebot_util import get_user_group_card_name
-from nekro_agent.tools.path_convertor import get_sandbox_path
 
 
 async def convert_chat_message(
@@ -214,40 +210,3 @@ async def convert_chat_message(
         )
 
     return ret_list, is_tome, message_id
-
-
-def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:
-    """将数据库保存的原始消息数据 JSON 转换为提示词字符串
-
-    Args:
-        json_data (str): 数据库保存的原始消息数据 JSON
-
-    Returns:
-        str: 提示词字符串
-    """
-
-    prompt_str = ""
-
-    for seg in segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))):
-        if isinstance(seg, ChatMessageSegmentImage):
-            prompt_str += (
-                f"<Image:{get_sandbox_path(seg.file_name)}>"
-                if travel_mode
-                else f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
-            )
-        elif isinstance(seg, ChatMessageSegmentFile):
-            prompt_str += (
-                f"<File:{get_sandbox_path(seg.file_name)}>"
-                if travel_mode
-                else f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
-            )
-        elif isinstance(seg, ChatMessageSegmentAt):
-            prompt_str += (
-                f"<At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
-                if travel_mode
-                else f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
-            )
-        elif isinstance(seg, ChatMessageSegment):
-            prompt_str += seg.text
-
-    return prompt_str

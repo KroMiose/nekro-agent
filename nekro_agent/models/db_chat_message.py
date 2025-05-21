@@ -1,16 +1,19 @@
 import datetime
-import json
-from typing import Dict, List, cast
+from typing import Any, Dict, List, cast
 
 import json5
 from tortoise import fields
 from tortoise.models import Model
 
 from nekro_agent.core.config import config
-from nekro_agent.schemas.chat_message import ChatMessageSegment, segments_from_list
-from nekro_agent.services.message.convertor import (
-    convert_raw_msg_data_json_to_msg_prompt,
+from nekro_agent.schemas.chat_message import (
+    ChatMessageSegment,
+    ChatMessageSegmentAt,
+    ChatMessageSegmentFile,
+    ChatMessageSegmentImage,
+    segments_from_list,
 )
+from nekro_agent.tools.path_convertor import get_sandbox_path
 
 
 class DBChatMessage(Model):
@@ -58,3 +61,40 @@ class DBChatMessage(Model):
     def parse_content_data(self) -> List[ChatMessageSegment]:
         """解析内容数据"""
         return segments_from_list(cast(List[Dict], json5.loads(self.content_data)))
+
+
+def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:
+    """将数据库保存的原始消息数据 JSON 转换为提示词字符串
+
+    Args:
+        json_data (str): 数据库保存的原始消息数据 JSON
+
+    Returns:
+        str: 提示词字符串
+    """
+
+    prompt_str = ""
+
+    for seg in segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))):
+        if isinstance(seg, ChatMessageSegmentImage):
+            prompt_str += (
+                f"<Image:{get_sandbox_path(seg.file_name)}>"
+                if travel_mode
+                else f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
+            )
+        elif isinstance(seg, ChatMessageSegmentFile):
+            prompt_str += (
+                f"<File:{get_sandbox_path(seg.file_name)}>"
+                if travel_mode
+                else f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
+            )
+        elif isinstance(seg, ChatMessageSegmentAt):
+            prompt_str += (
+                f"<At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+                if travel_mode
+                else f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+            )
+        elif isinstance(seg, ChatMessageSegment):
+            prompt_str += seg.text
+
+    return prompt_str

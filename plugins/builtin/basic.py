@@ -12,7 +12,11 @@ from nekro_agent.api import core, message, user
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message.message_service import message_service
-from nekro_agent.tools.common_util import download_file
+from nekro_agent.tools.common_util import (
+    calculate_file_md5,
+    calculate_text_similarity,
+    download_file,
+)
 from nekro_agent.tools.path_convertor import (
     convert_to_container_path,
     convert_to_host_path,
@@ -83,47 +87,6 @@ SEND_MSG_CACHE: Dict[str, List[str]] = {}
 SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_key: [md5_1, md5_2, md5_3]}
 
 
-def _calculate_text_similarity(text1: str, text2: str) -> float:
-    """计算两段文本的相似度
-
-    Args:
-        text1 (str): 第一段文本
-        text2 (str): 第二段文本
-
-    Returns:
-        float: 相似度（0-1）
-    """
-    return difflib.SequenceMatcher(None, text1, text2).ratio()
-
-
-async def _calculate_file_md5(file_path: str) -> str:
-    """计算文件的 MD5 值或获取标识
-
-    Args:
-        file_path (str): 文件路径或 URL
-
-    Returns:
-        str: 本地文件返回 MD5 哈希值，URL 返回其链接
-    """
-    # 对于网络资源，直接返回 URL 作为标识
-    if is_url_path(file_path):
-        return file_path
-
-    # 处理本地文件
-    try:
-        md5_hash = hashlib.md5()
-        async with aiofiles.open(file_path, "rb") as f:
-            while True:
-                chunk = await f.read(4096)
-                if not chunk:
-                    break
-                md5_hash.update(chunk)
-        return md5_hash.hexdigest()
-    except Exception as e:
-        core.logger.warning(f"计算文件 MD5 失败: {e}")
-        return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
-
-
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     name="发送聊天消息文本",
@@ -174,18 +137,17 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
         return
 
     # 检查相似度（仅对超过限定字符的消息进行检查）
-    if len(message_text) > config.SIMILARITY_CHECK_LENGTH:
-        for recent_msg in recent_messages:
-            similarity = _calculate_text_similarity(message_text, recent_msg)
-            if similarity > config.SIMILARITY_THRESHOLD:
-                # 发送系统消息提示避免类似内容
-                core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
-                await message_service.push_system_message(
-                    chat_key=chat_key,
-                    agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
-                    trigger_agent=False,
-                )
-                break
+    for recent_msg in recent_messages:
+        similarity = calculate_text_similarity(message_text, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
+        if similarity > config.SIMILARITY_THRESHOLD:
+            # 发送系统消息提示避免类似内容
+            core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+            await message_service.push_system_message(
+                chat_key=chat_key,
+                agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
+                trigger_agent=False,
+            )
+            break
 
     try:
         await message.send_text(chat_key, message_text, _ctx)
@@ -233,7 +195,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
         SEND_FILE_CACHE[chat_key] = []
 
     # 计算文件 MD5
-    file_md5 = await _calculate_file_md5(file_host_path)
+    file_md5 = await calculate_file_md5(file_host_path)
 
     # 检查是否重复发送
     if file_md5 in SEND_FILE_CACHE[chat_key]:
