@@ -1,8 +1,3 @@
-"""用户相关 API
-
-此模块提供了与用户相关的 API 接口。
-"""
-
 from pathlib import Path
 
 from nekro_agent.api.schemas import AgentCtx
@@ -10,10 +5,6 @@ from nekro_agent.tools.common_util import (
     download_file,
 )
 from nekro_agent.tools.path_convertor import convert_to_container_path
-
-__all__ = [
-    "get_avatar",
-]
 
 
 async def get_avatar(user_qq: str, ctx: AgentCtx) -> str:

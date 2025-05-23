@@ -1,9 +1,9 @@
 from pydantic import Field
 
+from nekro_agent.adapters.nonebot.core.bot import get_bot
 from nekro_agent.api import context, core, message
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.core.bot import get_bot
 from nekro_agent.core.config import config
 
 plugin = NekroPlugin(

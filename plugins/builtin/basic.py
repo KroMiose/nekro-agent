@@ -8,10 +8,11 @@ import aiofiles
 import magic
 from pydantic import Field
 
-from nekro_agent.api import core, message, user
+from nekro_agent.adapters.nonebot.tools import user
+from nekro_agent.api import core, message
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import (
     calculate_file_md5,
     calculate_text_similarity,

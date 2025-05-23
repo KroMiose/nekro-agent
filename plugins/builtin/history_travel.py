@@ -62,9 +62,9 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
                  normal "word" for OR (any match).
 
     Examples:
-        >>> find_history_travel("group_123456789", ["吃饭", "午饭"]) # Find messages containing either "吃饭" OR "午饭"
-        >>> find_history_travel("group_123456789", ["+吃饭", "+午饭"]) # Find messages containing BOTH "吃饭" AND "午饭"
-        >>> find_history_travel("group_123456789", ["晚餐", "-鱼"]) # Find messages containing "晚餐" but NOT "鱼"
+        >>> find_history_travel(_ck, ["吃饭", "午饭"]) # Find messages containing either "吃饭" OR "午饭"
+        >>> find_history_travel(_ck, ["+吃饭", "+午饭"]) # Find messages containing BOTH "吃饭" AND "午饭"
+        >>> find_history_travel(_ck, ["晚餐", "-鱼"]) # Find messages containing "晚餐" but NOT "鱼"
         "Stop and wait for the result..."
     """
     db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
@@ -222,7 +222,7 @@ async def find_history_travel_range(
         next_count: Number of messages to fetch after the base message (default: 10)
 
     Examples:
-        >>> find_history_travel_range("group_123456789", "100") # Get from the 2nd message before to the 10th message after the message with ID 100
+        >>> find_history_travel_range(_ck, "100") # Get from the 2nd message before to the 10th message after the message with ID 100
         "Stop and wait for the result..."
     """
 

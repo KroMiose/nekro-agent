@@ -4,7 +4,10 @@ from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
 from nonebot.matcher import Matcher
 
-from nekro_agent.adapters.nonebot.tools.onebot_util import get_chat_info, get_user_name
+from nekro_agent.adapters.nonebot.tools.onebot_util import (
+    get_chat_info_old,
+    get_user_name,
+)
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -33,7 +36,7 @@ async def command_guard(
     Returns:
         Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
     """
-    chat_key, chat_type = await get_chat_info(event=event)
+    chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     if not db_chat_channel.is_active and not trigger_on_off:
         await matcher.finish()
@@ -57,7 +60,7 @@ async def reset_command_guard(
     matcher: Matcher,
 ) -> Tuple[str, str, str, ChatType]:
     """Reset指令鉴权"""
-    chat_key, chat_type = await get_chat_info(event=event)
+    chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     username = await get_user_name(event=event, bot=bot, user_id=event.get_user_id(), db_chat_channel=db_chat_channel)
     cmd_content: str = arg.extract_plain_text().strip()

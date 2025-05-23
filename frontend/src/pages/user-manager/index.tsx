@@ -115,13 +115,14 @@ const UserManagerPage: React.FC = () => {
           gap: 1,
           pl: 1,
           flexShrink: 0,
-          flexDirection: isSmall ? 'column' : 'row',
+          flexDirection: 'row',
+          alignItems: 'center',
         }}
       >
         <TextField
           placeholder="搜索用户名或QQ号"
           size="small"
-          fullWidth={isSmall}
+          sx={{ flex: 1 }}
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
           onKeyPress={e => e.key === 'Enter' && handleSearch()}
@@ -137,7 +138,10 @@ const UserManagerPage: React.FC = () => {
           variant="contained"
           onClick={handleSearch}
           size={isSmall ? 'small' : 'medium'}
-          sx={{ minWidth: isSmall ? '100%' : 'auto' }}
+          sx={{
+            minWidth: isSmall ? '60px' : '80px',
+            flexShrink: 0,
+          }}
         >
           搜索
         </Button>
@@ -182,7 +186,7 @@ const UserManagerPage: React.FC = () => {
               stickyHeader: true,
               sx: {
                 tableLayout: 'fixed',
-                minWidth: isMobile ? '600px' : '900px',
+                minWidth: '800px',
               },
             }}
           />

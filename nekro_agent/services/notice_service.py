@@ -13,7 +13,7 @@ class NoticeConfig:
     """通知配置"""
 
     force_tome: bool = False  # 是否强制设置为 tome
-    use_system_sender: bool = False  # 是否使用系统发送者 (bind_qq='0')
+    use_system_sender: bool = False  # 是否使用系统发送者 (platform_userid='0')
     use_operator_as_sender: bool = False  # 是否使用操作者作为发送者
 
 
@@ -49,14 +49,14 @@ class BaseNoticeHandler:
         """
         raise NotImplementedError
 
-    def get_sender_bind_qq(self, info: Dict[str, str]) -> str:
-        """获取发送者QQ
+    def get_sender_platform_userid(self, info: Dict[str, str]) -> str:
+        """获取发送者平台用户ID
 
         Args:
             info (Dict[str, str]): 通知信息
 
         Returns:
-            str: 发送者QQ
+            str: 发送者平台用户ID
         """
         if self.config.use_system_sender:
             return "0"

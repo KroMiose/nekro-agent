@@ -109,21 +109,21 @@ async def set_timer(
         ```python
         # 临时定时器（自我唤醒）
         set_timer(
-            chat_key="group_123",
+            chat_key=_ck,
             trigger_time=int(time.time()) + 60,
             event_desc="我刚才建议用户重启，需要观察反馈。",
             temporary=True
         )
 
         # 清空临时定时器
-        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=True)
+        set_timer(chat_key=_ck, trigger_time=-1, event_desc="", temporary=True)
 
         # 清空非临时定时器
-        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=False)
+        set_timer(chat_key=_ck, trigger_time=-1, event_desc="", temporary=False)
 
         # 普通定时器（常规提醒）
         set_timer(
-            chat_key="group_123",
+            chat_key=_ck,
             trigger_time=int(time.time()) + 300,
             event_desc="提醒吃早餐。context: 用户5分钟前说要吃早餐，让我提醒。",
             temporary=False

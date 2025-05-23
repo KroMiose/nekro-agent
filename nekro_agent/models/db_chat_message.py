@@ -20,16 +20,17 @@ class DBChatMessage(Model):
     """数据库聊天消息模型"""
 
     id = fields.IntField(pk=True, generated=True, description="ID")
-    message_id = fields.CharField(max_length=32, index=True, description="消息平台 ID")
     sender_id = fields.CharField(max_length=32, index=True, description="发送者 ID")
-    sender_bind_qq = fields.CharField(max_length=32, index=True, description="发送者绑定 QQ")
-    sender_real_nickname = fields.CharField(max_length=128, index=True, description="发送者真实昵称")
+    sender_name = fields.CharField(max_length=128, index=True, description="发送者真实昵称")
     sender_nickname = fields.CharField(max_length=128, index=True, description="发送者显示昵称")
     is_tome = fields.IntField(description="是否与 Bot 相关")
     is_recalled = fields.BooleanField(description="是否为撤回消息")
 
-    chat_key = fields.CharField(max_length=32, index=True, description="会话唯一标识")
-    chat_type = fields.CharField(max_length=32, description="会话类型: friend/group")
+    adapter_key = fields.CharField(max_length=64, index=True, description="适配器标识")
+    message_id = fields.CharField(max_length=32, index=True, description="消息平台 ID")
+    chat_key = fields.CharField(max_length=64, index=True, description="会话唯一标识")
+    chat_type = fields.CharField(max_length=32, index=True, description="会话类型")
+    platform_userid = fields.CharField(max_length=64, index=True, description="平台用户 ID")
 
     content_text = fields.TextField(description="消息内容文本")
     content_data = fields.TextField(description="消息内容数据 JSON")
@@ -56,7 +57,7 @@ class DBChatMessage(Model):
             )
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
         additional_info = f" (message_id: {self.id})" if travel_mode else ""
-        return f'[{time_str} from_qq:{self.sender_bind_qq}] "{self.sender_nickname}" 说: {content or self.content_text}{additional_info}'
+        return f'[{time_str} id:{self.platform_userid}] "{self.sender_nickname}" 说: {content or self.content_text}{additional_info}'
 
     def parse_content_data(self) -> List[ChatMessageSegment]:
         """解析内容数据"""
@@ -90,9 +91,9 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, 
             )
         elif isinstance(seg, ChatMessageSegmentAt):
             prompt_str += (
-                f"<At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+                f"<At:[@id:{seg.target_platform_userid};nickname:{seg.target_nickname}@]>"
                 if travel_mode
-                else f"<{one_time_code} | At:[@qq:{seg.target_qq};nickname:{seg.target_nickname}@]>"
+                else f"<{one_time_code} | At:[@id:{seg.target_platform_userid};nickname:{seg.target_nickname}@]>"
             )
         elif isinstance(seg, ChatMessageSegment):
             prompt_str += seg.text

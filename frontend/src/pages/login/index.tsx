@@ -664,7 +664,7 @@ export default function LoginPage() {
                       lineHeight: 1.5,
                     }}
                   >
-                    开启优雅智能的交互之旅
+                    开启优雅智能交互之旅
                   </Typography>
                 </motion.div>
               </Box>

@@ -7,8 +7,8 @@ from typing import Dict, List, Optional, Union
 
 import magic
 
+from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import config, logger
-from nekro_agent.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
@@ -46,9 +46,9 @@ class MessageService:
         if re.match(r"<.{4,12}\|messageseperator>", plaint_text):
             is_fake_message = True
 
-        if "message" in plaint_text and "(qq:" in plaint_text:
+        if "message" in plaint_text and "(id:" in plaint_text:
             is_fake_message = True
-        if "from_qq:" in plaint_text:  # noqa: SIM103
+        if "from_id:" in plaint_text:  # noqa: SIM103
             is_fake_message = True
 
         if is_fake_message:
@@ -108,14 +108,15 @@ class MessageService:
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import run_agent
 
+        adapter = await adapter_utils.get_adapter_for_chat(chat_key)
+
+        logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
+
+        # 设置处理emoji
         if message and config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
-            try:
-                await get_bot().call_api("set_msg_emoji_like", message_id=int(message.message_id), emoji_id="212")
-            except Exception as e:
-                logger.error(f"设置消息emoji失败: {e} | 如果协议端不支持该功能，请关闭配置 `SESSION_PROCESSING_WITH_EMOJI`")
+            await adapter.set_message_reaction(message.message_id, True)
 
         try:
-            logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
             for _i in range(3):
                 try:
                     await run_agent(chat_key=chat_key, chat_message=message)
@@ -133,16 +134,9 @@ class MessageService:
             final_message = self.pending_messages.pop(chat_key, None)
             self.debounce_timers.pop(chat_key, None)
 
+            # 取消处理emoji（如果设置过）
             if config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
-                try:
-                    await get_bot().call_api(
-                        "set_msg_emoji_like",
-                        message_id=int(message.message_id),
-                        emoji_id="212",
-                        set="false",
-                    )
-                except Exception as e:
-                    logger.error(f"设置消息emoji失败: {e} | 如果协议端不支持该功能，请关闭配置 `SESSION_PROCESSING_WITH_EMOJI`")
+                await adapter.set_message_reaction(message.message_id, False)
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
@@ -156,8 +150,7 @@ class MessageService:
         trigger_agent: bool = False,
         db_chat_channel: Optional[DBChatChannel] = None,
     ):
-        """推送人类消息"""
-        logger.info(f'Message Received: "{message.content_text}" From {message.sender_real_nickname}')
+        """推送人类用户消息"""
         db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=message.chat_key)
         preset = await db_chat_channel.get_preset()
 
@@ -166,7 +159,6 @@ class MessageService:
             return
 
         content_data = [o.model_dump() for o in message.content_data]
-        current_time: float = time.time()
 
         if check_forbidden_message(message.content_text):
             logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
@@ -176,9 +168,10 @@ class MessageService:
         await DBChatMessage.create(
             message_id=message.message_id,
             sender_id=message.sender_id,
-            sender_bind_qq=message.sender_bind_qq,
-            sender_real_nickname=message.sender_real_nickname,
+            sender_name=message.sender_name,
             sender_nickname=message.sender_nickname,
+            adapter_key=message.adapter_key,
+            platform_userid=message.platform_userid,
             is_tome=message.is_tome,
             is_recalled=message.is_recalled,
             chat_key=message.chat_key,
@@ -187,7 +180,7 @@ class MessageService:
             content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code=message.raw_cq_code,
             ext_data=message.ext_data,
-            send_timestamp=int(current_time),  # 使用处理后的时间戳
+            send_timestamp=int(time.time()),  # 使用处理后的时间戳
         )
 
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
@@ -222,7 +215,6 @@ class MessageService:
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
-        send_timestamp = int(time.time())
         content_text = convert_agent_message_to_prompt(agent_messages)
 
         content_data = []
@@ -257,21 +249,23 @@ class MessageService:
                     },
                 )
 
+        adapter = adapter_utils.get_adapter(db_chat_channel.adapter_key)
         await DBChatMessage.create(
             message_id="",
             sender_id=-1,
-            sender_bind_qq=config.BOT_QQ or "0",
-            sender_real_nickname=preset.name,
+            sender_name=preset.name,
             sender_nickname=preset.name,
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid=(await adapter.get_self_info()).user_id,
             is_tome=0,
             is_recalled=False,
             chat_key=chat_key,
-            chat_type=ChatType.from_chat_key(chat_key).value,
+            chat_type=db_chat_channel.chat_type,
             content_text=content_text,
             content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
-            send_timestamp=send_timestamp,
+            send_timestamp=int(time.time()),
         )
 
     async def push_system_message(
@@ -288,24 +282,24 @@ class MessageService:
         if isinstance(agent_messages, str):
             agent_messages = [AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=agent_messages)]
 
-        send_timestamp = int(time.time())
         content_text = convert_agent_message_to_prompt(agent_messages)
 
         await DBChatMessage.create(
             message_id="",
             sender_id=-1,
-            sender_bind_qq="0",
-            sender_real_nickname="SYSTEM",
+            sender_name="SYSTEM",
             sender_nickname="SYSTEM",
-            is_tome=0,
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid="0",
+            is_tome=1 if trigger_agent else 0,
             is_recalled=False,
             chat_key=chat_key,
-            chat_type=ChatType.from_chat_key(chat_key).value,
+            chat_type=db_chat_channel.chat_type,
             content_text=content_text,
             content_data=json.dumps([], ensure_ascii=False),
             raw_cq_code="",
             ext_data={},
-            send_timestamp=send_timestamp,
+            send_timestamp=int(time.time()),
         )
 
         if trigger_agent:

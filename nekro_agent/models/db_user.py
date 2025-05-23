@@ -12,7 +12,9 @@ class DBUser(Model):
     id = fields.IntField(pk=True, generated=True, description="用户ID")
     username = fields.CharField(max_length=128, description="用户名")
     password = fields.CharField(max_length=128, description="密码")
-    bind_qq = fields.CharField(max_length=32, unique=True, description="绑定的QQ号")
+
+    adapter_key = fields.CharField(max_length=64, description="适配器ID")
+    platform_userid = fields.CharField(max_length=64, description="平台用户ID")
 
     perm_level = fields.IntField(description="权限等级")
     login_time = fields.DatetimeField(description="上次登录时间")
@@ -50,5 +52,15 @@ class DBUser(Model):
         prevent_until = prevent_until.astimezone(ZoneInfo("Asia/Shanghai"))
         return now < prevent_until  # 检查是否在禁止触发期间（现在时间小于结束时间）
 
+    @property
+    def unique_id(self) -> str:
+        """获取用户唯一标识"""
+        return f"{self.adapter_key}:{self.platform_userid}"
+
     class Meta:  # type: ignore
         table = "user"
+
+    @classmethod
+    async def get_by_union_id(cls, adapter_key: str, platform_userid: str) -> Optional["DBUser"]:
+        """根据适配器ID和平台用户ID获取用户"""
+        return await cls.get_or_none(adapter_key=adapter_key, platform_userid=platform_userid)

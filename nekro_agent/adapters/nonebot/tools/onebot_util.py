@@ -9,8 +9,7 @@ from nonebot.adapters.onebot.v11 import (
     NoticeEvent,
 )
 
-from nekro_agent.core.bot import get_bot
-from nekro_agent.core.config import config
+from nekro_agent.adapters.nonebot.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
@@ -37,7 +36,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
             qq = seg.data.get("qq", None)
             if qq:
                 if qq == "all":
-                    msg += "@[全体成员]"
+                    msg += "[@id:all;nickname:全体成员@]"
                     is_tome = 1
                 else:
                     user_name = await get_user_name(
@@ -47,7 +46,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                         db_chat_channel=db_chat_channel,
                     )
                     if user_name:
-                        msg += f"@[{user_name}, qq={qq}]"  # 保持给bot看到的内容与真实用户看到的一致
+                        msg += f"[@id:{qq};nickname:{user_name}@]"  # 保持给bot看到的内容与真实用户看到的一致
     return msg, is_tome
 
 
@@ -58,7 +57,7 @@ async def get_user_name(
     db_chat_channel: DBChatChannel,
 ) -> str:
     """获取QQ用户名"""
-    if str(user_id) == str(config.BOT_QQ):
+    if str(user_id) == (await db_chat_channel.adapter.get_self_info()).user_id:
         return (await db_chat_channel.get_preset()).name
 
     if isinstance(event, GroupMessageEvent) and event.sub_type == "anonymous" and event.anonymous:  # 匿名消息
@@ -87,9 +86,13 @@ async def get_user_name(
     return user_name
 
 
-async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int, str], db_chat_channel: DBChatChannel) -> str:
+async def get_user_group_card_name(
+    group_id: Union[int, str],
+    user_id: Union[int, str],
+    db_chat_channel: DBChatChannel,
+) -> str:
     """获取用户所在群的群名片"""
-    if str(user_id) == str(config.BOT_QQ):
+    if str(user_id) == (await db_chat_channel.adapter.get_self_info()).user_id:
         return (await db_chat_channel.get_preset()).name
     if str(user_id) == "all" or str(user_id) == "0":
         return "全体成员"
@@ -104,6 +107,7 @@ async def get_user_group_card_name(group_id: Union[int, str], user_id: Union[int
 async def get_chat_info(
     event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent],
 ) -> Tuple[str, ChatType]:
+    """获取频道信息"""
     if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent, NoticeEvent)):
         raw_chat_type = "group"
     else:
@@ -111,13 +115,41 @@ async def get_chat_info(
     chat_type: ChatType
     if raw_chat_type == "friend" or raw_chat_type == "private":
         event = cast(MessageEvent, event)
-        chat_key: str = f"private_{event.user_id}"
+        channel_id: str = f"private_{event.user_id}"
         chat_type = ChatType.PRIVATE
     elif raw_chat_type == "group":
         event = cast(GroupMessageEvent, event)
-        chat_key = f"group_{event.group_id}"
+        channel_id = f"group_{event.group_id}"
         chat_type = ChatType.GROUP  # noqa: F841
     else:
+        chat_type = ChatType.UNKNOWN
         raise ValueError("未知的消息类型")
 
-    return chat_key, chat_type
+    return channel_id, chat_type
+
+
+async def get_chat_info_old(
+    event: Union[MessageEvent, GroupIncreaseNoticeEvent, GroupUploadNoticeEvent, NoticeEvent],
+) -> Tuple[str, ChatType]:
+    """获取频道信息(旧版)
+
+    直接返回完整频道标识适配旧功能需求
+    """
+    if isinstance(event, (GroupUploadNoticeEvent, GroupIncreaseNoticeEvent, NoticeEvent)):
+        raw_chat_type = "group"
+    else:
+        raw_chat_type = event.message_type
+    chat_type: ChatType
+    if raw_chat_type == "friend" or raw_chat_type == "private":
+        event = cast(MessageEvent, event)
+        channel_id: str = f"private_{event.user_id}"
+        chat_type = ChatType.PRIVATE
+    elif raw_chat_type == "group":
+        event = cast(GroupMessageEvent, event)
+        channel_id = f"group_{event.group_id}"
+        chat_type = ChatType.GROUP  # noqa: F841
+    else:
+        chat_type = ChatType.UNKNOWN
+        raise ValueError("未知的消息类型")
+
+    return f"nonebot-{channel_id}", chat_type

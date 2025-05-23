@@ -28,7 +28,7 @@ from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.sandbox.runner import limited_run_code

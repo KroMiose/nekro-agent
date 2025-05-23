@@ -8,6 +8,8 @@ from nekro_agent.schemas.chat_message import ChatMessage
 
 from .schemas.platform import (
     PlatformChannel,
+    PlatformSendRequest,
+    PlatformSendResponse,
     PlatformUser,
 )
 
@@ -16,9 +18,15 @@ class BaseAdapter(ABC):
     """适配器基类"""
 
     @property
-    @abstractmethod
-    def name(self) -> str:
+    def key(self) -> str:
         raise NotImplementedError
+
+    @property
+    def chat_key_rules(self) -> List[str]:
+        return [
+            "Group chat: `platform-group_123456` (where 123456 is the group number)",
+            "Private chat: `platform-private_123456` (where 123456 is the user's QQ number)",
+        ]
 
     @abstractmethod
     async def init(self) -> None:
@@ -26,13 +34,15 @@ class BaseAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def parse_user(self, user_id: str) -> PlatformUser:
-        """转换协议端用户"""
-        raise NotImplementedError
+    async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
+        """推送消息到协议端
 
-    @abstractmethod
-    async def forward_message(self, message: List[AgentMessageSegment]) -> bool:
-        """推送消息"""
+        Args:
+            request: 协议端发送请求，包含已经预处理好的消息数据
+
+        Returns:
+            PlatformSendResponse: 发送结果
+        """
         raise NotImplementedError
 
     @abstractmethod
@@ -50,10 +60,19 @@ class BaseAdapter(ABC):
         """获取频道信息"""
         raise NotImplementedError
 
-    async def receive_message(self, chat_message: ChatMessage, user: PlatformUser) -> ChatMessage:
-        """接收消息"""
-        raise NotImplementedError
+    async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:  # noqa: ARG002
+        """设置消息反应（可选实现）
+
+        Args:
+            message_id (str): 消息ID
+            status (bool): True为设置反应，False为取消反应
+
+        Returns:
+            bool: 是否成功设置
+        """
+        # 默认实现：不支持消息反应功能
+        return False
 
     async def get_adapter_router(self) -> APIRouter:
         """获取适配器路由"""
-        return APIRouter(prefix=f"/adapter/{self.name}")
+        return APIRouter(prefix=f"/adapter/{self.key}")

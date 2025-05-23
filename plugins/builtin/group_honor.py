@@ -1,8 +1,11 @@
 from pydantic import Field
 
-from nekro_agent.api import context, core
+from nekro_agent.adapters.nonebot.core.bot import get_bot
+from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
     name="群荣誉插件",
@@ -38,10 +41,11 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
     Returns:
         bool: 操作是否成功
     """
-    chat_type = context.get_chat_type(chat_key)
-    chat_id = context.get_chat_id(chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    chat_type = db_chat_channel.chat_type
+    chat_id = db_chat_channel.channel_id
 
-    if chat_type != "group":
+    if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
         return False
 
@@ -51,9 +55,9 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
         return False
 
     try:
-        await core.get_bot().call_api(
+        await get_bot().call_api(
             "set_group_special_title",
-            group_id=int(chat_id),
+            group_id=int(chat_id.split("_")[1]),
             user_id=int(user_qq),
             special_title=special_title,
             duration=days * 24 * 60 * 60,

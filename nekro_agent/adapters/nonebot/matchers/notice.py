@@ -6,19 +6,22 @@ from nonebot import on_notice
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 from nonebot.matcher import Matcher
 
-from nekro_agent.adapters.nonebot.tools.onebot_util import get_chat_info, get_user_name
+from nekro_agent.adapters.nonebot.tools.onebot_util import (
+    get_chat_info_old,
+    get_user_name,
+)
+from nekro_agent.adapters.utils import AdapterUtils
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.services.notice_service import (
     BaseNoticeHandler,
     NoticeConfig,
     notice_manager,
 )
-from nekro_agent.services.user.util import query_user_by_bind_qq
 from nekro_agent.tools.time_util import format_duration
 
 
@@ -163,7 +166,7 @@ notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 @notice_matcher.handle()
 async def _(_: Matcher, event: NoticeEvent, bot: Bot):
     # 处理通知事件
-    chat_key, chat_type = await get_chat_info(event=event)
+    chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     result = await notice_manager.handle(event, bot, db_chat_channel)
     if not result:
@@ -190,20 +193,24 @@ async def _(_: Matcher, event: NoticeEvent, bot: Bot):
         )
     else:
         # 使用普通消息
-        bind_qq: str = handler.get_sender_bind_qq(info)
-        user: Optional[DBUser] = await query_user_by_bind_qq(bind_qq)
-        sender_nickname = await get_user_name(event=event, bot=bot, user_id=bind_qq, db_chat_channel=db_chat_channel)
+        platform_userid: str = handler.get_sender_platform_userid(info)
+        user: Optional[DBUser] = await DBUser.get_or_none(
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid=platform_userid,
+        )
+        sender_nickname = await get_user_name(event=event, bot=bot, user_id=platform_userid, db_chat_channel=db_chat_channel)
 
         if user and not user.is_active:
-            logger.info(f"用户 {bind_qq} 被封禁，封禁结束时间: {user.ban_until}")
+            logger.info(f"用户 {platform_userid} 被封禁，封禁结束时间: {user.ban_until}")
             return
 
         chat_message: ChatMessage = ChatMessage(
             message_id="",
-            sender_id=str(user.id) if user else bind_qq,
-            sender_real_nickname=user.username if user else sender_nickname,
+            sender_id=str(user.id) if user else platform_userid,
+            sender_name=user.username if user else sender_nickname,
             sender_nickname=sender_nickname,
-            sender_bind_qq=bind_qq,
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid=platform_userid,
             is_tome=(
                 1
                 if (

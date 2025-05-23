@@ -22,4 +22,10 @@ async def _render_plugin_prompt(plugin: NekroPlugin, ctx: AgentCtx) -> str:
 
 
 async def render_plugins_prompt(plugins: List[NekroPlugin], ctx: AgentCtx) -> str:
-    return "\n\n".join([await _render_plugin_prompt(plugin, ctx) for plugin in plugins])
+    return "\n\n".join(
+        [
+            await _render_plugin_prompt(plugin, ctx)
+            for plugin in plugins
+            if len(plugin.support_adapter) == 0 or ctx.adapter_key in plugin.support_adapter
+        ],
+    )

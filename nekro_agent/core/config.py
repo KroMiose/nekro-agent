@@ -81,7 +81,7 @@ class PluginConfig(ConfigBase):
     ADMIN_CHAT_KEY: str = Field(
         default="",
         title="管理会话频道",
-        json_schema_extra={"is_secret": True, "placeholder": "group_xxxxxxxx / private_xxxxxxxx"},
+        json_schema_extra={"is_secret": True, "placeholder": "nonebot-group_xxxxxxxx / nonebot-private_xxxxxxxx"},
     )
     SAVE_PROMPTS_LOG: bool = Field(default=False, title="保存聊天提示词生成日志")
     MAX_UPLOAD_SIZE_MB: int = Field(default=10, title="上传文件大小限制 (MB)")

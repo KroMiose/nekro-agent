@@ -13,7 +13,7 @@ from lunar_python import Lunar
 from nekro_agent.core import logger
 from nekro_agent.core.config import config
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.services.timer_service import timer_service
 
 
@@ -505,7 +505,13 @@ class FestivalService:
                 minute=0,
             ),
             FestivalConfig(
-                name="大暑", description="一年中最热的时期", festival_type=FestivalType.SOLAR, month=7, day=23, hour=9, minute=0,
+                name="大暑",
+                description="一年中最热的时期",
+                festival_type=FestivalType.SOLAR,
+                month=7,
+                day=23,
+                hour=9,
+                minute=0,
             ),
             FestivalConfig(
                 name="立秋",
@@ -607,7 +613,13 @@ class FestivalService:
                 minute=0,
             ),
             FestivalConfig(
-                name="大寒", description="一年中最冷的时期", festival_type=FestivalType.SOLAR, month=1, day=20, hour=9, minute=0,
+                name="大寒",
+                description="一年中最冷的时期",
+                festival_type=FestivalType.SOLAR,
+                month=1,
+                day=20,
+                hour=9,
+                minute=0,
             ),
         ]
 

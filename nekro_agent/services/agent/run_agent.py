@@ -43,7 +43,7 @@ async def run_agent(
     one_time_code = os.urandom(4).hex()
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     preset = await db_chat_channel.get_preset()
-    ctx: AgentCtx = AgentCtx(from_chat_key=chat_key)
+    ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
 
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
@@ -53,12 +53,13 @@ async def run_agent(
             "system",
             SystemPrompt(
                 one_time_code=one_time_code,
-                bot_qq=config.BOT_QQ,
+                bot_platform_id=(await ctx.adapter.get_self_info()).user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,
                 plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
+                chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),
             ),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code)),
@@ -253,9 +254,11 @@ async def send_agent_request(
             encoding="utf-8",
         )
         if chat_key and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
-            from nekro_agent.services.chat import chat_service
+            from nekro_agent.services.chat.universal_chat_service import (
+                universal_chat_service,
+            )
 
-            await chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
+            await universal_chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
         raise ValueError("所有 LLM 请求失败")
 
     return llm_response, used_model_group

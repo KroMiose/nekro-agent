@@ -23,7 +23,7 @@ from nekro_agent.api.core import config as core_config
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
     convert_to_container_path,

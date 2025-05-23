@@ -540,9 +540,9 @@ const UserTable: React.FC<UserTableProps> = ({
               <TableRow>
                 <TableCell
                   sx={{
-                    width: '60px',
-                    minWidth: '60px',
-                    py: isSmall ? 1 : 1.5,
+                    width: '32px',
+                    minWidth: '32px',
+                    py: isSmall ? 1 : 1,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
@@ -561,7 +561,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 </TableCell>
                 <TableCell
                   sx={{
-                    width: isMobile ? '25%' : '15%',
+                    width: '15%',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -579,20 +579,27 @@ const UserTable: React.FC<UserTableProps> = ({
                     ) : null}
                   </TableSortLabel>
                 </TableCell>
-                {!isSmall && (
-                  <TableCell
-                    sx={{
-                      width: '12%',
-                      py: isSmall ? 1 : 1.5,
-                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
-                    }}
-                  >
-                    QQ号
-                  </TableCell>
-                )}
                 <TableCell
                   sx={{
-                    width: isMobile ? '15%' : '10%',
+                    width: '10%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  适配平台
+                </TableCell>
+                <TableCell
+                  sx={{
+                    width: '12%',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  平台用户ID
+                </TableCell>
+                <TableCell
+                  sx={{
+                    width: '10%',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -601,7 +608,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 </TableCell>
                 <TableCell
                   sx={{
-                    width: isMobile ? '15%' : '10%',
+                    width: '10%',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -611,7 +618,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 {!isMobile && (
                   <TableCell
                     sx={{
-                      width: '15%',
+                      width: '13%',
                       py: isSmall ? 1 : 1.5,
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
@@ -633,7 +640,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 <TableCell
                   align="center"
                   sx={{
-                    width: isMobile ? '30%' : '18%',
+                    width: '18%',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -646,7 +653,7 @@ const UserTable: React.FC<UserTableProps> = ({
               {loading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={isMobile ? (isSmall ? 5 : 5) : 7}
+                    colSpan={isMobile ? 7 : 8}
                     align="center"
                     sx={{ py: 4 }}
                   >
@@ -656,7 +663,7 @@ const UserTable: React.FC<UserTableProps> = ({
               ) : users.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={isMobile ? (isSmall ? 5 : 5) : 7}
+                    colSpan={isMobile ? 7 : 8}
                     align="center"
                     sx={{ py: 4 }}
                   >
@@ -674,11 +681,16 @@ const UserTable: React.FC<UserTableProps> = ({
                       <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                         {user.username}
                       </TableCell>
-                      {!isSmall && (
-                        <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                          {user.bind_qq}
-                        </TableCell>
-                      )}
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        <Typography variant="body2" color="text.primary">
+                          {user.adapter_key || '-'}
+                        </Typography>
+                      </TableCell>
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
+                        <Typography variant="body2" color="text.primary">
+                          {user.platform_userid || '-'}
+                        </Typography>
+                      </TableCell>
                       <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                         <Chip
                           label={getRoleLabel(user.perm_level)}

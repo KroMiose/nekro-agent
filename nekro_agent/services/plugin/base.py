@@ -42,6 +42,7 @@ class NekroPlugin:
         version: str,
         author: str,
         url: str,
+        support_adapter: Optional[List[str]] = None,
         is_builtin: bool = False,
         is_package: bool = False,
     ):
@@ -58,6 +59,7 @@ class NekroPlugin:
         self.version = version.strip()
         self.author = _validate_name(author, "Author")
         self.url = url.strip()
+        self.support_adapter = support_adapter or []
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
         self._collect_methods_func: Optional[CollectMethodsFunc] = None

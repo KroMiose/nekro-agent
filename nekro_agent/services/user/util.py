@@ -20,21 +20,18 @@ from nekro_agent.services.user.auth import (
 from nekro_agent.services.user.perm import Role
 
 
-async def query_user_by_bind_qq(qq: str) -> Optional[DBUser]:
-    return await DBUser.get_or_none(bind_qq=qq)
-
-
 async def user_register(data: UserCreate) -> Ret:
     logger.info(f"正在注册用户 {data.username} ...")
     if data.username == "admin":
         return Ret.fail("注册失败，管理员保留用户名无法注册")
-    if await DBUser.get_or_none(bind_qq=data.bind_qq):
+    if await DBUser.get_or_none(adapter_key=data.adapter_key, platform_userid=data.platform_userid):
         return Ret.fail("注册失败，用户已存在")
     try:
         await DBUser.create(
             username=data.username,
             password=get_hashed_password(data.password),
-            bind_qq=data.bind_qq,
+            adapter_key=data.adapter_key,
+            platform_userid=data.platform_userid,
             perm_level=Role.User,
             login_time=datetime.now(),
         )
@@ -52,7 +49,8 @@ async def user_login(data: UserLogin) -> UserToken:
             await DBUser.create(
                 username="admin",
                 password=get_hashed_password(data.password),
-                bind_qq="",
+                adapter_key="",
+                platform_userid="",
                 perm_level=Role.Admin,
                 login_time=datetime.now(),
             )
@@ -61,21 +59,21 @@ async def user_login(data: UserLogin) -> UserToken:
             refresh_token=create_refresh_token(data.username),
             token_type="bearer",
         )
-    user: Optional[DBUser] = await DBUser.get_or_none(bind_qq=data.username)
+    user: Optional[DBUser] = await DBUser.get_or_none(unique_id=data.username)
     if not user:
         raise credentials_exception
-    if user.bind_qq not in config.SUPER_USERS:
+    if user.unique_id not in config.SUPER_USERS:
         raise credentials_exception
     logger.info(f"用户 {user.username if user else '未知'} 正在登录")
     if user and verify_password(data.password, user.password):
         logger.info(f"用户 {user.username} 登录成功")
-        if user.bind_qq in config.SUPER_USERS:
+        if user.unique_id in config.SUPER_USERS:
             user.perm_level = Role.Admin.value
         user.login_time = datetime.now()
         await user.save()
         return UserToken(
-            access_token=create_access_token(user.bind_qq),
-            refresh_token=create_refresh_token(user.bind_qq),
+            access_token=create_access_token(user.unique_id),
+            refresh_token=create_refresh_token(user.unique_id),
             token_type="bearer",
         )
     logger.info(f"用户 {data.username} 登录校验失败 ")

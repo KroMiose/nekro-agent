@@ -276,8 +276,8 @@ async def run_code_in_sandbox(
         exec_time_ms=exec_time,
         generation_time_ms=generation_time_ms,
         total_time_ms=total_time,
-        trigger_user_id=int(chat_message.sender_id or "0") if chat_message else 0,
-        trigger_user_name=chat_message.sender_real_nickname if chat_message else "System",
+        trigger_user_id=str(chat_message.sender_id or "0") if chat_message else "",
+        trigger_user_name=chat_message.sender_name if chat_message else "System",
     )
 
     return final_output, output_text, stop_type.value

@@ -6,7 +6,6 @@ from nonebot.adapters.onebot.v11 import Bot
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
 
-import nekro_agent.core.bot
 from nekro_agent.adapters import load_adapters
 from nekro_agent.core.args import Args
 from nekro_agent.core.config import config

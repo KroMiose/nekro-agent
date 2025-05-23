@@ -21,7 +21,8 @@ class User(BaseModel):
 class UserCreate(BaseModel):
     username: str
     password: str
-    bind_qq: str
+    adapter_key: str
+    platform_userid: str
     access_key: Optional[str] = None
 
 

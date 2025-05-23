@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11 import (
     MessageEvent,
 )
 
+from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.nonebot.tools.onebot_util import get_user_group_card_name
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
@@ -20,6 +21,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentFile,
     ChatMessageSegmentImage,
     ChatMessageSegmentType,
+    ChatType,
 )
 from nekro_agent.tools.common_util import (
     copy_to_upload_dir,
@@ -32,6 +34,7 @@ async def convert_chat_message(
     msg_to_me: bool,
     bot: Bot,  # noqa: ARG001
     db_chat_channel: DBChatChannel,
+    adapter: BaseAdapter,
 ) -> Tuple[List[ChatMessageSegment], bool, str]:
     """转换 OneBot 消息为 ChatMessageSegment 列表
 
@@ -164,7 +167,7 @@ async def convert_chat_message(
         elif seg.type == "at":
             assert isinstance(ob_event, GroupMessageEvent)
             at_qq = str(seg.data["qq"])
-            bot_qq = str(config.BOT_QQ)
+            bot_qq = (await adapter.get_self_info()).user_id
             if at_qq == bot_qq:
                 at_qq = bot_qq
                 is_tome = True
@@ -189,7 +192,7 @@ async def convert_chat_message(
                     ChatMessageSegmentAt(
                         type=ChatMessageSegmentType.AT,
                         text="",
-                        target_qq=at_qq,
+                        target_platform_userid=at_qq,
                         target_nickname=nick_name,
                     ),
                 )
@@ -204,9 +207,17 @@ async def convert_chat_message(
             ChatMessageSegmentAt(
                 type=ChatMessageSegmentType.AT,
                 text="",
-                target_qq=str(config.BOT_QQ),
+                target_platform_userid=(await adapter.get_self_info()).user_id,
                 target_nickname=(await db_chat_channel.get_preset()).name,
             ),
         )
 
     return ret_list, is_tome, message_id
+
+
+def get_channel_type(channel_id: str) -> ChatType:
+    try:
+        chat_type, _ = channel_id.split("_")
+        return ChatType(chat_type)
+    except ValueError as e:
+        raise ValueError(f"Invalid channel id: {channel_id}") from e

@@ -1,15 +1,13 @@
 import time
-from typing import Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from nekro_agent.api import core, schemas
+from nekro_agent.adapters.nonebot.core.bot import get_bot
+from nekro_agent.api import schemas
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.core.bot import get_bot
-from nekro_agent.core.config import config as global_config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
     name="状态控制插件",
@@ -34,6 +32,49 @@ class StatusConfig(ConfigBase):
 # 获取配置和插件存储
 config = plugin.get_config(StatusConfig)
 store = plugin.store
+
+
+# region: Bot 名片管理
+async def set_bot_group_card(ctx: schemas.AgentCtx, card_name: str) -> None:
+    """设置bot群名片
+
+    Args:
+        ctx: Agent上下文
+        card_name: 要设置的名片名称（不带前缀）
+    """
+    if not config.ENABLE_CHANGE_NICKNAME:
+        return
+
+    try:
+        # 从ctx获取channel_id，优先使用channel_id，否则从from_chat_key解析
+        if ctx.channel_id:
+            chat_type, chat_id = ctx.channel_id.split("_")
+        else:
+            chat_type, chat_id = ctx.from_chat_key.split("_")
+
+        if chat_type != "group":
+            return
+
+        bot = get_bot()
+        if not bot:
+            logger.warning("无法获取bot实例")
+            return
+
+        user_id = int((await ctx.adapter.get_self_info()).user_id)
+        final_card = f"{config.NICKNAME_PREFIX}{card_name}"
+
+        await bot.set_group_card(
+            group_id=int(chat_id),
+            user_id=user_id,
+            card=final_card,
+        )
+        logger.debug(f"成功设置群名片: {final_card}")
+
+    except Exception as e:
+        logger.warning(f"设置群名片失败: {e}")
+
+
+# endregion: Bot 名片管理
 
 
 # region: 状态系统数据模型
@@ -82,30 +123,15 @@ class ChannelData(BaseModel):
         if len(self.preset_status_list) > config.MAX_PRESET_STATUS_LIST_SIZE:
             self.preset_status_list.pop(0)
 
-    async def update_preset_status(self, preset_status: PresetStatus):
+    async def update_preset_status(self, preset_status: PresetStatus, ctx: schemas.AgentCtx):
         """更新预设状态"""
         latest_preset_status: Optional[PresetStatus] = self.get_latest_preset_status()
         if latest_preset_status is not None and latest_preset_status.setting_name == preset_status.setting_name:
             self.preset_status_list[-1].translated_timestamp = preset_status.translated_timestamp
         else:
             self._append_preset_status(preset_status)
-            try:
-                # 尝试更新机器人昵称
-                if config.ENABLE_CHANGE_NICKNAME:
-                    chat_type, chat_id = self.chat_key.split("_")
-                    if chat_type == "group":
-                        try:
-                            bot = get_bot()  # 移除 await，直接获取 bot 实例
-                            if bot:
-                                await bot.set_group_card(
-                                    group_id=int(chat_id),
-                                    user_id=int(global_config.BOT_QQ),
-                                    card=f"{config.NICKNAME_PREFIX}{preset_status.setting_name}",
-                                )
-                        except Exception as e:
-                            logger.warning(f"会话 {self.chat_key} 尝试更新群名片失败: {e}")
-            except Exception as e:
-                logger.warning(f"更新昵称失败: {e}")
+            # 使用统一的方法更新机器人昵称
+            await set_bot_group_card(ctx, preset_status.setting_name)
 
     def get_latest_preset_status(self) -> Optional[PresetStatus]:
         if len(self.preset_status_list) == 0:
@@ -129,31 +155,16 @@ class ChannelData(BaseModel):
 
         return f"{history_str}" + "Current Character Setting status:" + f"{latest_preset_status.render_prompts(extra=True)}\n\n"
 
-    async def clear_status(self):
+    async def clear_status(self, ctx: schemas.AgentCtx):
         """清除状态"""
         self.preset_status_list = []
+        # 使用统一的方法重置机器人昵称到预设名称
         try:
-            # 尝试重置机器人昵称
-            if config.ENABLE_CHANGE_NICKNAME:
-                chat_type, chat_id = self.chat_key.split("_")
-                if chat_type == "group":
-                    try:
-                        bot = get_bot()  # 移除 await，直接获取 bot 实例
-                        if bot:
-                            await bot.set_group_card(
-                                group_id=int(chat_id),
-                                user_id=int(global_config.BOT_QQ),
-                                card=f"{config.NICKNAME_PREFIX}{(await (await DBChatChannel.get_channel(chat_key=self.chat_key)).get_preset()).name}",
-                            )
-                    except Exception as e:
-                        logger.warning(f"会话 {self.chat_key} 尝试重置群名片失败: {e}")
+            channel = await DBChatChannel.get_channel(chat_key=self.chat_key)
+            preset = await channel.get_preset()
+            await set_bot_group_card(ctx, preset.name)
         except Exception as e:
-            logger.warning(f"重置昵称失败: {e}")
-
-    @property
-    def chat_type(self) -> ChatType:
-        """获取聊天频道类型"""
-        return ChatType.from_chat_key(self.chat_key)
+            logger.warning(f"获取预设名称失败: {e}")
 
 
 # endregion: 状态系统数据模型
@@ -203,7 +214,7 @@ async def update_preset_status(_ctx: schemas.AgentCtx, chat_key: str, setting_na
     new_status = PresetStatus.create(setting_name=setting_name, description=description)
 
     # 更新状态
-    await channel_data.update_preset_status(new_status)
+    await channel_data.update_preset_status(new_status, _ctx)
 
     # 保存到存储
     await store.set(chat_key=chat_key, store_key="status", value=channel_data.model_dump_json())
@@ -233,7 +244,7 @@ async def clear_status(_ctx: schemas.AgentCtx, chat_key: str):
     channel_data = ChannelData.model_validate_json(data)
 
     # 清除状态
-    await channel_data.clear_status()
+    await channel_data.clear_status(_ctx)
 
     # 保存到存储
     await store.set(chat_key=chat_key, store_key="status", value=channel_data.model_dump_json())
@@ -244,14 +255,14 @@ async def clear_status(_ctx: schemas.AgentCtx, chat_key: str):
 @plugin.mount_on_channel_reset()
 async def on_channel_reset(_ctx: schemas.AgentCtx):
     """重置插件"""
-    if config.ENABLE_CHANGE_NICKNAME:
-        bot = get_bot()
-        if bot:
-            await bot.set_group_card(
-                group_id=int(_ctx.from_chat_key.split("_")[1]),
-                user_id=int(global_config.BOT_QQ),
-                card=f"{config.NICKNAME_PREFIX}{(await (await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)).get_preset()).name}",
-            )
+    # 使用统一的方法重置机器人昵称到预设名称
+    try:
+        channel = await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)
+        preset = await channel.get_preset()
+        await set_bot_group_card(_ctx, preset.name)
+    except Exception as e:
+        logger.warning(f"重置群名片失败: {e}")
+
     await store.delete(chat_key=_ctx.from_chat_key, store_key="status")
 
 

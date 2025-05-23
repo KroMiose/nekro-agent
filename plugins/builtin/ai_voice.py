@@ -3,14 +3,16 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pydantic import Field
 
+from nekro_agent.adapters.nonebot.core.bot import get_bot
 from nekro_agent.adapters.nonebot.matchers.command import (
     command_guard,
     finish_with,
     on_command,
 )
-from nekro_agent.api import context, core
+from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
@@ -20,6 +22,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["nonebot"],
 )
 
 
@@ -67,17 +70,18 @@ async def ai_voice(_ctx: AgentCtx, chat_key: str, text: str) -> bool:
     Returns:
         bool: 操作是否成功
     """
-    chat_type = context.get_chat_type(chat_key)
-    chat_id = context.get_chat_id(chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    chat_type = db_chat_channel.chat_type
+    chat_id = db_chat_channel.channel_id
 
-    if chat_type != "group":
+    if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
         return False
 
     try:
-        await core.get_bot().call_api(
+        await get_bot().call_api(
             "send_group_ai_record",
-            group_id=int(chat_id),
+            group_id=int(chat_id.split("_")[1]),
             character=config.AI_VOICE_CHARACTER,
             text=text,
         )

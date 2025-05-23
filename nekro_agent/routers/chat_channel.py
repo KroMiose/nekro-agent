@@ -197,7 +197,7 @@ async def get_chat_channel_messages(
                 {
                     "id": msg.id,
                     "sender_id": msg.sender_id,
-                    "sender_name": msg.sender_real_nickname,
+                    "sender_name": msg.sender_name,
                     "content": msg.content_text,
                     "create_time": msg.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 }
