@@ -33,7 +33,7 @@ config = plugin.get_config(TimerConfig)
 async def timer_prompt(_ctx: AgentCtx) -> str:
     """定时器提示词注入"""
     # 获取当前会话未触发的定时器
-    chat_key = _ctx.from_chat_key
+    chat_key = _ctx.chat_key
     timers = await timer.get_timers(chat_key)
 
     # 过滤掉节日祝福定时器

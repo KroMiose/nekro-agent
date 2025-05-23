@@ -52,7 +52,7 @@ class AdapterUtils:
         Returns:
             BaseAdapter: 适配器实例
         """
-        return await AdapterUtils.get_adapter_for_chat(ctx.from_chat_key)
+        return await AdapterUtils.get_adapter_for_chat(ctx.chat_key)
 
 
 # 创建全局实例，便于使用

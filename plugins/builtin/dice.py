@@ -126,7 +126,7 @@ async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficult
     result_str = get_result_str(roll_result, roll_result + add_coin, difficulty)
 
     await message.send_text(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"【检定事件】{event_name} ({difficulty}/20)\n> {description}\n========\n{fix_str}掷骰结果：{roll_result}{fix_diff_show} 【{result_str}】",
         _ctx,
         record=False,  # 掷骰结果不需要记录到上下文

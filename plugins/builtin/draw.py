@@ -94,7 +94,7 @@ async def draw(
     core.logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
         async with aiofiles.open(
-            convert_to_host_path(Path(refer_image), chat_key=_ctx.from_chat_key, container_key=_ctx.container_key),
+            convert_to_host_path(Path(refer_image), chat_key=_ctx.chat_key, container_key=_ctx.container_key),
             mode="rb",
         ) as f:
             image_data = await f.read()

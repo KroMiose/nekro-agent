@@ -90,7 +90,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
             )
         else:
             # 使用文件路径方式
-            path = convert_to_host_path(Path(image_path), chat_key=_ctx.from_chat_key)
+            path = convert_to_host_path(Path(image_path), chat_key=_ctx.chat_key)
             if not path.exists():
                 raise ValueError(f"图片路径不存在: {image_path}")
             vision_msg.batch_add(

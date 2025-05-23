@@ -1,10 +1,11 @@
 from pydantic import Field
 
 from nekro_agent.adapters.nonebot.core.bot import get_bot
-from nekro_agent.api import context, core, message
+from nekro_agent.api import core, message
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config
+from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
     name="风纪委员",
@@ -60,10 +61,12 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         duration (int): 禁言时长，单位为秒，设置为 0 则解除禁言
         report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理会话 (lang: zh-CN)
     """
-    chat_type = context.get_chat_type(chat_key)
-    chat_id = context.get_chat_id(chat_key)
+    if _ctx.channel_id:
+        chat_type, chat_id = _ctx.channel_id.split("_")
+    else:
+        chat_type, chat_id = _ctx.chat_key.split("_")
 
-    if chat_type != "group":
+    if chat_type != ChatType.GROUP.value:
         core.logger.error(f"禁言功能不支持 {chat_type} 的会话类型")
         return f"禁言功能不支持 {chat_type} 的会话类型"
 
@@ -71,7 +74,7 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
     if config_judgement.ENABLE_ADMIN_REPORT and config.ADMIN_CHAT_KEY:
         await message.send_text(
             config.ADMIN_CHAT_KEY,
-            f"[{chat_key}] 执行禁言用户 [qq:{user_qq}] {duration} 秒 (来自 {_ctx.from_chat_key})\n理由: {report}",
+            f"[{chat_key}] 执行禁言用户 [qq:{user_qq}] {duration} 秒 (来自 {_ctx.chat_key})\n理由: {report}",
             _ctx,
         )
 

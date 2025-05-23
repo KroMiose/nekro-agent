@@ -50,7 +50,7 @@ async def set_bot_group_card(ctx: schemas.AgentCtx, card_name: str) -> None:
         if ctx.channel_id:
             chat_type, chat_id = ctx.channel_id.split("_")
         else:
-            chat_type, chat_id = ctx.from_chat_key.split("_")
+            chat_type, chat_id = ctx.chat_key.split("_")
 
         if chat_type != "group":
             return
@@ -173,9 +173,9 @@ class ChannelData(BaseModel):
 @plugin.mount_prompt_inject_method("status_prompt")
 async def status_prompt(_ctx: schemas.AgentCtx) -> str:
     """状态提示"""
-    data = await store.get(chat_key=_ctx.from_chat_key, store_key="status")
+    data = await store.get(chat_key=_ctx.chat_key, store_key="status")
     if not data:
-        channel_data = ChannelData(chat_key=_ctx.from_chat_key)
+        channel_data = ChannelData(chat_key=_ctx.chat_key)
     else:
         channel_data = ChannelData.model_validate_json(data)
     return channel_data.render_prompts()
@@ -257,13 +257,13 @@ async def on_channel_reset(_ctx: schemas.AgentCtx):
     """重置插件"""
     # 使用统一的方法重置机器人昵称到预设名称
     try:
-        channel = await DBChatChannel.get_channel(chat_key=_ctx.from_chat_key)
+        channel = await DBChatChannel.get_channel(chat_key=_ctx.chat_key)
         preset = await channel.get_preset()
         await set_bot_group_card(_ctx, preset.name)
     except Exception as e:
         logger.warning(f"重置群名片失败: {e}")
 
-    await store.delete(chat_key=_ctx.from_chat_key, store_key="status")
+    await store.delete(chat_key=_ctx.chat_key, store_key="status")
 
 
 @plugin.mount_cleanup_method()

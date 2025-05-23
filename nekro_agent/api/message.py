@@ -131,7 +131,7 @@ async def download_from_url(url: str, ctx: AgentCtx) -> str:
         ```
     """
     try:
-        file_path, file_name = await download_file(url, from_chat_key=ctx.from_chat_key)
+        file_path, file_name = await download_file(url, from_chat_key=ctx.chat_key)
         return str(convert_filename_to_container_path(file_name))
     except Exception as e:
         logger.exception(f"下载文件失败: {e}")

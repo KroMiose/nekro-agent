@@ -28,7 +28,7 @@ async def get_avatar(user_qq: str, ctx: AgentCtx) -> str:
     try:
         file_path, file_name = await download_file(
             f"https://q1.qlogo.cn/g?b=qq&nk={user_qq}&s=640",
-            from_chat_key=ctx.from_chat_key,
+            from_chat_key=ctx.chat_key,
             use_suffix=".png",
         )
         return str(convert_to_container_path(Path(file_path)))

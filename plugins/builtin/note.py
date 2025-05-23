@@ -136,7 +136,7 @@ class ChannelNoteData(BaseModel):
 @plugin.mount_prompt_inject_method("note_prompt")
 async def note_prompt(_ctx: schemas.AgentCtx) -> str:
     """笔记提示"""
-    data = await store.get(chat_key=_ctx.from_chat_key, store_key="note")
+    data = await store.get(chat_key=_ctx.chat_key, store_key="note")
     channel_data: ChannelNoteData = ChannelNoteData.model_validate_json(data) if data else ChannelNoteData()
     return "Current Notes:\n" + channel_data.render_prompts()
 

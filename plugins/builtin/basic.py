@@ -185,7 +185,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
         file_container_path = str(convert_to_container_path(Path(file_host_path)))
     else:
         file_host_path = str(
-            convert_to_host_path(Path(file_container_path), _ctx.from_chat_key, container_key=_ctx.container_key),
+            convert_to_host_path(Path(file_container_path), _ctx.chat_key, container_key=_ctx.container_key),
         )
         if not Path(file_host_path).exists():
             raise FileNotFoundError(

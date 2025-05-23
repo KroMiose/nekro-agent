@@ -25,7 +25,6 @@ class WebhookResponse(BaseModel):
 async def webhook_handler(
     endpoint: str,
     request: Request,
-    chat_key: str = Header(None),
 ) -> WebhookResponse:
     """处理 Webhook 请求
 
@@ -62,9 +61,7 @@ async def webhook_handler(
                 body = {"raw_content": body_bytes.decode()}
 
         # 创建上下文
-        ctx: AgentCtx = await AgentCtx.create_by_chat_key(
-            chat_key=chat_key,
-            container_key="webhook",
+        ctx: AgentCtx = await AgentCtx.create_by_webhook(
             webhook_request=WebhookRequest(headers=headers, body=body),
         )
 

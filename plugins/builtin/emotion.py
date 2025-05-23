@@ -230,7 +230,7 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
     # 如果是本地路径，则复制图片
     try:
-        source_path_obj = convert_to_host_path(Path(source_path), _ctx.from_chat_key)
+        source_path_obj = convert_to_host_path(Path(source_path), _ctx.chat_key)
         logger.info(f"从本地路径复制图片: {source_path_obj} 到 {target_path}")
 
         if not source_path_obj.exists():
@@ -649,7 +649,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             file_name = f"{hashlib.md5(source_path.encode()).hexdigest()[:8]}.png"
     else:
         # 本地文件，直接使用原文件名
-        file_name = convert_to_host_path(Path(source_path), _ctx.from_chat_key).name
+        file_name = convert_to_host_path(Path(source_path), _ctx.chat_key).name
 
     # 添加随机字符串避免文件名冲突
     path_obj = Path(file_name)
@@ -756,7 +756,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     except Exception as e:
         raise ValueError(f"添加到向量数据库失败: {e}") from e
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully collected emotion: {emotion_id} - {description} {' '.join(tags)} ({source_path=})",
     )
 
@@ -855,7 +855,7 @@ async def update_emotion(
     logger.info(f"已添加新向量到Qdrant: {emotion_id}")
 
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully updated emotion metadata: {emotion_id}",
     )
 
@@ -935,7 +935,7 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         logger.warning(f"删除表情包文件失败: {e}")
 
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully removed emotion: {emotion_id}",
     )
 
@@ -983,7 +983,7 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         emo_file_path, _ = await copy_to_upload_dir(
             metadata.file_path,
             file_path.name,
-            from_chat_key=_ctx.from_chat_key,
+            from_chat_key=_ctx.chat_key,
         )
 
     except Exception as e:
