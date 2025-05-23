@@ -27,7 +27,7 @@ class NoneBotAdapter(BaseAdapter):
 
     @property
     def key(self) -> str:
-        return "nonebot"
+        return "onebot_v11"
 
     async def init(self) -> None:
         """初始化适配器"""

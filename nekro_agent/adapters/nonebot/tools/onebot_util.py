@@ -152,4 +152,4 @@ async def get_chat_info_old(
         chat_type = ChatType.UNKNOWN
         raise ValueError("未知的消息类型")
 
-    return f"nonebot-{channel_id}", chat_type
+    return f"onebot_v11-{channel_id}", chat_type

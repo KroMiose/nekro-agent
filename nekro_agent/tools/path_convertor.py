@@ -64,17 +64,17 @@ def convert_to_host_path(
 
     Examples:
         >>> # 转换绝对路径
-        >>> convert_to_host_path(Path("/app/uploads/test.txt"), "nonebot-group_123456")
+        >>> convert_to_host_path(Path("/app/uploads/test.txt"), chat_key)
         Path("/data/uploads/nonebot-group_123456/test.txt")
 
         >>> # 转换相对路径
-        >>> convert_to_host_path(Path("./uploads/test.txt"), "nonebot-group_123456")
+        >>> convert_to_host_path(Path("./uploads/test.txt"), chat_key)
         Path("/data/uploads/nonebot-group_123456/test.txt")
 
         >>> # 转换 shared 路径
         >>> convert_to_host_path(
         ...     Path("/app/shared/test.txt"),
-        ...     "nonebot-group_123456",
+        ...     chat_key,
         ...     container_key="container_789"
         ... )
         Path("/data/shared/container_789/test.txt")

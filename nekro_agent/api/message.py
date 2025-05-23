@@ -39,10 +39,10 @@ async def send_text(chat_key: str, message: str, ctx: AgentCtx, *, record: bool 
         from nekro_agent.api.message import send_text
 
         # 发送文本消息到群组（记录到上下文）
-        send_text("nonebot-group_123456", "你好，世界！", ctx)
+        send_text(chat_key, "你好，世界！", ctx)
 
         # 发送文本消息到群组（不记录到上下文）
-        send_text("nonebot-group_123456", "这是一条临时消息", ctx, record=False)
+        send_text(chat_key, "这是一条临时消息", ctx, record=False)
         ```
     """
     message_ = [AgentMessageSegment(content=message)]
@@ -68,10 +68,10 @@ async def send_file(chat_key: str, file_path: str, ctx: AgentCtx, *, record: boo
         from nekro_agent.api.message import send_file
 
         # 发送文件（记录到上下文）
-        send_file("nonebot-group_123456", "/path/to/file.pdf", ctx)
+        send_file(chat_key, "/path/to/file.pdf", ctx)
 
         # 发送文件（不记录到上下文）
-        send_file("nonebot-group_123456", "/path/to/temp.pdf", ctx, record=False)
+        send_file(chat_key, "/path/to/temp.pdf", ctx, record=False)
         ```
     """
     message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=file_path)]
@@ -97,10 +97,10 @@ async def send_image(chat_key: str, image_path: str, ctx: AgentCtx, *, record: b
         from nekro_agent.api.message import send_image
 
         # 发送图片（记录到上下文）
-        send_image("nonebot-group_123456", "/path/to/image.jpg", ctx)
+        send_image(chat_key, "/path/to/image.jpg", ctx)
 
         # 发送图片（不记录到上下文）
-        send_image("nonebot-group_123456", "/path/to/temp.jpg", ctx, record=False)
+        send_image(chat_key, "/path/to/temp.jpg", ctx, record=False)
         ```
     """
     message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=image_path)]

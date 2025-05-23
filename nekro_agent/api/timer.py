@@ -34,7 +34,7 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
 
         # 设置5分钟后的定时器
         set_timer(
-            "nonebot-group_123456",
+            chat_key,
             int(time.time()) + 300,
             "提醒用户吃早餐",
             ctx
@@ -63,7 +63,7 @@ async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> b
 
         # 设置1分钟后的临时定时器
         set_temp_timer(
-            "nonebot-group_123456",
+            chat_key,
             int(time.time()) + 60,
             "检查用户是否已重启系统",
             ctx
@@ -88,13 +88,13 @@ async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
         from nekro_agent.api import timer
 
         # 清空群组的所有定时器
-        timer.clear_timers("nonebot-group_123456")
+        timer.clear_timers(chat_key)
 
         # 只清空临时定时器
-        timer.clear_timers("nonebot-group_123456", temporary=True)
+        timer.clear_timers(chat_key, temporary=True)
 
         # 只清空非临时定时器
-        timer.clear_timers("nonebot-group_123456", temporary=False)
+        timer.clear_timers(chat_key, temporary=False)
         ```
     """
     return await timer_service.set_timer(chat_key, -1, "", override=False, temporary=temporary)
@@ -114,7 +114,7 @@ async def get_timers(chat_key: str) -> List[TimerTask]:
         from nekro_agent.api import timer
 
         # 获取群组的所有定时器
-        timers = await timer.get_timers("nonebot-group_123456")
+        timers = await timer.get_timers(chat_key)
         for t in timers:
             print(f"触发时间: {t.trigger_time}, 描述: {t.event_desc}")
         ```
