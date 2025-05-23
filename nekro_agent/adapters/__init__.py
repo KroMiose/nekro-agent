@@ -3,10 +3,10 @@ from typing import List, Type
 from fastapi import FastAPI
 
 from .interface.base import BaseAdapter
-from .nonebot.adapter import NoneBotAdapter
+from .onebot_v11.adapter import OnebotV11Adapter
 
 ALL_ADAPTERS: List[Type[BaseAdapter]] = [
-    NoneBotAdapter,
+    OnebotV11Adapter,
 ]
 
 

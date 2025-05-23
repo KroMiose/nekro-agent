@@ -7,7 +7,7 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
-from nekro_agent.adapters.nonebot.tools.onebot_util import get_user_group_card_name
+from nekro_agent.adapters.onebot_v11.tools.onebot_util import get_user_group_card_name
 from nekro_agent.core.config import config
 from nekro_agent.models.db_chat_channel import DBChatChannel
 

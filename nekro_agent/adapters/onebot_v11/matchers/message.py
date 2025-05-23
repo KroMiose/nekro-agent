@@ -17,8 +17,8 @@ from nekro_agent.adapters.interface import (
     PlatformUser,
     collect_message,
 )
-from nekro_agent.adapters.nonebot.tools.convertor import convert_chat_message
-from nekro_agent.adapters.nonebot.tools.onebot_util import (
+from nekro_agent.adapters.onebot_v11.tools.convertor import convert_chat_message
+from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
     gen_chat_text,
     get_chat_info,
     get_user_name,

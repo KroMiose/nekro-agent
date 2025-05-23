@@ -4,7 +4,7 @@ from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
-from nekro_agent.adapters.nonebot.matchers.command import (
+from nekro_agent.adapters.onebot_v11.matchers.command import (
     command_guard,
     finish_with,
     on_command,

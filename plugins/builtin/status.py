@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from nekro_agent.adapters.nonebot.core.bot import get_bot
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.api import schemas
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.core.logger import logger

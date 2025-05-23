@@ -6,7 +6,7 @@ from nonebot import on_notice
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 from nonebot.matcher import Matcher
 
-from nekro_agent.adapters.nonebot.tools.onebot_util import (
+from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
     get_chat_info_old,
     get_user_name,
 )

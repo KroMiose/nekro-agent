@@ -10,7 +10,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.adapters.nonebot.matchers.message import register_matcher
+from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -22,8 +22,8 @@ from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
 
 
-class NoneBotAdapter(BaseAdapter):
-    """NoneBot 适配器"""
+class OnebotV11Adapter(BaseAdapter):
+    """OneBot V11 适配器"""
 
     @property
     def key(self) -> str:
@@ -36,7 +36,7 @@ class NoneBotAdapter(BaseAdapter):
         register_matcher(self)
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
-        """推送消息到 NoneBot 协议端"""
+        """推送消息到 OneBot V11 协议端"""
         # 分离文件类型和其他类型的消息段
         file_segments = [seg for seg in request.segments if seg.type == PlatformSendSegmentType.FILE]
         other_segments = [seg for seg in request.segments if seg.type != PlatformSendSegmentType.FILE]

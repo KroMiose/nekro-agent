@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from nekro_agent.adapters.nonebot.core.bot import get_bot
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx

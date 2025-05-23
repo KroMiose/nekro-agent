@@ -3,8 +3,8 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pydantic import Field
 
-from nekro_agent.adapters.nonebot.core.bot import get_bot
-from nekro_agent.adapters.nonebot.matchers.command import (
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
+from nekro_agent.adapters.onebot_v11.matchers.command import (
     command_guard,
     finish_with,
     on_command,

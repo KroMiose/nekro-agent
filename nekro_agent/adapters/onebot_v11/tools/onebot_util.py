@@ -9,7 +9,7 @@ from nonebot.adapters.onebot.v11 import (
     NoticeEvent,
 )
 
-from nekro_agent.adapters.nonebot.core.bot import get_bot
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 

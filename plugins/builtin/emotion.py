@@ -12,7 +12,7 @@ from nonebot.params import CommandArg
 from pydantic import BaseModel, Field
 from qdrant_client import models as qdrant_models
 
-from nekro_agent.adapters.nonebot.matchers.command import (
+from nekro_agent.adapters.onebot_v11.matchers.command import (
     command_guard,
     finish_with,
     on_command,
