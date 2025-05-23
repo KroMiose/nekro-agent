@@ -117,5 +117,13 @@ def generate_instance_id() -> str:
     # 生成 SHA256 哈希
     _INSTANCE_ID = hashlib.sha256(fingerprint.encode()).hexdigest()
     instance_id_path.parent.mkdir(parents=True, exist_ok=True)
-    instance_id_path.write_text(json.dumps({"instance_id": _INSTANCE_ID, "fingerprint": fingerprint}))
+    instance_id_path.write_text(
+        json.dumps(
+            {
+                "instance_id": _INSTANCE_ID,
+                "fingerprint": fingerprint,
+                "core_version": _CORE_VERSION,
+            },
+        ),
+    )
     return _INSTANCE_ID
