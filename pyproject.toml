@@ -58,8 +58,9 @@ build-backend = "poetry.core.masonry.api"
 [tool.nonebot]
 adapters = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+    {name = "Minecraft", module_name = "nonebot.adapters.minecraft"},
 ]
-plugins = ["nekro_agent"]
+plugins = ["nekro_agent", "nonebot_plugin_alconna"]
 plugin_dirs = []
 builtin_plugins = []
 
