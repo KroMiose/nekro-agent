@@ -46,6 +46,8 @@ mem0ai = "^0.1.79"
 gitpython = "^3.1.44"
 qdrant-client = "^1.13.3"
 mcp = "^1.7.0"
+nonebot-adapter-minecraft = "^1.4.0"
+nonebot-plugin-alconna = "^0.57.6"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
