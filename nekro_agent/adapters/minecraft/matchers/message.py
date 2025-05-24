@@ -37,7 +37,7 @@ from nekro_agent.schemas.chat_message import (
 
 def register_matcher(adapter:BaseAdapter):
     @on_message(priority=999, block=False).handle()
-    async def _(matcher: Matcher, event: MessageEvent, bot: Bot):
+    async def _(_matcher: Matcher, event: MessageEvent, _bot: Bot):
         """Minecraft 消息收集与预处理"""
         
         plt_channel: PlatformChannel = PlatformChannel(channel_id=event.server_name, channel_name=event.server_name, channel_type=ChatType.GROUP)
@@ -75,8 +75,3 @@ def register_matcher(adapter:BaseAdapter):
         )
 
         await collect_message(adapter, plt_channel, plt_user, plt_msg)
-
-async def send_message(text: str):
-    """发送消息"""
-    uni_message: UniMessage = UniMessage.text(text)
-    await uni_message.send()
