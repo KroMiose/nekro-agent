@@ -2510,6 +2510,21 @@ nonebot2 = ">=2.3.0"
 tarina = ">=0.6.8,<0.7"
 
 [[package]]
+name = "nonebot-plugin-uninfo"
+version = "0.7.4"
+description = "Universal Information Model for Nonebot2"
+optional = false
+python-versions = ">=3.9"
+files = [
+    {file = "nonebot_plugin_uninfo-0.7.4-py3-none-any.whl", hash = "sha256:673b2f3c0c0a6049eed3ca66de6992793c7a85ff831223c2ef920b532b29a244"},
+    {file = "nonebot_plugin_uninfo-0.7.4.tar.gz", hash = "sha256:91a461f39ffd30629bfcf32c6f262ded322c5651d6cfbf7ced4f6a5c251afee3"},
+]
+
+[package.dependencies]
+importlib-metadata = ">=7.2.1"
+nonebot2 = ">=2.4.2"
+
+[[package]]
 name = "nonebot-plugin-waiter"
 version = "0.8.1"
 description = "An alternative for got-and-reject in Nonebot"
@@ -2528,13 +2543,13 @@ unimsg = ["nonebot-plugin-alconna (>=0.52.2)"]
 
 [[package]]
 name = "nonebot2"
-version = "2.4.1"
+version = "2.4.2"
 description = "An asynchronous python bot framework."
 optional = false
 python-versions = "<4.0,>=3.9"
 files = [
-    {file = "nonebot2-2.4.1-py3-none-any.whl", hash = "sha256:fec95f075efc89dbe9ce148618b413b02f46ba284200367749b035e794695111"},
-    {file = "nonebot2-2.4.1.tar.gz", hash = "sha256:8fea364318501ed79721403a8ecd76587bc884d58c356260f691a8bbda9b05e6"},
+    {file = "nonebot2-2.4.2-py3-none-any.whl", hash = "sha256:ed3e970cdb6c885fb23349b65a045c08cf3ac7f43e28564ae0c72d3671ecda74"},
+    {file = "nonebot2-2.4.2.tar.gz", hash = "sha256:cf72d5920503ff373ba1d7963f3ddf573db913eb504e3b68ee347efb937db27d"},
 ]
 
 [package.dependencies]
@@ -5435,4 +5450,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12"
-content-hash = "9ce748b376834cf8f92d0ef566589af3ae5baa99d5cefec61f492e6833e9ea79"
+content-hash = "55358c396f014000aa179df7a6eabbb7ac6c79da6ad5de989e802a818fdea81f"
