@@ -160,8 +160,11 @@ class OnebotV11Adapter(BaseAdapter):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        logger.info(f"Self_id:{get_bot().self_id} user_name:{get_bot().self_id}")
-        return PlatformUser(user_id=str(get_bot().self_id), user_name=get_bot().self_id)
+        bot: Bot = get_bot()
+        if bot:
+            logger.info(f"Self_id:{bot.self_id} user_name:{bot.self_id}")
+            return PlatformUser(user_id=str(bot.self_id), user_name=bot.self_id)
+        raise ValueError("No bot found")
 
     async def get_user_info(self, user_id: str) -> PlatformUser:
         """获取用户信息"""

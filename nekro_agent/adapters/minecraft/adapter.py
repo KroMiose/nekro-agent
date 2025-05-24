@@ -19,7 +19,7 @@ from nekro_agent.schemas.chat_message import ChatType
 
 from .core.bot import get_bot
 from .matchers.message import register_matcher
-
+from .matchers.notice import notice_manager
 
 class MinecraftAdapter(BaseAdapter):
     """Minecraft 适配器"""
