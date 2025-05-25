@@ -93,7 +93,7 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 
 - [插件开发指南(施工中)](https://doc.nekro.ai/docs/04_plugin_dev/01_concepts/architecture)
 - [应用开发指南](https://doc.nekro.ai/docs/05_app_dev/dev_linux)
-- [架构解析](https://deepwiki.com/KroMiose/nekro-agent)[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KroMiose/nekro-agent)
+- [项目架构解析](https://deepwiki.com/KroMiose/nekro-agent)[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/KroMiose/nekro-agent)
 
 注意：贡献代码前请先阅读[许可说明](./LICENSE)中的条款，贡献代码即表示您同意这些条款。
 
