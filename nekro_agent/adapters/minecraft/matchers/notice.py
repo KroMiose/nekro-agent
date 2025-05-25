@@ -34,7 +34,7 @@ class PlayerJoinNoticeHandler(BaseNoticeHandler):
         }
 
     async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
-        return f"(玩家 {info['user_id']} 加入服务器)"
+        return f"(玩家 {info['user_id']} 加入了服务器)"
 
 class PlayerQuitNoticeHandler(BaseNoticeHandler):
     """玩家离开通知处理器"""
@@ -50,8 +50,7 @@ class PlayerQuitNoticeHandler(BaseNoticeHandler):
         }
 
     async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
-        return f"(玩家 {info['user_id']} 离开服务器)"
-
+        return f"(玩家 {info['user_id']} 离开了服务器)"
 
 class NoticeHandlerManager:
     """通知处理器管理器"""
