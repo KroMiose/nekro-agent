@@ -2,18 +2,14 @@ import hashlib
 import time
 from typing import Optional, Union
 
-from arclet.alconna import Alconna, Args
 from nonebot import on_message
 from nonebot.adapters.minecraft import Bot, Event
 from nonebot.adapters.minecraft.event.base import (
     BaseChatEvent,
     BaseDeathEvent,
     BasePlayerCommandEvent,
-    MessageEvent,
 )
 from nonebot.matcher import Matcher
-from nonebot_plugin_alconna import AlconnaMatches, Arparma, on_alconna
-from nonebot_plugin_alconna.uniseg import UniMessage, get_target
 
 from nekro_agent.adapters.interface import (
     BaseAdapter,
@@ -22,17 +18,7 @@ from nekro_agent.adapters.interface import (
     PlatformUser,
     collect_message,
 )
-from nekro_agent.adapters.interface.schemas.platform import (
-    PlatformChannel as PlatformChannelSchema,
-)
-from nekro_agent.adapters.interface.schemas.platform import (
-    PlatformMessage as PlatformMessageSchema,
-)
-from nekro_agent.adapters.interface.schemas.platform import (
-    PlatformUser as PlatformUserSchema,
-)
 from nekro_agent.core import config, logger
-from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentType,
@@ -40,12 +26,16 @@ from nekro_agent.schemas.chat_message import (
 )
 
 
-def register_matcher(adapter:BaseAdapter):
+def register_matcher(adapter: BaseAdapter):
     @on_message(priority=999, block=False).handle()
-    async def _(_matcher: Matcher, event: Union[BaseChatEvent,BasePlayerCommandEvent,BaseDeathEvent], _bot: Bot):
+    async def _(_matcher: Matcher, event: Union[BaseChatEvent, BasePlayerCommandEvent, BaseDeathEvent], _bot: Bot):
         """Minecraft 消息收集与预处理"""
-        
-        plt_channel: PlatformChannel = PlatformChannel(channel_id=event.server_name, channel_name=event.server_name, channel_type=ChatType.GROUP)
+
+        plt_channel: PlatformChannel = PlatformChannel(
+            channel_id=event.server_name,
+            channel_name=event.server_name,
+            channel_type=ChatType.GROUP,
+        )
 
         sender_name: Optional[str] = event.player.nickname
         original_player_uuid = str(event.player.uuid)
