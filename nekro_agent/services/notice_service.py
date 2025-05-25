@@ -70,39 +70,3 @@ class NoticeResult(TypedDict):
 
     handler: BaseNoticeHandler
     info: Dict[str, str]
-
-
-class NoticeHandlerManager:
-    """通知处理器管理器"""
-
-    def __init__(self):
-        self._handlers: list[BaseNoticeHandler] = []
-
-    def register(self, handler: BaseNoticeHandler):
-        """注册处理器"""
-        self._handlers.append(handler)
-
-    async def handle(self, event: NoticeEvent, _bot: Bot, db_chat_channel: DBChatChannel) -> Optional[NoticeResult]:
-        """处理通知事件
-
-        Args:
-            event (NoticeEvent): 通知事件
-            _bot (Bot): 机器人实例
-
-        Returns:
-            Optional[NoticeResult]: 处理结果，包含处理器实例和通知信息
-        """
-        # 预处理事件为字典
-        event_dict = dict(event)
-
-        for handler in self._handlers:
-            if info := handler.match(db_chat_channel, event_dict):
-                return NoticeResult(
-                    handler=handler,
-                    info=info,
-                )
-        return None
-
-
-# 全局通知处理器管理器
-notice_manager = NoticeHandlerManager()

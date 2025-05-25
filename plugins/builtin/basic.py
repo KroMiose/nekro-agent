@@ -10,7 +10,12 @@ from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.tools import user
 from nekro_agent.api import core, message
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    NekroPlugin,
+    SandboxMethod,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import (
@@ -252,6 +257,43 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e
 
+@plugin.mount_collect_methods()
+async def collect_available_methods(_ctx: AgentCtx) -> List[SandboxMethod]:
+    """根据适配器收集可用方法"""
+
+    method_send_msg_text = SandboxMethod(
+        method_type=SandboxMethodType.TOOL,
+        name="发送聊天消息文本",
+        description="发送聊天消息文本，附带缓存消息重复检查",
+        func=send_msg_text,
+    )
+
+    method_send_msg_file = SandboxMethod(
+        method_type=SandboxMethodType.TOOL,
+        name="发送聊天消息图片/文件资源",
+        description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
+        func=send_msg_file,
+    )
+
+    method_get_user_avatar = SandboxMethod(
+        method_type=SandboxMethodType.TOOL,
+        name="获取用户头像",
+        description="获取用户头像",
+        func=get_user_avatar,
+    )
+
+    all_methods = [
+        method_send_msg_text,
+        method_send_msg_file,
+        method_get_user_avatar,
+    ]
+
+    if _ctx.adapter_key == "minecraft":
+        # 如果是 Minecraft 适配器，只保留 send_msg_text
+        # 通过列表推导式筛选，只保留 name 为 "发送聊天消息文本" 的方法
+        return [m for m in all_methods if m.name == "发送聊天消息文本"]
+    
+    return all_methods
 
 @plugin.mount_cleanup_method()
 async def clean_up():

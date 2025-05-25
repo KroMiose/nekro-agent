@@ -4,10 +4,11 @@
 """
 
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin
-from nekro_agent.services.plugin.schema import SandboxMethodType
+from nekro_agent.services.plugin.schema import SandboxMethod, SandboxMethodType
 
 __all__ = [
     "ConfigBase",
     "NekroPlugin",
+    "SandboxMethod",
     "SandboxMethodType",
 ]
