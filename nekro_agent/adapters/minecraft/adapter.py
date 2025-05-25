@@ -1,6 +1,6 @@
 import os
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import nonebot
 from fastapi import APIRouter
@@ -37,20 +37,39 @@ class MinecraftAdapter(BaseAdapter):
 
     async def init(self) -> None:
         """初始化适配器"""
-        if (
-            os.environ.get("minecraft_ws_urls")  # noqa: SIM112
-            and os.environ.get("minecraft_access_token")  # noqa: SIM112
-            and os.environ.get("minecraft_server_rcon")  # noqa: SIM112
-        ):
-            from nonebot.adapters.minecraft import Adapter as MinecraftAdapter
-
-            from .matchers.message import register_matcher
-            from .matchers.notice import notice_manager
-
+        try:
             driver = nonebot.get_driver()
-            driver.register_adapter(MinecraftAdapter)
-            logger.info(f"Minecraft adapter [{self.key}] initialized.")
-            register_matcher(self)
+            
+            # 直接从 driver.config 获取配置
+            minecraft_ws_urls = getattr(driver.config, "minecraft_ws_urls", None)
+            minecraft_access_token = getattr(driver.config, "minecraft_access_token", "")
+            minecraft_server_rcon = getattr(driver.config, "minecraft_server_rcon", None)
+            
+            # 检查配置项类型是否正确
+            ws_urls_valid = isinstance(minecraft_ws_urls, dict) and minecraft_ws_urls
+            token_valid = isinstance(minecraft_access_token, str) and minecraft_access_token
+            rcon_valid = isinstance(minecraft_server_rcon, dict) and minecraft_server_rcon
+            
+            if ws_urls_valid or (token_valid and rcon_valid):
+                from nonebot.adapters.minecraft import Adapter as MinecraftAdapter
+
+                from .matchers.message import register_matcher
+                from .matchers.notice import notice_manager
+
+                driver.register_adapter(MinecraftAdapter)
+                logger.info(f"Minecraft 适配器 [{self.key}] 已加载")
+                register_matcher(self)
+            else:
+                logger.warning("Minecraft 适配器 由于以下几个配置项错误未能加载")
+                if not ws_urls_valid:
+                    logger.warning("- minecraft_ws_urls 应该是一个字典")
+                if not token_valid:
+                    logger.warning("- minecraft_access_token 应该是一个字符串")
+                if not rcon_valid:
+                    logger.warning("- minecraft_server_rcon 应该是一个字典")
+        except Exception as e:
+            logger.error(f"Minecraft 适配器初始化失败: {e}", exc_info=True)
+            logger.warning("Minecraft 适配器未能加载")
 
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
