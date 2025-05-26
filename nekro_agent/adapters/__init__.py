@@ -5,10 +5,12 @@ from fastapi import FastAPI
 from .interface.base import BaseAdapter
 from .minecraft.adapter import MinecraftAdapter
 from .onebot_v11.adapter import OnebotV11Adapter
+from .sse.adapter import SSEAdapter
 
 ALL_ADAPTERS: List[Type[BaseAdapter]] = [
     OnebotV11Adapter,
     MinecraftAdapter,
+    SSEAdapter,
 ]
 
 
@@ -19,7 +21,7 @@ async def load_adapters(app: FastAPI):
     for Adapter in ALL_ADAPTERS:
         adapter = Adapter()
         await adapter.init()
-        app.include_router(await adapter.get_adapter_router())
+        app.include_router(adapter.router)
         loaded_adapters.append(adapter)
 
 

@@ -17,6 +17,9 @@ from .schemas.platform import (
 class BaseAdapter(ABC):
     """适配器基类"""
 
+    def __init__(self):
+        self.router = APIRouter(prefix=f"/adapter/{self.key}")
+
     @property
     def key(self) -> str:
         raise NotImplementedError
@@ -73,6 +76,6 @@ class BaseAdapter(ABC):
         # 默认实现：不支持消息反应功能
         return False
 
-    async def get_adapter_router(self) -> APIRouter:
+    def get_adapter_router(self) -> APIRouter:
         """获取适配器路由"""
-        return APIRouter(prefix=f"/adapter/{self.key}")
+        return self.router

@@ -39,17 +39,17 @@ class MinecraftAdapter(BaseAdapter):
         """初始化适配器"""
         try:
             driver = nonebot.get_driver()
-            
+
             # 直接从 driver.config 获取配置
             minecraft_ws_urls = getattr(driver.config, "minecraft_ws_urls", None)
             minecraft_access_token = getattr(driver.config, "minecraft_access_token", "")
             minecraft_server_rcon = getattr(driver.config, "minecraft_server_rcon", None)
-            
+
             # 检查配置项类型是否正确
             ws_urls_valid = isinstance(minecraft_ws_urls, dict) and minecraft_ws_urls
             token_valid = isinstance(minecraft_access_token, str) and minecraft_access_token
             rcon_valid = isinstance(minecraft_server_rcon, dict) and minecraft_server_rcon
-            
+
             if ws_urls_valid or (token_valid and rcon_valid):
                 from nonebot.adapters.minecraft import Adapter as MinecraftAdapter
 
@@ -127,9 +127,3 @@ class MinecraftAdapter(BaseAdapter):
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:  # noqa: ARG002
         """设置消息反应（可选实现）"""
         return True
-
-    async def get_adapter_router(self) -> APIRouter:
-        """获取适配器路由"""
-        # TODO: 如果 Minecraft 适配器需要特定的 API 路由，在此实现
-        # 默认为基础路由
-        return await super().get_adapter_router()

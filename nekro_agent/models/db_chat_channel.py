@@ -89,8 +89,12 @@ class DBChatChannel(Model):
 
     async def sync_channel_name(self):
         """同步频道名称"""
-        self.channel_name = await self.get_channel_name()
-        await self.save()
+        try:
+            self.channel_name = await self.get_channel_name()
+        except Exception as e:
+            logger.error(f"同步频道名称失败: {e!s}")
+        else:
+            await self.save()
 
     async def get_channel_name(self) -> str:
         """获取频道名称"""

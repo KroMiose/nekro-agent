@@ -72,13 +72,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, PluginConfig, pluginsApi } from '../../services/api/plugins'
 import { configApi, ModelTypeOption } from '../../services/api/config'
 import { useNavigate } from 'react-router-dom'
-import { 
-  pluginTypeColors, 
-  pluginTypeTexts, 
-  configTypeColors, 
+import {
+  pluginTypeColors,
+  pluginTypeTexts,
+  configTypeColors,
   methodTypeColors,
   methodTypeTexts,
-  methodTypeDescriptions
+  methodTypeDescriptions,
 } from '../../theme/variants'
 import { CHIP_VARIANTS } from '../../theme/variants'
 
@@ -179,7 +179,11 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
               <ListItem
                 key={index}
                 secondaryAction={
-                  <IconButton edge="end" onClick={() => handleDeleteItem(index)} sx={{ p: { xs: 1, sm: 1.2 } }}>
+                  <IconButton
+                    edge="end"
+                    onClick={() => handleDeleteItem(index)}
+                    sx={{ p: { xs: 1, sm: 1.2 } }}
+                  >
                     <DeleteIcon />
                   </IconButton>
                 }
@@ -191,10 +195,15 @@ function ListEditDialog({ open, onClose, value, onChange, itemType, title }: Lis
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}>取消</Button>
-        <Button 
-          onClick={handleSave} 
-          color="primary" 
+        <Button
+          onClick={onClose}
+          sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+        >
+          取消
+        </Button>
+        <Button
+          onClick={handleSave}
+          color="primary"
           variant="contained"
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
@@ -523,9 +532,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     size="small"
                     color={configTypeColors[itemType] || 'default'}
                     variant="outlined"
-                    sx={{ 
+                    sx={{
                       ...CHIP_VARIANTS.base(isSmall),
-                      mr: 1 
+                      mr: 1,
                     }}
                   />
                 </InputAdornment>
@@ -758,7 +767,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         <IconButton onClick={onBack} edge="start" sx={{ mr: 0.5 }}>
           <ArrowBackIcon />
         </IconButton>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, overflow: 'hidden' }}>
+        <Box
+          sx={{ display: 'flex', alignItems: 'center', gap: 1, flexGrow: 1, overflow: 'hidden' }}
+        >
           <Chip
             label={getPluginTypeText()}
             size="small"
@@ -767,12 +778,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             sx={{ height: 22, fontSize: '0.7rem' }}
           />
           <Typography
-            variant={isMobile ? "subtitle1" : "h6"} 
+            variant={isMobile ? 'subtitle1' : 'h6'}
             component="div"
-            sx={{ 
+            sx={{
               overflow: 'hidden',
               textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
             }}
           >
             {plugin.name}
@@ -830,8 +841,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           >
             重置
           </Button>
-          <Button 
-            startIcon={<RefreshIcon />} 
+          <Button
+            startIcon={<RefreshIcon />}
             onClick={() => setReloadConfirmOpen(true)}
             size="small"
             variant="outlined"
@@ -842,25 +853,27 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         </Box>
       )}
 
-      <Box sx={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        mb: 2,
-      }}>
-        <Tabs 
-          value={activeTab} 
-          onChange={(_, newValue) => setActiveTab(newValue)} 
-          sx={{ 
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          mb: 2,
+        }}
+      >
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          sx={{
             '& .MuiTabs-flexContainer': {
               flexWrap: isMobile ? 'wrap' : 'nowrap',
             },
             '& .MuiTab-root': {
               minWidth: isMobile ? 'auto' : 90,
               px: isSmall ? 1 : 2,
-            }
+            },
           }}
-          variant={isMobile ? "scrollable" : "standard"}
+          variant={isMobile ? 'scrollable' : 'standard'}
           scrollButtons="auto"
         >
           <Tab
@@ -973,8 +986,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             >
               重置
             </Button>
-            <Button 
-              startIcon={<RefreshIcon />} 
+            <Button
+              startIcon={<RefreshIcon />}
               onClick={() => setReloadConfirmOpen(true)}
               size="small"
               variant="outlined"
@@ -1044,10 +1057,10 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     <Typography
                       variant="caption"
                       color="text.secondary"
-                      sx={{ 
+                      sx={{
                         fontStyle: 'italic',
                         mt: isMobile ? 1 : 0,
-                        width: isMobile ? '100%' : 'auto'
+                        width: isMobile ? '100%' : 'auto',
                       }}
                     >
                       提示：按 Ctrl+S 可快速保存配置
@@ -1067,12 +1080,27 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       },
                     }}
                   >
-                    <Table size={isSmall ? "small" : "medium"} stickyHeader>
+                    <Table size={isSmall ? 'small' : 'medium'} stickyHeader>
                       <TableHead>
                         <TableRow>
-                          <TableCell width={isMobile ? "40%" : "30%"} sx={{ py: isSmall ? 1 : 1.5 }}>配置项</TableCell>
-                          <TableCell width={isMobile ? "15%" : "10%"} sx={{ py: isSmall ? 1 : 1.5 }}>类型</TableCell>
-                          <TableCell width={isMobile ? "45%" : "60%"} sx={{ py: isSmall ? 1 : 1.5 }}>值</TableCell>
+                          <TableCell
+                            width={isMobile ? '40%' : '30%'}
+                            sx={{ py: isSmall ? 1 : 1.5 }}
+                          >
+                            配置项
+                          </TableCell>
+                          <TableCell
+                            width={isMobile ? '15%' : '10%'}
+                            sx={{ py: isSmall ? 1 : 1.5 }}
+                          >
+                            类型
+                          </TableCell>
+                          <TableCell
+                            width={isMobile ? '45%' : '60%'}
+                            sx={{ py: isSmall ? 1 : 1.5 }}
+                          >
+                            值
+                          </TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -1080,14 +1108,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           .filter(item => !item.is_hidden)
                           .map(item => (
                             <TableRow key={item.key}>
-                              <TableCell component="th" scope="row" sx={{ py: isSmall ? 0.75 : 1.25 }}>
+                              <TableCell
+                                component="th"
+                                scope="row"
+                                sx={{ py: isSmall ? 0.75 : 1.25 }}
+                              >
                                 <Box>
                                   <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Typography 
-                                      variant="subtitle2" 
-                                      sx={{ 
+                                    <Typography
+                                      variant="subtitle2"
+                                      sx={{
                                         fontWeight: 'bold',
-                                        fontSize: isSmall ? '0.75rem' : '0.875rem', 
+                                        fontSize: isSmall ? '0.75rem' : '0.875rem',
                                       }}
                                     >
                                       {item.title || item.key}
@@ -1113,8 +1145,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                       </HtmlTooltip>
                                     )}
                                   </Box>
-                                  <Typography 
-                                    variant="caption" 
+                                  <Typography
+                                    variant="caption"
                                     color="text.secondary"
                                     sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}
                                   >
@@ -1151,11 +1183,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                           | 'default') || 'primary'
                                       return (
                                         <Box
-                                          sx={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
+                                          sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
                                             gap: 0.5,
-                                            flexShrink: 0
+                                            flexShrink: 0,
                                           }}
                                         >
                                           <Chip
@@ -1163,7 +1195,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                             size="small"
                                             color={chipColor}
                                             variant="outlined"
-                                            sx={{ 
+                                            sx={{
                                               ...CHIP_VARIANTS.base(isSmall),
                                               display: isMobile ? 'none' : 'flex',
                                             }}
@@ -1195,7 +1227,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   startIcon={<SaveIcon />}
                   onClick={() => handleSaveConfig()}
                   disabled={Object.keys(editingStatus).length === 0 || saveMutation.isPending}
-                  size={isSmall ? "small" : "medium"}
+                  size={isSmall ? 'small' : 'medium'}
                 >
                   {saveMutation.isPending ? '保存中...' : '保存配置'}
                 </Button>
@@ -1216,11 +1248,15 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             </Typography>
             {plugin.methods && plugin.methods.length > 0 ? (
               <TableContainer>
-                <Table size={isSmall ? "small" : "medium"}>
+                <Table size={isSmall ? 'small' : 'medium'}>
                   <TableHead>
                     <TableRow>
-                      <TableCell width={isMobile ? "30%" : "20%"} sx={{ py: isSmall ? 1 : 1.5 }}>方法名</TableCell>
-                      <TableCell width={isMobile ? "25%" : "15%"} sx={{ py: isSmall ? 1 : 1.5 }}>类型</TableCell>
+                      <TableCell width={isMobile ? '30%' : '20%'} sx={{ py: isSmall ? 1 : 1.5 }}>
+                        方法名
+                      </TableCell>
+                      <TableCell width={isMobile ? '25%' : '15%'} sx={{ py: isSmall ? 1 : 1.5 }}>
+                        类型
+                      </TableCell>
                       <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>描述</TableCell>
                     </TableRow>
                   </TableHead>
@@ -1230,19 +1266,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                         <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                           <Typography
                             variant="body2"
-                            sx={{ 
-                              fontFamily: 'monospace', 
+                            sx={{
+                              fontFamily: 'monospace',
                               fontWeight: 'bold',
                               fontSize: isSmall ? '0.7rem' : '0.875rem',
                               overflowWrap: 'break-word',
-                              wordBreak: 'break-all'
+                              wordBreak: 'break-all',
                             }}
                           >
                             {method.name}
                           </Typography>
                         </TableCell>
                         <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
-                          <Tooltip title={methodTypeDescriptions[method.type] || ''} arrow placement="top">
+                          <Tooltip
+                            title={methodTypeDescriptions[method.type] || ''}
+                            arrow
+                            placement="top"
+                          >
                             <Chip
                               label={methodTypeTexts[method.type] || method.type}
                               color={methodTypeColors[method.type]}
@@ -1253,8 +1293,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           </Tooltip>
                         </TableCell>
                         <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
-                          <Typography 
-                            variant="body2" 
+                          <Typography
+                            variant="body2"
                             sx={{ fontSize: isSmall ? '0.75rem' : '0.875rem' }}
                           >
                             {method.description}
@@ -1283,12 +1323,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             </Typography>
             {plugin.webhooks && plugin.webhooks.length > 0 ? (
               <TableContainer>
-                <Table size={isSmall ? "small" : "medium"}>
+                <Table size={isSmall ? 'small' : 'medium'}>
                   <TableHead>
                     <TableRow>
-                      <TableCell width={isSmall ? 100 : 150} sx={{ py: isSmall ? 1 : 1.5 }}>接入点</TableCell>
+                      <TableCell width={isSmall ? 100 : 150} sx={{ py: isSmall ? 1 : 1.5 }}>
+                        接入点
+                      </TableCell>
                       <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>名称</TableCell>
-                      <TableCell width={isSmall ? 80 : 132} align="center" sx={{ py: isSmall ? 1 : 1.5 }}>
+                      <TableCell
+                        width={isSmall ? 80 : 132}
+                        align="center"
+                        sx={{ py: isSmall ? 1 : 1.5 }}
+                      >
                         操作
                       </TableCell>
                       <TableCell width={36} padding="none" />
@@ -1301,19 +1347,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           <TableCell>
                             <Typography
                               variant="body2"
-                              sx={{ 
-                                fontFamily: 'monospace', 
+                              sx={{
+                                fontFamily: 'monospace',
                                 fontWeight: 'bold',
                                 fontSize: isSmall ? '0.7rem' : '0.875rem',
                                 overflowWrap: 'break-word',
-                                wordBreak: 'break-all'
+                                wordBreak: 'break-all',
                               }}
                             >
                               {webhook.endpoint}
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography 
+                            <Typography
                               variant="body2"
                               sx={{ fontSize: isSmall ? '0.75rem' : '0.875rem' }}
                             >
@@ -1342,9 +1388,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 '& .MuiButton-startIcon': {
                                   mr: isSmall ? 0.3 : 0.5,
                                   '& svg': {
-                                    fontSize: isSmall ? '0.9rem' : '1rem'
-                                  }
-                                }
+                                    fontSize: isSmall ? '0.9rem' : '1rem',
+                                  },
+                                },
                               }}
                             >
                               复制
@@ -1364,9 +1410,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               }}
                             >
                               {expandedRows.has(webhook.endpoint) ? (
-                                <KeyboardArrowUpIcon fontSize={isSmall ? "small" : "medium"} />
+                                <KeyboardArrowUpIcon fontSize={isSmall ? 'small' : 'medium'} />
                               ) : (
-                                <KeyboardArrowDownIcon fontSize={isSmall ? "small" : "medium"} />
+                                <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                               )}
                             </IconButton>
                           </TableCell>
@@ -1388,12 +1434,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 <Typography variant="subtitle2" gutterBottom>
                                   描述
                                 </Typography>
-                                <Typography 
-                                  variant="body2" 
-                                  color="text.secondary" 
-                                  sx={{ 
+                                <Typography
+                                  variant="body2"
+                                  color="text.secondary"
+                                  sx={{
                                     pl: 2,
-                                    fontSize: isSmall ? '0.75rem' : '0.875rem' 
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
                                   }}
                                 >
                                   {webhook.description || '暂无描述'}
@@ -1429,7 +1475,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </Box>
             ) : pluginData.length > 0 ? (
               <TableContainer>
-                <Table size={isSmall ? "small" : "medium"}>
+                <Table size={isSmall ? 'small' : 'medium'}>
                   <TableHead>
                     <TableRow>
                       <TableCell width={isMobile ? 80 : 150}>会话</TableCell>
@@ -1446,7 +1492,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       <React.Fragment key={data.id}>
                         <TableRow>
                           <TableCell>
-                            <Typography 
+                            <Typography
                               variant="body2"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
                             >
@@ -1454,7 +1500,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography 
+                            <Typography
                               variant="body2"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
                             >
@@ -1462,20 +1508,25 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                             </Typography>
                           </TableCell>
                           <TableCell>
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
+                            <Typography
+                              variant="body2"
+                              sx={{
                                 fontFamily: 'monospace',
                                 fontSize: isSmall ? '0.7rem' : '0.875rem',
                                 overflowWrap: 'break-word',
-                                wordBreak: 'break-all'
+                                wordBreak: 'break-all',
                               }}
                             >
                               {data.data_key}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
-                            <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap">
+                            <Stack
+                              direction="row"
+                              spacing={0.5}
+                              justifyContent="flex-end"
+                              flexWrap="wrap"
+                            >
                               <Button
                                 size="small"
                                 startIcon={<ContentCopyIcon fontSize="small" />}
@@ -1496,9 +1547,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   '& .MuiButton-startIcon': {
                                     mr: isSmall ? 0.3 : 0.5,
                                     '& svg': {
-                                      fontSize: isSmall ? '0.9rem' : '1rem'
-                                    }
-                                  }
+                                      fontSize: isSmall ? '0.9rem' : '1rem',
+                                    },
+                                  },
                                 }}
                               >
                                 复制
@@ -1523,9 +1574,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   '& .MuiButton-startIcon': {
                                     mr: isSmall ? 0.3 : 0.5,
                                     '& svg': {
-                                      fontSize: isSmall ? '0.9rem' : '1rem'
-                                    }
-                                  }
+                                      fontSize: isSmall ? '0.9rem' : '1rem',
+                                    },
+                                  },
                                 }}
                               >
                                 删除
@@ -1546,9 +1597,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               }}
                             >
                               {expandedDataRows.has(data.id) ? (
-                                <KeyboardArrowUpIcon fontSize={isSmall ? "small" : "medium"} />
+                                <KeyboardArrowUpIcon fontSize={isSmall ? 'small' : 'medium'} />
                               ) : (
-                                <KeyboardArrowDownIcon fontSize={isSmall ? "small" : "medium"} />
+                                <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                               )}
                             </IconButton>
                           </TableCell>
@@ -1581,7 +1632,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     WebkitLineClamp: 10,
                                     WebkitBoxOrient: 'vertical',
                                     overflow: 'hidden',
-                                    fontSize: isSmall ? '0.75rem' : '0.875rem'
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
                                   }}
                                 >
                                   {data.data_value}
@@ -1613,8 +1664,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
-            onClick={() => setResetDataConfirmOpen(false)} 
+          <Button
+            onClick={() => setResetDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             取消
@@ -1642,7 +1693,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setReloadConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
@@ -1679,14 +1730,14 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setSaveWarningOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             取消
           </Button>
-          <Button 
-            onClick={() => handleSaveConfig(true)} 
+          <Button
+            onClick={() => handleSaveConfig(true)}
             color="warning"
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
@@ -1705,7 +1756,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setDeleteConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
@@ -1744,7 +1795,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setUpdateConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
@@ -1773,7 +1824,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
+          <Button
             onClick={() => setDeleteDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
@@ -1918,12 +1969,12 @@ export default function PluginsManagementPage() {
     })
 
   return (
-    <Box 
-          sx={{
-            display: 'flex',
-        height: 'calc(100vh - 120px)', 
-            flexDirection: 'column',
-        gap: 2, 
+    <Box
+      sx={{
+        display: 'flex',
+        height: 'calc(100vh - 90px)',
+        flexDirection: 'column',
+        gap: 2,
         position: 'relative',
       }}
     >
@@ -1987,7 +2038,8 @@ export default function PluginsManagementPage() {
                           sx={{
                             cursor: 'pointer',
                             '&:hover': { bgcolor: 'action.hover' },
-                            bgcolor: selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
+                            bgcolor:
+                              selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
                           }}
                         >
                           <ListItemButton sx={{ py: 1 }}>
@@ -2003,20 +2055,27 @@ export default function PluginsManagementPage() {
                             />
                             <ListItemText
                               primary={
-                                <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                    gap: 0.5,
+                                  }}
+                                >
                                   <Chip
                                     label={pluginTypeTexts[getPluginType(plugin)]}
                                     size="small"
                                     color={pluginTypeColors[getPluginType(plugin)]}
                                     variant="outlined"
-                                    sx={{ 
-                                      height: 18, 
-                                      fontSize: '0.65rem'
+                                    sx={{
+                                      height: 18,
+                                      fontSize: '0.65rem',
                                     }}
                                   />
-                                  <Typography 
-                                    variant="body1" 
-                                    sx={{ 
+                                  <Typography
+                                    variant="body1"
+                                    sx={{
                                       fontWeight: 'bold',
                                       fontSize: '0.85rem',
                                       ml: 0.5,
@@ -2042,7 +2101,7 @@ export default function PluginsManagementPage() {
                                     overflow: 'hidden',
                                     whiteSpace: 'nowrap',
                                     maxWidth: 200,
-                                    fontSize: isSmall ? '0.75rem' : 'inherit'
+                                    fontSize: isSmall ? '0.75rem' : 'inherit',
                                   }}
                                 >
                                   {plugin.description}
@@ -2161,7 +2220,8 @@ export default function PluginsManagementPage() {
                           sx={{
                             cursor: 'pointer',
                             '&:hover': { bgcolor: 'action.hover' },
-                            bgcolor: selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
+                            bgcolor:
+                              selectedPlugin?.id === plugin.id ? 'action.selected' : 'inherit',
                           }}
                         >
                           <ListItemButton sx={{ py: isSmall ? 0.75 : 1.25 }}>
@@ -2185,9 +2245,9 @@ export default function PluginsManagementPage() {
                                     label={pluginTypeTexts[getPluginType(plugin)]}
                                     sx={CHIP_VARIANTS.base(isSmall)}
                                   />
-                                  <Typography 
-                                    variant="body1" 
-                                    sx={{ 
+                                  <Typography
+                                    variant="body1"
+                                    sx={{
                                       fontWeight: 'bold',
                                       fontSize: '0.85rem',
                                       ml: 0.5,
@@ -2213,7 +2273,7 @@ export default function PluginsManagementPage() {
                                     overflow: 'hidden',
                                     whiteSpace: 'nowrap',
                                     maxWidth: 200,
-                                    fontSize: isSmall ? '0.75rem' : 'inherit'
+                                    fontSize: isSmall ? '0.75rem' : 'inherit',
                                   }}
                                 >
                                   {plugin.description}
@@ -2269,8 +2329,8 @@ export default function PluginsManagementPage() {
                     欢迎使用插件管理
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                请从左侧选择一个插件查看详情
-              </Typography>
+                    请从左侧选择一个插件查看详情
+                  </Typography>
                 </Box>
               )}
             </Paper>
@@ -2293,12 +2353,12 @@ export default function PluginsManagementPage() {
           {message}
         </Alert>
       </Snackbar>
-      
+
       {/* 移动端展示插件列表的Fab按钮 - 始终可见 */}
       {isMobile && (
         <Fab
           color="primary"
-          size={isSmall ? "medium" : "large"}
+          size={isSmall ? 'medium' : 'large'}
           onClick={() => setDrawerOpen(true)}
           sx={{
             position: 'fixed',

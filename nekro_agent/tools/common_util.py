@@ -16,6 +16,8 @@ from nekro_agent.core.config import config
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
 from nekro_agent.tools.path_convertor import is_url_path
 
+_APP_VERSION: str = ""
+
 
 def get_app_version() -> str:
     """获取当前应用版本号
@@ -23,11 +25,15 @@ def get_app_version() -> str:
     Returns:
         str: 应用版本号
     """
+    global _APP_VERSION
+    if _APP_VERSION:
+        return _APP_VERSION
     pyproject = toml.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     try:
-        return pyproject["tool"]["poetry"]["version"]
+        _APP_VERSION = pyproject["tool"]["poetry"]["version"]
     except KeyError:
-        return "unknown"
+        _APP_VERSION = "unknown"
+    return _APP_VERSION
 
 
 async def download_file(

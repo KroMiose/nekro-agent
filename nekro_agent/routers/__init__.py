@@ -13,6 +13,7 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user.util import user_login
+from nekro_agent.tools.common_util import get_app_version
 
 from .chat_channel import router as chat_channel_router
 from .cloud.auth import router as cloud_auth_router
@@ -91,7 +92,7 @@ def mount_routers(app: FastAPI):
     async def openapi():
         openapi_schema = get_openapi(
             title="Nekro Agent API",
-            version="0.1.0",
+            version=get_app_version(),
             routes=api.routes,
             description="Nekro Agent API 文档",
         )
