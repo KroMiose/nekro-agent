@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 from urllib.parse import quote_plus
 
+import nonebot
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ArgTypes:
@@ -66,6 +67,19 @@ class OsEnvTypes:
         return str(OsEnvTypes._use_env(key, "false")).lower() == "true"
 
 
+class ExtraField(BaseModel):
+    is_hidden: bool = Field(default=False, title="配置项可见性控制", description="设置为True时，该配置项将在WebUI界面中被隐藏")
+    is_secret: bool = Field(default=False, title="敏感信息保护", description="设置为True时，输入内容将以密码形式('••••')显示，用于保护API密钥等敏感数据")
+    placeholder: str = Field(default="", title="输入提示文本", description="当字段未填写时在输入框中显示的提示文本")
+    is_textarea: bool = Field(default=False, title="多行文本支持", description="设置为True时，将使用多行文本区域而非单行输入框")
+    ref_model_groups: bool = Field(default=False, title="模型组引用标识", description="设置为True时，表示该字段需要从系统中已配置的模型组中选择")
+    model_type: str = Field(default="", title="模型类型规范", description="指定引用的模型类型标识符，仅在ref_model_groups为True时生效")
+    required: bool = Field(default=False, title="必填字段标识", description="设置为True时，前端将验证该字段必须填写才能提交表单")
+    load_to_sysenv: bool = Field(default=False, title="环境变量加载控制", description="设置为True时，该配置项的值将被加载到系统环境变量中")
+    load_sysenv_as: str = Field(default="", title="环境变量名称定义", description="指定将配置项加载为环境变量时使用的变量名，仅在load_to_env为True时生效")
+    load_to_nonebot_env: bool = Field(default=False, title="nonebot环境变量加载控制", description="设置为True时，该配置项的值将被加载到nonebot的环境变量中")
+    load_nbenv_as: str = Field(default="", title="nonebot环境变量名称定义", description="指定将配置项加载到nonebot的环境变量时使用的变量名，仅在load_to_nbenv_as为True时生效")
+
 class ConfigBase(BaseModel):
 
     @classmethod
@@ -99,7 +113,10 @@ class ConfigBase(BaseModel):
     @classmethod
     def get_field_title(cls, field_name: str) -> str:
         """获取字段的中文标题"""
-        return cls.model_fields.get(field_name).title  # type: ignore
+        field = cls.model_fields.get(field_name)
+        if field and field.title:
+            return field.title
+        return ""  # Return empty string if field or title is not found
 
     @classmethod
     def get_field_placeholder(cls, field_name: str) -> str:

@@ -84,7 +84,7 @@ __plugin_meta__ = PluginMetadata(
     config=_Config,
 )
 
-global_config = get_driver().config
+global_config = get_driver().config #我觉得这玩意可以删掉 没人用
 
 
 # 启动 Api 服务进程
