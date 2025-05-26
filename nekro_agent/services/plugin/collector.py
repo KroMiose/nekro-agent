@@ -24,7 +24,7 @@ from .schema import SandboxMethod
 
 
 class PackageInfo(BaseModel):
-    """插件包信息"""
+    """云端插件信息"""
 
     module_name: str
     git_url: str
@@ -34,38 +34,38 @@ class PackageInfo(BaseModel):
 
 
 class PackageData(BaseModel):
-    """插件包信息"""
+    """云端插件信息"""
 
     packages: List[PackageInfo]
     latest_updated: str
 
     def get_package_by_module(self, module_name: str) -> Optional[PackageInfo]:
-        """根据模块名获取插件包信息"""
+        """根据模块名获取云端插件信息"""
         for package in self.packages:
             if package.module_name == module_name:
                 return package
         return None
 
     def add_package(self, package: PackageInfo) -> None:
-        """添加插件包信息"""
+        """添加云端插件信息"""
         if self.get_package_by_module(package.module_name):
-            raise ValueError(f"插件包 `{package.module_name}` 已存在")
+            raise ValueError(f"云端插件 `{package.module_name}` 已存在")
         self.packages.append(package)
         self.save()
 
     def remove_package(self, module_name: str) -> None:
-        """删除插件包信息"""
+        """删除云端插件信息"""
         if not self.get_package_by_module(module_name):
-            raise ValueError(f"插件包 `{module_name}` 不存在")
+            raise ValueError(f"云端插件 `{module_name}` 不存在")
         self.packages = [package for package in self.packages if package.module_name != module_name]
         self.save()
 
     def get_remote_ids(self) -> List[str]:
-        """获取所有插件包的远程ID"""
+        """获取所有云端插件的远程ID"""
         return [package.remote_id for package in self.packages if package.remote_id]
 
     def save(self) -> None:
-        """保存插件包信息"""
+        """保存云端插件信息"""
         PACKAGE_DATA_PATH.write_text(json.dumps(self.model_dump(), indent=2, ensure_ascii=False))
 
 
@@ -127,7 +127,7 @@ class PluginCollector:
 
         Args:
             module_name: 插件模块名
-            scope: 卸载范围，可选值：all(所有)、package(仅插件包)、local(仅本地插件)
+            scope: 卸载范围，可选值：all(所有)、package(仅云端插件)、local(仅本地插件)
         """
         if module_name.endswith(".py"):
             module_name = module_name[: -len(".py")]
@@ -143,7 +143,7 @@ class PluginCollector:
 
         # 根据scope限制卸载范围
         if scope == "package" and not plugin.is_package:
-            logger.warning(f"插件 {plugin.name} 不是插件包，跳过卸载")
+            logger.warning(f"插件 {plugin.name} 不是云端插件，跳过卸载")
             return
 
         if scope == "local" and (plugin.is_builtin or plugin.is_package):
@@ -202,7 +202,7 @@ class PluginCollector:
 
         if len(exists_paths) > 1:
             logger.warning(
-                f"在多个加载目录中发现了重复插件 `{module_name}`，将按照以下优先级加载：内置插件 > 工作目录插件 > 云端插件包",
+                f"在多个加载目录中发现了重复插件 `{module_name}`，将按照以下优先级加载：内置插件 > 工作目录插件 > 云端云端插件",
             )
 
         real_path = exists_paths[0]
@@ -237,24 +237,24 @@ class PluginCollector:
         remote_id: str,
         auto_load: bool = False,
     ) -> None:
-        """克隆插件包
+        """克隆云端插件
 
         Args:
-            module_name: 插件包模块名
-            git_url: 插件包Git URL
-            remote_id: 插件包远程ID
-            version: 插件包版本
+            module_name: 云端插件模块名
+            git_url: 云端插件Git URL
+            remote_id: 云端插件远程ID
+            version: 云端插件版本
             auto_load: 是否自动加载插件
         """
         package_dir = self.packages_dir / module_name
         if package_dir.exists():
-            raise ValueError(f"插件包 `{module_name}` 已存在")
+            raise ValueError(f"云端插件 `{module_name}` 已存在")
 
         env = {}
         if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
             env["HTTP_PROXY"] = config.DEFAULT_PROXY
             env["HTTPS_PROXY"] = config.DEFAULT_PROXY
-            logger.info(f"使用代理 {config.DEFAULT_PROXY} 克隆插件包 {module_name} 从 {git_url}")
+            logger.info(f"使用代理 {config.DEFAULT_PROXY} 克隆云端插件 {module_name} 从 {git_url}")
 
         git.Repo.clone_from(git_url, package_dir, env=env)
         self.package_data.add_package(
@@ -264,15 +264,15 @@ class PluginCollector:
             await self.reload_plugin_by_module_name(module_name)
 
     async def update_package(self, module_name: str, auto_reload: bool = False) -> None:
-        """更新插件包
+        """更新云端插件
 
         Args:
-            module_name: 插件包模块名
+            module_name: 云端插件模块名
             auto_reload: 是否自动重新加载插件
         """
         package_dir = self.packages_dir / module_name
         if not package_dir.exists():
-            raise ValueError(f"插件包 `{module_name}` 不存在")
+            raise ValueError(f"云端插件 `{module_name}` 不存在")
 
         try:
             repo = git.Repo(package_dir)
@@ -280,27 +280,27 @@ class PluginCollector:
             if config.PLUGIN_UPDATE_USE_PROXY and config.DEFAULT_PROXY:
                 env["HTTP_PROXY"] = config.DEFAULT_PROXY
                 env["HTTPS_PROXY"] = config.DEFAULT_PROXY
-                logger.info(f"使用代理 {config.DEFAULT_PROXY} 更新插件包 {module_name}")
+                logger.info(f"使用代理 {config.DEFAULT_PROXY} 更新云端插件 {module_name}")
             # 使用 repo.git.pull 并传递 env
             repo.git.pull("origin", env=env)
         except Exception as e:
-            logger.error(f"更新插件包 `{module_name}` 失败: {e}")
+            logger.error(f"更新云端插件 `{module_name}` 失败: {e}")
             raise
 
         if auto_reload:
             await self.reload_plugin_by_module_name(module_name, is_package=True)
 
     async def remove_package(self, module_name: str) -> None:
-        """删除插件包
+        """删除云端插件
 
         Args:
-            module_name: 插件包模块名
+            module_name: 云端插件模块名
         """
         package_dir = self.packages_dir / module_name
         if not package_dir.exists():
-            raise ValueError(f"插件包 `{module_name}` 不存在")
+            raise ValueError(f"云端插件 `{module_name}` 不存在")
 
-        # 先卸载插件，从插件收集器中移除，限制只卸载插件包
+        # 先卸载插件，从插件收集器中移除，限制只卸载云端插件
         await self.unload_plugin_by_module_name(module_name, scope="package")
 
         # 然后删除文件和包信息
@@ -313,7 +313,7 @@ class PluginCollector:
         Args:
             item_path: 插件路径（可能是文件或目录）
             is_builtin: 是否为内置插件
-            is_package: 是否为插件包
+            is_package: 是否为云端插件
         """
         if item_path.is_dir() and item_path.name == "__pycache__":
             return False
@@ -347,7 +347,7 @@ class PluginCollector:
             module_path: 模块导入路径
             path: 文件或目录路径（用于日志）
             is_builtin: 是否为内置插件
-            is_package: 是否为插件包
+            is_package: 是否为云端插件
         """
         # logger.info(f"正在加载插件: {module_path} 从 {path}")
         try:
@@ -412,7 +412,7 @@ class PluginCollector:
         return list(self.loaded_plugins.values())
 
     def get_all_package_plugins(self) -> List[NekroPlugin]:
-        """获取所有已加载的插件包插件
+        """获取所有已加载的云端插件插件
 
         Returns:
             List[NekroPlugin]: 插件列表

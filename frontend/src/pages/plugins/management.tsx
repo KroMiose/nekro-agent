@@ -322,7 +322,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       return pluginsApi.savePluginConfig(plugin.id, stringValues)
     },
     onSuccess: () => {
-      setMessage('配置已成功保存喵～ (≧ω≦)ノ')
+      setMessage('配置已成功保存～')
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
       setEditingStatus({})
     },
@@ -357,7 +357,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const deleteDataMutation = useMutation({
     mutationFn: (dataId: number) => pluginsApi.deletePluginData(plugin.id, dataId),
     onSuccess: () => {
-      setMessage('数据已删除喵～')
+      setMessage('数据已删除')
       queryClient.invalidateQueries({ queryKey: ['plugin-data', plugin.id] })
     },
     onError: (error: Error) => {
@@ -369,7 +369,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const resetDataMutation = useMutation({
     mutationFn: () => pluginsApi.resetPluginData(plugin.id),
     onSuccess: () => {
-      setMessage('所有数据已重置喵～')
+      setMessage('所有数据已重置')
       queryClient.invalidateQueries({ queryKey: ['plugin-data', plugin.id] })
     },
     onError: (error: Error) => {
@@ -377,11 +377,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     },
   })
 
-  // 删除插件包
+  // 删除云端插件
   const removePackageMutation = useMutation({
     mutationFn: () => pluginsApi.removePackage(plugin.moduleName),
     onSuccess: () => {
-      setMessage(`插件包 ${plugin.name} 已删除～`)
+      setMessage(`云端插件 ${plugin.name} 已删除～`)
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       onBack() // 返回插件列表
     },
@@ -390,7 +390,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     },
   })
 
-  // 更新插件包
+  // 更新云端插件
   const updatePackageMutation = useMutation({
     mutationFn: async () => {
       if (!plugin.moduleName) {
@@ -403,7 +403,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       return true
     },
     onSuccess: () => {
-      setMessage(`插件包 ${plugin.name} 已更新至最新版本～`)
+      setMessage(`云端插件 ${plugin.name} 已更新至最新版本～`)
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
     },
@@ -1050,7 +1050,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                         width: isMobile ? '100%' : 'auto'
                       }}
                     >
-                      提示：按 Ctrl+S 可快速保存配置喵～
+                      提示：按 Ctrl+S 可快速保存配置
                     </Typography>
                   </Box>
 
@@ -1202,7 +1202,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </Box>
             </>
           ) : (
-            <Alert severity="info">此插件没有可配置项喵～</Alert>
+            <Alert severity="info">此插件没有可配置项</Alert>
           )}
         </Box>
       )}
@@ -1267,7 +1267,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </TableContainer>
             ) : (
               <Alert severity="info" sx={{ mt: 2 }}>
-                此插件没有定义方法喵～
+                此插件没有定义方法
               </Alert>
             )}
           </CardContent>
@@ -1597,7 +1597,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </TableContainer>
             ) : (
               <Alert severity="info" sx={{ mt: 2 }}>
-                此插件暂无存储数据喵～
+                此插件暂无存储数据
               </Alert>
             )}
           </CardContent>
@@ -1696,12 +1696,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         </DialogActions>
       </Dialog>
 
-      {/* 删除插件包确认对话框 */}
+      {/* 删除云端插件确认对话框 */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>确认删除插件包？</DialogTitle>
+        <DialogTitle>确认删除云端插件？</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            此操作将删除插件包 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
+            此操作将删除云端插件 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1725,9 +1725,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         </DialogActions>
       </Dialog>
 
-      {/* 更新插件包确认对话框 */}
+      {/* 更新云端插件确认对话框 */}
       <Dialog open={updateConfirmOpen} onClose={() => setUpdateConfirmOpen(false)} maxWidth="md">
-        <DialogTitle>确认更新插件包？</DialogTitle>
+        <DialogTitle>确认更新云端插件？</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" component="div">
@@ -1739,7 +1739,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </Alert>
 
           <DialogContentText sx={{ mt: 2 }}>
-            此操作将从远程仓库更新插件包 "{plugin.name}"
+            此操作将从远程仓库更新云端插件 "{plugin.name}"
             至最新版本。更新过程可能会导致当前配置变更，是否继续？
           </DialogContentText>
         </DialogContent>
@@ -1851,7 +1851,7 @@ export default function PluginsManagementPage() {
       pluginsApi.togglePluginEnabled(id, enabled),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
-      setMessage(`插件已${variables.enabled ? '启用' : '禁用'}喵～`)
+      setMessage(`插件已${variables.enabled ? '启用' : '禁用'}`)
 
       // 如果是当前选中的插件，更新其状态
       if (selectedPlugin && selectedPlugin.id === variables.id) {
@@ -2066,7 +2066,7 @@ export default function PluginsManagementPage() {
                     }}
                   >
                     <Typography variant="body2" color="text.secondary">
-                      没有找到匹配的插件喵～
+                      没有找到匹配的插件
                     </Typography>
                   </Box>
                 )}
@@ -2098,7 +2098,7 @@ export default function PluginsManagementPage() {
                     欢迎使用插件管理
                   </Typography>
                   <Typography variant="body2" color="text.secondary" paragraph>
-                    请点击右下角按钮选择一个插件来查看详情喵～
+                    请点击右下角按钮选择一个插件来查看详情
                   </Typography>
                   {/* 移除选择插件按钮 */}
                 </Box>
@@ -2237,7 +2237,7 @@ export default function PluginsManagementPage() {
                     }}
                   >
                     <Typography variant="body2" color="text.secondary">
-                      没有找到匹配的插件喵～
+                      没有找到匹配的插件
                     </Typography>
                   </Box>
                 )}
@@ -2269,7 +2269,7 @@ export default function PluginsManagementPage() {
                     欢迎使用插件管理
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
-                请从左侧选择一个插件查看详情喵～
+                请从左侧选择一个插件查看详情
               </Typography>
                 </Box>
               )}

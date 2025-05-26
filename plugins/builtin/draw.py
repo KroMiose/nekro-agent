@@ -12,6 +12,7 @@ from pydantic import Field
 from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.core import logger
 from nekro_agent.core.config import config as global_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.tools.common_util import limited_text_output
@@ -44,6 +45,7 @@ class DrawConfig(ConfigBase):
         title="是否使用系统角色",
         description="只对聊天模式下的模型调用有效，如果启用时会把部分绘图提示词添加到系统角色中，如果模型不支持系统消息请关闭该选项",
     )
+    TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
 
 
 # 获取配置
@@ -179,7 +181,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
                 "guidance_scale": guidance_scale,
                 "image": source_image_data,
             },
-            timeout=Timeout(read=60, write=60, connect=10, pool=10),
+            timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
     response.raise_for_status()
     data = response.json()
@@ -245,11 +247,11 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
                 "model": model_group.CHAT_MODEL,
                 "messages": messages,
             },
-            timeout=Timeout(read=60, write=60, connect=10, pool=10),
+            timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
         response.raise_for_status()
         data = response.json()
-    # logger.info(f"绘图响应: {data}")
+    logger.debug(f"绘图响应: {data}")
     content = data["choices"][0]["message"]["content"]
     # 尝试 markdown 语法匹配，例如 ![alt](url)
     m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", content)

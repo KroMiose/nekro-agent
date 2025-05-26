@@ -309,18 +309,18 @@ export const pluginsApi = {
     return configApi.getModelGroups()
   },
 
-  // 删除插件包（市场插件）
+  // 删除云端插件
   removePackage: async (moduleName: string): Promise<boolean> => {
     try {
       await axios.delete(`/plugins/package/${moduleName}`)
       return true
     } catch (error) {
-      console.error(`删除插件包 ${moduleName} 失败:`, error)
+      console.error(`删除云端插件 ${moduleName} 失败:`, error)
       return false
     }
   },
 
-  // 更新插件包（市场插件）
+  // 更新云端插件
   updatePackage: async (moduleName: string): Promise<{ success: boolean; errorMsg?: string }> => {
     try {
       const response = await axios.post(`/plugins/package/update/${moduleName}`)

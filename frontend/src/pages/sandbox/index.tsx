@@ -118,7 +118,7 @@ export default function SandboxPage() {
   // 复制内容到剪贴板函数
   const copyToClipboard = (text: string | null, contentType: string) => {
     if (!text) {
-      setCopyMessage('无内容可复制～')
+      setCopyMessage('无内容可复制')
       setTimeout(() => setCopyMessage(null), 3000)
       return
     }
@@ -126,11 +126,11 @@ export default function SandboxPage() {
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        setCopyMessage(`${contentType}已复制到剪贴板喵～`)
+        setCopyMessage(`${contentType}已复制到剪贴板`)
         setTimeout(() => setCopyMessage(null), 3000)
       })
       .catch(() => {
-        setCopyMessage('复制失败，请重试～')
+        setCopyMessage('复制失败，请重试')
         setTimeout(() => setCopyMessage(null), 3000)
       })
   }

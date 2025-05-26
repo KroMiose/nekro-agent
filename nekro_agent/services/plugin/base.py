@@ -66,8 +66,8 @@ class NekroPlugin:
         self._is_builtin: bool = is_builtin  # 标记是否为内置插件
         self._is_package: bool = is_package  # 标记是否为包
 
-        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key / "config.yaml"
-        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key
+        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
+        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
         self._store = PluginStore(self)
 
     def reset_methods(self) -> None:

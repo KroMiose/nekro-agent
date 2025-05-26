@@ -89,7 +89,7 @@ const UserManagerPage: React.FC = () => {
   const handleCreateUser = async (data: UserFormData) => {
     try {
       await createUser(data)
-      handleShowSuccess('用户创建成功喵～')
+      handleShowSuccess('用户创建成功')
       refetch()
       return Promise.resolve()
     } catch (error) {

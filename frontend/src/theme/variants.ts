@@ -294,7 +294,7 @@ export const pluginTypeColors: Record<
 
 export const pluginTypeTexts: Record<string, string> = {
   builtin: '内置',
-  package: '插件包',
+  package: '云端',
   local: '本地',
 }
 
