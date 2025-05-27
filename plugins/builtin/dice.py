@@ -20,6 +20,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["onebot_v11"],
 )
 
 _ASSERT_DICE_NUM: int = 0

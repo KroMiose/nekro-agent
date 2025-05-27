@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
+from nekro_agent.adapters import load_adapters_api
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
@@ -74,6 +75,8 @@ def mount_routers(app: FastAPI):
     api.include_router(plugins_market_router)
     api.include_router(cloud_auth_router)
     api.include_router(common_router)
+
+    api.include_router(load_adapters_api())
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:

@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import Dict, List, Tuple, Type
 
 from fastapi import APIRouter
+from nonebot import logger
 
 from nekro_agent.schemas.agent_message import AgentMessageSegment
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -17,12 +18,23 @@ from .schemas.platform import (
 class BaseAdapter(ABC):
     """适配器基类"""
 
-    def __init__(self):
-        self.router = APIRouter(prefix=f"/adapter/{self.key}")
+    _router: APIRouter  # 实例变量的类型注解
 
     @property
     def key(self) -> str:
         raise NotImplementedError
+
+    def get_adapter_router(self) -> APIRouter:
+        """获取适配器路由"""
+        return APIRouter()
+
+    @property
+    def router(self) -> APIRouter:
+        """获取适配器路由"""
+        if hasattr(self, "_router"):
+            return self._router
+        self._router = self.get_adapter_router()
+        return self._router
 
     @property
     def chat_key_rules(self) -> List[str]:
@@ -54,8 +66,8 @@ class BaseAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_user_info(self, user_id: str) -> PlatformUser:
-        """获取用户信息"""
+    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+        """获取用户(或者群聊用户)信息"""
         raise NotImplementedError
 
     @abstractmethod
@@ -76,6 +88,25 @@ class BaseAdapter(ABC):
         # 默认实现：不支持消息反应功能
         return False
 
-    def get_adapter_router(self) -> APIRouter:
-        """获取适配器路由"""
-        return self.router
+    # region 辅助方法
+
+    def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
+        """解析聊天标识
+
+        Args:
+            chat_key: 聊天标识
+
+        Returns:
+            Tuple[str, str]: (adapter_key, channel_id)
+        """
+        parts = chat_key.split("-")
+
+        if len(parts) != 2:
+            raise ValueError(f"无效的聊天标识: {chat_key}")
+
+        adapter_key = parts[0]
+        channel_id = parts[1]
+
+        return adapter_key, channel_id
+
+    # endregion

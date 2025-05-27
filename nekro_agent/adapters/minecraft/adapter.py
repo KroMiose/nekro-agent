@@ -115,9 +115,8 @@ class MinecraftAdapter(BaseAdapter):
         """获取自身信息"""
         return PlatformUser(user_id="Minecraft Server Bot", user_name="Minecraft Server Bot")
 
-    async def get_user_info(self, user_id: str) -> PlatformUser:
-        """获取用户信息"""
-        # TODO: 实现获取 Minecraft 用户信息的逻辑
+    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+        """获取用户(或者群聊用户)信息"""
         raise NotImplementedError
 
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:

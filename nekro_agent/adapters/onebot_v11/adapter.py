@@ -166,8 +166,8 @@ class OnebotV11Adapter(BaseAdapter):
             return PlatformUser(user_id=str(bot.self_id), user_name=bot.self_id)
         raise ValueError("No bot found")
 
-    async def get_user_info(self, user_id: str) -> PlatformUser:
-        """获取用户信息"""
+    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+        """获取用户(或者群聊用户)信息"""
         raise NotImplementedError
 
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:

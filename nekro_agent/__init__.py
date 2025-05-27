@@ -1,3 +1,4 @@
+import importlib
 import logging
 
 import weave
@@ -6,7 +7,7 @@ from nonebot.adapters.onebot.v11 import Bot
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
 
-from nekro_agent.adapters import load_adapters
+from nekro_agent.adapters import init_adapters
 from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
@@ -41,7 +42,7 @@ mount_routers(get_app())
 @get_driver().on_startup
 async def on_startup():
     await init_db()
-    await load_adapters(get_app())
+    await init_adapters(get_app())
     await init_plugins()
     await timer_service.start()
     logger.info("Timer service initialized")
@@ -84,7 +85,7 @@ __plugin_meta__ = PluginMetadata(
     config=_Config,
 )
 
-global_config = get_driver().config #我觉得这玩意可以删掉 没人用
+global_config = get_driver().config  # 我觉得这玩意可以删掉 没人用
 
 
 # 启动 Api 服务进程
