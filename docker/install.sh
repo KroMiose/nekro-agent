@@ -45,53 +45,119 @@ generate_random_string() {
     tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w "$length" | head -n 1
 }
 
-# 一键部署 nekro-agent 插件脚本
+# 选择 Docker 安装镜像
+select_docker_install_mirror() {
+    echo "请选择使用的 Docker 安装源："
+    echo "    1) Docker 官方"
+    echo "    2) 阿里"
+    echo "    3) Azure 中国云"
 
-# region 更新软件源
-echo "正在更新软件源..."
-if ! sudo apt-get update; then
-    echo "Error: 更新软件源失败，请检查您的网络连接。"
-    exit 1
+    read -r -p "请输入选项数字 (默认为 1): " num
+    echo ""
+    [ -z "$num" ] && num=1
+    case "$num" in
+        1)
+            ;;
+        2)
+            DOCKER_MIRROR="Aliyun"
+            ;;
+        3)
+            DOCKER_MIRROR="AzureChinaCloud"
+            ;;
+        *)
+            >&2 echo "未知选项，退出..."
+            exit 1
+            ;;
+    esac
+}
+
+# 通过脚本安装 docker
+install_docker_via_official_script() {
+    mirror="${1:-Aliyun}"
+    max_retries=3
+    attempt_num=0
+
+    if command -v apt-get &>/dev/null; then
+        echo "Warn: 为避免冲突，将卸载可能已从系统安装的 docker.io docker-doc docker-compose podman-docker containerd runc"
+        for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
+    fi
+    echo "尝试获取 Docker 安装脚本..."
+    while [ "$attempt_num" -le "$max_retries" ]; do
+        if content=$(curl -fsSL https://get.docker.com); then
+            echo "Docker 安装脚本下载完成."
+            # 使用 sed 命令修改 sleep 以取消等待
+            if printf '%s\n' "$content" | sed 's#sleep#test#g' | sh -s -- --mirror "$mirror"; then
+                DOCKER_COMPOSE_CMD="docker compose"
+                return 0
+            else
+                echo "Docker 安装失败..." >&2
+                return 1
+            fi
+        else
+            if [ "$attempt_num" -eq "$max_retries" ]; then
+                echo "Docker 安装脚本下载失败..." >&2
+                return 1
+            fi
+            echo "Docker 安装脚本下载失败，正在重试($((attempt_num + 1))/$max_retries)"
+            sleep 1
+        fi
+        attempt_num=$((attempt_num + 1))
+    done
+    return 1
+}
+
+# Docker 备用安装方式
+install_docker_fallback() {
+    if ! command -v apt-get &>/dev/null; then
+        echo "包管理器非 apt，暂不支持..."
+        return 1
+    fi
+    echo "正在更新软件源..."
+    if ! sudo apt-get update; then
+        echo "Error: 更新软件源失败，请检查您的网络连接。"
+        return 1
+    fi
+    echo "正在安装 Docker..."
+    if ! sudo apt-get install -y docker.io docker-compose; then
+        echo "Error: Docker 安装失败，请检查您的网络连接或软件源配置。" >&2
+        return 1
+    fi
+    DOCKER_COMPOSE_CMD=docker-compose
+}
+
+DOCKER_COMPOSE_CMD=""
+if command -v docker-compose &>/dev/null; then
+    DOCKER_COMPOSE_CMD=docker-compose
+elif docker compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE_CMD="docker compose"
 fi
 
-# 检查 Docker 安装情况
-if ! command -v docker &>/dev/null; then
-    read -r -p "Docker 未安装，是否安装？[Y/n] " answer
-    if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
-        echo "正在安装 Docker..."
-        if ! sudo apt-get install docker.io -y; then
-            echo "Error: Docker 安装失败，请检查您的网络连接或软件源配置。"
-            exit 1
-        fi
-    else
-        echo "Error: Docker 未安装。请先安装 Docker 后再运行该脚本。"
-        echo "安装命令: sudo apt-get install docker.io"
+# 安装 Docker
+if ! command -v docker &>/dev/null && [[ -z $DOCKER_COMPOSE_CMD ]]; then
+    echo "NerkoAgent 依赖于 Docker Compose，当前环境缺失"
+    echo "优先使用 Docker 官方脚本进行安装"
+    if ! command -v apt-get &>/dev/null; then
+        echo "Warn: 您可能需要手动卸载已安装的 docker"
+    fi
+
+    read -r -p "是否安装？[Y/n] " yn
+    echo ""
+    [ -z "$yn" ] && yn=y
+    if ! [[ "$yn" =~ ^[Yy]$ ]]; then
+        echo "已取消..." >&2
         exit 1
     fi
-fi
-
-# 检查 Docker Compose 安装情况
-if ! command -v docker-compose &>/dev/null; then
-    read -r -p "Docker Compose 未安装，是否安装？[Y/n] " answer
-    if [[ $answer == "Y" || $answer == "y" || $answer == "" ]]; then
-        echo "正在安装 Docker Compose..."
-        if ! sudo curl -L "https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose; then
-            echo "Error: Docker Compose 下载失败，请检查您的网络连接，或使用以下命令手动安装："
-            echo "curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
+    echo "正在通过 Docker 官方安装脚本进行安装"
+    select_docker_install_mirror
+    if ! install_docker_via_official_script "$DOCKER_MIRROR"; then
+        echo "Docker 安装失败..." >&2
+        echo "正在尝试备用安装方式..."
+        if install_docker_fallback; then
+            echo "安装失败，退出..." >&2
             exit 1
         fi
-        if ! sudo chmod +x /usr/local/bin/docker-compose; then
-            echo "Error: 无法设置 Docker Compose 可执行权限，请检查您的权限配置。"
-            exit 1
-        fi
-    else
-        echo "Error: Docker Compose 未安装。请先安装 Docker Compose 后再运行该脚本。"
-        echo "安装命令: sudo curl -L https://github.com/docker/compose/releases/download/1.29.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose && sudo chmod +x /usr/local/bin/docker-compose"
-        exit 1
     fi
 fi
-
-# endregion
 
 # 设置应用目录 优先使用环境变量
 if [ -z "$NEKRO_DATA_DIR" ]; then
@@ -201,9 +267,11 @@ if [ -f .env ]; then
     fi
 fi
 
-read -r -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " answer
-if [[ $answer == "n" || $answer == "N" ]]; then
-    echo "安装已取消"
+read -r -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " yn
+echo ""
+[ -z "$yn" ] && yn=y
+if ! [[ "$yn" =~ ^[Yy]$ ]]; then
+    echo -e "安装已取消..."
     exit 0
 fi
 
@@ -234,7 +302,7 @@ fi
 
 # 拉取服务镜像
 echo "拉取服务镜像..."
-if ! sudo docker-compose --env-file .env pull; then
+if ! sudo bash -c "$DOCKER_COMPOSE_CMD --env-file .env pull"; then
     echo "Error: 无法拉取服务镜像，请检查您的网络连接。"
     exit 1
 fi
@@ -244,7 +312,7 @@ if [ -f .env ]; then
     # 使用 --env-file 参数而不是 export
     echo "使用实例名称: ${INSTANCE_NAME}"
     echo "启动主服务中..."
-    if ! sudo docker-compose --env-file .env up -d; then
+    if ! sudo bash -c "$DOCKER_COMPOSE_CMD --env-file .env up -d"; then
         echo "Error: 无法启动主服务，请检查 Docker Compose 配置。"
         exit 1
     fi
@@ -282,8 +350,6 @@ echo -e "\n=== 部署完成！==="
 echo "你可以通过以下命令查看服务日志："
 echo "  NekroAgent: 'sudo docker logs -f ${INSTANCE_NAME}nekro_agent'"
 echo "  NapCat: 'sudo docker logs -f ${INSTANCE_NAME}napcat'"
-
-
 
 # 显示重要的配置信息
 echo -e "\n=== 重要配置信息 ==="
