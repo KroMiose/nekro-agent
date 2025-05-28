@@ -72,6 +72,10 @@ class MinecraftAdapter(BaseAdapter):
             logger.error(f"Minecraft 适配器初始化失败: {e}", exc_info=True)
             logger.warning("Minecraft 适配器未能加载")
 
+    async def cleanup(self) -> None:
+        """清理适配器"""
+        return
+
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
         processed_text = re.sub(r"\[@(?:id:[^;@]+(?:;nickname:[^@]+)?|[^@\]]+)@\]", "", text)

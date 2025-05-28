@@ -70,6 +70,17 @@ class BilibiliLiveAdapter(BaseAdapter):
             except Exception as e:
                 logger.error(f"创建Bilibili WebSocket客户端失败 {ws_url}: {e}")
 
+    async def cleanup(self) -> None:
+        """清理资源"""
+        # 取消所有WebSocket任务
+        for task in self.ws_tasks:
+            if not task.done():
+                task.cancel()
+
+        # 关闭所有WebSocket客户端
+        for client in self.ws_clients:
+            await client.close()
+
     async def _handle_danmaku_message(self, danmaku: Danmaku) -> None:
         """处理弹幕消息"""
         try:
@@ -144,26 +155,15 @@ class BilibiliLiveAdapter(BaseAdapter):
         except Exception as e:
             logger.error(f"处理Bilibili弹幕消息失败: {e}")
 
+        self.ws_clients.clear()
+        self.ws_tasks.clear()
+        logger.info("Bilibili适配器资源清理完成")
+
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
         processed_text = re.sub(r"\[@(?:id:[^;@]+(?:;nickname:[^@]+)?|[^@\]]+)@\]", "", text)
         # 将多个空格替换为单个空格，并去除首尾空格
         return re.sub(r"\s+", " ", processed_text).strip()
-
-    async def cleanup(self) -> None:
-        """清理资源"""
-        # 取消所有WebSocket任务
-        for task in self.ws_tasks:
-            if not task.done():
-                task.cancel()
-
-        # 关闭所有WebSocket客户端
-        for client in self.ws_clients:
-            await client.close()
-
-        self.ws_clients.clear()
-        self.ws_tasks.clear()
-        logger.info("Bilibili适配器资源清理完成")
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:  # noqa: ARG002
         """推送消息到Bilibili协议端（暂不实现）"""
