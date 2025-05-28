@@ -34,6 +34,10 @@ async def init_adapters(_app: FastAPI):
         await adapter.init()
         logger.info(f"Adapter {adapter_key} initialized")
 
+async def cleanup_adapters(_app: FastAPI):
+    for adapter_key, adapter in loaded_adapters.items():
+        await adapter.cleanup()
+        logger.info(f"Adapter {adapter_key} cleaned up")
 
 def get_adapter(adapter_key: str) -> BaseAdapter:
     return loaded_adapters[adapter_key]

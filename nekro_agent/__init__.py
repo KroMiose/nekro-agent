@@ -7,7 +7,7 @@ from nonebot.adapters.onebot.v11 import Bot
 from nonebot.plugin import PluginMetadata
 from pydantic import BaseModel
 
-from nekro_agent.adapters import init_adapters
+from nekro_agent.adapters import cleanup_adapters, init_adapters
 from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
@@ -58,6 +58,7 @@ async def on_startup():
 @get_driver().on_shutdown
 async def on_shutdown():
     await timer_service.stop()
+    await cleanup_adapters(get_app())
     logger.info("Timer service stopped")
 
 

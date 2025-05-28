@@ -16,8 +16,13 @@ from nekro_agent.core import logger
 from nekro_agent.core.config import config
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
+    ChatMessageSegmentImage,
     ChatMessageSegmentType,
     ChatType,
+)
+from nekro_agent.tools.common_util import (
+    copy_to_upload_dir,
+    download_file,
 )
 
 from .core.client import BilibiliWebSocketClient, Danmaku
@@ -39,7 +44,7 @@ class BilibiliLiveAdapter(BaseAdapter):
     def chat_key_rules(self) -> List[str]:
         # Bilibili直播间的聊天Key规则: bilibili-live-{room_id}
         return [
-            r"^bilibili-live-\d+$",
+            "LiveRoom chat: `bilibili-live-114514` (where room_id is the id of the Bilibili live room)",
         ]
 
     async def init(self) -> None:
@@ -76,11 +81,8 @@ class BilibiliLiveAdapter(BaseAdapter):
                 channel_type=ChatType.GROUP,
             )
 
-            # 创建平台用户信息  
-            # 使用uid的hash作为短用户ID
-            short_user_id = hashlib.sha1(danmaku.uid.encode("utf-8")).hexdigest()[:10]
             plt_user = PlatformUser(
-                user_id=short_user_id,
+                user_id=danmaku.uid,
                 user_name=danmaku.username,
                 user_avatar="",
             )
@@ -101,21 +103,31 @@ class BilibiliLiveAdapter(BaseAdapter):
 
             # 如果有图片URL，添加图片消息段
             if danmaku.url:
-                content_data.append(
-                    ChatMessageSegment(
-                        type=ChatMessageSegmentType.IMAGE,
-                        text="",
-                        # TODO: 可以实现图片下载功能
-                    ),
-                )
+                for url in danmaku.url:
+                    suffix = re.search(r"\.[^.]*$", url)
+                    suffix = suffix.group(0) if suffix else ""
+                    local_path, file_name = await download_file(
+                        url,
+                        use_suffix=suffix,
+                        from_chat_key=f"bilibili-live-{channel_id}",
+                    )
+                    content_data.append(
+                        ChatMessageSegmentImage(
+                            type=ChatMessageSegmentType.IMAGE,
+                            text="",
+                            file_name=file_name,
+                            local_path=local_path,
+                            remote_url=url,
+                        ),
+                    )
 
             # 生成消息ID
-            message_id = f"bilibili_{channel_id}_{short_user_id}_{int(danmaku.time)}"
+            message_id = f"bilibili_{channel_id}_{danmaku.uid}_{int(danmaku.time)}"
 
             # 创建平台消息
             plt_message = PlatformMessage(
                 message_id=message_id,
-                sender_id=short_user_id,
+                sender_id=danmaku.uid,
                 sender_name=danmaku.username,
                 sender_nickname=danmaku.username,
                 content_data=content_data,

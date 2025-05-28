@@ -49,6 +49,11 @@ class BaseAdapter(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    async def cleanup(self) -> None:
+        """清理适配器"""
+        raise NotImplementedError
+
+    @abstractmethod
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到协议端
 
