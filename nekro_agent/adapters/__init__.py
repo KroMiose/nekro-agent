@@ -10,7 +10,7 @@ from .interface.base import BaseAdapter
 ADAPTER_DICT: Dict[str, str] = {
     "onebot_v11": "nekro_agent.adapters.onebot_v11.adapter.OnebotV11Adapter",
     "minecraft": "nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",
-    "sse": "nekro_agent.adapters.sse.adapter.SSEAdapter",
+    "bilibili": "nekro_agent.adapters.bilibili_live.adapter.BilibiliLiveAdapter",
 }
 
 
