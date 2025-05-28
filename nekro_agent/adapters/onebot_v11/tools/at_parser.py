@@ -39,6 +39,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
         >>> parse_at_from_text("hello world")
         ['hello world']
     """
+    adapter = db_chat_channel.adapter
     result = []
     start = 0
     while True:
@@ -56,7 +57,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
             parts = seg.split(";")
             uid = parts[0].replace("id:", "").strip()
             nickname = parts[1].replace("nickname:", "").strip()
-            if not config.SESSION_ENABLE_AT:
+            if not adapter.config.SESSION_ENABLE_AT:
                 result.append(f"{nickname}")
             else:
                 if "group" in db_chat_channel.chat_key:
@@ -65,7 +66,7 @@ async def parse_at_from_text(text: str, db_chat_channel: DBChatChannel) -> List[
                     result.append("")  # 私聊无法@
         else:
             uid = seg.replace("id:", "").strip()
-            if not config.SESSION_ENABLE_AT:
+            if not adapter.config.SESSION_ENABLE_AT:
                 if "group" in db_chat_channel.chat_key:
                     group_id = db_chat_channel.chat_key.replace("group_", "")
                     nickname = await get_user_group_card_name(group_id=group_id, user_id=uid, db_chat_channel=db_chat_channel)

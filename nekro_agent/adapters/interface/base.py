@@ -1,11 +1,13 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Tuple, Type
+from pathlib import Path
+from typing import Dict, List, Tuple, Type, cast
 
 from fastapi import APIRouter
 from nonebot import logger
+from pydantic import Field
 
-from nekro_agent.schemas.agent_message import AgentMessageSegment
-from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.core.core_utils import ConfigBase
+from nekro_agent.core.os_env import OsEnv
 
 from .schemas.platform import (
     PlatformChannel,
@@ -15,10 +17,32 @@ from .schemas.platform import (
 )
 
 
+class BaseAdapterConfig(ConfigBase):
+    """适配器配置基类"""
+
+    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
+        default=True,
+        title="显示处理中表情",
+        description="当 AI 处理消息时，对应消息会显示处理中表情回应",
+    )
+    SESSION_ENABLE_AT: bool = Field(
+        default=True,
+        title="启用 At 功能",
+        description="关闭后 AI 发送的 At 消息将被解析为纯文本用户名，避免反复打扰用户",
+    )
+
+
 class BaseAdapter(ABC):
     """适配器基类"""
 
     _router: APIRouter  # 实例变量的类型注解
+    _Configs: Type[BaseAdapterConfig] = BaseAdapterConfig
+    _config: BaseAdapterConfig
+
+    def __init__(self, config_cls: Type[BaseAdapterConfig] = BaseAdapterConfig):
+        self._Configs = config_cls
+        self._adapter_config_path = Path(OsEnv.DATA_DIR) / "configs" / self.key / "config.yaml"
+        self._config = self.get_config(self._Configs)
 
     @property
     def key(self) -> str:
@@ -35,6 +59,18 @@ class BaseAdapter(ABC):
             return self._router
         self._router = self.get_adapter_router()
         return self._router
+
+    def get_config(self, config_cls: Type[BaseAdapterConfig] = BaseAdapterConfig) -> BaseAdapterConfig:
+        """获取适配器配置"""
+        if not hasattr(self, "_config"):
+            self._config = self._Configs.load_config(file_path=self._adapter_config_path)
+            self._config.dump_config(self._adapter_config_path)
+        return cast(config_cls, self._config)
+
+    @property
+    def config(self) -> BaseAdapterConfig:
+        """获取适配器配置"""
+        return self.get_config(self._Configs)
 
     @property
     def chat_key_rules(self) -> List[str]:

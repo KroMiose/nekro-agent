@@ -716,8 +716,8 @@ export default function SandboxPage() {
                                     wrapLines={true}
                                     wrapLongLines={true}
                                     lineNumberStyle={{
-                                      minWidth: '2em',
-                                      width: '2em',
+                                      minWidth: '3em',
+                                      width: '3em',
                                       textAlign: 'right',
                                       paddingRight: '0.5em',
                                       userSelect: 'none',

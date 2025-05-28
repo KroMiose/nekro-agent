@@ -11,3 +11,4 @@ class SystemPrompt(PromptTemplate):
     admin_chat_key: str
     enable_cot: bool
     chat_key_rules: str
+    enable_at: bool

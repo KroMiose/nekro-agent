@@ -60,17 +60,26 @@ async def run_agent(
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
                 chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),
+                enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
             ),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
             "assistant",
-            PracticePrompt_response_1(one_time_code=one_time_code, enable_cot=used_model_group.ENABLE_COT),
+            PracticePrompt_response_1(
+                one_time_code=one_time_code,
+                enable_cot=used_model_group.ENABLE_COT,
+                enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
+            ),
         ),
         OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code)),
         OpenAIChatMessage.from_template(
             "assistant",
-            PracticePrompt_response_2(one_time_code=one_time_code, enable_cot=used_model_group.ENABLE_COT),
+            PracticePrompt_response_2(
+                one_time_code=one_time_code,
+                enable_cot=used_model_group.ENABLE_COT,
+                enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
+            ),
         ),
         OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT)).extend(
             await render_history_data(

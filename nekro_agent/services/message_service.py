@@ -113,7 +113,7 @@ class MessageService:
         logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
 
         # 设置处理emoji
-        if message and config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
+        if message and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
             await adapter.set_message_reaction(message.message_id, True)
 
         try:
@@ -135,7 +135,7 @@ class MessageService:
             self.debounce_timers.pop(chat_key, None)
 
             # 取消处理emoji（如果设置过）
-            if config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
+            if adapter.config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
                 await adapter.set_message_reaction(message.message_id, False)
 
             # 如果有待处理消息，创建新的任务处理最后一条消息

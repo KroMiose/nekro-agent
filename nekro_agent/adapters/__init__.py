@@ -21,7 +21,11 @@ def load_adapters_api() -> APIRouter:
     api = APIRouter()
     for adapter_key, adapter_path in ADAPTER_DICT.items():
         module_path = adapter_path.split(".")[:-1]
-        module = importlib.import_module(".".join(module_path))
+        try:
+            module = importlib.import_module(".".join(module_path))
+        except Exception:
+            logger.exception(f'从 "{adapter_path}" 加载协议端模块 "{adapter_key}" 失败')
+            continue
         adapter_class: Type[BaseAdapter] = getattr(module, adapter_path.split(".")[-1])
         adapter: BaseAdapter = adapter_class()
         api.include_router(adapter.router, prefix=f"/adapters/{adapter_key}", tags=[f"Adapter:{adapter_key}"])

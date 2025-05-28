@@ -73,15 +73,17 @@ class PluginConfig(ConfigBase):
         description="应用日志级别，需要重启应用后生效",
     )
     BOT_QQ: str = Field(
-        default="", 
-        title="机器人 QQ 号", 
+        default="",
+        title="机器人 QQ 号",
         json_schema_extra=ExtraField(required=True).model_dump(),
     )
     MINECRAFT_WS_URLS: str = Field(
         default="{}",
         title="Minecraft 服务器 WebSocket 地址",
         description="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
-        json_schema_extra=ExtraField(load_to_nonebot_env=True, load_nbenv_as="minecraft_ws_urls", is_textarea=True).model_dump(),
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True, load_nbenv_as="minecraft_ws_urls", is_textarea=True,
+        ).model_dump(),
     )
     MINECRAFT_ACCESS_TOKEN: str = Field(
         default="",
@@ -93,7 +95,9 @@ class PluginConfig(ConfigBase):
         default="{}",
         title="Minecraft 服务器 RCCON 地址",
         description="Minecraft 服务器 RCCON 地址，用于远程执行指令",
-        json_schema_extra=ExtraField(load_to_nonebot_env=True, load_nbenv_as="minecraft_server_rcon", is_textarea=True).model_dump(),
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True, load_nbenv_as="minecraft_server_rcon", is_textarea=True,
+        ).model_dump(),
     )
     SUPER_USERS: List[str] = Field(
         default=[],
@@ -264,22 +268,7 @@ class PluginConfig(ConfigBase):
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(default=True, title="新私聊默认启用聊天")
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
-        default=True,
-        title="显示处理中表情",
-        description="当 AI 处理消息时，对应消息会显示处理中表情回应",
-    )
-    SESSION_ENABLE_CHANGE_NICKNAME: bool = Field(
-        default=True,
-        title="启用群名片修改",
-        description="启用后 AI 会根据人设状态修改群名片",
-    )
     SESSION_NICKNAME_PREFIX: str = Field(default="", title="AI 群名片名称前缀")
-    SESSION_ENABLE_AT: bool = Field(
-        default=True,
-        title="启用 At 功能",
-        description="关闭后 AI 发送的 At 消息将被解析为纯文本用户名，避免反复打扰用户",
-    )
     SESSION_ENABLE_FAILED_LLM_FEEDBACK: bool = Field(
         default=True,
         title="启用失败 LLM 反馈",
@@ -426,7 +415,7 @@ class PluginConfig(ConfigBase):
             return self.MODEL_GROUPS[model_name]
         except KeyError as e:
             raise KeyError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
-        
+
     def load_config_to_env(self):
         """将标记了环境变量相关配置的配置项加载到对应环境中"""
         for field_name, field_info in self.model_fields.items():
@@ -434,37 +423,38 @@ class PluginConfig(ConfigBase):
             schema_extra = getattr(field_info, "json_schema_extra", None)
             if not schema_extra or not isinstance(schema_extra, dict):
                 continue
-                
+
             # 只处理有环境变量标记的字段
             load_to_sysenv = schema_extra.get("load_to_sysenv", False)
             load_to_nonebot_env = schema_extra.get("load_to_nonebot_env", False)
-            
+
             # 如果没有任何环境变量标记，跳过
             if not (load_to_sysenv or load_to_nonebot_env):
                 continue
-                
+
             # 获取配置项的值
             value = getattr(self, field_name)
-            
+
             # 1. 处理系统环境变量
             if load_to_sysenv:
                 # 获取环境变量名
                 env_name = schema_extra.get("load_sysenv_as", field_name)
-                
+
                 # 设置环境变量
                 os.environ[env_name] = str(value)
-                
+
             # 2. 处理 nonebot 环境变量
             if load_to_nonebot_env:
                 try:
                     import json
 
                     import nonebot
+
                     driver = nonebot.get_driver()
-                    
+
                     # 获取 nonebot 环境变量名
                     nb_env_name = schema_extra.get("load_nbenv_as", field_name)
-                    
+
                     # 尝试将字符串值解析为 JSON 对象
                     if isinstance(value, str):
                         try:
@@ -473,15 +463,16 @@ class PluginConfig(ConfigBase):
                         except json.JSONDecodeError:
                             # 解析失败，保持原始字符串值
                             pass
-                    
+
                     # 设置 nonebot 环境变量
                     setattr(driver.config, nb_env_name, value)
                 except ImportError:
                     pass  # nonebot 未安装，跳过
                 except Exception as e:
                     from .logger import logger
+
                     logger.error(f"加载配置到 nonebot 环境变量失败: {e}")
-    
+
     @classmethod
     def load_config(cls, file_path: Path):
         """加载配置文件"""
