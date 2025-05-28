@@ -1,14 +1,14 @@
 #!/bin/bash
 
-# 默认使用 GitHub
-USE_GITCODE=false
+# 默认不使用 napcat
+WITH_NAPCAT=""
 
 # 解析命令行参数
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
-    -g | --gitcode)
-        USE_GITCODE=true
-        shift # 移除 --gitcode
+    --with-napcat)
+        WITH_NAPCAT=true
+        shift
         ;;
     *)
         # 未知选项
@@ -19,16 +19,25 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Define base URLs
-GITHUB_BASE_URL="https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker"
-GITCODE_BASE_URL="https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker"
+BASE_URLS=(
+    "https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker"
+    "https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker"
+)
 
-if [ "$USE_GITCODE" = true ]; then
-    BASE_URL=$GITCODE_BASE_URL
-    echo "使用 GitCode 加速源"
-else
-    BASE_URL=$GITHUB_BASE_URL
-    echo "使用 GitHub 源 (可添加 -g 或 --gitcode 参数使用 GitCode 加速)"
-fi
+# 下载文件
+get_remote_file() {
+    local filename=$1
+    local output=$2
+    for base_url in "${BASE_URLS[@]}"; do
+        url=${base_url}/${filename}
+        if ! curl -sL -f -o "$output" "$url"; then
+            echo "下载失败，尝试其他源..."
+            continue
+        fi
+        return
+    done
+    return 1
+}
 
 # 生成随机字符串的函数
 generate_random_string() {
@@ -111,7 +120,7 @@ cd $NEKRO_DATA_DIR || {
 # 如果当前目录没有 .env 文件，从仓库获取.env.example 并修改 .env 文件
 if [ ! -f .env ]; then
     echo "未找到.env文件，正在从仓库获取.env.example..."
-    if ! wget ${BASE_URL}/.env.example -O .env.temp; then
+    if ! get_remote_file .env.example .env.temp; then
         echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
         exit 1
     fi
@@ -197,8 +206,8 @@ if [[ $answer == "n" || $answer == "N" ]]; then
 fi
 
 # 拉取 docker-compose.yml 文件
-echo "正在拉取 docker-compose.yml 文件..."
-if ! wget ${BASE_URL}/docker-compose-x-napcat.yml -O docker-compose.yml; then
+echo "正在获取 docker-compose.yml 文件..."
+if ! get_remote_file docker-compose-x-napcat.yml docker-compose.yml; then
     echo "Error: 无法拉取 docker-compose.yml 文件，请检查您的网络连接。"
     exit 1
 fi
