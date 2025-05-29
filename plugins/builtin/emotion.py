@@ -58,6 +58,11 @@ class EmotionConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "embedding"},
     )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
+    STRICT_EMOTION_COLLECT: bool = Field(
+        default=False,
+        title="严格表情包模式",
+        description="是否严格限制表情包收集并拒绝非表情包内容 (截图、非表情包内容等)",
+    )
 
 
 # 获取配置和插件存储
@@ -603,7 +608,14 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
     name="收集表情包",
     description="收集表情包并进行特征打标，保存到向量数据库",
 )
-async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description: str, tags: Optional[List[str]] = None) -> str:
+async def collect_emotion(
+    _ctx: schemas.AgentCtx,
+    source_path: str,
+    description: str,
+    tags: Optional[List[str]] = None,
+    is_screenshot: bool = False,
+    vision_confirmed: bool = False,
+) -> str:
     """Collect Emotion (表情包)
 
     Collect an expression image/GIF to the emotion database.
@@ -613,6 +625,8 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
         source_path (str): The path or URL of the expression image
         description (str): A detailed description of the emotion/expression (used for searching. You Must fill it in carefully)
         tags (List[str], optional): Tags for the emotion (e.g. ["happy", "excited", "anime"])
+        is_screenshot (bool, optional): Whether the image is a screenshot (default: False)
+        vision_confirmed (bool, optional): Whether the image content is confirmed by vision (default: False, You Can Only Collect Images That Are Visible in Vision Content and NEVER Guess the content!)
 
     Returns:
         str: The emotion ID
@@ -620,10 +634,10 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     Example:
         ```python
         # Collect from URL
-        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"])
+        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"], is_screenshot=False, vision_confirmed=True)
 
         # Collect from local path
-        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"]) # Do not send the emotion ID in your message directly!
+        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"], is_screenshot=False, vision_confirmed=True) # Do not send the emotion ID in your message directly!
         ```
     """
     # 参数验证
@@ -636,6 +650,20 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     # 确保tags是列表
     if tags is None:
         tags = []
+
+    if is_screenshot and emotion_config.STRICT_EMOTION_COLLECT:
+        await message_service.push_system_message(
+            _ctx.chat_key,
+            "Screenshot detected! You CANT Only Collect Emotion Stickers! Rejected.",
+        )
+        return ""
+
+    if not vision_confirmed:
+        await message_service.push_system_message(
+            _ctx.chat_key,
+            "Image content is not confirmed by vision! You CANT Guess the content! Rejected.",
+        )
+        return ""
 
     # 确保表情包目录存在
     store_dir.mkdir(parents=True, exist_ok=True)

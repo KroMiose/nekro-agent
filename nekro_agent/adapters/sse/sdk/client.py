@@ -7,14 +7,118 @@ SSE 客户端SDK
 """
 
 import asyncio
+import base64
 import contextlib
 import json
 import time
 import uuid
-from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
+from functools import wraps
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Union, cast
 
 import aiohttp
+from loguru import logger
 from pydantic import BaseModel, Field
+
+# 添加返回类型变量T用于泛型函数
+T = TypeVar("T")
+
+
+# 添加重试装饰器
+async def with_retry(
+    func: Callable[..., Awaitable[T]],
+    *args: Any,
+    retry_count: int = 3,
+    initial_delay: float = 0.5,
+    max_delay: float = 5.0,
+    backoff_factor: float = 2.0,
+    retry_exceptions: tuple = (
+        aiohttp.ClientError,
+        asyncio.TimeoutError,
+        ConnectionError,
+    ),
+    **kwargs: Any,
+) -> T:
+    """网络请求重试装饰器
+
+    Args:
+        func: 异步函数
+        retry_count: 最大重试次数
+        initial_delay: 初始延迟时间(秒)
+        max_delay: 最大延迟时间(秒)
+        backoff_factor: 退避系数，每次重试延迟时间为上次的backoff_factor倍
+        retry_exceptions: 需要重试的异常类型
+
+    Returns:
+        原函数的返回值
+    """
+    last_exception = None
+    delay = initial_delay
+
+    for attempt in range(retry_count + 1):
+        try:
+            return await func(*args, **kwargs)
+        except retry_exceptions as e:
+            last_exception = e
+            if attempt == retry_count:
+                break
+
+            # 记录重试信息
+            logger.warning(f"请求失败，正在进行第{attempt+1}次重试: {e!s}")
+
+            # 计算下次重试等待时间（指数退避）
+            await asyncio.sleep(delay)
+            delay = min(delay * backoff_factor, max_delay)
+
+    # 所有重试都失败了，抛出最后一个异常
+    if last_exception:
+        raise last_exception
+
+    # 理论上不会到这里，但为了类型安全
+    raise RuntimeError("重试失败且没有异常")
+
+
+def retry_decorator(
+    retry_count: int = 3,
+    initial_delay: float = 0.5,
+    max_delay: float = 5.0,
+    backoff_factor: float = 2.0,
+    retry_exceptions: tuple = (
+        aiohttp.ClientError,
+        asyncio.TimeoutError,
+        ConnectionError,
+    ),
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
+    """可配置的重试装饰器
+
+    Args:
+        retry_count: 最大重试次数
+        initial_delay: 初始延迟时间(秒)
+        max_delay: 最大延迟时间(秒)
+        backoff_factor: 退避系数，每次重试延迟时间为上次的backoff_factor倍
+        retry_exceptions: 需要重试的异常类型
+
+    Returns:
+        装饰器函数
+    """
+
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
+        @wraps(func)
+        async def wrapper(*args: Any, **kwargs: Any) -> T:
+            return await with_retry(
+                func,
+                *args,
+                retry_count=retry_count,
+                initial_delay=initial_delay,
+                max_delay=max_delay,
+                backoff_factor=backoff_factor,
+                retry_exceptions=retry_exceptions,
+                **kwargs,
+            )
+
+        return wrapper
+
+    return decorator
 
 
 class MessageSegment(BaseModel):
@@ -146,6 +250,7 @@ class SSEClient:
         client_version: str,
         auto_reconnect: bool = True,
         reconnect_interval: int = 5,
+        set_logger: Any = None,
     ):
         """初始化SSE客户端
 
@@ -156,6 +261,7 @@ class SSEClient:
             client_version: 客户端版本号
             auto_reconnect: 是否自动重连
             reconnect_interval: 重连间隔（秒）
+            set_logger: 自定义logger对象，不设置则使用默认的loguru logger
         """
         self.server_url = server_url.rstrip("/")
         self.platform = platform
@@ -163,6 +269,7 @@ class SSEClient:
         self.client_version = client_version
         self.auto_reconnect = auto_reconnect
         self.reconnect_interval = reconnect_interval
+        self.logger = set_logger or logger
 
         self.client_id: Optional[str] = None
         self.session: Optional[aiohttp.ClientSession] = None
@@ -189,7 +296,7 @@ class SSEClient:
     async def start(self) -> None:
         """启动客户端"""
         if self.running:
-            print("客户端已经在运行")
+            self.logger.info("客户端已经在运行")
             return
 
         self.session = aiohttp.ClientSession(conn_timeout=10, read_timeout=99999999)
@@ -198,7 +305,7 @@ class SSEClient:
         # 注册客户端
         success = await self.register()
         if not success:
-            print("客户端注册失败")
+            self.logger.error("客户端注册失败")
             self.running = False
             if self.session:
                 await self.session.close()
@@ -222,6 +329,7 @@ class SSEClient:
             await self.session.close()
             self.session = None
 
+    @retry_decorator(retry_count=3, initial_delay=1.0)
     async def register(self) -> bool:
         """注册客户端"""
         if not self.session:
@@ -229,7 +337,7 @@ class SSEClient:
 
         # 修改为正确的URL
         url = f"{self.server_url}/api/adapters/sse/connect"
-        print(f"注册客户端URL: {url}")
+        self.logger.info(f"注册客户端URL: {url}")
 
         register_data = {
             "cmd": "register",
@@ -239,23 +347,19 @@ class SSEClient:
         }
 
         # 修改：打印请求数据
-        print(f"注册客户端数据: {register_data}")
+        self.logger.debug(f"注册客户端数据: {register_data}")
 
-        try:
-            # 确保session不为None
-            assert self.session is not None
-            async with self.session.post(url, json=register_data) as response:
-                if response.status == 200:
-                    result = await response.json()
-                    self.client_id = result.get("client_id")
-                    print(f"客户端注册成功: {self.client_id}")
-                    return True
+        # 确保session不为None
+        assert self.session is not None
+        async with self.session.post(url, json=register_data) as response:
+            if response.status == 200:
+                result = await response.json()
+                self.client_id = result.get("client_id")
+                self.logger.success(f"客户端注册成功: {self.client_id}")
+                return True
 
-                text = await response.text()
-                print(f"客户端注册失败: {response.status} - {text}")
-                return False
-        except Exception as e:
-            print(f"注册请求异常: {e}")
+            text = await response.text()
+            self.logger.error(f"客户端注册失败: {response.status} - {text}")
             return False
 
     async def _connect_sse(self) -> None:
@@ -274,14 +378,14 @@ class SSEClient:
                     url += f"&client_id={self.client_id}"
 
                 # 修改：打印连接URL
-                print(f"连接SSE URL: {url}")
+                self.logger.info(f"连接SSE URL: {url}")
 
                 # 确保session不为None
                 assert self.session is not None
                 async with self.session.get(url) as response:
                     if response.status != 200:
                         error_text = await response.text()
-                        print(f"SSE连接失败 ({response.status}): {error_text}")
+                        self.logger.error(f"SSE连接失败 ({response.status}): {error_text}")
                         if not self.auto_reconnect:
                             return
                         await asyncio.sleep(self.reconnect_interval)
@@ -290,7 +394,7 @@ class SSEClient:
 
                     # 重置重试计数
                     retry_count = 0
-                    print("SSE连接成功，开始处理事件流")
+                    self.logger.success("SSE连接成功，开始处理事件流")
 
                     # 处理SSE事件流
                     event_type = None
@@ -312,9 +416,9 @@ class SSEClient:
                                         data = {"text": event_data}
 
                                     await self._handle_event(event_type, data)
-                                except Exception as e:
-                                    print(
-                                        f"处理事件异常: {e}, 事件类型: {event_type}, 数据: {event_data}",
+                                except Exception:
+                                    self.logger.exception(
+                                        f"处理事件发生异常，事件类型: {event_type}, 数据: {event_data}",
                                     )
 
                                 # 重置事件数据
@@ -339,10 +443,10 @@ class SSEClient:
                             pass
 
             except asyncio.CancelledError:
-                print("SSE连接已取消")
+                self.logger.info("SSE连接已取消")
                 break
-            except Exception as e:
-                print(f"SSE连接异常: {e}")
+            except Exception:
+                self.logger.exception("SSE连接异常")
                 if not self.auto_reconnect:
                     break
                 await asyncio.sleep(self.reconnect_interval)
@@ -367,7 +471,7 @@ class SSEClient:
                 data = {"text": data}
 
         if event_type == "connected":
-            print(f"SSE连接成功: {data}")
+            self.logger.info(f"SSE连接成功: {data}")
             self.client_id = data.get("client_id", self.client_id)
 
             # 重新订阅之前的频道
@@ -397,14 +501,15 @@ class SSEClient:
                 if request_id:
                     await self._send_response(request_id, True, result or {})
             except Exception as e:
-                print(f"处理事件异常: {event_type}, {e}")
+                self.logger.exception(f"处理事件异常: {event_type}")
                 # 如果有请求ID，发送错误响应
                 if request_id:
                     await self._send_response(request_id, False, {"error": str(e)})
 
         else:
-            print(f"未知事件类型: {event_type}, 数据: {data}")
+            self.logger.warning(f"未知事件类型: {event_type}, 数据: {data}")
 
+    @retry_decorator(retry_count=3, initial_delay=1.0)
     async def subscribe_channel(self, channel_id: str) -> bool:
         """订阅频道
 
@@ -415,7 +520,7 @@ class SSEClient:
             bool: 是否成功订阅
         """
         if not self.client_id or not self.session:
-            print("客户端尚未注册或启动")
+            self.logger.error("客户端尚未注册或启动")
             return False
 
         # 修改为正确的URL
@@ -428,27 +533,24 @@ class SSEClient:
         headers = {"X-Client-ID": self.client_id}
 
         # 修改：打印订阅信息
-        print(f"订阅频道: {channel_id}, URL: {url}")
-        print(f"订阅数据: {command_data}")
+        self.logger.info(f"订阅频道: {channel_id}, URL: {url}")
+        self.logger.debug(f"订阅数据: {command_data}")
 
-        try:
-            async with self.session.post(
-                url,
-                json=command_data,
-                headers=headers,
-            ) as response:
-                if response.status == 200:
-                    self.subscribed_channels.add(channel_id)
-                    print(f"订阅频道成功: {channel_id}")
-                    return True
+        async with self.session.post(
+            url,
+            json=command_data,
+            headers=headers,
+        ) as response:
+            if response.status == 200:
+                self.subscribed_channels.add(channel_id)
+                self.logger.success(f"订阅频道成功: {channel_id}")
+                return True
 
-                text = await response.text()
-                print(f"订阅频道失败 ({response.status}): {text}")
-                return False
-        except Exception as e:
-            print(f"订阅频道异常: {e}")
+            text = await response.text()
+            self.logger.error(f"订阅频道失败 ({response.status}): {text}")
             return False
 
+    @retry_decorator(retry_count=3, initial_delay=1.0)
     async def unsubscribe_channel(self, channel_id: str) -> bool:
         """取消订阅频道
 
@@ -459,7 +561,7 @@ class SSEClient:
             bool: 是否成功取消订阅
         """
         if not self.client_id or not self.session:
-            print("客户端尚未注册或启动")
+            self.logger.error("客户端尚未注册或启动")
             return False
 
         # 修改为正确的URL
@@ -471,24 +573,21 @@ class SSEClient:
 
         headers = {"X-Client-ID": self.client_id}
 
-        try:
-            async with self.session.post(
-                url,
-                json=command_data,
-                headers=headers,
-            ) as response:
-                if response.status == 200:
-                    self.subscribed_channels.discard(channel_id)
-                    print(f"取消订阅频道成功: {channel_id}")
-                    return True
+        async with self.session.post(
+            url,
+            json=command_data,
+            headers=headers,
+        ) as response:
+            if response.status == 200:
+                self.subscribed_channels.discard(channel_id)
+                self.logger.success(f"取消订阅频道成功: {channel_id}")
+                return True
 
-                text = await response.text()
-                print(f"取消订阅频道失败: {text}")
-                return False
-        except Exception as e:
-            print(f"取消订阅频道异常: {e}")
+            text = await response.text()
+            self.logger.error(f"取消订阅频道失败: {text}")
             return False
 
+    @retry_decorator(retry_count=3, initial_delay=1.0)
     async def send_message(
         self,
         channel_id: str,
@@ -504,7 +603,7 @@ class SSEClient:
             bool: 是否成功发送
         """
         if not self.client_id or not self.session:
-            print("客户端尚未注册或启动")
+            self.logger.error("客户端尚未注册或启动")
             return False
 
         # 修改为正确的URL
@@ -514,8 +613,8 @@ class SSEClient:
         if isinstance(message, dict):
             try:
                 message = ReceiveMessage(**message)
-            except Exception as e:
-                print(f"消息格式转换失败: {e}")
+            except Exception:
+                self.logger.exception("消息格式转换失败")
                 return False
 
         command_data = {
@@ -527,26 +626,23 @@ class SSEClient:
         headers = {"X-Client-ID": self.client_id}
 
         # 添加日志，打印消息发送信息
-        print(f"发送消息到频道: {channel_id}, URL: {url}")
-        print(f"消息内容: {message.dict()}")
+        self.logger.info(f"发送消息到频道: {channel_id}, URL: {url}")
+        self.logger.debug(f"消息内容: {message.dict()}")
 
-        try:
-            async with self.session.post(
-                url,
-                json=command_data,
-                headers=headers,
-            ) as response:
-                if response.status == 200:
-                    print(f"消息发送成功: {channel_id}")
-                    return True
+        async with self.session.post(
+            url,
+            json=command_data,
+            headers=headers,
+        ) as response:
+            if response.status == 200:
+                self.logger.success(f"消息发送成功: {channel_id}")
+                return True
 
-                text = await response.text()
-                print(f"消息发送失败 ({response.status}): {text}")
-                return False
-        except Exception as e:
-            print(f"消息发送异常: {e}")
+            text = await response.text()
+            self.logger.error(f"消息发送失败 ({response.status}): {text}")
             return False
 
+    @retry_decorator(retry_count=3, initial_delay=1.0)
     async def _send_response(
         self,
         request_id: str,
@@ -564,7 +660,7 @@ class SSEClient:
             bool: 是否成功发送响应
         """
         if not self.client_id or not self.session:
-            print("客户端尚未注册或启动")
+            self.logger.error("客户端尚未注册或启动")
             return False
 
         # 修改为正确的URL
@@ -578,16 +674,12 @@ class SSEClient:
 
         headers = {"X-Client-ID": self.client_id}
 
-        try:
-            async with self.session.post(
-                url,
-                json=response_data,
-                headers=headers,
-            ) as response:
-                return response.status == 200
-        except Exception as e:
-            print(f"发送响应异常: {e}")
-            return False
+        async with self.session.post(
+            url,
+            json=response_data,
+            headers=headers,
+        ) as response:
+            return response.status == 200
 
     # 以下方法为默认事件处理器，需要被子类重写
 
@@ -619,7 +711,7 @@ class SSEClient:
                     "success": true
                 }
         """
-        print(f"收到发送消息请求: {data}")
+        self.logger.info(f"收到发送消息请求: {data}")
         # 需要被子类重写以实现实际的消息发送逻辑
 
         channel_id = data.get("channel_id", "")
@@ -644,10 +736,10 @@ class SSEClient:
                     },
                 )
 
-        print(f"需要发送消息到频道 {channel_id}")
-        print(f"文本内容: {text_content}")
-        print(f"图片URL: {image_urls}")
-        print(f"@用户: {at_users}")
+        self.logger.info(f"需要发送消息到频道 {channel_id}")
+        self.logger.debug(f"文本内容: {text_content}")
+        self.logger.debug(f"图片URL: {image_urls}")
+        self.logger.debug(f"@用户: {at_users}")
 
         # 这里应实现实际的消息发送逻辑
         # 例如调用具体平台的API发送消息
@@ -670,7 +762,7 @@ class SSEClient:
         Returns:
             Dict[str, Any]: 用户信息
         """
-        print(f"收到获取用户信息请求: {data}")
+        self.logger.info(f"收到获取用户信息请求: {data}")
         # 需要被子类重写
 
         user_id = data.get("user_id", "")
@@ -694,7 +786,7 @@ class SSEClient:
         Returns:
             Dict[str, Any]: 频道信息
         """
-        print(f"收到获取频道信息请求: {data}")
+        self.logger.info(f"收到获取频道信息请求: {data}")
         # 需要被子类重写
 
         channel_id = data.get("channel_id", "")
@@ -719,7 +811,7 @@ class SSEClient:
         Returns:
             Dict[str, Any]: 自身信息
         """
-        print(f"收到获取自身信息请求: {data}")
+        self.logger.info(f"收到获取自身信息请求: {data}")
         # 需要被子类重写
 
         return {
@@ -739,7 +831,7 @@ async def example_usage():
             _event_type: str,
             data: Dict[str, Any],
         ) -> Dict[str, Any]:
-            print(f"收到发送消息请求: {data}")
+            self.logger.info(f"收到发送消息请求: {data}")
             return await super()._handle_send_message(_event_type, data)
 
     # 创建客户端
