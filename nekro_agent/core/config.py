@@ -99,6 +99,11 @@ class PluginConfig(ConfigBase):
             load_to_nonebot_env=True, load_nbenv_as="minecraft_server_rcon", is_textarea=True,
         ).model_dump(),
     )
+    VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
+        default=[],
+        title="VTube Studio 控制端 WebSocket 地址",
+        description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+    )
     SUPER_USERS: List[str] = Field(
         default=[],
         title="管理员列表",

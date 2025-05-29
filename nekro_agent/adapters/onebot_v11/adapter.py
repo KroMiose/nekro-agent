@@ -35,6 +35,10 @@ class OnebotV11Adapter(BaseAdapter):
 
         register_matcher(self)
 
+    async def cleanup(self) -> None:
+        """清理适配器"""
+        return
+
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到 OneBot V11 协议端"""
         # 分离文件类型和其他类型的消息段

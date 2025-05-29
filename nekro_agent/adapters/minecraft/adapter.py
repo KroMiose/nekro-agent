@@ -32,7 +32,8 @@ class MinecraftAdapter(BaseAdapter):
         # TODO: 根据 Minecraft 的实际情况修改
         return [
             "Server chat: `minecraft-servername` (where servername is the name of the Minecraft server)",
-            "YOU CAN NOT USE ANY AT IN MINECRAFT SERVER CHAT!",
+            "YOU CAN NOT USE ANY AT MESSAGES IN MINECRAFT SERVER CHAT!",
+            "YOU CAN NOT SEND ANY PICTURES OR FILES IN MINECRAFT SERVER CHAT!",
         ]
 
     async def init(self) -> None:
@@ -70,6 +71,10 @@ class MinecraftAdapter(BaseAdapter):
         except Exception as e:
             logger.error(f"Minecraft 适配器初始化失败: {e}", exc_info=True)
             logger.warning("Minecraft 适配器未能加载")
+
+    async def cleanup(self) -> None:
+        """清理适配器"""
+        return
 
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
@@ -113,7 +118,7 @@ class MinecraftAdapter(BaseAdapter):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        return PlatformUser(user_id="Minecraft Server Bot", user_name="Minecraft Server Bot")
+        return PlatformUser(user_id="MinecraftBot", user_name="MinecraftBot")
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
         """获取用户(或者群聊用户)信息"""
