@@ -1,13 +1,15 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Tuple, Type, cast
+from typing import Dict, List, Optional, Tuple, Type, cast
 
 from fastapi import APIRouter
+from jinja2 import Environment
 from nonebot import logger
 from pydantic import Field
 
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
 
 from .schemas.platform import (
     PlatformChannel,
@@ -88,6 +90,14 @@ class BaseAdapter(ABC):
     async def cleanup(self) -> None:
         """清理适配器"""
         raise NotImplementedError
+
+    async def get_dialog_example(self) -> Optional[List[PromptTemplate]]:
+        """自定义对话示例"""
+        return None
+
+    async def get_jinja_env(self) -> Optional[Environment]:
+        """返回jinja模板"""
+        return None
 
     @abstractmethod
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:

@@ -3,7 +3,7 @@ from typing import List
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.services.plugin.base import NekroPlugin
 
-from .base import PromptTemplate, register_template
+from .base import PromptTemplate, env, register_template
 
 
 @register_template("plugin.j2", "plugin_prompt")
@@ -18,7 +18,7 @@ async def _render_plugin_prompt(plugin: NekroPlugin, ctx: AgentCtx) -> str:
         plugin_name=plugin.name,
         plugin_injected_prompt=await plugin.render_inject_prompt(ctx),
         plugin_method_prompt=await plugin.render_sandbox_methods_prompt(ctx),
-    ).render()
+    ).render(env)
 
 
 async def render_plugins_prompt(plugins: List[NekroPlugin], ctx: AgentCtx) -> str:

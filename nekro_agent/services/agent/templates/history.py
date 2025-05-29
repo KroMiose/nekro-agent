@@ -19,7 +19,7 @@ from nekro_agent.tools.path_convertor import (
 )
 
 from ..creator import ContentSegment, OpenAIChatMessage
-from .base import PromptTemplate, register_template
+from .base import PromptTemplate, env, register_template
 
 
 @register_template("history.j2", "history_first_start")
@@ -130,6 +130,7 @@ async def render_history_data(
             current_time=time.strftime("%Y-%m-%d %H:%M:%S %Z %A", time.localtime()),
             lunar_time=Lunar.fromDate(datetime.datetime.now()).toString(),
         ),
+        env,
     )
 
     logger.debug(f"已加载到 {len(img_seg_pairs)} 张图片")
