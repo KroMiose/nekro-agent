@@ -10,6 +10,7 @@ from .interface.base import BaseAdapter
 ADAPTER_DICT: Dict[str, str] = {
     "onebot_v11": "nekro_agent.adapters.onebot_v11.adapter.OnebotV11Adapter",
     "minecraft": "nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",
+    "sse": "nekro_agent.adapters.sse.adapter.SSEAdapter",
     "bilibili": "nekro_agent.adapters.bilibili_live.adapter.BilibiliLiveAdapter",
 }
 
@@ -38,10 +39,12 @@ async def init_adapters(_app: FastAPI):
         await adapter.init()
         logger.info(f"Adapter {adapter_key} initialized")
 
+
 async def cleanup_adapters(_app: FastAPI):
     for adapter_key, adapter in loaded_adapters.items():
         await adapter.cleanup()
         logger.info(f"Adapter {adapter_key} cleaned up")
+
 
 def get_adapter(adapter_key: str) -> BaseAdapter:
     return loaded_adapters[adapter_key]
