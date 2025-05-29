@@ -91,7 +91,7 @@ class BaseAdapter(ABC):
         """清理适配器"""
         raise NotImplementedError
 
-    async def get_dialog_example(self) -> Optional[List[PromptTemplate]]:
+    async def set_dialog_example(self) -> Optional[List[PromptTemplate]]:
         """自定义对话示例"""
         return None
 

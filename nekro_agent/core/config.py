@@ -99,6 +99,11 @@ class PluginConfig(ConfigBase):
             load_to_nonebot_env=True, load_nbenv_as="minecraft_server_rcon", is_textarea=True,
         ).model_dump(),
     )
+    BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
+        default=[],
+        title="Bilibili 直播间 ID",
+        description="Bilibili 直播间 ID，需与VTUBE_STUDIO_CONTROLLER_WS_URL一致",
+    )
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",

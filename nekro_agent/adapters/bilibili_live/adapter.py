@@ -1,8 +1,16 @@
 import asyncio
 import hashlib
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 
+from jinja2 import Environment, FileSystemLoader
+
+from nekro_agent.adapters.bilibili_live.templates.practice import (
+    PracticePrompt_question_1,
+    PracticePrompt_question_2,
+    PracticePrompt_response_1,
+    PracticePrompt_response_2,
+)
 from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -20,6 +28,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     ChatType,
 )
+from nekro_agent.services.agent.templates.base import PromptTemplate
 from nekro_agent.tools.common_util import (
     copy_to_upload_dir,
     download_file,
@@ -35,16 +44,17 @@ class BilibiliLiveAdapter(BaseAdapter):
         super().__init__()
         self.ws_clients: List[BilibiliWebSocketClient] = []
         self.ws_tasks: List[asyncio.Task] = []
-
+        self.room_to_ws: Dict[str, BilibiliWebSocketClient] = {}
+        
     @property
     def key(self) -> str:
-        return "bilibili-live"
+        return "bilibili_live"
 
     @property
     def chat_key_rules(self) -> List[str]:
-        # Bilibili直播间的聊天Key规则: bilibili-live-{room_id}
+        # Bilibili直播间的聊天Key规则: bilibili_live-{room_id}
         return [
-            "LiveRoom chat: `bilibili-live-114514` (where room_id is the id of the Bilibili live room)",
+            "LiveRoom chat: `bilibili_live-114514` (where room_id is the id of the Bilibili live room)",
         ]
 
     async def init(self) -> None:
@@ -55,17 +65,36 @@ class BilibiliLiveAdapter(BaseAdapter):
             )
             return
 
-        # 为每个WebSocket URL创建客户端连接
-        for ws_url in config.VTUBE_STUDIO_CONTROLLER_WS_URL:
+        if not config.BILIBILI_LIVE_ROOM_IDS:
+            logger.warning(
+                "未设置BILIBILI_LIVE_ROOM_IDS 取消加载 Bilibili 直播适配器",
+            )
+            return
+
+        # 检查房间ID和WebSocket URL数量是否一致
+        if len(config.BILIBILI_LIVE_ROOM_IDS) != len(config.VTUBE_STUDIO_CONTROLLER_WS_URL):
+            logger.error(
+                f"BILIBILI_LIVE_ROOM_IDS数量({len(config.BILIBILI_LIVE_ROOM_IDS)}) "
+                f"与VTUBE_STUDIO_CONTROLLER_WS_URL数量({len(config.VTUBE_STUDIO_CONTROLLER_WS_URL)})不一致, "
+                "取消加载 Bilibili 直播适配器",
+            )
+            return
+
+        # 为每个WebSocket URL创建客户端连接，并建立房间ID到WebSocket客户端的映射
+        for i, ws_url in enumerate(config.VTUBE_STUDIO_CONTROLLER_WS_URL):
             try:
+                room_id = config.BILIBILI_LIVE_ROOM_IDS[i]
                 client = BilibiliWebSocketClient(ws_url, self._handle_danmaku_message)
                 self.ws_clients.append(client)
+                
+                # 建立房间ID到WebSocket客户端的映射
+                self.room_to_ws[room_id] = client
                 
                 # 创建异步任务来运行WebSocket客户端
                 task = asyncio.create_task(client.start_with_auto_reconnect())
                 self.ws_tasks.append(task)
                 
-                logger.info(f"已创建Bilibili WebSocket连接任务: {ws_url}")
+                logger.info(f"已创建Bilibili WebSocket连接任务: {ws_url}, 关联房间ID: {room_id}")
                 
             except Exception as e:
                 logger.error(f"创建Bilibili WebSocket客户端失败 {ws_url}: {e}")
@@ -76,10 +105,27 @@ class BilibiliLiveAdapter(BaseAdapter):
         for task in self.ws_tasks:
             if not task.done():
                 task.cancel()
-
+                
         # 关闭所有WebSocket客户端
         for client in self.ws_clients:
             await client.close()
+            
+        self.ws_clients.clear()
+        self.ws_tasks.clear()
+        self.room_to_ws.clear()
+        logger.info("Bilibili适配器资源清理完成")
+
+    async def set_dialog_example(self) -> Optional[List[PromptTemplate]]:
+        return [
+            PracticePrompt_question_1(one_time_code=""),
+            PracticePrompt_question_2(one_time_code=""),
+            PracticePrompt_response_1(one_time_code="", enable_cot=False, enable_at=False),
+            PracticePrompt_response_2(one_time_code="", enable_cot=False, enable_at=False),
+        ]
+
+    async def get_jinja_env(self) -> Optional[Environment]:
+        """返回jinja模板"""
+        return Environment(loader=FileSystemLoader("nekro_agent/adapters/bilibili_live/templates"), auto_reload=False)
 
     async def _handle_danmaku_message(self, danmaku: Danmaku) -> None:
         """处理弹幕消息"""
@@ -120,7 +166,7 @@ class BilibiliLiveAdapter(BaseAdapter):
                     local_path, file_name = await download_file(
                         url,
                         use_suffix=suffix,
-                        from_chat_key=f"bilibili-live-{channel_id}",
+                        from_chat_key=f"bilibili_live-{channel_id}",
                     )
                     content_data.append(
                         ChatMessageSegmentImage(
@@ -144,7 +190,8 @@ class BilibiliLiveAdapter(BaseAdapter):
                 content_data=content_data,
                 content_text=danmaku.text,
                 is_tome=danmaku.is_trigget,  # 根据is_trigget字段决定是否触发AI
-                timestamp=danmaku.time,                is_self=False,
+                timestamp=danmaku.time,                
+                is_self=False,
             )
 
             logger.info(f"Bilibili弹幕消息: [{channel_id}] {danmaku.username}: {danmaku.text}")
@@ -155,16 +202,23 @@ class BilibiliLiveAdapter(BaseAdapter):
         except Exception as e:
             logger.error(f"处理Bilibili弹幕消息失败: {e}")
 
-        self.ws_clients.clear()
-        self.ws_tasks.clear()
-        logger.info("Bilibili适配器资源清理完成")
-
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
         processed_text = re.sub(r"\[@(?:id:[^;@]+(?:;nickname:[^@]+)?|[^@\]]+)@\]", "", text)
         # 将多个空格替换为单个空格，并去除首尾空格
         return re.sub(r"\s+", " ", processed_text).strip()
 
+    def get_ws_client_by_room_id(self, room_id: str) -> Optional[BilibiliWebSocketClient]:
+        """通过房间ID获取对应的WebSocket客户端实例
+        
+        Args:
+            room_id: Bilibili直播间ID
+            
+        Returns:
+            对应的WebSocket客户端实例，如果不存在则返回None
+        """
+        return self.room_to_ws.get(room_id)
+        
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:  # noqa: ARG002
         """推送消息到Bilibili协议端（暂不实现）"""
         # TODO: 实现向Bilibili直播间发送消息的功能

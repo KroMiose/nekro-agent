@@ -1,6 +1,6 @@
 import asyncio
 import json
-from pathlib import Path  # Added for __main__ test
+from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Optional, Union
 
 import aiohttp
@@ -40,6 +40,7 @@ class BilibiliWebSocketClient:
         self.danmaku_handler = danmaku_handler
         self.session: Optional[aiohttp.ClientSession] = None
         self.websocket: Optional[aiohttp.ClientWebSocketResponse] = None
+        self.animate_control_ws: Optional[aiohttp.ClientWebSocketResponse] = None  # 新增：动画控制连接
         self.is_running = False
         self.reconnect_interval = 5  # 重连间隔(秒)
         
@@ -49,12 +50,13 @@ class BilibiliWebSocketClient:
             if not self.session:
                 self.session = aiohttp.ClientSession()
                 
-            # 构建完整的WebSocket URL，添加/ws/danmaku端点
-            full_url = f"{self.ws_url}/ws/danmaku"
-            logger.info(f"正在连接到Bilibili WebSocket服务器: {full_url}")
-            
-            self.websocket = await self.session.ws_connect(full_url)
-            logger.success(f"已连接到Bilibili WebSocket服务器: {full_url}")
+            # 连接弹幕WebSocket
+            danmaku_url = f"{self.ws_url}/ws/danmaku"
+            logger.info(f"正在连接到Bilibili WebSocket服务器: {danmaku_url}")
+            self.websocket = await self.session.ws_connect(danmaku_url)
+            logger.success(f"已连接到Bilibili WebSocket服务器: {danmaku_url}")
+            animate_control_url = f"{self.ws_url}/ws/animate_control"
+            self.animate_control_ws = await self.session.ws_connect(animate_control_url)
             
         except Exception as e:
             logger.error(f"连接Bilibili WebSocket服务器失败: {e}")
@@ -114,8 +116,19 @@ class BilibiliWebSocketClient:
             if not self.is_running:
                 logger.info(f"WebSocket连接断开，{self.reconnect_interval}秒后尝试重连...")
                 await asyncio.sleep(self.reconnect_interval)
+                # 重连时需要重置连接状态
+                await self._cleanup_connections()
             else:
                 break
+    
+    async def _cleanup_connections(self) -> None:
+        """清理连接状态"""
+        if self.websocket and not self.websocket.closed:
+            await self.websocket.close()
+        if self.animate_control_ws and not self.animate_control_ws.closed:
+            await self.animate_control_ws.close()
+        self.websocket = None
+        self.animate_control_ws = None
                 
     async def close(self) -> None:
         """关闭WebSocket连接"""
@@ -124,8 +137,31 @@ class BilibiliWebSocketClient:
         if self.websocket and not self.websocket.closed:
             await self.websocket.close()
             
+        if self.animate_control_ws and not self.animate_control_ws.closed:
+            await self.animate_control_ws.close()
+            
         if self.session and not self.session.closed:
             await self.session.close()
             
         logger.info("Bilibili WebSocket连接已关闭")
-
+        
+    async def send_animate_control(self, data: Dict[str, Any]) -> None:
+        """向动画控制端点发送JSON消息（使用长连接）
+        
+        Args:
+            data: 要发送的数据字典，将被转换为JSON格式
+        """
+        try:
+            # 检查连接状态，如果连接已断开则重新连接
+            if self.animate_control_ws:
+                # 发送消息
+                json_data = json.dumps(data)
+                await self.animate_control_ws.send_str(json_data)
+                logger.info(f"已向animate_control端点发送消息: {json_data}")
+                
+        except Exception as e:
+            logger.error(f"向animate_control端点发送消息失败: {e}")
+            self.animate_control_ws = None
+            animate_control_url = f"{self.ws_url}/ws/animate_control"
+            if self.session:
+                self.animate_control_ws = await self.session.ws_connect(animate_control_url)

@@ -49,7 +49,7 @@ async def run_agent(
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     preset = await db_chat_channel.get_preset()
     ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
-    adapter_dialog_examples = await ctx.adapter.get_dialog_example()
+    adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
     
     # 获取当前使用的模型组
