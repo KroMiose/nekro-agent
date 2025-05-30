@@ -1,16 +1,10 @@
-from .base import PromptTemplate, register_template
+from jinja2 import Environment, FileSystemLoader
 
-
-class BasePracticePrompt_question(PromptTemplate):
-    """对话示例问题基类"""
-    one_time_code: str
-
-
-class BasePracticePrompt_response(PromptTemplate):
-    """对话示例回答基类"""
-    one_time_code: str
-    enable_cot: bool
-    enable_at: bool
+from nekro_agent.services.agent.templates.base import register_template
+from nekro_agent.services.agent.templates.practice import (
+    BasePracticePrompt_question,
+    BasePracticePrompt_response,
+)
 
 
 @register_template("practice.j2", "practice_question_1")

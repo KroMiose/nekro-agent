@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Union
 
 import magic
+from jinja2 import Environment
 
 from .templates.base import PromptTemplate
 
@@ -48,9 +49,9 @@ class OpenAIChatMessage:
         return cls(role, [ContentSegment.text_content(text)])
 
     @classmethod
-    def from_template(cls, role: Literal["user", "assistant", "system"], template: PromptTemplate) -> "OpenAIChatMessage":
+    def from_template(cls, role: Literal["user", "assistant", "system"], template: PromptTemplate, env: Environment) -> "OpenAIChatMessage":
         """添加 Jinja2 模板渲染片段"""
-        return cls(role, [ContentSegment.text_content(template.render())])
+        return cls(role, [ContentSegment.text_content(template.render(env))])
 
     @classmethod
     def create_empty(cls, role: Literal["user", "assistant", "system"]) -> "OpenAIChatMessage":
