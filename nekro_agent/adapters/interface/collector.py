@@ -30,6 +30,7 @@ async def collect_message(
         adapter_key=adapter.key,
         channel_id=platform_channel.channel_id,
         channel_type=platform_channel.channel_type,
+        channel_name=platform_channel.channel_name,
     )
 
     if not db_chat_channel.is_active:

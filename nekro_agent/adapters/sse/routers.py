@@ -66,8 +66,8 @@ router = APIRouter()
 
 @router.post("/connect")
 async def command_endpoint(
-    command_payload: Dict[str, Any] = Body(...),  # 使用新名称避免潜在的导入冲突
-    client_id_header: Optional[str] = Header(None, alias="X-Client-ID"),  # 使用新名称
+    command_payload: Dict[str, Any] = Body(...),
+    client_id_header: Optional[str] = Header(None, alias="X-Client-ID"),
 ):
     """命令处理端点"""
     cmd = command_payload.get("cmd")

@@ -185,6 +185,7 @@ class ReceiveMessage(Message):
     is_self: bool = Field(False, description="是否自己发送的")
     raw_content: Optional[str] = Field(None, description="原始内容")
     channel_id: str = Field(..., description="频道ID")
+    channel_name: str = Field(default="", description="频道名称")
 
 
 class SendMessage(Message):
@@ -862,6 +863,7 @@ async def example_usage():
             image("https://example.com/image.jpg"),
         ],
         channel_id="group_123456",
+        channel_name="测试频道",
     )
     await client.send_message("group_123456", msg)
 

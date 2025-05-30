@@ -183,7 +183,7 @@ async def handle_message(command: MessageCommand, client_id: str) -> MessageResp
 
     platform_channel = PlatformChannel(
         channel_id=sse_message.channel_id,
-        channel_name=sse_message.channel_id,
+        channel_name=sse_message.channel_name,
         channel_type=ChatType.GROUP,
     )
 

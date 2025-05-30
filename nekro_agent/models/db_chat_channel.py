@@ -71,9 +71,11 @@ class DBChatChannel(Model):
             )
         else:
             if channel_name and channel.channel_name != channel_name:
+                logger.info(f"更新频道名称: {channel.channel_name} -> {channel_name}")
                 channel.channel_name = channel_name
                 await channel.save()
             if channel_type and channel.channel_type != channel_type.value:
+                logger.info(f"更新频道类型: {channel.channel_type} -> {channel_type.value}")
                 channel.channel_type = channel_type.value
                 await channel.save()
         return channel
