@@ -16,14 +16,13 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
-from nekro_agent.services.agent.templates.base import PromptTemplate
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.sandbox.runner import limited_run_code
 
 from .creator import OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
-from .templates.base import env as defalut_env
+from .templates.base import env as default_env
 from .templates.history import HistoryFirstStart, render_history_data
 from .templates.plugin import render_plugins_prompt
 from .templates.practice import (
@@ -51,7 +50,7 @@ async def run_agent(
     ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
-    
+
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
 
@@ -63,17 +62,13 @@ async def run_agent(
                 bot_platform_id=(await ctx.adapter.get_self_info()).user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,
-                plugins_prompt=await render_plugins_prompt(
-                    plugin_collector.get_all_active_plugins(), ctx,
-                ),
+                plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
-                chat_key_rules="\n".join(
-                    [f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]],
-                ),
+                chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),
                 enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
             ),
-            defalut_env,
+            default_env,
         ),
     ]
 
@@ -87,25 +82,15 @@ async def run_agent(
                 role = "assistant"
                 prompt_template.one_time_code = one_time_code
                 prompt_template.enable_cot = used_model_group.ENABLE_COT
-                prompt_template.enable_at = (
-                    db_chat_channel.adapter.config.SESSION_ENABLE_AT
-                )
-            # 如果能确定角色，添加到消息列表
-            if role:
-                messages.append(
-                    OpenAIChatMessage.from_template(
-                        role, prompt_template, adapter_jinja_env,
-                    ),
-                )
+                prompt_template.enable_at = db_chat_channel.adapter.config.SESSION_ENABLE_AT
+            else:
+                raise TypeError(f"未知消息类型模板: {prompt_template}")
+            messages.append(OpenAIChatMessage.from_template(role, prompt_template, adapter_jinja_env))
     else:
         # 使用默认对话示例
         messages.extend(
             [
-                OpenAIChatMessage.from_template(
-                    "user",
-                    PracticePrompt_question_1(one_time_code=one_time_code),
-                    defalut_env,
-                ),
+                OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code), default_env),
                 OpenAIChatMessage.from_template(
                     "assistant",
                     PracticePrompt_response_1(
@@ -113,13 +98,9 @@ async def run_agent(
                         enable_cot=used_model_group.ENABLE_COT,
                         enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
                     ),
-                    defalut_env,
+                    default_env,
                 ),
-                OpenAIChatMessage.from_template(
-                    "user",
-                    PracticePrompt_question_2(one_time_code=one_time_code),
-                    defalut_env,
-                ),
+                OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code), default_env),
                 OpenAIChatMessage.from_template(
                     "assistant",
                     PracticePrompt_response_2(
@@ -127,17 +108,13 @@ async def run_agent(
                         enable_cot=used_model_group.ENABLE_COT,
                         enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
                     ),
-                    defalut_env,
+                    default_env,
                 ),
             ],
         )
 
     messages.append(
-        OpenAIChatMessage.from_template(
-            "user",
-            HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT),
-            defalut_env,
-        ).extend(
+        OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT), default_env).extend(
             await render_history_data(
                 chat_key=chat_key,
                 db_chat_channel=db_chat_channel,
@@ -148,12 +125,8 @@ async def run_agent(
     )
 
     history_render_until_time = time.time()
-    llm_response, used_model_group = await send_agent_request(
-        messages=messages, chat_key=chat_key,
-    )
-    parsed_code_data: ParsedCodeRunData = parse_chat_response(
-        llm_response.response_content,
-    )
+    llm_response, used_model_group = await send_agent_request(messages=messages, chat_key=chat_key)
+    parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
         addition_prompt_message: List[OpenAIChatMessage] = []
@@ -174,13 +147,9 @@ async def run_agent(
             return
 
         # 添加 AI 回复的原始内容到上下文
-        addition_prompt_message.append(
-            OpenAIChatMessage.from_text("assistant", llm_response.response_content),
-        )
+        addition_prompt_message.append(OpenAIChatMessage.from_text("assistant", llm_response.response_content))
 
-        msg: OpenAIChatMessage = OpenAIChatMessage.create_empty(
-            "user",
-        )  # 待添加到迭代上下文的用户消息
+        msg: OpenAIChatMessage = OpenAIChatMessage.create_empty("user")  # 待添加到迭代上下文的用户消息
 
         # Agent 类型的迭代对话
         if stop_type == ExecStopType.AGENT:
@@ -193,27 +162,16 @@ async def run_agent(
 
         # 多模态类型的迭代对话
         elif stop_type == ExecStopType.MULTIMODAL_AGENT:
-            multimodal_agent_result = json.loads(
-                raw_output.split("<AGENT_RESULT>")[1].split("</AGENT_RESULT>")[0],
-            )
+            multimodal_agent_result = json.loads(raw_output.split("<AGENT_RESULT>")[1].split("</AGENT_RESULT>")[0])
             if isinstance(multimodal_agent_result, list):
                 msg = msg.extend(OpenAIChatMessage("user", multimodal_agent_result))
             elif isinstance(multimodal_agent_result, str):
-                msg = msg.extend(
-                    OpenAIChatMessage.from_text("user", multimodal_agent_result),
-                )
+                msg = msg.extend(OpenAIChatMessage.from_text("user", multimodal_agent_result))
             elif isinstance(multimodal_agent_result, dict):
                 msg = msg.extend(OpenAIChatMessage(**multimodal_agent_result))
             else:
-                raise ValueError(
-                    f"Multimodal agent result is not a list or string: {multimodal_agent_result}",
-                )
-            msg = msg.extend(
-                OpenAIChatMessage.from_text(
-                    "user",
-                    "Attention: the code AFTER THE AGENT METHOD is NOT EXECUTED!",
-                ),
-            )
+                raise ValueError(f"Multimodal agent result is not a list or string: {multimodal_agent_result}")
+            msg = msg.extend(OpenAIChatMessage.from_text("user", "Attention: the code AFTER THE AGENT METHOD is NOT EXECUTED!"))
 
         # 异常类型的迭代对话
         exception_reason_map: Dict[ExecStopType, str] = {
@@ -265,12 +223,8 @@ async def run_agent(
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
-        llm_response, used_model_group = await send_agent_request(
-            messages=messages, is_debug_iteration=True, chat_key=chat_key,
-        )
-        parsed_code_data: ParsedCodeRunData = parse_chat_response(
-            llm_response.response_content,
-        )
+        llm_response, used_model_group = await send_agent_request(messages=messages, is_debug_iteration=True, chat_key=chat_key)
+        parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
 
 async def send_agent_request(
@@ -284,25 +238,21 @@ async def send_agent_request(
         else config.MODEL_GROUPS[config.USE_MODEL_GROUP]
     )
     fallback_model_group: ModelConfigGroup = (
-        config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP]
-        if config.FALLBACK_MODEL_GROUP
-        else model_group
+        config.MODEL_GROUPS[config.FALLBACK_MODEL_GROUP] if config.FALLBACK_MODEL_GROUP else model_group
     )
 
     if config.SAVE_PROMPTS_LOG:
         log_path = f"{PROMPT_LOG_DIR}/chat_log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
     else:
         log_path = None
-    err_log_path = f"{PROMPT_ERROR_LOG_DIR}/chat_err_{model_group.CHAT_MODEL}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+    err_log_path = (
+        f"{PROMPT_ERROR_LOG_DIR}/chat_err_{model_group.CHAT_MODEL}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.json"
+    )
 
     used_model_group: ModelConfigGroup = model_group  # 记录实际使用的模型组
 
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
-        use_model_group: ModelConfigGroup = (
-            model_group
-            if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1
-            else fallback_model_group
-        )
+        use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
 
         try:
             llm_response: OpenAIResponse = await gen_openai_chat_response(
@@ -322,26 +272,17 @@ async def send_agent_request(
             )
             # 避免重复添加，转换为Path对象并比较绝对路径
             err_log_path_obj = Path(err_log_path)
-            if not any(
-                str(log_path.absolute()) == str(err_log_path_obj.absolute())
-                for log_path in RECENT_ERR_LOGS
-            ):
+            if not any(str(log_path.absolute()) == str(err_log_path_obj.absolute()) for log_path in RECENT_ERR_LOGS):
                 RECENT_ERR_LOGS.append(err_log_path_obj)
             continue
         else:
             used_model_group = use_model_group  # 记录成功使用的模型组
             break
     else:
-        err_log = Path(
-            f"{PROMPT_LOG_DIR}/chat_err_log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.log",
-        )
+        err_log = Path(f"{PROMPT_LOG_DIR}/chat_err_log_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S_%f')}.log")
         err_log.parent.mkdir(parents=True, exist_ok=True)
         err_log.write_text(
-            json.dumps(
-                [message.to_dict() for message in messages],
-                indent=2,
-                ensure_ascii=False,
-            ),
+            json.dumps([message.to_dict() for message in messages], indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
         if chat_key and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
@@ -349,9 +290,7 @@ async def send_agent_request(
                 universal_chat_service,
             )
 
-            await universal_chat_service.send_operation_message(
-                chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ",
-            )
+            await universal_chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
         raise ValueError("所有 LLM 请求失败")
 
     return llm_response, used_model_group
