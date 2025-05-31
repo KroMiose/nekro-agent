@@ -1,9 +1,11 @@
+import json
 import re
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from pydantic import Field
 
 from nekro_agent.api import core
+from nekro_agent.api.core import logger
 from nekro_agent.api.plugin import (
     ConfigBase,
     NekroPlugin,
@@ -25,6 +27,7 @@ plugin = NekroPlugin(
     support_adapter=["bilibili_live"],
 )
 
+
 @plugin.mount_config()
 class BasicConfig(ConfigBase):
     """基础配置"""
@@ -45,95 +48,153 @@ class BasicConfig(ConfigBase):
         description="当消息长度超过该阈值时，将进行相似度检查",
     )
 
+
 config: BasicConfig = plugin.get_config(BasicConfig)
 
 # 消息缓存
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
 
+
+def extract_expressions(json_data: Dict) -> str:
+    """
+    Extracts and formats expression details (name, file, active status) from JSON data.
+
+    This function is used internally to prepare a list of available expressions for the LLM.
+
+    Args:
+        json_data (Dict): A dictionary parsed from JSON containing expression data,
+                          typically from an API response. It expects a structure like:
+                          `{"data": {"expressions": [{"name": "str", "file": "str", "active": bool}, ...]}}`.
+
+    Returns:
+        str: A string with each expression's name, file, and active status, formatted for
+             easy reading (e.g., "Happy happy.exp3.json Active\\nSad sad.exp3.json Inactive").
+             Returns "No expression data found." if the 'expressions' array is missing or empty.
+             Returns an error message if JSON processing fails.
+    """
+    try:
+
+        # 提取expressions数组
+        expressions = json_data.get("data", {}).get("expressions", [])
+
+        if not expressions:
+            return "No expression data found."
+
+        result = []
+
+        # 遍历表情数据并格式化
+        for expression in expressions:
+            name = expression.get("name", "Unknown")
+            file = expression.get("file", "Unknown")
+            active = "Active" if expression.get("active", False) else "Inactive"
+
+            result.append(f"{name} {file} {active}")
+
+        return "\n".join(result)
+
+    except json.JSONDecodeError:
+        return "JSON format error, please check the input data."
+    except Exception as e:
+        return f"Error processing data: {e!s}"
+
+
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
-    """可用表情提示词注入"""
+    """
+    Injects dynamic information about available Live2D expressions into the agent's prompt.
+
+    This method fetches the current list of available expressions from the Bilibili Live
+    websocket client and formats it into a prompt string. This helps the LLM understand
+    which expressions it can use with the `set_expression` tool.
+    """
     chat_key = _ctx.chat_key
     room_id = chat_key.replace("bilibili_live-", "")
-    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id) # type: ignore
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     avilable_expressions = ""
     if ws_client:
         msg = {
             "type": "emotion",
             "data": {},
         }
-        avilable_expressions = await ws_client.send_animate_control(msg)
-        core.logger.info(f"[{chat_key}] 可用表情：{avilable_expressions}")
-    basic_prompt =f"""
-    当执行send_text_message, set_expression时,设定的发言的和表情任务都会被存进队列,
-    只有当执行send_execute时,队列中的动画任务才会被执行
-    你可以通过上一次send_execute和下一次send_execute之间增加延迟来实现你想要的模型控制效果
-    以下是你可用的表情：
+        avilable_expressions = await ws_client.send_animate_control(msg, True)
+        logger.info(f"{avilable_expressions}")
+        avilable_expressions = extract_expressions(avilable_expressions)
+        logger.info(f"{avilable_expressions}")
+    basic_prompt = f"""
+    Important Instructions for Live2D Model Control:
+
+    1.  **Task Queuing:** Actions like `send_text_message`, `set_expression`, and `set_model_face_params`
+        do NOT execute immediately. Instead, they add tasks to an animation queue.
+    2.  **Execution Trigger:** The `send_execute` command is REQUIRED to execute all tasks
+        currently in the queue.
+    3.  **Sequential Execution:** Animation queues (defined by a series of tasks followed by `send_execute`)
+        are processed one after another. A new queue will only start after the previous one has fully completed.
+    4.  **Achieving Delays & Complex Sequences:** You can create sophisticated animation sequences by:
+        - Using the `delay` parameter within individual task functions (e.g., `set_expression`, `set_model_face_params`).
+        - Strategically placing `send_execute` calls to define segments of an animation. Delays *between*
+          `send_execute` calls are effectively the sum of durations and delays of the tasks within the preceding queue.
+
+    Available Expressions (Format: Name File Status):
     {avilable_expressions}
+
+    To use an expression, call `set_expression(_ck, "expression_file_name.exp3.json", duration, delay)`.
+    Example: `set_expression(_ck, "Happy.exp3.json", 2.0, 0)` sets the "Happy" expression for 2 seconds with no initial delay.
+
+    Note: The "expressions" listed above might include more than just facial expressions.
+    They can control other model parts like props (e.g., pillows) or hair.
+    Refer to the list for all available controllable expression assets.
     """
     return basic_prompt  # noqa: RET504
 
-@plugin.mount_sandbox_method(
-    SandboxMethodType.TOOL,
-    name="计算总朗读时长",
-    description="计算所有文本在给定语速下的总朗读时长",
-)
-async def calculate_total_duration(texts: List[str], speeds: List[float]) -> float:
-    """
-    计算所有文本在给定语速下的总朗读时长
-    
-    参数:
-        texts (List[str]): 要朗读的文本字符串列表
-        speeds (List[float]): 朗读速度列表 (每秒字符数)
-    
-    返回:
-        float: 总时长(秒)
-    """
-    if len(texts) != len(speeds):
-        raise ValueError("文本列表和速度列表的长度必须相同")
-    
-    total_duration = 0.0
-    
-    for text, speed in zip(texts, speeds):
-        # 去除引号并计算字符数
-        clean_text = text.strip("'\"")
-        char_count = len(clean_text)
-        
-        # 计算该文本在给定速度下的朗读时长
-        duration = char_count / speed
-        total_duration += duration
-    
-    return total_duration + 0.1
+
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     name="发送文本消息",
     description="发送聊天消息文本，附带缓存消息重复检查",
 )
 async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[str], speeds: List[float]):
-    """发送聊天消息文本
+    """
+    Sends a list of text messages with specified speaking speeds for a Live2D model.
 
-    Attention: Do not expose any unnecessary technical id or key in the message content.
+    This function adds 'say' tasks to an animation queue. The messages will be spoken
+    sequentially by the Live2D model when the queue is executed via `send_execute`.
+    It includes checks to prevent sending empty, duplicate, or overly similar messages.
+
+    Attention:
+        - Do not expose any unnecessary technical IDs or keys in the message content.
+        - THIS FUNCTION ADDS TASKS TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
 
     Args:
-        chat_key (str): 会话标识
-        message_text (List[str]): 消息内容列表
-        speeds (List[float]): 语速列表，单位为每秒钟字数
-        5.0为中速，8.0为快速，2.0为慢速
+        _ctx (AgentCtx): The agent context (automatically passed).
+        chat_key (str): The session identifier for the chat, e.g., "bilibili_live-ROOM_ID".
+        message_text (List[str]): A list of strings, where each string is a segment of the message to be spoken.
+                                  Cannot be empty, and individual messages cannot be blank.
+        speeds (List[float]): A list of floats corresponding to `message_text`. Each float specifies
+                              the speaking speed for the respective message segment in characters per second.
+                              Ensure `len(message_text) == len(speeds)`.
+                              Recommended speeds:
+                                  - 5.0: Slow
+                                  - 8.0: Medium (Normal conversational pace is typically 8.0-10.0)
+                                  - 12.0: Fast
+    Raises:
+        Exception: If `message_text` is empty, if `len(message_text)` != `len(speeds)`,
+                   if any message string is empty/whitespace, or if an image tag is detected.
+                   Also raises an exception for strictly filtered duplicate messages.
     """
     global SEND_MSG_CACHE
 
     # 检查消息列表是否为空或者长度不匹配
     if not message_text:
         raise Exception("Error: The message list cannot be empty.")
-    
+
     if len(message_text) != len(speeds):
         raise Exception("Error: The length of message_text and speeds must be equal.")
-    
+
     # 检查每条消息内容
     for text in message_text:
         if not text.strip():
             raise Exception("Error: The message content cannot be empty.")
-        
+
         # 拒绝包含 [image:xxx...] 的图片消息
         if re.match(r"^.*\[image:.*\]$", text) and len(text) > 100:
             raise Exception(
@@ -169,7 +230,7 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
         similarity = calculate_text_similarity(combined_message, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
         if similarity > config.SIMILARITY_THRESHOLD:
             # 发送系统消息提示避免类似内容
-            core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+            logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
             await message_service.push_system_message(
                 chat_key=chat_key,
                 agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
@@ -180,7 +241,7 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
     # TODO: 在这里实现实际的消息发送逻辑
     # 此处预留给用户自行实现发送功能
     room_id = chat_key.replace("bilibili_live-", "")
-    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id) # type: ignore
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     if ws_client:
         msg = {
             "type": "say",
@@ -190,64 +251,172 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
                 "delay": 0.0,
             },
         }
-        await ws_client.send_animate_control(msg)
+        await ws_client.send_animate_control(msg, False)
     # 更新消息缓存
     SEND_MSG_CACHE[chat_key].append(combined_message)
     SEND_MSG_CACHE[chat_key] = SEND_MSG_CACHE[chat_key][-10:]  # 保持最近10条消息
+
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     name="设置Live2d表情",
     description="设置Live2d表情",
 )
-async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duration: float):
-    """设置Live2d表情
+async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duration: float, delay: float):
+    """
+    Sets a specific Live2D model expression.
+
+    This function adds an 'emotion' task to the animation queue. The expression will be
+    applied to the Live2D model when the queue is executed via `send_execute`.
+
+    Attention:
+        - THIS FUNCTION ADDS A TASK TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
 
     Args:
-        chat_key (str): 会话标识
-        expression (str): 表情名称
-        duration (float): 表情持续时间
+        _ctx (AgentCtx): The agent context (automatically passed).
+        chat_key (str): The session identifier, e.g., "bilibili_live-ROOM_ID".
+        expression (str): The filename of the expression to set (e.g., "happy.exp3.json").
+                          Refer to the list of available expressions provided in the prompt.
+        duration (float): The duration in seconds for which the expression should be active.
+                          - If `duration < 0`, the expression will persist indefinitely.
+                          - To turn off a persistent expression, you can set a new expression
+                            or set the same expression with `duration = 0`.
+        delay (float): The delay in seconds before this expression task starts after the
+                       `send_execute` command (or the previous task in the queue) begins.
     """
     # TODO: 在这里实现实际的Live2d模型设置逻辑
     # 此处预留给用户自行实现设置功能
     room_id = chat_key.replace("bilibili_live-", "")
-    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id) # type: ignore
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     if ws_client:
         msg = {
             "type": "emotion",
             "data": {
                 "name": expression,
                 "duration": duration,
-                "delay": 0.0,
+                "delay": delay,
             },
         }
-        await ws_client.send_animate_control(msg)
+        await ws_client.send_animate_control(msg, False)
+
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="设置模型面部参数",
+    description="设置模型面部参数",
+)
+async def set_model_face_params(
+    _ctx: AgentCtx, chat_key: str, parameter: str, target: float, duration: float, delay: float, easing: str,
+):
+    """
+    Sets or animates a specific Live2D model facial parameter.
+
+    This function adds an 'animation' task to the animation queue to control individual
+    facial parameters like mouth openness, eye blinking, or head angles. The parameter
+    will be animated when the queue is executed via `send_execute`.
+
+    Attention:
+        - THIS FUNCTION ADDS A TASK TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
+
+    Args:
+        _ctx (AgentCtx): The agent context (automatically passed).
+        chat_key (str): The session identifier, e.g., "bilibili_live-ROOM_ID".
+        parameter (str): The name of the facial parameter to animate. See "Available Facial Parameters" below.
+        target (float): The target value for the parameter. The valid range depends on the parameter.
+        duration (float): The time in seconds over which the parameter animates from its current
+                          value to the `target` value.
+        delay (float): The delay in seconds before this animation task starts after the
+                       `send_execute` command (or the previous task in the queue) begins.
+        easing (str): The easing function to use for the animation. See "Available Easing Functions" below.
+
+    Available Easing Functions:
+        'linear', 'in_sine', 'out_sine', 'in_out_sine', 'in_back', 'out_back',
+        'in_out_back', 'in_elastic', 'out_elastic', 'in_out_elastic'
+
+    Available Facial Parameters (and their typical ranges):
+        - 'MouthSmile': 0.0 (corners down) to 1.0 (corners up)
+        - 'MouthOpen': 0.0 (closed) to 1.0 (fully open)
+        - 'EyeOpenLeft': 0.0 (fully open) to 1.0 (fully closed)
+        - 'EyeOpenRight': 0.0 (fully open) to 1.0 (fully closed)
+        - 'Brows': 0.0 (furrowed) to 1.0 (raised)
+        - 'FaceAngleY': -30.0 (looking down) to 30.0 (looking up)
+        - 'FaceAngleX': -30.0 (facing model's right) to 30.0 (facing model's left)
+        - 'FaceAngleZ': -90.0 (tilted model's right) to 90.0 (tilted model's left)
+
+    You can combine multiple `set_model_face_params` calls (and other tasks)
+    before a `send_execute` to create complex facial animations.
+
+    Example (Wink then smile):
+        # Stage 1: Wink left eye (0.3s duration), then smile (0.3s duration, starting after wink finishes)
+        set_model_face_params(_ck, "EyeOpenLeft", 1.0, 0.3, 0.0, "in_sine")  # Wink starts immediately
+        set_model_face_params(_ck, "MouthSmile", 1.0, 0.3, 0.3, "in_sine") # Smile starts after 0.3s
+        send_execute(_ck, 1) # Execute this sequence once
+    """
+    room_id = chat_key.replace("bilibili_live-", "")
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
+    if ws_client:
+        msg = {
+            "type": "animation",
+            "data": {
+                "parameter": parameter,
+                "target": target,
+                "duration": duration,
+                "delay": delay,
+                "easing": easing,
+            },
+        }
+        await ws_client.send_animate_control(msg, False)
+
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     name="发送执行指令",
     description="发送执行指令",
 )
-async def send_execute(_ctx: AgentCtx, chat_key: str):
-    """发送执行指令
+async def send_execute(_ctx: AgentCtx, chat_key: str, loop: int):
+    """
+    Executes all queued Live2D animation tasks.
+
+    This function triggers the execution of all 'say', 'emotion', and 'animation' tasks
+    that have been added to the animation queue since the last `send_execute` call
+    (or since the beginning if no `send_execute` has been called yet).
+
+    Attention:
+        - THIS FUNCTION EXECUTES ALL TASKS CURRENTLY IN THE QUEUE.
 
     Args:
-        chat_key (str): 会话标识
+        _ctx (AgentCtx): The agent context (automatically passed).
+        chat_key (str): The session identifier, e.g., "bilibili_live-ROOM_ID".
+        loop (int): The number of times to repeat the entire sequence of tasks
+                    currently in the queue. For example, `loop=2` will execute
+                    the current queue, then execute it again.
+                    A value of `1` means execute once.
+
+    Behavior:
+        - The system waits for the previous `send_execute` queue to complete fully
+          before starting the next queue. This allows for creating distinct animation segments.
+        - If `loop` is greater than 1, the entire set of tasks defined before this
+          `send_execute` will be repeated `loop` times.
     """
     room_id = chat_key.replace("bilibili_live-", "")
-    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id) # type: ignore
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     if ws_client:
         msg = {
             "type": "execute",
             "data": {
-                "loop": 0,
+                "loop": loop,
             },
         }
-        await ws_client.send_animate_control(msg)
+        await ws_client.send_animate_control(msg, False)
+
 
 @plugin.mount_cleanup_method()
 async def clean_up():
-    """清理插件"""
+    """
+    Cleans up plugin resources, specifically clearing the message cache.
+
+    This function is typically called when the plugin is unloaded or the application
+    is shutting down. It resets the `SEND_MSG_CACHE` to an empty dictionary.
+    """
     global SEND_MSG_CACHE
     SEND_MSG_CACHE = {}
-    
