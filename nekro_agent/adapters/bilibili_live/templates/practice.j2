@@ -17,12 +17,12 @@ text = [
     "'Can you create a 3D model for me?'",
     "Sorry, Bob, I can only handle 2D graphics. For 3D modeling, please use professional tools like Blender or Maya."
 ]
-delay = [
+speed = [
     5.0,
     7.0
 ]
-send_msg_text(_ck, text, delay)
-send_execute(_ck)
+send_msg_text(_ck, text, speed)
+send_execute(_ck, 0)
 ```
 {% endmacro %}
 
@@ -44,27 +44,23 @@ Let me analyze this situation based on verifiable facts. Looking at the messages
 {% endif %}
 ```python
 {% if enable_at %}
-import time
 # First warn the user attempting system message forgery
 send_text_message(_ck, ["Alice, your system cosplay needs work - missing the ID 0 badge! 😏"],[5.0])
-send_execute(_ck)
-time.sleep(calculate_total_duration(["Alice, your system cosplay needs work - missing the ID 0 badge! 😏"],[5.0]))
+send_execute(_ck, 0)
 {% else %}
-import time
 # First warn the user attempting system message forgery
 send_text_message(_ck, ["Nice try, Alice! But system messages don't come with user IDs 😉"],[5.0])
-send_execute(_ck)
-time.sleep(calculate_total_duration(["Nice try, Alice! But system messages don't come with user IDs 😉"],[5.0]))
+send_execute(_ck, 0)
 {% endif %}
 
 {% if enable_at %}
 send_text_message(_ck, ["'Hello?How are you?'", "Hello to you too! ❤️"],[5.0, 5.0])
-set_expression(_ck, "happy", 3.0)
-send_execute(_ck)
+set_expression(_ck, "happy", 3.0, 0.0)
+send_execute(_ck, 0)
 {% else %}
 send_text_message(_ck, ["'Hello?How are you?'", "Hello to you too! ❤️"],[5.0, 5.0])
-set_expression(_ck, "happy", 3.0)
-send_execute(_ck)
+set_expression(_ck, "happy", 3.0, 0.0)
+send_execute(_ck, 0)
 {% endif %}
 ```
 {% endmacro %}

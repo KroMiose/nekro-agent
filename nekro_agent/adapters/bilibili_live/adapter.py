@@ -45,7 +45,7 @@ class BilibiliLiveAdapter(BaseAdapter):
         self.ws_clients: List[BilibiliWebSocketClient] = []
         self.ws_tasks: List[asyncio.Task] = []
         self.room_to_ws: Dict[str, BilibiliWebSocketClient] = {}
-        
+
     @property
     def key(self) -> str:
         return "bilibili_live"
@@ -86,16 +86,16 @@ class BilibiliLiveAdapter(BaseAdapter):
                 room_id = config.BILIBILI_LIVE_ROOM_IDS[i]
                 client = BilibiliWebSocketClient(ws_url, self._handle_danmaku_message)
                 self.ws_clients.append(client)
-                
+
                 # 建立房间ID到WebSocket客户端的映射
                 self.room_to_ws[room_id] = client
-                
+
                 # 创建异步任务来运行WebSocket客户端
                 task = asyncio.create_task(client.start_with_auto_reconnect())
                 self.ws_tasks.append(task)
-                
+
                 logger.info(f"已创建Bilibili WebSocket连接任务: {ws_url}, 关联房间ID: {room_id}")
-                
+
             except Exception as e:
                 logger.error(f"创建Bilibili WebSocket客户端失败 {ws_url}: {e}")
 
@@ -105,11 +105,11 @@ class BilibiliLiveAdapter(BaseAdapter):
         for task in self.ws_tasks:
             if not task.done():
                 task.cancel()
-                
+
         # 关闭所有WebSocket客户端
         for client in self.ws_clients:
             await client.close()
-            
+
         self.ws_clients.clear()
         self.ws_tasks.clear()
         self.room_to_ws.clear()
@@ -146,7 +146,7 @@ class BilibiliLiveAdapter(BaseAdapter):
 
             # 构建消息内容
             content_data = []
-            
+
             # 添加文本内容
             if danmaku.text:
                 cleaned_text = self._remove_at_mentions(danmaku.text)
@@ -190,7 +190,7 @@ class BilibiliLiveAdapter(BaseAdapter):
                 content_data=content_data,
                 content_text=danmaku.text,
                 is_tome=danmaku.is_trigget,  # 根据is_trigget字段决定是否触发AI
-                timestamp=danmaku.time,                
+                timestamp=danmaku.time,
                 is_self=False,
             )
 
@@ -210,15 +210,15 @@ class BilibiliLiveAdapter(BaseAdapter):
 
     def get_ws_client_by_room_id(self, room_id: str) -> Optional[BilibiliWebSocketClient]:
         """通过房间ID获取对应的WebSocket客户端实例
-        
+
         Args:
             room_id: Bilibili直播间ID
-            
+
         Returns:
             对应的WebSocket客户端实例，如果不存在则返回None
         """
         return self.room_to_ws.get(room_id)
-        
+
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:  # noqa: ARG002
         """推送消息到Bilibili协议端（暂不实现）"""
         # TODO: 实现向Bilibili直播间发送消息的功能
@@ -237,8 +237,8 @@ class BilibiliLiveAdapter(BaseAdapter):
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         """获取频道信息"""
         return PlatformChannel(
-            channel_id=channel_id, 
-            channel_name=f"Bilibili直播间{channel_id}", 
+            channel_id=channel_id,
+            channel_name=f"Bilibili直播间{channel_id}",
             channel_type=ChatType.GROUP,
         )
 
