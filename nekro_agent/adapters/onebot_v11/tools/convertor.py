@@ -59,18 +59,10 @@ async def convert_chat_message(
             if not ob_event.file.model_extra["url"].startswith("http"):
                 logger.warning(f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}")
                 return ret_list, False, ""
-            local_path, file_name = await download_file(
-                ob_event.file.model_extra["url"],
-                use_suffix=suffix,
-                from_chat_key=db_chat_channel.chat_key,
-            )
             ret_list.append(
-                ChatMessageSegmentFile(
-                    type=ChatMessageSegmentType.FILE,
-                    text="",
-                    file_name=file_name,
-                    local_path=local_path,
-                    remote_url="",
+                await ChatMessageSegmentFile.create_from_url(
+                    url=ob_event.file.model_extra["url"],
+                    from_chat_key=db_chat_channel.chat_key,
                 ),
             )
         elif ob_event.file.id:
@@ -80,18 +72,11 @@ async def convert_chat_message(
             # napcat 挂载目录 ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ
             target_file_path = str(Path(NAPCAT_TEMPFILE_DIR) / file_data["file_name"])
             if Path(target_file_path).exists():
-                local_path, file_name = await copy_to_upload_dir(
-                    file_path=target_file_path,
-                    file_name=file_data["file_name"],
-                    from_chat_key=db_chat_channel.chat_key,
-                )
-                logger.debug(f"上传文件转移: {target_file_path} -> {local_path}")
                 ret_list.append(
-                    ChatMessageSegmentFile(
-                        type=ChatMessageSegmentType.FILE,
-                        text="",
-                        file_name=file_name,
-                        local_path=local_path,
+                    await ChatMessageSegmentFile.create_form_local_path(
+                        local_path=target_file_path,
+                        from_chat_key=db_chat_channel.chat_key,
+                        file_name=file_data["file_name"],
                     ),
                 )
             else:
@@ -128,36 +113,22 @@ async def convert_chat_message(
                 suffix = ""
             if "url" in seg.data:
                 remote_url: str = seg.data["url"]
-                local_path, file_name = await download_file(
-                    remote_url,
-                    use_suffix=suffix,
-                    from_chat_key=db_chat_channel.chat_key,
-                )
                 ret_list.append(
-                    ChatMessageSegmentImage(
-                        type=ChatMessageSegmentType.IMAGE,
-                        text="",
-                        file_name=file_name,
-                        local_path=local_path,
-                        remote_url=remote_url,
+                    await ChatMessageSegmentImage.create_from_url(
+                        url=remote_url,
+                        from_chat_key=db_chat_channel.chat_key,
+                        use_suffix=suffix,
                     ),
                 )
             elif "file" in seg.data:
                 seg_local_path = seg.data["file"]
                 if seg_local_path.startswith("file:"):
                     seg_local_path = seg_local_path[len("file:") :]
-                local_path, file_name = await copy_to_upload_dir(
-                    seg_local_path,
-                    use_suffix=suffix,
-                    from_chat_key=db_chat_channel.chat_key,
-                )
                 ret_list.append(
-                    ChatMessageSegmentImage(
-                        type=ChatMessageSegmentType.IMAGE,
-                        text="",
-                        file_name=file_name,
-                        local_path=local_path,
-                        remote_url="",
+                    await ChatMessageSegmentImage.create_form_local_path(
+                        local_path=seg_local_path,
+                        from_chat_key=db_chat_channel.chat_key,
+                        use_suffix=suffix,
                     ),
                 )
             else:

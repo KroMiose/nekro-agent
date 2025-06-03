@@ -60,10 +60,17 @@ class SseAtSegment(SseSegment):
 class SseMediaSegment(SseSegment):
     """媒体消息段基类"""
 
-    url: str = Field(..., description="媒体文件URL")
+    url: Optional[str] = Field(None, description="媒体文件URL")
     name: Optional[str] = Field(None, description="媒体文件名")
     size: Optional[int] = Field(None, description="媒体文件大小(字节)")
     mime_type: Optional[str] = Field(None, description="媒体文件MIME类型")
+    base64_url: Optional[str] = Field(None, description="媒体文件的base64编码数据URL")
+    
+    # 扩展校验：url和base64_url至少一个不为空
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.url and not self.base64_url:
+            raise ValueError("url和base64_url至少有一个必须提供")
 
 
 class SseImageSegment(SseMediaSegment):
@@ -247,20 +254,23 @@ def at(user_id: str, nickname: Optional[str] = None) -> SseAtSegment:
 
 
 def image(
-    url: str,
+    url: Optional[str] = None,
+    base64_url: Optional[str] = None,
     name: Optional[str] = None,
     size: Optional[int] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
+    mime_type: str = "image/jpeg",
     is_origin: bool = False,
 ) -> SseImageSegment:
     """创建图片消息段"""
     return SseImageSegment(
         type=SseSegmentType.IMAGE,
         url=url,
+        base64_url=base64_url,
         name=name,
         size=size,
-        mime_type="image/jpeg",
+        mime_type=mime_type,
         width=width,
         height=height,
         is_origin=is_origin,
@@ -268,10 +278,18 @@ def image(
 
 
 def file(
-    url: str,
+    url: Optional[str] = None,
+    base64_url: Optional[str] = None,
     name: Optional[str] = None,
     size: Optional[int] = None,
     mime_type: Optional[str] = None,
 ) -> SseFileSegment:
     """创建文件消息段"""
-    return SseFileSegment(type=SseSegmentType.FILE, url=url, name=name, size=size, mime_type=mime_type)
+    return SseFileSegment(
+        type=SseSegmentType.FILE, 
+        url=url, 
+        base64_url=base64_url,
+        name=name, 
+        size=size, 
+        mime_type=mime_type,
+    )

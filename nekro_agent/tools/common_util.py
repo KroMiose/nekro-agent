@@ -1,5 +1,7 @@
+import base64
 import difflib
 import hashlib
+import mimetypes
 import random
 import re
 from pathlib import Path
@@ -126,6 +128,12 @@ async def download_file_from_base64(
     Returns:
         Tuple[str, str]: 文件路径, 文件名
     """
+    logger.debug(f"下载文件(从base64字符串): {base64_str[:100]}")
+    if base64_str.startswith("data:") and not use_suffix:
+        mime_type = mimetypes.guess_type(base64_str)[0] or ""
+        use_suffix = f".{mime_type.split('/')[1]}" if mime_type and len(mime_type.split("/")) > 1 else ""
+    if base64_str.startswith("data:"):
+        base64_str = base64_str.split(",")[1]
 
     if not file_path:
         file_name = file_name or f"{hashlib.md5(base64_str.encode()).hexdigest()}{use_suffix}"
@@ -135,7 +143,7 @@ async def download_file_from_base64(
             save_path = Path(USER_UPLOAD_DIR) / Path(file_name)
         save_path.parent.mkdir(parents=True, exist_ok=True)
         file_path = str(save_path)
-    Path(file_path).write_bytes(base64_str.encode())
+    Path(file_path).write_bytes(base64.b64decode(base64_str.encode(encoding="utf-8")))
     Path(file_path).chmod(0o755)
     return file_path, file_name
 

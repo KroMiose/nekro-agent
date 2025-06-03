@@ -4,6 +4,13 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel
 
+from nekro_agent.tools.common_util import (
+    copy_to_upload_dir,
+    download_file,
+    download_file_from_base64,
+    download_file_from_bytes,
+)
+
 
 class ChatType(Enum):
     PRIVATE = "private"
@@ -45,9 +52,84 @@ class ChatMessageSegmentFile(ChatMessageSegment):
     local_path: Optional[str] = None
     remote_url: Optional[str] = None
 
+    @classmethod
+    def get_segment_type(cls) -> ChatMessageSegmentType:
+        return ChatMessageSegmentType.FILE
+
+    @classmethod
+    async def create_from_url(cls, url: str, from_chat_key: str, file_name: str = "", use_suffix: str = ""):
+        """从 URL 创建文件消息段"""
+        if url.startswith("data:"):
+            return await cls.create_from_base64(url, from_chat_key, file_name, use_suffix)
+
+        local_path, _file_name = await download_file(url, use_suffix=use_suffix, from_chat_key=from_chat_key)
+
+        return cls(
+            type=cls.get_segment_type(),
+            text=f"[{cls.get_segment_type().value.capitalize()}: {file_name or _file_name}]",
+            file_name=file_name or _file_name,
+            local_path=local_path,
+            remote_url=url,
+        )
+
+    @classmethod
+    async def create_form_local_path(cls, local_path: str, from_chat_key: str, file_name: str = "", use_suffix: str = ""):
+        """从本地路径创建文件消息段"""
+        local_path, _file_name = await copy_to_upload_dir(
+            file_path=local_path,
+            file_name=file_name,
+            use_suffix=use_suffix,
+            from_chat_key=from_chat_key,
+        )
+
+        return cls(
+            type=cls.get_segment_type(),
+            text=f"[{cls.get_segment_type().value.capitalize()}: {file_name or _file_name}]",
+            file_name=file_name or _file_name,
+            local_path=local_path,
+        )
+
+    @classmethod
+    async def create_from_bytes(cls, _bytes: bytes, from_chat_key: str, file_name: str = "", use_suffix: str = ""):
+        """从字节数据创建文件消息段"""
+        local_path, _file_name = await download_file_from_bytes(
+            bytes_data=_bytes,
+            file_name=file_name,
+            use_suffix=use_suffix,
+            from_chat_key=from_chat_key,
+        )
+
+        return cls(
+            type=cls.get_segment_type(),
+            text=f"[{cls.get_segment_type().value.capitalize()}: {file_name or _file_name}]",
+            file_name=file_name or _file_name,
+            local_path=local_path,
+        )
+
+    @classmethod
+    async def create_from_base64(cls, base64_str: str, from_chat_key: str, file_name: str = "", use_suffix: str = ""):
+        """从 Base64 数据创建文件消息段"""
+        local_path, _file_name = await download_file_from_base64(
+            base64_str=base64_str,
+            file_name=file_name,
+            use_suffix=use_suffix,
+            from_chat_key=from_chat_key,
+        )
+
+        return cls(
+            type=cls.get_segment_type(),
+            text=f"[{cls.get_segment_type().value.capitalize()}: {file_name or _file_name}]",
+            file_name=file_name or _file_name,
+            local_path=local_path,
+        )
+
 
 class ChatMessageSegmentImage(ChatMessageSegmentFile):
     """聊天消息段图片"""
+
+    @classmethod
+    def get_segment_type(cls) -> ChatMessageSegmentType:
+        return ChatMessageSegmentType.IMAGE
 
 
 def segment_from_dict(data: Dict) -> ChatMessageSegment:

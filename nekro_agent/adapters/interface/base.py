@@ -141,6 +141,10 @@ class BaseAdapter(ABC):
 
     # region 辅助方法
 
+    def build_chat_key(self, channel_id: str) -> str:
+        """构建聊天标识"""
+        return f"{self.key}-{channel_id}"
+
     def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
         """解析聊天标识
 
@@ -159,5 +163,9 @@ class BaseAdapter(ABC):
         channel_id = parts[1]
 
         return adapter_key, channel_id
+
+    def parse_channel_id(self, chat_key: str) -> str:
+        """解析聊天标识中的频道ID"""
+        return self.parse_chat_key(chat_key)[1]
 
     # endregion

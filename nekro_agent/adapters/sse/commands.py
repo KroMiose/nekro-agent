@@ -10,7 +10,8 @@ SSE 命令处理模块
 
 import inspect
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Type, cast
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Optional, Type, cast
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -24,12 +25,21 @@ from nekro_agent.adapters.sse.core.client import SseClientManager
 from nekro_agent.adapters.sse.core.message import SseMessageConverter
 from nekro_agent.adapters.sse.schemas import (
     SseChannelSubscribeResponse,
+    SseMediaSegment,
     SseReceiveMessage,
     SseRegisterResponse,
+    SseSegmentType,
 )
+from nekro_agent.adapters.sse.tools.common import base64_to_file
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
-from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.core.os_env import USER_UPLOAD_DIR
+from nekro_agent.schemas.chat_message import (
+    ChatMessageSegment,
+    ChatMessageSegmentFile,
+    ChatMessageSegmentImage,
+    ChatType,
+)
 
 # 全局客户端管理器 - 从外部导入实例
 client_manager: SseClientManager
@@ -174,12 +184,12 @@ async def handle_message(command: MessageCommand, client_id: str) -> MessageResp
 
     # 解析消息
     try:
-        sse_message = SseReceiveMessage(**command.message)
+        sse_message: SseReceiveMessage = SseReceiveMessage(**command.message)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"消息格式无效: {e}")
+        raise HTTPException(status_code=400, detail=f"消息格式无效: {e}") from e
 
     # 创建平台消息
-    platform_message = message_converter.sse_to_platform_message(sse_message)
+    platform_message = await message_converter.sse_to_platform_message(sse_message)
 
     platform_channel = PlatformChannel(
         channel_id=sse_message.channel_id,

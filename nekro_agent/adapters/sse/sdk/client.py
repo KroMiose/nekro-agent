@@ -9,7 +9,9 @@ SSE 客户端SDK
 import asyncio
 import base64
 import contextlib
+import hashlib
 import json
+import mimetypes
 import time
 import uuid
 from functools import wraps
@@ -136,7 +138,8 @@ class TextSegment(MessageSegment):
 class ImageSegment(MessageSegment):
     """图片消息段"""
 
-    url: str = Field(..., description="图片URL")
+    url: Optional[str] = Field(None, description="图片URL")
+    base64_url: Optional[str] = Field(None, description="图片base64 URL")
     name: Optional[str] = Field(None, description="图片文件名")
     size: Optional[int] = Field(None, description="图片大小(字节)")
     mime_type: Optional[str] = Field(None, description="图片MIME类型")
@@ -144,14 +147,31 @@ class ImageSegment(MessageSegment):
     height: Optional[int] = Field(None, description="图片高度")
     is_origin: bool = Field(False, description="是否原图")
 
+    class Config:
+        validate_assignment = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.url and not self.base64_url:
+            raise ValueError("url和base64_url至少有一个必须提供")
+
 
 class FileSegment(MessageSegment):
     """文件消息段"""
 
-    url: str = Field(..., description="文件URL")
+    url: Optional[str] = Field(None, description="文件URL")
+    base64_url: Optional[str] = Field(None, description="文件base64 URL")
     name: Optional[str] = Field(None, description="文件名")
     size: Optional[int] = Field(None, description="文件大小")
     mime_type: Optional[str] = Field(None, description="MIME类型")
+
+    class Config:
+        validate_assignment = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.url and not self.base64_url:
+            raise ValueError("url和base64_url至少有一个必须提供")
 
 
 class AtSegment(MessageSegment):
@@ -201,20 +221,83 @@ def text(content: str) -> TextSegment:
 
 
 def image(
-    url: str,
+    url: Optional[str] = None,
+    file_path: Optional[str] = None,
+    base64_url: Optional[str] = None,
+    bytes_data: Optional[bytes] = None,
     name: Optional[str] = None,
     size: Optional[int] = None,
     width: Optional[int] = None,
     height: Optional[int] = None,
+    mime_type: Optional[str] = None,
     is_origin: bool = False,
 ) -> ImageSegment:
-    """创建图片消息段"""
+    """创建图片消息段
+
+    支持多种方式提供图片：URL、文件路径、base64数据或字节数据
+
+    Args:
+        url: 图片URL
+        file_path: 图片文件路径
+        base64_url: 图片base64编码数据
+        bytes_data: 图片字节数据
+        name: 图片文件名
+        size: 图片大小(字节)
+        width: 图片宽度
+        height: 图片高度
+        mime_type: 图片MIME类型
+        is_origin: 是否原图
+
+    Returns:
+        ImageSegment: 图片消息段
+    """
+    # 确保至少提供了一种图片数据
+    if not any([url, file_path, base64_url, bytes_data]):
+        raise ValueError("必须提供图片URL、文件路径、base64数据或字节数据中的一种")
+
+    # 从文件路径处理
+    if file_path:
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"图片文件不存在：{file_path}")
+
+        if not name:
+            name = file_path_obj.name
+
+        if not base64_url:
+            img_bytes = file_path_obj.read_bytes()
+            base64_data = base64.b64encode(img_bytes).decode("utf-8")
+
+            if not size:
+                size = len(img_bytes)
+
+            if not mime_type:
+                mime_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
+
+    # 从字节数据处理
+    elif bytes_data:
+        if not base64_url:
+            base64_data = base64.b64encode(bytes_data).decode("utf-8")
+
+            if not size:
+                size = len(bytes_data)
+
+            if not name:
+                name = f"image_{hashlib.md5(bytes_data).hexdigest()[:8]}.jpg"
+
+            if not mime_type:
+                # 这里可以添加从字节检测MIME类型的代码
+                mime_type = "image/jpeg"
+
+    assert base64_data and mime_type
+
     return ImageSegment(
         type="image",
-        url=url,
+        url="",
+        base64_url=f"data:{mime_type};base64,{base64_data}",
         name=name,
         size=size,
-        mime_type="image/jpeg",
+        mime_type=mime_type,
         width=width,
         height=height,
         is_origin=is_origin,
@@ -222,13 +305,78 @@ def image(
 
 
 def file(
-    url: str,
+    url: Optional[str] = None,
+    file_path: Optional[str] = None,
+    base64_url: Optional[str] = None,
+    bytes_data: Optional[bytes] = None,
     name: Optional[str] = None,
     size: Optional[int] = None,
     mime_type: Optional[str] = None,
 ) -> FileSegment:
-    """创建文件消息段"""
-    return FileSegment(type="file", url=url, name=name, size=size, mime_type=mime_type)
+    """创建文件消息段
+
+    支持多种方式提供文件：URL、文件路径、base64数据或字节数据
+
+    Args:
+        url: 文件URL
+        file_path: 文件路径
+        base64_url: 文件base64编码数据
+        bytes_data: 文件字节数据
+        name: 文件名
+        size: 文件大小(字节)
+        mime_type: 文件MIME类型
+
+    Returns:
+        FileSegment: 文件消息段
+    """
+    # 确保至少提供了一种文件数据
+    if not any([url, file_path, base64_url, bytes_data]):
+        raise ValueError("必须提供文件URL、文件路径、base64数据或字节数据中的一种")
+
+    # 从文件路径处理
+    if file_path:
+        file_path_obj = Path(file_path)
+        if not file_path_obj.exists():
+            raise FileNotFoundError(f"文件不存在：{file_path}")
+
+        if not name:
+            name = file_path_obj.name
+
+        if not base64_url:
+            with file_path_obj.open("rb") as f:
+                file_bytes = f.read()
+                base64_url = base64.b64encode(file_bytes).decode("utf-8")
+
+                if not size:
+                    size = len(file_bytes)
+
+                if not mime_type:
+                    mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
+
+    # 从字节数据处理
+    elif bytes_data:
+        if not base64_url:
+            base64_url = base64.b64encode(bytes_data).decode("utf-8")
+
+            if not size:
+                size = len(bytes_data)
+
+            if not name:
+                name = ""
+
+            if not mime_type:
+                # 这里可以添加从字节检测MIME类型的代码
+                mime_type = "application/octet-stream"
+                raise
+
+    return FileSegment(
+        type="file",
+        url=url,
+        base64_url=base64_url,
+        name=name,
+        size=size,
+        mime_type=mime_type,
+    )
 
 
 def at(user_id: str, nickname: Optional[str] = None) -> AtSegment:
@@ -369,9 +517,9 @@ class SSEClient:
             self.session = aiohttp.ClientSession()
 
         retry_count = 0
-        max_retries = 10 if self.auto_reconnect else 1
+        max_retries = -1 if self.auto_reconnect else 1
 
-        while self.running and retry_count < max_retries:
+        while self.running and (max_retries == -1 or retry_count < max_retries):
             try:
                 # 修改为正确的URL
                 url = f"{self.server_url}/api/adapters/sse/connect?client_name={self.client_name}&platform={self.platform}"

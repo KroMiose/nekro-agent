@@ -64,6 +64,17 @@ def create_sse_response(request: Request, client: Union[SseClient, str]) -> Even
 router = APIRouter()
 
 
+# 辅助函数，用于抽象化异常抛出
+def _raise_http_exception(status_code: int, detail: str) -> None:
+    """抛出HTTP异常
+    
+    Args:
+        status_code: HTTP状态码
+        detail: 异常详情
+    """
+    raise HTTPException(status_code=status_code, detail=detail)
+
+
 @router.post("/connect")
 async def command_endpoint(
     command_payload: Dict[str, Any] = Body(...),
@@ -97,7 +108,7 @@ async def command_endpoint(
         if "client_id" in sig.parameters:
             # 对于非注册命令，如果处理器需要 client_id 但未提供，则报错
             if not current_cmd_client_id and cmd != "register":
-                raise HTTPException(status_code=400, detail=f"命令 '{cmd}' 需要 X-Client-ID 请求头")
+                _raise_http_exception(400, f"命令 '{cmd}' 需要 X-Client-ID 请求头")
             params_for_handler["client_id"] = current_cmd_client_id
 
         # 更新心跳 (使用已设置为 adapter.client_manager 的模块级 client_manager)
@@ -110,7 +121,7 @@ async def command_endpoint(
 
         # 确保客户端管理器已初始化
         if client_manager is None and cmd == "register":
-            raise HTTPException(status_code=500, detail="SSE服务未正确初始化，客户端管理器未设置")
+            _raise_http_exception(500, "SSE服务未正确初始化，客户端管理器未设置")
 
         return await handler(**params_for_handler)
 

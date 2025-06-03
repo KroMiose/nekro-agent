@@ -20,15 +20,20 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
 )
 from nekro_agent.adapters.sse.schemas import (
+    SseAtSegment,
+    SseFileSegment,
+    SseImageSegment,
     SseMessage,
     SseReceiveMessage,
     SseSegmentType,
+    SseTextSegment,
     at,
     file,
     image,
     text,
 )
-from nekro_agent.adapters.sse.tools.common import get_file_url
+from nekro_agent.adapters.sse.tools.common import get_file_base64, get_file_info
+from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
@@ -50,7 +55,6 @@ class SseMessageConverter:
         """将平台消息段转换为SSE消息
 
         Args:
-            platform: 平台标识
             channel_id: 频道ID
             segments: 平台消息段列表
 
@@ -70,12 +74,21 @@ class SseMessageConverter:
                     try:
                         # 图片文件路径处理
                         file_name = Path(segment.file_path).name
-                        remote_url = await get_file_url(segment.file_path)
+                        # 获取base64编码和MIME类型
+                        base64_url, mime_type, _ = await get_file_base64(segment.file_path)
+
+                        # 获取图片尺寸（如果可能）
+                        width = None
+                        height = None
+                        # 可以在这里添加获取图片尺寸的代码
 
                         sse_segments.append(
                             image(
-                                url=remote_url,
+                                base64_url=base64_url,
                                 name=file_name,
+                                mime_type=mime_type,
+                                width=width,
+                                height=height,
                             ),
                         )
                     except Exception as e:
@@ -88,12 +101,19 @@ class SseMessageConverter:
                     try:
                         # 文件路径处理
                         file_name = Path(segment.file_path).name
-                        remote_url = await get_file_url(segment.file_path)
+                        # 获取base64编码和MIME类型
+                        base64_url, mime_type, _ = await get_file_base64(segment.file_path)
+
+                        # 获取文件大小
+                        file_bytes, _, _ = await get_file_info(segment.file_path)
+                        file_size = len(file_bytes)
 
                         sse_segments.append(
                             file(
-                                url=remote_url,
+                                base64_url=base64_url,
                                 name=file_name,
+                                size=file_size,
+                                mime_type=mime_type,
                             ),
                         )
                     except Exception as e:
@@ -116,7 +136,7 @@ class SseMessageConverter:
         )
 
     @staticmethod
-    def sse_to_platform_message(message: SseReceiveMessage) -> PlatformMessage:
+    async def sse_to_platform_message(message: SseReceiveMessage) -> PlatformMessage:
         """将SSE接收消息转换为平台消息
 
         Args:
@@ -125,80 +145,95 @@ class SseMessageConverter:
         Returns:
             PlatformMessage: 平台消息
         """
+        adapter = adapter_utils.get_adapter("sse")
         # 消息段列表
         content_data: List[ChatMessageSegment] = []
         # 文本内容
         content_text = ""
 
+        # 构建chat_key用于文件处理
+        chat_key = adapter.build_chat_key(message.channel_id)
+
         # 遍历消息段
         for segment in message.segments:
             if segment.type == SseSegmentType.TEXT:
-                # 文本消息段
-                segment_text = segment.content  # type: ignore
-                content_text += segment_text
-                content_data.append(
-                    ChatMessageSegment(
-                        type=ChatMessageSegmentType.TEXT,
-                        text=segment_text,
-                    ),
-                )
+                # 必须先判断类型，然后才能安全访问属性
+                if isinstance(segment, SseTextSegment):
+                    content_text += segment.content
+                    content_data.append(
+                        ChatMessageSegment(
+                            type=ChatMessageSegmentType.TEXT,
+                            text=segment.content,
+                        ),
+                    )
 
             elif segment.type == SseSegmentType.IMAGE:
                 # 图片消息段
-                url = segment.url  # type: ignore
-                name = segment.name or f"image_{int(time.time())}.jpg"  # type: ignore
+                if isinstance(segment, SseImageSegment):
+                    if segment.base64_url:
+                        # 处理文件名
+                        file_name = segment.name or ""
+                        # 使用现成的base64方法处理
+                        image_msg = await ChatMessageSegmentImage.create_from_base64(
+                            base64_str=segment.base64_url,
+                            from_chat_key=chat_key,
+                            file_name=file_name,
+                        )
+                        content_data.append(image_msg)
 
-                content_data.append(
-                    ChatMessageSegmentImage(
-                        type=ChatMessageSegmentType.IMAGE,
-                        text="[图片]",
-                        file_name=name,
-                        remote_url=url,
-                    ),
-                )
+                    elif segment.url:
+                        # 处理文件名
+                        file_name = segment.name or ""
+                        # 使用现成的URL方法处理
+                        image_msg = await ChatMessageSegmentImage.create_from_url(
+                            url=segment.url,
+                            from_chat_key=chat_key,
+                            file_name=file_name,
+                        )
+                        content_data.append(image_msg)
 
             elif segment.type == SseSegmentType.FILE:
                 # 文件消息段
-                url = segment.url  # type: ignore
-                name = segment.name or f"file_{int(time.time())}"  # type: ignore
+                if isinstance(segment, SseFileSegment):
+                    if segment.base64_url:
+                        # 处理文件名
+                        file_name = segment.name or ""
+                        # 使用现成的base64方法处理
+                        file_msg = await ChatMessageSegmentFile.create_from_base64(
+                            base64_str=segment.base64_url,
+                            from_chat_key=chat_key,
+                            file_name=file_name,
+                        )
+                        content_data.append(file_msg)
 
-                content_data.append(
-                    ChatMessageSegmentFile(
-                        type=ChatMessageSegmentType.FILE,
-                        text=f"[文件: {name}]",
-                        file_name=name,
-                        remote_url=url,
-                    ),
-                )
+                    elif segment.url:
+                        # 处理文件名
+                        file_name = segment.name or ""
+                        # 使用现成的URL方法处理
+                        file_msg = await ChatMessageSegmentFile.create_from_url(
+                            url=segment.url,
+                            from_chat_key=chat_key,
+                            file_name=file_name,
+                        )
+                        content_data.append(file_msg)
 
             elif segment.type == SseSegmentType.AT:
                 # @消息段
-                user_id = segment.user_id  # type: ignore
-                nickname = segment.nickname or user_id  # type: ignore
+                if isinstance(segment, SseAtSegment):
+                    nickname = segment.nickname or segment.user_id
+                    content_data.append(
+                        ChatMessageSegmentAt(
+                            type=ChatMessageSegmentType.AT,
+                            text=f"@{nickname}",
+                            target_platform_userid=segment.user_id,
+                            target_nickname=nickname,
+                        ),
+                    )
+                    # 添加到文本内容
+                    content_text += f"@{nickname} "
+            else:
+                logger.warning(f"未知的消息段类型: {segment.type}")
 
-                content_data.append(
-                    ChatMessageSegmentAt(
-                        type=ChatMessageSegmentType.AT,
-                        text=f"@{nickname}",
-                        target_platform_userid=user_id,
-                        target_nickname=nickname,
-                    ),
-                )
-
-        # 如果没有文本内容但有原始文本，使用原始文本
-        if not content_text and message.raw_content:
-            content_text = message.raw_content
-
-            # 如果没有TEXT类型的消息段但有原始文本，添加一个
-            if not any(seg.type == ChatMessageSegmentType.TEXT for seg in content_data):
-                content_data.append(
-                    ChatMessageSegment(
-                        type=ChatMessageSegmentType.TEXT,
-                        text=content_text,
-                    ),
-                )
-
-        # 创建平台消息
         return PlatformMessage(
             message_id=message.msg_id,
             sender_id=message.from_id,

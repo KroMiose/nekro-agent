@@ -15,7 +15,7 @@ SSE 适配器
 但对外部客户端，只暴露platform和channel_id概念。
 """
 
-from typing import List, Type
+from typing import List, Optional, Type
 
 from fastapi import APIRouter
 from pydantic import Field
@@ -40,6 +40,11 @@ from .core.service import SseApiService
 class SSEConfig(BaseAdapterConfig):
     """SSE 适配器配置"""
 
+    # 添加文件相关配置
+    ALLOW_FILE_TRANSFER: bool = Field(True, description="是否允许文件传输")
+    MAX_FILE_SIZE: int = Field(10 * 1024 * 1024, description="最大文件大小（字节）")
+    ALLOWED_FILE_TYPES: List[str] = Field(["image/*", "application/*", "text/*"], description="允许的文件类型")
+
 
 class SSEAdapter(BaseAdapter):
     """SSE 协议适配器
@@ -53,6 +58,9 @@ class SSEAdapter(BaseAdapter):
     def __init__(self, config_cls: Type[BaseAdapterConfig] = SSEConfig):
         """初始化SSE适配器"""
         super().__init__(config_cls)
+        # 使用SSEConfig作为配置类型
+        self.sse_config = SSEConfig.model_validate(self.config.model_dump())
+
         # 核心组件
         self.client_manager = SseClientManager()
         self.message_converter = SseMessageConverter()
@@ -78,6 +86,9 @@ class SSEAdapter(BaseAdapter):
 
     async def cleanup(self) -> None:
         """清理适配器"""
+        # 停止客户端管理器
+        if hasattr(self, "client_manager") and self.client_manager:
+            await self.client_manager.stop()
         return
 
     @property
@@ -117,6 +128,16 @@ class SSEAdapter(BaseAdapter):
         try:
             # 解析channel_id
             _, channel_id = self.parse_chat_key(request.chat_key)
+
+            # 检查是否有需要特殊处理的文件
+            file_segments = [
+                seg for seg in request.segments if seg.type in [PlatformSendSegmentType.FILE, PlatformSendSegmentType.IMAGE]
+            ]
+
+            # 如果存在文件但不允许文件传输，则返回错误
+            if file_segments and not self.sse_config.ALLOW_FILE_TRANSFER:
+                logger.warning(f"禁止文件传输: {request.chat_key}")
+                return PlatformSendResponse(success=False, error_message="文件传输已禁用")
 
             # 转换消息
             sse_message = await self.message_converter.platform_to_sse_message(
