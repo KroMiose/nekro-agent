@@ -247,85 +247,64 @@ cd "$NEKRO_DATA_DIR" || {
 # 如果当前目录没有 .env 文件，从仓库获取.env.example 并修改 .env 文件
 if [ ! -f .env ]; then
     echo "未找到.env文件，正在从仓库获取.env.example..."
-    if ! get_remote_file .env.example .env.temp; then
+    if ! get_remote_file .env.example .env.example; then
         echo "Error: 无法获取.env.example文件，请检查网络连接或手动创建.env文件。"
         exit 1
     fi
-
-    # 替换或添加 NEKRO_DATA_DIR
-    if grep -q "^NEKRO_DATA_DIR=" .env.temp; then
-        # 如果存在，就替换
-        sed -i "s|^NEKRO_DATA_DIR=.*|NEKRO_DATA_DIR=${NEKRO_DATA_DIR}|" .env.temp
-    else
-        # 如果不存在，就添加
-        echo "NEKRO_DATA_DIR=${NEKRO_DATA_DIR}" >>.env.temp
-    fi
-
-    # 生成随机的 ONEBOT_ACCESS_TOKEN 和 NEKRO_ADMIN_PASSWORD（如果它们为空）
-    ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env.temp | cut -d '=' -f2)
-    if [ -z "$ONEBOT_ACCESS_TOKEN" ]; then
-        ONEBOT_ACCESS_TOKEN=$(generate_random_string 32)
-        sed -i "s|^ONEBOT_ACCESS_TOKEN=.*|ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}|" .env.temp
-    fi
-
-    NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env.temp | cut -d '=' -f2)
-    if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
-        NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
-        sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env.temp
-    fi
-
-    QDRANT_API_KEY=$(grep QDRANT_API_KEY .env.temp | cut -d '=' -f2)
-    if [ -z "$QDRANT_API_KEY" ]; then
-        QDRANT_API_KEY=$(generate_random_string 32)
-        sed -i "s|^QDRANT_API_KEY=.*|QDRANT_API_KEY=${QDRANT_API_KEY}|" .env.temp
-    fi
-
-    # 将修改后的文件移动为 .env
-    mv .env.temp .env
-    echo "已获取并修改 .env 模板。"
-else
-    # 如果已存在 .env 文件，检查并更新密钥
-    ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env | cut -d '=' -f2)
-    if [ -z "$ONEBOT_ACCESS_TOKEN" ]; then
-        ONEBOT_ACCESS_TOKEN=$(generate_random_string 32)
-        sed -i "s|^ONEBOT_ACCESS_TOKEN=.*|ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}|" .env
-    fi
-
-    NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
-    if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
-        NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
-        sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env
-    fi
-
-    QDRANT_API_KEY=$(grep QDRANT_API_KEY .env | cut -d '=' -f2)
-    if [ -z "$QDRANT_API_KEY" ]; then
-        QDRANT_API_KEY=$(generate_random_string 32)
-        sed -i "s|^QDRANT_API_KEY=.*|QDRANT_API_KEY=${QDRANT_API_KEY}|" .env
+    if ! cp .env.example .env; then
+        echo "Error: 无法将文件 .env.example 复制为 .env"
+        exit 1
     fi
 fi
 
-# 从.env文件加载环境变量
-if [ -f .env ]; then
-    # 设置 INSTANCE_NAME 默认值为空字符串
-    INSTANCE_NAME=$(grep INSTANCE_NAME .env | cut -d '=' -f2)
-    export INSTANCE_NAME=$INSTANCE_NAME
+# 替换或添加 NEKRO_DATA_DIR
+if grep -q "^NEKRO_DATA_DIR=" .env; then
+    # 如果存在，就替换
+    sed -i "s|^NEKRO_DATA_DIR=.*|NEKRO_DATA_DIR=${NEKRO_DATA_DIR}|" .env
+else
+    # 如果不存在，就添加
+    echo "NEKRO_DATA_DIR=${NEKRO_DATA_DIR}" >>.env
+fi
 
-    # 确保 NEKRO_EXPOSE_PORT 有值
-    NEKRO_EXPOSE_PORT=$(grep NEKRO_EXPOSE_PORT .env | cut -d '=' -f2)
-    if [ -z "$NEKRO_EXPOSE_PORT" ]; then
-        echo "Error: NEKRO_EXPOSE_PORT 未在 .env 文件中设置"
+# 生成随机的 ONEBOT_ACCESS_TOKEN 和 NEKRO_ADMIN_PASSWORD（如果它们为空）
+ONEBOT_ACCESS_TOKEN=$(grep -m1 '^ONEBOT_ACCESS_TOKEN' .env | cut -d '=' -f2)
+if [ -z "$ONEBOT_ACCESS_TOKEN" ]; then
+    ONEBOT_ACCESS_TOKEN=$(generate_random_string 32)
+    sed -i "s|^ONEBOT_ACCESS_TOKEN=.*|ONEBOT_ACCESS_TOKEN=${ONEBOT_ACCESS_TOKEN}|" .env
+fi
+
+NEKRO_ADMIN_PASSWORD=$(grep -m1 '^NEKRO_ADMIN_PASSWORD=' .env | cut -d '=' -f2)
+if [ -z "$NEKRO_ADMIN_PASSWORD" ]; then
+    NEKRO_ADMIN_PASSWORD=$(generate_random_string 16)
+    sed -i "s|^NEKRO_ADMIN_PASSWORD=.*|NEKRO_ADMIN_PASSWORD=${NEKRO_ADMIN_PASSWORD}|" .env
+fi
+
+QDRANT_API_KEY=$(grep -m1 '^QDRANT_API_KEY=' .env | cut -d '=' -f2)
+if [ -z "$QDRANT_API_KEY" ]; then
+    QDRANT_API_KEY=$(generate_random_string 32)
+    sed -i "s|^QDRANT_API_KEY=.*|QDRANT_API_KEY=${QDRANT_API_KEY}|" .env
+fi
+
+# 从.env文件加载环境变量
+# 设置 INSTANCE_NAME 默认值为空字符串
+INSTANCE_NAME=$(grep -m1 '^INSTANCE_NAME=' .env | cut -d '=' -f2)
+export INSTANCE_NAME=$INSTANCE_NAME
+
+# 确保 NEKRO_EXPOSE_PORT 有值
+NEKRO_EXPOSE_PORT=$(grep -m1 '^NEKRO_EXPOSE_PORT=' .env | cut -d '=' -f2)
+if [ -z "$NEKRO_EXPOSE_PORT" ]; then
+    echo "Error: NEKRO_EXPOSE_PORT 未在 .env 文件中设置"
+    exit 1
+fi
+export NEKRO_EXPOSE_PORT=$NEKRO_EXPOSE_PORT
+
+if [ "$WITH_NAPCAT" ]; then
+    NAPCAT_EXPOSE_PORT=$(grep -m1 '^NAPCAT_EXPOSE_PORT=' .env | cut -d '=' -f2)
+    if [ -z "$NAPCAT_EXPOSE_PORT" ]; then
+        echo "Error: NAPCAT_EXPOSE_PORT 未在 .env 文件中设置"
         exit 1
     fi
-    export NEKRO_EXPOSE_PORT=$NEKRO_EXPOSE_PORT
-
-    if [ "$WITH_NAPCAT" ]; then
-        NAPCAT_EXPOSE_PORT=$(grep NAPCAT_EXPOSE_PORT .env | cut -d '=' -f2)
-        if [ -z "$NAPCAT_EXPOSE_PORT" ]; then
-            echo "Error: NAPCAT_EXPOSE_PORT 未在 .env 文件中设置"
-            exit 1
-        fi
-        export NAPCAT_EXPOSE_PORT=$NAPCAT_EXPOSE_PORT
-    fi
+    export NAPCAT_EXPOSE_PORT=$NAPCAT_EXPOSE_PORT
 fi
 
 read -r -p "请检查并按需修改.env文件中的配置，未修改则按照默认配置安装，确认是否继续安装？[Y/n] " yn
@@ -435,9 +414,9 @@ echo "  NapCat: 'sudo docker logs -f ${INSTANCE_NAME}napcat'"
 
 # 显示重要的配置信息
 echo -e "\n=== 重要配置信息 ==="
-ONEBOT_ACCESS_TOKEN=$(grep ONEBOT_ACCESS_TOKEN .env | cut -d '=' -f2)
-NEKRO_ADMIN_PASSWORD=$(grep NEKRO_ADMIN_PASSWORD .env | cut -d '=' -f2)
-QDRANT_API_KEY=$(grep QDRANT_API_KEY .env | cut -d '=' -f2)
+ONEBOT_ACCESS_TOKEN=$(grep -m1 '^ONEBOT_ACCESS_TOKEN=' .env | cut -d '=' -f2)
+NEKRO_ADMIN_PASSWORD=$(grep -m1 '^NEKRO_ADMIN_PASSWORD=' .env | cut -d '=' -f2)
+QDRANT_API_KEY=$(grep -m1 '^QDRANT_API_KEY=' .env | cut -d '=' -f2)
 echo "OneBot 访问令牌: ${ONEBOT_ACCESS_TOKEN}"
 echo "管理员账号: admin | 密码: ${NEKRO_ADMIN_PASSWORD}"
 
