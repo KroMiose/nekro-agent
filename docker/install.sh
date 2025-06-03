@@ -24,6 +24,13 @@ BASE_URLS=(
     "https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker"
 )
 
+# Docker 镜像
+DOCKER_IMAGE_MIRRORS=(
+    "https://docker.m.daocloud.io"
+    "https://docker.1ms.run"
+    "https://ccr.ccs.tencentyun.com"
+)
+
 # 下载文件
 get_remote_file() {
     local filename=$1
@@ -59,10 +66,10 @@ select_docker_install_mirror() {
         1)
             ;;
         2)
-            DOCKER_MIRROR="Aliyun"
+            DOCKER_PKG_MIRROR="Aliyun"
             ;;
         3)
-            DOCKER_MIRROR="AzureChinaCloud"
+            DOCKER_PKG_MIRROR="AzureChinaCloud"
             ;;
         *)
             >&2 echo "未知选项，退出..."
@@ -125,6 +132,60 @@ install_docker_fallback() {
     DOCKER_COMPOSE_CMD=docker-compose
 }
 
+# 添加 Docker 镜像源
+add_docker_mirrors_prepend() {
+    if [[ $# -eq 0 ]]; then
+        return 1
+    fi
+
+    if ! command -v jq &> /dev/null; then
+        echo "Error: jq 未安装" >&2
+        return 1
+    fi
+
+    local daemon_file="/etc/docker/daemon.json"
+    local current_json_input="{}"
+    local mirrors_array_string="[]"
+    if (($# > 0)); then
+        mirrors_array_string=$(printf '%s\n' "$@" | jq -R . | jq -s .)
+    fi
+
+    if sudo test -f "$daemon_file" && sudo test -s "$daemon_file"; then
+        if sudo jq -e 'type == "object"' "$daemon_file" >/dev/null 2>&1; then
+            current_json_input=$(cat "$daemon_file")
+        else
+            echo "Error: $daemon_file 文件内容有误。" >&2
+            echo "请修复该文件或将其删除后重试。" >&2
+            return 1
+        fi
+        sudo cp "$daemon_file" "$daemon_file.bak"
+    else
+        sudo mkdir -p "/etc/docker/"
+    fi
+
+    local updated_json
+    updated_json=$(echo "$current_json_input" | jq \
+        --argjson new_mirrors_jq "$mirrors_array_string" \
+        'if .["registry-mirrors"] != null and (.["registry-mirrors"] | type) != "array" then
+                error("Error: daemon.json 中的 registry-mirrors 已存在但不是一个数组！请检查文件内容。")
+        else
+            .["registry-mirrors"] = ($new_mirrors_jq) + (.["registry-mirrors"] // [])
+        end | .["registry-mirrors"] = ((.["registry-mirrors"] // []) | unique)'
+    )
+
+    # shellcheck disable=SC2181
+    if [[ $? -ne 0 ]] || [[ -z "$updated_json" ]]; then
+        echo "Error: jq 处理 JSON 失败。" >&2
+        return 1
+    fi
+
+    if echo "$updated_json" | sudo tee "$daemon_file" > /dev/null; then
+        return 0
+    fi
+    echo "Error: 写入 $daemon_file 文件失败。" >&2
+    return 1
+}
+
 DOCKER_COMPOSE_CMD=""
 if command -v docker-compose &>/dev/null; then
     DOCKER_COMPOSE_CMD=docker-compose
@@ -149,7 +210,7 @@ if ! command -v docker &>/dev/null && [[ -z $DOCKER_COMPOSE_CMD ]]; then
     fi
     echo "正在通过 Docker 官方安装脚本进行安装"
     select_docker_install_mirror
-    if ! install_docker_via_official_script "$DOCKER_MIRROR"; then
+    if ! install_docker_via_official_script "$DOCKER_PKG_MIRROR"; then
         echo "Docker 安装失败..." >&2
         echo "正在尝试备用安装方式..."
         if install_docker_fallback; then
@@ -273,6 +334,27 @@ echo ""
 if ! [[ "$yn" =~ ^[Yy]$ ]]; then
     echo -e "安装已取消..."
     exit 0
+fi
+
+# 添加 Docker 镜像到 daemon.json
+echo -n "是否添加 Docker 镜像源（若无 jq 将安装）？[Y/n] "
+read -r yn
+echo ""
+[ -z "$yn" ] && yn=y
+if [[ "$yn" =~ ^[Yy]$ ]]; then
+    if ! command -v jq &>/dev.null; then
+        if command -v apt-get &>/dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
+        else
+            echo "包管理器非 apt，暂不支持..."
+        fi
+    fi
+    if add_docker_mirrors_prepend "${DOCKER_IMAGE_MIRRORS[@]}"; then
+        sudo systemctl daemon-reload
+        sudo systemctl restart docker
+    else
+        echo "Error: 添加失败" >&2
+    fi
 fi
 
 # 拉取 docker-compose.yml 文件
