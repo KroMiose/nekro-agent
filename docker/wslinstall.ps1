@@ -51,6 +51,9 @@ $TarballFilePath = Join-Path $WorkDir "install.tar.gz"
 $InstallStatus = [PSCustomObject]@{
         CreatedUser = $false
         UpdateWSLConf = $false
+        ReplaceSource = $false
+        DepsInstalled = $false
+        NAInstalled = $false
     }
 
 # 注册脚本退出清理操作
@@ -449,15 +452,71 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "写入失败" -ForegroundColor Red
 }
 
-$null = wsl.exe --terminate $DistroName
+Write-Host "正在替换为清华源..."
+$replaceSourceCommand = @'
+#!/bin/bash
+cp /etc/apt/sources.list /etc/apt/sources.list.bak
+sed -i 's#deb.debian.org#mirrors.tuna.tsinghua.edu.cn#g' /etc/apt/sources.list
+'@
+Invoke-WslCommand -DistributionName $DistroName -Command $replaceSourceCommand
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "替换成功"  -ForegroundColor Green
+    $InstallStatus.ReplaceSource = $true
+} else {
+    Write-Host "替换失败" -ForegroundColor Red
+}
+
+Write-Host "正在安装依赖：curl"
+$installDepsCommand = "apt-get update && apt-get install -y curl"
+Invoke-WslCommand -DistributionName $DistroName -Command $installDepsCommand
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "依赖安装成功"  -ForegroundColor Green
+    $InstallStatus.DepsInstalled = $true
+} else {
+    Write-Host "依赖安装失败" -ForegroundColor Red
+}
+
+Write-Host "正在重启 `"$DistroName`" WSL 实例以生效配置"
+wsl.exe --terminate $DistroName
+
+$installNACommand = @'
+#!/bin/bash
+url=https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh
+if curl -fsSL "$url" -o install.sh; then
+    bash ./install.sh
+else
+    echo "脚本下载失败，退出..."
+fi
+'@
+if ($InstallStatus.DepsInstalled) {
+    Write-Host "正在安装 NekroAgent..."
+    Invoke-WslCommand -DistributionName $DistroName -Command $installNACommand
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "NekroAgent 安装成功"  -ForegroundColor Green
+        $InstallStatus.NAInstalled = $true
+    } else {
+        Write-Host "NekroAgent 安装失败" -ForegroundColor Red
+    }
+} else {}
 
 Write-Host ("-"*40)
-Write-Host "`"$DistroName`" WSL 实例已安装成功"
-Write-Host "可使用 'wsl -d `"$DistroName`"' 启动"
-Write-Host "请启动 `"$DistroName`" 以完成 NerkoAgent 的安装"
+if ($InstallStatus.NAInstalled) {
+    Write-Host "NekroAgent 已安装成功！"
+} else {
+    if (-not $InstallStatus.DepsInstalled) {
+        Write-Host "依赖未安装：curl"
+    }
+    Write-Host "NekroAgent 安装失败"
+    Write-Host "请前往 WSL 实例 `"$DistroName`" 手动完成安装"
+    Write-Host "若存在 '~/install.sh' 文件，请执行 'sudo bash ~/install.sh'"
+    Write-Host "若不存在，请参考文档站 WSL2部署教程"
+}
+Write-Host "可使用 'wsl -d `"$DistroName`"' 进入 NekroAgent 所在 WSL 实例"
 if ($InstallStatus.CreatedUser) {
     Write-Host "用户 '$newUserName' 的密码为 " -NoNewline
     Write-Host "123456" -ForegroundColor Blue
+} else {
+    Write-Host "用户 '$newUserName' 创建失败，建议创建非 root 用户使用"
 }
 Write-Host "若安装过程遇到错误请重新执行脚本"
 Write-Host "或前往 Github/QQ 反馈"
