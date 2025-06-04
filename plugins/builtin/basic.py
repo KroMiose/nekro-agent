@@ -32,7 +32,7 @@ from nekro_agent.tools.path_convertor import (
 plugin = NekroPlugin(
     name="基础交互插件",
     module_name="basic",
-    description="提供基础的聊天消息发送、图片/文件资源发送、用户头像获取、图片观察工具等基础功能",
+    description="提供基础的聊天消息发送、图片/文件资源发送等基础功能",
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -258,6 +258,7 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e
 
+
 @plugin.mount_collect_methods()
 async def collect_available_methods(_ctx: AgentCtx) -> List[SandboxMethod]:
     """根据适配器收集可用方法"""
@@ -293,8 +294,11 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[SandboxMethod]:
         # 如果是 Minecraft 适配器，只保留 send_msg_text
         # 通过列表推导式筛选，只保留 name 为 "发送聊天消息文本" 的方法
         return [m for m in all_methods if m.name == "发送聊天消息文本"]
-    
+    if _ctx.adapter_key == "sse":
+        return [m for m in all_methods if m.name == "发送聊天消息文本" or m.name == "发送聊天消息图片/文件资源"]
+
     return all_methods
+
 
 @plugin.mount_cleanup_method()
 async def clean_up():

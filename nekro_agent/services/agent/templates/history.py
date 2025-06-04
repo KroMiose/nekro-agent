@@ -156,7 +156,7 @@ async def render_history_data(
         chat_history_prompts.append(db_message.parse_chat_history_prompt(one_time_code))
 
     chat_history_prompt = f"\n<{one_time_code} | message separator>\n".join(chat_history_prompts)
-    chat_history_prompt += "\n<{one_time_code} | message separator>\n"
+    chat_history_prompt += f"\n<{one_time_code} | message separator>\n"
     openai_chat_message.add(ContentSegment.text_content(chat_history_prompt))
 
     logger.info(f"加载最近 {len(recent_chat_messages)} 条对话记录")

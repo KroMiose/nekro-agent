@@ -72,7 +72,7 @@ async def set_bot_group_card(ctx: schemas.AgentCtx, card_name: str) -> None:
         logger.debug(f"成功设置群名片: {final_card}")
 
     except Exception as e:
-        logger.warning(f"设置群名片失败: {e}")
+        logger.exception(f"设置群名片失败: {e}")
 
 
 # endregion: Bot 名片管理
@@ -257,6 +257,9 @@ async def clear_status(_ctx: schemas.AgentCtx, chat_key: str):
 async def on_channel_reset(_ctx: schemas.AgentCtx):
     """重置插件"""
     # 使用统一的方法重置机器人昵称到预设名称
+    if _ctx.adapter_key != "onebot_v11":
+        return
+
     try:
         channel = await DBChatChannel.get_channel(chat_key=_ctx.chat_key)
         preset = await channel.get_preset()

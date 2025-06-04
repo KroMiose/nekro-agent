@@ -1011,7 +1011,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             f"- 模型: {model_group.CHAT_MODEL}\n"
             f"- 流式模式: {use_stream_mode}\n"
             f"- 耗时: {speed_emoji} {elapsed:.2f}s\n"
-            f"- 响应预览>\n{preview}\n======\n"
+            f"- 响应预览:\n{preview}\n======\n"
             f"响应总长度: {length_emoji} {total_length} 字符\n"
         )
 
