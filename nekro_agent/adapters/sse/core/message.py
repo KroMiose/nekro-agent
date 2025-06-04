@@ -74,22 +74,12 @@ class SseMessageConverter:
                     try:
                         # 图片文件路径处理
                         file_name = Path(segment.file_path).name
+                        file_suffix = Path(segment.file_path).suffix
                         # 获取base64编码和MIME类型
                         base64_url, mime_type, _ = await get_file_base64(segment.file_path)
 
-                        # 获取图片尺寸（如果可能）
-                        width = None
-                        height = None
-                        # 可以在这里添加获取图片尺寸的代码
-
                         sse_segments.append(
-                            image(
-                                base64_url=base64_url,
-                                name=file_name,
-                                mime_type=mime_type,
-                                width=width,
-                                height=height,
-                            ),
+                            image(base64_url=base64_url, name=file_name, mime_type=mime_type, suffix=file_suffix),
                         )
                     except Exception as e:
                         logger.error(f"图片处理失败: {e}")
@@ -101,6 +91,7 @@ class SseMessageConverter:
                     try:
                         # 文件路径处理
                         file_name = Path(segment.file_path).name
+                        file_suffix = Path(segment.file_path).suffix
                         # 获取base64编码和MIME类型
                         base64_url, mime_type, _ = await get_file_base64(segment.file_path)
 
@@ -114,6 +105,7 @@ class SseMessageConverter:
                                 name=file_name,
                                 size=file_size,
                                 mime_type=mime_type,
+                                suffix=file_suffix,
                             ),
                         )
                     except Exception as e:

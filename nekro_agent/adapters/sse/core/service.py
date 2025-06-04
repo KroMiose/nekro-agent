@@ -65,11 +65,11 @@ class SseApiService:
             response_future = asyncio.Future()
 
             # 注册响应处理器
-            async def handle_response(response_data: BaseModel) -> bool:
+            async def handle_response(response_data: BaseModel, future=response_future) -> bool:
                 # 使用字典转换访问属性，避免类型检查问题
                 data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
                 success = data_dict.get("success", False)
-                response_future.set_result(success)
+                future.set_result(success)
                 return True
 
             client.register_handler(request_id, handle_response)
@@ -79,9 +79,12 @@ class SseApiService:
                 await client.send_event(
                     SseEvent(
                         event="send_message",
-                        data=SseMessage(
-                            channel_id=message.channel_id,
-                            segments=[segment for segment in message.segments],
+                        data=SseRequest(
+                            request_id=request_id,
+                            data={
+                                "channel_id": message.channel_id,
+                                "segments": [segment.model_dump() for segment in message.segments],
+                            },
                         ),
                     ),
                 )
@@ -131,15 +134,15 @@ class SseApiService:
         response_future = asyncio.Future()
 
         # 注册响应处理器
-        async def handle_response(response_data: BaseModel) -> bool:
+        async def handle_response(response_data: BaseModel, future=response_future) -> bool:
             # 使用字典转换访问属性，避免类型检查问题
             data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
             success = data_dict.get("success", False)
 
             if success:
-                response_future.set_result(data_dict.get("data", {}))
+                future.set_result(data_dict.get("data", {}))
             else:
-                response_future.set_result(None)
+                future.set_result(None)
             return True
 
         client.register_handler(request_id, handle_response)

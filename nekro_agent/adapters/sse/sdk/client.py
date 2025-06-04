@@ -146,6 +146,7 @@ class ImageSegment(MessageSegment):
     width: Optional[int] = Field(None, description="图片宽度")
     height: Optional[int] = Field(None, description="图片高度")
     is_origin: bool = Field(False, description="是否原图")
+    suffix: Optional[str] = Field(None, description="图片后缀")
 
     class Config:
         validate_assignment = True
@@ -164,6 +165,7 @@ class FileSegment(MessageSegment):
     name: Optional[str] = Field(None, description="文件名")
     size: Optional[int] = Field(None, description="文件大小")
     mime_type: Optional[str] = Field(None, description="MIME类型")
+    suffix: Optional[str] = Field(None, description="文件后缀")
 
     class Config:
         validate_assignment = True
@@ -231,6 +233,7 @@ def image(
     height: Optional[int] = None,
     mime_type: Optional[str] = None,
     is_origin: bool = False,
+    suffix: Optional[str] = None,
 ) -> ImageSegment:
     """创建图片消息段
 
@@ -247,7 +250,7 @@ def image(
         height: 图片高度
         mime_type: 图片MIME类型
         is_origin: 是否原图
-
+        suffix: 图片后缀
     Returns:
         ImageSegment: 图片消息段
     """
@@ -301,6 +304,7 @@ def image(
         width=width,
         height=height,
         is_origin=is_origin,
+        suffix=suffix,
     )
 
 
@@ -312,6 +316,7 @@ def file(
     name: Optional[str] = None,
     size: Optional[int] = None,
     mime_type: Optional[str] = None,
+    suffix: Optional[str] = None,
 ) -> FileSegment:
     """创建文件消息段
 
@@ -325,7 +330,7 @@ def file(
         name: 文件名
         size: 文件大小(字节)
         mime_type: 文件MIME类型
-
+        suffix: 文件后缀
     Returns:
         FileSegment: 文件消息段
     """
@@ -376,6 +381,7 @@ def file(
         name=name,
         size=size,
         mime_type=mime_type,
+        suffix=suffix,
     )
 
 
@@ -648,6 +654,7 @@ class SSEClient:
 
                 # 如果有请求ID，需要响应
                 if request_id:
+                    self.logger.debug(f"发送响应: 请求ID {request_id}, 结果: {result}")
                     await self._send_response(request_id, True, result or {})
             except Exception as e:
                 self.logger.exception(f"处理事件异常: {event_type}")

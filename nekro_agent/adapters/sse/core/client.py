@@ -29,11 +29,15 @@ from typing import (
 )
 
 from fastapi import Request
-from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
+from nekro_agent.adapters.sse.schemas import (
+    SseConnectedData,
+    SseEvent,
+    SseHeartbeatData,
+)
 from nekro_agent.core.logger import logger
-from nekro_agent.adapters.sse.schemas import SseEvent, SseHeartbeatData, SseConnectedData
 
 
 class SseClient:
@@ -305,13 +309,11 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
     Yields:
         Dict[str, Any]: 事件数据，包含event和data字段
     """
-    import json
-    
     try:
         # 发送连接成功事件
-        connected_event = SseEvent[
-            SseConnectedData
-        ](event="connected", data=SseConnectedData(client_id=client.client_id, timestamp=int(time.time())))
+        connected_event = SseEvent[SseConnectedData](
+            event="connected", data=SseConnectedData(client_id=client.client_id, timestamp=int(time.time())),
+        )
         yield connected_event.to_sse_format()
 
         # 心跳计时器
@@ -319,9 +321,9 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
 
         while client.is_alive:
             if time.time() - heartbeat_timer >= 5:
-                heartbeat_event = SseEvent[
-                    SseHeartbeatData
-                ](event="heartbeat", data=SseHeartbeatData(timestamp=int(time.time())))
+                heartbeat_event = SseEvent[SseHeartbeatData](
+                    event="heartbeat", data=SseHeartbeatData(timestamp=int(time.time())),
+                )
                 yield heartbeat_event.to_sse_format()
                 heartbeat_timer = time.time()
                 client.update_heartbeat()
@@ -361,11 +363,7 @@ def create_sse_response(request: Request, client: Union[SseClient, str], manager
     if isinstance(client, str):
         # 尝试获取已存在的客户端
         existing_client = manager.get_client_by_name(client)
-        if existing_client:
-            client = existing_client
-        else:
-            # 创建新客户端
-            client = manager.register_client(client)
+        client = existing_client if existing_client else manager.register_client(client)
 
     # 返回SSE响应
     return EventSourceResponse(sse_stream(request, client))
