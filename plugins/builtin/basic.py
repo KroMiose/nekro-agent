@@ -58,6 +58,11 @@ plugin = NekroPlugin(
 class BasicConfig(ConfigBase):
     """基础配置"""
 
+    SIMILARITY_MESSAGE_FILTER: bool = Field(
+        default=True,
+        title="启用消息相似度过滤",
+        description="启用后将按以下策略自动过滤重复消息并提示 AI 调整生成策略",
+    )
     STRICT_MESSAGE_FILTER: bool = Field(
         default=False,
         title="启用严格重复消息过滤",
@@ -129,32 +134,33 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     recent_messages = SEND_MSG_CACHE[chat_key][-5:] if SEND_MSG_CACHE[chat_key] else []
 
     # 检查完全匹配
-    if message_text in recent_messages:
-        # 清空缓存允许再次发送
-        SEND_MSG_CACHE[chat_key] = []
-        if config.STRICT_MESSAGE_FILTER:
-            raise Exception(
-                "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
-            )
-        await message_service.push_system_message(
-            chat_key=chat_key,
-            agent_messages="System Alert: Identical message has been sent recently. Auto Skip this message. Carefully read the recent chat history whether it has sent duplicate messages. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
-            trigger_agent=False,
-        )
-        return
-
-    # 检查相似度（仅对超过限定字符的消息进行检查）
-    for recent_msg in recent_messages:
-        similarity = calculate_text_similarity(message_text, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
-        if similarity > config.SIMILARITY_THRESHOLD:
-            # 发送系统消息提示避免类似内容
-            core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+    if config.SIMILARITY_MESSAGE_FILTER:
+        if message_text in recent_messages:
+            # 清空缓存允许再次发送
+            SEND_MSG_CACHE[chat_key] = []
+            if config.STRICT_MESSAGE_FILTER:
+                raise Exception(
+                    "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+                )
             await message_service.push_system_message(
                 chat_key=chat_key,
-                agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
+                agent_messages="System Alert: Identical message has been sent recently. Auto Skip this message. Carefully read the recent chat history whether it has sent duplicate messages. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
                 trigger_agent=False,
             )
-            break
+            return
+
+        # 检查相似度（仅对超过限定字符的消息进行检查）
+        for recent_msg in recent_messages:
+            similarity = calculate_text_similarity(message_text, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
+            if similarity > config.SIMILARITY_THRESHOLD:
+                # 发送系统消息提示避免类似内容
+                core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
+                await message_service.push_system_message(
+                    chat_key=chat_key,
+                    agent_messages="System Alert: You have sent a message that is too similar to a recently sent message! You should KEEP YOUR RESPONSE USEFUL and not redundant and cumbersome!",
+                    trigger_agent=False,
+                )
+                break
 
     try:
         await message.send_text(chat_key, message_text, _ctx)
@@ -204,8 +210,8 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
     # 计算文件 MD5
     file_md5 = await calculate_file_md5(file_host_path)
 
-    # 检查是否重复发送
-    if file_md5 in SEND_FILE_CACHE[chat_key]:
+    # 过滤重复文件
+    if config.SIMILARITY_MESSAGE_FILTER and file_md5 in SEND_FILE_CACHE[chat_key]:
         SEND_FILE_CACHE[chat_key].remove(file_md5)
         if config.STRICT_MESSAGE_FILTER:
             raise Exception(

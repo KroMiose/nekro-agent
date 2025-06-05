@@ -100,8 +100,8 @@ class SSEAdapter(BaseAdapter):
     def chat_key_rules(self) -> List[str]:
         """聊天标识规则说明"""
         return [
-            "群聊: `sse-{platform}_group_{id}` (例如 sse-platform_group_123456)",
-            "私聊: `sse-{platform}_private_{id}` (例如 sse-platform_private_user123)",
+            "群聊: `sse-{channel_id}` (例如 sse-group_123456)",
+            "私聊: `sse-{channel_id}` (例如 sse-private_user123)",
         ]
 
     def build_channel_id(self, platform: str, channel_id: str) -> str:
