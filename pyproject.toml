@@ -45,6 +45,7 @@ mem0ai = "^0.1.79"
 gitpython = "^3.1.44"
 qdrant-client = "^1.13.3"
 mcp = "^1.7.0"
+pycryptodome = "^3.23.0"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
