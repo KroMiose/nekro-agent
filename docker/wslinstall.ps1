@@ -267,6 +267,41 @@ function Test-WslAvailability {
     return $status
 }
 
+# 用于选择文件夹
+function Select-FolderDialog {
+    $fixedDescription = "请选择一个文件夹用于存储 WSL 虚拟磁盘文件"
+
+    try {
+        Add-Type -AssemblyName System.Windows.Forms -ErrorAction Stop
+
+        $FolderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
+        $FolderBrowser.Description = $fixedDescription
+        $FolderBrowser.ShowNewFolderButton = $true
+
+        $DialogResult = $null
+        if ($Host.Name -eq 'ConsoleHost' -or $Host.Name -eq 'Windows PowerShell ISE') {
+            $DialogResult = $FolderBrowser.ShowDialog((New-Object System.Windows.Forms.NativeWindow))
+        } else {
+            $DialogResult = $FolderBrowser.ShowDialog()
+        }
+
+        if ($DialogResult -eq [System.Windows.Forms.DialogResult]::OK) {
+            return $FolderBrowser.SelectedPath
+        } else {
+            return $null
+        }
+    }
+    catch {
+        Write-Error "无法显示文件夹选择对话框：$($_.Exception.Message)"
+        return $null
+    }
+    finally {
+        if ($FolderBrowser -ne $null) {
+            $FolderBrowser.Dispose()
+        }
+    }
+}
+
 # 检测环境可用性
 Write-Host ""
 Write-Host "正在检测环境..."
@@ -320,10 +355,17 @@ if (-not $WSLStatus.DistroInstalled) {
 }
 Write-Host ("-"*40)
 
-Write-Warning "NekroAgent 将安装在 '$InstallPath'"
-$userConfirmation = Read-Host -Prompt "是否继续安装？ (Y/n)"
+Write-Warning "NekroAgent 将安装在 '$DistroInstallLocation'"
+Write-Host "虚拟磁盘文件占用较大，建议选择非系统盘"
+$userConfirmation = Read-Host -Prompt "取消可选择指定安装路径，是否继续安装？ (Y/n)"
 if (($userConfirmation -eq "") -or ($userConfirmation.ToLower() -ne 'y')) {
-    Exit
+    $DistroInstallLocation = Select-FolderDialog
+    if ($null -ne $DistroInstallLocation) {
+        Write-Warning "NekroAgent 将安装在 '$DistroInstallLocation'"
+    } else {
+        Write-Host "未选择任何路径，已取消"
+        Confirm-ExitWithEnter
+    }
 }
 
 # 确保功能启用
