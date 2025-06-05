@@ -213,7 +213,7 @@ if ! command -v docker &>/dev/null && [[ -z $DOCKER_COMPOSE_CMD ]]; then
     if ! install_docker_via_official_script "$DOCKER_PKG_MIRROR"; then
         echo "Docker 安装失败..." >&2
         echo "正在尝试备用安装方式..."
-        if install_docker_fallback; then
+        if ! install_docker_fallback; then
             echo "安装失败，退出..." >&2
             exit 1
         fi
