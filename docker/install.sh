@@ -37,7 +37,7 @@ get_remote_file() {
     local output=$2
     for base_url in "${BASE_URLS[@]}"; do
         url=${base_url}/${filename}
-        if ! curl -sL -f -o "$output" "$url"; then
+        if ! curl -fsSL -m 30 -o "$output" "$url"; then
             echo "下载失败，尝试其他源..."
             continue
         fi
@@ -90,7 +90,7 @@ install_docker_via_official_script() {
     fi
     echo "尝试获取 Docker 安装脚本..."
     while [ "$attempt_num" -le "$max_retries" ]; do
-        if content=$(curl -fsSL https://get.docker.com); then
+        if content=$(curl -fsSL -m 30 https://get.docker.com); then
             echo "Docker 安装脚本下载完成."
             # 使用 sed 命令修改 sleep 以取消等待
             if printf '%s\n' "$content" | sed 's#sleep#test#g' | sh -s -- --mirror "$mirror"; then

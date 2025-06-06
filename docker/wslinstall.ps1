@@ -441,17 +441,10 @@ try {
 }
 
 # 导入 WSL
-$output = wsl.exe --import $DistroName $DistroInstallLocation $TarballFilePath 2>&1
+wsl.exe --import $DistroName $DistroInstallLocation $TarballFilePath 2>&1
 if ($LASTEXITCODE -eq 0) {
     Write-Host "WSL 发行版 '$DistroName' 导入成功。" -ForegroundColor Green
 } else {
-    Write-Error "WSL 发行版 '$DistroName' 导入失败!"
-    Write-Host "--- 失败原因 (来自 wsl.exe 输出) ---" -ForegroundColor Yellow
-    if ($output) {
-        $output | ForEach-Object {
-            Write-Host "  $_" -ForegroundColor Red
-        }
-    }
     Confirm-ExitWithEnter 1
 }
 Write-Host ("-"*40)
@@ -524,16 +517,21 @@ wsl.exe --terminate $DistroName
 
 $installNACommand = @'
 #!/bin/bash
+
+cd "$HOME" || exit 1
 url=https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh
-if curl -fsSL "$url" -o install.sh; then
-    bash ./install.sh
+echo 正在下载安装脚本至 "$PWD/install.sh"
+if curl -fsSL -m 30 "$url" -o install.sh; then
+    echo '用户 nekro 密码为 123456'
+    sudo bash "$PWD/install.sh"
 else
-    echo "脚本下载失败，退出..."
+    echo '脚本下载失败，退出...' >&2
+    exit 1
 fi
 '@
 if ($InstallStatus.DepsInstalled) {
     Write-Host "正在安装 NekroAgent..."
-    Invoke-WslCommand -DistributionName $DistroName -Command $installNACommand
+    Invoke-WslCommand -DistributionName $DistroName -Username $newUserName -Command $installNACommand
     if ($LASTEXITCODE -eq 0) {
         Write-Host "NekroAgent 安装成功"  -ForegroundColor Green
         $InstallStatus.NAInstalled = $true
@@ -551,7 +549,7 @@ if ($InstallStatus.NAInstalled) {
     }
     Write-Host "NekroAgent 安装失败"
     Write-Host "请前往 WSL 实例 `"$DistroName`" 手动完成安装"
-    Write-Host "若存在 '~/install.sh' 文件，请执行 'sudo bash ~/install.sh'"
+    Write-Host "若存在 '/home/nekro/install.sh' 文件，请执行 'sudo bash /home/nekro/install.sh'"
     Write-Host "若不存在，请参考文档站 WSL2部署教程"
 }
 Write-Host "可使用 'wsl -d `"$DistroName`"' 进入 NekroAgent 所在 WSL 实例"
