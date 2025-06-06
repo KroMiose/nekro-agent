@@ -397,16 +397,17 @@ if ($LASTEXITCODE -eq 0) {
 }
 
 # 设置 WSL 默认版本为 2
-Write-Host "正在设置 WSL 默认版本为 2..."
-wsl.exe --set-default-version 2
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "WSL 默认版本已成功设置为 2。"
-} else {
-    Write-Host "设置 WSL 默认版本为 2 失败。错误输出: $output" -ForegroundColor RED
-    Write-Warning "常见原因："
-    Write-Warning "  - WSL 内核未成功安装或更新 (请检查上一步 'wsl --update' 的结果)。"
-    Write-Warning "  - 您的 Windows 版本可能不支持 WSL2 或未完全更新。"
-    Write-Warning "  - 请确保在 BIOS/UEFI 中已启用 CPU 虚拟化技术 (如 Intel VT-x 或 AMD-V)。"
+if ($WSLStatus.Version -ne "2") {
+    Write-Host "正在设置 WSL 默认版本为 2..."
+    wsl.exe --set-default-version 2
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "WSL 默认版本已成功设置为 2。"
+    } else {
+        Write-Host "设置 WSL 默认版本为 2 失败。错误输出: $output" -ForegroundColor RED
+        Write-Host "NekroAgent 的使用依赖于 WSL2，可能导致后续 Docker 功能无法使用" -ForegroundColor RED
+        Write-Host "请尝试执行 'wsl.exe --set-default-version 2' 以手动设置" -ForegroundColor RED
+        Write-Host "或使用 'wsl --set-version $DistroName 2' 单独为 NekroAgent 设置"
+    }
 }
 
 if (-not (Test-Path -Path $WorkDir -PathType Container)) {
