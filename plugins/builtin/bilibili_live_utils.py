@@ -211,6 +211,8 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
     Attention:
         - Do not expose any unnecessary technical IDs or keys in the message content.
         - THIS FUNCTION ADDS TASKS TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
+        - **IMPORTANT: Only ONE call to `send_text_message` is allowed before each `send_execute` call.
+          Subsequent calls to `send_text_message` will overwrite the previous queued messages.**
         - Only segment text when you need to change speaking speed, not for punctuation marks.
         - Keep complete sentences together unless speed changes are necessary.
 
