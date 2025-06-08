@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Type, cast
+from typing import Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
 
 from fastapi import APIRouter
 from jinja2 import Environment
@@ -9,6 +9,7 @@ from pydantic import Field
 
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
 
 from .schemas.platform import (
@@ -34,14 +35,18 @@ class BaseAdapterConfig(ConfigBase):
     )
 
 
-class BaseAdapter(ABC):
+# 定义配置类型变量，约束为 BaseAdapterConfig 子类
+TConfig = TypeVar("TConfig", bound=BaseAdapterConfig)
+
+
+class BaseAdapter(Generic[TConfig], ABC):
     """适配器基类"""
 
     _router: APIRouter  # 实例变量的类型注解
-    _Configs: Type[BaseAdapterConfig] = BaseAdapterConfig
-    _config: BaseAdapterConfig
+    _Configs: Type[TConfig]
+    _config: TConfig
 
-    def __init__(self, config_cls: Type[BaseAdapterConfig] = BaseAdapterConfig):
+    def __init__(self, config_cls: Type[TConfig] = BaseAdapterConfig):
         self._Configs = config_cls
         self._adapter_config_path = Path(OsEnv.DATA_DIR) / "configs" / self.key / "config.yaml"
         self._config = self.get_config(self._Configs)
@@ -62,7 +67,7 @@ class BaseAdapter(ABC):
         self._router = self.get_adapter_router()
         return self._router
 
-    def get_config(self, config_cls: Type[BaseAdapterConfig] = BaseAdapterConfig) -> BaseAdapterConfig:
+    def get_config(self, config_cls: Type[TConfig]) -> TConfig:
         """获取适配器配置"""
         if not hasattr(self, "_config"):
             self._config = self._Configs.load_config(file_path=self._adapter_config_path)
@@ -70,7 +75,7 @@ class BaseAdapter(ABC):
         return cast(config_cls, self._config)
 
     @property
-    def config(self) -> BaseAdapterConfig:
+    def config(self) -> TConfig:
         """获取适配器配置"""
         return self.get_config(self._Configs)
 

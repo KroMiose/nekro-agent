@@ -595,7 +595,9 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
         tags_str = ", ".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
         prompt_parts.append(f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]")
 
-    return "\n".join(prompt_parts)
+    addition_prompt = "Attention: Emotion Plugin is a isolated self-managed plugin, you should not record the emotion ID manually by using other plugins. Just use the `collect_emotion` tool to collect the emotion and use `search_emotion` to search the emotion if you need."
+
+    return "\n".join(prompt_parts) + "\n" + addition_prompt
 
 
 # endregion: 表情包提示注入

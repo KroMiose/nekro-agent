@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import List
+from typing import List, Type
 
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
+from pydantic import Field
 
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
@@ -16,14 +17,24 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
-from ..interface.base import BaseAdapter
+from ..interface.base import BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
 
 
-class OnebotV11Adapter(BaseAdapter):
+class OnebotV11Config(BaseAdapterConfig):
+    """Onebot V11 适配器配置"""
+
+    RESOLVE_CQ_CODE: bool = Field(False, description="是否解析CQ码")
+
+
+class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
     """OneBot V11 适配器"""
+
+    def __init__(self, config_cls: Type[OnebotV11Config] = OnebotV11Config):
+        """初始化OnebotV11适配器"""
+        super().__init__(config_cls)
 
     @property
     def key(self) -> str:
@@ -156,9 +167,9 @@ class OnebotV11Adapter(BaseAdapter):
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         if chat_type is ChatType.GROUP:
-            await bot.send_group_msg(group_id=chat_id, message=message)
+            await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         elif chat_type is ChatType.PRIVATE:
-            await bot.send_private_msg(user_id=chat_id, message=message)
+            await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         else:
             raise ValueError("Invalid chat type")
 

@@ -15,7 +15,7 @@ SSE 适配器
 但对外部客户端，只暴露platform和channel_id概念。
 """
 
-from typing import List, Optional, Type
+from typing import List, Optional, Type, overload
 
 from fastapi import APIRouter
 from pydantic import Field
@@ -46,7 +46,7 @@ class SSEConfig(BaseAdapterConfig):
     ALLOWED_FILE_TYPES: List[str] = Field(["image/*", "application/*", "text/*"], description="允许的文件类型")
 
 
-class SSEAdapter(BaseAdapter):
+class SSEAdapter(BaseAdapter[SSEConfig]):
     """SSE 协议适配器
 
     负责:
@@ -55,12 +55,9 @@ class SSEAdapter(BaseAdapter):
     3. 管理频道订阅
     """
 
-    def __init__(self, config_cls: Type[BaseAdapterConfig] = SSEConfig):
+    def __init__(self, config_cls: Type[SSEConfig] = SSEConfig):
         """初始化SSE适配器"""
         super().__init__(config_cls)
-        # 使用SSEConfig作为配置类型
-        self.sse_config = SSEConfig.model_validate(self.config.model_dump())
-
         # 核心组件
         self.client_manager = SseClientManager()
         self.message_converter = SseMessageConverter()
@@ -135,7 +132,7 @@ class SSEAdapter(BaseAdapter):
             ]
 
             # 如果存在文件但不允许文件传输，则返回错误
-            if file_segments and not self.sse_config.ALLOW_FILE_TRANSFER:
+            if file_segments and not self.config.ALLOW_FILE_TRANSFER:
                 logger.warning(f"禁止文件传输: {request.chat_key}")
                 return PlatformSendResponse(success=False, error_message="文件传输已禁用")
 

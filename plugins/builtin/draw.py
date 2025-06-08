@@ -85,8 +85,8 @@ async def draw(
         str: Generated image URL
 
     Examples:
-        # Generate new image
-        send_msg_file(chat_key, draw("a illustration style cute orange cat napping on a sunny windowsill, watercolor painting style", "1024x1024"))
+        # Generate new image but **NOT** send to chat
+        draw("a illustration style cute orange cat napping on a sunny windowsill, watercolor painting style", "1024x1024")
 
         # Modify existing image
         send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg"))

@@ -1,13 +1,14 @@
 import os
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 
 import nonebot
 from fastapi import APIRouter
 from nonebot.adapters.minecraft import Bot, Message, MessageSegment
 from nonebot.adapters.minecraft.model import ClickEvent, HoverEvent, TextColor
+from pydantic import Field
 
-from nekro_agent.adapters.interface.base import BaseAdapter
+from nekro_agent.adapters.interface.base import BaseAdapter, BaseAdapterConfig
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
     PlatformSendRequest,
@@ -20,8 +21,17 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
-class MinecraftAdapter(BaseAdapter):
+class MinecraftConfig(BaseAdapterConfig):
+    """Minecraft 适配器配置"""
+
+
+
+class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     """Minecraft 适配器"""
+
+    def __init__(self, config_cls: Type[MinecraftConfig] = MinecraftConfig):
+        """初始化Minecraft适配器"""
+        super().__init__(config_cls)
 
     @property
     def key(self) -> str:
