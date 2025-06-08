@@ -189,7 +189,7 @@ class BilibiliLiveAdapter(BaseAdapter):
                 sender_nickname=danmaku.username,
                 content_data=content_data,
                 content_text=danmaku.text,
-                is_tome=danmaku.is_trigget,  # 根据is_trigget字段决定是否触发AI
+                is_tome=danmaku.is_trigger,  # 根据is_trigger字段决定是否触发AI
                 timestamp=danmaku.time,
                 is_self=False,
             )
