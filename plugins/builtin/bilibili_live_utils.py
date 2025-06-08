@@ -151,9 +151,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
             "data": {},
         }
         avilable_expressions = await ws_client.send_animate_command(msg)
-        #logger.info(f"Expressions response: {avilable_expressions}")
         avilable_expressions = extract_expressions(avilable_expressions)
-        #logger.info(f"Formatted expressions: {avilable_expressions}")
         
         # 获取音效数据
         sound_msg = {
@@ -161,9 +159,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
             "data": {},
         }
         available_sound_effects = await ws_client.send_animate_command(sound_msg)
-        #logger.info(f"Sound effects response: {available_sound_effects}")
         available_sound_effects = extract_sound_effects(available_sound_effects)
-        logger.info(f"Formatted sound effects: {available_sound_effects}")
         
     basic_prompt = f"""
     Important Instructions for Live2D Model Control:
@@ -194,6 +190,7 @@ async def basic_prompt_inject(_ctx: AgentCtx):
 
     To play a sound effect, call `play_sound(_ck, "sound_file_name.wav", volume, speed, delay)`.
     Sound effects can enhance the atmosphere and create better program effects during the live stream.
+    However you can't use them frequently, otherwise it will affect the live stream.
     """
     return basic_prompt  # noqa: RET504
 
