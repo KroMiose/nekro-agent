@@ -98,28 +98,73 @@ def extract_expressions(json_data: Dict) -> str:
         return f"Error processing data: {e!s}"
 
 
+def extract_sound_effects(json_data: Dict) -> str:
+    """
+    Extracts and formats sound effects list from JSON data.
+
+    This function is used internally to prepare a list of available sound effects for the LLM.
+
+    Args:
+        json_data (Dict): A dictionary parsed from JSON containing sound effects data,
+                          typically from an API response. It expects a structure like:
+                          `{"data": {"sounds": ["sound1.wav", "sound2.wav", ...]}}`.
+
+    Returns:
+        str: A string with each sound effect name, one per line.
+             Returns "No sound effects found." if the 'sounds' array is missing or empty.
+             Returns an error message if JSON processing fails.
+    """
+    try:
+        # 提取sounds数组
+        sounds = json_data.get("data", {}).get("sounds", [])
+
+        if not sounds:
+            return "No sound effects found."
+
+        return "\n".join(sounds)
+
+    except json.JSONDecodeError:
+        return "JSON format error, please check the input data."
+    except Exception as e:
+        return f"Error processing data: {e!s}"
+
+
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
     """
-    Injects dynamic information about available Live2D expressions into the agent's prompt.
+    Injects dynamic information about available Live2D expressions and sound effects into the agent's prompt.
 
-    This method fetches the current list of available expressions from the Bilibili Live
+    This method fetches the current list of available expressions and sound effects from the Bilibili Live
     websocket client and formats it into a prompt string. This helps the LLM understand
-    which expressions it can use with the `set_expression` tool.
+    which expressions and sound effects it can use with the respective tools.
     """
     chat_key = _ctx.chat_key
     room_id = chat_key.replace("bilibili_live-", "")
     ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     avilable_expressions = ""
+    available_sound_effects = ""
+    
     if ws_client:
+        # 获取表情数据
         msg = {
             "type": "emotion",
             "data": {},
         }
-        avilable_expressions = await ws_client.send_animate_control(msg, True)
-        logger.info(f"{avilable_expressions}")
+        avilable_expressions = await ws_client.send_animate_command(msg)
+        #logger.info(f"Expressions response: {avilable_expressions}")
         avilable_expressions = extract_expressions(avilable_expressions)
-        logger.info(f"{avilable_expressions}")
+        #logger.info(f"Formatted expressions: {avilable_expressions}")
+        
+        # 获取音效数据
+        sound_msg = {
+            "type": "sound_play",
+            "data": {},
+        }
+        available_sound_effects = await ws_client.send_animate_command(sound_msg)
+        #logger.info(f"Sound effects response: {available_sound_effects}")
+        available_sound_effects = extract_sound_effects(available_sound_effects)
+        logger.info(f"Formatted sound effects: {available_sound_effects}")
+        
     basic_prompt = f"""
     Important Instructions for Live2D Model Control:
 
@@ -143,6 +188,12 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     Note: The "expressions" listed above might include more than just facial expressions.
     They can control other model parts like props (e.g., pillows) or hair.
     Refer to the list for all available controllable expression assets.
+
+    Available Sound Effects (for creating show effects):
+    {available_sound_effects}
+
+    To play a sound effect, call `play_sound(_ck, "sound_file_name.wav", volume, speed, delay)`.
+    Sound effects can enhance the atmosphere and create better program effects during the live stream.
     """
     return basic_prompt  # noqa: RET504
 
@@ -163,19 +214,22 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
     Attention:
         - Do not expose any unnecessary technical IDs or keys in the message content.
         - THIS FUNCTION ADDS TASKS TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
+        - Only segment text when you need to change speaking speed, not for punctuation marks.
+        - Keep complete sentences together unless speed changes are necessary.
 
     Args:
         _ctx (AgentCtx): The agent context (automatically passed).
         chat_key (str): The session identifier for the chat, e.g., "bilibili_live-ROOM_ID".
         message_text (List[str]): A list of strings, where each string is a segment of the message to be spoken.
                                   Cannot be empty, and individual messages cannot be blank.
+                                  Only split text when you need different speaking speeds for different parts.
         speeds (List[float]): A list of floats corresponding to `message_text`. Each float specifies
                               the speaking speed for the respective message segment in characters per second.
                               Ensure `len(message_text) == len(speeds)`.
                               Recommended speeds:
                                   - 5.0: Slow
-                                  - 8.0: Medium (Normal conversational pace is typically 8.0-10.0)
-                                  - 12.0: Fast
+                                  - 10.0: Medium (Normal conversational pace is typically 8.0-10.0)
+                                  - 15.0: Fast
     Raises:
         Exception: If `message_text` is empty, if `len(message_text)` != `len(speeds)`,
                    if any message string is empty/whitespace, or if an image tag is detected.
@@ -251,7 +305,7 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
                 "delay": 0.0,
             },
         }
-        await ws_client.send_animate_control(msg, False)
+        await ws_client.send_animate_command(msg)
     # 更新消息缓存
     SEND_MSG_CACHE[chat_key].append(combined_message)
     SEND_MSG_CACHE[chat_key] = SEND_MSG_CACHE[chat_key][-10:]  # 保持最近10条消息
@@ -297,7 +351,7 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
                 "delay": delay,
             },
         }
-        await ws_client.send_animate_control(msg, False)
+        await ws_client.send_animate_command(msg)
 
 
 @plugin.mount_sandbox_method(
@@ -365,7 +419,7 @@ async def set_model_face_params(
                 "easing": easing,
             },
         }
-        await ws_client.send_animate_control(msg, False)
+        await ws_client.send_animate_command(msg)
 
 
 @plugin.mount_sandbox_method(
@@ -388,14 +442,14 @@ async def send_execute(_ctx: AgentCtx, chat_key: str, loop: int):
         _ctx (AgentCtx): The agent context (automatically passed).
         chat_key (str): The session identifier, e.g., "bilibili_live-ROOM_ID".
         loop (int): The number of times to repeat the entire sequence of tasks
-                    currently in the queue. For example, `loop=2` will execute
+                    currently in the queue. For example, `loop=1` will execute
                     the current queue, then execute it again.
-                    A value of `1` means execute once.
+                    A value of `0` means execute once.
 
     Behavior:
         - The system waits for the previous `send_execute` queue to complete fully
           before starting the next queue. This allows for creating distinct animation segments.
-        - If `loop` is greater than 1, the entire set of tasks defined before this
+        - If `loop` is greater than 0, the entire set of tasks defined before this
           `send_execute` will be repeated `loop` times.
     """
     room_id = chat_key.replace("bilibili_live-", "")
@@ -407,7 +461,38 @@ async def send_execute(_ctx: AgentCtx, chat_key: str, loop: int):
                 "loop": loop,
             },
         }
-        await ws_client.send_animate_control(msg, False)
+        await ws_client.send_animate_command(msg)
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    name="播放音效",
+    description="播放音效",
+)
+async def play_sound(_ctx: AgentCtx, chat_key: str, sound_name: str, volume: float,speed: float, delay: float):
+    """
+    Plays a sound effect.
+    Attention:
+        - THIS FUNCTION ADDS A TASK TO THE QUEUE. CALL `send_execute` TO TRIGGER EXECUTION.
+    Args:
+        chat_key (str): The session identifier, e.g., "bilibili_live-ROOM_ID".
+        sound_name (str): The path of the sound to play.
+        volume (float): The volume of the sound (0.0-1.0).
+        speed (float): The speed of the sound (0.0-1.0).
+        delay (float): The delay in seconds before this sound task starts after the `send_execute` command (or the previous task in the queue) begins.
+    """
+    room_id = chat_key.replace("bilibili_live-", "")
+    ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
+    if ws_client:
+        msg = {
+            "type": "sound_play",
+            "data": {
+                "path": sound_name,
+                "volume": volume,
+                "speed": speed,
+                "delay": delay,
+            },
+        }
+        await ws_client.send_animate_command(msg)
 
 
 @plugin.mount_cleanup_method()
