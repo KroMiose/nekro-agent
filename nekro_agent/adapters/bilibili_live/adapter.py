@@ -1,9 +1,10 @@
 import asyncio
 import hashlib
 import re
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Type
 
 from jinja2 import Environment, FileSystemLoader
+from pydantic import Field
 
 from nekro_agent.adapters.bilibili_live.templates.practice import (
     PracticePrompt_question_1,
@@ -11,7 +12,7 @@ from nekro_agent.adapters.bilibili_live.templates.practice import (
     PracticePrompt_response_1,
     PracticePrompt_response_2,
 )
-from nekro_agent.adapters.interface.base import BaseAdapter
+from nekro_agent.adapters.interface.base import BaseAdapter, BaseAdapterConfig
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
@@ -37,11 +38,20 @@ from nekro_agent.tools.common_util import (
 from .core.client import BilibiliWebSocketClient, Danmaku
 
 
-class BilibiliLiveAdapter(BaseAdapter):
+class BilibiliLiveConfig(BaseAdapterConfig):
+    """Bilibili 适配器配置"""
+
+    SESSION_ENABLE_AT: bool = Field(
+        default=False,
+        title="启用@提及",
+        description="启用后，@提及会被替换为空字符串",
+    )
+
+class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     """Bilibili 直播适配器"""
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, config_cls: Type[BilibiliLiveConfig] = BilibiliLiveConfig):
+        super().__init__(config_cls)
         self.ws_clients: List[BilibiliWebSocketClient] = []
         self.ws_tasks: List[asyncio.Task] = []
         self.room_to_ws: Dict[str, BilibiliWebSocketClient] = {}
@@ -227,7 +237,7 @@ class BilibiliLiveAdapter(BaseAdapter):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        return PlatformUser(user_id="BilibiliLiveBot", user_name="BilibiliLiveBot")
+        return PlatformUser(user_id="BilibiliAnchor", user_name="BilibiliAnchor")
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
         """获取用户(或者群聊用户)信息"""

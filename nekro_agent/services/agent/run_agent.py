@@ -59,6 +59,7 @@ async def run_agent(
             "system",
             SystemPrompt(
                 one_time_code=one_time_code,
+                platform_name=(ctx.adapter.key),
                 bot_platform_id=(await ctx.adapter.get_self_info()).user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,
@@ -130,7 +131,8 @@ async def run_agent(
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
         addition_prompt_message: List[OpenAIChatMessage] = []
-
+        sandbox_output = ""
+        raw_output = ""
         if one_time_code in parsed_code_data.code_content:
             stop_type = ExecStopType.SECURITY
         else:
