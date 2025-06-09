@@ -261,12 +261,23 @@ class NekroPlugin:
             List[SandboxMethod]: 可用方法列表
         """
         if self._collect_methods_func:
-            return await self._collect_methods_func(ctx)
+            available_methods: List[SandboxMethod] = []
+            for func in await self._collect_methods_func(ctx):
+                if isinstance(func, SandboxMethod):
+                    available_methods.append(func)
+                else:
+                    for method in self.sandbox_methods:
+                        if method.func == func:
+                            available_methods.append(method)
+                            break
+                    else:
+                        raise ValueError(f"方法 {func.__name__} 未找到对应的沙盒方法。")
+            return available_methods
         return self.sandbox_methods
 
     def mount_collect_methods(
         self,
-    ) -> Callable[[CollectMethodsFunc], CollectMethodsFunc]:
+    ) -> Callable:
         """挂载收集可用方法的重写函数
 
         此装饰器允许插件开发者自定义如何收集和过滤可用的方法，根据上下文决定哪些方法对当前用户可用。

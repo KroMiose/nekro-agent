@@ -2,7 +2,7 @@ import difflib
 import hashlib
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 import aiofiles
 import magic
@@ -266,44 +266,15 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
 
 
 @plugin.mount_collect_methods()
-async def collect_available_methods(_ctx: AgentCtx) -> List[SandboxMethod]:
+async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
     """根据适配器收集可用方法"""
 
-    method_send_msg_text = SandboxMethod(
-        method_type=SandboxMethodType.TOOL,
-        name="发送聊天消息文本",
-        description="发送聊天消息文本，附带缓存消息重复检查",
-        func=send_msg_text,
-    )
-
-    method_send_msg_file = SandboxMethod(
-        method_type=SandboxMethodType.TOOL,
-        name="发送聊天消息图片/文件资源",
-        description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
-        func=send_msg_file,
-    )
-
-    method_get_user_avatar = SandboxMethod(
-        method_type=SandboxMethodType.TOOL,
-        name="获取用户头像",
-        description="获取用户头像",
-        func=get_user_avatar,
-    )
-
-    all_methods = [
-        method_send_msg_text,
-        method_send_msg_file,
-        method_get_user_avatar,
-    ]
-
     if _ctx.adapter_key == "minecraft":
-        # 如果是 Minecraft 适配器，只保留 send_msg_text
-        # 通过列表推导式筛选，只保留 name 为 "发送聊天消息文本" 的方法
-        return [m for m in all_methods if m.name == "发送聊天消息文本"]
+        return [send_msg_text]
     if _ctx.adapter_key == "sse":
-        return [m for m in all_methods if m.name == "发送聊天消息文本" or m.name == "发送聊天消息图片/文件资源"]
+        return [send_msg_text, send_msg_file]
 
-    return all_methods
+    return [send_msg_text, send_msg_file, get_user_avatar]
 
 
 @plugin.mount_cleanup_method()

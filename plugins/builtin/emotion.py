@@ -981,10 +981,10 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
 async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     """Get Emotion Path
 
-    Get the path of an emotion by its ID.
+    Get the path of an emotion by its ID. 
 
     Args:
-        emotion_id (str): The emotion ID
+        emotion_id (str): The emotion ID (**NOT PATH**)
 
     Returns:
         str: The path of the emotion file
@@ -993,7 +993,7 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         ```python
         # Get emotion path and use it in another function
         emotion_file_path = get_emotion_path("a1b2c3d4")
-        # Send it or do something ...
+        # Send it or do something ... But DO NOT do any addition record for this emotion file!
         ```
     """
     # 加载表情包存储
