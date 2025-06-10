@@ -34,8 +34,7 @@ import {
   DialogActions,
   InputAdornment,
   MenuItem,
-  tooltipClasses,
-  TooltipProps,
+
   Stack,
   Collapse,
   Link,
@@ -45,7 +44,7 @@ import {
   Fab,
   ListItemButton,
 } from '@mui/material'
-import { styled } from '@mui/material/styles'
+
 import {
   Save as SaveIcon,
   Refresh as RefreshIcon,
@@ -82,25 +81,11 @@ import {
 } from '../../theme/variants'
 import { CHIP_VARIANTS } from '../../theme/variants'
 
-// 自定义提示样式，支持富文本
-const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
-  <Tooltip {...props} classes={{ popper: className }} />
-))(({ theme }) => ({
-  [`& .${tooltipClasses.tooltip}`]: {
-    backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f9',
-    color: theme.palette.mode === 'dark' ? '#fff' : 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 300,
-    fontSize: theme.typography.pxToRem(12),
-    border: '1px solid #dadde9',
-    '& a': {
-      color: theme.palette.primary.main,
-      textDecoration: 'none',
-      '&:hover': {
-        textDecoration: 'underline',
-      },
-    },
-  },
-}))
+// 导入主题化的 Tooltip 组件
+import { ThemedTooltip } from '../../components/common/ThemedTooltip'
+
+// 使用主题化的 Tooltip 组件
+const HtmlTooltip = ThemedTooltip
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin

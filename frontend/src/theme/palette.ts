@@ -6,7 +6,7 @@ import { PaletteMode } from '@mui/material'
 import { alpha, darken, lighten } from '@mui/material/styles'
 
 // 主题类型扩展 - 允许未来添加更多主题
-export type ThemeMode = 'light' | 'dark' | 'system'
+export type ThemeMode = 'light' | 'dark'
 export type BaseThemeMode = 'light' | 'dark'
 export type ThemeKeys = 'light' | 'dark' | string // 未来可以添加更多主题
 

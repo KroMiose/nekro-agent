@@ -46,7 +46,7 @@ import {
   Wallpaper as WallpaperIcon,
   Palette as PaletteIcon,
   FormatColorFill as FormatColorFillIcon,
-  Computer as ComputerIcon,
+
 } from '@mui/icons-material'
 import { useColorMode } from '../../stores/theme'
 import {
@@ -237,8 +237,7 @@ const ThemePreviewCard = ({
   const theme = useTheme()
   const { mode } = useColorMode()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
-  const currentMode =
-    mode === 'system' ? (theme.palette.mode as 'light' | 'dark') : (mode as 'light' | 'dark')
+  const currentMode = mode as 'light' | 'dark'
 
   return (
     <Card
@@ -335,8 +334,7 @@ export default function ThemeConfigPage() {
   const { mode, setColorMode, setThemePreset, setCustomColors, performanceMode, setPerformanceMode } = useColorMode()
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
-  const currentMode =
-    mode === 'system' ? (theme.palette.mode as 'light' | 'dark') : (mode as 'light' | 'dark')
+  const currentMode = mode as 'light' | 'dark'
   const notification = useNotification()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initializedRef = useRef(false)
@@ -797,10 +795,10 @@ export default function ThemeConfigPage() {
   }
 
   // 切换主题模式
-  const handleThemeModeChange = (newMode: 'light' | 'dark' | 'system') => {
+  const handleThemeModeChange = (newMode: 'light' | 'dark') => {
     setColorMode(newMode)
     notification.info(
-      `已切换至${newMode === 'light' ? '浅色' : newMode === 'dark' ? '深色' : '跟随系统'}模式`
+      `已切换至${newMode === 'light' ? '浅色' : '深色'}模式`
     )
   }
 
@@ -923,20 +921,10 @@ export default function ThemeConfigPage() {
             >
               深色模式
             </Button>
-
-            <Button
-              variant={mode === 'system' ? 'contained' : 'outlined'}
-              startIcon={<ComputerIcon />}
-              onClick={() => handleThemeModeChange('system')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              跟随系统
-            </Button>
           </Stack>
 
           <Typography variant="body2" color="text.secondary">
-            当前模式: {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}
-            {mode === 'system' && ` (${theme.palette.mode === 'light' ? '浅色' : '深色'})`}
+            当前模式: {mode === 'light' ? '浅色' : '深色'}
           </Typography>
         </Paper>
 

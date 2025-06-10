@@ -28,8 +28,7 @@ import {
   Button,
   List,
   ListItem,
-  tooltipClasses,
-  TooltipProps,
+
   useTheme,
   useMediaQuery,
   SxProps,
@@ -49,29 +48,12 @@ import {
   Search as SearchIcon,
   Launch as LaunchIcon,
 } from '@mui/icons-material'
-import { styled } from '@mui/material/styles'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { ThemedTooltip } from '../../components/common/ThemedTooltip'
 
-// 添加自定义 Tooltip 样式
-const HtmlTooltip = styled(({ className, ...props }: TooltipProps) => (
-  <Tooltip {...props} classes={{ popper: className }} />
-))(({ theme }) => ({
-  [`& .${tooltipClasses.tooltip}`]: {
-    backgroundColor: theme.palette.mode === 'dark' ? '#424242' : '#f5f5f9',
-    color: theme.palette.mode === 'dark' ? '#fff' : 'rgba(0, 0, 0, 0.87)',
-    maxWidth: 300,
-    fontSize: theme.typography.pxToRem(12),
-    border: '1px solid #dadde9',
-    '& a': {
-      color: theme.palette.primary.main,
-      textDecoration: 'none',
-      '&:hover': {
-        textDecoration: 'underline',
-      },
-    },
-  },
-}))
+// 使用主题化的 Tooltip 组件
+const HtmlTooltip = ThemedTooltip
 
 // 添加列表编辑对话框组件
 interface ListEditDialogProps {

@@ -1,19 +1,18 @@
 /**
  * 主题切换按钮组件
- * 用于在亮色模式、暗色模式和系统模式之间切换
+ * 用于在亮色模式和暗色模式之间切换
  */
 import { IconButton, Tooltip, useTheme } from '@mui/material'
 import {
   LightMode as LightIcon,
   DarkMode as DarkIcon,
-  SettingsBrightness as SystemIcon,
 } from '@mui/icons-material'
 import { useColorMode } from '../stores/theme'
 import { ThemeMode } from './palette'
 
 /**
  * 主题切换按钮组件
- * 切换顺序为：浅色 -> 暗色 -> 系统 -> 浅色
+ * 切换顺序为：浅色 -> 暗色 -> 浅色
  */
 export default function ThemeToggleButton({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) {
   const { mode, toggleColorMode } = useColorMode()
@@ -26,8 +25,6 @@ export default function ThemeToggleButton({ size = 'medium' }: { size?: 'small' 
         return LightIcon
       case 'dark':
         return DarkIcon
-      case 'system':
-        return SystemIcon
       default:
         return LightIcon
     }
@@ -39,9 +36,7 @@ export default function ThemeToggleButton({ size = 'medium' }: { size?: 'small' 
       case 'light':
         return '当前：浅色模式 (点击切换到暗色模式)'
       case 'dark':
-        return '当前：暗色模式 (点击切换到跟随系统)'
-      case 'system':
-        return '当前：跟随系统 (点击切换到浅色模式)'
+        return '当前：暗色模式 (点击切换到浅色模式)'
       default:
         return '切换主题'
     }

@@ -354,17 +354,29 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
         styleOverrides: {
           tooltip: {
             backgroundColor: effectiveMode === 'light' 
-              ? 'rgba(255, 255, 255, 0.95)' 
+              ? getAlphaColor('#ffffff', 0.95)
               : getAlphaColor(currentBackground.paper, 0.95),
+            color: effectiveMode === 'light' 
+              ? 'rgba(0, 0, 0, 0.87)'
+              : 'rgba(255, 255, 255, 0.92)',
             borderRadius: BORDER_RADIUS.DEFAULT,
-            boxShadow: UI_STYLES.getShadow('light'),
+            boxShadow: effectiveMode === 'light'
+              ? '0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04)'
+              : '0 4px 20px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15)',
             border: effectiveMode === 'light' 
-              ? `1px solid rgba(0, 0, 0, 0.06)` 
-              : `1px solid ${getAlphaColor(extendedPalette.primary.main, 0.1)}`,
-            color: 'text.primary',
+              ? 'rgba(0, 0, 0, 0.08)' 
+              : `1px solid ${getAlphaColor(extendedPalette.primary.main, 0.15)}`,
             backdropFilter: 'blur(8px)',
             WebkitBackdropFilter: 'blur(8px)',
             fontSize: '0.75rem',
+            lineHeight: 1.4,
+            padding: '8px 12px',
+            fontWeight: 500,
+          },
+          arrow: {
+            color: effectiveMode === 'light' 
+              ? getAlphaColor('#ffffff', 0.95)
+              : getAlphaColor(currentBackground.paper, 0.95),
           },
         },
       },

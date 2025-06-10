@@ -642,7 +642,7 @@ export default function SandboxPage() {
                                         whiteSpace: 'pre-wrap',
                                         wordBreak: 'break-word',
                                         overflowWrap: 'break-word',
-                                        color: mode === 'dark' ? '#D4D4D4' : 'inherit',
+                                        color: theme.palette.text.primary,
                                         maxWidth: '100%',
                                         fontSize: isSmall ? '0.75rem' : '0.875rem',
                                       }}
@@ -722,8 +722,8 @@ export default function SandboxPage() {
                                       paddingRight: '0.5em',
                                       userSelect: 'none',
                                       display: 'table-cell',
-                                      borderRight: '1px solid #444',
-                                      color: '#888',
+                                      borderRight: `1px solid ${theme.palette.divider}`,
+                                      color: theme.palette.text.secondary,
                                     }}
                                     lineProps={() => ({
                                       style: {
@@ -819,8 +819,8 @@ export default function SandboxPage() {
                                         paddingRight: '0.5em',
                                         userSelect: 'none',
                                         display: 'table-cell',
-                                        borderRight: '1px solid #444',
-                                        color: '#888',
+                                        borderRight: `1px solid ${theme.palette.divider}`,
+                                        color: theme.palette.text.secondary,
                                       }}
                                       lineProps={() => ({
                                         style: {
