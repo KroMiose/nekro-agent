@@ -139,14 +139,13 @@ def extract_preformed_animations(json_data: Dict) -> str:
                 p_desc = param.get("description", "未知")
                 p_type = param.get("type", "unknown")
                 p_default = param.get("default", "无默认值，必填")
-                result.append(
-                    f"    - 参数: {p_name}，描述: {p_desc}，类型: {p_type}，默认值: {p_default}"
-                )
+                result.append(f"    - 参数: {p_name}，描述: {p_desc}，类型: {p_type}，默认值: {p_default}")
 
         return "\n".join(result)
 
     except Exception as e:
         return f"处理数据时出错：{e}"
+
 
 def extract_estimated_completion_time(json_data: Dict) -> float:
     try:
@@ -159,6 +158,7 @@ def extract_estimated_completion_time(json_data: Dict) -> float:
     except Exception as e:
         logger.warning(f"处理数据时出错：{e!s}")
         return 0.0
+
 
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
@@ -200,11 +200,11 @@ async def basic_prompt_inject(_ctx: AgentCtx):
         available_preformed_animations = extract_preformed_animations(available_preformed_animations)
     basic_prompt = f"""
     Live2D 模型控制重要说明：
-    1.像 `send_text_message`、`set_expression` 和 `set_model_face_params` 这样的操作并不会立即执行。相反，它们会将任务添加到一个动画队列中。
+    1.像 `send_text_message`、`set_expression` 和 `play_preformed_animation` 这样的操作并不会立即执行。相反，它们会将任务添加到一个动画队列中，并会返回一个float，代表此任务从delay到执行结束后的总时间，你可以使用此值来精确控制动画的顺序。
     2.必须使用 `send_execute` 命令来执行队列中当前的所有任务。
     3.动画队列（由一系列任务后跟 `send_execute` 定义）会一个接一个地处理。只有在前一个队列完全完成后，新的队列才会开始。
     4.实现延迟和复杂序列：** 您可以通过以下方式创建复杂的动画序列：
-        - 在单个任务函数（例如 `set_expression`、`set_model_face_params`）中使用 `delay` 参数。
+        - 在单个任务函数（例如 `set_expression`、`play_preformed_animation`）中使用 `delay` 参数。
         - 策略性地放置 `send_execute` 调用来定义动画的各个片段。`send_execute` 调用之间的延迟实际上是前一个队列中任务的持续时间和延迟的总和。
 
     可用的预制动画:
@@ -218,13 +218,14 @@ async def basic_prompt_inject(_ctx: AgentCtx):
 
     注意：上面列出的“表情”可能不仅仅包括面部表情。
     它们可以控制模型的其他部分，如道具（例如，枕头）或头发。
+    你需要将表情与预制动画结合起来使用，以达到更好的效果。
     请参考列表以了解所有可用的可控表情资源。
 
-    可用音效（用于创造节目效果）：
+    可用meme音效（用于创造节目效果）：
     {available_sound_effects}
 
     要播放音效，请调用 `play_sound(_ck, "sound_file_name.wav", volume, speed, delay)`。
-    音效可以增强气氛并在直播期间创造更好的节目效果。
+    音效可以在直播期间创造更好的节目效果。
     但是您不能频繁使用它们，否则会影响直播。
     """
     return basic_prompt  # noqa: RET504
@@ -235,28 +236,20 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     name="发送文本消息",
     description="发送聊天消息文本，附带缓存消息重复检查",
 )
-async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[str], speeds: List[float]):
+async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: str, tts_text: str):
     """
-    为 Live2D 模型发送带有指定语速的文本消息列表。
+    为 Live2D 模型发送文本消息。
 
-    此函数将 'say' 任务添加到动画队列中。当通过 `send_execute` 执行队列时，Live2D 模型将按顺序说出这些消息。
+    此函数将 'say' 任务添加到动画队列中。当通过 `send_execute` 执行队列时，Live2D 模型将按说出这些文字并伴随文本转语音生成的音频。
 
     注意：
         - 此函数将任务添加到队列中。请调用 `send_execute` 来触发执行。
-        - 重要：在每次调用 `send_execute` 之前，只允许调用一次 `send_text_message`。后续对 `send_text_message` 的调用将覆盖之前的消息.
-        - 仅在需要改变语速时才分割文本，而不是为了标点符号。
-        - 除非需要改变语速，否则请保持句子完整。
         - 此函数不会返回任何值
 
     参数:
         chat_key (str): 聊天的会话标识符，例如 "bilibili_live-ROOM_ID"。
-        message_text (List[str]): 字符串列表，每个字符串是要说出的消息的一部分。不能为空，单个消息也不能为空。仅在需要为不同部分设置不同语速时才分割文本。
-        speeds (List[float]): 与 `message_text` 对应的浮点数列表。每个浮点数指定相应消息段落的语速（字符/秒）。
-        确保 `len(message_text) == len(speeds)`。
-        推荐语速：
-        - 5.0: 慢
-        - 10.0: 中等（正常对话语速通常为 8.0-10.0）
-        - 15.0: 快
+        message_text (str): 字符串，用于展示字幕的文字，语言要求为中文，不能为空。
+        tts_text (str): 字符串，用于文本转语音的文字，语言要求为日语，字符串中只能出现片假名和其他标点符号，不允许使用日文汉字，不能为空。
 
     返回:
         无
@@ -267,19 +260,17 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
     if not message_text:
         raise Exception("错误：消息列表不能为空。")
 
-    if len(message_text) != len(speeds):
-        raise Exception("错误：message_text 和 speeds 的长度必须相等。")
+    if not message_text.strip():
+        raise Exception("错误：消息内容不能为空。")
 
-    # 检查每条消息内容
-    for text in message_text:
-        if not text.strip():
-            raise Exception("错误：消息内容不能为空。")
+    if not tts_text.strip():
+        raise Exception("错误：文本转语音内容不能为空。")
 
-        # 拒绝包含 [image:xxx...] 的图片消息
-        if re.match(r"^.*\[image:.*\]$", text) and len(text) > 100:
-            raise Exception(
-                "错误：不能直接发送图片消息，请使用 send_msg_file 方法发送图片/文件资源。",
-            )
+    # 拒绝包含 [image:xxx...] 的图片消息
+    if re.match(r"^.*\[image:.*\]$", message_text):
+        raise Exception(
+            "错误：不能直接发送图片消息，请使用 send_msg_file 方法发送图片/文件资源。",
+        )
 
     # 初始化消息缓存
     if chat_key not in SEND_MSG_CACHE:
@@ -287,11 +278,8 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
 
     recent_messages = SEND_MSG_CACHE[chat_key][-5:] if SEND_MSG_CACHE[chat_key] else []
 
-    # 合并所有消息文本用于检查
-    combined_message = " ".join(message_text)
-
     # 检查完全匹配
-    if combined_message in recent_messages:
+    if message_text in recent_messages:
         # 清空缓存允许再次发送
         SEND_MSG_CACHE[chat_key] = []
         if config.STRICT_MESSAGE_FILTER:
@@ -307,7 +295,7 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
 
     # 检查相似度（仅对超过限定字符的消息进行检查）
     for recent_msg in recent_messages:
-        similarity = calculate_text_similarity(combined_message, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
+        similarity = calculate_text_similarity(message_text, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
         if similarity > config.SIMILARITY_THRESHOLD:
             # 发送系统消息提示避免类似内容
             logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
@@ -320,6 +308,12 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
 
     # TODO: 在这里实现实际的消息发送逻辑
     # 此处预留给用户自行实现发送功能
+    #推送消息到数据库
+    await message_service.push_bot_message(
+        chat_key=chat_key,
+        agent_messages=message_text,
+    )
+    
     room_id = chat_key.replace("bilibili_live-", "")
     ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     if ws_client:
@@ -327,13 +321,13 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: List[st
             "type": "say",
             "data": {
                 "text": message_text,
-                "speed": speeds,
+                "tts_text": tts_text,
                 "delay": 0.0,
             },
         }
         await ws_client.send_animate_command(msg)
     # 更新消息缓存
-    SEND_MSG_CACHE[chat_key].append(combined_message)
+    SEND_MSG_CACHE[chat_key].append(message_text)
     SEND_MSG_CACHE[chat_key] = SEND_MSG_CACHE[chat_key][-10:]  # 保持最近10条消息
 
 
@@ -361,7 +355,7 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
         delay (float): 在 `send_execute` 命令（或队列中的前一个任务）开始后，此表情任务开始前的延迟时间（秒）。
 
     返回:
-        一个float值,代表设置的表情从delay到duration结束后持续的总时间
+        一个float值,代表设置的表情从delay到duration结束后持续的总时间，你可以使用此返回值来精确控制动画的顺序
     """
 
     room_id = chat_key.replace("bilibili_live-", "")
@@ -436,7 +430,7 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
 #         send_execute(_ck, 1) # 执行此序列一次
 
 #     返回:
-#         一个float值,代表设置的参数动作从delay到duration结束后持续的总时间
+#         一个float值,代表设置的参数动作从delay到duration结束后持续的总时间，你可以使用此返回值来精确控制动画的顺序
 #     """
 #     room_id = chat_key.replace("bilibili_live-", "")
 #     ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
@@ -474,7 +468,7 @@ async def play_sound(_ctx: AgentCtx, chat_key: str, sound_name: str, volume: flo
         delay (float): 在 `send_execute` 命令（或队列中的前一个任务）开始后，此声音任务开始前的延迟时间（秒）。
 
     返回:
-        一个float值,代表播放的音频从delay到结束持续的总时间
+        一个float值,代表播放的音频从delay到结束持续的总时间，你可以使用此返回值来精确控制动画的顺序
     """
     room_id = chat_key.replace("bilibili_live-", "")
     ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
@@ -511,7 +505,7 @@ async def play_preformed_animation(_ctx: AgentCtx, chat_key: str, animation_name
         delay (float): 在 `send_execute` 命令（或队列中的前一个任务）开始后，此预制动画任务开始前的延迟时间（秒）。
 
     返回:
-        一个float值,代表播放的预制动画从开始到结束持续的总时间
+        一个float值,代表播放的预制动画从开始到结束持续的总时间，你可以使用此返回值来精确控制动画的顺序
 
     示例:
         play_preformed_animation(

@@ -44,21 +44,21 @@ Recent Messages:
 # 用开心的表情和语气回应 UserA
 set_expression(_ck, "happy", 5.0, 0.0)
 {% if enable_at %}
-send_text_message(_ck, ["谢谢 UserA 的夸奖！因为看到了你们，所以很开心呀！"], [10.0])
+send_text_message(_ck, "谢谢 UserA 的夸奖！因为看到了你们，所以很开心呀！", "ありがとうございます！あなたたちを見て、とても嬉しいです！")
 {% else %}
-send_text_message(_ck, ["谢谢 UserA 的夸奖！因为看到了你们，所以很开心呀！"], [10.0])
+send_text_message(_ck, "谢谢 UserA 的夸奖！因为看到了你们，所以很开心呀！", "ありがとうございます！あなたたちを見て、とても嬉しいです！")
 {% endif %}
 # 感谢 UserB 的礼物，并播放音效
-play_sound(_ck, "gift_thanks.wav", 0.8, 1.0, 3.0) # 在说完话后播放音效
+play_sound(_ck, "gift_thanks.wav", 0.8, 1.0, 0.0) # 在说话的同时播放音效
 play_preformed_animation(_ck, "swing", {"duration": 2.0, "range": 2.0 }, 1.5)
 send_execute(_ck, 0) # 执行第一批任务
 
 # 计划 2: 回应 UserC 的比心请求
 # 播放比心动画
 {% if enable_at %}
-send_text_message(_ck, ["没问题 UserC，看好咯！"], [8.0])
+send_text_message(_ck, "没问题 UserC，看好咯！", "問題ありません！見てください！")
 {% else %}
-send_text_message(_ck, ["没问题 UserC，看好咯！"], [8.0])
+send_text_message(_ck, "没问题 UserC，看好咯！", "問題ありません！見てください！")
 {% endif %}
 play_preformed_animation(_ck, "heart_pose", {"duration": 2.0}, 1.5)
 send_execute(_ck, 0) # 执行第二批任务
@@ -66,9 +66,9 @@ send_execute(_ck, 0) # 执行第二批任务
 # 计划 3: 回应 UserD 的wink请求，并展示模型能力
 # 因为有合适的预制动画，所以直接使用
 {% if enable_at %}
-send_text_message(_ck, ["当然会动啦 UserD！看我的厉害！"], [12.0])
+send_text_message(_ck, "当然会动啦 UserD！看我的厉害！", "もちろん動きます！UserD！見てください！")
 {% else %}
-send_text_message(_ck, ["当然会动啦 UserD！看我的厉害！"], [12.0])
+send_text_message(_ck, "当然会动啦 UserD！看我的厉害！", "もちろん動きます！UserD！見てください！")
 {% endif %}
 play_preformed_animation(_ck, "wink", {"duration": 2.0}, 0.0)
 send_execute(_ck, 0) # 执行第三批任务
@@ -117,9 +117,8 @@ Recent Messages:
 ```python
 # 计划 1: 欢迎新观众 UserF
 {% if enable_at %}
-send_text_message(_ck, ["欢迎 UserF！", "我们正在聊关于学习编程的话题哦。"], [8.0, 8.0])
-{% else %}
-send_text_message(_ck, ["欢迎 UserF！", "我们正在聊关于学习编程的话题哦。"], [8.0, 8.0])
+send_text_message(_ck, "欢迎 UserF！", "ようこそ！UserF！")
+send_text_message(_ck, "我们正在聊关于学习编程的话题哦。", "私たちはプログラミングについて話してい
 {% endif %}
 send_execute(_ck, 0)
 
@@ -128,30 +127,30 @@ send_execute(_ck, 0)
 set_expression(_ck, "serious", 8.0, 0.0)
 play_sound(_ck, "thinking.wav", 0.5, 1.0, 0.0)
 {% if enable_at %}
-send_text_message(_ck, ["UserE 别灰心，编程初期感到困难是非常正常的。", "我的建议是，首先要打好基础，多动手写代码，不要怕犯错。"], [10.0, 10.0])
+send_text_message(_ck, "UserE 别灰心，编程初期感到困难是非常正常的。我的建议是，首先要打好基础，多动手写代码，不要怕犯错。", "ユーザーE ゴメンナサイ！プログラミングヲハジメタバカリデムズカシイトカンジテイルノハフツウデス。ワタシノアドバイスハ、マズキソヲカタメルコトデス。コードヲカイテミテ、マチガエテモダイジョウブデス。")
 {% else %}
-send_text_message(_ck, ["UserE 别灰心，编程初期感到困难是非常正常的。", "我的建议是，首先要打好基础，多动手写代码，不要怕犯错。"], [10.0, 10.0])
+send_text_message(_ck, "UserE 别灰心，编程初期感到困难是非常正常的。我的建议是，首先要打好基础，多动手写代码，不要怕犯错。", "ユーザーE ゴメンナサイ！プログラミングヲハジメタバカリデムズカシイトカンジテイルノハフツウデス。ワタシノアドバイスハ、マズキソヲカタメルコトデス。コードヲカイテミテ、マチガエテモダイジョウブデス。")
 {% endif %}
 send_execute(_ck, 0)
 
 # 回应 UserG 的点头请求
 {% if enable_at %}
-send_text_message(_ck, ["UserG 嗯，我非常同意你的看法！"], [9.0])
+send_text_message(_ck, "UserG 嗯，我非常同意你的看法！", "ユーザーG エエ、ワタシハアナタノカンガエニカンゼンニサンセイデス！")
 {% else %}
-send_text_message(_ck, ["UserG 嗯，我非常同意你的看法！"], [9.0])
+send_text_message(_ck, "UserG 嗯，我非常同意你的看法！", "ユーザーG エエ、ワタシハアナタノカンガエニカンゼンニサンセイデス！")
 {% endif %}
 play_preformed_animation(_ck, "nod", {"duration": 2.0}, 0.0)
 send_execute(_ck, 0)
 
 # 继续回答 UserE
-send_text_message(_ck, ["另外，找到一个好的学习社区或者小伙伴一起交流也很重要。坚持下去，你会发现其中的乐趣的！"], [10.0])
+send_text_message(_ck, "另外，找到一个好的学习社区或者小伙伴一起交流也很重要。坚持下去，你会发现其中的乐趣的！", "マタ、ヨイガクシュウコミュニティヤトモダチトイッショニマナブコトモタイセツデス。ツズケテイクト、ソノナカノタノシサモミツカルデショウ！")
 send_execute(_ck, 0)
 
 # 计划 3: 感谢 UserH 的礼物
 {% if enable_at %}
-send_text_message(_ck, ["哇！谢谢 UserH 的大赞！"], [12.0])
+send_text_message(_ck, "哇！谢谢 UserH 的大赞！", "オオ！ユーザーH サン、アリガトウゴザイマス！")
 {% else %}
-send_text_message(_ck, ["哇！谢谢 UserH 的大赞！"], [12.0])
+send_text_message(_ck, "哇！谢谢 UserH 的大赞！", "オオ！ユーザーH サン、アリガトウゴザイマス！")
 {% endif %}
 play_preformed_animation(_ck, "thumbs_up", {"duration": 2.5}, 1.0)
 play_sound(_ck, "success.wav", 0.9, 1.0, 1.2)
