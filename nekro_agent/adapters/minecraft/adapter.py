@@ -128,7 +128,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        return PlatformUser(user_id="MinecraftBot", user_name="MinecraftBot")
+        return PlatformUser(platform_name="Minecraft", user_id="MinecraftBot", user_name="MinecraftBot")
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
         """获取用户(或者群聊用户)信息"""

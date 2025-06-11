@@ -82,6 +82,8 @@ async def collect_message(
         send_timestamp=int(time.time()),
     )
 
-    logger.info(f"Message Collect: [{chat_message.chat_key}] {chat_message.sender_nickname}: {chat_message.content_text}")
+    logger.info(
+        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}"
+    )
 
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)

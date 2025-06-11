@@ -59,7 +59,7 @@ async def run_agent(
             "system",
             SystemPrompt(
                 one_time_code=one_time_code,
-                platform_name=(ctx.adapter.key),
+                platform_name=(await ctx.adapter.get_self_info()).platform_name,
                 bot_platform_id=(await ctx.adapter.get_self_info()).user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,

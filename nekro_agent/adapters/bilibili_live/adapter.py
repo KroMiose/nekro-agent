@@ -47,6 +47,7 @@ class BilibiliLiveConfig(BaseAdapterConfig):
         description="启用后，@提及会被替换为空字符串",
     )
 
+
 class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     """Bilibili 直播适配器"""
 
@@ -149,6 +150,7 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
             )
 
             plt_user = PlatformUser(
+                platform_name="Bilibili",
                 user_id=danmaku.uid,
                 user_name=danmaku.username,
                 user_avatar="",
@@ -237,7 +239,7 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        return PlatformUser(user_id="BilibiliAnchor", user_name="BilibiliAnchor")
+        return PlatformUser(platform_name="Bilibili", user_id="BilibiliAnchor", user_name="BilibiliAnchor")
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
         """获取用户(或者群聊用户)信息"""
