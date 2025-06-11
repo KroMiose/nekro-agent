@@ -217,6 +217,27 @@ class SseResponse(BaseModel):
     data: Dict[str, Any] = Field(default_factory=dict, description="响应数据")
 
 
+# 分块传输相关模型
+class SseChunkData(BaseModel):
+    """SSE分块数据模型"""
+    
+    chunk_id: str = Field(..., description="分块ID（所有分块共享同一个）")
+    chunk_index: int = Field(..., description="分块序号（从0开始）")
+    total_chunks: int = Field(..., description="总分块数")
+    chunk_data: str = Field(..., description="分块的base64数据")
+    chunk_size: int = Field(..., description="当前分块大小")
+    total_size: int = Field(..., description="原始数据总大小")
+    mime_type: Optional[str] = Field(None, description="数据MIME类型")
+    filename: Optional[str] = Field(None, description="文件名")
+    file_type: str = Field(..., description="文件类型：image/file")
+
+class SseChunkComplete(BaseModel):
+    """SSE分块传输完成事件"""
+    
+    chunk_id: str = Field(..., description="分块ID")
+    success: bool = Field(..., description="是否成功")
+    message: str = Field(..., description="结果消息")
+
 # 通用事件data模型
 class SseHeartbeatData(BaseModel):
     timestamp: int
@@ -236,11 +257,11 @@ class SseEvent(Generic[T], BaseModel):
     data: T = Field(..., description="事件数据(Pydantic模型)")
 
     def to_sse_format(self) -> dict:
-        return {"event": self.event, "data": self.data.json()}
+        return {"event": self.event, "data": self.data.model_dump_json()}
 
     @classmethod
     def from_sse_format(cls: Type["SseEvent[T]"], event: str, data_json: str, data_model: Type[T]) -> "SseEvent[T]":
-        return cls(event=event, data=data_model.parse_raw(data_json))
+        return cls(event=event, data=data_model.model_validate_json(data_json))
 
 
 # 消息段辅助函数

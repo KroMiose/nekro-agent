@@ -433,11 +433,19 @@ class SSEClient:
         self.running = False
         self.event_handlers: Dict[str, EventHandler] = {}
 
+        # 分块接收相关
+        self.chunk_buffers: Dict[str, Dict[str, Any]] = {}  # chunk_id -> {chunks: [], total_chunks: int, ...}
+        self.chunk_timeouts: Dict[str, float] = {}  # chunk_id -> timeout_timestamp
+        self.chunk_timeout_duration = 300  # 5分钟超时
+
         # 注册默认事件处理器
         self.register_handler("send_message", self._handle_send_message)
         self.register_handler("get_user_info", self._handle_get_user_info)
         self.register_handler("get_channel_info", self._handle_get_channel_info)
         self.register_handler("get_self_info", self._handle_get_self_info)
+        # 注册分块传输处理器
+        self.register_handler("file_chunk", self._handle_file_chunk)
+        self.register_handler("file_chunk_complete", self._handle_file_chunk_complete)
 
     def register_handler(self, event_type: str, handler: EventHandler) -> None:
         """注册事件处理器
@@ -454,7 +462,27 @@ class SSEClient:
             self.logger.info("客户端已经在运行")
             return
 
-        self.session = aiohttp.ClientSession(conn_timeout=10, read_timeout=99999999)
+        # 配置session以支持大数据传输
+        connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=30,
+            ttl_dns_cache=300,
+            use_dns_cache=True,
+        )
+
+        timeout = aiohttp.ClientTimeout(
+            total=None,  # 不设置总超时时间
+            connect=30,  # 连接超时30秒
+            sock_read=300,  # socket读取超时5分钟，用于大文件传输
+        )
+
+        self.session = aiohttp.ClientSession(
+            connector=connector,
+            timeout=timeout,
+            read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，增大以处理大chunk
+            max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止chunk too big
+            max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小
+        )
         self.running = True
 
         # 注册客户端
@@ -469,6 +497,9 @@ class SSEClient:
 
         # 启动SSE监听
         self.sse_task = asyncio.create_task(self._connect_sse())
+
+        # 启动分块清理任务
+        asyncio.create_task(self._chunk_cleanup_loop())
 
     async def stop(self) -> None:
         """停止客户端"""
@@ -520,7 +551,27 @@ class SSEClient:
     async def _connect_sse(self) -> None:
         """连接SSE事件流"""
         if not self.session:
-            self.session = aiohttp.ClientSession()
+            # 重新创建session（如果被意外关闭）
+            connector = aiohttp.TCPConnector(
+                limit=100,
+                limit_per_host=30,
+                ttl_dns_cache=300,
+                use_dns_cache=True,
+            )
+
+            timeout = aiohttp.ClientTimeout(
+                total=None,  # 不设置总超时时间
+                connect=30,  # 连接超时30秒
+                sock_read=300,  # socket读取超时5分钟，用于大文件传输
+            )
+
+            self.session = aiohttp.ClientSession(
+                connector=connector,
+                timeout=timeout,
+                read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，增大以处理大chunk
+                max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止chunk too big
+                max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小
+            )
 
         retry_count = 0
         max_retries = -1 if self.auto_reconnect else 1
@@ -573,7 +624,7 @@ class SSEClient:
                                     await self._handle_event(event_type, data)
                                 except Exception:
                                     self.logger.exception(
-                                        f"处理事件发生异常，事件类型: {event_type}, 数据: {event_data}",
+                                        f"处理事件发生异常，事件类型: {event_type}, 数据长度: {len(event_data)}",
                                     )
 
                                 # 重置事件数据
@@ -976,6 +1027,198 @@ class SSEClient:
             "user_avatar": None,
         }
 
+    async def _handle_file_chunk(
+        self,
+        _event_type: str,
+        data: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """处理文件分块数据
+
+        Args:
+            _event_type: 事件类型
+            data: 分块数据
+
+        Returns:
+            Optional[Dict[str, Any]]: 响应数据，如果是中间分块则返回None
+        """
+        try:
+            chunk_id = data.get("chunk_id")
+            chunk_index = data.get("chunk_index")
+            total_chunks = data.get("total_chunks")
+            chunk_data = data.get("chunk_data")
+            total_size = data.get("total_size")
+            mime_type = data.get("mime_type")
+            filename = data.get("filename")
+            file_type = data.get("file_type")
+
+            if not all([chunk_id, chunk_index is not None, total_chunks, chunk_data]):
+                self.logger.error(f"分块数据不完整: {data}")
+                return {"success": False, "error": "分块数据不完整"}
+
+            # 类型检查和转换
+            if not isinstance(chunk_id, str) or not isinstance(chunk_index, int) or not isinstance(total_chunks, int):
+                self.logger.error("分块数据类型错误")
+                return {"success": False, "error": "分块数据类型错误"}
+
+            self.logger.debug(f"接收分块: {filename} [{chunk_index + 1}/{total_chunks}]")
+
+            # 初始化或更新chunk buffer
+            if chunk_id not in self.chunk_buffers:
+                self.chunk_buffers[chunk_id] = {
+                    "chunks": [None] * total_chunks,
+                    "total_chunks": total_chunks,
+                    "received_chunks": 0,
+                    "total_size": total_size,
+                    "mime_type": mime_type,
+                    "filename": filename,
+                    "file_type": file_type,
+                }
+                self.chunk_timeouts[chunk_id] = time.time() + self.chunk_timeout_duration
+
+            buffer_info = self.chunk_buffers[chunk_id]
+
+            # 检查分块是否已接收
+            if buffer_info["chunks"][chunk_index] is not None:
+                self.logger.warning(f"重复接收分块: {filename} [{chunk_index + 1}/{total_chunks}]")
+                return None
+
+            # 存储分块数据
+            buffer_info["chunks"][chunk_index] = chunk_data
+            buffer_info["received_chunks"] += 1
+
+            self.logger.debug(f"分块进度: {filename} [{buffer_info['received_chunks']}/{total_chunks}]")
+
+            # 检查是否接收完所有分块
+            if buffer_info["received_chunks"] == total_chunks:
+                # 合并所有分块
+                complete_data = "".join([chunk for chunk in buffer_info["chunks"] if chunk is not None])
+
+                # 解码base64数据
+                try:
+                    file_bytes = base64.b64decode(complete_data)
+
+                    # 调用用户自定义的文件处理回调
+                    await self._on_file_received(
+                        filename or f"file_{chunk_id[:8]}",
+                        file_bytes,
+                        mime_type or "application/octet-stream",
+                        file_type or "file",
+                    )
+
+                    # 清理缓冲区
+                    del self.chunk_buffers[chunk_id]
+                    del self.chunk_timeouts[chunk_id]
+
+                except Exception as e:
+                    self.logger.exception(f"文件解码失败: {filename}")
+                    # 清理缓冲区
+                    del self.chunk_buffers[chunk_id]
+                    del self.chunk_timeouts[chunk_id]
+                    return {"success": False, "error": f"文件解码失败: {e!s}"}
+                else:
+                    self.logger.success(f"文件接收完成: {filename} ({len(file_bytes)} bytes)")
+                    return {"success": True, "message": f"文件 {filename} 接收完成"}
+
+        except Exception as e:
+            self.logger.exception("处理文件分块异常")
+            return {"success": False, "error": str(e)}
+        else:
+            return None  # 中间分块不需要响应
+
+    async def _handle_file_chunk_complete(
+        self,
+        _event_type: str,
+        data: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """处理文件分块传输完成事件
+
+        Args:
+            _event_type: 事件类型
+            data: 完成事件数据
+
+        Returns:
+            Optional[Dict[str, Any]]: 响应数据
+        """
+        chunk_id = data.get("chunk_id")
+        success = data.get("success", False)
+        message = data.get("message", "")
+
+        if success:
+            self.logger.info(f"服务端确认传输完成: {message}")
+        else:
+            self.logger.error(f"服务端传输失败: {message}")
+            # 清理可能存在的缓冲区
+            if chunk_id and isinstance(chunk_id, str) and chunk_id in self.chunk_buffers:
+                del self.chunk_buffers[chunk_id]
+                del self.chunk_timeouts[chunk_id]
+
+        return None  # 不需要响应
+
+    async def _on_file_received(self, filename: str, file_bytes: bytes, mime_type: str, file_type: str) -> None:
+        """文件接收完成回调
+
+        用户可以重写此方法来自定义文件处理逻辑
+
+        Args:
+            filename: 文件名
+            file_bytes: 文件字节数据
+            mime_type: MIME类型
+            file_type: 文件类型 (image/file)
+        """
+        self.logger.info(f"收到文件: {filename} ({len(file_bytes)} bytes, {mime_type})")
+
+        # 默认实现：保存文件到当前目录
+        try:
+            file_path = Path(filename)
+            # 确保文件名安全
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in "._-")
+            if not safe_filename:
+                safe_filename = f"file_{hashlib.md5(file_bytes).hexdigest()[:8]}"
+
+            # 添加扩展名
+            if not safe_filename.count("."):
+                if mime_type.startswith("image/"):
+                    ext = mime_type.split("/")[1]
+                    safe_filename += f".{ext}"
+                elif file_type == "file":
+                    safe_filename += ".bin"
+
+            file_path = Path(safe_filename)
+            file_path.write_bytes(file_bytes)
+
+        except Exception:
+            self.logger.exception("保存文件失败")
+        else:
+            self.logger.success(f"文件已保存: {file_path}")
+
+    async def _chunk_cleanup_loop(self) -> None:
+        """分块清理循环任务"""
+        while self.running:
+            try:
+                await asyncio.sleep(60)  # 每分钟检查一次
+                await self._cleanup_expired_chunks()
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                self.logger.exception("分块清理任务异常")
+
+    async def _cleanup_expired_chunks(self) -> None:
+        """清理过期的分块缓冲区"""
+        current_time = time.time()
+        expired_chunk_ids = []
+
+        for chunk_id, timeout_time in self.chunk_timeouts.items():
+            if current_time > timeout_time:
+                expired_chunk_ids.append(chunk_id)
+
+        for chunk_id in expired_chunk_ids:
+            buffer_info = self.chunk_buffers.get(chunk_id, {})
+            filename = buffer_info.get("filename", "unknown")
+            self.logger.warning(f"清理过期分块缓冲区: {filename} (chunk_id: {chunk_id})")
+
+            del self.chunk_buffers[chunk_id]
+            del self.chunk_timeouts[chunk_id]
+
 
 # 使用示例
 async def example_usage():
@@ -989,6 +1232,25 @@ async def example_usage():
         ) -> Dict[str, Any]:
             self.logger.info(f"收到发送消息请求: {data}")
             return await super()._handle_send_message(_event_type, data)
+
+        async def _on_file_received(self, filename: str, file_bytes: bytes, mime_type: str, file_type: str) -> None:
+            """自定义文件接收处理"""
+            self.logger.info(f"接收到文件: {filename} ({len(file_bytes)} bytes, {mime_type}, {file_type})")
+
+            # 这里可以实现自定义的文件处理逻辑
+            # 比如保存到特定目录、上传到云存储等
+            save_dir = Path("received_files")
+            save_dir.mkdir(exist_ok=True)
+
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in "._-") or f"file_{int(time.time())}"
+            file_path = save_dir / safe_filename
+
+            try:
+                file_path.write_bytes(file_bytes)
+            except Exception:
+                self.logger.exception("文件保存失败")
+            else:
+                self.logger.success(f"文件已保存到: {file_path}")
 
     # 创建客户端
     client = MyClient(
@@ -1004,19 +1266,24 @@ async def example_usage():
     # 订阅频道
     await client.subscribe_channel("group_123456")
 
+    # 发送包含大图片的消息
+    large_image_path = "large_image.jpg"  # 假设这是一个大图片文件
+
+    # 创建消息段
+    segments = [
+        text("这是一张大图片："),
+        image(file_path=large_image_path),  # 大图片会自动分块传输
+    ]
+
     # 发送消息
     msg = ReceiveMessage(
         from_id="user123",
         from_name="张三",
-        # 以下是可选参数，有默认值
         from_nickname="小张",
         is_to_me=False,
         is_self=False,
         raw_content=None,
-        segments=[
-            text("你好，世界！"),
-            image("https://example.com/image.jpg"),
-        ],
+        segments=segments,
         channel_id="group_123456",
         channel_name="测试频道",
     )
