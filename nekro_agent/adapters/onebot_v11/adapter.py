@@ -178,7 +178,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         bot: Bot = get_bot()
         if bot:
             logger.info(f"Self_id:{bot.self_id} user_name:{bot.self_id}")
-            return PlatformUser(user_id=str(bot.self_id), user_name=bot.self_id)
+            return PlatformUser(platform_name="QQ", user_id=str(bot.self_id), user_name=bot.self_id)
         raise ValueError("No bot found")
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:

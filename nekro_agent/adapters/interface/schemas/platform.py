@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 
 class PlatformUser(BaseModel):
+    platform_name: str = Field(..., description="平台名称")
     user_id: str = Field(..., description="用户ID")
     user_name: str = Field(..., description="用户名称")
     user_avatar: str = Field(default="", description="用户头像")
