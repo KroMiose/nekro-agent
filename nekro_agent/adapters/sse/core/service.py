@@ -9,7 +9,9 @@ SSE 服务层
 2. 用户信息获取
 3. 频道信息获取
 4. 消息反应设置
-5. 大文件分块传输
+5. 大文件分块推送（解决客户端接收时的"chunk too big"问题）
+
+注意：分块传输是服务端向客户端推送大文件时使用，避免SSE事件过大导致客户端接收错误。
 """
 
 import asyncio
@@ -150,9 +152,27 @@ class SseApiService:
             logger.warning("没有可用的SSE客户端")
             return False
 
-        # 检查消息段是否包含大文件
-        processed_message = await self._process_large_files(message, clients)
+        # 检查消息段是否包含大文件，直接分块发送
+        has_large_files = await self._process_large_files(message, clients)
+        
+        # 如果包含大文件，直接返回成功（文件已通过分块方式发送）
+        if has_large_files:
+            logger.info("消息包含大文件，已通过分块方式发送")
+            return True
 
+        # 普通消息正常发送
+        return await self._send_normal_message(clients, message)
+
+    async def _send_normal_message(self, clients: List[SseClient], message: SseMessage) -> bool:
+        """发送普通消息（不包含大文件）
+
+        Args:
+            clients: 客户端列表
+            message: 要发送的消息
+
+        Returns:
+            bool: 是否成功发送
+        """
         # 构建请求
         request_id = str(uuid.uuid4())
 
@@ -178,8 +198,8 @@ class SseApiService:
                         data=SseRequest(
                             request_id=request_id,
                             data={
-                                "channel_id": processed_message.channel_id,
-                                "segments": [segment.model_dump() for segment in processed_message.segments],
+                                "channel_id": message.channel_id,
+                                "segments": [segment.model_dump() for segment in message.segments],
                             },
                         ),
                     ),
@@ -201,17 +221,17 @@ class SseApiService:
         # 所有客户端均发送失败
         return False
 
-    async def _process_large_files(self, message: SseMessage, clients: List[SseClient]) -> SseMessage:
-        """处理消息中的大文件，对大文件进行分块传输
+    async def _process_large_files(self, message: SseMessage, clients: List[SseClient]) -> bool:
+        """检查并处理消息中的大文件，对大文件进行分块传输
 
         Args:
             message: 原始消息
             clients: 目标客户端列表
 
         Returns:
-            SseMessage: 处理后的消息（大文件segment会被替换为占位符）
+            bool: 是否包含大文件（已分块发送）
         """
-        new_segments = []
+        has_large_files = False
 
         for segment in message.segments:
             segment_dict = segment.model_dump()
@@ -230,55 +250,26 @@ class SseApiService:
                         if self._should_use_chunked_transfer(data):
                             # 需要分块传输
                             filename = segment_dict.get("name", f"file_{uuid.uuid4().hex[:8]}")
+                            has_large_files = True
+
+                            logger.info(f"检测到大文件 {filename}，开始分块传输")
 
                             # 向所有客户端分块发送文件
                             for client in clients:
-                                await self._send_chunked_data(
+                                success = await self._send_chunked_data(
                                     client,
                                     data,
                                     mime_type,
                                     filename,
                                     segment_type or "file",  # 确保不是None
                                 )
-
-                            # 创建占位符segment，不包含实际数据
-                            placeholder_segment = segment_dict.copy()
-                            placeholder_segment["base64_url"] = ""
-                            placeholder_segment["url"] = f"chunked://{uuid.uuid4().hex}"  # 特殊标记
-                            new_segments.append(placeholder_segment)
-                            continue
+                                if not success:
+                                    logger.error(f"向客户端 {client.client_id} 分块发送文件失败")
 
                     except Exception as e:
                         logger.error(f"处理大文件失败: {e}")
 
-            # 普通segment或处理失败的segment直接添加
-            new_segments.append(segment_dict)
-
-        # 重新构建消息
-        from nekro_agent.adapters.sse.schemas import SseSegmentUnion
-
-        rebuilt_segments = []
-        for seg_dict in new_segments:
-            seg_type = seg_dict.get("type")
-            if seg_type == "text":
-                from nekro_agent.adapters.sse.schemas import SseTextSegment
-
-                rebuilt_segments.append(SseTextSegment(**seg_dict))
-            elif seg_type == "image":
-                from nekro_agent.adapters.sse.schemas import SseImageSegment
-
-                rebuilt_segments.append(SseImageSegment(**seg_dict))
-            elif seg_type == "file":
-                from nekro_agent.adapters.sse.schemas import SseFileSegment
-
-                rebuilt_segments.append(SseFileSegment(**seg_dict))
-            elif seg_type == "at":
-                from nekro_agent.adapters.sse.schemas import SseAtSegment
-
-                rebuilt_segments.append(SseAtSegment(**seg_dict))
-            # 其他类型也可以添加
-
-        return SseMessage(channel_id=message.channel_id, segments=rebuilt_segments, timestamp=message.timestamp)
+        return has_large_files
 
     async def _request_from_client(
         self,

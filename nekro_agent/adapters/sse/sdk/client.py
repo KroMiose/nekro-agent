@@ -433,7 +433,7 @@ class SSEClient:
         self.running = False
         self.event_handlers: Dict[str, EventHandler] = {}
 
-        # 分块接收相关
+        # 分块接收相关（仅用于接收服务端推送的大文件）
         self.chunk_buffers: Dict[str, Dict[str, Any]] = {}  # chunk_id -> {chunks: [], total_chunks: int, ...}
         self.chunk_timeouts: Dict[str, float] = {}  # chunk_id -> timeout_timestamp
         self.chunk_timeout_duration = 300  # 5分钟超时
@@ -443,7 +443,7 @@ class SSEClient:
         self.register_handler("get_user_info", self._handle_get_user_info)
         self.register_handler("get_channel_info", self._handle_get_channel_info)
         self.register_handler("get_self_info", self._handle_get_self_info)
-        # 注册分块传输处理器
+        # 注册分块接收处理器（仅处理服务端推送的大文件）
         self.register_handler("file_chunk", self._handle_file_chunk)
         self.register_handler("file_chunk_complete", self._handle_file_chunk_complete)
 
@@ -462,7 +462,7 @@ class SSEClient:
             self.logger.info("客户端已经在运行")
             return
 
-        # 配置session以支持大数据传输
+        # 配置session，重点解决SSE接收时的"chunk too big"问题
         connector = aiohttp.TCPConnector(
             limit=100,
             limit_per_host=30,
@@ -473,15 +473,15 @@ class SSEClient:
         timeout = aiohttp.ClientTimeout(
             total=None,  # 不设置总超时时间
             connect=30,  # 连接超时30秒
-            sock_read=300,  # socket读取超时5分钟，用于大文件传输
+            sock_read=300,  # socket读取超时5分钟，用于接收大文件分块
         )
 
         self.session = aiohttp.ClientSession(
             connector=connector,
             timeout=timeout,
-            read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，增大以处理大chunk
-            max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止chunk too big
-            max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小
+            read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，处理SSE大chunk
+            max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止SSE chunk too big
+            max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小，防止SSE chunk too big
         )
         self.running = True
 
@@ -498,7 +498,7 @@ class SSEClient:
         # 启动SSE监听
         self.sse_task = asyncio.create_task(self._connect_sse())
 
-        # 启动分块清理任务
+        # 启动分块清理任务（清理接收缓冲区）
         asyncio.create_task(self._chunk_cleanup_loop())
 
     async def stop(self) -> None:
@@ -562,15 +562,15 @@ class SSEClient:
             timeout = aiohttp.ClientTimeout(
                 total=None,  # 不设置总超时时间
                 connect=30,  # 连接超时30秒
-                sock_read=300,  # socket读取超时5分钟，用于大文件传输
+                sock_read=300,  # socket读取超时5分钟，用于接收大文件分块
             )
 
             self.session = aiohttp.ClientSession(
                 connector=connector,
                 timeout=timeout,
-                read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，增大以处理大chunk
-                max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止chunk too big
-                max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小
+                read_bufsize=2 * 1024 * 1024,  # 2MB读取缓冲区，处理SSE大chunk
+                max_line_size=8 * 1024 * 1024,  # 8MB最大行大小，防止SSE chunk too big
+                max_field_size=16 * 1024 * 1024,  # 16MB最大字段大小，防止SSE chunk too big
             )
 
         retry_count = 0
@@ -827,14 +827,14 @@ class SSEClient:
         command_data = {
             "cmd": "message",
             "channel_id": channel_id,
-            "message": message.dict(),
+            "message": message.model_dump(),
         }
 
         headers = {"X-Client-ID": self.client_id}
 
         # 添加日志，打印消息发送信息
         self.logger.info(f"发送消息到频道: {channel_id}, URL: {url}")
-        self.logger.debug(f"消息内容: {message.dict()}")
+        self.logger.debug(f"消息内容: {message.model_dump()}")
 
         async with self.session.post(
             url,
@@ -1032,7 +1032,7 @@ class SSEClient:
         _event_type: str,
         data: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
-        """处理文件分块数据
+        """处理服务端推送的文件分块数据
 
         Args:
             _event_type: 事件类型
@@ -1130,7 +1130,7 @@ class SSEClient:
         _event_type: str,
         data: Dict[str, Any],
     ) -> Optional[Dict[str, Any]]:
-        """处理文件分块传输完成事件
+        """处理服务端文件分块传输完成事件
 
         Args:
             _event_type: 事件类型
@@ -1155,7 +1155,7 @@ class SSEClient:
         return None  # 不需要响应
 
     async def _on_file_received(self, filename: str, file_bytes: bytes, mime_type: str, file_type: str) -> None:
-        """文件接收完成回调
+        """服务端推送文件接收完成回调
 
         用户可以重写此方法来自定义文件处理逻辑
 
@@ -1266,13 +1266,13 @@ async def example_usage():
     # 订阅频道
     await client.subscribe_channel("group_123456")
 
-    # 发送包含大图片的消息
-    large_image_path = "large_image.jpg"  # 假设这是一个大图片文件
+    # 发送普通消息
+    large_image_path = "large_image.jpg"  # 大图片文件
 
     # 创建消息段
     segments = [
-        text("这是一张大图片："),
-        image(file_path=large_image_path),  # 大图片会自动分块传输
+        text("这是一张图片："),
+        image(file_path=large_image_path),
     ]
 
     # 发送消息
