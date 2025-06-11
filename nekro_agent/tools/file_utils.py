@@ -47,14 +47,14 @@ class FileUtils:
         return convert_filepath_to_sandbox_upload_path(Path(host_filepath))
 
     @classmethod
-    def get_sandbox_shared_host_path(cls, chat_key: str, container_key: str) -> Path:
+    def get_sandbox_shared_host_path(cls, container_key: str) -> Path:
         """获取沙盒共享目录的宿主机路径
 
         Args:
             chat_key: 聊天会话ID
             container_key: 容器ID
         """
-        path = cls.to_absolute_path(SANDBOX_SHARED_HOST_DIR) / chat_key / container_key
+        path = cls.to_absolute_path(SANDBOX_SHARED_HOST_DIR) / container_key
         path.mkdir(parents=True, exist_ok=True)
         return path
 
@@ -102,7 +102,7 @@ class FileSystem:
     @property
     def shared_path(self) -> Path:
         """获取当前会话的文件共享目录"""
-        return FileUtils.get_sandbox_shared_host_path(self.chat_key, self.container_key)
+        return FileUtils.get_sandbox_shared_host_path(self.container_key)
 
     @property
     def upload_path(self) -> Path:
