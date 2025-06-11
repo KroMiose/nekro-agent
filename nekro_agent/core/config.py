@@ -64,7 +64,10 @@ class PluginConfig(ConfigBase):
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(is_secret=True, placeholder="nk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx").model_dump(),
     )
-    ENSURE_SFW_CONTENT: bool = Field(default=True, json_schema_extra=ExtraField(is_hidden=True).model_dump())
+    ENSURE_SFW_CONTENT: bool = Field(
+        default=True,
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
 
     """应用配置"""
     APP_LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
@@ -82,21 +85,28 @@ class PluginConfig(ConfigBase):
         title="Minecraft 服务器 WebSocket 地址",
         description="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
         json_schema_extra=ExtraField(
-            load_to_nonebot_env=True, load_nbenv_as="minecraft_ws_urls", is_textarea=True,
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_ws_urls",
+            is_textarea=True,
         ).model_dump(),
     )
     MINECRAFT_ACCESS_TOKEN: str = Field(
         default="",
         title="Minecraft 服务器 WebSocket 认证密钥",
         description="用于验证连接",
-        json_schema_extra=ExtraField(load_to_nonebot_env=True, load_nbenv_as="minecraft_access_token").model_dump(),
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_access_token",
+        ).model_dump(),
     )
     MINECRAFT_SERVER_RCON: str = Field(
         default="{}",
         title="Minecraft 服务器 RCCON 地址",
         description="Minecraft 服务器 RCCON 地址，用于远程执行指令",
         json_schema_extra=ExtraField(
-            load_to_nonebot_env=True, load_nbenv_as="minecraft_server_rcon", is_textarea=True,
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_server_rcon",
+            is_textarea=True,
         ).model_dump(),
     )
     BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
@@ -118,12 +128,19 @@ class PluginConfig(ConfigBase):
     ADMIN_CHAT_KEY: str = Field(
         default="",
         title="管理会话频道",
-        json_schema_extra=ExtraField(is_secret=True, placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx").model_dump(),
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
+        ).model_dump(),
     )
     SAVE_PROMPTS_LOG: bool = Field(default=False, title="保存聊天提示词生成日志")
     MAX_UPLOAD_SIZE_MB: int = Field(default=10, title="上传文件大小限制 (MB)")
     ENABLE_COMMAND_UNAUTHORIZED_OUTPUT: bool = Field(default=False, title="启用未授权命令反馈")
-    DEFAULT_PROXY: str = Field(default="", title="默认代理", json_schema_extra={"placeholder": "例: http://127.0.0.1:7890"})
+    DEFAULT_PROXY: str = Field(
+        default="",
+        title="默认代理",
+        json_schema_extra=ExtraField(placeholder="例: http://127.0.0.1:7890").model_dump(),
+    )
 
     """OpenAI API 配置"""
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
@@ -171,7 +188,11 @@ class PluginConfig(ConfigBase):
     USE_MODEL_GROUP: str = Field(
         default="default",
         title="使用的主模型组",
-        json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="chat").model_dump(),
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            required=True,
+            model_type="chat",
+        ).model_dump(),
         description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
@@ -484,34 +505,39 @@ class PluginConfig(ConfigBase):
                     logger.error(f"加载配置到 nonebot 环境变量失败: {e}")
 
     @classmethod
-    def load_config(cls, file_path: Path):
+    def load_config(cls, file_path: Optional[Path] = None, auto_register: bool = True):
         """加载配置文件"""
-        config = super().load_config(file_path=file_path)
+        config = super().load_config(file_path=file_path, auto_register=auto_register)
         config.load_config_to_env()
         return config
 
 
+# 设置配置键和文件路径
+PluginConfig.set_config_key("system")
+PluginConfig.set_config_file_path(CONFIG_PATH)
+
 try:
-    config = PluginConfig.load_config(file_path=CONFIG_PATH)
+    config = PluginConfig.load_config()
+    config_schema = config.model_json_schema()
 except Exception as e:
     print(f"Nekro Agent 配置文件加载失败: {e} | 请检查配置文件是否符合语法要求")
     print("应用将退出...")
     exit(1)
 
-config.dump_config(file_path=CONFIG_PATH)
+config.dump_config()
 
 
 def save_config():
     """保存配置"""
     global config
-    config.dump_config(file_path=CONFIG_PATH)
+    config.dump_config()
 
 
 def reload_config():
     """重新加载配置文件"""
     global config
 
-    new_config = PluginConfig.load_config(file_path=CONFIG_PATH)
+    new_config = PluginConfig.load_config()
     # 更新配置字段
     for field_name in PluginConfig.model_fields:
         value = getattr(new_config, field_name)

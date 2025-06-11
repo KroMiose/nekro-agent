@@ -1,6 +1,5 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
-import { configApi } from './config'
 
 export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
 
@@ -306,7 +305,8 @@ export const pluginsApi = {
 
   // 获取模型组列表
   getModelGroups: async () => {
-    return configApi.getModelGroups()
+    const { unifiedConfigApi } = await import('./unified-config')
+  return unifiedConfigApi.getModelGroups()
   },
 
   // 删除云端插件

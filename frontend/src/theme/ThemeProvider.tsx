@@ -236,7 +236,6 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
             },
             '&:hover': {
               boxShadow: UI_STYLES.getShadow('medium'),
-              transform: 'translateY(-2px)',
               borderColor: getAlphaColor(extendedPalette.primary.main, effectiveMode === 'light' ? 0.1 : 0.18),
               '&:before': {
                 opacity: 1,
@@ -328,9 +327,6 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
             fontWeight: 600,
             textTransform: 'none',
             transition: 'all 0.2s ease',
-            '&:hover': {
-              transform: 'translateY(-2px)',
-            },
           },
         },
       },

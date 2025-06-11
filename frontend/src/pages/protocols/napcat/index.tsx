@@ -22,7 +22,7 @@ import {
   Delete as DeleteIcon,
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
-import { configApi } from '../../../services/api/config'
+import { unifiedConfigApi } from '../../../services/api/unified-config'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -85,7 +85,7 @@ export default function NapCatPage() {
   const { data: napCatConfig } = useQuery({
     queryKey: ['config', 'NAPCAT_ACCESS_URL'],
     queryFn: async () => {
-      const response = await configApi.getConfig('NAPCAT_ACCESS_URL')
+      const response = await unifiedConfigApi.getConfigItem('system', 'NAPCAT_ACCESS_URL')
       return response.value as string
     },
   })

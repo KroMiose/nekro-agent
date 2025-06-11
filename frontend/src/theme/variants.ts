@@ -395,12 +395,15 @@ export const UNIFIED_TABLE_STYLES = {
     return {
       willChange: 'background-color',
       transition: 'background-color 0.15s ease',
-      '&:hover': {
-        backgroundColor: alpha(palette.primary.main, 0.08),
-      },
       '&:nth-of-type(odd)': {
         backgroundColor:
-          getCurrentThemeMode() === 'light' ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.03)',
+          getCurrentThemeMode() === 'light' ? 'rgba(0, 0, 0, 0.01)' : 'rgba(255, 255, 255, 0.015)',
+      },
+      '&:nth-of-type(even)': {
+        backgroundColor: 'transparent',
+      },
+      '&:hover': {
+        backgroundColor: `${alpha(palette.primary.main, 0.08)} !important`,
       },
     }
   },
@@ -549,6 +552,55 @@ export const UNIFIED_TABLE_STYLES = {
       '&::-webkit-scrollbar-track': {
         backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
         borderRadius: '4px',
+      },
+    }
+  },
+
+  // 嵌套配置行样式
+  get nestedRow(): SxProps<Theme> {
+    const palette = getCurrentExtendedPalette()
+    const mode = getCurrentThemeMode()
+    return {
+      willChange: 'background-color',
+      transition: 'background-color 0.15s ease',
+      '&:nth-of-type(odd)': {
+        backgroundColor: mode === 'light' 
+          ? 'rgba(0, 0, 0, 0.012)' 
+          : 'rgba(255, 255, 255, 0.018)',
+      },
+      '&:nth-of-type(even)': {
+        backgroundColor: 'transparent',
+      },
+      '&:hover': {
+        backgroundColor: `${alpha(palette.primary.main, 0.08)} !important`,
+      },
+    }
+  },
+
+  // 嵌套配置容器样式
+  get nestedContainer(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+    return {
+      backgroundColor: mode === 'light' 
+        ? 'rgba(0, 0, 0, 0.025)' 
+        : 'rgba(255, 255, 255, 0.025)',
+      borderRadius: '0',
+      border: 'none',
+      borderTop: `1px solid ${mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'}`,
+      borderBottom: `1px solid ${mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'}`,
+      margin: '0',
+      padding: '4px 0',
+      overflow: 'hidden',
+      position: 'relative',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: '2px',
+        backgroundColor: alpha(palette.primary.main, 0.4),
       },
     }
   },

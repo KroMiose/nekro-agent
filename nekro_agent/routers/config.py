@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, List, Literal, get_args
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from nekro_agent.core import logger
@@ -15,7 +15,7 @@ from nekro_agent.core.config import (
 )
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
-from nekro_agent.services.config_service import ConfigService
+from nekro_agent.services.config_service import UnifiedConfigService
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.tools.common_util import get_app_version
@@ -47,18 +47,149 @@ def get_field_extra(field: Any, key: str) -> Any:
     return None
 
 
-@router.get("/list", summary="获取可修改的配置列表")
+@router.get("/keys", summary="获取所有配置键列表")
 @require_role(Role.Admin)
-async def get_config_list(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """获取可修改的配置列表"""
+async def get_config_keys(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """获取所有已注册的配置键列表"""
     try:
-        # 使用配置服务获取配置列表
-        modifiable_configs = ConfigService.get_config_list(config)
-        return Ret.success(msg="获取成功", data=modifiable_configs)
+        config_keys = UnifiedConfigService.get_all_config_keys()
+        return Ret.success(msg="获取成功", data=config_keys)
     except Exception as e:
-        logger.error(f"获取配置列表失败: {e}")
+        logger.error(f"获取配置键列表失败: {e}")
         return Ret.error(msg=f"获取失败: {e!s}")
 
+
+@router.get("/info/{config_key}", summary="获取配置基本信息")
+@require_role(Role.Admin)
+async def get_config_info(
+    config_key: str, 
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取指定配置的基本信息"""
+    try:
+        config_info = UnifiedConfigService.get_config_info(config_key)
+        if not config_info:
+            return Ret.fail(msg=f"配置实例不存在: {config_key}")
+        return Ret.success(msg="获取成功", data=config_info)
+    except Exception as e:
+        logger.error(f"获取配置信息失败: {config_key}, 错误: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
+
+
+@router.get("/list/{config_key}", summary="获取指定配置的配置列表")
+@require_role(Role.Admin)
+async def get_config_list(
+    config_key: str, 
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取指定配置的配置列表"""
+    try:
+        config_list = UnifiedConfigService.get_config_list(config_key)
+        return Ret.success(msg="获取成功", data=config_list)
+    except Exception as e:
+        logger.error(f"获取配置列表失败: {config_key}, 错误: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
+
+
+@router.get("/get/{config_key}/{item_key}", summary="获取配置项值")
+@require_role(Role.Admin)
+async def get_config_item(
+    config_key: str, 
+    item_key: str, 
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取指定配置的配置项值"""
+    try:
+        config_item = UnifiedConfigService.get_config_item(config_key, item_key)
+        if not config_item:
+            return Ret.fail(msg="配置项不存在")
+        return Ret.success(msg="获取成功", data=config_item)
+    except Exception as e:
+        logger.error(f"获取配置项失败: {config_key}.{item_key}, 错误: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
+
+
+@router.post("/set/{config_key}/{item_key}", summary="设置配置项值")
+@require_role(Role.Admin)
+async def set_config_value(
+    config_key: str, 
+    item_key: str, 
+    value: str = Query(..., description="配置项值"),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """设置指定配置的配置项值"""
+    try:
+        success, error_msg = UnifiedConfigService.set_config_value(config_key, item_key, value)
+        if not success:
+            return Ret.fail(msg=error_msg)
+        return Ret.success(msg="设置成功")
+    except Exception as e:
+        logger.error(f"设置配置值失败: {config_key}.{item_key}, 错误: {e}")
+        return Ret.error(msg=f"设置失败: {e!s}")
+
+
+@router.post("/batch/{config_key}", summary="批量更新配置")
+@require_role(Role.Admin)
+async def batch_update_config(
+    config_key: str,
+    body: BatchUpdateConfig,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """批量更新指定配置"""
+    try:
+        success, error_msg = UnifiedConfigService.batch_update_config(config_key, body.configs)
+        if not success:
+            return Ret.fail(msg=error_msg or "批量更新失败")
+        
+        # 立即保存配置到文件
+        success, error_msg = UnifiedConfigService.save_config(config_key)
+        if not success:
+            return Ret.fail(msg=f"保存配置失败: {error_msg or '未知错误'}")
+            
+        return Ret.success(msg="批量更新成功")
+    except Exception as e:
+        logger.error(f"批量更新配置失败: {config_key}, 错误: {e}")
+        return Ret.error(msg=f"更新失败: {e!s}")
+
+
+@router.post("/save/{config_key}", summary="保存配置")
+@require_role(Role.Admin)
+async def save_config_api(
+    config_key: str, 
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """保存指定配置到文件"""
+    try:
+        success, error_msg = UnifiedConfigService.save_config(config_key)
+        if not success:
+            return Ret.fail(msg=f"保存失败: {error_msg or '未知错误'}")
+        return Ret.success(msg="保存成功")
+    except Exception as e:
+        logger.error(f"保存配置失败: {config_key}, 错误: {e}")
+        return Ret.error(msg=f"保存失败: {e!s}")
+
+
+@router.post("/reload/{config_key}", summary="重载配置")
+@require_role(Role.Admin)
+async def reload_config_api(
+    config_key: str, 
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """重新加载指定配置"""
+    try:
+        success, error_msg = UnifiedConfigService.reload_config(config_key)
+        if not success:
+            return Ret.fail(msg=f"重载失败: {error_msg or '未知错误'}")
+        return Ret.success(msg="重载成功")
+    except Exception as e:
+        logger.error(f"重载配置失败: {config_key}, 错误: {e}")
+        return Ret.error(msg=f"重载失败: {e!s}")
+
+
+
+
+
+# ==================== 模型组管理API ====================
 
 @router.get("/model-groups", summary="获取模型组列表")
 @require_role(Role.Admin)
@@ -103,92 +234,6 @@ async def delete_model_group(
         return Ret.fail(msg=f"删除失败: {e!s}")
 
 
-@router.get("/get", summary="获取配置值")
-@require_role(Role.Admin)
-async def get_config_item(key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """获取配置值"""
-    try:
-        # 使用配置服务获取配置项
-        config_item = ConfigService.get_config_item(config, key)
-        if not config_item:
-            return Ret.fail(msg="配置项不存在")
-        return Ret.success(msg="获取成功", data=config_item)
-    except Exception as e:
-        logger.error(f"获取配置项失败: {e}")
-        return Ret.error(msg=f"获取失败: {e!s}")
-
-
-@router.post("/set", summary="设置配置值")
-@require_role(Role.Admin)
-async def set_config_value(key: str, value: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """设置配置值"""
-    try:
-        # 使用配置服务设置配置值
-        success, error_msg = ConfigService.set_config_value(config, key, value)
-        if not success:
-            return Ret.fail(msg=error_msg)
-        return Ret.success(msg="设置成功")
-    except Exception as e:
-        logger.error(f"设置配置值失败: {e}")
-        return Ret.error(msg=f"设置失败: {e!s}")
-
-
-@router.post("/batch", summary="批量更新配置")
-@require_role(Role.Admin)
-async def batch_update_config(
-    body: BatchUpdateConfig,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
-    """批量更新配置值"""
-    try:
-        # 使用配置服务批量更新配置
-        success, error_msg = ConfigService.batch_update_config(config, body.configs)
-        if not success:
-            return Ret.fail(msg=error_msg or "批量更新失败")
-        
-        # 立即保存配置到文件
-        success, error_msg = ConfigService.save_config(config, CONFIG_PATH)
-        if not success:
-            return Ret.fail(msg=f"保存配置失败: {error_msg or '未知错误'}")
-            
-        return Ret.success(msg="批量更新成功")
-    except Exception as e:
-        logger.error(f"批量更新配置失败: {e}")
-        return Ret.error(msg=f"更新失败: {e!s}")
-
-
-@router.post("/reload", summary="重载配置")
-@require_role(Role.Admin)
-async def reload_config_api(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """重载配置"""
-    try:
-        reload_config()
-    except Exception as e:
-        return Ret.fail(msg=f"重载失败: {e!s}")
-    return Ret.success(msg="重载成功")
-
-
-@router.post("/save", summary="保存配置")
-@require_role(Role.Admin)
-async def save_config_api(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """保存配置"""
-    try:
-        success, error_msg = ConfigService.save_config(config, CONFIG_PATH)
-        if not success:
-            return Ret.fail(msg=f"保存失败: {error_msg or '未知错误'}")
-        return Ret.success(msg="保存成功")
-    except Exception as e:
-        logger.error(f"保存配置失败: {e}")
-        return Ret.error(msg=f"保存失败: {e!s}")
-
-
-@router.get("/version", summary="获取应用版本")
-@require_role(Role.User)
-async def get_version(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """获取应用版本"""
-    return Ret.success(msg="获取成功", data=get_app_version())
-
-
 @router.get("/model-types", summary="获取支持的模型类型列表")
 @require_role(Role.Admin)
 async def get_model_types(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
@@ -231,3 +276,10 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
     ]
     
     return Ret.success(msg="获取成功", data=model_type_info)
+
+
+@router.get("/version", summary="获取应用版本")
+@require_role(Role.User)
+async def get_version(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """获取应用版本"""
+    return Ret.success(msg="获取成功", data=get_app_version())

@@ -122,7 +122,12 @@ class NekroPlugin:
 
         # 获取配置对象
         if not hasattr(self, "_config"):
-            self._config = self._Configs.load_config(file_path=self._plugin_config_path)
+            # 设置配置类的配置键和文件路径
+            config_key = f"plugin_{self.key}"
+            self._Configs.set_config_key(config_key)
+            self._Configs.set_config_file_path(self._plugin_config_path)
+
+            self._config = self._Configs.load_config(file_path=self._plugin_config_path, auto_register=True)
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)
 

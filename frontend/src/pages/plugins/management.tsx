@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Paper,
@@ -32,9 +32,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  InputAdornment,
-  MenuItem,
-
   Stack,
   Collapse,
   Link,
@@ -46,158 +43,37 @@ import {
 } from '@mui/material'
 
 import {
-  Save as SaveIcon,
   Refresh as RefreshIcon,
   Code as CodeIcon,
   Settings as SettingsIcon,
   Info as InfoIcon,
   ArrowBack as ArrowBackIcon,
-  Visibility as VisibilityIcon,
-  VisibilityOff as VisibilityOffIcon,
-  HelpOutline as HelpOutlineIcon,
-  Add as AddIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
-  Tune as TuneIcon,
   ContentCopy as ContentCopyIcon,
   WebhookOutlined as WebhookIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   KeyboardArrowDown as KeyboardArrowDownIcon,
   Storage as StorageIcon,
-  Launch as LaunchIcon,
   Extension as ExtensionIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Method, Plugin, PluginConfig, pluginsApi } from '../../services/api/plugins'
-import { configApi, ModelTypeOption } from '../../services/api/config'
+import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
+
+import { unifiedConfigApi, createConfigService } from '../../services/api/unified-config'
+import ConfigTable from '../../components/common/ConfigTable'
 import { useNavigate } from 'react-router-dom'
 import {
   pluginTypeColors,
   pluginTypeTexts,
-  configTypeColors,
   methodTypeColors,
   methodTypeTexts,
   methodTypeDescriptions,
 } from '../../theme/variants'
 import { CHIP_VARIANTS } from '../../theme/variants'
 
-// 导入主题化的 Tooltip 组件
-import { ThemedTooltip } from '../../components/common/ThemedTooltip'
-
-// 使用主题化的 Tooltip 组件
-const HtmlTooltip = ThemedTooltip
-
 // 添加 server_addr 配置
 const server_addr = window.location.origin
-
-// 列表编辑对话框组件
-interface ListEditDialogProps {
-  open: boolean
-  onClose: () => void
-  value: Array<string | number | boolean>
-  onChange: (value: Array<string | number | boolean>) => void
-  itemType: string
-  title: string
-}
-
-function ListEditDialog({ open, onClose, value, onChange, itemType, title }: ListEditDialogProps) {
-  const [items, setItems] = useState<Array<string | number | boolean>>(value)
-  const [newItem, setNewItem] = useState<string>('')
-
-  const handleAddItem = () => {
-    if (newItem.trim()) {
-      let parsedItem: string | number | boolean
-      try {
-        switch (itemType) {
-          case 'int':
-            parsedItem = parseInt(newItem)
-            break
-          case 'float':
-            parsedItem = parseFloat(newItem)
-            break
-          case 'bool':
-            parsedItem = newItem.toLowerCase() === 'true'
-            break
-          default:
-            parsedItem = newItem
-        }
-        if (!Number.isNaN(parsedItem)) {
-          setItems([...items, parsedItem])
-          setNewItem('')
-        }
-      } catch {
-        // 忽略解析错误
-      }
-    }
-  }
-
-  const handleDeleteItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index))
-  }
-
-  const handleSave = () => {
-    onChange(items)
-    onClose()
-  }
-
-  return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2}>
-          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 1 }}>
-            <TextField
-              fullWidth
-              size="small"
-              value={newItem}
-              onChange={e => setNewItem(e.target.value)}
-              placeholder={`输入${itemType === 'bool' ? 'true/false' : itemType}类型的值`}
-              onKeyPress={e => e.key === 'Enter' && handleAddItem()}
-              autoComplete="off"
-            />
-            <IconButton onClick={handleAddItem} color="primary" sx={{ p: { xs: 1, sm: 1.2 } }}>
-              <AddIcon />
-            </IconButton>
-          </Box>
-          <List sx={{ maxHeight: 300, overflow: 'auto' }}>
-            {items.map((item, index) => (
-              <ListItem
-                key={index}
-                secondaryAction={
-                  <IconButton
-                    edge="end"
-                    onClick={() => handleDeleteItem(index)}
-                    sx={{ p: { xs: 1, sm: 1.2 } }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
-                }
-              >
-                <Typography>{String(item)}</Typography>
-              </ListItem>
-            ))}
-          </List>
-        </Stack>
-      </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button
-          onClick={onClose}
-          sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
-        >
-          取消
-        </Button>
-        <Button
-          onClick={handleSave}
-          color="primary"
-          variant="contained"
-          sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
-        >
-          保存
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
 
 interface PluginDetailProps {
   plugin: Plugin
@@ -208,13 +84,9 @@ interface PluginDetailProps {
 // 插件详情组件
 function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [activeTab, setActiveTab] = useState(0)
-  const [configValues, setConfigValues] = useState<Record<string, unknown>>({})
   const [message, setMessage] = useState('')
-  const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [resetDataConfirmOpen, setResetDataConfirmOpen] = useState(false)
-  const [saveWarningOpen, setSaveWarningOpen] = useState(false)
-  const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [expandedDataRows, setExpandedDataRows] = useState<Set<number>>(new Set())
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
@@ -227,102 +99,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
-  // 列表编辑状态
-  const [listEditState, setListEditState] = useState<{
-    open: boolean
-    configKey: string | null
-  }>({
-    open: false,
-    configKey: null,
-  })
-
   // 获取插件配置
   const { data: pluginConfig, isLoading: configLoading } = useQuery({
     queryKey: ['plugin-config', plugin?.id],
-    queryFn: () => pluginsApi.getPluginConfig(plugin?.id),
+    queryFn: () => unifiedConfigApi.getPluginConfig(plugin?.id),
     enabled: !!plugin && activeTab === 1 && plugin.hasConfig,
   })
-
-  // 获取模型组列表
-  const { data: modelGroups = {} } = useQuery({
-    queryKey: ['model-groups'],
-    queryFn: () => pluginsApi.getModelGroups(),
-  })
-
-  // 获取模型类型列表
-  const { data: modelTypes = [] } = useQuery<ModelTypeOption[]>({
-    queryKey: ['model-types'],
-    queryFn: () => configApi.getModelTypes(),
-  })
-  const modelTypeMap = useMemo(
-    () => Object.fromEntries(modelTypes.map(mt => [mt.value, mt])),
-    [modelTypes]
-  )
 
   // 获取插件数据
   const { data: pluginData = [], isLoading: isDataLoading } = useQuery({
     queryKey: ['plugin-data', plugin?.id],
     queryFn: () => pluginsApi.getPluginData(plugin.id),
     enabled: !!plugin && activeTab === 4,
-  })
-
-  useEffect(() => {
-    if (pluginConfig) {
-      const initialValues: Record<string, unknown> = {}
-      pluginConfig.forEach(item => {
-        initialValues[item.key] = item.value
-      })
-      setConfigValues(initialValues)
-    }
-  }, [pluginConfig])
-
-  // 检查必填项
-  const checkRequiredFields = useCallback(() => {
-    if (!pluginConfig) return true
-
-    const emptyFields = pluginConfig
-      .filter(config => {
-        if (!config.required) return false
-        const currentValue =
-          configValues[config.key] !== undefined ? configValues[config.key] : config.value
-        return !currentValue || currentValue === '' || currentValue === '[]'
-      })
-      .map(config => config.title || config.key)
-
-    setEmptyRequiredFields(emptyFields)
-    if (emptyFields.length > 0) {
-      setSaveWarningOpen(true)
-      return false
-    }
-    return true
-  }, [pluginConfig, configValues])
-
-  // 保存插件配置
-  const saveMutation = useMutation({
-    mutationFn: (data: Record<string, unknown>) => {
-      // 将所有值转换为字符串
-      const stringValues: Record<string, string> = {}
-      Object.entries(data).forEach(([key, value]) => {
-        if (typeof value === 'boolean') {
-          stringValues[key] = value ? 'true' : 'false'
-        } else if (Array.isArray(value)) {
-          stringValues[key] = JSON.stringify(value)
-        } else if (value === null || value === undefined) {
-          stringValues[key] = ''
-        } else {
-          stringValues[key] = String(value)
-        }
-      })
-      return pluginsApi.savePluginConfig(plugin.id, stringValues)
-    },
-    onSuccess: () => {
-      setMessage('配置已成功保存～')
-      queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
-      setEditingStatus({})
-    },
-    onError: (error: Error) => {
-      setMessage(`保存失败: ${error.message} 呜呜呜 (ノ_<)`)
-    },
   })
 
   // 重载插件
@@ -406,54 +194,6 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     },
   })
 
-  // 追踪哪些配置项已被编辑
-  const [editingStatus, setEditingStatus] = useState<Record<string, boolean>>({})
-
-  const handleConfigChange = (key: string, value: unknown) => {
-    setConfigValues(prev => ({
-      ...prev,
-      [key]: value,
-    }))
-    setEditingStatus(prev => ({
-      ...prev,
-      [key]: true,
-    }))
-  }
-
-  const handleSaveConfig = useCallback(
-    (force: boolean = false) => {
-      if (!force && !checkRequiredFields()) {
-        return
-      }
-      saveMutation.mutate(configValues)
-      setSaveWarningOpen(false)
-    },
-    [checkRequiredFields, configValues, saveMutation, setSaveWarningOpen]
-  )
-
-  // 切换密钥显示状态
-  const toggleSecretVisibility = (key: string) => {
-    setVisibleSecrets(prev => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }
-
-  // 监听保存快捷键
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 仅当活跃标签是配置标签且有修改时才响应快捷键
-      if (activeTab === 1 && Object.keys(editingStatus).length > 0) {
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-          e.preventDefault()
-          handleSaveConfig()
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeTab, editingStatus, handleSaveConfig])
-
   // 获取插件类型
   const getPluginType = () => {
     if (plugin.isBuiltin) return 'builtin'
@@ -465,259 +205,6 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const getPluginTypeText = () => {
     const type = getPluginType()
     return pluginTypeTexts[type] || '未知'
-  }
-
-  // 插件配置项渲染函数
-  const renderConfigInput = (config: PluginConfig) => {
-    const currentValue =
-      configValues[config.key] !== undefined ? configValues[config.key] : config.value
-
-    const isEdited = editingStatus[config.key]
-    const isSecret = config.is_secret
-
-    // 处理列表类型
-    if (config.type === 'list') {
-      const itemType = config.element_type || 'str'
-      let displayValue = '[]'
-
-      try {
-        if (typeof currentValue === 'string') {
-          const parsed = JSON.parse(currentValue as string)
-          displayValue = JSON.stringify(parsed)
-        } else if (Array.isArray(currentValue)) {
-          displayValue = JSON.stringify(currentValue)
-        }
-      } catch (e) {
-        console.error('解析列表值失败:', e)
-      }
-
-      return (
-        <Box sx={{ width: '100%' }}>
-          <TextField
-            value={displayValue}
-            size="small"
-            fullWidth
-            sx={{
-              '& .MuiInputBase-root': {
-                width: '100%',
-                ...(isEdited && {
-                  backgroundColor: theme =>
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(144, 202, 249, 0.08)'
-                      : 'rgba(33, 150, 243, 0.08)',
-                }),
-              },
-            }}
-            InputProps={{
-              readOnly: true,
-              startAdornment: (
-                <InputAdornment position="start">
-                  <Chip
-                    label={`${itemType}[]`}
-                    size="small"
-                    color={configTypeColors[itemType] || 'default'}
-                    variant="outlined"
-                    sx={{
-                      ...CHIP_VARIANTS.base(isSmall),
-                      mr: 1,
-                    }}
-                  />
-                </InputAdornment>
-              ),
-              endAdornment: (
-                <InputAdornment position="end">
-                  <Tooltip title="编辑列表">
-                    <IconButton
-                      onClick={() => setListEditState({ open: true, configKey: config.key })}
-                      edge="end"
-                    >
-                      <TuneIcon />
-                    </IconButton>
-                  </Tooltip>
-                </InputAdornment>
-              ),
-            }}
-            autoComplete="off"
-          />
-          {listEditState.configKey === config.key && (
-            <ListEditDialog
-              open={listEditState.open}
-              onClose={() => setListEditState({ open: false, configKey: null })}
-              value={
-                typeof currentValue === 'string'
-                  ? JSON.parse(currentValue)
-                  : Array.isArray(currentValue)
-                    ? currentValue
-                    : []
-              }
-              onChange={newValue => handleConfigChange(config.key, newValue)}
-              itemType={itemType}
-              title={`编辑${config.title || config.key}`}
-            />
-          )}
-        </Box>
-      )
-    }
-
-    // 如果是模型组引用，显示模型组选择器
-    if (config.ref_model_groups) {
-      const typeOption = modelTypeMap[config.model_type as string]
-      let entries = Object.entries(modelGroups)
-      if (typeOption) {
-        entries = entries.filter(([, group]) => group.MODEL_TYPE === typeOption.value)
-      }
-      const modelGroupNames = entries.map(([name]) => name)
-      const currentValueStr = String(currentValue)
-      const isInvalidValue = !modelGroupNames.includes(currentValueStr)
-
-      return (
-        <TextField
-          select
-          value={currentValueStr}
-          onChange={e => handleConfigChange(config.key, e.target.value)}
-          size="small"
-          fullWidth
-          error={isInvalidValue}
-          helperText={isInvalidValue ? '当前选择的模型组已不存在' : undefined}
-          placeholder={config.placeholder}
-          sx={{
-            ...(isEdited && {
-              '& .MuiInputBase-root': {
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(144, 202, 249, 0.08)'
-                    : 'rgba(33, 150, 243, 0.08)',
-              },
-            }),
-          }}
-        >
-          {modelGroupNames.map(name => (
-            <MenuItem key={name} value={name}>
-              {name}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    // 如果是枚举类型，显示选择器
-    if (config.enum) {
-      return (
-        <TextField
-          select
-          value={String(currentValue)}
-          onChange={e => handleConfigChange(config.key, e.target.value)}
-          size="small"
-          fullWidth
-          placeholder={config.placeholder}
-          sx={{
-            ...(isEdited && {
-              '& .MuiInputBase-root': {
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(144, 202, 249, 0.08)'
-                    : 'rgba(33, 150, 243, 0.08)',
-              },
-            }),
-          }}
-        >
-          {config.enum.map(option => (
-            <MenuItem key={option} value={option}>
-              {option}
-            </MenuItem>
-          ))}
-        </TextField>
-      )
-    }
-
-    // 根据类型渲染不同的输入控件
-    switch (config.type) {
-      case 'bool':
-        return (
-          <FormControlLabel
-            control={
-              <Switch
-                checked={currentValue === true || currentValue === 'true'}
-                onChange={e => handleConfigChange(config.key, e.target.checked)}
-                color="primary"
-              />
-            }
-            label={currentValue === true || currentValue === 'true' ? '是' : '否'}
-          />
-        )
-      case 'int':
-      case 'float':
-        return (
-          <TextField
-            type="number"
-            value={String(currentValue)}
-            onChange={e => handleConfigChange(config.key, e.target.value)}
-            size="small"
-            fullWidth
-            placeholder={config.placeholder}
-            autoComplete="off"
-            sx={{
-              ...(isEdited && {
-                '& .MuiInputBase-root': {
-                  backgroundColor: theme =>
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(144, 202, 249, 0.08)'
-                      : 'rgba(33, 150, 243, 0.08)',
-                },
-              }),
-            }}
-          />
-        )
-      default:
-        return (
-          <TextField
-            value={String(currentValue)}
-            onChange={e => handleConfigChange(config.key, e.target.value)}
-            size="small"
-            fullWidth
-            type="text"
-            placeholder={config.placeholder}
-            autoComplete="off"
-            name={`field_${Math.random().toString(36).slice(2)}`}
-            multiline={config.is_textarea}
-            minRows={config.is_textarea ? 3 : 1}
-            maxRows={config.is_textarea ? 8 : 1}
-            inputProps={{
-              autoComplete: 'off',
-              style:
-                isSecret && !visibleSecrets[config.key]
-                  ? ({
-                      '-webkit-text-security': 'disc',
-                      'text-security': 'disc',
-                    } as React.CSSProperties)
-                  : undefined,
-            }}
-            sx={{
-              ...(isEdited && {
-                '& .MuiInputBase-root': {
-                  backgroundColor: theme =>
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(144, 202, 249, 0.08)'
-                      : 'rgba(33, 150, 243, 0.08)',
-                },
-              }),
-            }}
-            InputProps={{
-              ...(isSecret
-                ? {
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton onClick={() => toggleSecretVisibility(config.key)} edge="end">
-                          {visibleSecrets[config.key] ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }
-                : {}),
-            }}
-          />
-        )
-    }
   }
 
   // 按钮点击处理函数
@@ -1021,203 +508,17 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
       {/* 配置项 */}
       {activeTab === 1 && plugin.hasConfig && (
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {configLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', pt: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : pluginConfig && pluginConfig.length > 0 ? (
-            <>
-              <Card variant="outlined" sx={{ mb: 2, flex: 1, overflow: 'auto' }}>
-                <CardContent>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      mb: 2,
-                      flexWrap: isMobile ? 'wrap' : 'nowrap',
-                    }}
-                  >
-                    <Typography variant="subtitle1">插件配置</Typography>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        fontStyle: 'italic',
-                        mt: isMobile ? 1 : 0,
-                        width: isMobile ? '100%' : 'auto',
-                      }}
-                    >
-                      提示：按 Ctrl+S 可快速保存配置
-                    </Typography>
-                  </Box>
-
-                  <TableContainer
-                    sx={{
-                      maxHeight: 'calc(100vh - 350px)',
-                      '&::-webkit-scrollbar': {
-                        width: '8px',
-                        height: '8px',
-                      },
-                      '&::-webkit-scrollbar-thumb': {
-                        backgroundColor: 'rgba(0,0,0,0.2)',
-                        borderRadius: '4px',
-                      },
-                    }}
-                  >
-                    <Table size={isSmall ? 'small' : 'medium'} stickyHeader>
-                      <TableHead>
-                        <TableRow>
-                          <TableCell
-                            width={isMobile ? '40%' : '30%'}
-                            sx={{ py: isSmall ? 1 : 1.5 }}
-                          >
-                            配置项
-                          </TableCell>
-                          <TableCell
-                            width={isMobile ? '15%' : '10%'}
-                            sx={{ py: isSmall ? 1 : 1.5 }}
-                          >
-                            类型
-                          </TableCell>
-                          <TableCell
-                            width={isMobile ? '45%' : '60%'}
-                            sx={{ py: isSmall ? 1 : 1.5 }}
-                          >
-                            值
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {pluginConfig
-                          .filter(item => !item.is_hidden)
-                          .map(item => (
-                            <TableRow key={item.key}>
-                              <TableCell
-                                component="th"
-                                scope="row"
-                                sx={{ py: isSmall ? 0.75 : 1.25 }}
-                              >
-                                <Box>
-                                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                    <Typography
-                                      variant="subtitle2"
-                                      sx={{
-                                        fontWeight: 'bold',
-                                        fontSize: isSmall ? '0.75rem' : '0.875rem',
-                                      }}
-                                    >
-                                      {item.title || item.key}
-                                      {item.required && (
-                                        <Typography component="span" color="error" sx={{ ml: 0.5 }}>
-                                          *
-                                        </Typography>
-                                      )}
-                                    </Typography>
-
-                                    {item.description && (
-                                      <HtmlTooltip
-                                        title={
-                                          <div
-                                            dangerouslySetInnerHTML={{ __html: item.description }}
-                                          />
-                                        }
-                                        placement="right"
-                                      >
-                                        <IconButton size="small" sx={{ ml: 0.5, opacity: 0.6 }}>
-                                          <HelpOutlineIcon sx={{ fontSize: isSmall ? 14 : 16 }} />
-                                        </IconButton>
-                                      </HtmlTooltip>
-                                    )}
-                                  </Box>
-                                  <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                    sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}
-                                  >
-                                    {item.key}
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                              <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
-                                <Chip
-                                  label={item.type}
-                                  size="small"
-                                  color={configTypeColors[item.type] || 'default'}
-                                  variant="outlined"
-                                  sx={CHIP_VARIANTS.base(isSmall)}
-                                />
-                              </TableCell>
-                              <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  {renderConfigInput(item)}
-                                  {item.ref_model_groups &&
-                                    (() => {
-                                      const typeOption = modelTypeMap[item.model_type as string]
-                                      const chipLabel = typeOption
-                                        ? `${typeOption.label}模型组`
-                                        : '模型组'
-                                      const chipColor =
-                                        (typeOption?.color as
-                                          | 'primary'
-                                          | 'secondary'
-                                          | 'success'
-                                          | 'warning'
-                                          | 'info'
-                                          | 'error'
-                                          | 'default') || 'primary'
-                                      return (
-                                        <Box
-                                          sx={{
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: 0.5,
-                                            flexShrink: 0,
-                                          }}
-                                        >
-                                          <Chip
-                                            label={chipLabel}
-                                            size="small"
-                                            color={chipColor}
-                                            variant="outlined"
-                                            sx={{
-                                              ...CHIP_VARIANTS.base(isSmall),
-                                              display: isMobile ? 'none' : 'flex',
-                                            }}
-                                          />
-                                          <Tooltip title="配置模型组">
-                                            <IconButton
-                                              size="small"
-                                              onClick={() => navigate('/settings/model-groups')}
-                                            >
-                                              <LaunchIcon fontSize="inherit" />
-                                            </IconButton>
-                                          </Tooltip>
-                                        </Box>
-                                      )
-                                    })()}
-                                </Box>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                <Button
-                  variant="contained"
-                  startIcon={<SaveIcon />}
-                  onClick={() => handleSaveConfig()}
-                  disabled={Object.keys(editingStatus).length === 0 || saveMutation.isPending}
-                  size={isSmall ? 'small' : 'medium'}
-                >
-                  {saveMutation.isPending ? '保存中...' : '保存配置'}
-                </Button>
-              </Box>
-            </>
+          {pluginConfig && pluginConfig.length > 0 ? (
+            <ConfigTable
+              configKey={`plugin_${plugin.id}`}
+              configService={createConfigService(`plugin_${plugin.id}`)}
+              configs={pluginConfig}
+              loading={configLoading}
+              onRefresh={() =>
+                queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
+              }
+              emptyMessage="此插件没有可配置项"
+            />
           ) : (
             <Alert severity="info">此插件没有可配置项</Alert>
           )}
@@ -1694,40 +995,6 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             确认
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* 必填项警告对话框 */}
-      <Dialog open={saveWarningOpen} onClose={() => setSaveWarningOpen(false)}>
-        <DialogTitle>存在未填写的必填项</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            以下必填项未填写：
-            <List>
-              {emptyRequiredFields.map((field, index) => (
-                <ListItem key={index}>
-                  <Typography color="error">• {field}</Typography>
-                </ListItem>
-              ))}
-            </List>
-            是否仍要继续保存？
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
-            onClick={() => setSaveWarningOpen(false)}
-            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
-          >
-            取消
-          </Button>
-          <Button
-            onClick={() => handleSaveConfig(true)}
-            color="warning"
-            variant="contained"
-            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
-          >
-            继续保存
           </Button>
         </DialogActions>
       </Dialog>

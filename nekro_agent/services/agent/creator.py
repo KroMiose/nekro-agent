@@ -50,7 +50,10 @@ class OpenAIChatMessage:
 
     @classmethod
     def from_template(
-        cls, role: Literal["user", "assistant", "system"], template: PromptTemplate, env: Environment,
+        cls,
+        role: Literal["user", "assistant", "system"],
+        template: PromptTemplate,
+        env: Environment,
     ) -> "OpenAIChatMessage":
         """添加 Jinja2 模板渲染片段"""
         return cls(role, [ContentSegment.text_content(template.render(env))])
@@ -74,6 +77,8 @@ class OpenAIChatMessage:
         """合并消息"""
         if self.role != other.role:
             raise ValueError("消息角色不一致")
+        if isinstance(other.content, str):
+            other.content = [ContentSegment.text_content(other.content)]
         return OpenAIChatMessage(self.role, self.content + other.content)
 
     def tidy(self) -> "OpenAIChatMessage":

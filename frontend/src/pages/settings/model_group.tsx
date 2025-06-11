@@ -48,7 +48,8 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { configApi, ModelGroupConfig } from '../../services/api/config'
+import { ModelGroupConfig } from '../../services/api/config'
+import { unifiedConfigApi } from '../../services/api/unified-config'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 interface EditDialogProps {
@@ -98,7 +99,7 @@ function EditDialog({
   // 获取模型类型列表
   const { data: modelTypes = [] } = useQuery({
     queryKey: ['model-types'],
-    queryFn: () => configApi.getModelTypes(),
+    queryFn: () => unifiedConfigApi.getModelTypes(),
   })
 
   // 获取模型类型的图标
@@ -535,13 +536,13 @@ export default function ModelGroupsPage() {
 
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
-    queryFn: () => configApi.getModelGroups(),
+    queryFn: () => unifiedConfigApi.getModelGroups(),
   })
 
   // 获取模型类型列表，用于显示模型类型名称
   const { data: modelTypes = [] } = useQuery({
     queryKey: ['model-types'],
-    queryFn: () => configApi.getModelTypes(),
+    queryFn: () => unifiedConfigApi.getModelTypes(),
   })
 
   // 获取模型类型的显示名称
@@ -626,7 +627,7 @@ export default function ModelGroupsPage() {
 
   const handleDelete = async (name: string) => {
     try {
-      await configApi.deleteModelGroup(name)
+      await unifiedConfigApi.deleteModelGroup(name)
       setMessage(`模型组 "${name}" 已删除！`)
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
       setDeleteDialogOpen(false)
@@ -649,11 +650,11 @@ export default function ModelGroupsPage() {
     // 检查新模型组名称是否已存在
     if (modelGroups[groupName] && !editingGroup.isCopy && editingGroup.name === groupName) {
       // 如果是编辑已有模型组，允许相同名称
-      await configApi.updateModelGroup(groupName, config)
+      await unifiedConfigApi.updateModelGroup(groupName, config)
       setMessage('保存成功～ (=^･ω･^=)')
     } else if (!modelGroups[groupName]) {
       // 如果是新建或复制模型组，名称必须不存在
-      await configApi.updateModelGroup(groupName, config)
+      await unifiedConfigApi.updateModelGroup(groupName, config)
       setMessage(
         editingGroup.isCopy ? `模型组 "${groupName}" 复制成功～ (≧ω≦)ノ` : '保存成功～ (=^･ω･^=)'
       )
