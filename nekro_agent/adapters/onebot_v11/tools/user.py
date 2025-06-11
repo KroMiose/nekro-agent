@@ -4,7 +4,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.tools.common_util import (
     download_file,
 )
-from nekro_agent.tools.path_convertor import convert_to_container_path
+from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 
 async def get_avatar(user_qq: str, ctx: AgentCtx) -> str:
@@ -31,6 +31,6 @@ async def get_avatar(user_qq: str, ctx: AgentCtx) -> str:
             from_chat_key=ctx.chat_key,
             use_suffix=".png",
         )
-        return str(convert_to_container_path(Path(file_path)))
+        return str(convert_filename_to_sandbox_upload_path(Path(file_path)))
     except Exception as e:
         raise Exception(f"获取用户头像失败: {e}") from e

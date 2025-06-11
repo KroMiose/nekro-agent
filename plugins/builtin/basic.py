@@ -1,5 +1,3 @@
-import difflib
-import hashlib
 import re
 from pathlib import Path
 from typing import Callable, Dict, List
@@ -24,7 +22,7 @@ from nekro_agent.tools.common_util import (
     download_file,
 )
 from nekro_agent.tools.path_convertor import (
-    convert_to_container_path,
+    convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
     is_url_path,
 )
@@ -194,7 +192,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
 
     if is_url_path(file_container_path):
         file_host_path, _ = await download_file(file_container_path, from_chat_key=chat_key)
-        file_container_path = str(convert_to_container_path(Path(file_host_path)))
+        file_container_path = str(convert_filename_to_sandbox_upload_path(Path(file_host_path)))
     else:
         file_host_path = str(
             convert_to_host_path(Path(file_container_path), _ctx.chat_key, container_key=_ctx.container_key),

@@ -15,7 +15,7 @@ from nekro_agent.schemas.chat_message import (
 from nekro_agent.tools.common_util import compress_image
 from nekro_agent.tools.path_convertor import (
     convert_filename_to_access_path,
-    get_sandbox_path,
+    convert_filename_to_sandbox_upload_path,
 )
 
 from ..creator import ContentSegment, OpenAIChatMessage
@@ -97,7 +97,7 @@ async def render_history_data(
                         continue
                     img_seg_pairs.append(
                         (
-                            f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>",
+                            f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>",
                             ContentSegment.image_content_from_path(str(compressed_path)),
                         ),
                     )
@@ -105,7 +105,7 @@ async def render_history_data(
                 else:
                     img_seg_pairs.append(
                         (
-                            f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>",
+                            f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>",
                             ContentSegment.image_content_from_path(str(access_path)),
                         ),
                     )

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from pydantic import BaseModel
 
 from nekro_agent.adapters.utils import adapter_utils
+from nekro_agent.tools.file_utils import FileSystem
 
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface import BaseAdapter
@@ -27,15 +28,24 @@ class AgentCtx(BaseModel):
 
     @property
     def chat_key(self) -> str:
+        """聊天会话唯一ID"""
         if not self.from_chat_key:
             raise ValueError("missing from_chat_key")
         return self.from_chat_key
 
     @property
     def adapter(self) -> "BaseAdapter":
+        """消息关联适配器"""
         if not self.adapter_key:
             raise ValueError("missing adapter_key")
         return adapter_utils.get_adapter(self.adapter_key)
+
+    @property
+    def fs(self) -> FileSystem:
+        """文件工具"""
+        if not self.container_key:
+            return FileSystem(self.chat_key, f"sandbox_{self.chat_key}")
+        return FileSystem(self.chat_key, self.container_key)
 
     @classmethod
     def create_by_db_chat_channel(

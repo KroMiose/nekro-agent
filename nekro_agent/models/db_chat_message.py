@@ -13,7 +13,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentImage,
     segments_from_list,
 )
-from nekro_agent.tools.path_convertor import get_sandbox_path
+from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 
 class DBChatMessage(Model):
@@ -79,15 +79,15 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, 
     for seg in segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))):
         if isinstance(seg, ChatMessageSegmentImage):
             prompt_str += (
-                f"<Image:{get_sandbox_path(seg.file_name)}>"
+                f"<Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
                 if travel_mode
-                else f"<{one_time_code} | Image:{get_sandbox_path(seg.file_name)}>"
+                else f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
             )
         elif isinstance(seg, ChatMessageSegmentFile):
             prompt_str += (
-                f"<File:{get_sandbox_path(seg.file_name)}>"
+                f"<File:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
                 if travel_mode
-                else f"<{one_time_code} | File:{get_sandbox_path(seg.file_name)}>"
+                else f"<{one_time_code} | File:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
             )
         elif isinstance(seg, ChatMessageSegmentAt):
             prompt_str += (

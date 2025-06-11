@@ -26,7 +26,7 @@ from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
-    convert_to_container_path,
+    convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
 )
 
@@ -1020,7 +1020,7 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     except Exception as e:
         raise ValueError(f"Error reading emotion file: {e}") from e
     else:
-        return str(convert_to_container_path(Path(emo_file_path)))
+        return str(convert_filename_to_sandbox_upload_path(Path(emo_file_path)))
 
 
 @plugin.mount_sandbox_method(

@@ -15,7 +15,7 @@ from nekro_agent.services.chat.universal_chat_service import universal_chat_serv
 from nekro_agent.tools.common_util import (
     download_file,
 )
-from nekro_agent.tools.path_convertor import convert_filename_to_container_path
+from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 __all__ = [
     "download_from_url",
@@ -132,7 +132,7 @@ async def download_from_url(url: str, ctx: AgentCtx) -> str:
     """
     try:
         file_path, file_name = await download_file(url, from_chat_key=ctx.chat_key)
-        return str(convert_filename_to_container_path(file_name))
+        return str(convert_filename_to_sandbox_upload_path(file_name))
     except Exception as e:
         logger.exception(f"下载文件失败: {e}")
         raise Exception(f"下载文件失败: {e}") from e
