@@ -23,12 +23,12 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.sse.core.client import SseClientManager
 from nekro_agent.adapters.sse.core.message import SseMessageConverter
-from nekro_agent.adapters.sse.schemas import (
-    SseChannelSubscribeResponse,
-    SseMediaSegment,
-    SseReceiveMessage,
-    SseRegisterResponse,
-    SseSegmentType,
+from nekro_agent.adapters.sse.sdk.models import (
+    ChannelSubscribeResponse,
+    MediaSegment,
+    MessageSegmentType,
+    ReceiveMessage,
+    RegisterResponse,
 )
 from nekro_agent.adapters.sse.tools.common import base64_to_file
 from nekro_agent.adapters.utils import adapter_utils
@@ -141,10 +141,10 @@ def set_client_manager(manager: SseClientManager) -> None:
 
 # 注册命令处理器
 @command_handler("register", RegisterCommand)
-async def handle_register(command: RegisterCommand) -> SseRegisterResponse:
+async def handle_register(command: RegisterCommand) -> RegisterResponse:
     """处理注册命令"""
     client = client_manager.register_client(command.client_name, command.platform)
-    return SseRegisterResponse(
+    return RegisterResponse(
         client_id=client.client_id,
         message=f"客户端 {command.client_name} ({command.client_version}) 注册成功",
     )
@@ -152,26 +152,26 @@ async def handle_register(command: RegisterCommand) -> SseRegisterResponse:
 
 # 订阅频道命令处理器
 @command_handler("subscribe", SubscribeCommand)
-async def handle_subscribe(command: SubscribeCommand, client_id: str) -> SseChannelSubscribeResponse:
+async def handle_subscribe(command: SubscribeCommand, client_id: str) -> ChannelSubscribeResponse:
     """处理订阅频道命令"""
     client = client_manager.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail=f"客户端 {client_id} 不存在")
 
     client.add_channel(command.channel_id)
-    return SseChannelSubscribeResponse(message=f"订阅频道 {command.channel_id} 成功")
+    return ChannelSubscribeResponse(message=f"订阅频道 {command.channel_id} 成功")
 
 
 # 取消订阅频道命令处理器
 @command_handler("unsubscribe", SubscribeCommand)
-async def handle_unsubscribe(command: SubscribeCommand, client_id: str) -> SseChannelSubscribeResponse:
+async def handle_unsubscribe(command: SubscribeCommand, client_id: str) -> ChannelSubscribeResponse:
     """处理取消订阅频道命令"""
     client = client_manager.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail=f"客户端 {client_id} 不存在")
 
     client.remove_channel(command.channel_id)
-    return SseChannelSubscribeResponse(message=f"取消订阅频道 {command.channel_id} 成功")
+    return ChannelSubscribeResponse(message=f"取消订阅频道 {command.channel_id} 成功")
 
 
 # 消息命令处理器
@@ -184,7 +184,7 @@ async def handle_message(command: MessageCommand, client_id: str) -> MessageResp
 
     # 解析消息
     try:
-        sse_message: SseReceiveMessage = SseReceiveMessage(**command.message)
+        sse_message: ReceiveMessage = ReceiveMessage(**command.message)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"消息格式无效: {e}") from e
 
@@ -199,6 +199,7 @@ async def handle_message(command: MessageCommand, client_id: str) -> MessageResp
 
     # 创建用户信息
     platform_user = PlatformUser(
+        platform_name=sse_message.platform_name,
         user_id=sse_message.from_id,
         user_name=sse_message.from_name,
         user_avatar="",

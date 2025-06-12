@@ -761,7 +761,7 @@ export default function ModelGroupsPage() {
                 }}>
                   组名
                 </TableCell>
-                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
+                <TableCell width={isMobile ? '18%' : '15%'} sx={{ 
                   py: isSmall ? 1 : 1.5,
                   ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                 }}>
@@ -774,7 +774,7 @@ export default function ModelGroupsPage() {
                   模型类型
                 </TableCell>
                 {!isSmall && (
-                  <TableCell width="20%" sx={{ 
+                  <TableCell width="18%" sx={{ 
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                   }}>
@@ -782,14 +782,14 @@ export default function ModelGroupsPage() {
                   </TableCell>
                 )}
                 {!isMobile && (
-                  <TableCell width="13%" sx={{ 
+                  <TableCell width="15%" sx={{ 
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                   }}>
                     代理地址
                   </TableCell>
                 )}
-                <TableCell width={isMobile ? '25%' : '18%'} sx={{ 
+                <TableCell width={isMobile ? '23%' : '15%'} sx={{ 
                   py: isSmall ? 1 : 1.5,
                   ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
                 }}>
@@ -831,8 +831,7 @@ export default function ModelGroupsPage() {
                         fontSize: isSmall ? '0.75rem' : 'inherit',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: isMobile ? 100 : 150,
+                        maxWidth: isMobile ? 120 : 180,
                       }}
                     >
                       {config.CHAT_MODEL}

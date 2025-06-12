@@ -21,14 +21,20 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
-from nekro_agent.adapters.sse.schemas import (
-    SseChannelInfo,
-    SseChunkComplete,
-    SseChunkData,
-    SseEvent,
-    SseMessage,
-    SseRequest,
-    SseUserInfo,
+from nekro_agent.adapters.sse.sdk.models import (
+    ChannelInfo,
+    ChunkComplete,
+    ChunkData,
+    Event,
+    GetChannelInfoRequest,
+    GetSelfInfoRequest,
+    GetUserInfoRequest,
+    Request,
+    RequestType,
+    SendMessage,
+    SetMessageReactionRequest,
+    SetMessageReactionResponse,
+    UserInfo,
 )
 from nekro_agent.core import logger
 
@@ -92,9 +98,9 @@ class SseApiService:
                 end_pos = min(start_pos + CHUNK_SIZE, len(data))
                 chunk_data = data[start_pos:end_pos]
 
-                chunk_event = SseEvent(
-                    event="file_chunk",
-                    data=SseChunkData(
+                chunk_event = Event(
+                    event=RequestType.FILE_CHUNK.value,
+                    data=ChunkData(
                         chunk_id=chunk_id,
                         chunk_index=i,
                         total_chunks=total_chunks,
@@ -114,9 +120,9 @@ class SseApiService:
                 await asyncio.sleep(0.01)
 
             # 发送传输完成事件
-            complete_event = SseEvent(
-                event="file_chunk_complete",
-                data=SseChunkComplete(chunk_id=chunk_id, success=True, message=f"文件 {filename} 传输完成"),
+            complete_event = Event(
+                event=RequestType.FILE_CHUNK_COMPLETE.value,
+                data=ChunkComplete(chunk_id=chunk_id, success=True, message=f"文件 {filename} 传输完成"),
             )
             await client.send_event(complete_event)
 
@@ -125,9 +131,9 @@ class SseApiService:
 
             # 发送传输失败事件
             try:
-                error_event = SseEvent(
-                    event="file_chunk_complete",
-                    data=SseChunkComplete(chunk_id=chunk_id, success=False, message=f"文件 {filename} 传输失败: {e!s}"),
+                error_event = Event(
+                    event=RequestType.FILE_CHUNK_COMPLETE.value,
+                    data=ChunkComplete(chunk_id=chunk_id, success=False, message=f"文件 {filename} 传输失败: {e!s}"),
                 )
                 await client.send_event(error_event)
             except Exception:
@@ -138,7 +144,7 @@ class SseApiService:
             logger.success(f"分块传输完成: {filename}")
             return True
 
-    async def send_message_to_clients(self, clients: List[SseClient], message: SseMessage) -> bool:
+    async def send_message_to_clients(self, clients: List[SseClient], message: SendMessage) -> bool:
         """向客户端列表发送消息
 
         Args:
@@ -154,7 +160,7 @@ class SseApiService:
 
         # 检查消息段是否包含大文件，直接分块发送
         has_large_files = await self._process_large_files(message, clients)
-        
+
         # 如果包含大文件，直接返回成功（文件已通过分块方式发送）
         if has_large_files:
             logger.info("消息包含大文件，已通过分块方式发送")
@@ -163,7 +169,7 @@ class SseApiService:
         # 普通消息正常发送
         return await self._send_normal_message(clients, message)
 
-    async def _send_normal_message(self, clients: List[SseClient], message: SseMessage) -> bool:
+    async def _send_normal_message(self, clients: List[SseClient], message: SendMessage) -> bool:
         """发送普通消息（不包含大文件）
 
         Args:
@@ -193,9 +199,9 @@ class SseApiService:
             try:
                 # 发送消息请求
                 await client.send_event(
-                    SseEvent(
-                        event="send_message",
-                        data=SseRequest(
+                    Event(
+                        event=RequestType.SEND_MESSAGE.value,
+                        data=Request(
                             request_id=request_id,
                             data={
                                 "channel_id": message.channel_id,
@@ -221,7 +227,7 @@ class SseApiService:
         # 所有客户端均发送失败
         return False
 
-    async def _process_large_files(self, message: SseMessage, clients: List[SseClient]) -> bool:
+    async def _process_large_files(self, message: SendMessage, clients: List[SseClient]) -> bool:
         """检查并处理消息中的大文件，对大文件进行分块传输
 
         Args:
@@ -273,19 +279,19 @@ class SseApiService:
 
     async def _request_from_client(
         self,
-        request_type: str,
-        data: Dict[str, Any],
+        request_type: RequestType,
+        request_data: BaseModel,
         timeout: float = 10.0,
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[BaseModel]:
         """向任一可用客户端发送请求
 
         Args:
             request_type: 请求类型
-            data: 请求数据
+            request_data: 请求数据（BaseModel对象）
             timeout: 超时时间（秒）
 
         Returns:
-            Optional[Dict[str, Any]]: 响应数据，失败则返回None
+            Optional[BaseModel]: 响应数据，失败则返回None
         """
         # 获取任一可用客户端
         clients = list(self.client_manager.clients.values())
@@ -306,7 +312,8 @@ class SseApiService:
             success = data_dict.get("success", False)
 
             if success:
-                future.set_result(data_dict.get("data", {}))
+                # 直接返回原始响应数据，让调用方进行类型转换
+                future.set_result(response_data)
             else:
                 future.set_result(None)
             return True
@@ -316,11 +323,11 @@ class SseApiService:
         try:
             # 发送请求
             await client.send_event(
-                SseEvent(
-                    event=request_type,
-                    data=SseRequest(
+                Event(
+                    event=request_type.value,
+                    data=Request(
                         request_id=request_id,
-                        data=data,
+                        data=request_data.model_dump(),
                     ),
                 ),
             )
@@ -334,69 +341,68 @@ class SseApiService:
             logger.error(f"向客户端 {client.client_id} 发送请求异常: {request_type}, {e}")
             return None
 
-    async def get_self_info(self) -> Optional[SseUserInfo]:
+    async def get_self_info(self) -> Optional[UserInfo]:
         """获取机器人自身信息
 
         Returns:
-            Optional[SseUserInfo]: 机器人信息，失败则返回None
+            Optional[UserInfo]: 机器人信息，失败则返回None
         """
-        response = await self._request_from_client("get_self_info", {})
+        response = await self._request_from_client(RequestType.GET_SELF_INFO, GetSelfInfoRequest())
 
         if not response:
             return None
 
         try:
-            return SseUserInfo(**response)
+            # 从响应中提取data字段并转换为UserInfo
+            response_dict = response.dict() if hasattr(response, "dict") else {}
+            user_data = response_dict.get("data", {})
+            return UserInfo(**user_data)
         except Exception as e:
             logger.error(f"解析机器人信息失败: {e}")
             return None
 
-    async def get_user_info(self, user_id: str) -> Optional[SseUserInfo]:
+    async def get_user_info(self, user_id: str) -> Optional[UserInfo]:
         """获取用户信息
 
         Args:
             user_id: 用户ID
 
         Returns:
-            Optional[SseUserInfo]: 用户信息，失败则返回None
+            Optional[UserInfo]: 用户信息，失败则返回None
         """
-        response = await self._request_from_client(
-            "get_user_info",
-            {
-                "user_id": user_id,
-            },
-        )
+        response = await self._request_from_client(RequestType.GET_USER_INFO, GetUserInfoRequest(user_id=user_id))
 
         if not response:
             return None
 
         try:
-            return SseUserInfo(**response)
+            # 从响应中提取data字段并转换为UserInfo
+            response_dict = response.dict() if hasattr(response, "dict") else {}
+            user_data = response_dict.get("data", {})
+            return UserInfo(**user_data)
         except Exception as e:
             logger.error(f"解析用户信息失败: {e}")
             return None
 
-    async def get_channel_info(self, channel_id: str) -> Optional[SseChannelInfo]:
+    async def get_channel_info(self, channel_id: str) -> Optional[ChannelInfo]:
         """获取频道信息
 
         Args:
             channel_id: 频道ID
 
         Returns:
-            Optional[SseChannelInfo]: 频道信息，失败则返回None
+            Optional[ChannelInfo]: 频道信息，失败则返回None
         """
-        response = await self._request_from_client(
-            "get_channel_info",
-            {
-                "channel_id": channel_id,
-            },
-        )
+        response = await self._request_from_client(RequestType.GET_CHANNEL_INFO, GetChannelInfoRequest(channel_id=channel_id))
 
         if not response:
             return None
 
         try:
-            return SseChannelInfo(**response)
+            # 从响应中提取data字段并转换为ChannelInfo
+            response_dict = response.dict() if hasattr(response, "dict") else {}
+            channel_data = response_dict.get("data", {})
+            return ChannelInfo(**channel_data)
         except Exception as e:
             logger.error(f"解析频道信息失败: {e}")
             return None
@@ -412,11 +418,20 @@ class SseApiService:
             bool: 是否设置成功
         """
         response = await self._request_from_client(
-            "set_message_reaction",
-            {
-                "message_id": message_id,
-                "status": status,
-            },
+            RequestType.SET_MESSAGE_REACTION,
+            SetMessageReactionRequest(message_id=message_id, status=status),
         )
 
-        return response is not None
+        if not response:
+            return False
+
+        try:
+            # 从响应中提取data字段并转换为SetMessageReactionResponse
+            response_dict = response.dict() if hasattr(response, "dict") else {}
+            reaction_data = response_dict.get("data", {})
+            reaction_response = SetMessageReactionResponse(**reaction_data)
+        except Exception as e:
+            logger.error(f"解析消息反应设置结果失败: {e}")
+            return False
+        else:
+            return reaction_response.success

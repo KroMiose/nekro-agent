@@ -46,7 +46,7 @@ def register_matcher(adapter: BaseAdapter):
         user_qq = str(event.sender.user_id)
         user_avatar: str = f"https://q1.qlogo.cn/g?b=qq&nk={user_qq}&s=640"
 
-        plt_user: PlatformUser = PlatformUser(user_id=user_qq, user_name=sender_name, user_avatar=user_avatar)
+        plt_user: PlatformUser = PlatformUser(platform_name="qq", user_id=user_qq, user_name=sender_name, user_avatar=user_avatar)
 
         # 消息内容处理
         content_data, msg_tome, message_id = await convert_chat_message(event, event.to_me, bot, db_chat_channel, adapter)
@@ -103,7 +103,7 @@ def register_matcher(adapter: BaseAdapter):
 
         # 用户信息处理
         sender_name: Optional[str] = user.username
-        plt_user: PlatformUser = PlatformUser(user_id=platform_userid, user_name=sender_name)
+        plt_user: PlatformUser = PlatformUser(platform_name="qq", user_id=platform_userid, user_name=sender_name)
 
         # 消息内容处理
         content_data, msg_tome, message_id = await convert_chat_message(event, False, bot, db_chat_channel, adapter)

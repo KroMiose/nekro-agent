@@ -32,10 +32,10 @@ from fastapi import Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from nekro_agent.adapters.sse.schemas import (
-    SseConnectedData,
-    SseEvent,
-    SseHeartbeatData,
+from nekro_agent.adapters.sse.sdk.models import (
+    ConnectedData,
+    Event,
+    HeartbeatData,
 )
 from nekro_agent.core.logger import logger
 
@@ -79,10 +79,10 @@ class SseClient:
         """
         return (datetime.now() - self.last_heartbeat).total_seconds() > timeout_seconds
 
-    async def send_event(self, event: SseEvent) -> None:
+    async def send_event(self, event: Event) -> None:
         """发送事件到客户端的事件队列
         Args:
-            event: SseEvent[Pydantic模型]
+            event: Event[Pydantic模型]
         """
         if not self.is_alive:
             return
@@ -283,7 +283,7 @@ class SseClientManager:
         """
         clients = self.get_clients_by_channel(channel_id)
         for client in clients:
-            await client.send_event(SseEvent(event=event_type, data=data))
+            await client.send_event(Event(event=event_type, data=data))
 
     async def broadcast_to_all(self, event_type: str, data: BaseModel) -> None:
         """向所有客户端广播事件
@@ -293,7 +293,7 @@ class SseClientManager:
             data: 事件数据
         """
         for client in self.clients.values():
-            await client.send_event(SseEvent(event=event_type, data=data))
+            await client.send_event(Event(event=event_type, data=data))
 
 
 # SSE 事件流处理函数
@@ -311,8 +311,8 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
     """
     try:
         # 发送连接成功事件
-        connected_event = SseEvent[SseConnectedData](
-            event="connected", data=SseConnectedData(client_id=client.client_id, timestamp=int(time.time())),
+        connected_event = Event[ConnectedData](
+            event="connected", data=ConnectedData(client_id=client.client_id, timestamp=int(time.time())),
         )
         yield connected_event.to_sse_format()
 
@@ -321,15 +321,15 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
 
         while client.is_alive:
             if time.time() - heartbeat_timer >= 5:
-                heartbeat_event = SseEvent[SseHeartbeatData](
-                    event="heartbeat", data=SseHeartbeatData(timestamp=int(time.time())),
+                heartbeat_event = Event[HeartbeatData](
+                    event="heartbeat", data=HeartbeatData(timestamp=int(time.time())),
                 )
                 yield heartbeat_event.to_sse_format()
                 heartbeat_timer = time.time()
                 client.update_heartbeat()
 
             try:
-                event: SseEvent = await asyncio.wait_for(client.event_queue.get(), timeout=1.0)
+                event: Event = await asyncio.wait_for(client.event_queue.get(), timeout=1.0)
                 yield event.to_sse_format()
                 client.event_queue.task_done()
             except asyncio.TimeoutError:

@@ -50,6 +50,7 @@ async def run_agent(
     ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
+    self_info = await ctx.adapter.get_self_info()
 
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
@@ -59,8 +60,8 @@ async def run_agent(
             "system",
             SystemPrompt(
                 one_time_code=one_time_code,
-                platform_name=(await ctx.adapter.get_self_info()).platform_name,
-                bot_platform_id=(await ctx.adapter.get_self_info()).user_id,
+                platform_name=self_info.platform_name,
+                bot_platform_id=self_info.user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,
                 plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),

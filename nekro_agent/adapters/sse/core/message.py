@@ -19,14 +19,14 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegment,
     PlatformSendSegmentType,
 )
-from nekro_agent.adapters.sse.schemas import (
-    SseAtSegment,
-    SseFileSegment,
-    SseImageSegment,
-    SseMessage,
-    SseReceiveMessage,
-    SseSegmentType,
-    SseTextSegment,
+from nekro_agent.adapters.sse.sdk.models import (
+    AtSegment,
+    FileSegment,
+    ImageSegment,
+    MessageSegmentType,
+    ReceiveMessage,
+    SendMessage,
+    TextSegment,
     at,
     file,
     image,
@@ -51,7 +51,7 @@ class SseMessageConverter:
     """
 
     @staticmethod
-    async def platform_to_sse_message(channel_id: str, segments: List[PlatformSendSegment]) -> SseMessage:
+    async def platform_to_sse_message(channel_id: str, segments: List[PlatformSendSegment]) -> SendMessage:
         """将平台消息段转换为SSE消息
 
         Args:
@@ -59,7 +59,7 @@ class SseMessageConverter:
             segments: 平台消息段列表
 
         Returns:
-            SseMessage: SSE消息
+            SendMessage: SSE消息
         """
         sse_segments = []
 
@@ -121,14 +121,14 @@ class SseMessageConverter:
                     ),
                 )
 
-        return SseMessage(
+        return SendMessage(
             channel_id=channel_id,
             segments=sse_segments,
             timestamp=int(time.time()),
         )
 
     @staticmethod
-    async def sse_to_platform_message(message: SseReceiveMessage) -> PlatformMessage:
+    async def sse_to_platform_message(message: ReceiveMessage) -> PlatformMessage:
         """将SSE接收消息转换为平台消息
 
         Args:
@@ -148,9 +148,9 @@ class SseMessageConverter:
 
         # 遍历消息段
         for segment in message.segments:
-            if segment.type == SseSegmentType.TEXT:
+            if segment.type == MessageSegmentType.TEXT:
                 # 必须先判断类型，然后才能安全访问属性
-                if isinstance(segment, SseTextSegment):
+                if isinstance(segment, TextSegment):
                     content_text += segment.content
                     content_data.append(
                         ChatMessageSegment(
@@ -159,9 +159,9 @@ class SseMessageConverter:
                         ),
                     )
 
-            elif segment.type == SseSegmentType.IMAGE:
+            elif segment.type == MessageSegmentType.IMAGE:
                 # 图片消息段
-                if isinstance(segment, SseImageSegment):
+                if isinstance(segment, ImageSegment):
                     if segment.base64_url:
                         # 处理文件名
                         file_name = segment.name or ""
@@ -184,9 +184,9 @@ class SseMessageConverter:
                         )
                         content_data.append(image_msg)
 
-            elif segment.type == SseSegmentType.FILE:
+            elif segment.type == MessageSegmentType.FILE:
                 # 文件消息段
-                if isinstance(segment, SseFileSegment):
+                if isinstance(segment, FileSegment):
                     if segment.base64_url:
                         # 处理文件名
                         file_name = segment.name or ""
@@ -209,9 +209,9 @@ class SseMessageConverter:
                         )
                         content_data.append(file_msg)
 
-            elif segment.type == SseSegmentType.AT:
+            elif segment.type == MessageSegmentType.AT:
                 # @消息段
-                if isinstance(segment, SseAtSegment):
+                if isinstance(segment, AtSegment):
                     nickname = segment.nickname or segment.user_id
                     content_data.append(
                         ChatMessageSegmentAt(

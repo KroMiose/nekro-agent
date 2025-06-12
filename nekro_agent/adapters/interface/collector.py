@@ -23,7 +23,7 @@ async def collect_message(
     platform_channel: "PlatformChannel",
     platform_user: "PlatformUser",
     platform_message: "PlatformMessage",
-):
+) -> None:
     """适配器消息收集器"""
 
     db_chat_channel: DBChatChannel = await DBChatChannel.get_or_create(
@@ -83,7 +83,7 @@ async def collect_message(
     )
 
     logger.info(
-        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}"
+        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}",
     )
 
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)

@@ -11,7 +11,6 @@ import base64
 import contextlib
 import hashlib
 import json
-import mimetypes
 import time
 import uuid
 from functools import wraps
@@ -21,6 +20,37 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Unio
 import aiohttp
 from loguru import logger
 from pydantic import BaseModel, Field
+
+# 从统一模型导入所需的类型
+from .models import (
+    AtSegment,
+    ChannelInfo,
+    ChunkComplete,
+    ChunkData,
+    FileChunkResponse,
+    FileSegment,
+    GetChannelInfoRequest,
+    GetSelfInfoRequest,
+    GetUserInfoRequest,
+    ImageSegment,
+    LocationSegment,
+    MessageSegment,
+    MessageSegmentUnion,
+    ReceiveMessage,
+    RequestType,
+    SendMessage,
+    SendMessageRequest,
+    SendMessageResponse,
+    SetMessageReactionRequest,
+    SetMessageReactionResponse,
+    StickerSegment,
+    TextSegment,
+    UserInfo,
+    at,
+    file,
+    image,
+    text,
+)
 
 # 添加返回类型变量T用于泛型函数
 T = TypeVar("T")
@@ -123,275 +153,14 @@ def retry_decorator(
     return decorator
 
 
-class MessageSegment(BaseModel):
-    """消息段基类"""
-
-    type: str = Field(..., description="消息段类型")
+# 所有模型类型已从 .models 模块导入，这里不再重复定义
 
 
-class TextSegment(MessageSegment):
-    """文本消息段"""
-
-    content: str = Field(..., description="文本内容")
-
-
-class ImageSegment(MessageSegment):
-    """图片消息段"""
-
-    url: Optional[str] = Field(None, description="图片URL")
-    base64_url: Optional[str] = Field(None, description="图片base64 URL")
-    name: Optional[str] = Field(None, description="图片文件名")
-    size: Optional[int] = Field(None, description="图片大小(字节)")
-    mime_type: Optional[str] = Field(None, description="图片MIME类型")
-    width: Optional[int] = Field(None, description="图片宽度")
-    height: Optional[int] = Field(None, description="图片高度")
-    is_origin: bool = Field(False, description="是否原图")
-    suffix: Optional[str] = Field(None, description="图片后缀")
-
-    class Config:
-        validate_assignment = True
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        if not self.url and not self.base64_url:
-            raise ValueError("url和base64_url至少有一个必须提供")
-
-
-class FileSegment(MessageSegment):
-    """文件消息段"""
-
-    url: Optional[str] = Field(None, description="文件URL")
-    base64_url: Optional[str] = Field(None, description="文件base64 URL")
-    name: Optional[str] = Field(None, description="文件名")
-    size: Optional[int] = Field(None, description="文件大小")
-    mime_type: Optional[str] = Field(None, description="MIME类型")
-    suffix: Optional[str] = Field(None, description="文件后缀")
-
-    class Config:
-        validate_assignment = True
-
-    def __init__(self, **data):
-        super().__init__(**data)
-        if not self.url and not self.base64_url:
-            raise ValueError("url和base64_url至少有一个必须提供")
-
-
-class AtSegment(MessageSegment):
-    """@消息段"""
-
-    user_id: str = Field(..., description="用户ID")
-    nickname: Optional[str] = Field(None, description="用户昵称")
-
-
-class Message(BaseModel):
-    """消息基类"""
-
-    segments: List[Union[TextSegment, ImageSegment, FileSegment, AtSegment]] = Field(
-        default_factory=list,
-        description="消息段列表",
-    )
-    timestamp: int = Field(
-        default_factory=lambda: int(time.time()),
-        description="消息时间戳",
-    )
-
-
-class ReceiveMessage(Message):
-    """接收到的消息"""
-
-    msg_id: str = Field(default="", description="消息ID")
-    from_id: str = Field(..., description="发送者ID")
-    from_name: str = Field(..., description="发送者名称")
-    from_nickname: Optional[str] = Field(None, description="发送者昵称")
-    is_to_me: bool = Field(False, description="是否@我")
-    is_self: bool = Field(False, description="是否自己发送的")
-    raw_content: Optional[str] = Field(None, description="原始内容")
-    channel_id: str = Field(..., description="频道ID")
-    channel_name: str = Field(default="", description="频道名称")
-
-
-class SendMessage(Message):
-    """要发送的消息"""
-
-    channel_id: str = Field(..., description="频道ID")
-
-
-# 辅助函数
-def text(content: str) -> TextSegment:
-    """创建文本消息段"""
-    return TextSegment(type="text", content=content)
-
-
-def image(
-    url: Optional[str] = None,
-    file_path: Optional[str] = None,
-    base64_url: Optional[str] = None,
-    bytes_data: Optional[bytes] = None,
-    name: Optional[str] = None,
-    size: Optional[int] = None,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
-    mime_type: Optional[str] = None,
-    is_origin: bool = False,
-    suffix: Optional[str] = None,
-) -> ImageSegment:
-    """创建图片消息段
-
-    支持多种方式提供图片：URL、文件路径、base64数据或字节数据
-
-    Args:
-        url: 图片URL
-        file_path: 图片文件路径
-        base64_url: 图片base64编码数据
-        bytes_data: 图片字节数据
-        name: 图片文件名
-        size: 图片大小(字节)
-        width: 图片宽度
-        height: 图片高度
-        mime_type: 图片MIME类型
-        is_origin: 是否原图
-        suffix: 图片后缀
-    Returns:
-        ImageSegment: 图片消息段
-    """
-    # 确保至少提供了一种图片数据
-    if not any([url, file_path, base64_url, bytes_data]):
-        raise ValueError("必须提供图片URL、文件路径、base64数据或字节数据中的一种")
-
-    # 从文件路径处理
-    if file_path:
-        file_path_obj = Path(file_path)
-        if not file_path_obj.exists():
-            raise FileNotFoundError(f"图片文件不存在：{file_path}")
-
-        if not name:
-            name = file_path_obj.name
-
-        if not base64_url:
-            img_bytes = file_path_obj.read_bytes()
-            base64_data = base64.b64encode(img_bytes).decode("utf-8")
-
-            if not size:
-                size = len(img_bytes)
-
-            if not mime_type:
-                mime_type = mimetypes.guess_type(file_path)[0] or "image/jpeg"
-
-    # 从字节数据处理
-    elif bytes_data:
-        if not base64_url:
-            base64_data = base64.b64encode(bytes_data).decode("utf-8")
-
-            if not size:
-                size = len(bytes_data)
-
-            if not name:
-                name = f"image_{hashlib.md5(bytes_data).hexdigest()[:8]}.jpg"
-
-            if not mime_type:
-                # 这里可以添加从字节检测MIME类型的代码
-                mime_type = "image/jpeg"
-
-    assert base64_data and mime_type
-
-    return ImageSegment(
-        type="image",
-        url="",
-        base64_url=f"data:{mime_type};base64,{base64_data}",
-        name=name,
-        size=size,
-        mime_type=mime_type,
-        width=width,
-        height=height,
-        is_origin=is_origin,
-        suffix=suffix,
-    )
-
-
-def file(
-    url: Optional[str] = None,
-    file_path: Optional[str] = None,
-    base64_url: Optional[str] = None,
-    bytes_data: Optional[bytes] = None,
-    name: Optional[str] = None,
-    size: Optional[int] = None,
-    mime_type: Optional[str] = None,
-    suffix: Optional[str] = None,
-) -> FileSegment:
-    """创建文件消息段
-
-    支持多种方式提供文件：URL、文件路径、base64数据或字节数据
-
-    Args:
-        url: 文件URL
-        file_path: 文件路径
-        base64_url: 文件base64编码数据
-        bytes_data: 文件字节数据
-        name: 文件名
-        size: 文件大小(字节)
-        mime_type: 文件MIME类型
-        suffix: 文件后缀
-    Returns:
-        FileSegment: 文件消息段
-    """
-    # 确保至少提供了一种文件数据
-    if not any([url, file_path, base64_url, bytes_data]):
-        raise ValueError("必须提供文件URL、文件路径、base64数据或字节数据中的一种")
-
-    # 从文件路径处理
-    if file_path:
-        file_path_obj = Path(file_path)
-        if not file_path_obj.exists():
-            raise FileNotFoundError(f"文件不存在：{file_path}")
-
-        if not name:
-            name = file_path_obj.name
-
-        if not base64_url:
-            with file_path_obj.open("rb") as f:
-                file_bytes = f.read()
-                base64_url = base64.b64encode(file_bytes).decode("utf-8")
-
-                if not size:
-                    size = len(file_bytes)
-
-                if not mime_type:
-                    mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-
-    # 从字节数据处理
-    elif bytes_data:
-        if not base64_url:
-            base64_url = base64.b64encode(bytes_data).decode("utf-8")
-
-            if not size:
-                size = len(bytes_data)
-
-            if not name:
-                name = ""
-
-            if not mime_type:
-                # 这里可以添加从字节检测MIME类型的代码
-                mime_type = "application/octet-stream"
-                raise
-
-    return FileSegment(
-        type="file",
-        url=url,
-        base64_url=base64_url,
-        name=name,
-        size=size,
-        mime_type=mime_type,
-        suffix=suffix,
-    )
-
-
-def at(user_id: str, nickname: Optional[str] = None) -> AtSegment:
-    """创建@消息段"""
-    return AtSegment(type="at", user_id=user_id, nickname=nickname)
+# 消息段构造函数已从 .models 模块导入，这里不再重复定义
 
 
 # 事件处理器类型
-EventHandler = Callable[[str, Dict[str, Any]], Awaitable[Optional[Dict[str, Any]]]]
+EventHandler = Callable[[str, Any], Awaitable[Optional[Any]]]
 
 
 class SSEClient:
@@ -434,18 +203,60 @@ class SSEClient:
         self.event_handlers: Dict[str, EventHandler] = {}
 
         # 分块接收相关（仅用于接收服务端推送的大文件）
-        self.chunk_buffers: Dict[str, Dict[str, Any]] = {}  # chunk_id -> {chunks: [], total_chunks: int, ...}
+        self.chunk_buffers: Dict[str, Any] = {}  # chunk_id -> {chunks: [], total_chunks: int, ...}
         self.chunk_timeouts: Dict[str, float] = {}  # chunk_id -> timeout_timestamp
         self.chunk_timeout_duration = 300  # 5分钟超时
 
         # 注册默认事件处理器
-        self.register_handler("send_message", self._handle_send_message)
-        self.register_handler("get_user_info", self._handle_get_user_info)
-        self.register_handler("get_channel_info", self._handle_get_channel_info)
-        self.register_handler("get_self_info", self._handle_get_self_info)
+        self.register_handler(RequestType.SEND_MESSAGE.value, self._handle_send_message)
+        self.register_handler(RequestType.GET_USER_INFO.value, self._handle_get_user_info)
+        self.register_handler(RequestType.GET_CHANNEL_INFO.value, self._handle_get_channel_info)
+        self.register_handler(RequestType.GET_SELF_INFO.value, self._handle_get_self_info)
+        self.register_handler(RequestType.SET_MESSAGE_REACTION.value, self._handle_set_message_reaction)
         # 注册分块接收处理器（仅处理服务端推送的大文件）
-        self.register_handler("file_chunk", self._handle_file_chunk)
-        self.register_handler("file_chunk_complete", self._handle_file_chunk_complete)
+        self.register_handler(RequestType.FILE_CHUNK.value, self._handle_file_chunk)
+        self.register_handler(RequestType.FILE_CHUNK_COMPLETE.value, self._handle_file_chunk_complete)
+
+    def _convert_dict_to_segment(self, seg_dict: Dict[str, Any]) -> MessageSegmentUnion:
+        """将字典转换为具体的消息段对象
+
+        Args:
+            seg_dict: 消息段字典
+
+        Returns:
+            MessageSegmentUnion: 具体的消息段对象
+        """
+        if not isinstance(seg_dict, dict):
+            # 如果已经是消息段对象，直接返回
+            return seg_dict
+
+        seg_type = seg_dict.get("type")
+
+        try:
+            if seg_type == "text":
+                return TextSegment(**seg_dict)
+            if seg_type == "image":
+                return ImageSegment(**seg_dict)
+            if seg_type == "file":
+                return FileSegment(**seg_dict)
+            if seg_type == "at":
+                return AtSegment(**seg_dict)
+            if seg_type == "sticker":
+                # 使用简单的创建方式，避免复杂的导入问题
+                from .models import StickerSegment
+
+                return StickerSegment(**seg_dict)
+            if seg_type == "location":
+                # 使用简单的创建方式，避免复杂的导入问题
+                from .models import LocationSegment
+
+                return LocationSegment(**seg_dict)
+            # 默认返回文本段
+            return text(seg_dict.get("content", str(seg_dict)))
+        except Exception as e:
+            # 如果转换失败，降级为文本段
+            self.logger.warning(f"消息段转换失败，降级为文本段: {e}")
+            return text(seg_dict.get("content", str(seg_dict)))
 
     def register_handler(self, event_type: str, handler: EventHandler) -> None:
         """注册事件处理器
@@ -699,6 +510,27 @@ class SSEClient:
                 request_data = data.get("data", {})
 
             try:
+                # 根据事件类型创建对应的请求模型
+                if event_type == RequestType.SEND_MESSAGE.value and isinstance(request_data, dict):
+                    # 转换segments从dict到具体的消息段对象
+                    segments_data = request_data.get("segments", [])
+                    segments = []
+                    for seg_dict in segments_data:
+                        segments.append(self._convert_dict_to_segment(seg_dict))
+
+                    request_data = SendMessageRequest(
+                        channel_id=request_data.get("channel_id", ""),
+                        segments=segments,
+                    )
+                elif event_type == RequestType.GET_USER_INFO.value and isinstance(request_data, dict):
+                    request_data = GetUserInfoRequest(**request_data)
+                elif event_type == RequestType.GET_CHANNEL_INFO.value and isinstance(request_data, dict):
+                    request_data = GetChannelInfoRequest(**request_data)
+                elif event_type == RequestType.GET_SELF_INFO.value and isinstance(request_data, dict):
+                    request_data = GetSelfInfoRequest()
+                elif event_type == RequestType.SET_MESSAGE_REACTION.value and isinstance(request_data, dict):
+                    request_data = SetMessageReactionRequest(**request_data)
+
                 # 调用处理器
                 handler = self.event_handlers[event_type]
                 result = await handler(event_type, request_data)
@@ -706,7 +538,12 @@ class SSEClient:
                 # 如果有请求ID，需要响应
                 if request_id:
                     self.logger.debug(f"发送响应: 请求ID {request_id}, 结果: {result}")
-                    await self._send_response(request_id, True, result or {})
+                    # 将BaseModel结果转换为字典
+                    if result is not None and hasattr(result, "model_dump"):
+                        result_dict = result.model_dump()
+                    else:
+                        result_dict = result or {}
+                    await self._send_response(request_id, True, result_dict)
             except Exception as e:
                 self.logger.exception(f"处理事件异常: {event_type}")
                 # 如果有请求ID，发送错误响应
@@ -893,57 +730,42 @@ class SSEClient:
     async def _handle_send_message(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        data: SendMessageRequest,
+    ) -> SendMessageResponse:
         """处理发送消息请求
 
         服务端发送消息请求，客户端需要实现实际的消息发送逻辑
 
         Args:
             _event_type: 事件类型
-            data: 请求数据
-                {
-                    "channel_id": "频道ID",
-                    "segments": [
-                        {"type": "text", "content": "文本内容"},
-                        {"type": "image", "url": "图片URL"},
-                        ...
-                    ]
-                }
+            data: 发送消息请求数据
 
         Returns:
-            Dict[str, Any]: 响应数据
-                {
-                    "message_id": "发送成功的消息ID",
-                    "success": true
-                }
+            SendMessageResponse: 发送结果响应
         """
         self.logger.info(f"收到发送消息请求: {data}")
         # 需要被子类重写以实现实际的消息发送逻辑
-
-        channel_id = data.get("channel_id", "")
-        segments = data.get("segments", [])
 
         # 提取消息内容
         text_content = ""
         image_urls = []
         at_users = []
 
-        for segment in segments:
-            seg_type = segment.get("type")
-            if seg_type == "text":
-                text_content += segment.get("content", "")
-            elif seg_type == "image":
-                image_urls.append(segment.get("url", ""))
-            elif seg_type == "at":
+        for segment in data.segments:
+            if isinstance(segment, TextSegment):
+                text_content += segment.content
+            elif isinstance(segment, ImageSegment):
+                if segment.url:
+                    image_urls.append(segment.url)
+            elif isinstance(segment, AtSegment):
                 at_users.append(
                     {
-                        "user_id": segment.get("user_id", ""),
-                        "nickname": segment.get("nickname", ""),
+                        "user_id": segment.user_id,
+                        "nickname": segment.nickname or segment.user_id,
                     },
                 )
 
-        self.logger.info(f"需要发送消息到频道 {channel_id}")
+        self.logger.info(f"需要发送消息到频道 {data.channel_id}")
         self.logger.debug(f"文本内容: {text_content}")
         self.logger.debug(f"图片URL: {image_urls}")
         self.logger.debug(f"@用户: {at_users}")
@@ -953,85 +775,112 @@ class SSEClient:
 
         # 模拟消息发送成功
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
-        return {"message_id": message_id, "success": True}
+        return SendMessageResponse(message_id=message_id, success=True)
 
     async def _handle_get_user_info(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        data: GetUserInfoRequest,
+    ) -> UserInfo:
         """处理获取用户信息请求
 
         Args:
             _event_type: 事件类型
-            data: 请求数据，包含 user_id
+            data: 获取用户信息请求数据
 
         Returns:
-            Dict[str, Any]: 用户信息
+            UserInfo: 用户信息
         """
         self.logger.info(f"收到获取用户信息请求: {data}")
         # 需要被子类重写
 
-        user_id = data.get("user_id", "")
-        return {
-            "user_id": user_id,
-            "user_name": f"用户_{user_id}",
-            "user_avatar": None,
-        }
+        return UserInfo(
+            user_id=data.user_id,
+            user_name=f"用户_{data.user_id}",
+            user_avatar=None,
+            user_nickname=None,
+            platform_name="sse",
+        )
 
     async def _handle_get_channel_info(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        data: GetChannelInfoRequest,
+    ) -> ChannelInfo:
         """处理获取频道信息请求
 
         Args:
             _event_type: 事件类型
-            data: 请求数据，包含 channel_id
+            data: 获取频道信息请求数据
 
         Returns:
-            Dict[str, Any]: 频道信息
+            ChannelInfo: 频道信息
         """
         self.logger.info(f"收到获取频道信息请求: {data}")
         # 需要被子类重写
 
-        channel_id = data.get("channel_id", "")
-        return {
-            "channel_id": channel_id,
-            "channel_name": f"频道_{channel_id}",
-            "channel_avatar": None,
-            "member_count": 100,
-        }
+        return ChannelInfo(
+            channel_id=data.channel_id,
+            channel_name=f"频道_{data.channel_id}",
+            channel_avatar=None,
+            member_count=100,
+            owner_id=None,
+            is_admin=False,
+        )
 
     async def _handle_get_self_info(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Dict[str, Any]:
+        data: GetSelfInfoRequest,
+    ) -> UserInfo:
         """处理获取自身信息请求
 
         Args:
             _event_type: 事件类型
-            data: 请求数据
+            data: 获取自身信息请求数据
 
         Returns:
-            Dict[str, Any]: 自身信息
+            UserInfo: 自身信息
         """
         self.logger.info(f"收到获取自身信息请求: {data}")
         # 需要被子类重写
 
-        return {
-            "user_id": "self_id",
-            "user_name": "我自己",
-            "user_avatar": None,
-        }
+        return UserInfo(
+            user_id="self_id",
+            user_name="我自己",
+            user_avatar=None,
+            user_nickname=None,
+            platform_name="sse",
+        )
+
+    async def _handle_set_message_reaction(
+        self,
+        _event_type: str,
+        data: SetMessageReactionRequest,
+    ) -> SetMessageReactionResponse:
+        """处理设置消息反应请求
+
+        Args:
+            _event_type: 事件类型
+            data: 设置消息反应请求数据
+
+        Returns:
+            SetMessageReactionResponse: 设置结果
+        """
+        self.logger.info(f"收到设置消息反应请求: {data}")
+        # 需要被子类重写
+
+        # 默认实现：简单返回成功
+        return SetMessageReactionResponse(
+            success=True,
+            message=f"消息反应设置{'成功' if data.status else '取消成功'}",
+        )
 
     async def _handle_file_chunk(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        data: Union[ChunkData, Dict[str, Any]],
+    ) -> Optional[FileChunkResponse]:
         """处理服务端推送的文件分块数据
 
         Args:
@@ -1039,57 +888,64 @@ class SSEClient:
             data: 分块数据
 
         Returns:
-            Optional[Dict[str, Any]]: 响应数据，如果是中间分块则返回None
+            Optional[FileChunkResponse]: 响应数据，如果是中间分块则返回None
         """
         try:
-            chunk_id = data.get("chunk_id")
-            chunk_index = data.get("chunk_index")
-            total_chunks = data.get("total_chunks")
-            chunk_data = data.get("chunk_data")
-            total_size = data.get("total_size")
-            mime_type = data.get("mime_type")
-            filename = data.get("filename")
-            file_type = data.get("file_type")
+            # 如果是字典，先转换为ChunkData模型
+            chunk_data = ChunkData(**data) if isinstance(data, dict) else data
 
-            if not all([chunk_id, chunk_index is not None, total_chunks, chunk_data]):
-                self.logger.error(f"分块数据不完整: {data}")
-                return {"success": False, "error": "分块数据不完整"}
+            if not all(
+                [
+                    chunk_data.chunk_id,
+                    chunk_data.chunk_index is not None,
+                    chunk_data.total_chunks,
+                    chunk_data.chunk_data,
+                ],
+            ):
+                self.logger.error(f"分块数据不完整: {chunk_data}")
+                return FileChunkResponse(success=False, error="分块数据不完整", message=None)
 
             # 类型检查和转换
-            if not isinstance(chunk_id, str) or not isinstance(chunk_index, int) or not isinstance(total_chunks, int):
+            if (
+                not isinstance(chunk_data.chunk_id, str)
+                or not isinstance(chunk_data.chunk_index, int)
+                or not isinstance(chunk_data.total_chunks, int)
+            ):
                 self.logger.error("分块数据类型错误")
-                return {"success": False, "error": "分块数据类型错误"}
+                return FileChunkResponse(success=False, error="分块数据类型错误", message=None)
 
-            self.logger.debug(f"接收分块: {filename} [{chunk_index + 1}/{total_chunks}]")
+            self.logger.debug(f"接收分块: {chunk_data.filename} [{chunk_data.chunk_index + 1}/{chunk_data.total_chunks}]")
 
             # 初始化或更新chunk buffer
-            if chunk_id not in self.chunk_buffers:
-                self.chunk_buffers[chunk_id] = {
-                    "chunks": [None] * total_chunks,
-                    "total_chunks": total_chunks,
+            if chunk_data.chunk_id not in self.chunk_buffers:
+                self.chunk_buffers[chunk_data.chunk_id] = {
+                    "chunks": [None] * chunk_data.total_chunks,
+                    "total_chunks": chunk_data.total_chunks,
                     "received_chunks": 0,
-                    "total_size": total_size,
-                    "mime_type": mime_type,
-                    "filename": filename,
-                    "file_type": file_type,
+                    "total_size": chunk_data.total_size,
+                    "mime_type": chunk_data.mime_type,
+                    "filename": chunk_data.filename,
+                    "file_type": chunk_data.file_type,
                 }
-                self.chunk_timeouts[chunk_id] = time.time() + self.chunk_timeout_duration
+                self.chunk_timeouts[chunk_data.chunk_id] = time.time() + self.chunk_timeout_duration
 
-            buffer_info = self.chunk_buffers[chunk_id]
+            buffer_info = self.chunk_buffers[chunk_data.chunk_id]
 
             # 检查分块是否已接收
-            if buffer_info["chunks"][chunk_index] is not None:
-                self.logger.warning(f"重复接收分块: {filename} [{chunk_index + 1}/{total_chunks}]")
+            if buffer_info["chunks"][chunk_data.chunk_index] is not None:
+                self.logger.warning(
+                    f"重复接收分块: {chunk_data.filename} [{chunk_data.chunk_index + 1}/{chunk_data.total_chunks}]",
+                )
                 return None
 
             # 存储分块数据
-            buffer_info["chunks"][chunk_index] = chunk_data
+            buffer_info["chunks"][chunk_data.chunk_index] = chunk_data.chunk_data
             buffer_info["received_chunks"] += 1
 
-            self.logger.debug(f"分块进度: {filename} [{buffer_info['received_chunks']}/{total_chunks}]")
+            self.logger.debug(f"分块进度: {chunk_data.filename} [{buffer_info['received_chunks']}/{chunk_data.total_chunks}]")
 
             # 检查是否接收完所有分块
-            if buffer_info["received_chunks"] == total_chunks:
+            if buffer_info["received_chunks"] == chunk_data.total_chunks:
                 # 合并所有分块
                 complete_data = "".join([chunk for chunk in buffer_info["chunks"] if chunk is not None])
 
@@ -1099,37 +955,37 @@ class SSEClient:
 
                     # 调用用户自定义的文件处理回调
                     await self._on_file_received(
-                        filename or f"file_{chunk_id[:8]}",
+                        chunk_data.filename or f"file_{chunk_data.chunk_id[:8]}",
                         file_bytes,
-                        mime_type or "application/octet-stream",
-                        file_type or "file",
+                        chunk_data.mime_type or "application/octet-stream",
+                        chunk_data.file_type or "file",
                     )
 
                     # 清理缓冲区
-                    del self.chunk_buffers[chunk_id]
-                    del self.chunk_timeouts[chunk_id]
+                    del self.chunk_buffers[chunk_data.chunk_id]
+                    del self.chunk_timeouts[chunk_data.chunk_id]
 
                 except Exception as e:
-                    self.logger.exception(f"文件解码失败: {filename}")
+                    self.logger.exception(f"文件解码失败: {chunk_data.filename}")
                     # 清理缓冲区
-                    del self.chunk_buffers[chunk_id]
-                    del self.chunk_timeouts[chunk_id]
-                    return {"success": False, "error": f"文件解码失败: {e!s}"}
+                    del self.chunk_buffers[chunk_data.chunk_id]
+                    del self.chunk_timeouts[chunk_data.chunk_id]
+                    return FileChunkResponse(success=False, error=f"文件解码失败: {e!s}", message=None)
                 else:
-                    self.logger.success(f"文件接收完成: {filename} ({len(file_bytes)} bytes)")
-                    return {"success": True, "message": f"文件 {filename} 接收完成"}
+                    self.logger.success(f"文件接收完成: {chunk_data.filename} ({len(file_bytes)} bytes)")
+                    return FileChunkResponse(success=True, error=None, message=f"文件 {chunk_data.filename} 接收完成")
 
         except Exception as e:
             self.logger.exception("处理文件分块异常")
-            return {"success": False, "error": str(e)}
+            return FileChunkResponse(success=False, error=str(e), message=None)
         else:
             return None  # 中间分块不需要响应
 
     async def _handle_file_chunk_complete(
         self,
         _event_type: str,
-        data: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        data: Union[ChunkComplete, Dict[str, Any]],
+    ) -> Optional[None]:
         """处理服务端文件分块传输完成事件
 
         Args:
@@ -1137,20 +993,19 @@ class SSEClient:
             data: 完成事件数据
 
         Returns:
-            Optional[Dict[str, Any]]: 响应数据
+            Optional[None]: 无响应数据
         """
-        chunk_id = data.get("chunk_id")
-        success = data.get("success", False)
-        message = data.get("message", "")
+        # 如果是字典，先转换为ChunkComplete模型
+        chunk_complete = ChunkComplete(**data) if isinstance(data, dict) else data
 
-        if success:
-            self.logger.info(f"服务端确认传输完成: {message}")
+        if chunk_complete.success:
+            self.logger.info(f"服务端确认传输完成: {chunk_complete.message}")
         else:
-            self.logger.error(f"服务端传输失败: {message}")
+            self.logger.error(f"服务端传输失败: {chunk_complete.message}")
             # 清理可能存在的缓冲区
-            if chunk_id and isinstance(chunk_id, str) and chunk_id in self.chunk_buffers:
-                del self.chunk_buffers[chunk_id]
-                del self.chunk_timeouts[chunk_id]
+            if chunk_complete.chunk_id and chunk_complete.chunk_id in self.chunk_buffers:
+                del self.chunk_buffers[chunk_complete.chunk_id]
+                del self.chunk_timeouts[chunk_complete.chunk_id]
 
         return None  # 不需要响应
 
@@ -1228,8 +1083,8 @@ async def example_usage():
         async def _handle_send_message(
             self,
             _event_type: str,
-            data: Dict[str, Any],
-        ) -> Dict[str, Any]:
+            data: SendMessageRequest,
+        ) -> SendMessageResponse:
             self.logger.info(f"收到发送消息请求: {data}")
             return await super()._handle_send_message(_event_type, data)
 
@@ -1251,6 +1106,16 @@ async def example_usage():
                 self.logger.exception("文件保存失败")
             else:
                 self.logger.success(f"文件已保存到: {file_path}")
+
+        async def _handle_get_self_info(self, _event_type: str, data: GetSelfInfoRequest) -> UserInfo:  # noqa: ARG002
+            """自定义获取自身信息处理"""
+            return UserInfo(
+                user_id="my_bot_id",
+                user_name="我的机器人",
+                user_avatar="https://example.com/avatar.jpg",
+                user_nickname=None,
+                platform_name="sse",
+            )
 
     # 创建客户端
     client = MyClient(
@@ -1277,6 +1142,7 @@ async def example_usage():
 
     # 发送消息
     msg = ReceiveMessage(
+        platform_name="wechat",
         from_id="user123",
         from_name="张三",
         from_nickname="小张",

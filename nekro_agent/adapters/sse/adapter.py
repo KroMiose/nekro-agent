@@ -164,18 +164,28 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         response = await self.service.get_self_info()
 
         if not response:
-            return PlatformUser(user_id="unknown", user_name="未知SSE机器人")
+            return PlatformUser(user_id="", user_name="", platform_name="sse")
 
-        return PlatformUser(user_id=response.user_id, user_name=response.user_name, user_avatar=response.user_avatar or "")
+        return PlatformUser(
+            user_id=response.user_id,
+            user_name=response.user_name,
+            user_avatar=response.user_avatar or "",
+            platform_name=response.platform_name,
+        )
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
         """获取用户信息"""
         response = await self.service.get_user_info(user_id)
 
         if not response:
-            return PlatformUser(user_id=user_id, user_name=user_id)
+            return PlatformUser(user_id=user_id, user_name=user_id, platform_name="sse")
 
-        return PlatformUser(user_id=response.user_id, user_name=response.user_name, user_avatar=response.user_avatar or "")
+        return PlatformUser(
+            user_id=response.user_id,
+            user_name=response.user_name,
+            user_avatar=response.user_avatar or "",
+            platform_name=response.platform_name,
+        )
 
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         """获取频道信息
