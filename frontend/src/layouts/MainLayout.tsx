@@ -20,25 +20,12 @@ import {
   useTheme,
 } from '@mui/material'
 import {
-  Terminal as TerminalIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Storage as StorageIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
-  Tune as TuneIcon,
-  Extension as ExtensionIcon,
-  Chat as ChatIcon,
-  Code as CodeIcon,
   GitHub as GitHubIcon,
-  Dashboard as DashboardIcon,
-  Group as GroupIcon,
-  Face as FaceIcon,
-  AccountCircle as AccountCircleIcon,
-  CloudDownload as CloudDownloadIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
-  Palette as PaletteIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
@@ -50,95 +37,14 @@ import { alpha } from '@mui/material/styles'
 import { CHIP_VARIANTS } from '../theme/variants'
 import { useWallpaperStore } from '../stores/wallpaper'
 import WallpaperBackground from '../components/common/WallpaperBackground'
+import {
+  createMenuItems,
+  getCurrentPageFromConfigs,
+  getCurrentTitleFromConfigs,
+} from '../config/navigation'
 
-interface PageConfig {
-  path: string
-  text: string
-  icon: JSX.Element
-  parent?: string // 父菜单的 key
-}
-
-interface MenuGroup {
-  key: string
-  text: string
-  icon: JSX.Element
-  children: PageConfig[]
-}
-
-// 集中的页面配置
-const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
-  {
-    key: 'cloud',
-    text: 'Nekro 云',
-    icon: <CloudDownloadIcon />,
-    children: [
-      { path: '/cloud/telemetry', text: '社区观测', icon: <DashboardIcon />, parent: 'cloud' },
-      { path: '/cloud/presets-market', text: '人设市场', icon: <FaceIcon />, parent: 'cloud' },
-      { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
-    ],
-  },
-  { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
-  { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
-  { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
-  { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
-  {
-    key: 'plugins',
-    text: '插件管理',
-    icon: <ExtensionIcon />,
-    children: [
-      {
-        path: '/plugins/management',
-        text: '插件管理',
-        icon: <ExtensionIcon />,
-        parent: 'plugins',
-      },
-      { path: '/plugins/editor', text: '插件编辑器', icon: <CodeIcon />, parent: 'plugins' },
-    ],
-  },
-  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
-  { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
-  {
-    key: 'protocols',
-    text: '协议端',
-    icon: <ChatIcon />,
-    children: [
-      { path: '/protocols/napcat', text: 'NapCat', icon: <ChatIcon />, parent: 'protocols' },
-    ],
-  },
-  {
-    key: 'settings',
-    text: '系统配置',
-    icon: <SettingsIcon />,
-    children: [
-      { path: '/settings/system', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
-      { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
-      { path: '/settings/theme', text: '调色盘', icon: <PaletteIcon />, parent: 'settings' },
-    ],
-  },
-  { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
-]
-
-// 转换配置为菜单项
-const menuItems = PAGE_CONFIGS.map(config => {
-  if ('children' in config) {
-    return {
-      text: config.text,
-      icon: config.icon,
-      path: undefined,
-      key: config.key,
-      children: config.children.map(child => ({
-        text: child.text,
-        icon: child.icon,
-        path: child.path,
-      })),
-    }
-  }
-  return {
-    text: config.text,
-    icon: config.icon,
-    path: config.path,
-  }
-})
+// 获取菜单项配置
+const menuItems = createMenuItems()
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -163,21 +69,11 @@ export default function MainLayout() {
   }, [isMobile])
 
   const getCurrentPage = () => {
-    const currentPath = location.pathname
-    // 扁平化所有页面配置
-    const allPages = PAGE_CONFIGS.flatMap(config =>
-      'children' in config ? config.children : [config]
-    )
-    // 查找匹配的页面
-    return allPages.find(
-      page =>
-        'path' in page &&
-        (page.path === currentPath || (currentPath.startsWith(page.path) && page.path !== '/'))
-    )
+    return getCurrentPageFromConfigs(location.pathname)
   }
 
   const getCurrentTitle = () => {
-    return getCurrentPage()?.text || '管理面板'
+    return getCurrentTitleFromConfigs(location.pathname)
   }
 
   const handleLogout = () => {
@@ -635,7 +531,9 @@ export default function MainLayout() {
               theme.palette.mode === 'dark'
                 ? 'rgba(32, 32, 32, 0.48)'
                 : 'rgba(255, 255, 255, 0.68)',
-            boxShadow: getShadow(`0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`),
+            boxShadow: getShadow(
+              `0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`
+            ),
             border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
             position: 'relative',
             overflow: 'hidden',

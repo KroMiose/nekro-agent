@@ -165,7 +165,7 @@ async def get_ranking(
     if ranking_type == "users":
         execs = await DBExecCode.filter(
             create_time__gte=start_time,
-            trigger_user_id__not_in=[0, -1],  # 过滤掉系统触发的执行
+            trigger_user_id__not_in=["0", "-1", ""],  # 过滤掉系统触发的执行
         ).all()
 
         user_counts = {}

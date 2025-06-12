@@ -62,7 +62,7 @@ class PluginConfig(ConfigBase):
         default="",
         title="NekroAI 云服务 API Key",
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
-        json_schema_extra=ExtraField(is_secret=True, placeholder="nk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx").model_dump(),
+        json_schema_extra=ExtraField(is_secret=True, placeholder="nk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx").model_dump(),
     )
     ENSURE_SFW_CONTENT: bool = Field(
         default=True,
@@ -101,8 +101,8 @@ class PluginConfig(ConfigBase):
     )
     MINECRAFT_SERVER_RCON: str = Field(
         default="{}",
-        title="Minecraft 服务器 RCCON 地址",
-        description="Minecraft 服务器 RCCON 地址，用于远程执行指令",
+        title="Minecraft 服务器 RCON 地址",
+        description="Minecraft 服务器 RCON 地址，用于远程执行指令",
         json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_server_rcon",
@@ -112,7 +112,8 @@ class PluginConfig(ConfigBase):
     BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
         default=[],
         title="Bilibili 直播间 ID",
-        description="Bilibili 直播间 ID，需与VTUBE_STUDIO_CONTROLLER_WS_URL一致",
+        description="Bilibili 直播间 ID，需与 VTUBE_STUDIO_CONTROLLER_WS_URL 一致",
+        json_schema_extra=ExtraField(sub_item_name="直播间").model_dump(),
     )
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
@@ -253,6 +254,7 @@ class PluginConfig(ConfigBase):
         default=["#", "＃", "[Debug]", "[Opt Output]"],
         title="忽略的消息前缀",
         description="带有这些前缀的消息不会被参考或者触发",
+        json_schema_extra=ExtraField(sub_item_name="前缀").model_dump(),
     )
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
         default=0.0,
@@ -263,16 +265,19 @@ class PluginConfig(ConfigBase):
         default=[],
         title="触发正则表达式",
         description="触发正则表达式，当消息匹配到正则表达式时，会触发 AI 回复",
+        json_schema_extra=ExtraField(sub_item_name="表达式").model_dump(),
     )
     AI_CHAT_IGNORE_REGEX: List[str] = Field(
         default=[],
         title="忽略正则表达式",
         description="忽略正则表达式，当消息匹配到正则表达式时，不会触发 AI 回复",
+        json_schema_extra=ExtraField(sub_item_name="表达式").model_dump(),
     )
     AI_RESPONSE_PRE_DROP_REGEX: List[str] = Field(
         default=[],
         title="AI 响应预处理丢弃正则表达式",
         description="使用正则表达式匹配 AI 预响应结果，丢弃匹配到的内容段再执行后续思维链解析、代码解析等内容",
+        json_schema_extra=ExtraField(sub_item_name="表达式").model_dump(),
     )
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
         default=768,
@@ -342,7 +347,11 @@ class PluginConfig(ConfigBase):
         json_schema_extra=ExtraField(is_secret=True).model_dump(),
         description="邮箱密码或授权码",
     )
-    MAIL_TARGET: List[str] = Field(default=[], title="邮件通知目标")
+    MAIL_TARGET: List[str] = Field(
+        default=[],
+        title="邮件通知目标",
+        json_schema_extra=ExtraField(sub_item_name="目标邮箱").model_dump(),
+    )
     MAIL_HOSTNAME: str = Field(
         default="smtp.qq.com",
         title="邮件通知 SMTP 服务器",

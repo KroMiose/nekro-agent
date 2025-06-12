@@ -181,7 +181,6 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
         transition: LAYOUT.TRANSITION.DEFAULT,
         '&:hover': {
           boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-          transform: 'translateY(-2px)',
         },
         background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
         backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,

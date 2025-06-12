@@ -46,7 +46,7 @@ import {
 } from '@mui/icons-material'
 import { CircularProgress } from '@mui/material'
 import { useNavigate } from 'react-router-dom'
-import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import { ThemedTooltip } from './ThemedTooltip'
 import { useNotification } from '../../hooks/useNotification'
 
@@ -173,7 +173,7 @@ function renderNestedConfigRows(
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}>
-                [{index}]
+                {config.sub_item_name ? `${config.sub_item_name}[${index}]` : `[${index}]`}
               </Typography>
               <IconButton
                 size="small"
@@ -193,10 +193,7 @@ function renderNestedConfigRows(
               size="small"
               color={getTypeColor(elementType)}
               variant="outlined"
-              sx={{
-                height: isSmall ? 20 : 24,
-                fontSize: isSmall ? '0.65rem' : '0.75rem',
-              }}
+              sx={CHIP_VARIANTS.base(isSmall)}
             />
           </TableCell>
           <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
@@ -338,9 +335,17 @@ function renderNestedConfigRows(
                         >
                           <IconButton
                             size="small"
-                            sx={{ ml: 0.5, opacity: 0.6, p: isSmall ? 0.3 : 0.5 }}
+                            sx={{
+                              ml: 0.5,
+                              p: isSmall ? 0.2 : 0.3,
+                              color: 'primary.main',
+                              '&:hover': {
+                                color: 'primary.dark',
+                                bgcolor: 'action.hover',
+                              },
+                            }}
                           >
-                            <HelpOutlineIcon fontSize={isSmall ? 'small' : 'medium'} />
+                            <HelpOutlineIcon fontSize="inherit" />
                           </IconButton>
                         </HtmlTooltip>
                       )}
@@ -362,20 +367,24 @@ function renderNestedConfigRows(
                     size="small"
                     color={getTypeColor(fieldSchema.type)}
                     variant="outlined"
-                    sx={{
-                      height: isSmall ? 20 : 24,
-                      fontSize: isSmall ? '0.65rem' : '0.75rem',
-                    }}
+                    sx={CHIP_VARIANTS.base(isSmall)}
                   />
                 </TableCell>
                 <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
-                  {renderFieldInput(fieldValue, fieldSchema, newValue => {
-                    const newList = [...listValue]
-                    const newItem = { ...(newList[index] as Record<string, unknown>) }
-                    newItem[fieldName] = newValue
-                    newList[index] = newItem
-                    handleConfigChange(config.key, JSON.stringify(newList))
-                  }, subKey, expandedRows, setExpandedRows)}
+                  {renderFieldInput(
+                    fieldValue,
+                    fieldSchema,
+                    newValue => {
+                      const newList = [...listValue]
+                      const newItem = { ...(newList[index] as Record<string, unknown>) }
+                      newItem[fieldName] = newValue
+                      newList[index] = newItem
+                      handleConfigChange(config.key, JSON.stringify(newList))
+                    },
+                    subKey,
+                    expandedRows,
+                    setExpandedRows
+                  )}
                 </TableCell>
               </TableRow>
             )
@@ -403,8 +412,11 @@ function renderNestedConfigRows(
                       }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}>
-                          [{listIndex}]
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}
+                        >
+                          {fieldSchema.title || fieldName}[{listIndex}]
                         </Typography>
                         <IconButton
                           size="small"
@@ -428,10 +440,7 @@ function renderNestedConfigRows(
                         size="small"
                         color={getTypeColor(fieldElementType)}
                         variant="outlined"
-                        sx={{
-                          height: isSmall ? 20 : 24,
-                          fontSize: isSmall ? '0.65rem' : '0.75rem',
-                        }}
+                        sx={CHIP_VARIANTS.base(isSmall)}
                       />
                     </TableCell>
                     <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
@@ -583,10 +592,7 @@ function renderNestedConfigRows(
               size="small"
               color={getTypeColor(valueType)}
               variant="outlined"
-              sx={{
-                height: isSmall ? 20 : 24,
-                fontSize: isSmall ? '0.65rem' : '0.75rem',
-              }}
+              sx={CHIP_VARIANTS.base(isSmall)}
             />
           </TableCell>
           <TableCell sx={{ py: isSmall ? 0.75 : 1.5 }}>
@@ -698,13 +704,13 @@ function renderSimpleListInput(
 // 渲染字段输入框
 function renderFieldInput(
   value: unknown,
-  fieldSchema: { 
-    type: string; 
-    is_secret?: boolean; 
-    is_textarea?: boolean; 
-    placeholder?: string;
-    is_complex?: boolean;
-    element_type?: string;
+  fieldSchema: {
+    type: string
+    is_secret?: boolean
+    is_textarea?: boolean
+    placeholder?: string
+    is_complex?: boolean
+    element_type?: string
   },
   onChange: (value: unknown) => void,
   fieldKey?: string,
@@ -752,7 +758,7 @@ function renderFieldInput(
       if (fieldKey && expandedRows && setExpandedRows) {
         const listValue = Array.isArray(value) ? value : []
         const isExpanded = expandedRows[fieldKey] || false
-        
+
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
             <TextField
@@ -796,7 +802,7 @@ function renderFieldInput(
           </Box>
         )
       }
-      
+
       // 如果没有展开状态管理，回退到简单显示
       const listValue = Array.isArray(value) ? value : []
       return (
@@ -1137,40 +1143,41 @@ export default function ConfigTable({
           </TextField>
 
           {typeOption && (
-            <Chip
-              label={`${typeOption.label}模型组`}
-              size="small"
-              color={
-                (typeOption?.color as
-                  | 'primary'
-                  | 'secondary'
-                  | 'success'
-                  | 'warning'
-                  | 'info'
-                  | 'error'
-                  | 'default') || 'primary'
-              }
+            <Button
               variant="outlined"
-              sx={{
-                height: isSmall ? 20 : 24,
-                fontSize: isSmall ? '0.65rem' : '0.75rem',
-                '& .MuiChip-label': {
-                  px: isSmall ? 0.5 : 0.75,
-                },
-                flexShrink: 0,
-              }}
-            />
-          )}
-
-          <Tooltip title="配置模型组">
-            <IconButton
+              color={
+                (['primary', 'secondary', 'success', 'warning', 'info', 'error'].includes(
+                  typeOption?.color || ''
+                )
+                  ? typeOption?.color
+                  : 'info') as 'primary' | 'secondary' | 'success' | 'warning' | 'info' | 'error'
+              }
               size="small"
+              endIcon={<LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />}
               onClick={() => navigate('/settings/model-groups')}
-              sx={{ flexShrink: 0 }}
+              sx={{
+                flexShrink: 0,
+                borderRadius: 999,
+                fontWeight: 600,
+                px: isSmall ? 1 : 1.5,
+                py: isSmall ? 0.1 : 0.4,
+                minWidth: 'auto',
+                height: isSmall ? 24 : 28,
+                fontSize: isSmall ? '0.68rem' : '0.8rem',
+                letterSpacing: 0.5,
+                textTransform: 'none',
+                boxShadow: 'none',
+                transition: 'background 0.2s',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                  boxShadow: 1,
+                },
+              }}
+              aria-label="跳转到模型组配置页面"
             >
-              <LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />
-            </IconButton>
-          </Tooltip>
+              {`${typeOption.label}模型组`}
+            </Button>
+          )}
         </Box>
       )
     }
@@ -1512,9 +1519,17 @@ export default function ConfigTable({
                               >
                                 <IconButton
                                   size="small"
-                                  sx={{ ml: 0.5, opacity: 0.6, p: isSmall ? 0.3 : 0.5 }}
+                                  sx={{
+                                    ml: 0.5,
+                                    p: isSmall ? 0.2 : 0.3,
+                                    color: 'primary.main',
+                                    '&:hover': {
+                                      color: 'primary.dark',
+                                      bgcolor: 'action.hover',
+                                    },
+                                  }}
                                 >
-                                  <HelpOutlineIcon fontSize={isSmall ? 'small' : 'medium'} />
+                                  <HelpOutlineIcon fontSize="inherit" />
                                 </IconButton>
                               </HtmlTooltip>
                             )}
@@ -1540,13 +1555,7 @@ export default function ConfigTable({
                             size="small"
                             color={getTypeColor(config.type, config.is_complex)}
                             variant="outlined"
-                            sx={{
-                              height: isSmall ? 20 : 24,
-                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                              '& .MuiChip-label': {
-                                px: isSmall ? 0.5 : 0.75,
-                              },
-                            }}
+                            sx={CHIP_VARIANTS.base(isSmall)}
                           />
                         </Box>
                       </TableCell>
