@@ -8,7 +8,11 @@ from nonebot.adapters.minecraft import Bot, Message, MessageSegment
 from nonebot.adapters.minecraft.model import ClickEvent, HoverEvent, TextColor
 from pydantic import Field
 
-from nekro_agent.adapters.interface.base import BaseAdapter, BaseAdapterConfig
+from nekro_agent.adapters.interface.base import (
+    AdapterMetadata,
+    BaseAdapter,
+    BaseAdapterConfig,
+)
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
     PlatformSendRequest,
@@ -25,7 +29,6 @@ class MinecraftConfig(BaseAdapterConfig):
     """Minecraft 适配器配置"""
 
 
-
 class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     """Minecraft 适配器"""
 
@@ -36,6 +39,17 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     @property
     def key(self) -> str:
         return "minecraft"
+
+    @property
+    def metadata(self) -> AdapterMetadata:
+        return AdapterMetadata(
+            name="Minecraft",
+            description="Minecraft 服务器适配器，通过 RCON 协议与游戏服务器通信，支持游戏内聊天互动",
+            version="1.0.0",
+            author="Zaxpris",
+            homepage="https://github.com/nekro-agent/nekro-agent",
+            tags=["minecraft", "rcon", "gaming", "chat", "server"],
+        )
 
     @property
     def chat_key_rules(self) -> List[str]:

@@ -34,8 +34,8 @@ import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useNavigate } from 'react-router-dom'
-import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
-import { LAYOUT, CHIP_VARIANTS } from '../../theme/variants'
+import { UI_STYLES } from '../../theme/themeConfig'
+import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -64,31 +64,22 @@ const PresetCard = ({
   onDownload: () => void
   onShowDetail: () => void
 }) => {
-  const theme = useTheme()
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
 
-  // 显式依赖theme以确保主题切换时重新渲染
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const cardBackground = useMemo(() => UI_STYLES.GRADIENTS.CARD.DEFAULT, [theme.palette.mode])
+
 
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
         overflow: 'hidden',
+        position: 'relative',
         '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: cardBackground,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
-        position: 'relative',
       }}
     >
       <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
@@ -230,7 +221,7 @@ const PresetDetailDialog = ({
       scroll="paper"
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          ...CARD_VARIANTS.default.styles,
           overflow: 'hidden',
         },
       }}

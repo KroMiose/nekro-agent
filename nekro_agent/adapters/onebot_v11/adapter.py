@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import List, Type
 
+from fastapi import APIRouter
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
 from pydantic import Field
 
@@ -17,7 +18,7 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
-from ..interface.base import BaseAdapter, BaseAdapterConfig
+from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
@@ -26,7 +27,11 @@ from .tools.convertor import get_channel_type
 class OnebotV11Config(BaseAdapterConfig):
     """Onebot V11 适配器配置"""
 
-    RESOLVE_CQ_CODE: bool = Field(False, description="是否解析CQ码")
+    RESOLVE_CQ_CODE: bool = Field(
+        default=False,
+        title="是否解析 CQ 码",
+        description="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+    )
 
 
 class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
@@ -39,6 +44,30 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
     @property
     def key(self) -> str:
         return "onebot_v11"
+
+    @property
+    def metadata(self) -> AdapterMetadata:
+        return AdapterMetadata(
+            name="OneBot V11",
+            description="OneBot V11 协议适配器，支持与兼容 OneBot V11 标准的 QQ 机器人实现进行通信",
+            version="1.0.0",
+            author="NekroAgent",
+            homepage="https://github.com/nekro-agent/nekro-agent",
+            tags=["qq", "onebot", "v11", "chat", "messaging"],
+        )
+
+    @property
+    def chat_key_rules(self) -> List[str]:
+        return [
+            "群聊: `onebot_v11-group_123456` (123456为群号)",
+            "私聊: `onebot_v11-private_123456` (123456为用户QQ号)",
+        ]
+
+    def get_adapter_router(self) -> APIRouter:
+        """获取适配器路由"""
+        from .routers import router
+
+        return router
 
     async def init(self) -> None:
         """初始化适配器"""

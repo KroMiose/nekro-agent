@@ -33,8 +33,8 @@ import {
 } from 'recharts'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
-import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
-import { LAYOUT } from '../../theme/variants'
+import { UI_STYLES } from '../../theme/themeConfig'
+import { CARD_VARIANTS } from '../../theme/variants'
 
 // 统计卡片组件
 const StatCard = ({
@@ -54,20 +54,12 @@ const StatCard = ({
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         p: 2,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'space-between',
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        borderRadius: BORDER_RADIUS.MEDIUM,
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
       }}
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -483,16 +475,8 @@ export default function TelemetryStats() {
         <Grid item xs={12} md={6}>
           <Card
             sx={{
-              transition: LAYOUT.TRANSITION.DEFAULT,
+              ...CARD_VARIANTS.default.styles,
               height: isMobile ? 350 : 400,
-              borderRadius: BORDER_RADIUS.MEDIUM,
-              background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-              backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-              border: UI_STYLES.BORDERS.CARD.DEFAULT,
-              boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
-              '&:hover': {
-                boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-              },
             }}
           >
             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -506,16 +490,8 @@ export default function TelemetryStats() {
         <Grid item xs={12} md={6}>
           <Card
             sx={{
-              transition: LAYOUT.TRANSITION.DEFAULT,
+              ...CARD_VARIANTS.default.styles,
               height: isMobile ? 350 : 400,
-              borderRadius: BORDER_RADIUS.MEDIUM,
-              background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-              backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-              border: UI_STYLES.BORDERS.CARD.DEFAULT,
-              boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
-              '&:hover': {
-                boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-              },
             }}
           >
             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

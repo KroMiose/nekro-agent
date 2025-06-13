@@ -1224,10 +1224,11 @@ export default function PluginsManagementPage() {
     <Box
       sx={{
         display: 'flex',
-        height: 'calc(100vh - 90px)',
+        height: 'calc(100vh - 64px)',
         flexDirection: 'column',
         gap: 2,
         position: 'relative',
+        p: 2,
       }}
     >
       {/* 主要内容区 */}
@@ -1354,6 +1355,7 @@ export default function PluginsManagementPage() {
                                     whiteSpace: 'nowrap',
                                     maxWidth: 200,
                                     fontSize: isSmall ? '0.75rem' : 'inherit',
+                                    color: 'text.secondary',
                                   }}
                                 >
                                   {plugin.description}
@@ -1526,6 +1528,7 @@ export default function PluginsManagementPage() {
                                     whiteSpace: 'nowrap',
                                     maxWidth: 200,
                                     fontSize: isSmall ? '0.75rem' : 'inherit',
+                                    color: 'text.secondary',
                                   }}
                                 >
                                   {plugin.description}

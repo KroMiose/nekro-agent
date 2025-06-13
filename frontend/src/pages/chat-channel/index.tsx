@@ -407,7 +407,7 @@ export default function ChatChannelPage() {
   )
 
   return (
-    <Box className="h-[calc(100vh-90px)] flex gap-3 overflow-hidden p-2">
+    <Box className="h-[calc(100vh-64px)] flex gap-2 overflow-hidden p-4">
       {isMobile ? (
         // 移动端布局
         <>

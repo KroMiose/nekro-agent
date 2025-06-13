@@ -5,7 +5,7 @@ from typing import Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
 from fastapi import APIRouter
 from jinja2 import Environment
 from nonebot import logger
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.os_env import OsEnv
@@ -20,18 +20,29 @@ from .schemas.platform import (
 )
 
 
+class AdapterMetadata(BaseModel):
+    """适配器元数据"""
+
+    name: str
+    description: str
+    version: str = "1.0.0"
+    author: str = ""
+    homepage: str = ""
+    tags: List[str] = []
+
+
 class BaseAdapterConfig(ConfigBase):
     """适配器配置基类"""
 
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
-        default=True,
-        title="显示处理中表情",
-        description="当 AI 处理消息时，对应消息会显示处理中表情回应",
-    )
     SESSION_ENABLE_AT: bool = Field(
         default=True,
-        title="启用 At 功能",
-        description="关闭后 AI 发送的 At 消息将被解析为纯文本用户名，避免反复打扰用户",
+        title="启用 @用户 功能",
+        description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+    )
+    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
+        default=True,
+        title="显示处理中表情反馈",
+        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
     )
 
 
@@ -51,8 +62,21 @@ class BaseAdapter(Generic[TConfig], ABC):
         self._adapter_config_path = Path(OsEnv.DATA_DIR) / "configs" / self.key / "config.yaml"
         self._config = self.get_config(self._Configs)
 
+        # 注册配置到统一配置系统
+        from nekro_agent.core.core_utils import ConfigManager
+
+        ConfigManager.register_config(f"adapter_{self.key}", self._config)
+
     @property
+    @abstractmethod
     def key(self) -> str:
+        """适配器唯一标识"""
+        raise NotImplementedError
+
+    @property
+    @abstractmethod
+    def metadata(self) -> AdapterMetadata:
+        """适配器元数据"""
         raise NotImplementedError
 
     def get_adapter_router(self) -> APIRouter:
@@ -80,11 +104,20 @@ class BaseAdapter(Generic[TConfig], ABC):
         return self.get_config(self._Configs)
 
     @property
+    def config_path(self) -> Path:
+        """获取适配器配置路径"""
+        return self._adapter_config_path
+
+    @property
     def chat_key_rules(self) -> List[str]:
         return [
             "Group chat: `platform-group_123456` (where 123456 is the group number)",
             "Private chat: `platform-private_123456` (where 123456 is the user's QQ number)",
         ]
+
+    def get_docs_path(self) -> Path:
+        """获取适配器文档路径"""
+        return Path(__file__).parent.parent / self.key / "README.md"
 
     @abstractmethod
     async def init(self) -> None:

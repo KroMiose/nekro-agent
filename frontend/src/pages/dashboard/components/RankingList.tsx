@@ -18,10 +18,9 @@ import { RankingItem } from '../../../services/api/dashboard'
 import { 
   UI_STYLES,
   BORDER_RADIUS,
-  CARD_LAYOUT,
   getCurrentThemeMode
 } from '../../../theme/themeConfig'
-import { LAYOUT } from '../../../theme/variants'
+import { CARD_VARIANTS } from '../../../theme/variants'
 
 interface RankingListProps {
   title: string
@@ -92,16 +91,7 @@ export const RankingList: React.FC<RankingListProps> = ({
   return (
     <Card 
       className="w-full h-full"
-      sx={{
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
-      }}
+      sx={CARD_VARIANTS.default.styles}
     >
       <CardContent>
         <Typography variant="h6" gutterBottom color="text.primary">
@@ -109,11 +99,11 @@ export const RankingList: React.FC<RankingListProps> = ({
         </Typography>
 
         {loading ? (
-          <Box className="flex justify-center items-center" sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box className="flex justify-center items-center" sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}>
             <CircularProgress />
           </Box>
         ) : data.length === 0 ? (
-          <Box className="flex justify-center items-center" sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box className="flex justify-center items-center" sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}>
             <Typography variant="body2" color="text.secondary">
               暂无数据
             </Typography>
@@ -121,7 +111,7 @@ export const RankingList: React.FC<RankingListProps> = ({
         ) : (
           <Box 
             sx={{ 
-              height: isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP,
+              height: isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP,
               overflow: 'auto',
               '&::-webkit-scrollbar': {
                 width: scrollbar.WIDTH,

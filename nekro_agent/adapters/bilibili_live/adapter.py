@@ -12,7 +12,11 @@ from nekro_agent.adapters.bilibili_live.templates.practice import (
     PracticePrompt_response_1,
     PracticePrompt_response_2,
 )
-from nekro_agent.adapters.interface.base import BaseAdapter, BaseAdapterConfig
+from nekro_agent.adapters.interface.base import (
+    AdapterMetadata,
+    BaseAdapter,
+    BaseAdapterConfig,
+)
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
@@ -41,12 +45,6 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
 
-    SESSION_ENABLE_AT: bool = Field(
-        default=False,
-        title="启用@提及",
-        description="启用后，@提及会被替换为空字符串",
-    )
-
 
 class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     """Bilibili 直播适配器"""
@@ -60,6 +58,17 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     @property
     def key(self) -> str:
         return "bilibili_live"
+
+    @property
+    def metadata(self) -> AdapterMetadata:
+        return AdapterMetadata(
+            name="Bilibili Live",
+            description="Bilibili 直播适配器，实时接收直播间弹幕消息、礼物信息和用户互动事件",
+            version="1.0.0",
+            author="Zaxpris",
+            homepage="https://github.com/nekro-agent/nekro-agent",
+            tags=["bilibili", "live", "stream", "danmaku", "realtime"],
+        )
 
     @property
     def chat_key_rules(self) -> List[str]:

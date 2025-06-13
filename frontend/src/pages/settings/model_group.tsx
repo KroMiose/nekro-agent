@@ -698,16 +698,7 @@ export default function ModelGroupsPage() {
           gap: 1,
         }}
       >
-        <Alert
-          severity="info"
-          className={isMobile ? 'w-full' : 'mr-4'}
-          sx={{
-            py: isSmall ? 0.5 : 1,
-            '& .MuiAlert-message': {
-              fontSize: isSmall ? '0.75rem' : 'inherit',
-            },
-          }}
-        >
+        <Alert severity="info">
           需要 API 密钥？可访问{' '}
           <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
             Nekro 合作中转
@@ -738,14 +729,14 @@ export default function ModelGroupsPage() {
           flexDirection: 'column',
           minHeight: 0,
           overflow: 'hidden',
-          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>)
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
         }}
       >
         <TableContainer
           sx={{
             flex: 1,
             overflow: 'auto',
-            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>)
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
           }}
         >
           <Table
@@ -755,64 +746,84 @@ export default function ModelGroupsPage() {
           >
             <TableHead>
               <TableRow>
-                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) 
-                }}>
+                <TableCell
+                  width={isMobile ? '15%' : '12%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   组名
                 </TableCell>
-                <TableCell width={isMobile ? '18%' : '15%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '18%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   模型名称
                 </TableCell>
-                <TableCell width={isMobile ? '15%' : '10%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '15%' : '10%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   模型类型
                 </TableCell>
                 {!isSmall && (
-                  <TableCell width="18%" sx={{ 
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    width="18%"
+                    sx={{
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
                     API地址
                   </TableCell>
                 )}
                 {!isMobile && (
-                  <TableCell width="15%" sx={{ 
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    width="15%"
+                    sx={{
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
                     代理地址
                   </TableCell>
                 )}
-                <TableCell width={isMobile ? '23%' : '15%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '23%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   功能
                 </TableCell>
-                <TableCell width={isMobile ? '30%' : '15%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '30%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   操作
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {Object.entries(modelGroups).map(([name, config]) => (
-                <TableRow 
-                  key={name}
-                  sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}
-                >
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                <TableRow key={name} sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Typography
                       className={name === 'default' ? 'font-bold' : ''}
                       variant="subtitle2"
@@ -821,10 +832,12 @@ export default function ModelGroupsPage() {
                       {name}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Typography
                       variant="body2"
                       sx={{
@@ -837,10 +850,12 @@ export default function ModelGroupsPage() {
                       {config.CHAT_MODEL}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Chip
                       icon={getModelTypeIcon(config.MODEL_TYPE)}
                       label={getModelTypeLabel(config.MODEL_TYPE)}
@@ -857,18 +872,22 @@ export default function ModelGroupsPage() {
                     />
                   </TableCell>
                   {!isSmall && (
-                    <TableCell sx={{ 
-                      py: isSmall ? 0.75 : 1.5,
-                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                    }}>
+                    <TableCell
+                      sx={{
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                      }}
+                    >
                       <BlurredText>{config.BASE_URL}</BlurredText>
                     </TableCell>
                   )}
                   {!isMobile && (
-                    <TableCell sx={{ 
-                      py: isSmall ? 0.75 : 1.5,
-                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                    }}>
+                    <TableCell
+                      sx={{
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                      }}
+                    >
                       <Typography
                         variant="body2"
                         sx={{
@@ -882,10 +901,12 @@ export default function ModelGroupsPage() {
                       </Typography>
                     </TableCell>
                   )}
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Stack direction="row" spacing={0.5} flexWrap={isSmall ? 'wrap' : 'nowrap'}>
                       <Tooltip title={config.ENABLE_VISION ? '支持视觉功能' : '不支持视觉功能'}>
                         <Chip
@@ -929,10 +950,12 @@ export default function ModelGroupsPage() {
                       </Tooltip>
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Stack
                       direction="row"
                       spacing={0.5}

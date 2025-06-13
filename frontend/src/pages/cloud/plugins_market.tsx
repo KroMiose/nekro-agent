@@ -57,6 +57,7 @@ import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
+import { CARD_VARIANTS } from '../../theme/variants'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -118,18 +119,10 @@ const PluginCard = ({
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        transition: 'all 0.2s ease-in-out',
-        borderRadius: BORDER_RADIUS.MEDIUM,
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
       }}
     >
       <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
@@ -433,12 +426,8 @@ const PluginDetailDialog = ({
       scroll="paper"
       PaperProps={{
         sx: {
-          borderRadius: BORDER_RADIUS.MEDIUM,
+          ...CARD_VARIANTS.default.styles,
           overflow: 'hidden',
-          background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-          backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-          border: UI_STYLES.BORDERS.CARD.DEFAULT,
-          boxShadow: UI_STYLES.SHADOWS.CARD.DEFAULT,
         },
       }}
     >
@@ -987,7 +976,7 @@ const CreatePluginDialog = ({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: 2,
+          ...CARD_VARIANTS.default.styles,
           overflow: 'hidden',
         },
       }}

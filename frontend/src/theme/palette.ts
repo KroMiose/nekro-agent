@@ -65,8 +65,8 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: 'aqua',
-    name: '星空蓝',
-    description: '如深邃星空般梦幻的蓝色系',
+    name: '晴空蓝',
+    description: '如晴空般明朗的蓝色系',
     light: {
       brand: '#5D9CEC',
       accent: '#EC87C0',
@@ -79,7 +79,7 @@ export const themePresets: ThemePreset[] = [
   {
     id: 'matcha',
     name: '抹茶绿',
-    description: '如日式抹茶般清新的绿色系',
+    description: '如抹茶般清新的绿色系',
     light: {
       brand: '#66BB6A',
       accent: '#FFB74D',

@@ -41,7 +41,7 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
 import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
-import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES, CARD_VARIANTS } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 
 // 添加共用的内容区样式
@@ -140,7 +140,7 @@ export default function SandboxPage() {
     isMobile ? (
       <Grid container spacing={2} className="flex-shrink-0 mb-2">
         <Grid item xs={6}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               <Typography
                 color="textSecondary"
@@ -154,7 +154,7 @@ export default function SandboxPage() {
           </Card>
         </Grid>
         <Grid item xs={6}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               <Typography
                 color="textSecondary"
@@ -170,7 +170,7 @@ export default function SandboxPage() {
           </Card>
         </Grid>
         <Grid item xs={4}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               <Typography
                 color="textSecondary"
@@ -186,7 +186,7 @@ export default function SandboxPage() {
           </Card>
         </Grid>
         <Grid item xs={4}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               <Typography
                 color="textSecondary"
@@ -202,7 +202,7 @@ export default function SandboxPage() {
           </Card>
         </Grid>
         <Grid item xs={4}>
-          <Card sx={{ height: '100%' }}>
+          <Card sx={CARD_VARIANTS.default.styles}>
             <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
               <Typography
                 color="textSecondary"
@@ -217,8 +217,8 @@ export default function SandboxPage() {
         </Grid>
       </Grid>
     ) : (
-      <Stack direction="row" spacing={2} className="flex-shrink-0">
-        <Card sx={{ flex: 1 }}>
+      <Stack direction="row" spacing={2} className="flex-shrink-0" sx={{ width: '100%' }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
               总执行次数
@@ -226,7 +226,7 @@ export default function SandboxPage() {
             <Typography variant="h4">{stats?.total || 0}</Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
               成功次数
@@ -236,7 +236,7 @@ export default function SandboxPage() {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
               代理执行次数
@@ -246,7 +246,7 @@ export default function SandboxPage() {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
               失败次数
@@ -256,7 +256,7 @@ export default function SandboxPage() {
             </Typography>
           </CardContent>
         </Card>
-        <Card sx={{ flex: 1 }}>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
               成功率

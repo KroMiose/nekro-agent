@@ -30,7 +30,7 @@ import {
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
 import { motion } from 'framer-motion'
-import { UI_STYLES, getAnimationDuration, getBackdropFilter, getShadow } from '../theme/themeApi'
+import { UI_STYLES, getAnimationDuration } from '../theme/themeApi'
 import ThemeToggleButton from '../theme/ThemeToggleButton'
 import { useNotification } from '../hooks/useNotification'
 import { alpha } from '@mui/material/styles'
@@ -67,6 +67,24 @@ export default function MainLayout() {
   useEffect(() => {
     setDrawerOpen(!isMobile)
   }, [isMobile])
+
+  // 自动展开包含当前路由的菜单项
+  useEffect(() => {
+    menuItems.forEach(item => {
+      if (item.children && item.key) {
+        const hasActiveChild = item.children.some(child => 
+          location.pathname === child.path || 
+          location.pathname.startsWith(child.path + '/')
+        )
+        if (hasActiveChild) {
+          setOpenMenus(prev => ({
+            ...prev,
+            [item.key]: true,
+          }))
+        }
+      }
+    })
+  }, [location.pathname])
 
   const getCurrentPage = () => {
     return getCurrentPageFromConfigs(location.pathname)
@@ -197,7 +215,10 @@ export default function MainLayout() {
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => handleMenuItemClick(item.path, item.key)}
-                selected={!item.children && location.pathname === item.path}
+                selected={Boolean(!item.children && (
+                  location.pathname === item.path || 
+                  (item.path && location.pathname.startsWith(item.path + '/'))
+                ))}
                 sx={{
                   '&.Mui-selected': {
                     backgroundColor: UI_STYLES.SELECTED,
@@ -239,7 +260,10 @@ export default function MainLayout() {
                           setDrawerOpen(false)
                         }
                       }}
-                      selected={location.pathname === child.path}
+                      selected={Boolean(
+                        location.pathname === child.path ||
+                        location.pathname.startsWith(child.path + '/')
+                      )}
                       sx={{
                         pl: 4,
                         py: isSmall ? 0.75 : 1,
@@ -354,6 +378,7 @@ export default function MainLayout() {
         backgroundColor: theme.palette.mode === 'dark' ? '#181818' : '#f8f8f8',
         minHeight: '100vh',
         transition: 'background 0.5s ease',
+        padding: 0,
       }}
     >
       {/* 壁纸背景组件 */}
@@ -484,7 +509,6 @@ export default function MainLayout() {
                 theme.palette.mode === 'dark'
                   ? alpha(theme.palette.background.paper, 0.68)
                   : alpha(theme.palette.background.paper, 0.86),
-              backdropFilter: 'blur(8px)',
               transition: theme =>
                 theme.transitions.create('width', {
                   easing: theme.transitions.easing.sharp,
@@ -499,7 +523,7 @@ export default function MainLayout() {
       </Box>
       <Box
         component="main"
-        className="flex-grow p-3 h-screen overflow-hidden flex flex-col"
+        className="flex-grow h-screen overflow-hidden flex flex-col"
         sx={{
           position: 'relative',
           zIndex: 1, // 确保主内容在壁纸上层
@@ -507,6 +531,7 @@ export default function MainLayout() {
             xs: '100%',
             md: drawerOpen ? 'calc(100% - 240px)' : '100%',
           },
+          padding: 0,
           transition: theme =>
             theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
@@ -516,7 +541,7 @@ export default function MainLayout() {
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
-          key={location.key}
+          key={location.pathname.split('/').slice(0, 3).join('/')}
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{
@@ -525,16 +550,6 @@ export default function MainLayout() {
           }}
           className="h-full flex-grow overflow-auto rounded-xl performance-adaptive motion-div"
           style={{
-            backdropFilter: getBackdropFilter('blur(6px)'),
-            WebkitBackdropFilter: getBackdropFilter('blur(6px)'),
-            background:
-              theme.palette.mode === 'dark'
-                ? 'rgba(32, 32, 32, 0.48)'
-                : 'rgba(255, 255, 255, 0.68)',
-            boxShadow: getShadow(
-              `0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`
-            ),
-            border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
             position: 'relative',
             overflow: 'hidden',
           }}

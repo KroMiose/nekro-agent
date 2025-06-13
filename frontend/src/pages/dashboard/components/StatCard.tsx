@@ -7,9 +7,9 @@ import {
   CircularProgress,
   useMediaQuery,
   useTheme,
+  alpha,
 } from '@mui/material'
-import { UI_STYLES, BORDER_RADIUS, getAlphaColor } from '../../../theme/themeApi'
-import { LAYOUT } from '../../../theme/variants'
+import { CARD_VARIANTS } from '../../../theme/variants'
 
 interface StatCardProps {
   title: string
@@ -17,7 +17,6 @@ interface StatCardProps {
   icon?: React.ReactNode
   color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info' | string
   loading?: boolean
-  type?: 'default' | 'success' | 'error' | 'warning' | 'info'
 }
 
 export const StatCard: React.FC<StatCardProps> = ({
@@ -26,7 +25,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   icon,
   color = 'primary',
   loading = false,
-  type = 'default',
 }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
@@ -56,67 +54,25 @@ export const StatCard: React.FC<StatCardProps> = ({
   // 获取实际颜色
   const actualColor = getCardColor()
 
-  // 使用不同类型的渐变背景
-  const getCardBackground = () => {
-    switch (type) {
-      case 'success':
-        return UI_STYLES.GRADIENTS.CARD.SUCCESS
-      case 'error':
-        return UI_STYLES.GRADIENTS.CARD.ERROR
-      case 'warning':
-        return UI_STYLES.GRADIENTS.CARD.WARNING
-      case 'info':
-        return UI_STYLES.GRADIENTS.CARD.INFO
-      default:
-        return UI_STYLES.GRADIENTS.CARD.STATISTIC
-    }
-  }
-
   return (
     <Card
       className="w-full"
-      sx={{
-        borderRadius: BORDER_RADIUS.DEFAULT,
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
-        background: getCardBackground(),
-        backgroundColor:
-          theme.palette.mode === 'dark' ? 'rgba(32, 32, 32, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        position: 'relative',
-        overflow: 'hidden',
-        '&:after': {
-          content: '""',
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '25%',
-          height: '100%',
-          background: `linear-gradient(90deg, transparent, ${getAlphaColor(theme.palette.mode === 'dark' ? '#fff' : theme.palette.primary.light, 0.04)})`,
-          filter: 'blur(5px)',
-          zIndex: 0,
-        },
-      }}
+      sx={CARD_VARIANTS.default.styles}
     >
       <CardContent
         className={`flex items-center ${isMobile ? 'p-3' : 'p-4'}`}
-        sx={{ position: 'relative', zIndex: 1 }}
       >
         {icon && (
           <Box
             className={`flex items-center justify-center rounded-full ${isMobile ? 'p-1.5 mr-2' : 'p-2 mr-3'}`}
             sx={{
-              bgcolor: getAlphaColor(actualColor, 0.15),
+              bgcolor: alpha(actualColor, 0.15),
               color: actualColor,
-              boxShadow: `0 2px 8px ${getAlphaColor(actualColor, 0.1)}`,
+              boxShadow: `0 2px 8px ${alpha(actualColor, 0.1)}`,
               transition: 'all 0.3s ease',
               '&:hover': {
                 transform: 'scale(1.05) rotate(5deg)',
-                boxShadow: `0 3px 10px ${getAlphaColor(actualColor, 0.15)}`,
+                boxShadow: `0 3px 10px ${alpha(actualColor, 0.15)}`,
               },
             }}
           >

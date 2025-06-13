@@ -30,7 +30,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core import logger
 from nekro_agent.schemas.chat_message import ChatType
 
-from ..interface.base import BaseAdapter, BaseAdapterConfig
+from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .commands import set_client_manager
 from .core.client import SseClientManager
 from .core.message import SseMessageConverter
@@ -41,9 +41,13 @@ class SSEConfig(BaseAdapterConfig):
     """SSE 适配器配置"""
 
     # 添加文件相关配置
-    ALLOW_FILE_TRANSFER: bool = Field(True, description="是否允许文件传输")
-    MAX_FILE_SIZE: int = Field(10 * 1024 * 1024, description="最大文件大小（字节）")
-    ALLOWED_FILE_TYPES: List[str] = Field(["image/*", "application/*", "text/*"], description="允许的文件类型")
+    ALLOW_FILE_TRANSFER: bool = Field(default=False, title="是否允许文件传输", description="是否允许文件传输")
+    MAX_FILE_SIZE: int = Field(default=10 * 1024 * 1024, title="最大文件大小（字节）", description="最大文件大小（字节）")
+    ALLOWED_FILE_TYPES: List[str] = Field(
+        default=["image/*", "application/*", "text/*"],
+        title="允许的文件类型",
+        description="允许的文件类型",
+    )
 
 
 class SSEAdapter(BaseAdapter[SSEConfig]):
@@ -92,6 +96,17 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
     def key(self) -> str:
         """适配器唯一标识"""
         return "sse"
+
+    @property
+    def metadata(self) -> AdapterMetadata:
+        return AdapterMetadata(
+            name="SSE",
+            description="基于 Server-Sent Events 的实时通信适配器，支持通用 HTTP 协议的多客户端接入",
+            version="1.0.0",
+            author="NekroAgent",
+            homepage="https://github.com/nekro-agent/nekro-agent",
+            tags=["sse", "http", "realtime", "api"],
+        )
 
     @property
     def chat_key_rules(self) -> List[str]:

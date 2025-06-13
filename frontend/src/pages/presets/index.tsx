@@ -46,8 +46,8 @@ import {
 import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
-import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
-import { LAYOUT, CHIP_VARIANTS } from '../../theme/variants'
+
+import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import { Fade } from '@mui/material'
 
 // 定义预设编辑表单数据类型
@@ -764,20 +764,15 @@ const PresetCard = ({
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         position: 'relative',
-        transition: LAYOUT.TRANSITION.DEFAULT,
         overflow: 'visible',
         height: isGridLayout ? '100%' : 'auto',
         display: 'flex',
         flexDirection: 'column',
         '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
         },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
         ...(preset.remote_id
           ? {
               boxShadow: theme =>
@@ -1039,10 +1034,7 @@ const PresetCard = ({
         PaperProps={{
           elevation: 8,
           sx: {
-            borderRadius: BORDER_RADIUS.DEFAULT,
-            background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-            backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-            border: UI_STYLES.BORDERS.CARD.DEFAULT,
+            ...CARD_VARIANTS.default.styles,
             overflow: 'hidden',
             maxWidth: isMobile ? '95%' : '800px',
             maxHeight: '80vh',

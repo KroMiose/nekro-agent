@@ -12,6 +12,11 @@ import {
   AccountCircle as AccountCircleIcon,
   CloudDownload as CloudDownloadIcon,
   Palette as PaletteIcon,
+  Hub as HubIcon,
+  SmartToy as SmartToyIcon,
+  SportsEsports as SportsEsportsIcon,
+  LiveTv as LiveTvIcon,
+  Api as ApiIcon,
 } from '@mui/icons-material'
 
 export interface PageConfig {
@@ -61,11 +66,14 @@ export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
   { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
   { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
   {
-    key: 'protocols',
-    text: '协议端',
-    icon: <ChatIcon />,
+    key: 'adapters',
+    text: '适配器',
+    icon: <HubIcon />,
     children: [
-      { path: '/protocols/napcat', text: 'NapCat', icon: <ChatIcon />, parent: 'protocols' },
+      { path: '/adapters/onebot_v11', text: 'OneBot V11', icon: <SmartToyIcon />, parent: 'adapters' },
+      { path: '/adapters/minecraft', text: 'Minecraft', icon: <SportsEsportsIcon />, parent: 'adapters' },
+      { path: '/adapters/bilibili_live', text: 'Bilibili Live', icon: <LiveTvIcon />, parent: 'adapters' },
+      { path: '/adapters/sse', text: 'SSE', icon: <ApiIcon />, parent: 'adapters' },
     ],
   },
   {

@@ -5,12 +5,8 @@ import {
   Button,
   TextField,
   InputAdornment,
-  Snackbar,
-  Alert,
   useMediaQuery,
   useTheme,
-  SxProps,
-  Theme,
   TableContainer,
 } from '@mui/material'
 import SearchIcon from '@mui/icons-material/Search'
@@ -20,25 +16,19 @@ import UserForm from './components/UserForm'
 import { useUserData } from './hooks/useUserData'
 import { UserFormData } from '../../services/api/user-manager'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { useNotification } from '../../hooks/useNotification'
+import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 
 const UserManagerPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
   const [isDetailOpen, setIsDetailOpen] = useState(false)
   const [isUserFormOpen, setIsUserFormOpen] = useState(false)
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean
-    message: string
-    severity: 'success' | 'error'
-  }>({
-    open: false,
-    message: '',
-    severity: 'success',
-  })
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const notification = useNotification()
 
   const {
     users,
@@ -66,24 +56,12 @@ const UserManagerPage: React.FC = () => {
     setIsDetailOpen(true)
   }
 
-  const handleCloseSnackbar = () => {
-    setSnackbar({ ...snackbar, open: false })
-  }
-
   const handleShowSuccess = (message: string) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity: 'success',
-    })
+    notification.success(message)
   }
 
   const handleShowError = (message: string) => {
-    setSnackbar({
-      open: true,
-      message,
-      severity: 'error',
-    })
+    notification.error(message)
   }
 
   const handleCreateUser = async (data: UserFormData) => {
@@ -101,11 +79,9 @@ const UserManagerPage: React.FC = () => {
   return (
     <Box
       sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: 'calc(100vh - 90px)',
+        ...UNIFIED_TABLE_STYLES.tableLayoutContainer,
         p: 2,
-        gap: 2,
+        height: 'calc(100vh - 64px)',
       }}
     >
       {/* 搜索栏 */}
@@ -148,25 +124,8 @@ const UserManagerPage: React.FC = () => {
       </Box>
 
       {/* 用户表格 */}
-      <Paper
-        elevation={3}
-        sx={{
-          flexGrow: 1,
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
-        }}
-      >
-        <TableContainer
-          sx={{
-            height: 'calc(100vh - 170px)',
-            maxHeight: 'calc(100vh - 170px)',
-            overflow: 'auto',
-            borderRadius: 1,
-            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
-          }}
-        >
+      <Paper sx={UNIFIED_TABLE_STYLES.tableContentContainer}>
+        <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport}>
           <UserTable
             users={users}
             total={total}
@@ -185,12 +144,25 @@ const UserManagerPage: React.FC = () => {
             tableProps={{
               stickyHeader: true,
               sx: {
-                tableLayout: 'fixed',
-                minWidth: '800px',
+                ...UNIFIED_TABLE_STYLES.getTableBase(isMobile, isSmall),
+                p: 0,
               },
             }}
           />
         </TableContainer>
+        <TablePaginationStyled
+          rowsPerPageOptions={isMobile ? [5, 10, 25] : [5, 10, 25, 50]}
+          component="div"
+          count={total}
+          rowsPerPage={pagination.page_size}
+          page={pagination.page - 1}
+          onPageChange={(_, newPage) => setPagination({ ...pagination, page: newPage + 1 })}
+          onRowsPerPageChange={event =>
+            setPagination({ page: 1, page_size: parseInt(event.target.value, 10) })
+          }
+          loading={isLoading}
+          showFirstLastPageButtons={true}
+        />
       </Paper>
 
       {/* 用户详情抽屉 */}
@@ -206,18 +178,6 @@ const UserManagerPage: React.FC = () => {
         onClose={() => setIsUserFormOpen(false)}
         onSubmit={handleCreateUser}
       />
-
-      {/* 提示消息 */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity}>
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

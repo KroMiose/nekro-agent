@@ -1,5 +1,6 @@
 import { createHashRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
+import AdapterLayout from '../layouts/AdapterLayout'
 import LoginPage from '../pages/login'
 import LogsPage from '../pages/logs'
 import PluginsManagementPage from '../pages/plugins/management'
@@ -13,10 +14,11 @@ import PresetsPage from '../pages/presets'
 import CloudCommunityPage from '../pages/cloud/telemetry'
 import CloudPresetsMarketPage from '../pages/cloud/presets_market'
 import CloudPluginsMarketPage from '../pages/cloud/plugins_market'
-import NapCatPage from '../pages/protocols/napcat'
+
 import SystemSettings from '../pages/settings/system'
 import ModelGroupSettings from '../pages/settings/model_group'
 import ThemeSettings from '../pages/settings/theme'
+import AdapterTabPage from '../pages/adapter/AdapterTabPage'
 
 const router = createHashRouter([
   {
@@ -70,9 +72,20 @@ const router = createHashRouter([
         element: <SandboxPage />,
       },
       {
-        path: 'protocols/napcat',
-        element: <NapCatPage />,
+        path: 'adapters/:adapterKey',
+        element: <AdapterLayout />,
+        children: [
+          {
+            index: true,
+            element: <AdapterTabPage />,
+          },
+          {
+            path: '*',
+            element: <AdapterTabPage />,
+          },
+        ],
       },
+
       {
         path: 'settings',
         children: [

@@ -130,7 +130,7 @@ const DashboardContent: React.FC = () => {
 
   return (
     <Box 
-      className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-auto p-2"
+      className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4"
     >
       {/* 时间范围选择器 */}
       <Tabs 
