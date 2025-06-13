@@ -21,13 +21,42 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core import logger
+from nekro_agent.core.config import ExtraField
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
 class MinecraftConfig(BaseAdapterConfig):
     """Minecraft 适配器配置"""
-
+    MINECRAFT_WS_URLS: str = Field(
+        default="{}",
+        title="Minecraft 服务器 WebSocket 地址",
+        description="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_ws_urls",
+            is_textarea=True,
+        ).model_dump(),
+    )
+    MINECRAFT_ACCESS_TOKEN: str = Field(
+        default="",
+        title="Minecraft 服务器 WebSocket 认证密钥",
+        description="用于验证连接",
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_access_token",
+        ).model_dump(),
+    )
+    MINECRAFT_SERVER_RCON: str = Field(
+        default="{}",
+        title="Minecraft 服务器 RCON 地址",
+        description="Minecraft 服务器 RCON 地址，用于远程执行指令",
+        json_schema_extra=ExtraField(
+            load_to_nonebot_env=True,
+            load_nbenv_as="minecraft_server_rcon",
+            is_textarea=True,
+        ).model_dump(),
+    )
 
 class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     """Minecraft 适配器"""
