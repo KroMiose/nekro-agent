@@ -1,6 +1,7 @@
+import json
 import os
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, TypeVar, get_type_hints
+from typing import Dict, List, Literal, Optional, TypeVar
 
 from pydantic import Field
 
@@ -79,46 +80,6 @@ class PluginConfig(ConfigBase):
         default="",
         title="机器人 QQ 号",
         json_schema_extra=ExtraField(required=True).model_dump(),
-    )
-    MINECRAFT_WS_URLS: str = Field(
-        default="{}",
-        title="Minecraft 服务器 WebSocket 地址",
-        description="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
-        json_schema_extra=ExtraField(
-            load_to_nonebot_env=True,
-            load_nbenv_as="minecraft_ws_urls",
-            is_textarea=True,
-        ).model_dump(),
-    )
-    MINECRAFT_ACCESS_TOKEN: str = Field(
-        default="",
-        title="Minecraft 服务器 WebSocket 认证密钥",
-        description="用于验证连接",
-        json_schema_extra=ExtraField(
-            load_to_nonebot_env=True,
-            load_nbenv_as="minecraft_access_token",
-        ).model_dump(),
-    )
-    MINECRAFT_SERVER_RCON: str = Field(
-        default="{}",
-        title="Minecraft 服务器 RCON 地址",
-        description="Minecraft 服务器 RCON 地址，用于远程执行指令",
-        json_schema_extra=ExtraField(
-            load_to_nonebot_env=True,
-            load_nbenv_as="minecraft_server_rcon",
-            is_textarea=True,
-        ).model_dump(),
-    )
-    BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
-        default=[],
-        title="Bilibili 直播间 ID",
-        description="Bilibili 直播间 ID，需与 VTUBE_STUDIO_CONTROLLER_WS_URL 一致",
-        json_schema_extra=ExtraField(sub_item_name="直播间").model_dump(),
-    )
-    VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
-        default=[],
-        title="VTube Studio 控制端 WebSocket 地址",
-        description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
     )
     SUPER_USERS: List[str] = Field(
         default=[],
@@ -455,63 +416,6 @@ class PluginConfig(ConfigBase):
             return self.MODEL_GROUPS[model_name]
         except KeyError as e:
             raise KeyError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
-
-    def load_config_to_env(self):
-        """将标记了环境变量相关配置的配置项加载到对应环境中"""
-        for field_name, field_info in self.model_fields.items():
-            # 获取字段的元数据
-            schema_extra = getattr(field_info, "json_schema_extra", None)
-            if not schema_extra or not isinstance(schema_extra, dict):
-                continue
-
-            # 只处理有环境变量标记的字段
-            load_to_sysenv = schema_extra.get("load_to_sysenv", False)
-            load_to_nonebot_env = schema_extra.get("load_to_nonebot_env", False)
-
-            # 如果没有任何环境变量标记，跳过
-            if not (load_to_sysenv or load_to_nonebot_env):
-                continue
-
-            # 获取配置项的值
-            value = getattr(self, field_name)
-
-            # 1. 处理系统环境变量
-            if load_to_sysenv:
-                # 获取环境变量名
-                env_name = schema_extra.get("load_sysenv_as", field_name)
-
-                # 设置环境变量
-                os.environ[env_name] = str(value)
-
-            # 2. 处理 nonebot 环境变量
-            if load_to_nonebot_env:
-                try:
-                    import json
-
-                    import nonebot
-
-                    driver = nonebot.get_driver()
-
-                    # 获取 nonebot 环境变量名
-                    nb_env_name = schema_extra.get("load_nbenv_as", field_name)
-
-                    # 尝试将字符串值解析为 JSON 对象
-                    if isinstance(value, str):
-                        try:
-                            json_value = json.loads(value)
-                            value = json_value  # 如果解析成功，使用解析后的值
-                        except json.JSONDecodeError:
-                            # 解析失败，保持原始字符串值
-                            pass
-
-                    # 设置 nonebot 环境变量
-                    setattr(driver.config, nb_env_name, value)
-                except ImportError:
-                    pass  # nonebot 未安装，跳过
-                except Exception as e:
-                    from .logger import logger
-
-                    logger.error(f"加载配置到 nonebot 环境变量失败: {e}")
 
     @classmethod
     def load_config(cls, file_path: Optional[Path] = None, auto_register: bool = True):

@@ -27,6 +27,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.core import logger
 from nekro_agent.core.config import config
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentImage,
@@ -44,7 +45,17 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
-
+    BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
+        default=[],
+        title="Bilibili 直播间 ID",
+        description="Bilibili 直播间 ID，需与 VTUBE_STUDIO_CONTROLLER_WS_URL 一致",
+        json_schema_extra=ExtraField(sub_item_name="直播间").model_dump(),
+    )
+    VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
+        default=[],
+        title="VTube Studio 控制端 WebSocket 地址",
+        description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+    )
 
 class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     """Bilibili 直播适配器"""
@@ -79,31 +90,31 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
 
     async def init(self) -> None:
         """初始化适配器"""
-        if not config.VTUBE_STUDIO_CONTROLLER_WS_URL:
+        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL:
             logger.warning(
                 "未设置VTUBE_STUDIO_CONTROLLER_WS_URL 取消加载 Bilibili 直播适配器",
             )
             return
 
-        if not config.BILIBILI_LIVE_ROOM_IDS:
+        if not self.config.BILIBILI_LIVE_ROOM_IDS:
             logger.warning(
                 "未设置BILIBILI_LIVE_ROOM_IDS 取消加载 Bilibili 直播适配器",
             )
             return
 
         # 检查房间ID和WebSocket URL数量是否一致
-        if len(config.BILIBILI_LIVE_ROOM_IDS) != len(config.VTUBE_STUDIO_CONTROLLER_WS_URL):
+        if len(self.config.BILIBILI_LIVE_ROOM_IDS) != len(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL):
             logger.error(
-                f"BILIBILI_LIVE_ROOM_IDS数量({len(config.BILIBILI_LIVE_ROOM_IDS)}) "
-                f"与VTUBE_STUDIO_CONTROLLER_WS_URL数量({len(config.VTUBE_STUDIO_CONTROLLER_WS_URL)})不一致, "
+                f"BILIBILI_LIVE_ROOM_IDS数量({len(self.config.BILIBILI_LIVE_ROOM_IDS)}) "
+                f"与VTUBE_STUDIO_CONTROLLER_WS_URL数量({len(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL)})不一致, "
                 "取消加载 Bilibili 直播适配器",
             )
             return
 
         # 为每个WebSocket URL创建客户端连接，并建立房间ID到WebSocket客户端的映射
-        for i, ws_url in enumerate(config.VTUBE_STUDIO_CONTROLLER_WS_URL):
+        for i, ws_url in enumerate(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL):
             try:
-                room_id = config.BILIBILI_LIVE_ROOM_IDS[i]
+                room_id = self.config.BILIBILI_LIVE_ROOM_IDS[i]
                 client = BilibiliWebSocketClient(ws_url, self._handle_danmaku_message)
                 self.ws_clients.append(client)
 

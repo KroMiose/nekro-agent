@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -7,6 +8,7 @@ from urllib.parse import quote_plus
 
 import nonebot
 import yaml
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field
 
 
@@ -219,7 +221,59 @@ class ConfigBase(BaseModel):
         if auto_register:
             ConfigManager.register_config(cls.get_config_key(), instance)
 
+        instance.load_config_to_env()
         return instance
+
+    def load_config_to_env(self):
+        """将标记了环境变量相关配置的配置项加载到对应环境中"""
+        for field_name, value in self:
+            field_info = self.model_fields[field_name]
+            # 获取字段的元数据
+            schema_extra = getattr(field_info, "json_schema_extra", None)
+            if not schema_extra or not isinstance(schema_extra, dict):
+                continue
+
+            # 只处理有环境变量标记的字段
+            load_to_sysenv = schema_extra.get("load_to_sysenv", False)
+            load_to_nonebot_env = schema_extra.get("load_to_nonebot_env", False)
+
+            # 如果没有任何环境变量标记，跳过
+            if not (load_to_sysenv or load_to_nonebot_env):
+                continue
+
+            # 1. 处理系统环境变量
+            if load_to_sysenv:
+                # 获取环境变量名
+                env_name = schema_extra.get("load_sysenv_as", field_name)
+                # 序列化为 JSON 字符串
+                os.environ[env_name] = json.dumps(
+                    value, default=jsonable_encoder, ensure_ascii=False,
+                )
+
+            # 2. 处理 nonebot 环境变量
+            if load_to_nonebot_env:
+                try:
+                    driver = nonebot.get_driver()
+
+                    # 获取 nonebot 环境变量名
+                    nb_env_name = schema_extra.get("load_nbenv_as", field_name)
+
+                    final_value = value
+                    # 尝试将字符串值解析为 JSON 对象
+                    if isinstance(value, str):
+                        try:
+                            json_value = json.loads(value)
+                            final_value = json_value  # 如果解析成功，使用解析后的值
+                        except json.JSONDecodeError:
+                            # 解析失败，保持原始字符串值
+                            pass
+
+                    # 设置 nonebot 环境变量
+                    setattr(driver.config, nb_env_name, final_value)
+                except ImportError:
+                    pass  # nonebot 未安装，跳过
+                except Exception as e:
+                    print(f"ERROR: 加载配置到 nonebot 环境变量失败: {e}", file=sys.stderr)
 
     def dump_config(self, file_path: Optional[Path] = None) -> None:
         """保存配置文件"""
