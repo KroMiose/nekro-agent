@@ -13,11 +13,8 @@ import {
   CloudDownload as CloudDownloadIcon,
   Palette as PaletteIcon,
   Hub as HubIcon,
-  SmartToy as SmartToyIcon,
-  SportsEsports as SportsEsportsIcon,
-  LiveTv as LiveTvIcon,
-  Api as ApiIcon,
 } from '@mui/icons-material'
+import { getAdapterNavigationConfigs } from './adapters'
 
 export interface PageConfig {
   path: string
@@ -69,12 +66,7 @@ export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
     key: 'adapters',
     text: '适配器',
     icon: <HubIcon />,
-    children: [
-      { path: '/adapters/onebot_v11', text: 'OneBot V11', icon: <SmartToyIcon />, parent: 'adapters' },
-      { path: '/adapters/minecraft', text: 'Minecraft', icon: <SportsEsportsIcon />, parent: 'adapters' },
-      { path: '/adapters/bilibili_live', text: 'Bilibili Live', icon: <LiveTvIcon />, parent: 'adapters' },
-      { path: '/adapters/sse', text: 'SSE', icon: <ApiIcon />, parent: 'adapters' },
-    ],
+    children: getAdapterNavigationConfigs(),
   },
   {
     key: 'settings',

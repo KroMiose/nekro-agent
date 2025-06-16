@@ -11,20 +11,18 @@ import {
   CircularProgress,
   useTheme,
   useMediaQuery,
-  Avatar,
   Badge,
 } from '@mui/material'
-import {
-  CheckCircle as CheckCircleIcon,
-  Error as ErrorIcon,
-  Warning as WarningIcon,
-  RadioButtonUnchecked as RadioButtonUncheckedIcon,
-} from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { adaptersApi, AdapterDetailInfo } from '../services/api/adapters'
 import { CARD_VARIANTS } from '../theme/variants'
-import { getAdapterConfig, getAdapterTabPath } from '../config/adapters'
+import {
+  getAdapterConfig,
+  getAdapterTabPath,
+  createAdapterIcon,
+  getAdapterStatusDisplay,
+} from '../config/adapters'
 
 export default function AdapterLayout() {
   const navigate = useNavigate()
@@ -70,71 +68,7 @@ export default function AdapterLayout() {
 
   // 获取适配器图标
   const getAdapterIcon = (key: string) => {
-    const iconProps = {
-      sx: {
-        width: 48,
-        height: 48,
-        fontSize: '1.5rem',
-        background:
-          theme.palette.mode === 'dark'
-            ? 'linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))'
-            : 'linear-gradient(135deg, rgba(0,0,0,0.08), rgba(0,0,0,0.02))',
-        backdropFilter: 'blur(8px)',
-        border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
-      },
-    }
-
-    // 根据适配器类型返回不同的图标字符
-    const iconText = (() => {
-      switch (key) {
-        case 'onebot_v11':
-          return 'QQ'
-        case 'minecraft':
-          return 'MC'
-        case 'bilibili_live':
-          return 'B站'
-        case 'sse':
-          return 'SSE'
-        default:
-          return key?.substring(0, 2).toUpperCase() || 'AD'
-      }
-    })()
-
-    return <Avatar {...iconProps}>{iconText}</Avatar>
-  }
-
-  // 状态图标和颜色
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case 'loaded':
-        return {
-          icon: <CheckCircleIcon color="success" fontSize="small" />,
-          text: '已加载',
-          color: 'success' as const,
-          bgColor: theme.palette.success.main,
-        }
-      case 'failed':
-        return {
-          icon: <ErrorIcon color="error" fontSize="small" />,
-          text: '加载失败',
-          color: 'error' as const,
-          bgColor: theme.palette.error.main,
-        }
-      case 'disabled':
-        return {
-          icon: <WarningIcon color="warning" fontSize="small" />,
-          text: '已禁用',
-          color: 'warning' as const,
-          bgColor: theme.palette.warning.main,
-        }
-      default:
-        return {
-          icon: <RadioButtonUncheckedIcon color="disabled" fontSize="small" />,
-          text: '未知',
-          color: 'default' as const,
-          bgColor: theme.palette.grey[500],
-        }
-    }
+    return createAdapterIcon(key, theme, 48)
   }
 
   if (isLoading) {
@@ -176,7 +110,7 @@ export default function AdapterLayout() {
     )
   }
 
-  const statusDisplay = getStatusDisplay(adapterInfo.status)
+  const statusDisplay = getAdapterStatusDisplay(adapterInfo.status)
 
   return (
     <Box
@@ -213,7 +147,7 @@ export default function AdapterLayout() {
                     width: 12,
                     height: 12,
                     borderRadius: '50%',
-                    backgroundColor: statusDisplay.bgColor,
+                    backgroundColor: statusDisplay.getBgColor(theme),
                     border: `2px solid ${theme.palette.background.paper}`,
                   }}
                 />
