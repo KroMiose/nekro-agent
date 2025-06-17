@@ -1,7 +1,13 @@
+import shutil
 from pathlib import Path
-from typing import Type
+from typing import Type, Union
 
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
+from nekro_agent.tools.common_util import (
+    download_file,
+    download_file_from_base64,
+    download_file_from_bytes,
+)
 
 from .path_convertor import (
     convert_filepath_to_sandbox_shared_path,
@@ -126,7 +132,7 @@ class FileSystem:
         raise ValueError(f'文件 "{path}" 不在合法的沙盒内容共享目录或上传目录下，无法映射到应用路径')
 
     def forward_file(self, file_path: Path | str) -> str:
-        """向 AI 提供一个可访问的沙盒内互通文件路径
+        """通过文件路径向 AI 提供一个可访问的沙盒内互通文件路径
 
         注意: 需要先把文件放到 shared_path 或 upload_path 下
 
@@ -145,3 +151,31 @@ class FileSystem:
             rel_path = path.relative_to(self.upload_path)
             return str(self.file_utils.host_upload2sandbox(rel_path))
         raise ValueError(f'文件 "{path}" 不在合法的应用共享目录或上传目录下，无法映射到沙盒路径')
+
+    async def mixed_forward_file(self, file: Union[str, bytes, Path], file_name: str = "") -> str:
+        """通过 url/base64/bytes/path 向 AI 提供一个可访问的沙盒内互通文件路径
+
+        Args:
+            file: 文件 URL/base64/bytes/path
+
+        Returns:
+            str: 可访问的文件路径
+        """
+        if isinstance(file, str):
+            if file.startswith(("http", "https")):
+                file_path, file_name = await download_file(file, from_chat_key=self.chat_key, file_name=file_name)
+            elif file.startswith("data:"):
+                file_path, file_name = await download_file_from_base64(file, from_chat_key=self.chat_key, file_name=file_name)
+        elif isinstance(file, bytes):
+            file_path, file_name = await download_file_from_bytes(file, from_chat_key=self.chat_key, file_name=file_name)
+        elif isinstance(file, Path):
+            if file.is_relative_to(self.shared_path):
+                file_path = self.shared_path / file.relative_to(self.shared_path)
+            elif file.is_relative_to(self.upload_path):
+                file_path = self.upload_path / file.relative_to(self.upload_path)
+            else:
+                shutil.copy(file, self.shared_path / file.name)
+                file_path = self.shared_path / file.name
+        else:
+            raise TypeError(f"不支持的文件类型: {type(file)}")
+        return self.forward_file(file_path)

@@ -15,6 +15,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
 from nekro_agent.core.config import config as global_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
+from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
@@ -45,6 +46,11 @@ class DrawConfig(ConfigBase):
         default=False,
         title="是否使用系统角色",
         description="只对聊天模式下的模型调用有效，如果启用时会把部分绘图提示词添加到系统角色中，如果模型不支持系统消息请关闭该选项",
+    )
+    STREAM_MODE: bool = Field(
+        default=False,
+        title="聊天模式使用流式 API",
+        description="由于模型生成时间问题，部分模型需要在聊天模式下启用流式 API 才能正常工作",
     )
     TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
 
@@ -82,7 +88,7 @@ async def draw(
         refer_image (str): Optional source image path for image reference (useful for image style transfer or keep the elements of the original image)
 
     Returns:
-        str: Generated image URL
+        str: Generated image path
 
     Examples:
         # Generate new image but **NOT** send to chat
@@ -94,7 +100,7 @@ async def draw(
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
     # logger.info(f"绘图尺寸: {size}")
-    core.logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
+    logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
         async with aiofiles.open(
             convert_to_host_path(Path(refer_image), chat_key=_ctx.chat_key, container_key=_ctx.container_key),
@@ -116,7 +122,7 @@ async def draw(
         modes_to_try = []
         if last_successful_mode:
             modes_to_try.append(last_successful_mode)
-            core.logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
+            logger.debug(f"优先使用上次成功的模式: {last_successful_mode}")
 
         # 添加未尝试过的模式
         for mode in ["聊天模式", "图像生成"]:
@@ -126,7 +132,7 @@ async def draw(
         # 依次尝试各种模式
         last_error = None
         for mode in modes_to_try:
-            core.logger.debug(f"尝试使用模式: {mode}")
+            logger.debug(f"尝试使用模式: {mode}")
             try:
                 if mode == "图像生成":
                     ret_file_url = await _generate_image(
@@ -142,14 +148,14 @@ async def draw(
 
             except Exception as e:
                 last_error = e
-                core.logger.error(f"模式 {mode} 失败: {e!s}")
+                logger.error(f"模式 {mode} 失败: {e!s}")
                 # 清除当前模式记录
                 if last_successful_mode == mode:
                     last_successful_mode = None
             else:
                 # 记录成功的模式
                 last_successful_mode = mode
-                return ret_file_url
+                return await _ctx.fs.mixed_forward_file(ret_file_url)
 
         # 如果所有模式都失败，抛出最后一个错误
         if last_error:
@@ -157,9 +163,13 @@ async def draw(
         raise Exception("所有绘图模式都失败")  # 确保有返回值或异常
 
     if config.MODEL_MODE == "图像生成":
-        return await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data)
+        return await _ctx.fs.mixed_forward_file(
+            await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+        )
     # 聊天模式
-    return await _chat_image(model_group, prompt, size, refer_image, source_image_data)
+    return await _ctx.fs.mixed_forward_file(
+        await _chat_image(model_group, prompt, size, refer_image, source_image_data),
+    )
 
 
 async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
@@ -189,7 +199,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
     ret_url = data["data"][0]["url"]
     if ret_url:
         return ret_url
-    core.logger.error(f"绘图响应中未找到图片信息: {data}")
+    logger.error(f"绘图响应中未找到图片信息: {data}")
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
@@ -236,24 +246,16 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
         )
     messages.append(msg.to_dict())
 
-    async with AsyncClient() as client:
-        response = await client.post(
-            f"{model_group.BASE_URL}/chat/completions",
-            headers={
-                "Content-Type": "application/json",
-                "Accept": "application/json",
-                "Authorization": f"Bearer {model_group.API_KEY}",
-            },
-            json={
-                "model": model_group.CHAT_MODEL,
-                "messages": messages,
-            },
-            timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
-        )
-        response.raise_for_status()
-        data = response.json()
-    logger.debug(f"绘图响应: {data}")
-    content = data["choices"][0]["message"]["content"]
+    response = await gen_openai_chat_response(
+        model=model_group.CHAT_MODEL,
+        messages=messages,
+        base_url=model_group.BASE_URL,
+        api_key=model_group.API_KEY,
+        stream_mode=config.STREAM_MODE,
+        max_wait_time=config.TIMEOUT,
+    )
+    content = response.response_content
+
     # 尝试 markdown 语法匹配，例如 ![alt](url)
     m = re.search(r"!\[[^\]]*\]\(([^)]+)\)", content)
     if m:
@@ -266,7 +268,7 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
     m = re.search(r"(https?://\S+)", content)
     if m:
         return m.group(1)
-    core.logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(data))}")
+    logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(content))}")
     raise Exception(
         "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
     )
