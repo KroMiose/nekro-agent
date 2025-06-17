@@ -262,7 +262,11 @@ async def run_code_in_sandbox(
     final_output = (
         output_text
         if len(output_text) <= output_limit
-        else f"(output too long, hidden {len(output_text) - output_limit} characters)...{output_text[-output_limit:]}"
+        else limited_text_output(
+            output_text,
+            limit=output_limit,
+            placeholder=f"...(output too long, hidden {len(output_text) - output_limit} characters)...",
+        )
     )
 
     await DBExecCode.create(
