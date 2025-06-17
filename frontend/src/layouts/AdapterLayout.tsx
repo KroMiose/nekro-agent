@@ -119,7 +119,7 @@ export default function AdapterLayout() {
         display: 'flex',
         flexDirection: 'column',
         gap: { xs: 2, md: 3 },
-        p: { xs: 0, md: 3 },
+        p: { xs: 1, md: 2 },
         overflow: 'hidden',
       }}
     >

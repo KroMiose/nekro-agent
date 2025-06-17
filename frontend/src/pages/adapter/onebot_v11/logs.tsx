@@ -11,7 +11,7 @@ import {
 } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
 import { useQuery } from '@tanstack/react-query'
-import { oneBotV11Api } from '../../../services/api/onebot_v11'
+import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
 import {
   RestartAlt,
   Delete as DeleteIcon,

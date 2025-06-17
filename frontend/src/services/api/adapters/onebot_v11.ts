@@ -1,5 +1,5 @@
-import axios from './axios'
-import { createEventStream } from './utils/stream'
+import axios from '../axios'
+import { createEventStream } from '../utils/stream'
 
 export interface ContainerStatus {
   running: boolean
