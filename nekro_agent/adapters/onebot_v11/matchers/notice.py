@@ -11,7 +11,6 @@ from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
     get_user_name,
 )
 from nekro_agent.adapters.utils import AdapterUtils
-from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
@@ -42,7 +41,10 @@ class PokeNoticeHandler(BaseNoticeHandler):
         }
 
     async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
-        if str(info["target_id"]) == str(config.BOT_QQ):
+        from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
+        adapter = _db_chat_channel.adapter.cast(OnebotV11Adapter)
+        if str(info["target_id"]) == str(adapter.config.BOT_QQ):
             return f"( {info['poke_style']} {(await _db_chat_channel.get_preset()).name} {info['poke_style_suffix']})"
         return f"({info['poke_style']} {info['target_id']} {info['poke_style_suffix']})"
 
@@ -149,6 +151,7 @@ class GroupAdminNoticeHandler(BaseNoticeHandler):
         }
         return f"(成员 (qq:{info['user_id']}) {action_map[info['action']]})"
 
+
 class NoticeHandlerManager:
     """通知处理器管理器"""
 
@@ -198,9 +201,12 @@ notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)
 
 @notice_matcher.handle()
 async def _(_: Matcher, event: NoticeEvent, bot: Bot):
+    from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
     # 处理通知事件
     chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    adapter: OnebotV11Adapter = db_chat_channel.adapter.cast(OnebotV11Adapter)
     result = await notice_manager.handle(event, bot, db_chat_channel)
     if not result:
         event_dict = dict(event)
@@ -247,7 +253,8 @@ async def _(_: Matcher, event: NoticeEvent, bot: Bot):
             is_tome=(
                 1
                 if (
-                    handler.config.force_tome or (isinstance(handler, PokeNoticeHandler) and info["target_id"] == config.BOT_QQ)
+                    handler.config.force_tome
+                    or (isinstance(handler, PokeNoticeHandler) and info["target_id"] == adapter.config.BOT_QQ)
                 )
                 else 0
             ),

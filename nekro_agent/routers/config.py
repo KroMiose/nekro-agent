@@ -1,18 +1,10 @@
-import json
 from typing import Any, Dict, List, Literal, get_args
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
 from nekro_agent.core import logger
-from nekro_agent.core.config import (
-    CONFIG_PATH,
-    ModelConfigGroup,
-    PluginConfig,
-    config,
-    reload_config,
-    save_config,
-)
+from nekro_agent.core.config import ModelConfigGroup, config, save_config
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
 from nekro_agent.services.config_service import UnifiedConfigService
@@ -62,7 +54,7 @@ async def get_config_keys(_current_user: DBUser = Depends(get_current_active_use
 @router.get("/info/{config_key}", summary="获取配置基本信息")
 @require_role(Role.Admin)
 async def get_config_info(
-    config_key: str, 
+    config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取指定配置的基本信息"""
@@ -79,7 +71,7 @@ async def get_config_info(
 @router.get("/list/{config_key}", summary="获取指定配置的配置列表")
 @require_role(Role.Admin)
 async def get_config_list(
-    config_key: str, 
+    config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取指定配置的配置列表"""
@@ -94,8 +86,8 @@ async def get_config_list(
 @router.get("/get/{config_key}/{item_key}", summary="获取配置项值")
 @require_role(Role.Admin)
 async def get_config_item(
-    config_key: str, 
-    item_key: str, 
+    config_key: str,
+    item_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取指定配置的配置项值"""
@@ -112,8 +104,8 @@ async def get_config_item(
 @router.post("/set/{config_key}/{item_key}", summary="设置配置项值")
 @require_role(Role.Admin)
 async def set_config_value(
-    config_key: str, 
-    item_key: str, 
+    config_key: str,
+    item_key: str,
     value: str = Query(..., description="配置项值"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
@@ -140,12 +132,12 @@ async def batch_update_config(
         success, error_msg = UnifiedConfigService.batch_update_config(config_key, body.configs)
         if not success:
             return Ret.fail(msg=error_msg or "批量更新失败")
-        
+
         # 立即保存配置到文件
         success, error_msg = UnifiedConfigService.save_config(config_key)
         if not success:
             return Ret.fail(msg=f"保存配置失败: {error_msg or '未知错误'}")
-            
+
         return Ret.success(msg="批量更新成功")
     except Exception as e:
         logger.error(f"批量更新配置失败: {config_key}, 错误: {e}")
@@ -155,7 +147,7 @@ async def batch_update_config(
 @router.post("/save/{config_key}", summary="保存配置")
 @require_role(Role.Admin)
 async def save_config_api(
-    config_key: str, 
+    config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """保存指定配置到文件"""
@@ -172,7 +164,7 @@ async def save_config_api(
 @router.post("/reload/{config_key}", summary="重载配置")
 @require_role(Role.Admin)
 async def reload_config_api(
-    config_key: str, 
+    config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """重新加载指定配置"""
@@ -186,10 +178,8 @@ async def reload_config_api(
         return Ret.error(msg=f"重载失败: {e!s}")
 
 
-
-
-
 # ==================== 模型组管理API ====================
+
 
 @router.get("/model-groups", summary="获取模型组列表")
 @require_role(Role.Admin)
@@ -240,7 +230,7 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
     """获取支持的模型类型列表"""
     # 从 ModelConfigGroup 的 MODEL_TYPE 字段定义中获取所有类型
     model_types = get_args(ModelConfigGroup.model_fields["MODEL_TYPE"].annotation)
-    
+
     # 构建类型与描述的映射
     type_info = {
         "chat": {
@@ -262,19 +252,19 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
             "icon": "Brush",
         },
     }
-    
+
     # 返回类型和描述
     model_type_info = [
         {
-            "value": t, 
+            "value": t,
             "label": type_info.get(t, {}).get("label", t),
             "description": type_info.get(t, {}).get("description", ""),
             "color": type_info.get(t, {}).get("color", "default"),
             "icon": type_info.get(t, {}).get("icon", "EmojiObjects"),
-        } 
+        }
         for t in model_types
     ]
-    
+
     return Ret.success(msg="获取成功", data=model_type_info)
 
 

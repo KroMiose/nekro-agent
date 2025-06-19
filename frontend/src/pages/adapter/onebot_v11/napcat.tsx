@@ -22,7 +22,7 @@ export default function OneBotV11NapCatPage() {
   const { data: napCatConfig } = useQuery({
     queryKey: ['config', 'NAPCAT_ACCESS_URL'],
     queryFn: async () => {
-      const response = await unifiedConfigApi.getConfigItem('system', 'NAPCAT_ACCESS_URL')
+      const response = await unifiedConfigApi.getConfigItem('adapter_onebot_v11', 'NAPCAT_ACCESS_URL')
       return response.value as string
     },
   })

@@ -48,6 +48,7 @@ class BaseAdapterConfig(ConfigBase):
 
 # 定义配置类型变量，约束为 BaseAdapterConfig 子类
 TConfig = TypeVar("TConfig", bound=BaseAdapterConfig)
+T = TypeVar("T", bound="BaseAdapter")
 
 
 class BaseAdapter(Generic[TConfig], ABC):
@@ -107,6 +108,10 @@ class BaseAdapter(Generic[TConfig], ABC):
     def config_path(self) -> Path:
         """获取适配器配置路径"""
         return self._adapter_config_path
+
+    def cast(self, adapter_type: Type[T]) -> T:
+        """转换适配器类型"""
+        return cast(adapter_type, self)
 
     @property
     def chat_key_rules(self) -> List[str]:

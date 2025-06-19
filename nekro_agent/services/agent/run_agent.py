@@ -181,12 +181,14 @@ async def run_agent(
             ExecStopType.TIMEOUT: "Sandbox exited due to timeout",
             ExecStopType.ERROR: "Sandbox exited due to error occurred",
             ExecStopType.MANUAL: "Sandbox exited due to manual stop by you",
+            ExecStopType.AGENT: "Sandbox exited due to agent method",
+            ExecStopType.MULTIMODAL_AGENT: "Sandbox exited due to multimodal agent method",
         }
         if stop_type in exception_reason_map:
             msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
-                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}. During the generation and execution, the following messages were sent:\n",
+                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}. During the generation and execution, the following messages were sent (You **CANT NOT** send any messages which you have sent before!):\n",
                 ),
             )
 

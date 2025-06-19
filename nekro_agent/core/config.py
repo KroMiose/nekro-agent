@@ -47,8 +47,8 @@ class ModelConfigGroup(ConfigBase):
     EXTRA_BODY: Optional[str] = Field(default=None, title="额外参数 (JSON)")
 
 
-class PluginConfig(ConfigBase):
-    """插件配置"""
+class CoreConfig(ConfigBase):
+    """核心配置"""
 
     """Nekro Cloud 云服务配置"""
     ENABLE_NEKRO_CLOUD: bool = Field(
@@ -75,11 +75,6 @@ class PluginConfig(ConfigBase):
         default="INFO",
         title="应用日志级别",
         description="应用日志级别，需要重启应用后生效",
-    )
-    BOT_QQ: str = Field(
-        default="",
-        title="机器人 QQ 号",
-        json_schema_extra=ExtraField(required=True).model_dump(),
     )
     SUPER_USERS: List[str] = Field(
         default=[],
@@ -265,7 +260,6 @@ class PluginConfig(ConfigBase):
     """会话设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(default=True, title="新私聊默认启用聊天")
-    SESSION_NICKNAME_PREFIX: str = Field(default="", title="AI 群名片名称前缀")
     SESSION_ENABLE_FAILED_LLM_FEEDBACK: bool = Field(
         default=True,
         title="启用失败 LLM 反馈",
@@ -387,15 +381,6 @@ class PluginConfig(ConfigBase):
     WEAVE_ENABLED: bool = Field(default=False, title="启用 Weave 追踪")
     WEAVE_PROJECT_NAME: str = Field(default="nekro-agent", title="Weave 项目名称")
 
-    """NAPCAT 配置"""
-    NAPCAT_ACCESS_URL: str = Field(
-        default="http://127.0.0.1:6099/webui",
-        title="NapCat WebUI 访问地址",
-        description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
-        json_schema_extra=ExtraField(placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui").model_dump(),
-    )
-    NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
-
     """其他功能"""
     ENABLE_FESTIVAL_REMINDER: bool = Field(
         default=True,
@@ -426,11 +411,11 @@ class PluginConfig(ConfigBase):
 
 
 # 设置配置键和文件路径
-PluginConfig.set_config_key("system")
-PluginConfig.set_config_file_path(CONFIG_PATH)
+CoreConfig.set_config_key("system")
+CoreConfig.set_config_file_path(CONFIG_PATH)
 
 try:
-    config = PluginConfig.load_config()
+    config = CoreConfig.load_config()
     config_schema = config.model_json_schema()
 except Exception as e:
     print(f"Nekro Agent 配置文件加载失败: {e} | 请检查配置文件是否符合语法要求")
@@ -450,8 +435,8 @@ def reload_config():
     """重新加载配置文件"""
     global config
 
-    new_config = PluginConfig.load_config()
+    new_config = CoreConfig.load_config()
     # 更新配置字段
-    for field_name in PluginConfig.model_fields:
+    for field_name in CoreConfig.model_fields:
         value = getattr(new_config, field_name)
         setattr(config, field_name, value)

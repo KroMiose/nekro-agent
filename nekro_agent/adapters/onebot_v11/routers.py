@@ -1,13 +1,15 @@
 import asyncio
 import time
 from pathlib import Path
-from typing import AsyncGenerator, Optional
+from typing import TYPE_CHECKING, AsyncGenerator, Optional
 
 import aiodocker
+from aiodocker.containers import DockerContainer
 from fastapi import APIRouter, Depends, HTTPException
 from sse_starlette.sse import EventSourceResponse
 
-from nekro_agent.core.config import config
+from nekro_agent.adapters.utils import adapter_utils
+from nekro_agent.core.config import config as core_config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import (
     NAPCAT_ONEBOT_ADAPTER_DIR,
@@ -36,13 +38,17 @@ async def get_docker():
     return aiodocker.Docker()
 
 
-async def get_container():
+async def get_container() -> DockerContainer:
     """获取 NapCat 容器实例"""
-    if not config.NAPCAT_CONTAINER_NAME:
+    from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
+    adapter = adapter_utils.get_typed_adapter("onebot_v11", OnebotV11Adapter)
+
+    if not adapter.config.NAPCAT_CONTAINER_NAME:
         raise HTTPException(status_code=500, detail="未设置 NapCat 容器名称")
     try:
         client = await get_docker()
-        return await client.containers.get(config.NAPCAT_CONTAINER_NAME)
+        return await client.containers.get(adapter.config.NAPCAT_CONTAINER_NAME)
     except Exception as e:
         logger.error(f"获取容器失败: {e!s}")
         raise HTTPException(status_code=500, detail=str(e)) from e
@@ -147,8 +153,11 @@ ADAPTER_TEMPLATE = """
 @require_role(Role.Admin)
 async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
     """重启容器"""
-    if config.BOT_QQ:
-        adapter_file = Path(NAPCAT_ONEBOT_ADAPTER_DIR) / f"onebot11_{config.BOT_QQ}.json"
+    from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
+
+    adapter = adapter_utils.get_typed_adapter("onebot_v11", OnebotV11Adapter)
+    if adapter.config.BOT_QQ:
+        adapter_file = Path(NAPCAT_ONEBOT_ADAPTER_DIR) / f"onebot11_{adapter.config.BOT_QQ}.json"
         if not adapter_file.exists():
             logger.info(f"未找到适配器文件: {adapter_file}, 自动创建...")
             adapter_file.write_text(

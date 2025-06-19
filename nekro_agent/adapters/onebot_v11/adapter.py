@@ -14,6 +14,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
@@ -27,11 +28,25 @@ from .tools.convertor import get_channel_type
 class OnebotV11Config(BaseAdapterConfig):
     """Onebot V11 适配器配置"""
 
+    BOT_QQ: str = Field(
+        default="",
+        title="机器人 QQ 号",
+        json_schema_extra=ExtraField(required=True).model_dump(),
+    )
     RESOLVE_CQ_CODE: bool = Field(
         default=False,
         title="是否解析 CQ 码",
         description="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
     )
+
+    """NAPCAT 配置"""
+    NAPCAT_ACCESS_URL: str = Field(
+        default="http://127.0.0.1:6099/webui",
+        title="NapCat WebUI 访问地址",
+        description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
+        json_schema_extra=ExtraField(placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui").model_dump(),
+    )
+    NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
 
 
 class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
