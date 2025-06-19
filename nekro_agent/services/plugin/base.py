@@ -127,7 +127,11 @@ class NekroPlugin:
             self._Configs.set_config_key(config_key)
             self._Configs.set_config_file_path(self._plugin_config_path)
 
-            self._config = self._Configs.load_config(file_path=self._plugin_config_path, auto_register=True)
+            try:
+                self._config = self._Configs.load_config(file_path=self._plugin_config_path, auto_register=True)
+            except Exception:
+                logger.exception(f"读取插件配置失败: {self.key} | 配置文件格式错误")
+                raise
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)
 

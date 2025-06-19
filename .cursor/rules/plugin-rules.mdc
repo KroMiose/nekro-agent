@@ -1,0 +1,550 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# NekroAgent 插件开发规则
+
+## 基础模板
+
+```python
+from nekro_agent.api import core, message
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.schemas import AgentCtx
+from pydantic import Field
+
+plugin = NekroPlugin(
+    name="插件名称",
+    module_name="模块名",  # 必须与可导入的模块名一致
+    description="插件描述",
+    version="0.1.0",
+    author="作者",
+    url="项目地址",
+    support_adapter=["onebot_v11", "minecraft", "sse"],
+)
+
+@plugin.mount_config()
+class PluginConfig(ConfigBase):
+    SETTING: str = Field(default="默认值", title="显示名", description="描述")
+
+config = plugin.get_config(PluginConfig)
+store = plugin.store  # 数据存储
+
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "方法名")
+async def method_name(_ctx: AgentCtx, param: str) -> str:
+    """方法描述
+
+    Args:
+        param (str): 参数描述
+
+    Returns:
+        str: 返回值描述
+    """
+    # 实现逻辑
+    return "结果"
+
+@plugin.mount_cleanup_method()
+async def clean_up():
+    """清理方法"""
+    pass
+```
+
+## 核心 API
+
+### 消息发送
+
+```python
+# 发送文本
+await message.send_text(chat_key, "消息内容", _ctx)
+
+# 发送图片/文件
+await message.send_image(chat_key, "图片路径", _ctx)
+await message.send_file(chat_key, "文件路径", _ctx)
+```
+
+### 数据存储
+
+```python
+# 保存数据
+await store.set(chat_key="会话ID", store_key="键", value="值")
+
+# 读取数据
+data = await store.get(chat_key="会话ID", store_key="键")
+
+# 全局存储（不指定chat_key）
+await store.set(store_key="全局键", value="值")
+```
+
+## SandboxMethodType 详细对比
+
+### 1. TOOL - 工具执行型
+
+**用途：** 直接执行操作，立即生效
+**返回值：** 执行结果描述（string）
+**AI 处理：** AI 收到结果后继续对话，不会重新分析
+
+```python
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送消息")
+async def send_message(_ctx: AgentCtx, chat_key: str, content: str) -> str:
+    """发送消息到聊天"""
+    await message.send_text(chat_key, content, _ctx)
+    return "消息已发送"  # 简单确认信息
+```
+
+### 2. AGENT - 分析代理型
+
+**用途：** 获取信息供 AI 分析，不直接执行操作
+**返回值：** 详细信息内容（string）
+**AI 处理：** AI 会基于返回内容进行分析和决策
+
+```python
+@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "搜索信息")
+async def search_info(_ctx: AgentCtx, query: str) -> str:
+    """搜索相关信息"""
+    results = await external_search(query)
+    # 返回详细信息供AI分析
+    return f"搜索结果：{results}\n请根据以上信息回答用户问题"
+```
+
+### 3. BEHAVIOR - 行为状态型
+
+**用途：** 修改状态、记录信息，影响后续对话
+**返回值：** 操作确认（bool/string）
+**AI 处理：** AI 知道状态已改变，会考虑新状态继续对话
+
+```python
+@plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "设置心情")
+async def set_mood(_ctx: AgentCtx, chat_key: str, mood: str) -> bool:
+    """设置当前心情状态"""
+    await store.set(chat_key=chat_key, store_key="mood", value=mood)
+    return True  # 状态已改变
+```
+
+### 4. MULTIMODAL_AGENT - 多模态代理型
+
+**用途：** 提供多媒体内容供 AI 观察分析
+**返回值：** OpenAI 消息格式（Dict）
+**AI 处理：** AI 会"看到"图片等多媒体内容并进行分析
+
+```python
+@plugin.mount_sandbox_method(SandboxMethodType.MULTIMODAL_AGENT, "显示图片")
+async def show_image(_ctx: AgentCtx, image_path: str) -> Dict:
+    """显示图片供AI观察"""
+    from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
+
+    msg = OpenAIChatMessage.create_empty("user")
+    msg = msg.add(ContentSegment.text_content("这是请求的图片："))
+    msg = msg.add(ContentSegment.image_content_from_path(image_path))
+    msg = msg.add(ContentSegment.text_content("请描述你看到的内容"))
+
+    return msg.to_dict()  # 返回标准OpenAI消息格式
+```
+
+### 类型选择指南
+
+| 类型                 | 使用场景                     | 返回值类型          | AI 后续行为      |
+| -------------------- | ---------------------------- | ------------------- | ---------------- |
+| **TOOL**             | 发送消息、文件操作、立即执行 | `str` 简短确认      | 继续对话         |
+| **AGENT**            | 搜索信息、获取数据、外部查询 | `str` 详细内容      | 分析内容后回复   |
+| **BEHAVIOR**         | 状态修改、记录信息、设置配置 | `bool/str` 操作确认 | 考虑新状态继续   |
+| **MULTIMODAL_AGENT** | 图片分析、多媒体展示         | `Dict` OpenAI 格式  | 观察多媒体后分析 |
+
+### 实际效果对比
+
+```python
+# ❌ 错误用法：用TOOL返回搜索结果
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "搜索")
+async def bad_search(_ctx: AgentCtx, query: str) -> str:
+    return "找到了很多结果..."  # AI无法利用具体结果
+
+# ✅ 正确用法：用AGENT返回详细搜索结果
+@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "搜索")
+async def good_search(_ctx: AgentCtx, query: str) -> str:
+    results = await search_api(query)
+    return f"搜索'{query}'的结果：\n{results}\n\n请基于以上信息回答"
+
+# ❌ 错误用法：用AGENT执行发送操作
+@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "发送消息")
+async def bad_send(_ctx: AgentCtx, content: str) -> str:
+    await send_message(content)
+    return "已发送"  # AGENT不应直接执行操作
+
+# ✅ 正确用法：用TOOL执行发送操作
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送消息")
+async def good_send(_ctx: AgentCtx, content: str) -> str:
+    await send_message(content)
+    return "消息已发送"  # TOOL用于直接执行
+```
+
+### 核心设计理念
+
+**执行 vs 观察：**
+
+- **TOOL/BEHAVIOR** = AI **执行操作**，改变外部状态
+- **AGENT/MULTIMODAL_AGENT** = AI **获取信息**，用于决策
+
+**返回值用途：**
+
+- **TOOL** 返回值 → 告知 AI 操作结果，让 AI 继续对话
+- **AGENT** 返回值 → 提供详细信息，让 AI 分析思考
+- **BEHAVIOR** 返回值 → 确认状态改变，影响 AI 后续行为
+- **MULTIMODAL_AGENT** 返回值 → 让 AI"看到"多媒体内容
+
+**常见错误：**
+
+1. 用 AGENT 执行操作（应该用 TOOL）
+2. 用 TOOL 返回大量信息（应该用 AGENT）
+3. MULTIMODAL_AGENT 返回 string 而不是 Dict
+4. BEHAVIOR 不更新状态只返回信息（应该用 AGENT）
+
+## 实用模式
+
+### 1. 缓存避免重复
+
+```python
+_CACHE: Dict[str, Any] = {}
+
+async def cached_method(_ctx: AgentCtx, key: str) -> str:
+    if key in _CACHE:
+        return _CACHE[key]
+
+    result = await expensive_operation(key)
+    _CACHE[key] = result
+    return result
+```
+
+### 2. 状态管理
+
+```python
+class PluginState(BaseModel):
+    data: Dict[str, Any] = {}
+    updated: int = 0
+
+async def get_state(_ctx: AgentCtx) -> PluginState:
+    data = await store.get(chat_key=_ctx.chat_key, store_key="state")
+    return PluginState.model_validate_json(data) if data else PluginState()
+
+async def save_state(_ctx: AgentCtx, state: PluginState):
+    await store.set(chat_key=_ctx.chat_key, store_key="state", value=state.model_dump_json())
+```
+
+### 3. 外部 API 调用
+
+```python
+async def api_call(_ctx: AgentCtx, query: str) -> str:
+    try:
+        async with AsyncClient(proxies=core.config.DEFAULT_PROXY) as client:
+            response = await client.get(
+                "https://api.example.com/search",
+                params={"q": query},
+                headers={"Authorization": f"Bearer {config.API_KEY}"},
+                timeout=30
+            )
+            response.raise_for_status()
+            return response.json()
+    except Exception as e:
+        core.logger.exception("API调用失败")
+        raise Exception(f"调用失败: {e}")
+```
+
+### 4. 多模态消息
+
+```python
+from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
+
+async def multimodal_method(_ctx: AgentCtx, image_path: str) -> Dict:
+    msg = OpenAIChatMessage.create_empty("user")
+    msg = msg.add(ContentSegment.text_content("描述文本"))
+    msg = msg.add(ContentSegment.image_content_from_path(image_path))
+    return msg.to_dict()
+```
+
+### 5. 提示词注入 - 核心机制
+
+**作用：** 每次AI对话开始前，自动将插件状态信息注入到AI的系统提示词中，让AI感知到当前的上下文状态。
+
+#### 基础模式
+
+```python
+@plugin.mount_prompt_inject_method("prompt_name")
+async def inject_prompt(_ctx: AgentCtx) -> str:
+    """基础提示词注入"""
+    state = await get_state(_ctx)
+    if not state.data:
+        return ""  # 无数据时返回空字符串
+    return f"当前状态: {state.data}"
+```
+
+#### 实用模式分析
+
+**1. 状态展示型（Note插件模式）**
+```python
+@plugin.mount_prompt_inject_method("note_prompt")
+async def note_prompt(_ctx: AgentCtx) -> str:
+    """显示用户当前状态和记录"""
+    data = await store.get(chat_key=_ctx.chat_key, store_key="notes")
+    notes = NoteData.model_validate_json(data) if data else NoteData()
+    
+    if not notes.items:
+        return "Current Status: No active effects or records"
+    
+    # 格式化显示状态
+    status_lines = []
+    for title, note in notes.items.items():
+        # 时间信息
+        time_elapsed = int(time.time()) - note.start_time
+        time_str = f"{time_elapsed//3600}h{(time_elapsed%3600)//60}m" if time_elapsed > 3600 else f"{time_elapsed//60}m"
+        
+        # 截断长文本
+        desc = note.description[:50] + "..." if len(note.description) > 50 else note.description
+        status_lines.append(f"- {title}: {desc} (since {time_str} ago)")
+    
+    return "Current Status:\n" + "\n".join(status_lines)
+```
+
+**2. 资源展示型（Emotion插件模式）**
+```python
+@plugin.mount_prompt_inject_method("resource_prompt") 
+async def resource_prompt(_ctx: AgentCtx) -> str:
+    """显示可用资源和最近操作"""
+    data = await store.get(chat_key=_ctx.chat_key, store_key="resources")
+    resources = ResourceData.model_validate_json(data) if data else ResourceData()
+    
+    if not resources.recent_items:
+        return "Available Resources: None. Use `add_resource` to collect some."
+    
+    # 显示最近5个资源
+    prompt_parts = ["Recently Available Resources:"]
+    for idx, (res_id, resource) in enumerate(resources.recent_items[:5], 1):
+        tags = ", ".join(resource.tags[:3]) + ("..." if len(resource.tags) > 3 else "")
+        prompt_parts.append(f"{idx}. ID:{res_id} - {resource.name} [Tags: {tags}]")
+    
+    # 添加使用指引
+    prompt_parts.append("Use `search_resource` to find specific items by keywords.")
+    
+    return "\n".join(prompt_parts)
+```
+
+**3. 任务提醒型（Timer插件模式）**
+```python
+@plugin.mount_prompt_inject_method("timer_prompt")
+async def timer_prompt(_ctx: AgentCtx) -> str:
+    """显示待办任务和定时器"""
+    timers = await timer_api.get_active_timers(_ctx.chat_key)
+    
+    if not timers:
+        return "Active Tasks: None"
+    
+    current_time = int(time.time())
+    task_lines = []
+    
+    for idx, t in enumerate(timers[:3], 1):  # 只显示前3个
+        remain_seconds = t.trigger_time - current_time
+        if remain_seconds <= 0:
+            continue
+            
+        # 格式化剩余时间
+        hours, remainder = divmod(remain_seconds, 3600)
+        minutes = remainder // 60
+        time_str = f"{hours}h{minutes}m" if hours > 0 else f"{minutes}m"
+        
+        # 截断描述
+        desc = t.description[:40] + "..." if len(t.description) > 40 else t.description
+        task_type = "🔄 Auto" if t.temporary else "⏰ Scheduled"
+        
+        task_lines.append(f"{idx}. {task_type} {desc} (in {time_str})")
+    
+    if not task_lines:
+        return "Active Tasks: None"
+        
+    return "Upcoming Tasks:\n" + "\n".join(task_lines)
+```
+
+#### 最佳实践规则
+
+**1. 长度控制**
+```python
+# ✅ 正确：控制提示词长度
+def format_prompt_content(content: str, max_length: int = 200) -> str:
+    if len(content) <= max_length:
+        return content
+    
+    # 智能截断：保留开头和结尾
+    half = max_length // 2 - 10
+    return content[:half] + "...[truncated]..." + content[-half:]
+
+@plugin.mount_prompt_inject_method("controlled_prompt")
+async def controlled_prompt(_ctx: AgentCtx) -> str:
+    full_content = await get_full_state_info(_ctx)
+    return format_prompt_content(full_content, max_length=300)
+```
+
+**2. 条件返回**
+```python
+# ✅ 正确：有条件地返回提示词
+@plugin.mount_prompt_inject_method("conditional_prompt")
+async def conditional_prompt(_ctx: AgentCtx) -> str:
+    state = await get_state(_ctx)
+    
+    # 无状态时返回空字符串
+    if not state or not state.has_active_data():
+        return ""
+    
+    # 只在相关场景下注入
+    if not state.should_show_in_prompt():
+        return ""
+    
+    return state.render_prompt()
+```
+
+**3. 错误处理**
+```python
+# ✅ 正确：安全的提示词注入
+@plugin.mount_prompt_inject_method("safe_prompt")
+async def safe_prompt(_ctx: AgentCtx) -> str:
+    try:
+        state = await get_state(_ctx)
+        if not state:
+            return ""
+        
+        return state.render_safe_prompt()
+        
+    except Exception as e:
+        # 提示词注入失败不应影响对话
+        core.logger.warning(f"提示词注入失败: {e}")
+        return ""  # 静默失败，返回空字符串
+```
+
+#### 使用场景对比
+
+| 场景 | 典型用途 | 返回内容 | 更新频率 |
+|------|----------|----------|----------|
+| **状态展示** | 角色状态、效果记录 | 当前生效的状态信息 | 状态变化时 |
+| **资源展示** | 可用工具、收藏内容 | 最近添加的资源列表 | 新增资源时 |
+| **任务提醒** | 定时器、待办事项 | 即将触发的任务 | 实时计算 |
+| **上下文感知** | 对话场景、用户情绪 | 动态调整的行为指引 | 根据对话变化 |
+
+#### 常见错误
+
+```python
+# ❌ 错误：返回过长内容
+async def bad_prompt(_ctx: AgentCtx) -> str:
+    return await get_all_detailed_info(_ctx)  # 可能返回几千字
+
+# ❌ 错误：总是返回固定内容  
+async def bad_prompt(_ctx: AgentCtx) -> str:
+    return "插件已启用"  # 无意义的固定文本
+
+# ❌ 错误：忽略异常
+async def bad_prompt(_ctx: AgentCtx) -> str:
+    state = await get_state(_ctx)  # 可能抛异常
+    return state.info  # 未处理异常
+
+# ✅ 正确：精简、动态、安全
+async def good_prompt(_ctx: AgentCtx) -> str:
+    try:
+        state = await get_state(_ctx)
+        if not state or not state.should_display():
+            return ""
+        return state.get_summary(max_length=150)
+    except Exception:
+        return ""
+```
+
+## 错误处理
+
+```python
+async def robust_method(_ctx: AgentCtx, param: str) -> str:
+    # 参数验证
+    if not param or not param.strip():
+        raise ValueError("参数不能为空")
+
+    try:
+        result = await operation(param)
+        return result
+    except ValueError as e:
+        raise ValueError(f"参数错误: {e}")
+    except Exception as e:
+        core.logger.exception("操作失败")
+        raise Exception(f"执行失败: {e}")
+```
+
+## 配置选项
+
+```python
+@plugin.mount_config()
+class Config(ConfigBase):
+    # 基础类型
+    TEXT_SETTING: str = Field(default="默认", title="文本设置")
+    NUMBER_SETTING: int = Field(default=10, title="数字设置")
+    BOOL_SETTING: bool = Field(default=True, title="布尔设置")
+
+    # 特殊标记
+    SECRET_KEY: str = Field(
+        default="",
+        title="密钥",
+        json_schema_extra={"is_secret": True}  # 敏感信息
+    )
+
+    MODEL_GROUP: str = Field(
+        default="default-chat",
+        title="模型组",
+        json_schema_extra={
+            "ref_model_groups": True,  # 引用模型组
+            "model_type": "chat"       # 模型类型
+        }
+    )
+```
+
+## 常见问题
+
+### 文件路径转换
+
+```python
+from nekro_agent.tools.path_convertor import convert_to_host_path
+
+# 容器路径转主机路径
+host_path = convert_to_host_path(Path(container_path), _ctx.chat_key)
+```
+
+### 防重复调用
+
+```python
+import time
+
+_last_call = {}
+
+async def throttled_method(_ctx: AgentCtx, key: str) -> str:
+    now = time.time()
+    if key in _last_call and now - _last_call[key] < 10:  # 10秒内不重复
+        return "请稍后再试"
+
+    _last_call[key] = now
+    return await do_work(key)
+```
+
+### 多适配器支持
+
+```python
+@plugin.mount_collect_methods()
+async def collect_available_methods(_ctx: AgentCtx) -> List:
+    if _ctx.adapter_key == "minecraft":
+        return [text_only_method]
+    elif _ctx.adapter_key == "onebot_v11":
+        return [text_method, image_method]
+    return [text_method]
+```
+
+## 开发检查
+
+- [ ] 确保应用提示词友好
+- [ ] `_ctx: AgentCtx` 参数在第一位
+- [ ] 文档字符串不暴露 `_ctx`
+- [ ] 选择正确的 SandboxMethodType
+- [ ] 异常处理完整
+- [ ] 实现清理方法
+- [ ] 参数验证
+- [ ] 使用异步操作
+- [ ] 提示词注入长度控制（<300字符）
+- [ ] 提示词注入错误处理安全
+- [ ] 无状态时返回空字符串
