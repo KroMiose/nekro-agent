@@ -1,3 +1,32 @@
+"""
+# Bilibili 直播工具 (Bilibili Live Utils)
+
+为 `Bilibili 直播` 适配器提供一系列专属的增强功能，核心是控制 Live2D 模型进行表演。
+
+## 设计理念：动画任务队列
+
+本插件的核心是一个**动画任务队列**系统。AI 的所有操作（如说话、做表情、播放动画）都不会立即执行，而是被添加到一个待办列表（队列）中。然后，通过一个统一的"执行"指令，才能让模型按照队列中的顺序开始表演。
+
+这种设计允许 AI 精心编排复杂的、包含延迟和同步的连续动作，实现更生动、更具表现力的虚拟主播互动效果。
+
+## 主要功能
+
+- **发送弹幕**: 以虚拟主播的身份在直播间发送弹幕消息。
+- **Live2D 表情控制**: 控制模型的面部表情，并可以指定表情的持续时间。
+- **Live2D 动作播放**: 播放预设的复杂动画，例如挥手、大笑等。
+- **音效播放**: 在直播中播放各种音效，增强节目效果。
+- **队列控制**: 提供了发送执行指令的能力，这是启动所有表演的关键。
+
+## 使用方法
+
+AI 会像导演一样，通过组合使用各种工具来编排一场表演：
+1.  调用 `send_text_message`、`set_expression` 等工具，把想让模型做的动作一个个地加入到任务队列中。
+2.  在所有动作都安排好后，调用 `send_execute` 工具。
+3.  此时，模型才会开始按照队列中的顺序，生动地表演出来。
+
+这个插件的所有工具都是为 AI 自动调用而设计的，用户无需手动操作。
+"""
+
 import json
 import re
 from typing import Any, Dict, List
@@ -214,9 +243,9 @@ async def basic_prompt_inject(_ctx: AgentCtx):
     {avilable_expressions}
 
     要使用表情，请调用 `set_expression(_ck, "expression_file_name.exp3.json", duration, delay)`。
-    示例：`set_expression(_ck, "Happy.exp3.json", 2.0, 0)` 将“开心”表情设置为持续 2 秒，无初始延迟。
+    示例：`set_expression(_ck, "Happy.exp3.json", 2.0, 0)` 将"开心"表情设置为持续 2 秒，无初始延迟。
 
-    注意：上面列出的“表情”可能不仅仅包括面部表情。
+    注意：上面列出的"表情"可能不仅仅包括面部表情。
     它们可以控制模型的其他部分，如道具（例如，枕头）或头发。
     你需要将表情与预制动画结合起来使用，以达到更好的效果。
     请参考列表以了解所有可用的可控表情资源。
@@ -308,12 +337,12 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: str, tt
 
     # TODO: 在这里实现实际的消息发送逻辑
     # 此处预留给用户自行实现发送功能
-    #推送消息到数据库
+    # 推送消息到数据库
     await message_service.push_bot_message(
         chat_key=chat_key,
         agent_messages=message_text,
     )
-    
+
     room_id = chat_key.replace("bilibili_live-", "")
     ws_client = _ctx.adapter.get_ws_client_by_room_id(room_id)  # type: ignore
     if ws_client:
@@ -400,11 +429,11 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
 
 #     参数:
 #         chat_key (str): 会话标识符，例如 "bilibili_live-ROOM_ID"。
-#         parameter (str): 要动画化的面部参数名称。请参见下方的“可用面部参数”。
+#         parameter (str): 要动画化的面部参数名称。请参见下方的"可用面部参数"。
 #         target (float): 参数的目标值。有效范围取决于参数。
 #         duration (float): 参数从当前值动画到 `target` 值所需的时间（秒）。
 #         delay (float): 在 `send_execute` 命令（或队列中的前一个任务）开始后，此动画任务开始前的延迟时间（秒）。
-#         easing (str): 用于动画的缓动函数。请参见下方的“可用缓动函数”。
+#         easing (str): 用于动画的缓动函数。请参见下方的"可用缓动函数"。
 
 #     可用缓动函数：
 #         'linear', 'in_sine', 'out_sine', 'in_out_sine', 'in_back', 'out_back',

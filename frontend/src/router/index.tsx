@@ -1,24 +1,14 @@
+import { lazy, ComponentType, ReactElement } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
 import MainLayout from '../layouts/MainLayout'
 import AdapterLayout from '../layouts/AdapterLayout'
 import LoginPage from '../pages/login'
-import LogsPage from '../pages/logs'
-import PluginsManagementPage from '../pages/plugins/management'
-import PluginsEditorPage from '../pages/plugins/editor'
-import ChatChannelPage from '../pages/chat-channel'
-import SandboxPage from '../pages/sandbox'
-import ProfilePage from '../pages/profile'
-import DashboardPage from '../pages/dashboard'
-import UserManagerPage from '../pages/user-manager'
-import PresetsPage from '../pages/presets'
-import CloudCommunityPage from '../pages/cloud/telemetry'
-import CloudPresetsMarketPage from '../pages/cloud/presets_market'
-import CloudPluginsMarketPage from '../pages/cloud/plugins_market'
 
-import SystemSettings from '../pages/settings/system'
-import ModelGroupSettings from '../pages/settings/model_group'
-import ThemeSettings from '../pages/settings/theme'
-import AdapterTabPage from '../pages/adapter/AdapterTabPage'
+// 创建一个包装器组件来处理懒加载，这样就不会有lint错误了
+const lazyLoad = (importFn: () => Promise<{ default: ComponentType }>): ReactElement => {
+  const LazyComponent = lazy(importFn)
+  return <LazyComponent />
+}
 
 const router = createHashRouter([
   {
@@ -36,40 +26,40 @@ const router = createHashRouter([
       },
       {
         path: 'dashboard',
-        element: <DashboardPage />,
+        element: lazyLoad(() => import('../pages/dashboard')),
       },
       {
         path: 'chat-channel',
-        element: <ChatChannelPage />,
+        element: lazyLoad(() => import('../pages/chat-channel')),
       },
       {
         path: 'user-manager',
-        element: <UserManagerPage />,
+        element: lazyLoad(() => import('../pages/user-manager')),
       },
       {
         path: 'presets',
-        element: <PresetsPage />,
+        element: lazyLoad(() => import('../pages/presets')),
       },
       {
         path: 'logs',
-        element: <LogsPage />,
+        element: lazyLoad(() => import('../pages/logs')),
       },
       {
         path: 'plugins',
         children: [
           {
             path: 'management',
-            element: <PluginsManagementPage />,
+            element: lazyLoad(() => import('../pages/plugins/management')),
           },
           {
             path: 'editor',
-            element: <PluginsEditorPage />,
+            element: lazyLoad(() => import('../pages/plugins/editor')),
           },
         ],
       },
       {
         path: 'sandbox-logs',
-        element: <SandboxPage />,
+        element: lazyLoad(() => import('../pages/sandbox')),
       },
       {
         path: 'adapters/:adapterKey',
@@ -77,38 +67,46 @@ const router = createHashRouter([
         children: [
           {
             index: true,
-            element: <AdapterTabPage />,
+            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
           },
           {
             path: '*',
-            element: <AdapterTabPage />,
+            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
           },
         ],
       },
-
       {
         path: 'settings',
         children: [
-          { path: 'system', element: <SystemSettings /> },
-          { path: 'model-groups', element: <ModelGroupSettings /> },
-          { path: 'theme', element: <ThemeSettings /> },
+          {
+            path: 'system',
+            element: lazyLoad(() => import('../pages/settings/system')),
+          },
+          {
+            path: 'model-groups',
+            element: lazyLoad(() => import('../pages/settings/model_group')),
+          },
+          {
+            path: 'theme',
+            element: lazyLoad(() => import('../pages/settings/theme')),
+          },
         ],
       },
       {
         path: 'profile',
-        element: <ProfilePage />,
+        element: lazyLoad(() => import('../pages/profile')),
       },
       {
         path: 'cloud/telemetry',
-        element: <CloudCommunityPage />,
+        element: lazyLoad(() => import('../pages/cloud/telemetry')),
       },
       {
         path: 'cloud/presets-market',
-        element: <CloudPresetsMarketPage />,
+        element: lazyLoad(() => import('../pages/cloud/presets_market')),
       },
       {
         path: 'cloud/plugins-market',
-        element: <CloudPluginsMarketPage />,
+        element: lazyLoad(() => import('../pages/cloud/plugins_market')),
       },
     ],
   },

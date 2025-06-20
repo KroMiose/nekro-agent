@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from types import ModuleType
 from typing import (
     Any,
     Callable,
@@ -12,6 +13,8 @@ from typing import (
     TypeVar,
     cast,
 )
+
+import aiofiles
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
@@ -65,6 +68,7 @@ class NekroPlugin:
         self._collect_methods_func: Optional[CollectMethodsFunc] = None
         self._is_builtin: bool = is_builtin  # 标记是否为内置插件
         self._is_package: bool = is_package  # 标记是否为包
+        self._module: Optional["ModuleType"] = None  # 模块对象
 
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
@@ -375,6 +379,36 @@ class NekroPlugin:
             str: 向量数据库集合名称
         """
         return f"{self.key}-{key}" if key else self.key
+
+    def _set_module(self, module: "ModuleType") -> None:
+        """设置模块对象，由加载器调用"""
+        self._module = module
+
+    async def get_docs(self) -> Optional[str]:
+        """获取插件文档
+
+        优先级:
+        1. 插件模块同级目录下的 README.md 文件
+        2. 插件模块的 __doc__
+        """
+        if not self._module or not self._module.__file__:
+            return None
+
+        try:
+            module_path = Path(self._module.__file__)
+            readme_path = module_path.parent / "README.md"
+
+            if readme_path.is_file():
+                async with aiofiles.open(readme_path, "r", encoding="utf-8") as f:
+                    return await f.read()
+
+            if self._module.__doc__:
+                return self._module.__doc__.strip()
+        except Exception as e:
+            logger.error(f"获取插件 {self.key} 文档失败: {e}")
+            return f"获取文档失败: {e}"
+
+        return None
 
 
 class PluginStore:

@@ -1,3 +1,23 @@
+"""
+# AI 语音 (AI Voice)
+
+提供文本转语音（TTS）功能，让 AI 可以"开口说话"。
+
+## 主要功能
+
+- **文本转语音**: AI 可以将指定的文本，通过预设的 AI 语音角色（声源）合成为语音消息，并发送到群聊中。
+- **角色查询**: 用户可以通过 `/ai_voices` 命令，查询当前协议端支持的所有可用语音角色。
+
+## 使用方法
+
+- **AI 自动调用**: 在某些场景下，AI 可能会决定使用语音来回复，此时它会自动调用此插件。
+- **命令查询**: 用户可以使用 `/ai_voices` 命令查看可用的声音列表，然后在插件配置中修改 `AI_VOICE_CHARACTER` 来切换 AI 的声音。
+
+## 特别说明
+
+此插件的功能**高度依赖**于您所使用的 OneBot v11 协议端。它需要协议端实现了 `send_group_ai_record` 和 `get_ai_characters` 这两个自定义 API。如果您的协议端不支持这些 API，此插件将无法正常工作。
+"""
+
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg

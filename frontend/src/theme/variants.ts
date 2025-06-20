@@ -71,7 +71,7 @@ export const CARD_VARIANTS = {
           backgroundColor:
             mode === 'dark'
               ? 'rgba(47, 47, 47, 0.85)' // hover 时稍微增加不透明度
-              : 'rgba(255, 255, 255, 0.92)',
+              : 'rgba(255, 255, 255, 0.85)',
           borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.12)',
           boxShadow: getShadow('0 8px 24px rgba(0, 0, 0, 0.12)'),
         },

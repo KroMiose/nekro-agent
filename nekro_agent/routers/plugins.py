@@ -120,7 +120,18 @@ async def toggle_plugin(
         return Ret.error(msg=f"操作失败: {e!s}")
 
 
-
+@router.get("/docs/{plugin_id}", summary="获取插件文档")
+@require_role(Role.Admin)
+async def get_plugin_docs(
+    plugin_id: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取插件文档"""
+    plugin = plugin_collector.get_plugin(plugin_id)
+    if not plugin:
+        return Ret.fail(msg="插件不存在")
+    docs = await plugin.get_docs()
+    return Ret.success(msg="获取成功", data={"docs": docs, "exists": docs is not None})
 
 
 @router.post("/reload", summary="重载插件")

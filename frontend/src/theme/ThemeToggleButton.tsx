@@ -2,11 +2,8 @@
  * 主题切换按钮组件
  * 用于在亮色模式和暗色模式之间切换
  */
-import { IconButton, Tooltip, useTheme } from '@mui/material'
-import {
-  LightMode as LightIcon,
-  DarkMode as DarkIcon,
-} from '@mui/icons-material'
+import { IconButton, Tooltip, SxProps, Theme } from '@mui/material'
+import { LightMode as LightIcon, DarkMode as DarkIcon } from '@mui/icons-material'
 import { useColorMode } from '../stores/theme'
 import { ThemeMode } from './palette'
 
@@ -14,9 +11,14 @@ import { ThemeMode } from './palette'
  * 主题切换按钮组件
  * 切换顺序为：浅色 -> 暗色 -> 浅色
  */
-export default function ThemeToggleButton({ size = 'medium' }: { size?: 'small' | 'medium' | 'large' }) {
+export default function ThemeToggleButton({
+  size = 'medium',
+  sx,
+}: {
+  size?: 'small' | 'medium' | 'large'
+  sx?: SxProps<Theme>
+}) {
   const { mode, toggleColorMode } = useColorMode()
-  const theme = useTheme()
 
   // 根据当前主题模式选择显示的图标
   const ThemeIcon = (() => {
@@ -56,15 +58,15 @@ export default function ThemeToggleButton({ size = 'medium' }: { size?: 'small' 
           '&:active': {
             transform: 'scale(0.95)',
           },
+          ...sx,
         }}
       >
         <ThemeIcon
           sx={{
-            color: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.7)',
             transition: 'all 0.3s ease',
           }}
         />
       </IconButton>
     </Tooltip>
   )
-} 
+}

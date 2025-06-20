@@ -1142,7 +1142,7 @@ export default function PluginsEditorPage() {
               flex: 2,
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 1,
               p: 2,
               minWidth: 0,
             }}

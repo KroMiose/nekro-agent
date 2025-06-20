@@ -23,6 +23,7 @@ import {
   createAdapterIcon,
   getAdapterStatusDisplay,
 } from '../config/adapters'
+import { Suspense } from 'react'
 
 export default function AdapterLayout() {
   const navigate = useNavigate()
@@ -258,7 +259,22 @@ export default function AdapterLayout() {
           }}
           style={{ height: '100%', overflow: 'auto' }}
         >
-          <Outlet context={{ adapterInfo }} />
+          <Suspense
+            fallback={
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <Outlet context={{ adapterInfo }} />
+          </Suspense>
         </motion.div>
       </Box>
     </Box>

@@ -1,3 +1,23 @@
+"""
+# Minecraft 工具集 (Minecraft Utils)
+
+为 `Minecraft` 适配器提供一系列专属的增强功能，允许 AI 与游戏服务器进行深度交互。
+
+## 主要功能
+
+- **发送富文本消息**: AI 可以构建一种特殊的 JSON 格式消息，在游戏中显示带有颜色、样式（粗体、斜体）、点击事件（如打开网页、执行命令）和悬停提示的复杂文本。这可以用来创建交互式公告、任务指引等。
+- **执行 RCON 命令**: AI 能够通过 RCON 协议直接向 Minecraft 服务器发送指令。这意味着 AI 可以像一个游戏管理员（OP）一样，执行诸如 `/weather clear` (改变天气)、`/give` (给予物品)、`/tp` (传送玩家) 等各种原版指令。
+
+## 使用方法
+
+此插件的所有工具都是为 AI 自动调用而设计的，用户无需手动操作。AI 会根据需要与 Minecraft 服务器进行交互：
+
+- 当需要发送复杂的交互式信息时，AI 会构造富文本并调用 `send_rich_text`。
+- 当需要改变游戏世界的状态或与玩家互动时，AI 会调用 `execute_rcon_commands` 来执行相应的指令。
+
+通过这个插件，AI 可以在很大程度上成为一个合格的 Minecraft 服务器"服主"或"游戏管理员"。
+"""
+
 import json
 from typing import Any, Dict, List, Optional, Union
 
@@ -60,7 +80,8 @@ def _llm_segment_dict_to_text_component(segment_dict: Dict[str, Any]) -> TextCom
         try:
             action = ClickAction(str(click_action_str).lower())
             component_data["click_event"] = ClickEvent(
-                action=action, value=str(click_value),
+                action=action,
+                value=str(click_value),
             )
         except ValueError:
             logger.warning(
@@ -75,11 +96,11 @@ def _llm_segment_dict_to_text_component(segment_dict: Dict[str, Any]) -> TextCom
                 hover_text_segments_data = segment_dict.get("hover_event_text_segments")
                 if isinstance(hover_text_segments_data, list):
                     nested_hover_components: List[BaseComponent] = [
-                        _llm_segment_dict_to_text_component(s)
-                        for s in hover_text_segments_data
+                        _llm_segment_dict_to_text_component(s) for s in hover_text_segments_data
                     ]
                     component_data["hover_event"] = HoverEvent(
-                        action=hover_action, text=nested_hover_components,
+                        action=hover_action,
+                        text=nested_hover_components,
                     )
                 else:
                     logger.warning(
@@ -127,7 +148,8 @@ def _llm_segment_to_mc_message_segment(
         try:
             action = ClickAction(str(click_action_str).lower())
             segment_args["click_event"] = ClickEvent(
-                action=action, value=str(click_value),
+                action=action,
+                value=str(click_value),
             )
         except ValueError:
             logger.warning(
@@ -142,11 +164,11 @@ def _llm_segment_to_mc_message_segment(
                 hover_text_segments_data = segment_dict.get("hover_event_text_segments")
                 if isinstance(hover_text_segments_data, list):
                     hover_components: List[BaseComponent] = [
-                        _llm_segment_dict_to_text_component(s_dict)
-                        for s_dict in hover_text_segments_data
+                        _llm_segment_dict_to_text_component(s_dict) for s_dict in hover_text_segments_data
                     ]
                     segment_args["hover_event"] = HoverEvent(
-                        action=hover_action, text=hover_components,
+                        action=hover_action,
+                        text=hover_components,
                     )
                 else:
                     logger.warning(
@@ -159,6 +181,7 @@ def _llm_segment_to_mc_message_segment(
             )
 
     return MessageSegment.text(str(text), **segment_args)
+
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
@@ -214,21 +237,21 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
         {"text": "欢迎来到 "},
         {"text": "我的世界!", "color": "gold", "bold": true},
         {
-            "text": " 点击这里访问官网", 
-            "color": "aqua", 
-            "underlined": true, 
-            "click_event_action": "open_url", 
+            "text": " 点击这里访问官网",
+            "color": "aqua",
+            "underlined": true,
+            "click_event_action": "open_url",
             "click_event_value": "https://www.minecraft.net"
         },
         {
-            "text": " 或 ", 
+            "text": " 或 ",
             "color": "gray"
         },
         {
-            "text": "执行命令", 
-            "color": "light_purple", 
+            "text": "执行命令",
+            "color": "light_purple",
             "italic": true,
-            "click_event_action": "suggest_command", 
+            "click_event_action": "suggest_command",
             "click_event_value": "/help",
             "hover_event_action": "show_text",
             "hover_event_text_segments": [
@@ -252,7 +275,7 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
 
         if not isinstance(segments_data, list):
             raise ValueError("富文本 JSON 解析后必须是一个列表。")  # noqa: TRY004
-        
+
         parsed_message_segments: List[MessageSegment] = []
         for seg_dict in segments_data:
             if isinstance(seg_dict, dict):
@@ -263,7 +286,7 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
                 logger.warning(
                     f"[MinecraftUtils] 富文本列表中的元素不是字典: {seg_dict}",
                 )
-        
+
         if not parsed_message_segments:
             raise ValueError("没有可发送的有效富文本段。")
         return parsed_message_segments
@@ -284,17 +307,17 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
         preset = await channel.get_preset()
 
         plain_text_parts = []
-        for seg in message_segments: # message_segments 是 _parse_and_validate_segments 的结果
+        for seg in message_segments:  # message_segments 是 _parse_and_validate_segments 的结果
             if hasattr(seg, "data") and isinstance(seg.data, dict) and "text" in seg.data:
                 plain_text_parts.append(str(seg.data["text"]))
         plain_text_content = "".join(plain_text_parts)
-        
+
         await message_service.push_bot_message(
             chat_key=chat_key,
-            agent_messages=plain_text_content, # 使用提取的纯文本
-            db_chat_channel=channel, 
+            agent_messages=plain_text_content,  # 使用提取的纯文本
+            db_chat_channel=channel,
         )
-        message_segments.insert(0,MessageSegment.text(f"<{preset.name}>", color=TextColor.GREEN))
+        message_segments.insert(0, MessageSegment.text(f"<{preset.name}>", color=TextColor.GREEN))
         message_to_send = Message(message_segments)
         await bot.send_msg(message=message_to_send)
         logger.info(f"Minecraft 富文本消息已发送到 {chat_key}")
@@ -303,7 +326,8 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
         raise
     except Exception as e:
         logger.error(
-            f"发送 Minecraft 富文本消息到 {chat_key} 失败: {e}", exc_info=True,
+            f"发送 Minecraft 富文本消息到 {chat_key} 失败: {e}",
+            exc_info=True,
         )
         raise Exception(f"发送 Minecraft 富文本消息失败: {e}") from e
 
@@ -348,9 +372,7 @@ async def execute_rcon_commands(
     """
     if not isinstance(chat_key, str) or not chat_key.startswith("minecraft-"):
         raise ValueError("chat_key 无效，必须是 'minecraft-servername' 格式。")
-    if not isinstance(commands, list) or not all(
-        isinstance(cmd, str) and cmd.strip() for cmd in commands
-    ):
+    if not isinstance(commands, list) or not all(isinstance(cmd, str) and cmd.strip() for cmd in commands):
         raise ValueError("RCON 命令列表无效，必须是非空字符串的列表。")
     if not commands:
         raise ValueError("RCON 命令列表不能为空。")
@@ -363,7 +385,7 @@ async def execute_rcon_commands(
     if not bot.rcon:
         return f"错误：Minecraft 服务器 {chat_key} 未配置或未连接 RCON。"
 
-    results_log: List[str] = [] # 用于记录每个命令的文本结果或错误
+    results_log: List[str] = []  # 用于记录每个命令的文本结果或错误
 
     for command in commands:
         try:
@@ -379,7 +401,7 @@ async def execute_rcon_commands(
             logger.error(error_message, exc_info=True)
             if not continue_on_error:
                 error_response = f"执行命令 '{command}' 时出错: {e}"
-                if results_log: # 如果之前有成功的结果
+                if results_log:  # 如果之前有成功的结果
                     error_response += "\n先前成功的结果:\n" + "\n".join(results_log)
                 return error_response
             # 如果 continue_on_error 为 True，则记录错误并继续

@@ -13,9 +13,11 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Divider,
   IconButton,
   Tooltip,
+  Card,
+  CardContent,
+  useTheme,
 } from '@mui/material'
 import {
   Group as GroupIcon,
@@ -25,21 +27,27 @@ import {
   Refresh as RefreshIcon,
   Circle as CircleIcon,
   Sync as SyncIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
+import { CARD_VARIANTS } from '../../../theme/variants'
+import { useMediaQuery } from '@mui/material'
 
 interface ChatChannelDetailProps {
   chatKey: string
+  onBack?: () => void
 }
 
-export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
+export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetailProps) {
   const [currentTab, setCurrentTab] = useState(0)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const queryClient = useQueryClient()
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   // 查询会话详情
   const { data: channel, isLoading } = useQuery({
@@ -83,103 +91,129 @@ export default function ChatChannelDetail({ chatKey }: ChatChannelDetailProps) {
 
   if (isLoading || !channel) {
     return (
-      <Box className="h-full flex items-center justify-center">
-        <CircularProgress />
-      </Box>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%' }}>
+        <Box className="h-full flex items-center justify-center">
+          <CircularProgress />
+        </Box>
+      </Card>
     )
   }
 
   return (
-    <Box className="h-full flex flex-col overflow-hidden">
+    <Box className="h-full flex flex-col overflow-hidden gap-2">
       {/* 头部信息 */}
-      <Box className="p-4 flex-shrink-0">
-        <Stack direction="row" spacing={2} alignItems="flex-start" className="mb-3">
-          {/* 会话类型图标 */}
-          {channel.chat_type === 'group' ? (
-            <GroupIcon color="primary" sx={{ fontSize: 32 }} />
-          ) : (
-            <PersonIcon color="info" sx={{ fontSize: 32 }} />
-          )}
-
-          {/* 会话名称和标识 */}
-          <Box className="flex-1">
-            <Stack direction="row" spacing={1} alignItems="center">
-              <Typography variant="h6" className="font-medium">
-                {channel.channel_name || '未命名会话'}
+      <Card sx={CARD_VARIANTS.default.styles}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 } }}>
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            {isMobile && onBack && (
+              <IconButton onClick={onBack} edge="start">
+                <ArrowBackIcon />
+              </IconButton>
+            )}
+            {channel.chat_type === 'group' ? (
+              <GroupIcon color="primary" sx={{ fontSize: 32, mt: 0.5 }} />
+            ) : (
+              <PersonIcon color="info" sx={{ fontSize: 32, mt: 0.5 }} />
+            )}
+            <Box className="flex-1 overflow-hidden">
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Typography variant="h6" className="font-medium truncate">
+                  {channel.channel_name || '未命名会话'}
+                </Typography>
+                <Tooltip title="刷新会话信息">
+                  <IconButton
+                    size="small"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    sx={{ mr: 0.5 }}
+                  >
+                    {isRefreshing ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
+                  </IconButton>
+                </Tooltip>
+                <CircleIcon
+                  sx={{
+                    fontSize: 10,
+                    color: channel.is_active ? 'success.main' : 'text.disabled',
+                  }}
+                />
+              </Stack>
+              <Typography
+                variant="body2"
+                color="textSecondary"
+                sx={{ marginTop: 0.5, fontFamily: 'monospace', wordBreak: 'break-all' }}
+              >
+                {channel.chat_key}
               </Typography>
-              <Tooltip title="刷新会话信息">
-                <IconButton
-                  size="small"
-                  onClick={handleRefresh}
-                  disabled={isRefreshing}
-                  sx={{ mr: 0.5 }}
-                >
-                  {isRefreshing ? (
-                    <CircularProgress size={16} />
-                  ) : (
-                    <SyncIcon fontSize="small" />
-                  )}
-                </IconButton>
-              </Tooltip>
-              <CircleIcon
-                sx={{
-                  fontSize: 10,
-                  color: channel.is_active ? 'success.main' : 'text.disabled',
-                }}
+            </Box>
+            <Stack spacing={1} alignItems="flex-end" sx={{ flexShrink: 0 }}>
+              <Chip
+                size="small"
+                icon={channel.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
+                label={channel.chat_type === 'group' ? '群聊' : '私聊'}
+                color={channel.chat_type === 'group' ? 'primary' : 'info'}
+                variant="outlined"
               />
+              <ButtonGroup variant="outlined" size="small">
+                <Button
+                  color={channel.is_active ? 'error' : 'success'}
+                  onClick={() => toggleActive(!channel.is_active)}
+                  disabled={isToggling}
+                  startIcon={channel.is_active ? <CancelIcon /> : <CheckCircleIcon />}
+                >
+                  {isToggling ? (
+                    <CircularProgress size={16} />
+                  ) : channel.is_active ? (
+                    '停用'
+                  ) : (
+                    '激活'
+                  )}
+                </Button>
+                <Button
+                  color="warning"
+                  onClick={() => setResetDialogOpen(true)}
+                  startIcon={<RefreshIcon />}
+                >
+                  重置
+                </Button>
+              </ButtonGroup>
             </Stack>
-            <Typography variant="body2" color="textSecondary" sx={{ marginTop: 1 }}>
-              {channel.chat_key}
-            </Typography>
-          </Box>
-
-          {/* 右侧信息 */}
-          <Stack spacing={1} alignItems="flex-end">
-            <Chip
-              size="small"
-              icon={channel.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
-              label={channel.chat_type === 'group' ? '群聊' : '私聊'}
-              color={channel.chat_type === 'group' ? 'primary' : 'info'}
-              variant="outlined"
-            />
-
-            <ButtonGroup variant="outlined" size="small">
-              <Button
-                color={channel.is_active ? 'error' : 'success'}
-                onClick={() => toggleActive(!channel.is_active)}
-                disabled={isToggling}
-                startIcon={channel.is_active ? <CancelIcon /> : <CheckCircleIcon />}
-              >
-                {isToggling ? <CircularProgress size={16} /> : channel.is_active ? '停用' : '激活'}
-              </Button>
-              <Button
-                color="warning"
-                onClick={() => setResetDialogOpen(true)}
-                startIcon={<RefreshIcon />}
-              >
-                重置
-              </Button>
-            </ButtonGroup>
           </Stack>
-        </Stack>
-
-        <Divider />
-      </Box>
+        </CardContent>
+      </Card>
 
       {/* 标签页 */}
-      <Box className="flex-shrink-0">
-        <Tabs value={currentTab} onChange={handleTabChange} variant="fullWidth">
+      <Card sx={CARD_VARIANTS.default.styles}>
+        <Tabs
+          value={currentTab}
+          onChange={handleTabChange}
+          variant="fullWidth"
+          sx={{
+            minHeight: 56,
+            '& .MuiTab-root': {
+              minHeight: 56,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textTransform: 'none',
+            },
+          }}
+        >
           <Tab label="基础信息" />
           <Tab label="消息记录" />
         </Tabs>
-      </Box>
-
-      <Divider />
+      </Card>
 
       {/* 标签内容 */}
-      <Box className="flex-1 overflow-auto">
-        {currentTab === 0 && <BasicInfo channel={channel} />}
-        {currentTab === 1 && <MessageHistory chatKey={chatKey} />}
+      <Box className="flex-1 overflow-hidden">
+        {currentTab === 0 && (
+          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+            <BasicInfo channel={channel} />
+          </Card>
+        )}
+        {currentTab === 1 && (
+          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
+            <MessageHistory chatKey={chatKey} />
+          </Card>
+        )}
       </Box>
 
       {/* 重置确认对话框 */}

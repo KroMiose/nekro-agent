@@ -262,6 +262,21 @@ export const pluginsApi = {
     }
   },
 
+  // 获取插件文档
+  getPluginDocs: async (
+    pluginId: string
+  ): Promise<{ docs: string | null; exists: boolean }> => {
+    try {
+      const response = await axios.get<{ data: { docs: string | null; exists: boolean } }>(
+        `/plugins/docs/${pluginId}`
+      )
+      return response.data.data
+    } catch (error) {
+      console.error(`获取插件 ${pluginId} 文档失败:`, error)
+      return { docs: null, exists: false }
+    }
+  },
+
   // 应用生成的代码
   applyGeneratedCode: async (
     filePath: string,
@@ -372,6 +387,7 @@ export const resetPluginData = pluginsApi.resetPluginData
 export const getModelGroups = pluginsApi.getModelGroups
 export const removePackage = pluginsApi.removePackage
 export const updatePackage = pluginsApi.updatePackage
+export const getPluginDocs = pluginsApi.getPluginDocs
 
 export const streamGenerateCode = (
   filePath: string,

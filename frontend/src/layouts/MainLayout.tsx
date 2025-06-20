@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -18,6 +18,7 @@ import {
   Link,
   useMediaQuery,
   useTheme,
+  CircularProgress,
 } from '@mui/material'
 import {
   Logout as LogoutIcon,
@@ -72,9 +73,9 @@ export default function MainLayout() {
   useEffect(() => {
     menuItems.forEach(item => {
       if (item.children && item.key) {
-        const hasActiveChild = item.children.some(child => 
-          location.pathname === child.path || 
-          location.pathname.startsWith(child.path + '/')
+        const hasActiveChild = item.children.some(
+          child =>
+            location.pathname === child.path || location.pathname.startsWith(child.path + '/')
         )
         if (hasActiveChild) {
           setOpenMenus(prev => ({
@@ -215,10 +216,11 @@ export default function MainLayout() {
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => handleMenuItemClick(item.path, item.key)}
-                selected={Boolean(!item.children && (
-                  location.pathname === item.path || 
-                  (item.path && location.pathname.startsWith(item.path + '/'))
-                ))}
+                selected={Boolean(
+                  !item.children &&
+                    (location.pathname === item.path ||
+                      (item.path && location.pathname.startsWith(item.path + '/')))
+                )}
                 sx={{
                   '&.Mui-selected': {
                     backgroundColor: UI_STYLES.SELECTED,
@@ -262,7 +264,7 @@ export default function MainLayout() {
                       }}
                       selected={Boolean(
                         location.pathname === child.path ||
-                        location.pathname.startsWith(child.path + '/')
+                          location.pathname.startsWith(child.path + '/')
                       )}
                       sx={{
                         pl: 4,
@@ -427,7 +429,7 @@ export default function MainLayout() {
             '0 4px 15px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 10px rgba(0, 0, 0, 0.03)',
           borderBottom:
             theme.palette.mode === 'dark' ? `1px solid rgba(255, 255, 255, 0.08)` : 'none',
-          color: 'inherit',
+          color: theme.palette.common.white,
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
@@ -436,7 +438,7 @@ export default function MainLayout() {
             color="inherit"
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, color: 'white' }}
             aria-label={drawerOpen ? '收起侧边栏' : '展开侧边栏'}
           >
             {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
@@ -458,7 +460,7 @@ export default function MainLayout() {
             </Typography>
           </Box>
 
-          <ThemeToggleButton />
+          <ThemeToggleButton sx={{ color: 'white' }} />
 
           <Button
             variant="text"
@@ -568,7 +570,22 @@ export default function MainLayout() {
               zIndex: 1,
             }}
           />
-          <Outlet />
+          <Suspense
+            fallback={
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </motion.div>
       </Box>
     </Box>

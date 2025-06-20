@@ -356,30 +356,49 @@ class PluginCollector:
             logger.exception(f"加载插件失败 {path}: {e}")
             return
 
-        if hasattr(module, "plugin"):
-            plugin = module.plugin
+        if not hasattr(module, "plugin"):
+            raise ValueError(f"插件 `{module_path}` 中缺少 `plugin` 实例")
 
-            if isinstance(plugin, NekroPlugin):
-                # 直接设置内置插件标识
-                try:
-                    if plugin.init_method:
-                        await plugin.init_method()
-                except Exception as e:
-                    logger.exception(f'插件 "{plugin.name}" 初始化失败 {path}: {e}')
-                    return
+        plugin: NekroPlugin = module.plugin
+        plugin._set_module(module)  # noqa: SLF001
 
-                logger.success(
-                    f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}{" [云端]" if is_package else ""}',
-                )
-                plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
-                if plugin.key not in config.PLUGIN_ENABLED:
-                    plugin.disable()
-                self.loaded_plugins[plugin.key] = plugin
-                self.loaded_module_names.add(module_path)
+        if plugin.key in self.loaded_plugins:
+            # 检查重复插件
+            loaded_plugin = self.loaded_plugins[plugin.key]
+            if loaded_plugin.cleanup_method:
+                await loaded_plugin.cleanup_method()
+                logger.info(f"插件 {loaded_plugin.name} 清理完成")
+            if loaded_plugin.module_name in self.loaded_module_names:
+                self.loaded_module_names.remove(loaded_plugin.module_name)
+            # 卸载旧插件模块，保证后续重新 import 执行最新代码
+            # 从 loaded_module_names 中找到原始模块路径
+            orig_mod = next((m for m in self.loaded_module_names if m.endswith(f".{module_path}")), None)
+            if orig_mod and orig_mod in sys.modules:
+                logger.debug(f"卸载旧插件模块 {orig_mod}")
+                sys.modules.pop(orig_mod, None)
+                self.loaded_module_names.discard(orig_mod)
             else:
-                logger.error(f"插件实例类型错误: {path}")
+                logger.warning(f"未找到原始模块 {module_path}，无法卸载旧模块")
+
+        if isinstance(plugin, NekroPlugin):
+            # 直接设置内置插件标识
+            try:
+                if plugin.init_method:
+                    await plugin.init_method()
+            except Exception as e:
+                logger.exception(f'插件 "{plugin.name}" 初始化失败 {path}: {e}')
+                return
+
+            logger.success(
+                f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}{" [云端]" if is_package else ""}',
+            )
+            plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
+            if plugin.key not in config.PLUGIN_ENABLED:
+                plugin.disable()
+            self.loaded_plugins[plugin.key] = plugin
+            self.loaded_module_names.add(module_path)
         else:
-            logger.error(f"模块未找到插件实例: {path}")
+            logger.error(f"插件实例类型错误: {path}")
 
     def get_plugin(self, key: str) -> Optional[NekroPlugin]:
         """根据插件键获取插件实例

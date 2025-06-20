@@ -11,6 +11,9 @@ import { Description as DescriptionIcon } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useOutletContext, useParams } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import { useColorMode } from '../../stores/theme'
 import { adaptersApi, AdapterDetailInfo } from '../../services/api/adapters'
 import { CARD_VARIANTS } from '../../theme/variants'
 
@@ -22,6 +25,7 @@ export default function AdapterHomePage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const { adapterInfo } = useOutletContext<AdapterContextType>()
   const theme = useTheme()
+  const { mode } = useColorMode()
 
   // 获取适配器文档
   const {
@@ -33,6 +37,35 @@ export default function AdapterHomePage() {
     queryFn: () => adaptersApi.getAdapterDocs(adapterKey!),
     enabled: !!adapterKey,
   })
+
+  const markdownComponents = {
+    code({
+      inline,
+      className,
+      children,
+      ...props
+    }: {
+      inline?: boolean
+      className?: string
+      children?: React.ReactNode
+    }) {
+      const match = /language-(\w+)/.exec(className || '')
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={mode === 'dark' ? vscDarkPlus : oneLight}
+          language={match[1]}
+          PreTag="div"
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    },
+  }
 
   return (
     <Box
@@ -185,7 +218,7 @@ export default function AdapterHomePage() {
                 },
               }}
             >
-              <ReactMarkdown>{docs.content}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents}>{docs.content}</ReactMarkdown>
             </Box>
           </CardContent>
         </Card>
