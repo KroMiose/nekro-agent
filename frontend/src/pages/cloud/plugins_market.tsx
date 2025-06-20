@@ -112,7 +112,7 @@ const PluginCard = ({
   const handleReport = (e: React.MouseEvent) => {
     e.stopPropagation()
     // 打开GitHub插件举报页面
-    const reportUrl = `https://github.com/NEKRO-AI/NekroAgent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
+    const reportUrl = `https://github.com/KroMiose/nekro-agent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
     window.open(reportUrl, '_blank')
   }
 
@@ -411,7 +411,7 @@ const PluginDetailDialog = ({
   const handleReport = () => {
     if (!plugin) return
     // 打开GitHub插件举报页面
-    const reportUrl = `https://github.com/NEKRO-AI/NekroAgent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
+    const reportUrl = `https://github.com/KroMiose/nekro-agent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
     window.open(reportUrl, '_blank')
   }
 
