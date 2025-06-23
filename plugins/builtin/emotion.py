@@ -28,8 +28,10 @@
 - **严格表情包模式**: 开启后，插件会尝试拒绝收藏截图、照片等非表情包内容的图片。
 - **嵌入模型组**: 需要正确配置一个向量模型才能使用语义搜索功能。
 """
+
 import asyncio
 import hashlib
+import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -206,12 +208,12 @@ class EmotionStore(BaseModel):
 async def load_emotion_store() -> EmotionStore:
     """加载表情包存储"""
     data = await store.get(store_key="emotion_store")
-    return EmotionStore.model_validate_json(data) if data else EmotionStore()
+    return EmotionStore.model_validate(json.loads(data)) if data else EmotionStore()
 
 
 async def save_emotion_store(emotion_store: EmotionStore):
     """保存表情包存储"""
-    await store.set(store_key="emotion_store", value=emotion_store.model_dump_json())
+    await store.set(store_key="emotion_store", value=json.dumps(emotion_store.model_dump(), ensure_ascii=False))
 
 
 async def generate_embedding(text: str) -> List[float]:
@@ -1011,7 +1013,7 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
 async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     """Get Emotion Path
 
-    Get the path of an emotion by its ID. 
+    Get the path of an emotion by its ID.
 
     Args:
         emotion_id (str): The emotion ID (**NOT PATH**)

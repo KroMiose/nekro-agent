@@ -41,7 +41,12 @@ def register_matcher(adapter: BaseAdapter):
         original_player_uuid = str(event.player.uuid)
         short_player_id = hashlib.sha1(original_player_uuid.encode("utf-8")).hexdigest()[:10]
 
-        plt_user: PlatformUser = PlatformUser(user_id=short_player_id, user_name=sender_name, user_avatar="")
+        plt_user: PlatformUser = PlatformUser(
+            platform_name="Minecraft",
+            user_id=short_player_id,
+            user_name=sender_name,
+            user_avatar="",
+        )
 
         msg_list = []
         plain_text_content = event.message.extract_plain_text()
