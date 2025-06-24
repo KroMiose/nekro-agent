@@ -86,6 +86,11 @@ export default function SandboxPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
 
+  const formatNumber = (num: number | undefined | null) => {
+    if (num === undefined || num === null || isNaN(num)) return 'N/A'
+    return num.toLocaleString()
+  }
+
   const getPerformanceColor = (
     value: number | undefined | null,
     thresholds: { error: number; warning: number },
@@ -438,7 +443,7 @@ export default function SandboxPage() {
                   )
 
                   const performanceTooltip = (
-                    <Box sx={{ p: 1, maxWidth: 300 }}>
+                    <Box sx={{ p: 1, maxWidth: 420 }}>
                       <Typography variant="subtitle2" gutterBottom>
                         性能详情
                       </Typography>
@@ -477,23 +482,49 @@ export default function SandboxPage() {
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">Token 数:</Typography>
+                          <Typography variant="body2">Token 数 (输入/输出/总和):</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color="text.secondary">
-                            {extraData && extraData.token_consumption > 0
-                              ? `${extraData.token_consumption}/${extraData.token_input}/${extraData.token_output}`
-                              : 'N/A'}
+                            {extraData && extraData.token_consumption > 0 ? (
+                              <>
+                                {`${formatNumber(extraData.token_input)} / ${formatNumber(
+                                  extraData.token_output
+                                )} / `}
+                                <Typography
+                                  component="span"
+                                  color="success.main"
+                                  sx={{ fontWeight: 'bold' }}
+                                >
+                                  {formatNumber(extraData.token_consumption)}
+                                </Typography>
+                              </>
+                            ) : (
+                              'N/A'
+                            )}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">字符数:</Typography>
+                          <Typography variant="body2">字符数 (输入/输出/总和):</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color="text.secondary">
-                            {extraData && extraData.chars_count_total > 0
-                              ? `${extraData.chars_count_total}/${extraData.chars_count_input}/${extraData.chars_count_output}`
-                              : 'N/A'}
+                            {extraData && extraData.chars_count_total > 0 ? (
+                              <>
+                                {`${formatNumber(extraData.chars_count_input)} / ${formatNumber(
+                                  extraData.chars_count_output
+                                )} / `}
+                                <Typography
+                                  component="span"
+                                  color="success.main"
+                                  sx={{ fontWeight: 'bold' }}
+                                >
+                                  {formatNumber(extraData.chars_count_total)}
+                                </Typography>
+                              </>
+                            ) : (
+                              'N/A'
+                            )}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -1076,15 +1107,30 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <FunctionsIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              Token 数 (总/输入/输出):
+                                              Token 数 (输入/输出/总和):
                                               <Typography
                                                 component="span"
                                                 color="text.secondary"
                                                 sx={{ ml: 1 }}
                                               >
-                                                {extraData && extraData.token_consumption > 0
-                                                  ? `${extraData.token_consumption} / ${extraData.token_input} / ${extraData.token_output}`
-                                                  : 'N/A'}
+                                                {extraData && extraData.token_consumption > 0 ? (
+                                                  <>
+                                                    {`${formatNumber(
+                                                      extraData.token_input
+                                                    )} / ${formatNumber(
+                                                      extraData.token_output
+                                                    )} / `}
+                                                    <Typography
+                                                      component="span"
+                                                      color="success.main"
+                                                      sx={{ fontWeight: 'bold' }}
+                                                    >
+                                                      {formatNumber(extraData.token_consumption)}
+                                                    </Typography>
+                                                  </>
+                                                ) : (
+                                                  'N/A'
+                                                )}
                                               </Typography>
                                             </Typography>
                                           </Stack>
@@ -1093,15 +1139,30 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <AbcIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              字符数 (总/输入/输出):
+                                              字符数 (输入/输出/总和):
                                               <Typography
                                                 component="span"
                                                 color="text.secondary"
                                                 sx={{ ml: 1 }}
                                               >
-                                                {extraData && extraData.chars_count_total > 0
-                                                  ? `${extraData.chars_count_total} / ${extraData.chars_count_input} / ${extraData.chars_count_output}`
-                                                  : 'N/A'}
+                                                {extraData && extraData.chars_count_total > 0 ? (
+                                                  <>
+                                                    {`${formatNumber(
+                                                      extraData.chars_count_input
+                                                    )} / ${formatNumber(
+                                                      extraData.chars_count_output
+                                                    )} / `}
+                                                    <Typography
+                                                      component="span"
+                                                      color="success.main"
+                                                      sx={{ fontWeight: 'bold' }}
+                                                    >
+                                                      {formatNumber(extraData.chars_count_total)}
+                                                    </Typography>
+                                                  </>
+                                                ) : (
+                                                  'N/A'
+                                                )}
                                               </Typography>
                                             </Typography>
                                           </Stack>
