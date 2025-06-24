@@ -660,10 +660,10 @@ export default function ConfigTable({
                 {isOverridePage && (
                   <TableCell sx={{ width: '10%', minWidth: 80 }}>启用覆盖</TableCell>
                 )}
-                <TableCell sx={{ width: '25%', minWidth: 200 }}>配置项</TableCell>
-                <TableCell sx={{ width: '15%', minWidth: 120 }}>属性</TableCell>
-                <TableCell sx={{ width: '10%', minWidth: 100 }}>类型</TableCell>
-                <TableCell sx={{ width: '40%', minWidth: 250 }}>值</TableCell>
+                <TableCell sx={{ width: '20%', minWidth: 200 }}>配置项</TableCell>
+                <TableCell sx={{ width: '5%', minWidth: 80 }}>属性</TableCell>
+                <TableCell sx={{ width: '5%', minWidth: 80 }}>类型</TableCell>
+                <TableCell sx={{ width: '50%', minWidth: 300 }}>值</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>

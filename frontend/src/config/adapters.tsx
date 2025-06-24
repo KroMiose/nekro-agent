@@ -177,7 +177,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterHomePage />,
       },
       {
-        label: '配置',
+        label: '适配器配置',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
@@ -219,7 +219,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterHomePage />,
       },
       {
-        label: '配置',
+        label: '适配器配置',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
@@ -261,7 +261,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterHomePage />,
       },
       {
-        label: '配置',
+        label: '适配器配置',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
