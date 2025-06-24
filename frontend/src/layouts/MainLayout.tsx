@@ -56,6 +56,7 @@ export default function MainLayout() {
   const [version, setVersion] = useState('0.0.0')
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [drawerOpen, setDrawerOpen] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
@@ -93,6 +94,11 @@ export default function MainLayout() {
 
   const getCurrentTitle = () => {
     return getCurrentTitleFromConfigs(location.pathname)
+  }
+
+  const handleComponentRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+    notification.success('页面已刷新', { autoHideDuration: 1500 })
   }
 
   const handleLogout = () => {
@@ -450,10 +456,20 @@ export default function MainLayout() {
               noWrap
               component="div"
               className="font-medium select-none text-ellipsis overflow-hidden"
+              onClick={handleComponentRefresh}
               sx={{
                 color: 'inherit',
                 fontSize: { xs: '1rem', sm: '1.25rem' },
                 textShadow: '0 0 2px rgba(255,255,255,0.15)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease-in-out',
+                '&:hover': {
+                  opacity: 0.9,
+                },
+                '&:active': {
+                  transform: 'scale(0.98)',
+                  opacity: 0.8,
+                },
               }}
             >
               {getCurrentTitle()}
@@ -543,7 +559,7 @@ export default function MainLayout() {
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
-          key={location.pathname.split('/').slice(0, 3).join('/')}
+          key={`${location.pathname.split('/').slice(0, 3).join('/')}-${refreshKey}`}
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{

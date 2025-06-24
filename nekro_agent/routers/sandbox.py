@@ -53,6 +53,7 @@ async def get_sandbox_logs(
                     "generation_time_ms": log.generation_time_ms,
                     "total_time_ms": log.total_time_ms,
                     "use_model": log.use_model,
+                    "extra_data": log.extra_data,
                 }
                 for log in logs
             ],

@@ -34,9 +34,15 @@ import {
   KeyboardArrowDown as KeyboardArrowDownIcon,
   KeyboardArrowUp as KeyboardArrowUpIcon,
   ContentCopy as ContentCopyIcon,
+  Speed as SpeedIcon,
+  Bolt as BoltIcon,
+  AccessTime as AccessTimeIcon,
+  KeyboardDoubleArrowRight as KeyboardDoubleArrowRightIcon,
+  Functions as FunctionsIcon,
+  Abc as AbcIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import { sandboxApi } from '../../services/api/sandbox'
+import { sandboxApi, SandboxCodeExtData } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
@@ -79,6 +85,27 @@ export default function SandboxPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
+
+  const getPerformanceColor = (
+    value: number | undefined | null,
+    thresholds: { error: number; warning: number },
+    direction: 'higherIsBetter' | 'lowerIsBetter'
+  ): string => {
+    if (value === undefined || value === null || isNaN(value) || value <= 0) {
+      return 'text.secondary' // Default/grey color for N/A
+    }
+
+    if (direction === 'lowerIsBetter') {
+      if (value > thresholds.error) return 'error.main'
+      if (value > thresholds.warning) return 'warning.main'
+      return 'success.main'
+    }
+
+    // direction === 'higherIsBetter'
+    if (value < thresholds.error) return 'error.main'
+    if (value < thresholds.warning) return 'warning.main'
+    return 'success.main'
+  }
 
   const { data: stats } = useQuery({
     queryKey: ['sandbox-stats'],
@@ -209,7 +236,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                成功率
+                沙盒执行成功率
               </Typography>
               <Typography variant={isSmall ? 'h6' : 'h5'}>{stats?.success_rate || 0}%</Typography>
             </CardContent>
@@ -259,7 +286,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              成功率
+              沙盒执行成功率
             </Typography>
             <Typography variant="h4">{stats?.success_rate || 0}%</Typography>
           </CardContent>
@@ -290,8 +317,8 @@ export default function SandboxPage() {
                 />
                 <TableCell
                   sx={{
-                    width: isMobile ? '10%' : '8%',
-                    minWidth: isMobile ? '60px' : '80px',
+                    width: '8%',
+                    minWidth: '60px',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -300,8 +327,8 @@ export default function SandboxPage() {
                 </TableCell>
                 <TableCell
                   sx={{
-                    width: isMobile ? '12%' : '8%',
-                    minWidth: isMobile ? '70px' : '90px',
+                    width: '8%',
+                    minWidth: '60px',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
@@ -353,6 +380,16 @@ export default function SandboxPage() {
                 </TableCell>
                 <TableCell
                   sx={{
+                    width: '8%',
+                    minWidth: '60px',
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  模式
+                </TableCell>
+                <TableCell
+                  sx={{
                     width: isMobile ? '12%' : '15%',
                     minWidth: isMobile ? '70px' : '120px',
                     py: isSmall ? 1 : 1.5,
@@ -366,390 +403,408 @@ export default function SandboxPage() {
             <TableBody>
               {isLoading && !isPlaceholderData ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={isMobile ? (isSmall ? 6 : 7) : 8}
-                    className="text-center py-3"
-                  >
+                  <TableCell colSpan={isMobile ? 8 : 9} className="text-center py-3">
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
               ) : (
-                logs?.items.map(log => (
-                  <React.Fragment key={log.id}>
-                    <TableRow
-                      hover
-                      onClick={() => toggleRow(log.id)}
-                      sx={{
-                        cursor: 'pointer',
-                        minHeight: isMobile ? '60px' : 'inherit',
-                        '& > td': isMobile
-                          ? {
-                              verticalAlign: 'top',
-                              paddingTop: isSmall ? '8px' : '12px',
-                            }
-                          : {},
-                        ...(UNIFIED_TABLE_STYLES.row as SxProps<Theme>),
-                      }}
-                    >
-                      <TableCell
-                        padding="checkbox"
+                logs?.items.map(log => {
+                  let extraData: SandboxCodeExtData | null = null
+                  if (log.extra_data) {
+                    try {
+                      extraData = JSON.parse(log.extra_data)
+                    } catch (e) {
+                      console.error('Failed to parse extra_data', e)
+                    }
+                  }
+
+                  const isStream = extraData?.stream_mode ?? false
+
+                  // Get performance colors
+                  const firstTokenColor = getPerformanceColor(
+                    extraData?.first_token_cost_ms,
+                    { error: 60000, warning: 10000 },
+                    'lowerIsBetter'
+                  )
+                  const tokensPerSecondColor = getPerformanceColor(
+                    extraData?.speed_tokens_per_second,
+                    { error: 5, warning: 20 },
+                    'higherIsBetter'
+                  )
+                  const charsPerSecondColor = getPerformanceColor(
+                    extraData?.speed_chars_per_second,
+                    { error: 10, warning: 40 },
+                    'higherIsBetter'
+                  )
+
+                  const performanceTooltip = (
+                    <Box sx={{ p: 1, maxWidth: 300 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        性能详情
+                      </Typography>
+                      <Grid container spacing={1}>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">首 Token 耗时:</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color={firstTokenColor}>
+                            {isStream
+                              ? extraData
+                                ? `${extraData.first_token_cost_ms}ms`
+                                : 'N/A'
+                              : '不支持'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">速度 (Token/s):</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color={tokensPerSecondColor}>
+                            {extraData && extraData.speed_tokens_per_second > 0
+                              ? extraData.speed_tokens_per_second.toFixed(2)
+                              : 'N/A'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">速度 (字符/s):</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color={charsPerSecondColor}>
+                            {extraData?.speed_chars_per_second &&
+                            extraData.speed_chars_per_second > 0
+                              ? extraData.speed_chars_per_second
+                              : 'N/A'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">Token 数:</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            {extraData && extraData.token_consumption > 0
+                              ? `${extraData.token_consumption}/${extraData.token_input}/${extraData.token_output}`
+                              : 'N/A'}
+                          </Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2">字符数:</Typography>
+                        </Grid>
+                        <Grid item xs={6}>
+                          <Typography variant="body2" color="text.secondary">
+                            {extraData && extraData.chars_count_total > 0
+                              ? `${extraData.chars_count_total}/${extraData.chars_count_input}/${extraData.chars_count_output}`
+                              : 'N/A'}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+                    </Box>
+                  )
+
+                  return (
+                    <React.Fragment key={log.id}>
+                      <TableRow
+                        hover
+                        onClick={() => toggleRow(log.id)}
                         sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          width: isMobile ? '28px' : '48px',
-                          minWidth: isMobile ? '28px' : '48px',
-                          maxWidth: isMobile ? '28px' : '48px',
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          cursor: 'pointer',
+                          minHeight: isMobile ? '60px' : 'inherit',
+                          '& > td': isMobile
+                            ? {
+                                verticalAlign: 'top',
+                                paddingTop: isSmall ? '8px' : '12px',
+                              }
+                            : {},
+                          ...(UNIFIED_TABLE_STYLES.row as SxProps<Theme>),
                         }}
                       >
-                        <IconButton
-                          size="small"
-                          onClick={e => {
-                            e.stopPropagation() // 防止事件冒泡触发行点击
-                            toggleRow(log.id)
-                          }}
-                        >
-                          {expandedRows[log.id] ? (
-                            <KeyboardArrowUpIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          ) : (
-                            <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          )}
-                        </IconButton>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        <Tooltip title={log.success ? '执行成功' : '执行失败'}>
-                          <Chip
-                            icon={
-                              log.success ? (
-                                <CheckCircleIcon fontSize={isSmall ? 'small' : 'medium'} />
-                              ) : (
-                                <ErrorIcon fontSize={isSmall ? 'small' : 'medium'} />
-                              )
-                            }
-                            label={log.success ? '成功' : '失败'}
-                            color={log.success ? 'success' : 'error'}
-                            size="small"
-                            sx={CHIP_VARIANTS.base(isSmall)}
-                          />
-                        </Tooltip>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        <Chip
-                          label={getStopTypeText(log.stop_type)}
-                          color={getStopTypeColor(log.stop_type)}
-                          size="small"
-                          sx={CHIP_VARIANTS.getStopTypeChip(log.stop_type, isSmall)}
-                        />
-                      </TableCell>
-                      {!isMobile && (
                         <TableCell
+                          padding="checkbox"
                           sx={{
                             py: isSmall ? 0.75 : 1.5,
-                            fontSize: isSmall ? '0.75rem' : 'inherit',
+                            width: isMobile ? '28px' : '48px',
+                            minWidth: isMobile ? '28px' : '48px',
+                            maxWidth: isMobile ? '28px' : '48px',
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          {log.trigger_user_name}
+                          <IconButton
+                            size="small"
+                            onClick={e => {
+                              e.stopPropagation() // 防止事件冒泡触发行点击
+                              toggleRow(log.id)
+                            }}
+                          >
+                            {expandedRows[log.id] ? (
+                              <KeyboardArrowUpIcon fontSize={isSmall ? 'small' : 'medium'} />
+                            ) : (
+                              <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
+                            )}
+                          </IconButton>
                         </TableCell>
-                      )}
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
+                        <TableCell
                           sx={{
-                            fontFamily: 'monospace',
-                            fontSize: isSmall ? '0.65rem' : '0.75rem',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
+                            py: isSmall ? 0.75 : 1.5,
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          {log.chat_key}
-                        </Typography>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          height: isMobile ? 'auto' : 'inherit',
-                          minHeight: isMobile ? '48px' : 'inherit',
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{
-                            fontSize: isSmall ? '0.7rem' : '0.875rem',
-                            overflow: 'hidden',
-                            textOverflow: isMobile ? 'clip' : 'ellipsis',
-                            whiteSpace: isMobile ? 'normal' : 'nowrap',
-                            wordBreak: isMobile ? 'break-word' : 'normal',
-                            maxWidth: '100%',
-                            fontFamily: 'monospace',
-                            lineHeight: isMobile ? 1.2 : 'normal',
-                            display: '-webkit-box',
-                            WebkitLineClamp: isMobile ? 3 : 1,
-                            WebkitBoxOrient: 'vertical',
-                            pr: isMobile ? 0.5 : 0,
-                          }}
-                        >
-                          {log.use_model || '未知'}
-                        </Typography>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        <Stack
-                          direction="row"
-                          alignItems="center"
-                          spacing={isMobile ? 0.5 : 1}
-                          sx={{
-                            '& > *:first-of-type': {
-                              width: isMobile ? '35px' : '50px',
-                              textAlign: 'right',
-                              fontSize: isMobile ? '0.65rem' : isSmall ? '0.7rem' : '0.875rem',
-                            },
-                            '& > *:last-of-type': {
-                              width: isMobile ? '35px' : '50px',
-                              fontSize: isMobile ? '0.65rem' : isSmall ? '0.7rem' : '0.875rem',
-                            },
-                          }}
-                        >
-                          <Tooltip title="生成耗时">
-                            <Typography
-                              variant="body2"
-                              sx={{
-                                color:
-                                  log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
-                                fontSize: 'inherit',
-                              }}
-                            >
-                              {(log.generation_time_ms / 1000).toFixed(isMobile ? 1 : 2)}s
-                            </Typography>
+                          <Tooltip title={log.success ? '执行成功' : '执行失败'}>
+                            <Chip
+                              icon={
+                                log.success ? (
+                                  <CheckCircleIcon fontSize={isSmall ? 'small' : 'medium'} />
+                                ) : (
+                                  <ErrorIcon fontSize={isSmall ? 'small' : 'medium'} />
+                                )
+                              }
+                              label={log.success ? '成功' : '失败'}
+                              color={log.success ? 'success' : 'error'}
+                              size="small"
+                              sx={CHIP_VARIANTS.base(isSmall)}
+                            />
                           </Tooltip>
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
+                          <Chip
+                            label={getStopTypeText(log.stop_type)}
+                            color={getStopTypeColor(log.stop_type)}
+                            size="small"
+                            sx={CHIP_VARIANTS.getStopTypeChip(log.stop_type, isSmall)}
+                          />
+                        </TableCell>
+                        {!isMobile && (
+                          <TableCell
+                            sx={{
+                              py: isSmall ? 0.75 : 1.5,
+                              fontSize: isSmall ? '0.75rem' : 'inherit',
+                              ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                            }}
+                          >
+                            {log.trigger_user_name}
+                          </TableCell>
+                        )}
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
                           <Typography
                             variant="body2"
-                            color="textSecondary"
                             sx={{
-                              px: isMobile ? 0.5 : 1,
-                              fontSize: 'inherit',
+                              fontFamily: 'monospace',
+                              fontSize: isSmall ? '0.65rem' : '0.75rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
                             }}
                           >
-                            |
+                            {log.chat_key}
                           </Typography>
-                          <Tooltip title="执行耗时">
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            height: isMobile ? 'auto' : 'inherit',
+                            minHeight: isMobile ? '48px' : 'inherit',
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{
+                              fontSize: isSmall ? '0.7rem' : '0.875rem',
+                              overflow: 'hidden',
+                              textOverflow: isMobile ? 'clip' : 'ellipsis',
+                              whiteSpace: isMobile ? 'normal' : 'nowrap',
+                              wordBreak: isMobile ? 'break-word' : 'normal',
+                              maxWidth: '100%',
+                              fontFamily: 'monospace',
+                              lineHeight: isMobile ? 1.2 : 'normal',
+                              display: '-webkit-box',
+                              WebkitLineClamp: isMobile ? 3 : 1,
+                              WebkitBoxOrient: 'vertical',
+                              pr: isMobile ? 0.5 : 0,
+                            }}
+                          >
+                            {log.use_model || '未知'}
+                          </Typography>
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
+                          <Stack
+                            direction="row"
+                            alignItems="center"
+                            spacing={isMobile ? 0.5 : 1}
+                            sx={{
+                              '& > *:first-of-type': {
+                                width: isMobile ? '35px' : '50px',
+                                textAlign: 'right',
+                                fontSize: isMobile ? '0.65rem' : isSmall ? '0.7rem' : '0.875rem',
+                              },
+                              '& > *:last-of-type': {
+                                width: isMobile ? '35px' : '50px',
+                                fontSize: isMobile ? '0.65rem' : isSmall ? '0.7rem' : '0.875rem',
+                              },
+                            }}
+                          >
+                            <Tooltip title="生成耗时">
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  color:
+                                    log.generation_time_ms > 30000 ? 'warning.main' : 'info.main',
+                                  fontSize: 'inherit',
+                                }}
+                              >
+                                {(log.generation_time_ms / 1000).toFixed(isMobile ? 1 : 2)}s
+                              </Typography>
+                            </Tooltip>
                             <Typography
                               variant="body2"
+                              color="textSecondary"
                               sx={{
-                                color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
+                                px: isMobile ? 0.5 : 1,
                                 fontSize: 'inherit',
                               }}
                             >
-                              {isMobile && log.exec_time_ms > 1000
-                                ? `${(log.exec_time_ms / 1000).toFixed(1)}s`
-                                : `${log.exec_time_ms}ms`}
+                              |
                             </Typography>
-                          </Tooltip>
-                        </Stack>
-                      </TableCell>
-                      <TableCell
-                        sx={{
-                          py: isSmall ? 0.75 : 1.5,
-                          fontSize: isSmall ? '0.7rem' : '0.875rem',
-                          ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
-                        }}
-                      >
-                        {isMobile ? log.create_time.split(' ')[1] : log.create_time}
-                      </TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell
-                        style={{ paddingBottom: 0, paddingTop: 0 }}
-                        colSpan={isMobile ? (isSmall ? 6 : 7) : 8}
-                      >
-                        <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
-                          <Box
-                            sx={{
-                              py: 2,
-                              px: isMobile ? 2 : 3,
-                              maxWidth: '100%',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {/* 思维链信息 */}
-                            {log.thought_chain && (
-                              <Box
+                            <Tooltip title="执行耗时">
+                              <Typography
+                                variant="body2"
                                 sx={{
-                                  ...sharedContentStyles,
-                                  mb: 3,
+                                  color: log.exec_time_ms > 10000 ? 'warning.main' : 'success.main',
+                                  fontSize: 'inherit',
                                 }}
                               >
-                                <Stack
-                                  direction="row"
-                                  spacing={1}
-                                  alignItems="center"
-                                  sx={{ mb: 1 }}
-                                >
-                                  <PsychologyIcon
-                                    color="info"
-                                    fontSize={isSmall ? 'small' : 'medium'}
-                                  />
-                                  <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                    思维链信息：
-                                  </Typography>
-                                  <Tooltip title="复制思维链">
-                                    <IconButton
-                                      size="small"
-                                      onClick={() => copyToClipboard(log.thought_chain, '思维链')}
-                                      sx={{ ml: 'auto' }}
-                                    >
-                                      <ContentCopyIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
-                                </Stack>
-                                <Paper
-                                  variant="outlined"
+                                {isMobile && log.exec_time_ms > 1000
+                                  ? `${(log.exec_time_ms / 1000).toFixed(1)}s`
+                                  : `${log.exec_time_ms}ms`}
+                              </Typography>
+                            </Tooltip>
+                          </Stack>
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
+                          {extraData ? (
+                            <Tooltip title={performanceTooltip}>
+                              <Chip
+                                label={isStream ? '流式' : '非流式'}
+                                size="small"
+                                sx={CHIP_VARIANTS.getStreamModeChip(isStream, isSmall)}
+                              />
+                            </Tooltip>
+                          ) : (
+                            <Chip
+                              label="未知"
+                              size="small"
+                              sx={CHIP_VARIANTS.getStopTypeChip(-1, isSmall)}
+                            />
+                          )}
+                        </TableCell>
+                        <TableCell
+                          sx={{
+                            py: isSmall ? 0.75 : 1.5,
+                            fontSize: isSmall ? '0.7rem' : '0.875rem',
+                            ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                          }}
+                        >
+                          {isMobile ? log.create_time.split(' ')[1] : log.create_time}
+                        </TableCell>
+                      </TableRow>
+                      <TableRow>
+                        <TableCell
+                          style={{ paddingBottom: 0, paddingTop: 0 }}
+                          colSpan={isMobile ? 8 : 9}
+                        >
+                          <Collapse in={expandedRows[log.id]} timeout="auto" unmountOnExit>
+                            <Box
+                              sx={{
+                                py: 2,
+                                px: isMobile ? 2 : 3,
+                                maxWidth: '100%',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              {/* 思维链信息 */}
+                              {log.thought_chain && (
+                                <Box
                                   sx={{
-                                    width: '100%',
-                                    overflow: 'hidden',
-                                    bgcolor: 'background.paper',
+                                    ...sharedContentStyles,
+                                    mb: 3,
                                   }}
                                 >
-                                  <Box
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    sx={{ mb: 1, justifyContent: 'space-between' }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <PsychologyIcon
+                                        color="info"
+                                        fontSize={isSmall ? 'small' : 'medium'}
+                                      />
+                                      <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
+                                        思维链信息：
+                                      </Typography>
+                                    </Box>
+                                    <Tooltip title="复制思维链">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => copyToClipboard(log.thought_chain, '思维链')}
+                                      >
+                                        <ContentCopyIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                  <Paper
+                                    variant="outlined"
                                     sx={{
-                                      ...scrollableContentStyles,
-                                      p: isSmall ? 1.5 : 2,
-                                      maxHeight: isSmall ? '200px' : '300px',
+                                      width: '100%',
+                                      overflow: 'hidden',
+                                      bgcolor: 'background.paper',
                                     }}
                                   >
-                                    <pre
-                                      style={{
-                                        margin: 0,
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                        overflowWrap: 'break-word',
-                                        color: theme.palette.text.primary,
-                                        maxWidth: '100%',
-                                        fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                    <Box
+                                      sx={{
+                                        ...scrollableContentStyles,
+                                        p: isSmall ? 1.5 : 2,
+                                        maxHeight: isSmall ? '200px' : '300px',
                                       }}
                                     >
-                                      {log.thought_chain}
-                                    </pre>
-                                  </Box>
-                                </Paper>
-                              </Box>
-                            )}
-
-                            {/* 执行代码 */}
-                            <Box className="mb-3 max-w-full overflow-hidden">
-                              <Stack
-                                direction="row"
-                                spacing={1}
-                                alignItems="center"
-                                className="mb-1"
-                                sx={{
-                                  justifyContent: 'space-between',
-                                  flexWrap: 'wrap',
-                                }}
-                              >
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                  <CodeIcon color="info" fontSize={isSmall ? 'small' : 'medium'} />
-                                  <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                    执行代码：
-                                  </Typography>
+                                      <pre
+                                        style={{
+                                          margin: 0,
+                                          whiteSpace: 'pre-wrap',
+                                          wordBreak: 'break-word',
+                                          overflowWrap: 'break-word',
+                                          color: theme.palette.text.primary,
+                                          maxWidth: '100%',
+                                          fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                        }}
+                                      >
+                                        {log.thought_chain}
+                                      </pre>
+                                    </Box>
+                                  </Paper>
                                 </Box>
-                                <Tooltip title="复制代码">
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => copyToClipboard(log.code_text, '代码')}
-                                  >
-                                    <ContentCopyIcon fontSize="small" />
-                                  </IconButton>
-                                </Tooltip>
-                              </Stack>
-                              <Paper variant="outlined" className="overflow-hidden w-full">
-                                <Box
-                                  className="w-full overflow-auto"
-                                  sx={{
-                                    maxHeight: isSmall ? '300px' : '400px',
-                                    '&::-webkit-scrollbar': {
-                                      width: '6px',
-                                      height: '6px',
-                                    },
-                                    '&::-webkit-scrollbar-thumb': {
-                                      backgroundColor:
-                                        theme.palette.mode === 'dark'
-                                          ? 'rgba(255, 235, 235, 0.16)'
-                                          : 'rgba(0, 0, 0, 0.2)',
-                                      borderRadius: '3px',
-                                    },
-                                  }}
-                                >
-                                  <SyntaxHighlighter
-                                    language="python"
-                                    style={mode === 'dark' ? vscDarkPlus : oneLight}
-                                    showLineNumbers={true}
-                                    customStyle={{
-                                      margin: 0,
-                                      padding: isSmall ? '12px' : '16px',
-                                      maxHeight: 'none',
-                                      fontSize: isSmall ? '12px' : '14px',
-                                      background: 'inherit',
-                                      width: '100%',
-                                      tableLayout: 'fixed',
-                                      display: 'table',
-                                    }}
-                                    wrapLines={true}
-                                    wrapLongLines={true}
-                                    lineNumberStyle={{
-                                      minWidth: '3em',
-                                      width: '3em',
-                                      textAlign: 'right',
-                                      paddingRight: '0.5em',
-                                      userSelect: 'none',
-                                      display: 'table-cell',
-                                      borderRight: `1px solid ${theme.palette.divider}`,
-                                      color: theme.palette.text.secondary,
-                                    }}
-                                    lineProps={() => ({
-                                      style: {
-                                        display: 'table-row',
-                                      },
-                                    })}
-                                    codeTagProps={{
-                                      style: {
-                                        display: 'table-cell',
-                                        paddingLeft: '0.5em',
-                                        whiteSpace: 'pre-wrap',
-                                        wordBreak: 'break-word',
-                                        width: '100%',
-                                        overflow: 'hidden',
-                                      },
-                                    }}
-                                  >
-                                    {log.code_text}
-                                  </SyntaxHighlighter>
-                                </Box>
-                              </Paper>
-                            </Box>
+                              )}
 
-                            {/* 执行输出 */}
-                            {log.outputs && (
-                              <Box>
+                              {/* 执行代码 */}
+                              <Box className="mb-3 max-w-full overflow-hidden">
                                 <Stack
                                   direction="row"
                                   spacing={1}
@@ -761,18 +816,18 @@ export default function SandboxPage() {
                                   }}
                                 >
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                    <TimerIcon
+                                    <CodeIcon
                                       color="info"
                                       fontSize={isSmall ? 'small' : 'medium'}
                                     />
                                     <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                      执行输出：
+                                      执行代码：
                                     </Typography>
                                   </Box>
-                                  <Tooltip title="复制输出">
+                                  <Tooltip title="复制代码">
                                     <IconButton
                                       size="small"
-                                      onClick={() => copyToClipboard(log.outputs, '执行输出')}
+                                      onClick={() => copyToClipboard(log.code_text, '代码')}
                                     >
                                       <ContentCopyIcon fontSize="small" />
                                     </IconButton>
@@ -782,7 +837,7 @@ export default function SandboxPage() {
                                   <Box
                                     className="w-full overflow-auto"
                                     sx={{
-                                      maxHeight: isSmall ? '200px' : '300px',
+                                      maxHeight: isSmall ? '300px' : '400px',
                                       '&::-webkit-scrollbar': {
                                         width: '6px',
                                         height: '6px',
@@ -797,7 +852,7 @@ export default function SandboxPage() {
                                     }}
                                   >
                                     <SyntaxHighlighter
-                                      language="text"
+                                      language="python"
                                       style={mode === 'dark' ? vscDarkPlus : oneLight}
                                       showLineNumbers={true}
                                       customStyle={{
@@ -813,8 +868,8 @@ export default function SandboxPage() {
                                       wrapLines={true}
                                       wrapLongLines={true}
                                       lineNumberStyle={{
-                                        minWidth: '2em',
-                                        width: '2em',
+                                        minWidth: '3em',
+                                        width: '3em',
                                         textAlign: 'right',
                                         paddingRight: '0.5em',
                                         userSelect: 'none',
@@ -838,18 +893,231 @@ export default function SandboxPage() {
                                         },
                                       }}
                                     >
-                                      {log.outputs}
+                                      {log.code_text}
                                     </SyntaxHighlighter>
                                   </Box>
                                 </Paper>
                               </Box>
-                            )}
-                          </Box>
-                        </Collapse>
-                      </TableCell>
-                    </TableRow>
-                  </React.Fragment>
-                ))
+
+                              {/* 执行输出 */}
+                              {log.outputs && (
+                                <Box>
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    className="mb-1"
+                                    sx={{
+                                      justifyContent: 'space-between',
+                                      flexWrap: 'wrap',
+                                    }}
+                                  >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                      <TimerIcon
+                                        color="info"
+                                        fontSize={isSmall ? 'small' : 'medium'}
+                                      />
+                                      <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
+                                        执行输出：
+                                      </Typography>
+                                    </Box>
+                                    <Tooltip title="复制输出">
+                                      <IconButton
+                                        size="small"
+                                        onClick={() => copyToClipboard(log.outputs, '执行输出')}
+                                      >
+                                        <ContentCopyIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Stack>
+                                  <Paper variant="outlined" className="overflow-hidden w-full">
+                                    <Box
+                                      className="w-full overflow-auto"
+                                      sx={{
+                                        maxHeight: isSmall ? '200px' : '300px',
+                                        '&::-webkit-scrollbar': {
+                                          width: '6px',
+                                          height: '6px',
+                                        },
+                                        '&::-webkit-scrollbar-thumb': {
+                                          backgroundColor:
+                                            theme.palette.mode === 'dark'
+                                              ? 'rgba(255, 235, 235, 0.16)'
+                                              : 'rgba(0, 0, 0, 0.2)',
+                                          borderRadius: '3px',
+                                        },
+                                      }}
+                                    >
+                                      <SyntaxHighlighter
+                                        language="text"
+                                        style={mode === 'dark' ? vscDarkPlus : oneLight}
+                                        showLineNumbers={true}
+                                        customStyle={{
+                                          margin: 0,
+                                          padding: isSmall ? '12px' : '16px',
+                                          maxHeight: 'none',
+                                          fontSize: isSmall ? '12px' : '14px',
+                                          background: 'inherit',
+                                          width: '100%',
+                                          tableLayout: 'fixed',
+                                          display: 'table',
+                                        }}
+                                        wrapLines={true}
+                                        wrapLongLines={true}
+                                        lineNumberStyle={{
+                                          minWidth: '2em',
+                                          width: '2em',
+                                          textAlign: 'right',
+                                          paddingRight: '0.5em',
+                                          userSelect: 'none',
+                                          display: 'table-cell',
+                                          borderRight: `1px solid ${theme.palette.divider}`,
+                                          color: theme.palette.text.secondary,
+                                        }}
+                                        lineProps={() => ({
+                                          style: {
+                                            display: 'table-row',
+                                          },
+                                        })}
+                                        codeTagProps={{
+                                          style: {
+                                            display: 'table-cell',
+                                            paddingLeft: '0.5em',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            width: '100%',
+                                            overflow: 'hidden',
+                                          },
+                                        }}
+                                      >
+                                        {log.outputs}
+                                      </SyntaxHighlighter>
+                                    </Box>
+                                  </Paper>
+                                </Box>
+                              )}
+
+                              {/* 性能信息 */}
+                              {extraData && (
+                                <Box className="mt-3 max-w-full overflow-hidden">
+                                  <Stack
+                                    direction="row"
+                                    spacing={1}
+                                    alignItems="center"
+                                    className="mb-1"
+                                  >
+                                    <SpeedIcon
+                                      color="info"
+                                      fontSize={isSmall ? 'small' : 'medium'}
+                                    />
+                                    <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
+                                      性能信息：
+                                    </Typography>
+                                  </Stack>
+                                  <Paper variant="outlined" className="overflow-hidden w-full">
+                                    <Box sx={{ p: isSmall ? 1.5 : 2 }}>
+                                      <Grid container spacing={2}>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                          <Stack direction="row" alignItems="center" spacing={1}>
+                                            <AccessTimeIcon fontSize="small" color="secondary" />
+                                            <Typography variant="body2">
+                                              首 Token 耗时:
+                                              <Typography
+                                                component="span"
+                                                color={firstTokenColor}
+                                                sx={{ ml: 1 }}
+                                              >
+                                                {extraData?.stream_mode
+                                                  ? `${extraData.first_token_cost_ms}ms`
+                                                  : '不支持'}
+                                              </Typography>
+                                            </Typography>
+                                          </Stack>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                          <Stack direction="row" alignItems="center" spacing={1}>
+                                            <BoltIcon fontSize="small" color="secondary" />
+                                            <Typography variant="body2">
+                                              速度 (Token/s):
+                                              <Typography
+                                                component="span"
+                                                color={tokensPerSecondColor}
+                                                sx={{ ml: 1 }}
+                                              >
+                                                {extraData && extraData.speed_tokens_per_second > 0
+                                                  ? extraData.speed_tokens_per_second.toFixed(2)
+                                                  : 'N/A'}
+                                              </Typography>
+                                            </Typography>
+                                          </Stack>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                          <Stack direction="row" alignItems="center" spacing={1}>
+                                            <KeyboardDoubleArrowRightIcon
+                                              fontSize="small"
+                                              color="secondary"
+                                            />
+                                            <Typography variant="body2">
+                                              速度 (字符/s):
+                                              <Typography
+                                                component="span"
+                                                color={charsPerSecondColor}
+                                                sx={{ ml: 1 }}
+                                              >
+                                                {extraData?.speed_chars_per_second &&
+                                                extraData.speed_chars_per_second > 0
+                                                  ? extraData.speed_chars_per_second
+                                                  : 'N/A'}
+                                              </Typography>
+                                            </Typography>
+                                          </Stack>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                          <Stack direction="row" alignItems="center" spacing={1}>
+                                            <FunctionsIcon fontSize="small" color="secondary" />
+                                            <Typography variant="body2">
+                                              Token 数 (总/输入/输出):
+                                              <Typography
+                                                component="span"
+                                                color="text.secondary"
+                                                sx={{ ml: 1 }}
+                                              >
+                                                {extraData && extraData.token_consumption > 0
+                                                  ? `${extraData.token_consumption} / ${extraData.token_input} / ${extraData.token_output}`
+                                                  : 'N/A'}
+                                              </Typography>
+                                            </Typography>
+                                          </Stack>
+                                        </Grid>
+                                        <Grid item xs={12} sm={6} md={4}>
+                                          <Stack direction="row" alignItems="center" spacing={1}>
+                                            <AbcIcon fontSize="small" color="secondary" />
+                                            <Typography variant="body2">
+                                              字符数 (总/输入/输出):
+                                              <Typography
+                                                component="span"
+                                                color="text.secondary"
+                                                sx={{ ml: 1 }}
+                                              >
+                                                {extraData && extraData.chars_count_total > 0
+                                                  ? `${extraData.chars_count_total} / ${extraData.chars_count_input} / ${extraData.chars_count_output}`
+                                                  : 'N/A'}
+                                              </Typography>
+                                            </Typography>
+                                          </Stack>
+                                        </Grid>
+                                      </Grid>
+                                    </Box>
+                                  </Paper>
+                                </Box>
+                              )}
+                            </Box>
+                          </Collapse>
+                        </TableCell>
+                      </TableRow>
+                    </React.Fragment>
+                  )
+                })
               )}
             </TableBody>
           </Table>

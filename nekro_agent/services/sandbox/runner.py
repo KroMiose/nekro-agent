@@ -21,6 +21,7 @@ from nekro_agent.core.os_env import (
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.sandbox import SandboxCodeExtData
 from nekro_agent.services.agent.openai import OpenAIResponse
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.tools.common_util import limited_text_output
@@ -282,6 +283,7 @@ async def run_code_in_sandbox(
         total_time_ms=total_time,
         trigger_user_id=str(chat_message.sender_id or "0") if chat_message else "",
         trigger_user_name=chat_message.sender_name if chat_message else "System",
+        extra_data=SandboxCodeExtData.create_from_llm_response(llm_response).model_dump_json() if llm_response else "",
     )
 
     return final_output, output_text, stop_type.value

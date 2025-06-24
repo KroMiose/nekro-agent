@@ -34,6 +34,8 @@ class DBExecCode(Model):
     generation_time_ms = fields.IntField(default=0, description="生成时间(毫秒)")
     total_time_ms = fields.IntField(default=0, description="响应总耗时(毫秒)")
 
+    extra_data = fields.TextField(default="", description="额外数据")
+
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 

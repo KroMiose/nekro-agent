@@ -45,13 +45,8 @@ import magic
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.tools import user
-from nekro_agent.api import core, message
-from nekro_agent.api.plugin import (
-    ConfigBase,
-    NekroPlugin,
-    SandboxMethod,
-    SandboxMethodType,
-)
+from nekro_agent.api import core
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import (
@@ -199,7 +194,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
                 break
 
     try:
-        await message.send_text(chat_key, message_text, _ctx)
+        await _ctx.ms.send_text(chat_key, message_text, _ctx)
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
@@ -268,9 +263,9 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
             is_image = mime_type.startswith("image/")
 
         if is_image:
-            await message.send_image(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_image(chat_key, file_container_path, _ctx)
         else:
-            await message.send_file(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_file(chat_key, file_container_path, _ctx)
 
         # 更新文件缓存
         SEND_FILE_CACHE[chat_key].append(file_md5)

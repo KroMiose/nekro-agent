@@ -277,6 +277,19 @@ export const CHIP_VARIANTS = {
     }
   },
 
+  // 流式模式Chip样式
+  getStreamModeChip: (isStream: boolean, isSmall: boolean = false): SxProps<Theme> => {
+    const palette = getCurrentExtendedPalette()
+    const color = isStream ? palette.primary.main : palette.secondary.main
+
+    return {
+      ...CHIP_VARIANTS.base(isSmall),
+      backgroundColor: alpha(color, 0.12),
+      color: color,
+      borderColor: alpha(color, 0.2),
+    }
+  },
+
   // 日志级别Chip样式
   getLogLevelChip: (level: string, isSmall: boolean = false): SxProps<Theme> => {
     const normalizedLevel = level.toUpperCase()

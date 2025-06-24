@@ -30,6 +30,7 @@ _OPENAI_BASE_URL = "https://api.openai.com/v1"
 class OpenAIResponse(BaseModel):
     response_content: str  # 最终的回复内容
     thought_chain: str  # 思考链
+    messages: List[Dict[str, Any]]  # 原始消息列表
     message_cnt: int  # 消息数量
     token_consumption: int  # 总 token 消耗
     token_input: int  # 输入 token 消耗
@@ -250,11 +251,13 @@ class OpenAIErrResponse(OpenAIResponse):
         e: Exception,
         use_model: str,
         stream_mode: bool,
+        messages: List[Dict[str, Any]],
         log_path: Optional[Union[str, Path]] = None,
     ) -> "OpenAIErrResponse":
         return cls(
             response_content="",
             thought_chain="",
+            messages=messages,
             message_cnt=0,
             token_consumption=0,
             token_input=0,
@@ -399,7 +402,13 @@ async def gen_openai_chat_response(
 
     except Exception as e:
         logger.exception(f"OpenAI请求失败: {e}")
-        response = OpenAIErrResponse.create_from_exception(e, use_model=model, stream_mode=stream_mode, log_path=error_log_path)
+        response = OpenAIErrResponse.create_from_exception(
+            e,
+            use_model=model,
+            stream_mode=stream_mode,
+            messages=messages,
+            log_path=error_log_path,
+        )
         if error_log_path:
             await response.save_log(
                 log_path=error_log_path,
@@ -420,6 +429,7 @@ async def gen_openai_chat_response(
     response = OpenAIResponse(
         response_content=output,
         thought_chain=thought_chain,
+        messages=messages,
         message_cnt=len(messages) + 1,
         token_consumption=token_consumption,
         token_input=token_input,

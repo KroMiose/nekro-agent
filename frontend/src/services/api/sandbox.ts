@@ -1,5 +1,21 @@
 import axios from './axios'
 
+export interface SandboxCodeExtData {
+  message_cnt: number
+  token_consumption: number
+  token_input: number
+  token_output: number
+  chars_count_input: number
+  chars_count_output: number
+  chars_count_total: number
+  use_model: string
+  speed_tokens_per_second: number
+  speed_chars_per_second: number
+  first_token_cost_ms: number
+  generation_time_ms: number
+  stream_mode: boolean
+}
+
 export interface SandboxLog {
   id: number
   chat_key: string
@@ -17,15 +33,16 @@ export interface SandboxLog {
   generation_time_ms: number
   total_time_ms: number
   use_model: string
+  extra_data: string | null
 }
 
 // 停止类型枚举
 export enum ExecStopType {
-  NORMAL = 0,  // 正常结束
-  ERROR = 1,   // 错误停止
+  NORMAL = 0, // 正常结束
+  ERROR = 1, // 错误停止
   TIMEOUT = 2, // 超时停止
-  AGENT = 8,   // 代理停止
-  MANUAL = 9,  // 手动停止
+  AGENT = 8, // 代理停止
+  MANUAL = 9, // 手动停止
   MULTIMODAL_AGENT = 11, // 多模态代理停止
 }
 

@@ -212,6 +212,7 @@ export default function ConfigTable({
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set())
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [saveWarningOpen, setSaveWarningOpen] = useState(false)
@@ -289,10 +290,13 @@ export default function ConfigTable({
         return
       }
       try {
-        await configService.batchUpdateConfig(configKey, editingValues)
+        const changedConfigs = Object.fromEntries(
+          Array.from(dirtyKeys).map(key => [key, editingValues[key]])
+        )
+        await configService.batchUpdateConfig(configKey, changedConfigs)
         await configService.saveConfig(configKey)
         notification.success('所有修改已保存并导出到配置文件')
-        setEditingValues({})
+        setDirtyKeys(new Set())
         setSaveWarningOpen(false)
         onRefresh?.()
       } catch (error) {
@@ -300,7 +304,7 @@ export default function ConfigTable({
         notification.error(errorMessage)
       }
     },
-    [checkRequiredFields, editingValues, configService, configKey, notification, onRefresh]
+    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh]
   )
 
   useEffect(() => {
@@ -320,6 +324,7 @@ export default function ConfigTable({
       notification.success('配置已重载')
       setReloadConfirmOpen(false)
       setEditingValues({})
+      setDirtyKeys(new Set())
       onRefresh?.()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '重载失败'
@@ -333,6 +338,7 @@ export default function ConfigTable({
 
   const handleConfigChange = (key: string, value: string) => {
     setEditingValues(prev => ({ ...prev, [key]: value }))
+    setDirtyKeys(prev => new Set(prev).add(key))
   }
 
   const filteredConfigs = useMemo(() => {
@@ -369,14 +375,17 @@ export default function ConfigTable({
   useEffect(() => {
     if (configs) {
       const initialValues: Record<string, string> = {}
-      configs.forEach(config => {
-        const value =
-          typeof config.value === 'object' && config.value !== null
-            ? JSON.stringify(config.value, null, 2)
-            : String(config.value)
-        initialValues[config.key] = value
-      })
+      configs
+        .filter(c => !c.is_hidden)
+        .forEach(config => {
+          const value =
+            typeof config.value === 'object' && config.value !== null
+              ? JSON.stringify(config.value, null, 2)
+              : String(config.value)
+          initialValues[config.key] = value
+        })
       setEditingValues(initialValues)
+      setDirtyKeys(new Set())
     }
   }, [configs])
 
@@ -624,7 +633,7 @@ export default function ConfigTable({
                 size="small"
                 onClick={() => handleSaveAllChanges(false)}
                 startIcon={<SaveIcon />}
-                disabled={Object.keys(editingValues).length === 0}
+                disabled={dirtyKeys.size === 0}
               >
                 保存更改
               </Button>
