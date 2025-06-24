@@ -3,13 +3,13 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Dict, Optional, Union
+from typing import Any, Callable, ClassVar, Dict, Optional, Type, TypeVar, Union
 from urllib.parse import quote_plus
 
 import nonebot
 import yaml
 from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class ArgTypes:
@@ -94,6 +94,16 @@ class ExtraField(BaseModel):
         title="必填字段标识",
         description="设置为True时，前端将验证该字段必须填写才能提交表单",
     )
+    overridable: bool = Field(
+        default=False,
+        title="可覆盖字段标识",
+        description="设置为True时，该配置项将可以在适配器或会话级进行独立覆盖",
+    )
+    sub_item_name: str = Field(
+        default="项目",
+        title="子项名称",
+        description="指定该配置项为列表时，子项目的元素名称，默认值为'项目'",
+    )
     load_to_sysenv: bool = Field(
         default=False,
         title="环境变量加载控制",
@@ -113,11 +123,6 @@ class ExtraField(BaseModel):
         default="",
         title="nonebot环境变量名称定义",
         description="指定将配置项加载到nonebot的环境变量时使用的变量名，仅在load_to_nbenv_as为True时生效",
-    )
-    sub_item_name: str = Field(
-        default="项目",
-        title="子项名称",
-        description="指定该配置项为列表时，子项目的元素名称，默认值为'项目'",
     )
 
 
@@ -147,10 +152,16 @@ class ConfigManager:
         cls._configs.pop(config_key, None)
 
 
+T_ConfigBase = TypeVar("T_ConfigBase", bound="ConfigBase")
+
+
 class ConfigBase(BaseModel):
     # 类变量用于存储配置元数据
     _config_key: ClassVar[Optional[str]] = None
-    _config_file_path: ClassVar[Optional[Path]] = None
+    _config_file_path_class: ClassVar[Optional[Path]] = None
+
+    # 实例变量，用于动态配置
+    _config_file_path: Optional[Path] = PrivateAttr(default=None)
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
@@ -186,42 +197,49 @@ class ConfigBase(BaseModel):
     @classmethod
     def set_config_file_path(cls, file_path: Path) -> None:
         """设置配置文件路径"""
-        cls._config_file_path = file_path
+        cls._config_file_path_class = file_path
 
-    @classmethod
-    def get_config_file_path(cls) -> Optional[Path]:
+    def get_config_file_path(self) -> Optional[Path]:
         """获取配置文件路径"""
-        return cls._config_file_path
+        return self._config_file_path or self.__class__._config_file_path_class
+
+    def set_instance_config_file_path(self, file_path: Path) -> None:
+        """设置实例的配置文件路径"""
+        self._config_file_path = file_path
 
     @classmethod
-    def load_config(cls, file_path: Optional[Path] = None, auto_register: bool = True):
+    def load_config(cls: Type[T_ConfigBase], file_path: Optional[Path] = None, auto_register: bool = True) -> T_ConfigBase:
         """加载配置文件"""
         # 使用传入的路径或类默认路径
-        target_path = file_path or cls._config_file_path
+        target_path = file_path or cls._config_file_path_class
         if not target_path:
             raise ValueError(f"配置文件路径未设置，请调用 {cls.__name__}.set_config_file_path() 或提供 file_path 参数")
 
-        if not target_path.exists():
-            target_path.parent.mkdir(parents=True, exist_ok=True)
-            instance = cls()
-        else:
-            content: str = target_path.read_text(encoding="utf-8")
-            if target_path.suffix == ".json":
-                instance = cls.model_validate_json(content)
-            elif target_path.suffix in [".yaml", ".yml"]:
-                instance = cls.model_validate(yaml.safe_load(content))
-            else:
-                raise ValueError(f"Unsupported file type: {target_path}")
-
-        # 设置实例的文件路径
-        if not cls._config_file_path:
-            cls._config_file_path = target_path
+        instance = cls.load_from_path(target_path)
 
         # 自动注册到配置管理器
         if auto_register:
             ConfigManager.register_config(cls.get_config_key(), instance)
 
         instance.load_config_to_env()
+        return instance
+
+    @classmethod
+    def load_from_path(cls: Type[T_ConfigBase], path: Path) -> T_ConfigBase:
+        """从指定路径加载配置实例"""
+        if not path.exists():
+            path.parent.mkdir(parents=True, exist_ok=True)
+            instance = cls()
+        else:
+            content: str = path.read_text(encoding="utf-8")
+            if path.suffix == ".json":
+                instance = cls.model_validate_json(content)
+            elif path.suffix in [".yaml", ".yml"]:
+                instance = cls.model_validate(yaml.safe_load(content))
+            else:
+                raise ValueError(f"Unsupported file type: {path}")
+
+        instance.set_instance_config_file_path(path)  # 存储路径
         return instance
 
     def load_config_to_env(self):
@@ -247,7 +265,9 @@ class ConfigBase(BaseModel):
                 env_name = schema_extra.get("load_sysenv_as", field_name)
                 # 序列化为 JSON 字符串
                 os.environ[env_name] = json.dumps(
-                    value, default=jsonable_encoder, ensure_ascii=False,
+                    value,
+                    default=jsonable_encoder,
+                    ensure_ascii=False,
                 )
 
             # 2. 处理 nonebot 环境变量
@@ -278,7 +298,7 @@ class ConfigBase(BaseModel):
     def dump_config(self, file_path: Optional[Path] = None) -> None:
         """保存配置文件"""
         # 使用传入的路径或类默认路径
-        target_path = file_path or self.__class__._config_file_path  # noqa: SLF001
+        target_path = file_path or self.get_config_file_path()
         if not target_path:
             raise ValueError(
                 f"配置文件路径未设置，请调用 {self.__class__.__name__}.set_config_file_path() 或提供 file_path 参数",

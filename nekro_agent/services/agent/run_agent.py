@@ -10,7 +10,8 @@ import weave
 from jinja2 import Environment
 
 from nekro_agent.core import logger
-from nekro_agent.core.config import ModelConfigGroup, config
+from nekro_agent.core.config import CoreConfig, ModelConfigGroup
+from nekro_agent.core.config import config as core_config
 from nekro_agent.core.os_env import PROMPT_ERROR_LOG_DIR, PROMPT_LOG_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
@@ -19,6 +20,7 @@ from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.sandbox.runner import limited_run_code
 
+from ..config_resolver import config_resolver
 from .creator import OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
@@ -44,8 +46,10 @@ async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,
 ):
+    # 获取当前会话的有效配置
     one_time_code = os.urandom(4).hex()
-    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+    config = await db_chat_channel.get_effective_config()
     preset = await db_chat_channel.get_preset()
     ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
@@ -122,12 +126,13 @@ async def run_agent(
                 db_chat_channel=db_chat_channel,
                 one_time_code=one_time_code,
                 model_group=used_model_group,
+                config=config,
             ),
         ),
     )
 
     history_render_until_time = time.time()
-    llm_response, used_model_group = await send_agent_request(messages=messages, chat_key=chat_key)
+    llm_response, used_model_group = await send_agent_request(messages=messages, config=config, chat_key=chat_key)
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
@@ -209,6 +214,7 @@ async def run_agent(
                 one_time_code=one_time_code,
                 record_sta_timestamp=history_render_until_time,
                 model_group=used_model_group,
+                config=config,
             ),
         )
         msg = msg.extend(
@@ -228,12 +234,18 @@ async def run_agent(
         messages.extend(addition_prompt_message)
 
         history_render_until_time = time.time()
-        llm_response, used_model_group = await send_agent_request(messages=messages, is_debug_iteration=True, chat_key=chat_key)
+        llm_response, used_model_group = await send_agent_request(
+            messages=messages,
+            config=config,
+            is_debug_iteration=True,
+            chat_key=chat_key,
+        )
         parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
 
 async def send_agent_request(
     messages: List[OpenAIChatMessage],
+    config: CoreConfig,
     is_debug_iteration: bool = False,
     chat_key: str = "",
 ) -> Tuple[OpenAIResponse, ModelConfigGroup]:

@@ -8,9 +8,11 @@ from pydantic import Field
 from .core_utils import ConfigBase, ExtraField
 from .os_env import OsEnv
 
-CONFIG_PATH = Path(OsEnv.DATA_DIR) / "configs" / "nekro-agent.yaml"
 CONFIG_DIR = Path(OsEnv.DATA_DIR) / "configs"
 CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+CONFIG_PATH = Path(OsEnv.DATA_DIR) / "configs" / "nekro-agent.yaml"
+CHANNEL_CONFIG_DIR = CONFIG_DIR / "channels"
+CHANNEL_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ModelConfigGroup(ConfigBase):
@@ -149,19 +151,28 @@ class CoreConfig(ConfigBase):
             ref_model_groups=True,
             required=True,
             model_type="chat",
+            overridable=True,
         ).model_dump(),
         description="主要使用的模型组，可在 `模型组` 选项卡配置",
     )
     DEBUG_MIGRATION_MODEL_GROUP: str = Field(
         default="default",
         title="调试/Agent 迁移模型组",
-        json_schema_extra=ExtraField(ref_model_groups=True, model_type="chat").model_dump(),
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            model_type="chat",
+            overridable=True,
+        ).model_dump(),
         description="主模型组编写的代码执行出错或产生 Agent 反馈时，迭代调用时使用的模型组",
     )
     FALLBACK_MODEL_GROUP: str = Field(
         default="default",
         title="备用模型组",
-        json_schema_extra=ExtraField(ref_model_groups=True, model_type="chat").model_dump(),
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            model_type="chat",
+            overridable=True,
+        ).model_dump(),
         description="当主模型组不可用时, 使用备用模型组",
     )
 
@@ -179,31 +190,37 @@ class CoreConfig(ConfigBase):
     AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = Field(
         default=60 * 30,
         title="聊天上下文过期时间 (秒)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="超出该时间范围的消息不会被 AI 回复时参考",
     )
     AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(
         default=32,
         title="聊天上下文最大条数",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="AI 会话上下文最大条数, 超出该条数会自动截断",
     )
     AI_SCRIPT_MAX_RETRY_TIMES: int = Field(
         default=3,
         title="代码执行调试 / Agent 迭代最大次数",
         description="执行代码过程出错或者产生 Agent 反馈时，进行迭代调用允许的最大次数，增大该值可能略微增加调试成功概率，过大会造成响应时间增加、Token 消耗增加等",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_CHAT_LLM_API_MAX_RETRIES: int = Field(
         default=3,
         title="模型 API 调用重试次数",
         description="模型组调用失败后重试次数，重试的最后一次将使用备用模型组",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_DEBOUNCE_WAIT_SECONDS: float = Field(
         default=0.9,
         title="防抖等待时长 (秒)",
         description="收到触发消息时延迟指定时长再开始回复流程，防抖等待时长中继续收到的消息只会触发最后一条",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_GENERATE_TIMEOUT: int = Field(
         default=180,
         title="AI 对话内容生成超时时间 (秒)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="AI 大模型生成响应结果的最大等待时间，超过该时间会自动停止生成并报错",
     )
     AI_IGNORED_PREFIXES: List[str] = Field(
@@ -215,6 +232,7 @@ class CoreConfig(ConfigBase):
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
         default=0.0,
         title="随机回复概率",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="随机回复概率，任意消息触发 AI 回复的概率，0.0 表示不启用，1.0 表示必定触发",
     )
     AI_CHAT_TRIGGER_REGEX: List[str] = Field(
@@ -238,23 +256,27 @@ class CoreConfig(ConfigBase):
     AI_CONTEXT_LENGTH_PER_MESSAGE: int = Field(
         default=768,
         title="单条消息最大长度 (字符)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="会话上下文单条消息最大长度，超出该长度会自动截取缩略显示",
     )
     AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
         default=5120,
         title="会话上下文最大长度 (字符)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="会话历史记录上下文最大长度，超出该长度会自动截断",
     )
     AI_VISION_IMAGE_LIMIT: int = Field(default=5, title="视觉参考图片数量限制")
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(
         default=1024,
         title="视觉图片大小限制 (KB)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="每次传递的图片大小限制，超出此大小的图片会被自动压缩到限制内传递",
     )
     AI_REQUEST_STREAM_MODE: bool = Field(
         default=False,
         title="启用流式请求",
-        description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能降低某些限制，但是会丢失准确的 Token 统计信息",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+        description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
     )
 
     """会话设置"""
@@ -264,6 +286,7 @@ class CoreConfig(ConfigBase):
         default=True,
         title="启用失败 LLM 反馈",
         description="启用后 AI 调用 LLM 失败时会发送反馈",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
 
     """沙盒配置"""

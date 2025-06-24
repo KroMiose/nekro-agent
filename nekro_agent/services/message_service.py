@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Union
 import magic
 
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import config, logger
+from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
@@ -86,6 +86,8 @@ class MessageService:
             chat_key (str): 会话标识
             start_time (float): 任务开始时间
         """
+        db_chat_channel = await DBChatChannel.get(chat_key=chat_key)
+        config = await db_chat_channel.get_effective_config()
         # 等待防抖时间
         await asyncio.sleep(config.AI_DEBOUNCE_WAIT_SECONDS)
 
@@ -152,6 +154,7 @@ class MessageService:
     ):
         """推送人类用户消息"""
         db_chat_channel = db_chat_channel or await DBChatChannel.get_channel(chat_key=message.chat_key)
+        config = await db_chat_channel.get_effective_config()
         preset = await db_chat_channel.get_preset()
 
         if not await self._message_validation_check(message):
@@ -160,7 +163,7 @@ class MessageService:
 
         content_data = [o.model_dump() for o in message.content_data]
 
-        if check_forbidden_message(message.content_text):
+        if check_forbidden_message(message.content_text, config):
             logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
             return
 
@@ -190,8 +193,8 @@ class MessageService:
             trigger_agent
             or preset.name in message.content_text
             or message.is_tome
-            or random_chat_check()
-            or check_content_trigger(message.content_text)
+            or random_chat_check(config)
+            or check_content_trigger(message.content_text, config)
         )
 
         if not should_ignore and should_trigger:

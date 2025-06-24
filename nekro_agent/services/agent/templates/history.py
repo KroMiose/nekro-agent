@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from lunar_python import Lunar
 
-from nekro_agent.core import config, logger
-from nekro_agent.core.config import ModelConfigGroup
+from nekro_agent.core import logger
+from nekro_agent.core.config import CoreConfig, ModelConfigGroup
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import (
@@ -45,6 +45,7 @@ async def render_history_data(
     chat_key: str,
     db_chat_channel: DBChatChannel,
     one_time_code: str,
+    config: CoreConfig,
     record_sta_timestamp: Optional[float] = None,
     model_group: Optional[ModelConfigGroup] = None,
 ) -> OpenAIChatMessage:
@@ -153,7 +154,7 @@ async def render_history_data(
 
     chat_history_prompts: List[str] = []
     for db_message in recent_chat_messages:
-        chat_history_prompts.append(db_message.parse_chat_history_prompt(one_time_code))
+        chat_history_prompts.append(db_message.parse_chat_history_prompt(one_time_code, config))
 
     chat_history_prompt = f"\n<{one_time_code} | message separator>\n".join(chat_history_prompts)
     chat_history_prompt += f"\n<{one_time_code} | message separator>\n"

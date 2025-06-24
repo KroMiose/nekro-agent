@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 from pydantic import BaseModel
 from tortoise import fields
@@ -11,10 +11,12 @@ from nekro_agent.core import config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_preset import DBPreset
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.config_resolver import config_resolver
 from nekro_agent.services.plugin.collector import plugin_collector
 
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface.base import BaseAdapter
+    from nekro_agent.core.config import CoreConfig
 
 
 class DefaultPreset(BaseModel):
@@ -42,6 +44,8 @@ class DBChatChannel(Model):
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
+
+    _effective_config: Optional["CoreConfig"] = None
 
     class Meta:  # type: ignore
         table = "chat_channel"
@@ -139,3 +143,8 @@ class DBChatChannel(Model):
     def adapter(self) -> "BaseAdapter":
         """获取适配器"""
         return adapter_utils.get_adapter(self.adapter_key)
+
+    async def get_effective_config(self) -> "CoreConfig":
+        if self._effective_config is None:
+            self._effective_config = await config_resolver.get_effective_config(self.chat_key)
+        return self._effective_config

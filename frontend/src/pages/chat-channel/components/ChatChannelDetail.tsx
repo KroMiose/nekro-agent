@@ -33,6 +33,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
+import OverrideSettings from './detail-tabs/OverrideSettings'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
 
@@ -198,6 +199,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
           }}
         >
           <Tab label="基础信息" />
+          <Tab label="覆盖配置" />
           <Tab label="消息记录" />
         </Tabs>
       </Card>
@@ -210,6 +212,11 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
           </Card>
         )}
         {currentTab === 1 && (
+          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+            <OverrideSettings chatKey={chatKey} />
+          </Card>
+        )}
+        {currentTab === 2 && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
             <MessageHistory chatKey={chatKey} />
           </Card>

@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from pydantic import BaseModel
 
 from nekro_agent.adapters.utils import adapter_utils
+from nekro_agent.core.config import CoreConfig
 from nekro_agent.tools.file_utils import FileSystem
 
 if TYPE_CHECKING:
@@ -25,6 +26,7 @@ class AgentCtx(BaseModel):
     channel_name: Optional[str] = None
     channel_type: Optional[str] = None
     adapter_key: Optional[str] = None
+    _db_chat_channel: Optional["DBChatChannel"] = None
 
     @property
     def chat_key(self) -> str:
@@ -47,6 +49,12 @@ class AgentCtx(BaseModel):
             return FileSystem(self.chat_key, f"sandbox_{self.chat_key}")
         return FileSystem(self.chat_key, self.container_key)
 
+    async def get_core_config(self) -> CoreConfig:
+        """核心配置"""
+        if self._db_chat_channel is None:
+            raise ValueError("missing db_chat_channel")
+        return await self._db_chat_channel.get_effective_config()
+
     @classmethod
     def create_by_db_chat_channel(
         cls,
@@ -64,6 +72,7 @@ class AgentCtx(BaseModel):
             channel_type=db_chat_channel.channel_type,
             adapter_key=db_chat_channel.adapter_key,
             webhook_request=webhook_request,
+            _db_chat_channel=db_chat_channel,
         )
 
     @classmethod

@@ -14,7 +14,7 @@ import toml
 from PIL import Image
 
 from nekro_agent.core import logger
-from nekro_agent.core.config import config
+from nekro_agent.core.config import CoreConfig
 from nekro_agent.core.os_env import USER_UPLOAD_DIR
 from nekro_agent.tools.path_convertor import is_url_path
 
@@ -175,7 +175,7 @@ async def copy_to_upload_dir(
     return str(save_path), file_name
 
 
-def random_chat_check() -> bool:
+def random_chat_check(config: CoreConfig) -> bool:
     """随机聊天检测
 
     Returns:
@@ -185,7 +185,7 @@ def random_chat_check() -> bool:
     return random.random() < config.AI_CHAT_RANDOM_REPLY_PROBABILITY
 
 
-def check_content_trigger(content: str) -> bool:
+def check_content_trigger(content: str, config: CoreConfig) -> bool:
     """内容触发检测
 
     Args:
@@ -202,7 +202,7 @@ def check_content_trigger(content: str) -> bool:
     return False
 
 
-def check_forbidden_message(content: str) -> bool:
+def check_forbidden_message(content: str, config: CoreConfig) -> bool:
     """忽略消息检测
 
     Args:

@@ -12,6 +12,7 @@ import {
   Error as ErrorIcon,
   Warning as WarningIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
+  Style as StyleIcon,
 } from '@mui/icons-material'
 import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
@@ -21,6 +22,7 @@ import { UI_STYLES } from '../theme/themeConfig'
 import AdapterHomePage from '../pages/adapter/AdapterHomePage'
 import AdapterConfigPage from '../pages/adapter/AdapterConfigPage'
 import AdapterAdvancedPage from '../pages/adapter/AdapterAdvancedPage'
+import AdapterOverrideConfigPage from '../pages/adapter/AdapterOverrideConfigPage'
 import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
 
@@ -77,11 +79,18 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterHomePage />,
       },
       {
-        label: '配置',
+        label: '适配器配置',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
+      },
+      {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
       },
       {
         label: 'NapCat',
@@ -126,11 +135,18 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterHomePage />,
       },
       {
-        label: '配置',
+        label: '适配器配置',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
+      },
+      {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
       },
       {
         label: '高级',
@@ -168,6 +184,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterConfigPage />,
       },
       {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
         label: '高级',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
@@ -203,6 +226,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         component: <AdapterConfigPage />,
       },
       {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
         label: '高级',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
@@ -236,6 +266,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
+      },
+      {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
       },
       {
         label: '高级',

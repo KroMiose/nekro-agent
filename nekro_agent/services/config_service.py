@@ -22,7 +22,9 @@ from typing import (
 from pydantic import BaseModel
 
 from nekro_agent.core import logger
+from nekro_agent.core.config import CHANNEL_CONFIG_DIR
 from nekro_agent.core.core_utils import ConfigBase, ConfigManager
+from nekro_agent.core.os_env import OsEnv
 
 T = TypeVar("T", bound=ConfigBase)
 
@@ -214,6 +216,43 @@ class UnifiedConfigService:
     """
 
     @staticmethod
+    def _get_config_instance(config_key: str) -> Optional[ConfigBase]:
+        """获取或动态加载配置实例"""
+        # 1. 检查缓存
+        instance = ConfigManager.get_config(config_key)
+        if instance:
+            return instance
+
+        # 2. 尝试动态加载
+        try:
+            from nekro_agent.core.overridable_config import OverridableConfig
+
+            path: Optional[Path] = None
+
+            if config_key.startswith("adapter_override_"):
+                adapter_key = config_key.replace("adapter_override_", "")
+                path = Path(OsEnv.DATA_DIR) / "configs" / adapter_key / "overrides.yaml"
+                instance = OverridableConfig.load_from_path(path)
+
+            elif config_key.startswith("channel_config_"):
+                chat_key = config_key.replace("channel_config_", "")
+                adapter_key = chat_key.split("-")[0]
+                path = CHANNEL_CONFIG_DIR / adapter_key / f"{chat_key}.yaml"
+                instance = OverridableConfig.load_from_path(path)
+
+            if instance:
+                ConfigManager.register_config(config_key, instance)
+                instance.dump_config()  # 确保文件存在
+                return instance
+
+        except Exception as e:
+            logger.error(f"动态加载配置失败: {config_key}, 错误: {e}")
+            return None
+
+        # 3. 降级到静态注册的配置
+        return ConfigManager.get_config(config_key)
+
+    @staticmethod
     def get_config_list(config_key: str) -> List[Dict[str, Any]]:
         """获取指定配置的配置列表
 
@@ -223,7 +262,7 @@ class UnifiedConfigService:
         Returns:
             List[Dict[str, Any]]: 配置项列表
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
             raise ValueError(f"配置实例不存在: {config_key}")
 
@@ -240,9 +279,9 @@ class UnifiedConfigService:
         Returns:
             Optional[Dict[str, Any]]: 配置项信息，如果不存在则返回 None
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
-            raise ValueError(f"配置实例不存在: {config_key}")
+            return None
 
         return ConfigService.get_config_item(config_obj, item_key)
 
@@ -258,7 +297,7 @@ class UnifiedConfigService:
         Returns:
             Tuple[bool, str]: (是否成功, 错误消息)
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
             return False, f"配置实例不存在: {config_key}"
 
@@ -275,7 +314,7 @@ class UnifiedConfigService:
         Returns:
             Tuple[bool, Optional[str]]: (是否成功, 错误消息)
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
             return False, f"配置实例不存在: {config_key}"
 
@@ -292,7 +331,7 @@ class UnifiedConfigService:
         Returns:
             Tuple[bool, Optional[str]]: (是否成功, 错误消息)
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
             return False, f"配置实例不存在: {config_key}"
 
@@ -310,18 +349,22 @@ class UnifiedConfigService:
             Tuple[bool, Optional[str]]: (是否成功, 错误消息)
         """
         try:
-            config_obj = ConfigManager.get_config(config_key)
+            config_obj = UnifiedConfigService._get_config_instance(config_key)
             if not config_obj:
                 return False, f"配置实例不存在: {config_key}"
 
-            # 获取配置类
+            # 获取要重载的路径
+            reload_path = file_path or config_obj.get_config_file_path()
+            if not reload_path:
+                return False, f"重载失败: 配置文件路径未知: {config_key}"
+
+            # 获取配置类并从路径加载
             config_class = config_obj.__class__
+            new_config = config_class.load_from_path(reload_path)
 
-            # 重新加载配置
-            new_config = config_class.load_config(file_path, auto_register=True)
-
-            # 更新配置管理器中的实例
+            # 注册新实例并加载到env
             ConfigManager.register_config(config_key, new_config)
+            new_config.load_config_to_env()
 
         except Exception as e:
             logger.error(f"重新加载配置失败: {config_key}, 错误: {e}")
@@ -344,16 +387,14 @@ class UnifiedConfigService:
         Returns:
             Optional[Dict[str, Any]]: 配置信息
         """
-        config_obj = ConfigManager.get_config(config_key)
+        config_obj = UnifiedConfigService._get_config_instance(config_key)
         if not config_obj:
             return None
 
         return {
             "config_key": config_key,
             "config_class": config_obj.__class__.__name__,
-            "config_file_path": (
-                str(config_obj.__class__.get_config_file_path()) if config_obj.__class__.get_config_file_path() else None
-            ),
+            "config_file_path": (str(config_obj.get_config_file_path()) if config_obj.get_config_file_path() else None),
             "config_type": _get_config_type(config_key),
             "field_count": len(config_obj.__class__.model_fields),
         }
@@ -409,6 +450,8 @@ class ConfigService:
                     "ref_model_groups",
                     "model_type",
                     "sub_item_name",
+                    "enable_toggle",
+                    "overridable",
                     "load_to_sysenv",
                     "load_sysenv_as",
                     "load_to_nonebot_env",
@@ -473,6 +516,8 @@ class ConfigService:
                 "ref_model_groups",
                 "model_type",
                 "sub_item_name",
+                "enable_toggle",
+                "overridable",
                 "load_to_sysenv",
                 "load_sysenv_as",
                 "load_to_nonebot_env",

@@ -5,7 +5,7 @@ import json5
 from tortoise import fields
 from tortoise.models import Model
 
-from nekro_agent.core.config import config
+from nekro_agent.core.config import CoreConfig
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
@@ -45,7 +45,7 @@ class DBChatMessage(Model):
     class Meta:  # type: ignore
         table = "chat_message"
 
-    def parse_chat_history_prompt(self, one_time_code: str, travel_mode: bool = False) -> str:
+    def parse_chat_history_prompt(self, one_time_code: str, config: "CoreConfig", travel_mode: bool = False) -> str:
         """解析聊天历史记录生成提示词"""
         content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, travel_mode)
         if len(content) > config.AI_CONTEXT_LENGTH_PER_MESSAGE:  # 截断消息内容
