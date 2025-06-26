@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional, Union
 from fastapi import APIRouter, Body, Header, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 
+from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
 
 from .commands import (
@@ -52,10 +53,7 @@ def create_sse_response(request: Request, client: Union[SseClient, str]) -> Even
     # 如果是字符串，则创建新客户端
     if isinstance(client, str):
         existing_client = client_manager.get_client_by_name(client)
-        if existing_client:
-            client = existing_client
-        else:
-            client = client_manager.register_client(client)
+        client = existing_client or client_manager.register_client(client)
 
     # 返回SSE响应
     return EventSourceResponse(sse_stream(request, client))
@@ -67,7 +65,7 @@ router = APIRouter()
 # 辅助函数，用于抽象化异常抛出
 def _raise_http_exception(status_code: int, detail: str) -> None:
     """抛出HTTP异常
-    
+
     Args:
         status_code: HTTP状态码
         detail: 异常详情
@@ -79,8 +77,14 @@ def _raise_http_exception(status_code: int, detail: str) -> None:
 async def command_endpoint(
     command_payload: Dict[str, Any] = Body(...),
     client_id_header: Optional[str] = Header(None, alias="X-Client-ID"),
+    access_key_header: Optional[str] = Header(None, alias="X-Access-Key"),
 ):
     """命令处理端点"""
+    # 访问密钥校验
+    sse_adapter = adapter_utils.get_adapter("sse")
+    if sse_adapter.config.ACCESS_KEY and access_key_header != sse_adapter.config.ACCESS_KEY:
+        _raise_http_exception(401, "无效的访问密钥")
+
     cmd = command_payload.get("cmd")
     if not cmd:
         raise HTTPException(status_code=400, detail="缺少cmd字段")
@@ -138,8 +142,15 @@ async def sse_endpoint(
     client_name: str = "",
     client_id_query: Optional[str] = None,  # 名称区分来自查询参数
     platform: str = "unknown",
+    access_key: Optional[str] = None,
 ):
     """SSE 连接端点"""
+    # 访问密钥校验
+    sse_adapter = adapter_utils.get_adapter("sse")
+    if sse_adapter.config.ACCESS_KEY and access_key != sse_adapter.config.ACCESS_KEY:
+        logger.error("SSE 连接失败: 无效的访问密钥。")
+        raise HTTPException(status_code=401, detail="无效的访问密钥")
+
     if not client_manager:
         logger.error("SSE 连接失败: client_manager 未初始化。请检查 SSEAdapter 初始化流程。")
         raise HTTPException(status_code=500, detail="SSE 服务内部错误，未能正确初始化。")

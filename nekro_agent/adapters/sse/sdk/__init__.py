@@ -25,7 +25,6 @@ from .models import (
     FileSegment,
     HeartbeatData,
     ImageSegment,
-    LocationSegment,
     # 消息模型
     MessageBase,
     # 消息段模型
@@ -39,15 +38,12 @@ from .models import (
     Request,
     Response,
     SendMessage,
-    StickerSegment,
     TextSegment,
     # 用户和频道信息
     UserInfo,
     at,
     file,
     image,
-    location,
-    sticker,
     # 构造函数
     text,
 )
@@ -72,7 +68,6 @@ __all__ = [
     "FileSegment",
     "HeartbeatData",
     "ImageSegment",
-    "LocationSegment",
     "Message",  # 别名
     # 消息模型
     "MessageBase",
@@ -89,15 +84,12 @@ __all__ = [
     # 客户端
     "SSEClient",
     "SendMessage",
-    "StickerSegment",
     "TextSegment",
     # 用户和频道信息
     "UserInfo",
     "at",
     "file",
     "image",
-    "location",
-    "sticker",
     # 构造函数
     "text",
 ]

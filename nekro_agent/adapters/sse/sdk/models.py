@@ -15,9 +15,20 @@ import time
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, Generic, List, Optional, Type, TypeVar, Union
+from typing import (
+    Annotated,
+    Any,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field
 
 # =============================================================================
 # 基础枚举类型
@@ -52,14 +63,14 @@ class MessageSegment(BaseModel):
 class TextSegment(MessageSegment):
     """文本消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.TEXT, description="消息段类型")
+    type: Literal[MessageSegmentType.TEXT] = Field(MessageSegmentType.TEXT, description="消息段类型")
     content: str = Field(..., description="文本内容")
 
 
 class AtSegment(MessageSegment):
     """@消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.AT, description="消息段类型")
+    type: Literal[MessageSegmentType.AT] = MessageSegmentType.AT
     user_id: str = Field(..., description="被@用户ID")
     nickname: Optional[str] = Field(None, description="被@用户昵称")
 
@@ -83,7 +94,7 @@ class MediaSegment(MessageSegment):
 class ImageSegment(MediaSegment):
     """图片消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.IMAGE, description="消息段类型")
+    type: Literal[MessageSegmentType.IMAGE] = MessageSegmentType.IMAGE
     width: Optional[int] = Field(None, description="图片宽度")
     height: Optional[int] = Field(None, description="图片高度")
     is_origin: bool = Field(False, description="是否原图")
@@ -92,33 +103,32 @@ class ImageSegment(MediaSegment):
 class FileSegment(MediaSegment):
     """文件消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.FILE, description="消息段类型")
+    type: Literal[MessageSegmentType.FILE] = Field(MessageSegmentType.FILE, description="消息段类型")
 
 
-class StickerSegment(MediaSegment):
-    """表情消息段"""
+class StickerSegment(MessageSegment):
+    """贴纸消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.STICKER, description="消息段类型")
+    type: Literal[MessageSegmentType.STICKER] = MessageSegmentType.STICKER
+    sticker_id: str = Field(..., description="贴纸ID")
 
 
 class LocationSegment(MessageSegment):
     """位置消息段"""
 
-    type: MessageSegmentType = Field(MessageSegmentType.LOCATION, description="消息段类型")
+    type: Literal[MessageSegmentType.LOCATION] = MessageSegmentType.LOCATION
     latitude: float = Field(..., description="纬度")
     longitude: float = Field(..., description="经度")
-    title: Optional[str] = Field(None, description="位置标题")
-    address: Optional[str] = Field(None, description="位置地址")
+    title: Optional[str] = Field(None, description="标题")
+    address: Optional[str] = Field(None, description="地址")
 
 
+# =============================================================================
 # 消息段联合类型
-MessageSegmentUnion = Union[
-    TextSegment,
-    AtSegment,
-    ImageSegment,
-    FileSegment,
-    StickerSegment,
-    LocationSegment,
+# =============================================================================
+MessageSegmentUnion = Annotated[
+    Union[TextSegment, ImageSegment, FileSegment, AtSegment],
+    Field(discriminator="type"),
 ]
 
 
@@ -221,7 +231,7 @@ class RegisterResponse(BaseModel):
 class ChannelSubscribeRequest(BaseModel):
     """频道订阅请求"""
 
-    channel_id: str = Field(..., description="频道ID")
+    channel_ids: List[str] = Field(default_factory=list, description="频道ID列表")
     platform: Optional[str] = Field(None, description="平台标识，如果不提供则使用客户端的平台")
 
 
@@ -331,6 +341,16 @@ class RequestType(str, Enum):
     SET_MESSAGE_REACTION = "set_message_reaction"
     FILE_CHUNK = "file_chunk"
     FILE_CHUNK_COMPLETE = "file_chunk_complete"
+
+
+class ClientCommand(str, Enum):
+    """客户端发往服务端的命令类型"""
+
+    REGISTER = "register"
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    MESSAGE = "message"
+    RESPONSE = "response"
 
 
 # =============================================================================
@@ -573,42 +593,6 @@ def file(
 
     return FileSegment(
         type=MessageSegmentType.FILE,
-        url=url,
-        base64_url=base64_url,
-        name=name,
-        size=size,
-        mime_type=mime_type,
-        suffix=suffix,
-    )
-
-
-def location(
-    latitude: float,
-    longitude: float,
-    title: Optional[str] = None,
-    address: Optional[str] = None,
-) -> LocationSegment:
-    """创建位置消息段"""
-    return LocationSegment(
-        type=MessageSegmentType.LOCATION,
-        latitude=latitude,
-        longitude=longitude,
-        title=title,
-        address=address,
-    )
-
-
-def sticker(
-    url: Optional[str] = None,
-    base64_url: Optional[str] = None,
-    name: Optional[str] = None,
-    size: Optional[int] = None,
-    mime_type: Optional[str] = None,
-    suffix: Optional[str] = None,
-) -> StickerSegment:
-    """创建表情消息段"""
-    return StickerSegment(
-        type=MessageSegmentType.STICKER,
         url=url,
         base64_url=base64_url,
         name=name,

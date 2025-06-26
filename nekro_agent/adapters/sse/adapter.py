@@ -40,7 +40,11 @@ from .core.service import SseApiService
 class SSEConfig(BaseAdapterConfig):
     """SSE 适配器配置"""
 
-    # 添加文件相关配置
+    ACCESS_KEY: str = Field(
+        default="",
+        title="访问密钥",
+        description="连接SSE服务所需的访问密钥，如果设置，客户端必须提供一致的密钥",
+    )
     ALLOW_FILE_TRANSFER: bool = Field(default=False, title="是否允许文件传输", description="是否允许文件传输")
     MAX_FILE_SIZE: int = Field(default=10 * 1024 * 1024, title="最大文件大小（字节）", description="最大文件大小（字节）")
     ALLOWED_FILE_TYPES: List[str] = Field(

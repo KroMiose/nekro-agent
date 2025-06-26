@@ -8,10 +8,8 @@ SSE 命令处理模块
 3. 辅助函数和工具
 """
 
-import inspect
 from functools import wraps
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Type, cast
+from typing import Any, Callable, Dict, Optional, Type
 
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -24,22 +22,19 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.adapters.sse.core.client import SseClientManager
 from nekro_agent.adapters.sse.core.message import SseMessageConverter
 from nekro_agent.adapters.sse.sdk.models import (
+    ChannelSubscribeRequest,
     ChannelSubscribeResponse,
-    MediaSegment,
-    MessageSegmentType,
+    ClientCommand,
     ReceiveMessage,
+    RegisterRequest,
     RegisterResponse,
 )
-from nekro_agent.adapters.sse.tools.common import base64_to_file
+from nekro_agent.adapters.sse.sdk.models import (
+    Response as SseResponse,
+)
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
-from nekro_agent.core.os_env import USER_UPLOAD_DIR
-from nekro_agent.schemas.chat_message import (
-    ChatMessageSegment,
-    ChatMessageSegmentFile,
-    ChatMessageSegmentImage,
-    ChatType,
-)
+from nekro_agent.schemas.chat_message import ChatType
 
 # 全局客户端管理器 - 从外部导入实例
 client_manager: SseClientManager
@@ -55,11 +50,11 @@ _command_models: Dict[str, Type[BaseModel]] = {}
 
 
 # 装饰器：命令处理器
-def command_handler(cmd_name: str, model: Optional[Type[BaseModel]] = None):
+def command_handler(cmd: ClientCommand, model: Optional[Type[BaseModel]] = None):
     """命令处理器装饰器
 
     Args:
-        cmd_name: 命令名称
+        cmd: 命令名称
         model: 命令数据模型（可选）
     """
 
@@ -69,57 +64,23 @@ def command_handler(cmd_name: str, model: Optional[Type[BaseModel]] = None):
             return await func(*args, **kwargs)
 
         # 注册命令处理器
-        _command_handlers[cmd_name] = wrapper
+        _command_handlers[cmd.value] = wrapper
 
         # 注册命令模型
         if model:
-            _command_models[cmd_name] = model
+            _command_models[cmd.value] = model
 
         return wrapper
 
     return decorator
 
 
-# 基础命令模型
-class Command(BaseModel):
-    """基础命令模型"""
-
-    cmd: str = Field(..., description="命令类型")
-
-
-# 注册命令模型
-class RegisterCommand(Command):
-    """注册命令"""
-
-    platform: str = Field(..., description="平台标识")
-    client_name: str = Field(..., description="客户端名称")
-    client_version: str = Field(..., description="客户端版本")
-
-
-# 订阅频道命令模型
-class SubscribeCommand(Command):
-    """订阅频道命令"""
-
-    channel_id: str = Field(..., description="频道ID")
-    platform: Optional[str] = Field(None, description="平台标识（可选，默认使用客户端的平台）")
-
-
 # 消息命令模型
-class MessageCommand(Command):
+class MessageCommand(BaseModel):
     """消息命令"""
 
     channel_id: str = Field(..., description="频道ID")
-    platform: Optional[str] = Field(None, description="平台标识（可选，默认使用客户端的平台）")
-    message: Dict[str, Any] = Field(..., description="消息内容")
-
-
-# 响应命令模型
-class ResponseCommand(Command):
-    """响应命令"""
-
-    request_id: str = Field(..., description="请求ID")
-    success: bool = Field(..., description="是否成功")
-    data: Dict[str, Any] = Field(default_factory=dict, description="响应数据")
+    message: ReceiveMessage = Field(..., description="消息内容")
 
 
 # 消息响应模型
@@ -140,8 +101,8 @@ def set_client_manager(manager: SseClientManager) -> None:
 
 
 # 注册命令处理器
-@command_handler("register", RegisterCommand)
-async def handle_register(command: RegisterCommand) -> RegisterResponse:
+@command_handler(ClientCommand.REGISTER, RegisterRequest)
+async def handle_register(command: RegisterRequest) -> RegisterResponse:
     """处理注册命令"""
     client = client_manager.register_client(command.client_name, command.platform)
     return RegisterResponse(
@@ -151,42 +112,41 @@ async def handle_register(command: RegisterCommand) -> RegisterResponse:
 
 
 # 订阅频道命令处理器
-@command_handler("subscribe", SubscribeCommand)
-async def handle_subscribe(command: SubscribeCommand, client_id: str) -> ChannelSubscribeResponse:
+@command_handler(ClientCommand.SUBSCRIBE, ChannelSubscribeRequest)
+async def handle_subscribe(command: ChannelSubscribeRequest, client_id: str) -> ChannelSubscribeResponse:
     """处理订阅频道命令"""
     client = client_manager.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail=f"客户端 {client_id} 不存在")
 
-    client.add_channel(command.channel_id)
-    return ChannelSubscribeResponse(message=f"订阅频道 {command.channel_id} 成功")
+    for channel_id in command.channel_ids:
+        client.add_channel(channel_id)
+    return ChannelSubscribeResponse(message=f"批量订阅 {len(command.channel_ids)} 个频道成功")
 
 
 # 取消订阅频道命令处理器
-@command_handler("unsubscribe", SubscribeCommand)
-async def handle_unsubscribe(command: SubscribeCommand, client_id: str) -> ChannelSubscribeResponse:
+@command_handler(ClientCommand.UNSUBSCRIBE, ChannelSubscribeRequest)
+async def handle_unsubscribe(command: ChannelSubscribeRequest, client_id: str) -> ChannelSubscribeResponse:
     """处理取消订阅频道命令"""
     client = client_manager.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail=f"客户端 {client_id} 不存在")
 
-    client.remove_channel(command.channel_id)
-    return ChannelSubscribeResponse(message=f"取消订阅频道 {command.channel_id} 成功")
+    for channel_id in command.channel_ids:
+        client.remove_channel(channel_id)
+    return ChannelSubscribeResponse(message=f"批量取消订阅 {len(command.channel_ids)} 个频道成功")
 
 
 # 消息命令处理器
-@command_handler("message", MessageCommand)
+@command_handler(ClientCommand.MESSAGE, MessageCommand)
 async def handle_message(command: MessageCommand, client_id: str) -> MessageResponse:
     """处理消息命令"""
     client = client_manager.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail=f"客户端 {client_id} 不存在")
 
-    # 解析消息
-    try:
-        sse_message: ReceiveMessage = ReceiveMessage(**command.message)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"消息格式无效: {e}") from e
+    # 消息已经由Pydantic模型自动解析
+    sse_message = command.message
 
     # 创建平台消息
     platform_message = await message_converter.sse_to_platform_message(sse_message)
@@ -214,8 +174,8 @@ async def handle_message(command: MessageCommand, client_id: str) -> MessageResp
 
 
 # 响应命令处理器
-@command_handler("response", ResponseCommand)
-async def handle_response(command: ResponseCommand, client_id: str) -> Dict[str, bool]:
+@command_handler(ClientCommand.RESPONSE, SseResponse)
+async def handle_response(command: SseResponse, client_id: str) -> Dict[str, bool]:
     """处理响应命令"""
     # 获取客户端
     client = client_manager.get_client(client_id)
