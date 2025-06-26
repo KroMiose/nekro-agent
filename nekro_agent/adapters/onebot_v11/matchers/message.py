@@ -17,10 +17,12 @@ from nekro_agent.adapters.interface import (
     PlatformUser,
     collect_message,
 )
+from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
 from nekro_agent.adapters.onebot_v11.tools.convertor import convert_chat_message
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
     gen_chat_text,
     get_chat_info,
+    get_message_reply_info,
     get_user_name,
 )
 from nekro_agent.core import config, logger
@@ -74,6 +76,8 @@ def register_matcher(adapter: BaseAdapter):
             logger.info(f"忽略前缀匹配的消息: {content_text[:32]}...")
             return
 
+        ref_msg_id = await get_message_reply_info(event=event)
+
         plt_msg: PlatformMessage = PlatformMessage(
             message_id=message_id,
             sender_id=plt_user.user_id,
@@ -83,6 +87,7 @@ def register_matcher(adapter: BaseAdapter):
             content_text=content_text,
             is_tome=bool(is_tome or msg_tome),
             timestamp=int(time.time()),
+            ext_data=PlatformMessageExt(ref_msg_id=ref_msg_id),
         )
 
         # 提交收集消息

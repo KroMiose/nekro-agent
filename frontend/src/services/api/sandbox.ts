@@ -14,6 +14,7 @@ export interface SandboxCodeExtData {
   first_token_cost_ms: number
   generation_time_ms: number
   stream_mode: boolean
+  log_path: string
 }
 
 export interface SandboxLog {
@@ -65,6 +66,13 @@ export const sandboxApi = {
       data: { total: number; items: SandboxLog[] }
     }>('/sandbox/logs', { params })
     return response.data.data
+  },
+
+  getLogContent: async (log_path: string) => {
+    const response = await axios.get('/sandbox/log-content', {
+      params: { log_path },
+    })
+    return response.data
   },
 
   getStats: async () => {

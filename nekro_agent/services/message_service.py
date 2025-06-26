@@ -7,6 +7,8 @@ from typing import Dict, List, Optional, Union
 
 import magic
 
+from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
+from nekro_agent.adapters.interface.schemas.platform import PlatformSendResponse
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -182,7 +184,7 @@ class MessageService:
             content_text=message.content_text,
             content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code=message.raw_cq_code,
-            ext_data=message.ext_data,
+            ext_data=json.dumps(message.ext_data, ensure_ascii=False),
             send_timestamp=int(time.time()),  # 使用处理后的时间戳
         )
 
@@ -208,7 +210,9 @@ class MessageService:
         self,
         chat_key: str,
         agent_messages: Union[str, List[AgentMessageSegment]],
+        plt_response: Optional[PlatformSendResponse] = None,
         db_chat_channel: Optional[DBChatChannel] = None,
+        ref_msg_id: Optional[str] = None,
     ):
         """推送机器人消息"""
         logger.info(f"Pushing Bot Message To Chat {chat_key}")
@@ -254,7 +258,7 @@ class MessageService:
 
         adapter = adapter_utils.get_adapter(db_chat_channel.adapter_key)
         await DBChatMessage.create(
-            message_id="",
+            message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
             sender_id=-1,
             sender_name=preset.name,
             sender_nickname=preset.name,
@@ -267,7 +271,7 @@ class MessageService:
             content_text=content_text,
             content_data=json.dumps(content_data, ensure_ascii=False),
             raw_cq_code="",
-            ext_data={},
+            ext_data=json.dumps(PlatformMessageExt(ref_msg_id=ref_msg_id or "").model_dump(), ensure_ascii=False),
             send_timestamp=int(time.time()),
         )
 

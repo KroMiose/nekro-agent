@@ -78,12 +78,18 @@ async def collect_message(
         content_text=platform_message.content_text,
         content_data=platform_message.content_data,
         raw_cq_code="",
-        ext_data={},
+        ext_data=platform_message.ext_data.model_dump() if platform_message.ext_data else {},
         send_timestamp=int(time.time()),
     )
 
+    ref_str: str = (
+        f" (ref: {platform_message.ext_data.ref_msg_id})"
+        if platform_message.ext_data and platform_message.ext_data.ref_msg_id
+        else ""
+    )
+
     logger.info(
-        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}",
+        f"Message Collect: [{chat_message.chat_key}] {platform_user.platform_name} {chat_message.sender_nickname}: {chat_message.content_text}{ref_str}",
     )
 
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)

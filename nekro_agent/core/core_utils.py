@@ -201,7 +201,7 @@ class ConfigBase(BaseModel):
 
     def get_config_file_path(self) -> Optional[Path]:
         """获取配置文件路径"""
-        return self._config_file_path or self.__class__._config_file_path_class
+        return self._config_file_path or self.__class__._config_file_path_class  # noqa: SLF001
 
     def set_instance_config_file_path(self, file_path: Path) -> None:
         """设置实例的配置文件路径"""

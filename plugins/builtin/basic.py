@@ -38,7 +38,7 @@
 
 import re
 from pathlib import Path
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 import aiofiles
 import magic
@@ -123,7 +123,14 @@ config: BasicConfig = plugin.get_config(BasicConfig)
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
     """示例提示注入"""
-    return ""
+    features: Dict[str, bool] = {
+        "Reference_Message": False,
+    }
+    base_prompt = "Current Adapter Support Feature:\n"
+    if _ctx.adapter_key in ["onebot_v11"]:
+        features["Reference_Message"] = True
+    tips: str = "When you reference a message, user can click it to jump to the referenced message."
+    return base_prompt + "\n".join([f"{k}: {v}" for k, v in features.items()]) + "\n" + tips
 
 
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
@@ -135,7 +142,7 @@ SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_
     name="发送聊天消息文本",
     description="发送聊天消息文本，附带缓存消息重复检查",
 )
-async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
+async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_msg_id: Optional[str] = None):
     """发送聊天消息文本
 
     Attention: Do not expose any unnecessary technical id or key in the message content.
@@ -143,6 +150,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     Args:
         chat_key (str): 会话标识
         message_text (str): 消息内容
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_MSG_CACHE
 
@@ -194,7 +202,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
                 break
 
     try:
-        await _ctx.ms.send_text(chat_key, message_text, _ctx)
+        await _ctx.ms.send_text(chat_key, message_text, _ctx, ref_msg_id=ref_msg_id)
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
@@ -211,12 +219,13 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     name="发送聊天消息图片/文件资源",
     description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
 )
-async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
+async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_id: Optional[str] = None):
     """发送聊天消息图片/文件资源
 
     Args:
         chat_key (str): 会话标识
         file_path (str): 图片/文件路径或 URL 容器内路径
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_FILE_CACHE
     file_container_path = file_path  # 防止误导llm
@@ -263,9 +272,9 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
             is_image = mime_type.startswith("image/")
 
         if is_image:
-            await _ctx.ms.send_image(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_image(chat_key, file_container_path, _ctx, ref_msg_id=ref_msg_id)
         else:
-            await _ctx.ms.send_file(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_file(chat_key, file_container_path, _ctx, ref_msg_id=ref_msg_id)
 
         # 更新文件缓存
         SEND_FILE_CACHE[chat_key].append(file_md5)

@@ -20,6 +20,7 @@ class SandboxCodeExtData(BaseModel):
     first_token_cost_ms: int
     generation_time_ms: int
     stream_mode: bool
+    log_path: str = ""
 
     @classmethod
     def create_from_llm_response(
@@ -63,6 +64,7 @@ class SandboxCodeExtData(BaseModel):
             first_token_cost_ms=llm_response.first_token_cost_ms,
             generation_time_ms=llm_response.generation_time_ms,
             stream_mode=llm_response.stream_mode,
+            log_path=str(llm_response.log_path) if llm_response.log_path else "",
         )
 
     def model_dump_json(self) -> str:

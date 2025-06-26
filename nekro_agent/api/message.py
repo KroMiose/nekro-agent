@@ -3,10 +3,11 @@
 此模块提供了与消息发送相关的 API 接口。
 """
 
+from typing import Optional
+
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
-from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -25,7 +26,14 @@ __all__ = [
 ]
 
 
-async def send_text(chat_key: str, message: str, ctx: AgentCtx, *, record: bool = True) -> None:
+async def send_text(
+    chat_key: str,
+    message: str,
+    ctx: AgentCtx,
+    *,
+    record: bool = True,
+    ref_msg_id: Optional[str] = None,
+) -> None:
     """发送文本消息
 
     Args:
@@ -48,13 +56,20 @@ async def send_text(chat_key: str, message: str, ctx: AgentCtx, *, record: bool 
     message_ = [AgentMessageSegment(content=message)]
     try:
         adapter = await adapter_utils.get_adapter_for_ctx(ctx)
-        await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record)
+        await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record, ref_msg_id=ref_msg_id)
     except Exception as e:
         logger.exception(f"发送文本消息失败: {e}")
         raise Exception("发送文本消息失败: 请确保会话标识正确且内容不为空或过长") from e
 
 
-async def send_file(chat_key: str, file_path: str, ctx: AgentCtx, *, record: bool = True) -> None:
+async def send_file(
+    chat_key: str,
+    file_path: str,
+    ctx: AgentCtx,
+    *,
+    record: bool = True,
+    ref_msg_id: Optional[str] = None,
+) -> None:
     """发送文件消息
 
     Args:
@@ -77,13 +92,23 @@ async def send_file(chat_key: str, file_path: str, ctx: AgentCtx, *, record: boo
     message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=file_path)]
     try:
         adapter = await adapter_utils.get_adapter_for_ctx(ctx)
-        await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, file_mode=True, record=record)
+        await universal_chat_service.send_agent_message(
+            chat_key,
+            message_,
+            adapter,
+            ctx,
+            file_mode=True,
+            record=record,
+            ref_msg_id=ref_msg_id,
+        )
     except Exception as e:
         logger.exception(f"发送文件消息失败: {e}")
         raise Exception(f"发送文件消息失败: {e}") from e
 
 
-async def send_image(chat_key: str, image_path: str, ctx: AgentCtx, *, record: bool = True) -> None:
+async def send_image(
+    chat_key: str, image_path: str, ctx: AgentCtx, *, record: bool = True, ref_msg_id: Optional[str] = None,
+) -> None:
     """发送图片消息
 
     Args:
@@ -106,7 +131,7 @@ async def send_image(chat_key: str, image_path: str, ctx: AgentCtx, *, record: b
     message_ = [AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=image_path)]
     try:
         adapter = await adapter_utils.get_adapter_for_ctx(ctx)
-        await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record)
+        await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record, ref_msg_id=ref_msg_id)
     except Exception as e:
         logger.exception(f"发送图片消息失败: {e}")
         raise Exception(f"发送图片消息失败: {e}") from e

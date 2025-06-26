@@ -1,6 +1,6 @@
 import time
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -169,7 +169,7 @@ class ChatMessage(BaseModel):
     content_data: List[ChatMessageSegment]  # 聊天内容数据
 
     raw_cq_code: str  # 原始 CQ 码
-    ext_data: Dict  # 扩展数据
+    ext_data: Dict[str, Any]  # 扩展数据
 
     send_timestamp: int  # 发送时间戳
 

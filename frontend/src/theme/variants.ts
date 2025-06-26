@@ -246,6 +246,14 @@ export const CHIP_VARIANTS = {
     },
   }),
 
+  // 基础Chip样式 - 带颜色
+  baseWithColor: (isSmall: boolean = false, color: string = ''): SxProps<Theme> => ({
+    ...CHIP_VARIANTS.base(isSmall),
+    backgroundColor: alpha(color, 0.12),
+    color: color,
+    borderColor: alpha(color, 0.2),
+  }),
+
   // 获取状态类型的Chip样式 - 使用纯函数而非Hooks
   getStatusChip: (_colorName: string, isSmall: boolean = false): SxProps<Theme> => {
     // 直接返回基础样式，颜色将由组件中的color属性决定

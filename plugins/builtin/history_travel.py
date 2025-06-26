@@ -58,7 +58,7 @@ store = plugin.store
 # region: 漫游消息处理方法
 def parse_history_travel_message(db_chat_message: DBChatMessage, config: core.CoreConfig) -> str:
     """解析漫游消息"""
-    return db_chat_message.parse_chat_history_prompt("", config, travel_mode=True)
+    return db_chat_message.parse_chat_history_prompt("", config, ref_mode=True)
 
 
 # endregion: 漫游消息处理方法
@@ -143,7 +143,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     # 处理OR关键词
     db_chat_message_list = []
-    db_chat_message_id_set = set()
+    db_chat_msg_id_set = set()
     keyword_match_count = {}  # 记录每条消息匹配的关键词数量
 
     if or_keywords:
@@ -157,9 +157,9 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             logger.info(f"OR关键词 '{keyword}' 匹配到 {len(db_chat_message)} 条消息")
 
             for msg in db_chat_message:
-                if msg.id not in db_chat_message_id_set:
+                if msg.id not in db_chat_msg_id_set:
                     db_chat_message_list.append(msg)
-                    db_chat_message_id_set.add(msg.id)
+                    db_chat_msg_id_set.add(msg.id)
                     keyword_match_count[msg.id] = 1
                 else:
                     # 增加已存在消息的关键词匹配计数
@@ -169,7 +169,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
         db_chat_message = await base_query.order_by("-update_time").limit(config.MAX_HISTORY_TRAVEL_QUERY_SIZE * 4).all()
         for msg in db_chat_message:
             db_chat_message_list.append(msg)
-            db_chat_message_id_set.add(msg.id)
+            db_chat_msg_id_set.add(msg.id)
             keyword_match_count[msg.id] = 0
 
     # 处理AND和NOT关键词进行过滤
@@ -230,20 +230,20 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 async def find_history_travel_range(
     _ctx: schemas.AgentCtx,
     chat_key: str,
-    base_message_id: str,
+    base_msg_id: str,
     prev_count: int = 2,
     next_count: int = 10,
 ):
-    """Search chat history around a specific message
+    """Search chat history around a specific message (Useful for finding the context of a specific message or reference message)
 
     Args:
         chat_key: Chat unique identifier
-        base_message_id: Base message ID
+        base_msg_id: Base message ID
         prev_count: Number of messages to fetch before the base message (default: 2)
         next_count: Number of messages to fetch after the base message (default: 10)
 
     Examples:
-        >>> find_history_travel_range(_ck, "100") # Get from the 2nd message before to the 10th message after the message with ID 100
+        >>> find_history_travel_range(_ck, "xxxxxx") # Get from the 2nd message before to the 10th message after the message with ID xxxxxx
         "Stop and wait for the result..."
     """
     if prev_count + next_count > config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE:
@@ -253,7 +253,7 @@ async def find_history_travel_range(
     if not db_chat_channel:
         raise ValueError("未找到会话")
 
-    base_message = await DBChatMessage.get_or_none(id=base_message_id)
+    base_message = await DBChatMessage.get_or_none(message_id=base_msg_id)
     if not base_message:
         raise ValueError("未找到消息")
 

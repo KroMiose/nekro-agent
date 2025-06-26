@@ -153,3 +153,13 @@ async def get_chat_info_old(
         raise ValueError("未知的消息类型")
 
     return f"onebot_v11-{channel_id}", chat_type
+
+
+async def get_message_reply_info(event: MessageEvent) -> str:
+    """获取消息回复信息"""
+    if not event.original_message:
+        return ""
+    for seg in event.original_message:
+        if seg.type == "reply":
+            return str(seg.data.get("id") or "")
+    return ""

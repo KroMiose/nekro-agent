@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import List, Type
+from typing import List, Optional, Type
 
 from fastapi import APIRouter
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
@@ -106,14 +106,21 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
         # 再发送其他类型消息（如果有）
         if other_segments:
-            modified_request = PlatformSendRequest(chat_key=request.chat_key, segments=other_segments)
-            await self._send_message(modified_request)
+            modified_request = PlatformSendRequest(
+                chat_key=request.chat_key,
+                segments=other_segments,
+                ref_msg_id=request.ref_msg_id,
+            )
+            message_id = await self._send_message(modified_request)
 
-        return PlatformSendResponse(success=True)
+        return PlatformSendResponse(success=True, message_id=message_id)
 
-    async def _send_message(self, request: PlatformSendRequest) -> None:
+    async def _send_message(self, request: PlatformSendRequest) -> Optional[str]:
         """发送普通消息（文本、@、图片等）"""
         message = Message()
+
+        if request.ref_msg_id:
+            message.append(MessageSegment.reply(id_=int(request.ref_msg_id)))
 
         # 获取聊天频道信息用于 @ 解析
         db_chat_channel = await DBChatChannel.get_channel(chat_key=request.chat_key)
@@ -146,7 +153,8 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                 logger.warning(f"Unsupported segment type in normal mode: {segment.type}")
 
         if message:
-            await self._send_to_chat(request.chat_key, message)
+            return await self._send_to_chat(request.chat_key, message)
+        return None
 
     async def _send_files(self, chat_key: str, file_segments: List) -> None:
         """发送文件（文件上传模式）"""
@@ -199,7 +207,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         else:
             raise ValueError("Invalid chat type")
 
-    async def _send_to_chat(self, chat_key: str, message: Message) -> None:
+    async def _send_to_chat(self, chat_key: str, message: Message) -> str:
         """发送消息到指定聊天"""
         bot: Bot = get_bot()
 
@@ -211,11 +219,14 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         if chat_type is ChatType.GROUP:
-            await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
+            ret = await bot.send_group_msg(group_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         elif chat_type is ChatType.PRIVATE:
-            await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
+            ret = await bot.send_private_msg(user_id=chat_id, message=message, auto_escape=self.config.RESOLVE_CQ_CODE)
         else:
             raise ValueError("Invalid chat type")
+
+        logger.debug(f"发送消息成功: {ret}")
+        return str(ret.get("message_id", "")) or ""
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""

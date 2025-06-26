@@ -1,4 +1,4 @@
-import types
+from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot
@@ -111,7 +111,7 @@ class AgentCtx(BaseModel):
         return FileSystem(self.chat_key, self.container_key)
 
     @property
-    def ms(self) -> "types.ModuleType":
+    def ms(self):
         """消息模块
 
         提供对底层 `nekro_agent.api.message` 模块的直接访问。

@@ -24,6 +24,11 @@ import {
   Alert,
   SxProps,
   Theme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -40,6 +45,7 @@ import {
   KeyboardDoubleArrowRight as KeyboardDoubleArrowRightIcon,
   Functions as FunctionsIcon,
   Abc as AbcIcon,
+  Visibility as VisibilityIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { sandboxApi, SandboxCodeExtData } from '../../services/api/sandbox'
@@ -49,6 +55,7 @@ import { useColorMode } from '../../stores/theme'
 import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES, CARD_VARIANTS } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
+import { useDevModeStore } from '../../stores/devMode'
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -76,6 +83,176 @@ const scrollableContentStyles: SxProps<Theme> = {
   },
 }
 
+interface LogContentDialogProps {
+  open: boolean
+  onClose: () => void
+  logPath: string
+}
+
+interface LogMessageContentItem {
+  type: 'text' | 'image_url'
+  text?: string
+  image_url?: {
+    url: string
+  }
+}
+
+interface LogMessage {
+  role: string
+  content: string | LogMessageContentItem[]
+}
+
+interface FullLogData {
+  request: {
+    messages: LogMessage[]
+  }
+  response: {
+    thought_chain: string
+    content: string
+  }
+}
+
+function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
+  const { data, isLoading, error } = useQuery<FullLogData, Error>({
+    queryKey: ['sandbox-log-content', logPath],
+    queryFn: () => sandboxApi.getLogContent(logPath),
+    enabled: open, // Only fetch when the dialog is open
+  })
+  const { mode } = useColorMode()
+
+  const unescapeNewlines = (text: string | undefined | null) => {
+    if (!text) return ''
+    return text.replace(/\\n/g, '\n')
+  }
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      )
+    }
+
+    if (error) {
+      return <Alert severity="error">Failed to load log content: {error.message}</Alert>
+    }
+
+    if (!data) {
+      return <Alert severity="warning">No content available.</Alert>
+    }
+
+    // Custom renderer for JSON content to handle images
+    const renderJsonAsComponent = (jsonData: FullLogData) => {
+      if (!jsonData.request || !Array.isArray(jsonData.request.messages)) {
+        return (
+          <SyntaxHighlighter
+            language="json"
+            style={mode === 'dark' ? vscDarkPlus : oneLight}
+            wrapLines
+            wrapLongLines
+            customStyle={{ background: 'transparent' }}
+          >
+            {JSON.stringify(jsonData, null, 2)}
+          </SyntaxHighlighter>
+        )
+      }
+
+      return (
+        <Box>
+          <Typography variant="h6" gutterBottom>
+            Request Details
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 2, mb: 2, ...scrollableContentStyles }}>
+            {jsonData.request.messages.map((msg: LogMessage, index: number) => (
+              <Box key={index} sx={{ mb: 2 }}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                  Role: {msg.role}
+                </Typography>
+                {Array.isArray(msg.content) ? (
+                  msg.content.map((contentItem: LogMessageContentItem, itemIndex: number) => (
+                    <Box key={itemIndex} sx={{ mt: 1 }}>
+                      {contentItem.type === 'text' && (
+                        <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                          {unescapeNewlines(contentItem.text)}
+                        </Typography>
+                      )}
+                      {contentItem.type === 'image_url' && contentItem.image_url && (
+                        <Box>
+                          <Typography variant="caption">Image URL:</Typography>
+                          <img
+                            src={contentItem.image_url.url}
+                            alt="log content"
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '300px',
+                              display: 'block',
+                              marginTop: '8px',
+                            }}
+                          />
+                        </Box>
+                      )}
+                    </Box>
+                  ))
+                ) : (
+                  <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                    {unescapeNewlines(msg.content as string)}
+                  </Typography>
+                )}
+              </Box>
+            ))}
+          </Paper>
+
+          <Typography variant="h6" gutterBottom>
+            Response
+          </Typography>
+          <Paper variant="outlined" sx={{ p: 2, ...scrollableContentStyles }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+              Thought Chain:
+            </Typography>
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                maxHeight: '200px',
+                overflowY: 'auto',
+              }}
+            >
+              {unescapeNewlines(jsonData.response.thought_chain) || '<Empty>'}
+            </pre>
+            <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mt: 2 }}>
+              Content:
+            </Typography>
+            <pre
+              style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+              }}
+            >
+              {unescapeNewlines(jsonData.response.content) || '<Empty>'}
+            </pre>
+          </Paper>
+        </Box>
+      )
+    }
+
+    return renderJsonAsComponent(data)
+  }
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>View Log Content</DialogTitle>
+      <DialogContent dividers sx={scrollableContentStyles}>
+        {renderContent()}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
+
 export default function SandboxPage() {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -85,6 +262,9 @@ export default function SandboxPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
+  const { devMode } = useDevModeStore()
+  const [logViewerOpen, setLogViewerOpen] = useState(false)
+  const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
 
   const formatNumber = (num: number | undefined | null) => {
     if (num === undefined || num === null || isNaN(num)) return 'N/A'
@@ -1172,6 +1352,25 @@ export default function SandboxPage() {
                                   </Paper>
                                 </Box>
                               )}
+
+                              {/* 开发者工具 */}
+                              {devMode && extraData?.log_path && (
+                                <Box sx={{ my: 2 }}>
+                                  <Button
+                                    variant="outlined"
+                                    color="secondary"
+                                    size="small"
+                                    startIcon={<VisibilityIcon />}
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      setSelectedLogPath(extraData?.log_path || null)
+                                      setLogViewerOpen(true)
+                                    }}
+                                  >
+                                    查看详细请求日志
+                                  </Button>
+                                </Box>
+                              )}
                             </Box>
                           </Collapse>
                         </TableCell>
@@ -1195,6 +1394,18 @@ export default function SandboxPage() {
           showFirstLastPageButtons={true}
         />
       </Paper>
+
+      {/* 日志内容查看器 */}
+      {selectedLogPath && (
+        <LogContentDialog
+          open={logViewerOpen}
+          onClose={() => {
+            setLogViewerOpen(false)
+            setSelectedLogPath(null)
+          }}
+          logPath={selectedLogPath}
+        />
+      )}
 
       {/* 复制成功提示 */}
       <Snackbar

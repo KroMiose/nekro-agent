@@ -8,6 +8,8 @@ from nekro_agent.models.db_chat_channel import DBChatChannel, DefaultPreset
 from nekro_agent.models.db_preset import DBPreset
 from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatType
 
+from .extra import PlatformMessageExt
+
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface.base import BaseAdapter
 
@@ -47,6 +49,7 @@ class PlatformMessage(BaseModel):
     is_tome: bool = Field(default=False, description="是否为 @ 消息")
     timestamp: int = Field(default_factory=lambda: int(time()), description="消息时间戳")
     is_self: bool = Field(default=False, description="是否为自己发送的消息")
+    ext_data: Optional[PlatformMessageExt] = Field(default=PlatformMessageExt(), description="扩展数据")
 
 
 # ========================================================================================
@@ -97,6 +100,7 @@ class PlatformSendRequest(BaseModel):
 
     chat_key: str = Field(..., description="会话标识")
     segments: List[PlatformSendSegment] = Field(default=[], description="消息段列表")
+    ref_msg_id: Optional[str] = Field(default=None, description="引用消息ID")
 
 
 class PlatformSendResponse(BaseModel):
@@ -104,3 +108,4 @@ class PlatformSendResponse(BaseModel):
 
     success: bool = Field(..., description="是否发送成功")
     error_message: Optional[str] = Field(default=None, description="错误信息")
+    message_id: Optional[str] = Field(default=None, description="消息ID")

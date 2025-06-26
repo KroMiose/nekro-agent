@@ -10,6 +10,7 @@ from typing import List, Optional, Union
 from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendRequest,
+    PlatformSendResponse,
     PlatformSendSegment,
     PlatformSendSegmentType,
 )
@@ -59,6 +60,7 @@ class UniversalChatService:
         ctx: Optional[AgentCtx] = None,
         file_mode: bool = False,
         record: bool = False,
+        ref_msg_id: Optional[str] = None,
     ):
         """发送机器人消息
 
@@ -95,11 +97,12 @@ class UniversalChatService:
         send_request = PlatformSendRequest(
             chat_key=chat_key,
             segments=processed_segments,
+            ref_msg_id=ref_msg_id,
         )
 
         # 发送消息
         try:
-            await adapter.forward_message(send_request)
+            plt_response: PlatformSendResponse = await adapter.forward_message(send_request)
         except Exception as e:
             logger.exception(f"发送消息失败: {e}")
             if config.DEBUG_IN_CHAT:
@@ -116,11 +119,15 @@ class UniversalChatService:
             else:
                 raise
 
+        if not plt_response.success:
+            logger.error(f"适配器发送消息失败，错误: {plt_response.error_message}")
+            raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
+
         # 记录聊天记录
         if record:
             from nekro_agent.services.message_service import message_service
 
-            await message_service.push_bot_message(chat_key, messages)
+            await message_service.push_bot_message(chat_key, messages, plt_response, ref_msg_id=ref_msg_id)
 
     async def _preprocess_messages(
         self,

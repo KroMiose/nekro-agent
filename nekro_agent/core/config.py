@@ -257,7 +257,7 @@ class CoreConfig(ConfigBase):
         default=768,
         title="单条消息最大长度 (字符)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
-        description="会话上下文单条消息最大长度，超出该长度会自动截取缩略显示",
+        description="会话上下文单条消息最大长度，超出该长度会自动截取并缩略显示",
     )
     AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
         default=5120,
@@ -271,6 +271,24 @@ class CoreConfig(ConfigBase):
         title="视觉图片大小限制 (KB)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="每次传递的图片大小限制，超出此大小的图片会被自动压缩到限制内传递",
+    )
+    AI_SYSTEM_NOTIFY_WINDOW_SIZE: int = Field(
+        default=10,
+        title="会话上下文系统消息通知窗口大小",
+        description="会话上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+    AI_SYSTEM_NOTIFY_LIMIT: int = Field(
+        default=3,
+        title="会话上下文系统消息通知条数限制",
+        description="会话上下文系统消息通知条数限制，超出该条数不会被参考",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+    AI_ALWAYS_INCLUDE_MSG_ID: bool = Field(
+        default=False,
+        title="始终呈现所有消息的 ID",
+        description="启用后上下文中将始终呈现所有消息的 ID，这将占用额外的上下文长度，但允许 AI 在回复时更灵活地引用消息或使用插件对特定消息进行处理",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_REQUEST_STREAM_MODE: bool = Field(
         default=False,

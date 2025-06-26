@@ -5,6 +5,7 @@ import json5
 from tortoise import fields
 from tortoise.models import Model
 
+from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
 from nekro_agent.core.config import CoreConfig
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
@@ -13,6 +14,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentImage,
     segments_from_list,
 )
+from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 
@@ -45,23 +47,34 @@ class DBChatMessage(Model):
     class Meta:  # type: ignore
         table = "chat_message"
 
-    def parse_chat_history_prompt(self, one_time_code: str, config: "CoreConfig", travel_mode: bool = False) -> str:
+    def parse_chat_history_prompt(self, one_time_code: str, config: "CoreConfig", ref_mode: bool = False) -> str:
         """解析聊天历史记录生成提示词"""
-        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, travel_mode)
-        if len(content) > config.AI_CONTEXT_LENGTH_PER_MESSAGE:  # 截断消息内容
-            content = (
-                content[: config.AI_CONTEXT_LENGTH_PER_MESSAGE // 4 - 3]
-                + "..."
-                + content[-config.AI_CONTEXT_LENGTH_PER_MESSAGE // 4 + 3 :]
-                + "(content too long, omitted)"
-            )
+        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, ref_mode)
+        content = limited_text_output(content, config.AI_CONTEXT_LENGTH_PER_MESSAGE, placeholder="(content too long, omitted)")
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
-        additional_info = f" (message_id: {self.id})" if travel_mode else ""
-        return f'[{time_str} id:{self.platform_userid}] "{self.sender_nickname}" 说: {content or self.content_text}{additional_info}'
+
+        # 消息引用前缀生成
+        additional_info: str = f"msg_id:{self.message_id}" if ref_mode and self.message_id else ""
+        ref_str: str = f"ref: {self.ext_data_obj.ref_msg_id}" if ref_mode and self.ext_data_obj.ref_msg_id else ""
+        prefix_str: str = f"({', '.join([additional_info, ref_str])})" if additional_info or ref_str else ""
+
+        return f'{prefix_str}[{time_str} id:{self.platform_userid}] "{self.sender_nickname}" 说: {content or self.content_text}'
 
     def parse_content_data(self) -> List[ChatMessageSegment]:
         """解析内容数据"""
         return segments_from_list(cast(List[Dict], json5.loads(self.content_data)))
+
+    @property
+    def is_system(self) -> bool:
+        """是否为系统消息"""
+        return self.sender_id == -1
+
+    @property
+    def ext_data_obj(self) -> PlatformMessageExt:
+        """扩展数据"""
+        if not self.ext_data or self.ext_data == "{}":
+            return PlatformMessageExt()
+        return PlatformMessageExt.model_validate(json5.loads(self.ext_data))
 
 
 def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:

@@ -21,9 +21,9 @@ class OpenAIChatMessage:
         """转换为字典
 
         将连续的文本内容进行聚合，例如:
-        [{"type": "text", "text": "你好"}, {"type": "text", "text": "世界"}]
+        [{"type": "text", "text": "你好 "}, {"type": "text", "text": "世界"}]
         会被聚合为:
-        [{"type": "text", "text": "你好世界"}]
+        [{"type": "text", "text": "你好 世界"}]
         """
 
         if all(_c["type"] == "text" for _c in self.content):

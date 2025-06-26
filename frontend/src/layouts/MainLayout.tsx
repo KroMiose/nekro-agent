@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -43,9 +43,13 @@ import {
   getCurrentPageFromConfigs,
   getCurrentTitleFromConfigs,
 } from '../config/navigation'
+import { useDevModeStore } from '../stores/devMode'
+import { useSecretCode } from '../hooks/useSecretCode'
 
 // 获取菜单项配置
 const menuItems = createMenuItems()
+
+const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -60,6 +64,7 @@ export default function MainLayout() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { devMode, toggleDevMode } = useDevModeStore()
 
   // 使用壁纸store
   const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =
@@ -69,6 +74,28 @@ export default function MainLayout() {
   useEffect(() => {
     setDrawerOpen(!isMobile)
   }, [isMobile])
+
+  // 开发者模式 "组合键"
+  const enableDevMode = useCallback(() => {
+    if (!devMode) {
+      toggleDevMode()
+      notification.success('开发者模式已开启！')
+    }
+  }, [devMode, toggleDevMode, notification])
+
+  const recordClick = useSecretCode(DEV_MODE_SEQUENCE, enableDevMode)
+
+  const handleLogoClick = useCallback(
+    (part: 'nekro' | 'agent') => {
+      if (devMode) {
+        toggleDevMode()
+        notification.info('开发者模式已关闭')
+      } else {
+        recordClick(part)
+      }
+    },
+    [devMode, toggleDevMode, notification, recordClick]
+  )
 
   // 自动展开包含当前路由的菜单项
   useEffect(() => {
@@ -122,6 +149,15 @@ export default function MainLayout() {
         setDrawerOpen(false)
       }
     }
+  }
+
+  const logoPartSx = {
+    display: 'inline-block', // to allow transform
+    transition: 'transform 0.1s ease-in-out',
+    userSelect: 'none',
+    '&:active': {
+      transform: 'scale(0.95)',
+    },
   }
 
   const drawer = (
@@ -187,9 +223,14 @@ export default function MainLayout() {
               },
             }}
           >
-            <span className="highlight">N</span>
-            <span className="text">ekro</span> <span className="highlight">A</span>
-            <span className="text">gent</span>
+            <Box component="span" sx={logoPartSx} onClick={() => handleLogoClick('nekro')}>
+              <span className="highlight">N</span>
+              <span className="text">ekro</span>
+            </Box>{' '}
+            <Box component="span" sx={logoPartSx} onClick={() => handleLogoClick('agent')}>
+              <span className="highlight">A</span>
+              <span className="text">gent</span>
+            </Box>
             <Chip
               label={`v ${version}`}
               size="small"
@@ -213,6 +254,26 @@ export default function MainLayout() {
                 },
               }}
             />
+            {devMode && (
+              <Chip
+                label="DEV"
+                size="small"
+                color="secondary"
+                className="absolute -top-3.5 -left-5 h-4"
+                sx={{
+                  ...CHIP_VARIANTS.baseWithColor(true, theme.palette.secondary.main),
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.05em',
+                  height: '18px',
+                  minWidth: 'auto',
+                  '.MuiChip-label': {
+                    px: 0.5,
+                    py: 0,
+                    lineHeight: 1,
+                  },
+                }}
+              />
+            )}
           </Typography>
         </Box>
       </Toolbar>
