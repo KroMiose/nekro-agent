@@ -45,17 +45,13 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
-    BILIBILI_LIVE_ROOM_IDS: List[str] = Field(
-        default=[],
-        title="Bilibili 直播间 ID",
-        description="Bilibili 直播间 ID，需与 VTUBE_STUDIO_CONTROLLER_WS_URL 一致",
-        json_schema_extra=ExtraField(sub_item_name="直播间").model_dump(),
-    )
+
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",
         description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
     )
+
 
 class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
     """Bilibili 直播适配器"""
@@ -96,36 +92,17 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
             )
             return
 
-        if not self.config.BILIBILI_LIVE_ROOM_IDS:
-            logger.warning(
-                "未设置BILIBILI_LIVE_ROOM_IDS 取消加载 Bilibili 直播适配器",
-            )
-            return
-
-        # 检查房间ID和WebSocket URL数量是否一致
-        if len(self.config.BILIBILI_LIVE_ROOM_IDS) != len(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL):
-            logger.error(
-                f"BILIBILI_LIVE_ROOM_IDS数量({len(self.config.BILIBILI_LIVE_ROOM_IDS)}) "
-                f"与VTUBE_STUDIO_CONTROLLER_WS_URL数量({len(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL)})不一致, "
-                "取消加载 Bilibili 直播适配器",
-            )
-            return
-
-        # 为每个WebSocket URL创建客户端连接，并建立房间ID到WebSocket客户端的映射
-        for i, ws_url in enumerate(self.config.VTUBE_STUDIO_CONTROLLER_WS_URL):
+        # 为每个WebSocket URL创建客户端连接
+        for ws_url in self.config.VTUBE_STUDIO_CONTROLLER_WS_URL:
             try:
-                room_id = self.config.BILIBILI_LIVE_ROOM_IDS[i]
                 client = BilibiliWebSocketClient(ws_url, self._handle_danmaku_message)
                 self.ws_clients.append(client)
-
-                # 建立房间ID到WebSocket客户端的映射
-                self.room_to_ws[room_id] = client
 
                 # 创建异步任务来运行WebSocket客户端
                 task = asyncio.create_task(client.start_with_auto_reconnect())
                 self.ws_tasks.append(task)
 
-                logger.info(f"已创建Bilibili WebSocket连接任务: {ws_url}, 关联房间ID: {room_id}")
+                logger.info(f"已创建Bilibili WebSocket连接任务: {ws_url}")
 
             except Exception as e:
                 logger.error(f"创建Bilibili WebSocket客户端失败 {ws_url}: {e}")
@@ -158,11 +135,16 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
         """返回jinja模板"""
         return Environment(loader=FileSystemLoader("nekro_agent/adapters/bilibili_live/templates"), auto_reload=False)
 
-    async def _handle_danmaku_message(self, danmaku: Danmaku) -> None:
+    async def _handle_danmaku_message(self, client: BilibiliWebSocketClient, danmaku: Danmaku) -> None:
         """处理弹幕消息"""
         try:
-            # 创建平台频道信息
+            # 动态建立房间ID到WebSocket客户端的映射
             channel_id = str(danmaku.from_live_room)
+            if channel_id and channel_id not in self.room_to_ws:
+                self.room_to_ws[channel_id] = client
+                logger.info(f"动态映射Bilibili直播间 {channel_id} 到WebSocket客户端")
+
+            # 创建平台频道信息
             plt_channel = PlatformChannel(
                 channel_id=channel_id,
                 channel_name=f"Bilibili直播间{channel_id}",

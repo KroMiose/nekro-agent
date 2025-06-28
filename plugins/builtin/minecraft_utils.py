@@ -40,6 +40,27 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.services.message_service import message_service
 
+RCON_ERROR_PREFIXES = (
+    "Unknown or incomplete command",
+    "Incorrect argument",
+    "Invalid player",
+    "Player not found",
+    "That player is not online",
+    "You do not have permission to use this command",
+    "Cannot give",
+    "Invalid UUID",
+    "No such entity",
+    "That block is not a container",
+    "Could not insert items",
+    "Data tag parsing failed",
+    "Expected",
+    "Invalid command syntax",
+    "An unexpected error occurred",
+    "No targets matched selector",
+    "The entity UUID is invalid",
+    "Invalid command format",
+)
+
 plugin = NekroPlugin(
     name="Minecraft 工具插件",
     module_name="minecraft_utils",
@@ -390,14 +411,37 @@ async def execute_rcon_commands(
     for command in commands:
         try:
             response = await bot.call_api("send_rcon_cmd", command=command)
-            result_str = str(response) if response is not None else "指令无返回内容"
-            log_entry = f"Command '{command}': {result_str}"
-            results_log.append(log_entry)
-            logger.info(
-                f"RCON 命令 '{command}' 在 {chat_key} 上执行成功，响应: {result_str}",
-            )
+
+            response_msg = ""
+            if isinstance(response, tuple) and len(response) > 0 and isinstance(response[0], str):
+                response_msg = response[0].strip()
+            elif isinstance(response, str):
+                response_msg = response.strip()
+
+            is_error = response_msg and any(response_msg.startswith(prefix) for prefix in RCON_ERROR_PREFIXES)
+
+            if is_error:
+                error_message = f"在 {chat_key} 上执行 RCON 命令 '{command}' 失败: {response_msg}"
+                logger.error(error_message)
+                if not continue_on_error:
+                    error_response = f"执行命令 '{command}' 时出错: {response_msg}"
+                    if results_log:  # 如果之前有成功的结果
+                        error_response += "\n先前成功的结果:\n" + "\n".join(results_log)
+                    return error_response
+                # 如果 continue_on_error 为 True，则记录错误并继续
+                results_log.append(f"Command '{command}': Error - {response_msg}")
+            else:
+                # 命令成功执行
+                result_str = response_msg if response_msg else "指令已成功执行，无返回内容"
+                log_entry = f"Command '{command}': {result_str}"
+                results_log.append(log_entry)
+                logger.info(
+                    f"RCON 命令 '{command}' 在 {chat_key} 上执行成功，响应: {result_str}",
+                )
+
         except Exception as e:
-            error_message = f"在 {chat_key} 上执行 RCON 命令 '{command}' 失败: {e}"
+            # 此处捕获的是网络错误等更底层的异常
+            error_message = f"在 {chat_key} 上执行 RCON 命令 '{command}' 时发生意外: {e}"
             logger.error(error_message, exc_info=True)
             if not continue_on_error:
                 error_response = f"执行命令 '{command}' 时出错: {e}"

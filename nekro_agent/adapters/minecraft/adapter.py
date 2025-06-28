@@ -1,3 +1,4 @@
+import json
 import os
 import re
 from typing import Dict, List, Optional, Type
@@ -6,7 +7,7 @@ import nonebot
 from fastapi import APIRouter
 from nonebot.adapters.minecraft import Bot, Message, MessageSegment
 from nonebot.adapters.minecraft.model import ClickEvent, HoverEvent, TextColor
-from pydantic import Field
+from pydantic import BaseModel, Field, model_validator
 
 from nekro_agent.adapters.interface.base import (
     AdapterMetadata,
@@ -26,8 +27,60 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
+class ServerConfig(BaseModel):
+    """服务器配置"""
+
+    SERVER_NAME: str = Field(
+        default="",
+        title="服务器名称",
+        description="服务器名称",
+    )
+    SERVER_WS_URL: str = Field(
+        default="",
+        title="服务器WebSocket地址",
+        description="服务器WebSocket地址",
+    )
+    IS_SERVER_RCON: bool = Field(
+        default=False,
+        title="是否启用RCON",
+        description="是否启用RCON",
+    )
+    SERVER_RCON_PORT: int = Field(
+        default=25575,
+        title="服务器RCON端口",
+        description="服务器RCON端口",
+    )
+    SERVER_RCON_PASSWORD: str = Field(
+        default="",
+        title="服务器RCON密码",
+        description="服务器RCON密码",
+    )
+
+
 class MinecraftConfig(BaseAdapterConfig):
     """Minecraft 适配器配置"""
+
+    SESSION_ENABLE_AT: bool = Field(
+        default=False,
+        title="启用 @用户 功能",
+        description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+        json_schema_extra=ExtraField(
+            is_hidden=True,
+        ).model_dump(),
+    )
+    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
+        default=False,
+        title="显示处理中表情反馈",
+        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+        json_schema_extra=ExtraField(
+            is_hidden=True,
+        ).model_dump(),
+    )
+    SERVERS: List[ServerConfig] = Field(
+        default_factory=list,
+        title="服务器列表",
+        description="在这里配置你的 Minecraft 服务器",
+    )
     MINECRAFT_WS_URLS: str = Field(
         default="{}",
         title="Minecraft 服务器 WebSocket 地址",
@@ -36,6 +89,7 @@ class MinecraftConfig(BaseAdapterConfig):
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_ws_urls",
             is_textarea=True,
+            is_hidden=True,
         ).model_dump(),
     )
     MINECRAFT_ACCESS_TOKEN: str = Field(
@@ -55,8 +109,36 @@ class MinecraftConfig(BaseAdapterConfig):
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_server_rcon",
             is_textarea=True,
+            is_hidden=True,
         ).model_dump(),
     )
+
+    @model_validator(mode="after")
+    def _convert_servers_to_legacy_config(self):
+        """将 SERVERS 转换为旧版配置项"""
+        servers = self.SERVERS
+        if not servers:
+            return self
+
+        ws_urls: Dict[str, List[str]] = {}
+        rcon_config: Dict[str, Dict] = {}
+
+        for server in servers:
+            if not server.SERVER_NAME:
+                continue
+            if server.SERVER_WS_URL:
+                ws_urls[server.SERVER_NAME] = [server.SERVER_WS_URL]
+            if server.IS_SERVER_RCON:
+                rcon_config[server.SERVER_NAME] = {
+                    "enable_rcon": server.IS_SERVER_RCON,
+                    "rcon_port": server.SERVER_RCON_PORT,
+                    "rcon_password": server.SERVER_RCON_PASSWORD,
+                }
+        self.MINECRAFT_WS_URLS = json.dumps(ws_urls)
+        self.MINECRAFT_SERVER_RCON = json.dumps(rcon_config)
+
+        return self
+
 
 class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     """Minecraft 适配器"""
@@ -93,10 +175,13 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         """初始化适配器"""
         try:
             driver = nonebot.get_driver()
-
             # 直接从 driver.config 获取配置
             minecraft_ws_urls = getattr(driver.config, "minecraft_ws_urls", None)
-            minecraft_access_token = getattr(driver.config, "minecraft_access_token", "")
+            minecraft_access_token = getattr(
+                driver.config,
+                "minecraft_access_token",
+                "",
+            )
             minecraft_server_rcon = getattr(driver.config, "minecraft_server_rcon", None)
 
             # 检查配置项类型是否正确
@@ -105,12 +190,14 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             rcon_valid = isinstance(minecraft_server_rcon, dict) and minecraft_server_rcon
 
             if ws_urls_valid or (token_valid and rcon_valid):
-                from nonebot.adapters.minecraft import Adapter as MinecraftAdapter
+                from nonebot.adapters.minecraft import (
+                    Adapter as MinecraftNoneBotAdapter,  # Rename to avoid conflict
+                )
 
                 from .matchers.message import register_matcher
                 from .matchers.notice import notice_manager
 
-                driver.register_adapter(MinecraftAdapter)
+                driver.register_adapter(MinecraftNoneBotAdapter)
                 logger.info(f"Minecraft 适配器 [{self.key}] 已加载")
                 register_matcher(self)
             else:
