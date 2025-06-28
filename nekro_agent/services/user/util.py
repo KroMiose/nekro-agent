@@ -62,7 +62,7 @@ async def user_login(data: UserLogin) -> UserToken:
     user: Optional[DBUser] = await DBUser.get_or_none(unique_id=data.username)
     if not user:
         raise credentials_exception
-    if user.unique_id not in config.SUPER_USERS:
+    if user.unique_id not in config.SUPER_USERS and not config.ALLOW_SUPER_USERS_LOGIN:
         raise credentials_exception
     logger.info(f"用户 {user.username if user else '未知'} 正在登录")
     if user and verify_password(data.password, user.password):

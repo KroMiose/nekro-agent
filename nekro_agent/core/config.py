@@ -81,7 +81,12 @@ class CoreConfig(ConfigBase):
     SUPER_USERS: List[str] = Field(
         default=[],
         title="管理员列表",
-        description="此处指定的管理员用户可登陆 WebUI, 初始密码为 `123456`",
+        description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
+    )
+    ALLOW_SUPER_USERS_LOGIN: bool = Field(
+        default=True,
+        title="允许管理员登陆 WebUI",
+        description="启用后可使用管理员账号登陆 WebUI，登陆后请及时在 个人中心 修改密码",
     )
     DEBUG_IN_CHAT: bool = Field(default=False, title="聊天调试模式")
     ADMIN_CHAT_KEY: str = Field(
