@@ -10,7 +10,7 @@ repository = "https://github.com/KroMiose/nekro-agent"
 [tool.poetry.scripts]
 publish = "scripts.run_publish:main"
 bot = "run_bot:main"
-dev = "nb-cli run --reload --reload-excludes plugins/workdir"
+# dev = "nb-cli run --reload --reload-excludes plugins/workdir"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.12"
