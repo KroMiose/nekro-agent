@@ -31,7 +31,7 @@ class BilibiliWebSocketClient:
     def __init__(
         self,
         base_url: str,
-        danmaku_handler: Callable[[Danmaku], Coroutine[Any, Any, None]],
+        danmaku_handler: Callable[["BilibiliWebSocketClient", Danmaku], Coroutine[Any, Any, None]],
     ):
         self._base_url = base_url.rstrip("/")
         self._danmaku_handler = danmaku_handler
@@ -115,7 +115,7 @@ class BilibiliWebSocketClient:
                 try:
                     # 心跳 pong 不需要处理, aiohttp 会自动处理
                     danmaku = Danmaku.model_validate_json(msg.data)
-                    await self._danmaku_handler(danmaku)
+                    await self._danmaku_handler(self, danmaku)
                 except ValidationError as e:
                     logger.warning(f"解析弹幕消息失败: {e}, 原始数据: {msg.data}")
                 except Exception as e:
