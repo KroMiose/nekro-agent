@@ -106,23 +106,6 @@ class FileSegment(MediaSegment):
     type: Literal[MessageSegmentType.FILE] = Field(MessageSegmentType.FILE, description="消息段类型")
 
 
-class StickerSegment(MessageSegment):
-    """贴纸消息段"""
-
-    type: Literal[MessageSegmentType.STICKER] = MessageSegmentType.STICKER
-    sticker_id: str = Field(..., description="贴纸ID")
-
-
-class LocationSegment(MessageSegment):
-    """位置消息段"""
-
-    type: Literal[MessageSegmentType.LOCATION] = MessageSegmentType.LOCATION
-    latitude: float = Field(..., description="纬度")
-    longitude: float = Field(..., description="经度")
-    title: Optional[str] = Field(None, description="标题")
-    address: Optional[str] = Field(None, description="地址")
-
-
 # =============================================================================
 # 消息段联合类型
 # =============================================================================

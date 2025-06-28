@@ -29,6 +29,8 @@ import {
   Stack,
   Tooltip,
   Alert,
+  SxProps,
+  Theme,
 } from '@mui/material'
 import {
   Save as SaveIcon,
@@ -39,11 +41,16 @@ import {
   Launch as LaunchIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
-  InfoOutlined as InfoIcon,
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  HelpOutline as HelpOutlineIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { ThemedTooltip } from './ThemedTooltip'
+
+const HtmlTooltip = ThemedTooltip
 
 export interface ConfigItem {
   key: string
@@ -152,6 +159,614 @@ const getTypeColor = (type: string, isComplex: boolean = false) => {
     default:
       return 'default'
   }
+}
+
+function renderSimpleListInput(
+  value: unknown,
+  elementType: string,
+  onChange: (value: unknown) => void
+): React.ReactNode {
+  switch (elementType) {
+    case 'bool':
+      return (
+        <FormControlLabel
+          control={
+            <Switch
+              checked={Boolean(value)}
+              onChange={e => onChange(e.target.checked)}
+              size="small"
+              color="primary"
+            />
+          }
+          label={value ? '是' : '否'}
+        />
+      )
+    case 'int':
+    case 'float':
+      return (
+        <TextField
+          type="number"
+          value={value || ''}
+          onChange={e =>
+            onChange(
+              elementType === 'int'
+                ? parseInt(e.target.value, 10) || 0
+                : parseFloat(e.target.value) || 0
+            )
+          }
+          size="small"
+          fullWidth
+          variant="outlined"
+        />
+      )
+    default:
+      return (
+        <TextField
+          value={String(value || '')}
+          onChange={e => onChange(e.target.value)}
+          size="small"
+          fullWidth
+          variant="outlined"
+        />
+      )
+  }
+}
+
+function renderFieldInput(
+  value: unknown,
+  fieldSchema: {
+    type: string
+    is_secret?: boolean
+    is_textarea?: boolean
+    placeholder?: string
+    is_complex?: boolean
+    element_type?: string
+  },
+  onChange: (value: unknown) => void,
+  fieldKey?: string,
+  expandedRows?: ExpandedRowsState,
+  setExpandedRows?: React.Dispatch<React.SetStateAction<ExpandedRowsState>>
+): React.ReactNode {
+  switch (fieldSchema.type) {
+    case 'bool':
+    case 'boolean':
+      return (
+        <FormControlLabel
+          control={
+            <Switch
+              checked={Boolean(value)}
+              onChange={e => onChange(e.target.checked)}
+              size="small"
+              color="primary"
+            />
+          }
+          label={value ? '是' : '否'}
+        />
+      )
+    case 'int':
+    case 'float':
+    case 'number':
+      return (
+        <TextField
+          type="number"
+          value={value || ''}
+          onChange={e =>
+            onChange(
+              fieldSchema.type === 'int'
+                ? parseInt(e.target.value, 10) || 0
+                : parseFloat(e.target.value) || 0
+            )
+          }
+          size="small"
+          fullWidth
+          placeholder={fieldSchema.placeholder}
+          variant="outlined"
+        />
+      )
+    case 'list': {
+      if (fieldKey && expandedRows && setExpandedRows) {
+        const listValue = Array.isArray(value) ? value : []
+        const isExpanded = expandedRows[fieldKey] || false
+
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+            <TextField
+              value={`列表 (${listValue.length} 项)`}
+              size="small"
+              fullWidth
+              InputProps={{
+                readOnly: true,
+                sx: {
+                  cursor: 'pointer',
+                  bgcolor: 'transparent',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
+                },
+              }}
+              onClick={() => setExpandedRows(prev => ({ ...prev, [fieldKey]: !prev[fieldKey] }))}
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                },
+              }}
+            />
+            <IconButton
+              size="small"
+              onClick={() => setExpandedRows(prev => ({ ...prev, [fieldKey]: !prev[fieldKey] }))}
+              sx={{
+                flexShrink: 0,
+                color: 'text.secondary',
+                '&:hover': {
+                  bgcolor: 'action.hover',
+                  color: 'primary.main',
+                },
+              }}
+            >
+              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          </Box>
+        )
+      }
+
+      const listValue = Array.isArray(value) ? value : []
+      return (
+        <TextField
+          value={`列表 (${listValue.length} 项)`}
+          size="small"
+          fullWidth
+          InputProps={{ readOnly: true }}
+          variant="outlined"
+        />
+      )
+    }
+    default:
+      return (
+        <TextField
+          type="text"
+          value={String(value || '')}
+          onChange={e => onChange(e.target.value)}
+          size="small"
+          fullWidth
+          placeholder={fieldSchema.placeholder}
+          variant="outlined"
+          multiline={fieldSchema.is_textarea}
+          minRows={fieldSchema.is_textarea ? 2 : 1}
+          maxRows={fieldSchema.is_textarea ? 4 : 1}
+          InputProps={{
+            style: fieldSchema.is_secret
+              ? ({
+                  '-webkit-text-security': 'disc',
+                  'text-security': 'disc',
+                } as React.CSSProperties)
+              : undefined,
+          }}
+        />
+      )
+  }
+}
+
+function getDefaultValueForType(type: string): unknown {
+  switch (type) {
+    case 'bool':
+    case 'boolean':
+      return false
+    case 'int':
+    case 'float':
+    case 'number':
+      return 0
+    case 'list':
+      return []
+    case 'dict':
+      return {}
+    default:
+      return ''
+  }
+}
+
+function renderNestedConfigRows(
+  config: ConfigItem,
+  editingValues: Record<string, string>,
+  handleConfigChange: (key: string, value: string) => void,
+  isOverridePage: boolean,
+  isSmall: boolean,
+  expandedRows: ExpandedRowsState,
+  setExpandedRows: React.Dispatch<React.SetStateAction<ExpandedRowsState>>,
+  level: number = 0,
+  parentKey: string = ''
+): React.ReactNode[] {
+  const rows: React.ReactNode[] = []
+  let currentValue
+  try {
+    currentValue =
+      editingValues[config.key] !== undefined
+        ? JSON.parse(editingValues[config.key])
+        : config.value
+  } catch {
+    currentValue = config.value
+  }
+
+  const tableCellStyle: SxProps<Theme> = {
+    py: isSmall ? 0.75 : 1.5,
+    pl: 2 + level * 2,
+    borderLeft: level > 0 ? `2px solid` : 'none',
+    borderLeftColor: level > 0 ? 'divider' : 'transparent',
+  }
+
+  if (config.type === 'list' && !config.is_complex) {
+    const listValue = Array.isArray(currentValue) ? currentValue : []
+    const elementType = config.element_type || 'str'
+
+    listValue.forEach((item: unknown, index: number) => {
+      const subKey = `${parentKey}${config.key}[${index}]`
+      rows.push(
+        <TableRow key={subKey} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+          {isOverridePage && <TableCell sx={tableCellStyle} />}
+          <TableCell sx={tableCellStyle}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}>
+                {config.sub_item_name ? `${config.sub_item_name}[${index}]` : `[${index}]`}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const newList = listValue.filter((_, i) => i !== index)
+                  handleConfigChange(config.key, JSON.stringify(newList))
+                }}
+                sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </TableCell>
+          <TableCell />
+          <TableCell>
+            <Chip
+              label={elementType}
+              size="small"
+              color={getTypeColor(elementType)}
+              variant="outlined"
+              sx={CHIP_VARIANTS.base(isSmall)}
+            />
+          </TableCell>
+          <TableCell>
+            {renderSimpleListInput(item, elementType, newValue => {
+              const newList = [...listValue]
+              newList[index] = newValue
+              handleConfigChange(config.key, JSON.stringify(newList))
+            })}
+          </TableCell>
+        </TableRow>
+      )
+    })
+    rows.push(
+      <TableRow key={`${config.key}-add`} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+        <TableCell sx={tableCellStyle} colSpan={isOverridePage ? 5 : 4}>
+          <Button
+            variant="text"
+            size="small"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              const defaultValue = getDefaultValueForType(elementType)
+              const newList = [...listValue, defaultValue]
+              handleConfigChange(config.key, JSON.stringify(newList))
+            }}
+            sx={{ color: 'primary.main' }}
+          >
+            添加{config.sub_item_name || '项目'}
+          </Button>
+        </TableCell>
+      </TableRow>
+    )
+  }
+
+  if (config.is_complex) {
+    if (config.type === 'list') {
+      const listValue = Array.isArray(currentValue) ? currentValue : []
+      listValue.forEach((item: unknown, index: number) => {
+        rows.push(
+          <TableRow
+            key={`${config.key}[${index}]-header`}
+            sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}
+          >
+            <TableCell sx={tableCellStyle} colSpan={isOverridePage ? 5 : 4}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 'bold',
+                    fontSize: isSmall ? '0.75rem' : 'inherit',
+                  }}
+                >
+                  {config.sub_item_name || '项目'} [{index}]
+                </Typography>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    const newList = listValue.filter((_, i) => i !== index)
+                    handleConfigChange(config.key, JSON.stringify(newList))
+                  }}
+                  sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </TableCell>
+          </TableRow>
+        )
+        if (item && typeof item === 'object' && config.field_schema) {
+          Object.entries(config.field_schema).forEach(([fieldName, fieldSchema]) => {
+            const fieldValue = (item as Record<string, unknown>)[fieldName]
+            const subKey = `${parentKey}${config.key}[${index}].${fieldName}`
+            rows.push(
+              <TableRow key={subKey} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+                {isOverridePage && <TableCell sx={{ ...tableCellStyle, pl: 4 + level * 2 }} />}
+                <TableCell sx={{ ...tableCellStyle, pl: 4 + level * 2 }}>
+                  <Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: 'normal',
+                          fontSize: isSmall ? '0.75rem' : 'inherit',
+                          mr: 0.5,
+                        }}
+                      >
+                        {fieldSchema.title || fieldName}
+                      </Typography>
+                      {fieldSchema.description && (
+                        <HtmlTooltip
+                          title={
+                            <div dangerouslySetInnerHTML={{ __html: fieldSchema.description }} />
+                          }
+                          placement="right"
+                        >
+                          <IconButton
+                            size="small"
+                            sx={{
+                              ml: 0.5,
+                              p: isSmall ? 0.2 : 0.3,
+                              color: 'primary.main',
+                              '&:hover': {
+                                color: 'primary.dark',
+                                bgcolor: 'action.hover',
+                              },
+                            }}
+                          >
+                            <HelpOutlineIcon fontSize="inherit" />
+                          </IconButton>
+                        </HtmlTooltip>
+                      )}
+                    </Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        fontSize: isSmall ? '0.65rem' : '0.75rem',
+                      }}
+                    >
+                      {fieldName}
+                    </Typography>
+                  </Box>
+                </TableCell>
+                <TableCell />
+                <TableCell>
+                  <Chip
+                    label={fieldSchema.type}
+                    size="small"
+                    color={getTypeColor(fieldSchema.type)}
+                    variant="outlined"
+                    sx={CHIP_VARIANTS.base(isSmall)}
+                  />
+                </TableCell>
+                <TableCell>
+                  {renderFieldInput(
+                    fieldValue,
+                    fieldSchema,
+                    newValue => {
+                      const newList = [...listValue]
+                      const newItem = { ...(newList[index] as Record<string, unknown>) }
+                      newItem[fieldName] = newValue
+                      newList[index] = newItem
+                      handleConfigChange(config.key, JSON.stringify(newList))
+                    },
+                    subKey,
+                    expandedRows,
+                    setExpandedRows
+                  )}
+                </TableCell>
+              </TableRow>
+            )
+            if (fieldSchema.type === 'list' && expandedRows?.[subKey]) {
+              const fieldListValue = Array.isArray(fieldValue) ? fieldValue : []
+              const fieldElementType = fieldSchema.element_type || 'str'
+              fieldListValue.forEach((listItem: unknown, listIndex: number) => {
+                const listItemKey = `${subKey}[${listIndex}]`
+                rows.push(
+                  <TableRow key={listItemKey} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+                    {isOverridePage && <TableCell sx={{ ...tableCellStyle, pl: 6 + level * 2 }} />}
+                    <TableCell sx={{ ...tableCellStyle, pl: 6 + level * 2 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}
+                        >
+                          {fieldSchema.title || fieldName}[{listIndex}]
+                        </Typography>
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            const newFieldList = fieldListValue.filter((_, i) => i !== listIndex)
+                            const newList = [...listValue]
+                            const newItem = { ...(newList[index] as Record<string, unknown>) }
+                            newItem[fieldName] = newFieldList
+                            newList[index] = newItem
+                            handleConfigChange(config.key, JSON.stringify(newList))
+                          }}
+                          sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </TableCell>
+                    <TableCell />
+                    <TableCell>
+                      <Chip
+                        label={fieldElementType}
+                        size="small"
+                        color={getTypeColor(fieldElementType)}
+                        variant="outlined"
+                        sx={CHIP_VARIANTS.base(isSmall)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      {renderSimpleListInput(listItem, fieldElementType, newValue => {
+                        const newFieldList = [...fieldListValue]
+                        newFieldList[listIndex] = newValue
+                        const newList = [...listValue]
+                        const newItem = { ...(newList[index] as Record<string, unknown>) }
+                        newItem[fieldName] = newFieldList
+                        newList[index] = newItem
+                        handleConfigChange(config.key, JSON.stringify(newList))
+                      })}
+                    </TableCell>
+                  </TableRow>
+                )
+              })
+              rows.push(
+                <TableRow key={`${subKey}-add`} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+                  <TableCell
+                    sx={{ ...tableCellStyle, pl: 6 + level * 2 }}
+                    colSpan={isOverridePage ? 5 : 4}
+                  >
+                    <Button
+                      variant="text"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={() => {
+                        const defaultValue = getDefaultValueForType(fieldElementType)
+                        const newFieldList = [...fieldListValue, defaultValue]
+                        const newList = [...listValue]
+                        const newItem = { ...(newList[index] as Record<string, unknown>) }
+                        newItem[fieldName] = newFieldList
+                        newList[index] = newItem
+                        handleConfigChange(config.key, JSON.stringify(newList))
+                      }}
+                      sx={{ color: 'primary.main' }}
+                    >
+                      添加{fieldSchema.title || fieldName}项目
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              )
+            }
+          })
+        }
+      })
+      rows.push(
+        <TableRow key={`${config.key}-add-complex`} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+          <TableCell sx={tableCellStyle} colSpan={isOverridePage ? 5 : 4}>
+            <Button
+              variant="text"
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                const newItem: Record<string, unknown> = {}
+                if (config.field_schema) {
+                  Object.entries(config.field_schema).forEach(([fieldName, fieldSchema]) => {
+                    newItem[fieldName] =
+                      fieldSchema.default ?? getDefaultValueForType(fieldSchema.type)
+                  })
+                }
+                const newList = [...listValue, newItem]
+                handleConfigChange(config.key, JSON.stringify(newList))
+              }}
+              sx={{ color: 'primary.main' }}
+            >
+              添加新{config.sub_item_name || '项目'}
+            </Button>
+          </TableCell>
+        </TableRow>
+      )
+    }
+  }
+
+  if (config.type === 'dict' && !config.is_complex) {
+    const dictValue =
+      currentValue && typeof currentValue === 'object'
+        ? (currentValue as Record<string, unknown>)
+        : {}
+    const valueType = config.value_type || 'str'
+    Object.entries(dictValue).forEach(([key, value]) => {
+      rows.push(
+        <TableRow key={`${config.key}.${key}`} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+          {isOverridePage && <TableCell sx={tableCellStyle} />}
+          <TableCell sx={tableCellStyle}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Typography variant="body2" sx={{ fontSize: isSmall ? '0.75rem' : 'inherit' }}>
+                {key}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => {
+                  const newDict = { ...dictValue }
+                  delete newDict[key]
+                  handleConfigChange(config.key, JSON.stringify(newDict))
+                }}
+                sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+              >
+                <DeleteIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </TableCell>
+          <TableCell />
+          <TableCell>
+            <Chip
+              label={valueType}
+              size="small"
+              color={getTypeColor(valueType)}
+              variant="outlined"
+              sx={CHIP_VARIANTS.base(isSmall)}
+            />
+          </TableCell>
+          <TableCell>
+            {renderSimpleListInput(value, valueType, newValue => {
+              const newDict = { ...dictValue, [key]: newValue }
+              handleConfigChange(config.key, JSON.stringify(newDict))
+            })}
+          </TableCell>
+        </TableRow>
+      )
+    })
+    rows.push(
+      <TableRow key={`${config.key}-add-dict`} sx={{ ...UNIFIED_TABLE_STYLES.nestedRow }}>
+        <TableCell sx={tableCellStyle} colSpan={isOverridePage ? 5 : 4}>
+          <TextField
+            size="small"
+            placeholder="输入新键名，按回车添加"
+            variant="outlined"
+            onKeyPress={e => {
+              if (e.key === 'Enter') {
+                const target = e.target as HTMLInputElement
+                const newKey = target.value.trim()
+                if (newKey && !dictValue[newKey]) {
+                  const defaultValue = getDefaultValueForType(valueType)
+                  const newDict = { ...dictValue, [newKey]: defaultValue }
+                  handleConfigChange(config.key, JSON.stringify(newDict))
+                  target.value = ''
+                }
+              }
+            }}
+            sx={{ width: '200px' }}
+          />
+        </TableCell>
+      </TableRow>
+    )
+  }
+  return rows
 }
 
 export interface ConfigTableProps {
@@ -495,33 +1110,46 @@ export default function ConfigTable({
         displayValue = '无效的JSON'
       }
 
-      return (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-          <TextField
-            value={isExpanded ? rawValue : displayValue}
-            size="small"
-            fullWidth
-            multiline={isExpanded}
-            rows={isExpanded ? Math.min(15, rawValue.split('\n').length) : 1}
-            onClick={() =>
-              !disabled && !isExpanded && setExpandedRows(prev => ({ ...prev, [config.key]: true }))
-            }
-            onChange={e => handleConfigChange(config.key, e.target.value)}
-            InputProps={{
-              readOnly: !isExpanded,
-              sx: { cursor: isExpanded ? 'text' : 'pointer' },
-            }}
-            disabled={disabled}
-          />
-          <IconButton
-            size="small"
-            onClick={() => setExpandedRows(prev => ({ ...prev, [config.key]: !prev[config.key] }))}
-            disabled={disabled}
-          >
-            {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-        </Box>
-      )
+      const canBeNested = config.type === 'list' || config.is_complex
+
+      if (canBeNested) {
+        return (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+            <TextField
+              value={displayValue}
+              size="small"
+              fullWidth
+              InputProps={{
+                readOnly: true,
+                sx: {
+                  cursor: 'pointer',
+                  bgcolor: 'transparent',
+                  '&:hover': { bgcolor: 'action.hover' },
+                },
+              }}
+              onClick={() =>
+                !disabled && setExpandedRows(prev => ({ ...prev, [config.key]: !prev[config.key] }))
+              }
+              variant="outlined"
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  '&:hover .MuiOutlinedInput-notchedOutline': {
+                    borderColor: 'primary.main',
+                  },
+                },
+              }}
+              disabled={disabled}
+            />
+            <IconButton
+              size="small"
+              onClick={() => setExpandedRows(prev => ({ ...prev, [config.key]: !prev[config.key] }))}
+              disabled={disabled}
+            >
+              {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+            </IconButton>
+          </Box>
+        )
+      }
     }
 
     switch (config.type) {
@@ -672,17 +1300,19 @@ export default function ConfigTable({
                 <TableCell sx={{ width: '20%', minWidth: 200 }}>配置项</TableCell>
                 <TableCell sx={{ width: '5%', minWidth: 80 }}>属性</TableCell>
                 <TableCell sx={{ width: '5%', minWidth: 80 }}>类型</TableCell>
-                <TableCell sx={{ width: '50%', minWidth: 300 }}>值</TableCell>
+                <TableCell sx={{ width: isOverridePage ? '45%' : '50%', minWidth: 300 }}>
+                  值
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredConfigs.map(config => {
+              {filteredConfigs.flatMap(config => {
                 const isEnabled =
                   isOverridePage && config.enable_toggle
-                    ? (enableStateMap.get(config.enable_toggle) ?? false)
+                    ? enableStateMap.get(config.enable_toggle) ?? false
                     : true
 
-                return (
+                const mainRow = (
                   <TableRow
                     key={config.key}
                     sx={{
@@ -735,16 +1365,24 @@ export default function ConfigTable({
                             {config.title}
                           </Typography>
                           {config.description && (
-                            <Tooltip title={config.description} arrow>
-                              <InfoIcon
+                            <HtmlTooltip
+                              title={
+                                <div dangerouslySetInnerHTML={{ __html: config.description }} />
+                              }
+                              placement="right"
+                            >
+                              <IconButton
+                                size="small"
                                 sx={{
-                                  fontSize: '1rem',
+                                  p: 0.2,
                                   color: 'text.secondary',
                                   verticalAlign: 'middle',
                                   cursor: 'help',
                                 }}
-                              />
-                            </Tooltip>
+                              >
+                                <HelpOutlineIcon sx={{ fontSize: '1rem' }} />
+                              </IconButton>
+                            </HtmlTooltip>
                           )}
                         </Box>
                         <Typography
@@ -783,6 +1421,23 @@ export default function ConfigTable({
                     </TableCell>
                   </TableRow>
                 )
+
+                const canBeNested = config.type === 'list' || config.is_complex
+                const nestedRows =
+                  expandedRows[config.key] && canBeNested
+                    ? renderNestedConfigRows(
+                        config,
+                        editingValues,
+                        handleConfigChange,
+                        isOverridePage,
+                        isSmall,
+                        expandedRows,
+                        setExpandedRows,
+                        1
+                      )
+                    : []
+
+                return [mainRow, ...nestedRows]
               })}
             </TableBody>
           </Table>
