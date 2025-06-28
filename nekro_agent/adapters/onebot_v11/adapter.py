@@ -96,6 +96,9 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到 OneBot V11 协议端"""
+
+        message_id: Optional[str] = None
+
         # 分离文件类型和其他类型的消息段
         file_segments = [seg for seg in request.segments if seg.type == PlatformSendSegmentType.FILE]
         other_segments = [seg for seg in request.segments if seg.type != PlatformSendSegmentType.FILE]

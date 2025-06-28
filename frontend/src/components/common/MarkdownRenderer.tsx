@@ -3,6 +3,7 @@ import { Box, useTheme, Link, SxProps, Theme } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+import remarkGfm from 'remark-gfm'
 import { useColorMode } from '../../stores/theme'
 
 const markdownStyles = (theme: Theme): SxProps<Theme> => ({
@@ -155,7 +156,9 @@ export default function MarkdownRenderer({ children, sx }: MarkdownRendererProps
 
   return (
     <Box sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}>
-      <ReactMarkdown components={markdownComponents}>{children}</ReactMarkdown>
+      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+        {children}
+      </ReactMarkdown>
     </Box>
   )
 }
