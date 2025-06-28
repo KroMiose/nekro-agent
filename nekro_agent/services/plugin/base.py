@@ -109,6 +109,7 @@ class NekroPlugin:
             if not issubclass(cls, ConfigBase):
                 raise TypeError("Config class must inherit from ConfigBase")
             self._Configs = cls
+            self.get_config()
             return cls
 
         return decorator

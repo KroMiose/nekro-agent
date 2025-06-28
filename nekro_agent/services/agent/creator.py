@@ -6,6 +6,7 @@ import magic
 from jinja2 import Environment
 
 from .templates.base import PromptTemplate
+from .templates.base import env as default_env
 
 mime = magic.Magic(mime=True)
 
@@ -53,7 +54,7 @@ class OpenAIChatMessage:
         cls,
         role: Literal["user", "assistant", "system"],
         template: PromptTemplate,
-        env: Environment,
+        env: Environment = default_env,
     ) -> "OpenAIChatMessage":
         """添加 Jinja2 模板渲染片段"""
         return cls(role, [ContentSegment.text_content(template.render(env))])
