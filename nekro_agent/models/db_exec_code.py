@@ -21,7 +21,7 @@ class DBExecCode(Model):
 
     id = fields.IntField(pk=True, generated=True, description="ID")
     chat_key = fields.CharField(max_length=32, index=True, description="会话唯一标识")
-    trigger_user_id = fields.IntField(default=0, index=True, description="触发用户ID")
+    trigger_user_id = fields.CharField(max_length=128, default="0", index=True, description="触发用户ID")
     trigger_user_name = fields.CharField(max_length=128, default="System", description="触发用户名")
     success = fields.BooleanField(default=False, description="是否成功")
     code_text = fields.TextField(description="执行代码文本")
@@ -33,6 +33,8 @@ class DBExecCode(Model):
     exec_time_ms = fields.IntField(default=0, description="执行时间(毫秒)")
     generation_time_ms = fields.IntField(default=0, description="生成时间(毫秒)")
     total_time_ms = fields.IntField(default=0, description="响应总耗时(毫秒)")
+
+    extra_data = fields.TextField(default="", description="额外数据")
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")

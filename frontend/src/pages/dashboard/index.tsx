@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Box, Tabs, Tab, Grid, Stack, useMediaQuery, useTheme } from '@mui/material'
+import { Box, Tabs, Tab, Grid, Stack, useMediaQuery, useTheme, Card } from '@mui/material'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   Message as MessageIcon,
@@ -14,6 +14,7 @@ import { DistributionsCard } from './components/DistributionsCard'
 import { RankingList } from './components/RankingList'
 import { RealTimeStats } from './components/RealTimeStats'
 import { createEventStream } from '../../services/api/utils/stream'
+import { CARD_VARIANTS } from '../../theme/variants'
 
 // 定义时间范围类型
 type TimeRange = 'day' | 'week' | 'month'
@@ -129,25 +130,38 @@ const DashboardContent: React.FC = () => {
   }
 
   return (
-    <Box 
-      className="h-[calc(100vh-90px)] flex flex-col gap-3 overflow-auto p-2"
-    >
+    <Box className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4">
       {/* 时间范围选择器 */}
+      <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
       <Tabs 
         value={timeRange} 
         onChange={handleTimeRangeChange} 
-        className="mb-2"
-        variant={isSmallMobile ? "fullWidth" : "standard"}
+          variant={isSmallMobile ? 'fullWidth' : 'standard'}
+          indicatorColor="primary"
+          textColor="primary"
         sx={{
-          '.MuiTabs-indicator': {
-            backgroundColor: theme.palette.primary.main,
+            minHeight: 56,
+            px: { xs: 1, md: 3 },
+            '& .MuiTab-root': {
+              minHeight: 56,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+              borderRadius: '8px',
+              mx: 0.5,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
           },
-          '.MuiTab-root': {
-            color: theme.palette.text.secondary,
             '&.Mui-selected': {
               color: theme.palette.primary.main,
+                backgroundColor: theme.palette.primary.main + '10',
+              },
             },
-            transition: 'all 0.2s ease',
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '2px',
+              boxShadow: `0 0 8px ${theme.palette.primary.main}`,
           },
         }}
       >
@@ -155,6 +169,7 @@ const DashboardContent: React.FC = () => {
         <Tab value="week" label="本周" />
         <Tab value="month" label="本月" />
       </Tabs>
+      </Card>
 
       {/* 统计卡片 - 移动端改为两行显示 */}
       {isMobile ? (
@@ -213,7 +228,8 @@ const DashboardContent: React.FC = () => {
               height: 8,
             },
             '&::-webkit-scrollbar-thumb': {
-              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
+              backgroundColor:
+                theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)',
               borderRadius: 4,
             },
           }}

@@ -157,11 +157,29 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
 
                 <Grid item xs={4}>
                   <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    QQ号
+                    适配端
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.bind_qq}</Typography>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.adapter_key}</Typography>
+                </Grid>
+
+                <Grid item xs={4}>
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
+                    平台用户ID
+                  </Typography>
+                </Grid>
+                <Grid item xs={8}>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.platform_userid}</Typography>
+                </Grid>
+
+                <Grid item xs={4}>
+                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
+                    唯一标识
+                  </Typography>
+                </Grid>
+                <Grid item xs={8}>
+                  <Typography variant={isSmall ? "caption" : "body2"}>{user.unique_id}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>

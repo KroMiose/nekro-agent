@@ -14,9 +14,7 @@ from nekro_agent.services.plugin.manager import (
     disable_plugin,
     enable_plugin,
     get_all_ext_meta_data,
-    get_plugin_config,
     get_plugin_detail,
-    save_plugin_config,
 )
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.user.deps import get_current_active_user
@@ -122,39 +120,18 @@ async def toggle_plugin(
         return Ret.error(msg=f"操作失败: {e!s}")
 
 
-@router.get("/configs/{plugin_id}", summary="获取插件配置")
+@router.get("/docs/{plugin_id}", summary="获取插件文档")
 @require_role(Role.Admin)
-async def get_plugin_configs(
+async def get_plugin_docs(
     plugin_id: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """获取插件配置"""
-    try:
-        plugin_config = await get_plugin_config(plugin_id)
-        if not plugin_config:
-            return Ret.fail(msg="插件不存在或未配置")
-        return Ret.success(msg="获取成功", data=plugin_config)
-    except Exception as e:
-        logger.error(f"获取插件配置失败: {e}")
-        return Ret.error(msg=f"获取失败: {e!s}")
-
-
-@router.post("/configs/{plugin_id}", summary="保存插件配置")
-@require_role(Role.Admin)
-async def save_plugin_configs(
-    plugin_id: str,
-    body: BatchUpdateConfig,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
-    """保存插件配置"""
-    try:
-        success, error_msg = await save_plugin_config(plugin_id, body.configs)
-        if not success:
-            return Ret.fail(msg=error_msg or "保存失败，可能插件不存在")
-        return Ret.success(msg="保存成功")
-    except Exception as e:
-        logger.error(f"保存插件配置失败: {e}")
-        return Ret.error(msg=f"保存失败: {e!s}")
+    """获取插件文档"""
+    plugin = plugin_collector.get_plugin(plugin_id)
+    if not plugin:
+        return Ret.fail(msg="插件不存在")
+    docs = await plugin.get_docs()
+    return Ret.success(msg="获取成功", data={"docs": docs, "exists": docs is not None})
 
 
 @router.post("/reload", summary="重载插件")
@@ -218,32 +195,32 @@ async def reset_plugin_data(
         return Ret.error(msg=f"重置失败: {e!s}")
 
 
-@router.delete("/package/{module_name}", summary="删除插件包")
+@router.delete("/package/{module_name}", summary="删除云端插件")
 @require_role(Role.Admin)
 async def remove_package(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """删除插件包（市场插件）"""
+    """删除云端插件"""
     try:
         # remove_package方法现在包含了卸载步骤
         await plugin_collector.remove_package(module_name)
-        return Ret.success(msg=f"插件包 {module_name} 删除成功")
+        return Ret.success(msg=f"云端插件 {module_name} 删除成功")
     except Exception as e:
-        logger.exception(f"删除插件包失败: {e}")
+        logger.exception(f"删除云端插件失败: {e}")
         return Ret.error(msg=f"删除失败: {e!s}")
 
 
-@router.post("/package/update/{module_name}", summary="更新插件包")
+@router.post("/package/update/{module_name}", summary="更新云端插件")
 @require_role(Role.Admin)
 async def update_package(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """更新插件包（市场插件）"""
+    """更新云端插件"""
     try:
         await plugin_collector.update_package(module_name, auto_reload=True)
-        return Ret.success(msg=f"插件包 {module_name} 更新成功")
+        return Ret.success(msg=f"云端插件 {module_name} 更新成功")
     except Exception as e:
-        logger.error(f"更新插件包失败: {e}")
+        logger.error(f"更新云端插件失败: {e}")
         return Ret.error(msg=f"更新失败: {e!s}")

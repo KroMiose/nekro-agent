@@ -12,7 +12,7 @@ from .plugin import plugin, store
 @plugin.mount_prompt_inject_method("github_subscriptions_prompt")
 async def github_subscriptions_prompt(_ctx: AgentCtx) -> str:
     """GitHub订阅提示"""
-    data = await store.get(chat_key=_ctx.from_chat_key, store_key="github_subs")
+    data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
     chat_subs: ChatSubscriptions = ChatSubscriptions.model_validate_json(data) if data else ChatSubscriptions()
     return chat_subs.render_prompts()
 
@@ -30,12 +30,12 @@ async def subscribe_github_repo(_ctx: AgentCtx, repo_name: str, events: Optional
     """
     try:
         # 获取当前会话的订阅数据
-        data = await store.get(chat_key=_ctx.from_chat_key, store_key="github_subs")
+        data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         chat_subs = ChatSubscriptions.model_validate_json(data) if data else ChatSubscriptions()
         # 创建或更新订阅
         await chat_subs.subscribe_repo(repo_name, events)
         # 保存订阅数据
-        await store.set(chat_key=_ctx.from_chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
+        await store.set(chat_key=_ctx.chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
         if not events:
             events = ["push", "issues", "pull_request", "release", "star"]
         events_str = ", ".join(events)
@@ -56,14 +56,14 @@ async def unsubscribe_github_repo(_ctx: AgentCtx, repo_name: str) -> str:
         str: 取消订阅结果消息
     """
     # 获取当前会话的订阅数据
-    data = await store.get(chat_key=_ctx.from_chat_key, store_key="github_subs")
+    data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
     if not data:
         raise ValueError(f"未找到仓库 {repo_name} 的订阅")
     chat_subs = ChatSubscriptions.model_validate_json(data)
     # 取消订阅
     await chat_subs.unsubscribe_repo(repo_name)
     # 保存订阅数据
-    await store.set(chat_key=_ctx.from_chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
+    await store.set(chat_key=_ctx.chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
     return f"成功取消订阅仓库 {repo_name}"
 
 
@@ -76,7 +76,7 @@ async def get_github_subscriptions(_ctx: AgentCtx) -> Dict[str, Any]:
     """
     try:
         # 获取当前会话的订阅数据
-        data = await store.get(chat_key=_ctx.from_chat_key, store_key="github_subs")
+        data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         chat_subs = ChatSubscriptions.model_validate_json(data) if data else ChatSubscriptions()
 
         # 构建订阅列表
@@ -108,7 +108,7 @@ async def update_github_subscription_events(_ctx: AgentCtx, repo_name: str, even
     """
     try:
         # 获取当前会话的订阅数据
-        data = await store.get(chat_key=_ctx.from_chat_key, store_key="github_subs")
+        data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         if not data:
             return f"未找到仓库 {repo_name} 的订阅"
 
@@ -123,7 +123,7 @@ async def update_github_subscription_events(_ctx: AgentCtx, repo_name: str, even
         sub.update_events(events)
 
         # 保存订阅数据
-        await store.set(chat_key=_ctx.from_chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
+        await store.set(chat_key=_ctx.chat_key, store_key="github_subs", value=chat_subs.model_dump_json())
 
         events_str = ", ".join(events)
     except Exception as e:

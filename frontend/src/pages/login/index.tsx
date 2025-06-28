@@ -50,12 +50,8 @@ export default function LoginPage() {
   const notification = useNotification()
 
   // 使用壁纸store
-  const {
-    loginWallpaper,
-    loginWallpaperMode,
-    loginWallpaperBlur,
-    loginWallpaperDim,
-  } = useWallpaperStore()
+  const { loginWallpaper, loginWallpaperMode, loginWallpaperBlur, loginWallpaperDim } =
+    useWallpaperStore()
 
   // 延迟显示表单，创建更流畅的加载体验
   useEffect(() => {
@@ -201,356 +197,71 @@ export default function LoginPage() {
             bottom: 0,
             overflow: 'hidden',
             zIndex: 0,
+            backgroundColor: theme.palette.background.default,
           }}
         >
-          {/* 波浪渐变背景 */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: '-10%',
-              left: '-5%',
-              width: '120%',
-              height: '120%',
-              backgroundImage: `radial-gradient(circle at 30% 30%, ${theme.palette.primary.light}25 0%, transparent 25%), 
-                            radial-gradient(circle at 70% 70%, ${theme.palette.primary.main}20 0%, transparent 30%)`,
-              opacity: 0.7,
-              zIndex: 0,
-            }}
-          />
-
-          {/* 动态渐变背景 */}
+          {/* 新的、性能优化的动态背景 */}
           <motion.div
-            animate={{
-              background: [
-                `linear-gradient(135deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
-                `linear-gradient(225deg, ${theme.palette.primary.main}05, ${theme.palette.secondary.main}10)`,
-                `linear-gradient(315deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
-                `linear-gradient(45deg, ${theme.palette.primary.main}05, ${theme.palette.secondary.main}10)`,
-                `linear-gradient(135deg, ${theme.palette.primary.main}10, ${theme.palette.secondary.main}05)`,
-              ],
-            }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: 'linear',
-            }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 2, ease: 'easeIn' }}
             style={{
               position: 'absolute',
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              opacity: 0.4,
-              zIndex: 0,
             }}
-          />
-
-          {/* 动态装饰元素 */}
-          <motion.div
-            initial={{ opacity: 0.1 }}
-            animate={{
-              opacity: [0.1, 0.3, 0.1],
-              y: [0, -5, 0],
-              width: isMobile ? ['130%', '150%', '130%'] : ['100%', '120%', '100%'],
-              boxShadow: [
-                `0 0 10px 1px ${theme.palette.primary.main}40`,
-                `0 0 25px 2px ${theme.palette.primary.main}60`,
-                `0 0 10px 1px ${theme.palette.primary.main}40`,
-              ],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              repeatType: 'loop',
-            }}
-            style={{
-              position: 'absolute',
-              height: '1px',
-              backgroundColor: theme.palette.primary.main,
-              top: '15%',
-              left: '-10%',
-              zIndex: 1,
-            }}
-          />
-
-          <motion.div
-            initial={{ opacity: 0.1 }}
-            animate={{
-              opacity: [0.1, 0.35, 0.1],
-              y: [0, 5, 0],
-              width: isMobile ? ['130%', '150%', '130%'] : ['100%', '120%', '100%'],
-              boxShadow: [
-                `0 0 10px 1px ${theme.palette.secondary.main}40`,
-                `0 0 25px 2px ${theme.palette.secondary.main}60`,
-                `0 0 10px 1px ${theme.palette.secondary.main}40`,
-              ],
-            }}
-            transition={{
-              duration: 7,
-              repeat: Infinity,
-              ease: 'easeInOut',
-              repeatType: 'loop',
-            }}
-            style={{
-              position: 'absolute',
-              height: '1px',
-              backgroundColor: theme.palette.secondary.main,
-              bottom: '20%',
-              right: '-10%',
-              zIndex: 1,
-            }}
-          />
-
-          {/* 水平线内部流光效果 */}
-          <motion.div
-            animate={{
-              x: ['-100%', '100%'],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: 'linear',
-              repeatType: 'loop',
-              times: [0, 0.1, 0.9, 1],
-            }}
-            style={{
-              position: 'absolute',
-              width: '30%',
-              height: '1px',
-              background: `linear-gradient(to right, transparent, ${theme.palette.primary.light}, transparent)`,
-              top: '15%',
-              left: '0%',
-              zIndex: 2,
-            }}
-          />
-
-          <motion.div
-            animate={{
-              x: ['100%', '-100%'],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{
-              duration: 3.5,
-              repeat: Infinity,
-              ease: 'linear',
-              repeatType: 'loop',
-              times: [0, 0.1, 0.9, 1],
-            }}
-            style={{
-              position: 'absolute',
-              width: '30%',
-              height: '1px',
-              background: `linear-gradient(to left, transparent, ${theme.palette.secondary.light}, transparent)`,
-              bottom: '20%',
-              right: '0%',
-              zIndex: 2,
-            }}
-          />
-
-          {/* 动态粒子光点 */}
-          {[...Array(8)].map((_, i) => (
+          >
+            {/* 旋转的渐变背景 */}
             <motion.div
-              key={`particle-${i}`}
-              initial={{
-                x: Math.random() * 100 + '%',
-                y: Math.random() * 100 + '%',
-                opacity: 0,
-              }}
               animate={{
-                x: [
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                ],
-                y: [
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                  Math.random() * 100 + '%',
-                ],
-                opacity: [0, 0.6, 0.4, 0],
-                scale: [0.8, 1.2, 1, 0.8],
+                rotate: [0, 360],
               }}
               transition={{
-                duration: 10 + Math.random() * 20,
+                duration: 50,
                 repeat: Infinity,
                 ease: 'linear',
-                delay: i * 2,
               }}
               style={{
                 position: 'absolute',
-                width: Math.random() * 4 + 2,
-                height: Math.random() * 4 + 2,
-                borderRadius: '50%',
-                background: i % 2 === 0 ? theme.palette.primary.main : theme.palette.secondary.main,
-                boxShadow:
-                  i % 2 === 0
-                    ? `0 0 8px 2px ${theme.palette.primary.main}40`
-                    : `0 0 8px 2px ${theme.palette.secondary.main}40`,
-                opacity: 0.3,
-                zIndex: 1,
+                top: '50%',
+                left: '50%',
+                width: '200vmax',
+                height: '200vmax',
+                x: '-50%',
+                y: '-50%',
+                backgroundImage: `radial-gradient(ellipse at 70% 30%, ${theme.palette.primary.main}2A 0%, transparent 40%),
+                  radial-gradient(ellipse at 30% 70%, ${theme.palette.secondary.main}3A 0%, transparent 50%)`,
+                willChange: 'transform',
               }}
             />
-          ))}
-
-          {/* 交叉斜线光效 */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 0.3, scale: 1 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 }}
-            style={{
-              position: 'absolute',
-              width: '1px',
-              height: isMobile ? '80%' : '100%',
-              background: `linear-gradient(to bottom, transparent, ${theme.palette.primary.light}, transparent)`,
-              left: '30%',
-              top: '0%',
-              transform: 'rotate(35deg)',
-              boxShadow: `0 0 15px ${theme.palette.primary.light}`,
-              opacity: 0.12,
-              zIndex: 1,
-            }}
-          />
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 0.3, scale: 1 }}
-            transition={{ duration: 1.5, ease: 'easeOut', delay: 0.5 }}
-            style={{
-              position: 'absolute',
-              width: '1px',
-              height: isMobile ? '60%' : '80%',
-              background: `linear-gradient(to bottom, transparent, ${theme.palette.secondary.light}, transparent)`,
-              right: '35%',
-              top: '10%',
-              transform: 'rotate(-40deg)',
-              boxShadow: `0 0 15px ${theme.palette.secondary.light}`,
-              opacity: 0.12,
-              zIndex: 1,
-            }}
-          />
-
-          {/* 脉冲圆形光效 */}
-          <Box sx={{ position: 'absolute', left: '15%', bottom: '20%', zIndex: 1 }}>
-            <motion.div
-              initial={{ opacity: 0.1, scale: 0.6 }}
-              animate={{ opacity: [0.05, 0.2, 0.05], scale: [0.8, 1.2, 0.8] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              style={{
-                width: isMobile ? 100 : 180,
-                height: isMobile ? 100 : 180,
-                borderRadius: '50%',
-                background: `radial-gradient(circle, ${theme.palette.primary.light}30 0%, transparent 70%)`,
-                opacity: 0.15,
+            {/* 星星点点的效果 */}
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                backgroundImage:
+                  themeMode === 'dark'
+                    ? `url('data:image/svg+xml;utf8,<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><g fill="rgba(255,255,255,0.1)"><circle cx="20" cy="20" r="1" /><circle cx="50" cy="80" r="1" /><circle cx="90" cy="30" r="1" /><circle cx="10" cy="70" r="1" /><circle cx="80" cy="90" r="1" /><circle cx="150" cy="50" r="1" /><circle cx="180" cy="150" r="1" /><circle cx="120" cy="180" r="1" /><circle cx="30" cy="160" r="1" /><circle cx="190" cy="90" r="1.5" /></g></svg>')`
+                    : `url('data:image/svg+xml;utf8,<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><g fill="rgba(0,0,0,0.08)"><circle cx="20" cy="20" r="1" /><circle cx="50" cy="80" r="1" /><circle cx="90" cy="30" r="1" /><circle cx="10" cy="70" r="1" /><circle cx="80" cy="90" r="1" /><circle cx="150" cy="50" r="1" /><circle cx="180" cy="150" r="1" /><circle cx="120" cy="180" r="1" /><circle cx="30" cy="160" r="1" /><circle cx="190" cy="90" r="1.5" /></g></svg>')`,
+                animation:
+                  'move-background 40s linear infinite alternate, shimmer 8s ease-in-out infinite alternate',
+                '@keyframes move-background': {
+                  from: { backgroundPosition: '0 0' },
+                  to: { backgroundPosition: '200px 400px' },
+                },
+                '@keyframes shimmer': {
+                  '0%, 100%': { opacity: 0.7 },
+                  '50%': { opacity: 1 },
+                },
+                willChange: 'background-position, opacity',
               }}
             />
-          </Box>
-
-          {/* 浮动流光线条 */}
-          <motion.div
-            animate={{
-              x: ['-100%', '200%'],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{
-              duration: 12,
-              repeat: Infinity,
-              ease: 'linear',
-              repeatType: 'loop',
-              times: [0, 0.1, 0.9, 1],
-            }}
-            style={{
-              position: 'absolute',
-              width: '100%',
-              height: '1px',
-              background: `linear-gradient(90deg, transparent, ${theme.palette.primary.main}40, transparent)`,
-              top: '40%',
-              opacity: 0.2,
-              zIndex: 1,
-            }}
-          />
-
-          <motion.div
-            animate={{
-              x: ['200%', '-100%'],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{
-              duration: 15,
-              repeat: Infinity,
-              ease: 'linear',
-              repeatType: 'loop',
-              times: [0, 0.1, 0.9, 1],
-            }}
-            style={{
-              position: 'absolute',
-              width: '80%',
-              height: '1px',
-              background: `linear-gradient(90deg, transparent, ${theme.palette.secondary.main}40, transparent)`,
-              top: '65%',
-              opacity: 0.15,
-              zIndex: 1,
-            }}
-          />
-
-          {/* 激光束效果 */}
-          <motion.div
-            animate={{
-              height: ['0%', '100%', '100%', '0%'],
-              opacity: [0, 0.4, 0.4, 0],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: 'linear',
-              repeatType: 'loop',
-              times: [0, 0.4, 0.6, 1],
-            }}
-            style={{
-              position: 'absolute',
-              width: '1px',
-              left: '80%',
-              top: '0',
-              background: `linear-gradient(to bottom, transparent, ${theme.palette.primary.main}, transparent)`,
-              boxShadow: `0 0 20px 2px ${theme.palette.primary.main}`,
-              zIndex: 1,
-            }}
-          />
-
-          {/* 脉冲环效果 */}
-          <Box
-            sx={{
-              position: 'absolute',
-              right: '15%',
-              top: '25%',
-              zIndex: 1,
-            }}
-          >
-            {[...Array(3)].map((_, i) => (
-              <motion.div
-                key={`pulse-ring-${i}`}
-                initial={{ scale: 0.4, opacity: 0.8 }}
-                animate={{ scale: 2, opacity: 0 }}
-                transition={{
-                  duration: 3,
-                  repeat: Infinity,
-                  delay: i * 1,
-                  ease: 'easeOut',
-                }}
-                style={{
-                  position: 'absolute',
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  border: `1px solid ${theme.palette.secondary.main}40`,
-                  boxShadow: `0 0 10px ${theme.palette.secondary.main}20`,
-                }}
-              />
-            ))}
-          </Box>
+          </motion.div>
         </Box>
       )}
 
@@ -664,7 +375,7 @@ export default function LoginPage() {
                       lineHeight: 1.5,
                     }}
                   >
-                    开启优雅智能的交互之旅
+                    开启优雅智能交互之旅
                   </Typography>
                 </motion.div>
               </Box>

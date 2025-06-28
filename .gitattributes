@@ -1,0 +1,2 @@
+*.tsx linguist-language=python
+*.ts linguist-language=python

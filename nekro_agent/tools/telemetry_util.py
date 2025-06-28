@@ -13,6 +13,9 @@ from nekro_agent.core.config import CONFIG_DIR
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 
+_INSTANCE_ID: Optional[str] = None
+_CORE_VERSION: Optional[str] = "v2"
+
 
 def is_running_in_docker() -> bool:
     """检查是否在Docker容器中运行
@@ -40,9 +43,6 @@ def get_system_info() -> Dict[str, str]:
     }
 
 
-_INSTANCE_ID: Optional[str] = None
-
-
 def generate_instance_id() -> str:
     """生成实例唯一ID
 
@@ -59,8 +59,11 @@ def generate_instance_id() -> str:
     if instance_id_path.exists():
         try:
             instance_data = json.loads(instance_id_path.read_text())
+            _core_version: str = instance_data.get("core_version", "")
             _instance_id: str = instance_data["instance_id"]
             _fingerprint: str = instance_data["fingerprint"]
+            if _core_version != _CORE_VERSION:
+                raise ValueError(f"核心版本不匹配: {_core_version} != {_CORE_VERSION}")  # noqa: TRY301
             if (
                 isinstance(_instance_id, str)
                 and isinstance(_fingerprint, str)
@@ -107,11 +110,20 @@ def generate_instance_id() -> str:
         f"{computer_id}|"
         f"{cpu_count}|"
         f"{memory_info}|"
-        f"{env_fingerprint}"
+        f"{env_fingerprint}|"
+        f"{_CORE_VERSION}"
     )
 
     # 生成 SHA256 哈希
     _INSTANCE_ID = hashlib.sha256(fingerprint.encode()).hexdigest()
     instance_id_path.parent.mkdir(parents=True, exist_ok=True)
-    instance_id_path.write_text(json.dumps({"instance_id": _INSTANCE_ID, "fingerprint": fingerprint}))
+    instance_id_path.write_text(
+        json.dumps(
+            {
+                "instance_id": _INSTANCE_ID,
+                "fingerprint": fingerprint,
+                "core_version": _CORE_VERSION,
+            },
+        ),
+    )
     return _INSTANCE_ID

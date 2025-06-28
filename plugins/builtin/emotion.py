@@ -1,5 +1,37 @@
+"""
+# 表情包 (Emotion)
+
+提供收集、搜索、使用表情包的能力，使用向量数据库进行智能语义搜索。
+
+## 主要功能
+
+- **智能收藏**: 在聊天时发送图片，AI 会自动询问是否要收藏为表情包，并为其添加描述和标签。
+- **语义搜索**: 可以用自然语言描述来搜索表情包，比如 "来张开心的猫猫图"。
+- **后台管理**: 提供了一系列命令，方便用户管理自己的表情包收藏。
+
+## 使用方法
+
+- **与 AI 对话**: 在聊天中发送图片，AI 会引导您完成收藏。您也可以直接命令 AI "帮我收藏这张图"。
+- **使用命令**: 通过 `emo_search` 等命令直接搜索和管理表情包。
+
+## 命令列表
+
+**注意：所有命令目前仅在 OneBot v11 适配器下可用。**
+
+- `emo_search <关键词>`: 语义搜索表情包。
+- `emo_stats`: 查看表情包统计信息。
+- `emo_list [页码]`: 分页列出所有表情包。
+- `emo_reindex -y`: 重建索引（高级功能，一般无需使用）。
+
+## 配置说明
+
+- **严格表情包模式**: 开启后，插件会尝试拒绝收藏截图、照片等非表情包内容的图片。
+- **嵌入模型组**: 需要正确配置一个向量模型才能使用语义搜索功能。
+"""
+
 import asyncio
 import hashlib
+import json
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -12,17 +44,21 @@ from nonebot.params import CommandArg
 from pydantic import BaseModel, Field
 from qdrant_client import models as qdrant_models
 
+from nekro_agent.adapters.onebot_v11.matchers.command import (
+    command_guard,
+    finish_with,
+    on_command,
+)
 from nekro_agent.api import schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.matchers.command import command_guard, finish_with, on_command
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
-    convert_to_container_path,
+    convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
 )
 
@@ -33,6 +69,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["onebot_v11"],
 )
 
 
@@ -53,6 +90,11 @@ class EmotionConfig(ConfigBase):
         json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "embedding"},
     )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
+    STRICT_EMOTION_COLLECT: bool = Field(
+        default=False,
+        title="严格表情包模式",
+        description="是否严格限制表情包收集并拒绝非表情包内容 (截图、非表情包内容等)",
+    )
 
 
 # 获取配置和插件存储
@@ -166,12 +208,12 @@ class EmotionStore(BaseModel):
 async def load_emotion_store() -> EmotionStore:
     """加载表情包存储"""
     data = await store.get(store_key="emotion_store")
-    return EmotionStore.model_validate_json(data) if data else EmotionStore()
+    return EmotionStore.model_validate(json.loads(data)) if data else EmotionStore()
 
 
 async def save_emotion_store(emotion_store: EmotionStore):
     """保存表情包存储"""
-    await store.set(store_key="emotion_store", value=emotion_store.model_dump_json())
+    await store.set(store_key="emotion_store", value=json.dumps(emotion_store.model_dump(), ensure_ascii=False))
 
 
 async def generate_embedding(text: str) -> List[float]:
@@ -226,7 +268,7 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
     # 如果是本地路径，则复制图片
     try:
-        source_path_obj = convert_to_host_path(Path(source_path), _ctx.from_chat_key)
+        source_path_obj = convert_to_host_path(Path(source_path), _ctx.chat_key)
         logger.info(f"从本地路径复制图片: {source_path_obj} 到 {target_path}")
 
         if not source_path_obj.exists():
@@ -585,7 +627,9 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
         tags_str = ", ".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
         prompt_parts.append(f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]")
 
-    return "\n".join(prompt_parts)
+    addition_prompt = "Attention: Emotion Plugin is a isolated self-managed plugin, you should not record the emotion ID manually by using other plugins. Just use the `collect_emotion` tool to collect the emotion and use `search_emotion` to search the emotion if you need."
+
+    return "\n".join(prompt_parts) + "\n" + addition_prompt
 
 
 # endregion: 表情包提示注入
@@ -598,7 +642,14 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
     name="收集表情包",
     description="收集表情包并进行特征打标，保存到向量数据库",
 )
-async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description: str, tags: Optional[List[str]] = None) -> str:
+async def collect_emotion(
+    _ctx: schemas.AgentCtx,
+    source_path: str,
+    description: str,
+    tags: Optional[List[str]] = None,
+    is_screenshot: bool = False,
+    vision_confirmed: bool = False,
+) -> str:
     """Collect Emotion (表情包)
 
     Collect an expression image/GIF to the emotion database.
@@ -608,6 +659,8 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
         source_path (str): The path or URL of the expression image
         description (str): A detailed description of the emotion/expression (used for searching. You Must fill it in carefully)
         tags (List[str], optional): Tags for the emotion (e.g. ["happy", "excited", "anime"])
+        is_screenshot (bool, optional): Whether the image is a screenshot (default: False)
+        vision_confirmed (bool, optional): Whether the image content is confirmed by vision (default: False, You Can Only Collect Images That Are Visible in Vision Content and NEVER Guess the content!)
 
     Returns:
         str: The emotion ID
@@ -615,10 +668,10 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     Example:
         ```python
         # Collect from URL
-        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"])
+        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"], is_screenshot=False, vision_confirmed=True)
 
         # Collect from local path
-        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"]) # Do not send the emotion ID in your message directly!
+        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"], is_screenshot=False, vision_confirmed=True) # Do not send the emotion ID in your message directly!
         ```
     """
     # 参数验证
@@ -631,6 +684,20 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     # 确保tags是列表
     if tags is None:
         tags = []
+
+    if is_screenshot and emotion_config.STRICT_EMOTION_COLLECT:
+        await message_service.push_system_message(
+            _ctx.chat_key,
+            "Screenshot detected! You CANT Only Collect Emotion Stickers! Rejected.",
+        )
+        return ""
+
+    if not vision_confirmed:
+        await message_service.push_system_message(
+            _ctx.chat_key,
+            "Image content is not confirmed by vision! You CANT Guess the content! Rejected.",
+        )
+        return ""
 
     # 确保表情包目录存在
     store_dir.mkdir(parents=True, exist_ok=True)
@@ -645,7 +712,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
             file_name = f"{hashlib.md5(source_path.encode()).hexdigest()[:8]}.png"
     else:
         # 本地文件，直接使用原文件名
-        file_name = convert_to_host_path(Path(source_path), _ctx.from_chat_key).name
+        file_name = convert_to_host_path(Path(source_path), _ctx.chat_key).name
 
     # 添加随机字符串避免文件名冲突
     path_obj = Path(file_name)
@@ -752,7 +819,7 @@ async def collect_emotion(_ctx: schemas.AgentCtx, source_path: str, description:
     except Exception as e:
         raise ValueError(f"添加到向量数据库失败: {e}") from e
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully collected emotion: {emotion_id} - {description} {' '.join(tags)} ({source_path=})",
     )
 
@@ -851,7 +918,7 @@ async def update_emotion(
     logger.info(f"已添加新向量到Qdrant: {emotion_id}")
 
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully updated emotion metadata: {emotion_id}",
     )
 
@@ -931,7 +998,7 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         logger.warning(f"删除表情包文件失败: {e}")
 
     await message_service.push_system_message(
-        _ctx.from_chat_key,
+        _ctx.chat_key,
         f"Successfully removed emotion: {emotion_id}",
     )
 
@@ -949,7 +1016,7 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     Get the path of an emotion by its ID.
 
     Args:
-        emotion_id (str): The emotion ID
+        emotion_id (str): The emotion ID (**NOT PATH**)
 
     Returns:
         str: The path of the emotion file
@@ -958,7 +1025,7 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         ```python
         # Get emotion path and use it in another function
         emotion_file_path = get_emotion_path("a1b2c3d4")
-        # Send it or do something ...
+        # Send it or do something ... But DO NOT do any addition record for this emotion file!
         ```
     """
     # 加载表情包存储
@@ -979,13 +1046,13 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         emo_file_path, _ = await copy_to_upload_dir(
             metadata.file_path,
             file_path.name,
-            from_chat_key=_ctx.from_chat_key,
+            from_chat_key=_ctx.chat_key,
         )
 
     except Exception as e:
         raise ValueError(f"Error reading emotion file: {e}") from e
     else:
-        return str(convert_to_container_path(Path(emo_file_path)))
+        return str(convert_filename_to_sandbox_upload_path(Path(emo_file_path)))
 
 
 @plugin.mount_sandbox_method(

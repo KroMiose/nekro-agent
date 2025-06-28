@@ -31,7 +31,7 @@ import {
   BORDER_RADIUS,
   metricColors
 } from '../../../theme/themeConfig'
-import { LAYOUT } from '../../../theme/variants'
+import { CARD_VARIANTS } from '../../../theme/variants'
 
 interface RealTimeStatsProps {
   title: string
@@ -177,17 +177,7 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
   return (
     <Card
       className="w-full h-full"
-      sx={{
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-          transform: 'translateY(-2px)',
-        },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
-      }}
+      sx={CARD_VARIANTS.default.styles}
     >
       <CardContent className="h-full">
         <Box

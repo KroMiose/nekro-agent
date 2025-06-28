@@ -1,6 +1,5 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
-import { configApi } from './config'
 
 export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
 
@@ -263,6 +262,21 @@ export const pluginsApi = {
     }
   },
 
+  // 获取插件文档
+  getPluginDocs: async (
+    pluginId: string
+  ): Promise<{ docs: string | null; exists: boolean }> => {
+    try {
+      const response = await axios.get<{ data: { docs: string | null; exists: boolean } }>(
+        `/plugins/docs/${pluginId}`
+      )
+      return response.data.data
+    } catch (error) {
+      console.error(`获取插件 ${pluginId} 文档失败:`, error)
+      return { docs: null, exists: false }
+    }
+  },
+
   // 应用生成的代码
   applyGeneratedCode: async (
     filePath: string,
@@ -306,21 +320,22 @@ export const pluginsApi = {
 
   // 获取模型组列表
   getModelGroups: async () => {
-    return configApi.getModelGroups()
+    const { unifiedConfigApi } = await import('./unified-config')
+  return unifiedConfigApi.getModelGroups()
   },
 
-  // 删除插件包（市场插件）
+  // 删除云端插件
   removePackage: async (moduleName: string): Promise<boolean> => {
     try {
       await axios.delete(`/plugins/package/${moduleName}`)
       return true
     } catch (error) {
-      console.error(`删除插件包 ${moduleName} 失败:`, error)
+      console.error(`删除云端插件 ${moduleName} 失败:`, error)
       return false
     }
   },
 
-  // 更新插件包（市场插件）
+  // 更新云端插件
   updatePackage: async (moduleName: string): Promise<{ success: boolean; errorMsg?: string }> => {
     try {
       const response = await axios.post(`/plugins/package/update/${moduleName}`)
@@ -372,6 +387,7 @@ export const resetPluginData = pluginsApi.resetPluginData
 export const getModelGroups = pluginsApi.getModelGroups
 export const removePackage = pluginsApi.removePackage
 export const updatePackage = pluginsApi.updatePackage
+export const getPluginDocs = pluginsApi.getPluginDocs
 
 export const streamGenerateCode = (
   filePath: string,

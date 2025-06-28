@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Literal, Union
 
 import magic
+from jinja2 import Environment
 
 from .templates.base import PromptTemplate
 
@@ -20,9 +21,9 @@ class OpenAIChatMessage:
         """转换为字典
 
         将连续的文本内容进行聚合，例如:
-        [{"type": "text", "text": "你好"}, {"type": "text", "text": "世界"}]
+        [{"type": "text", "text": "你好 "}, {"type": "text", "text": "世界"}]
         会被聚合为:
-        [{"type": "text", "text": "你好世界"}]
+        [{"type": "text", "text": "你好 世界"}]
         """
 
         if all(_c["type"] == "text" for _c in self.content):
@@ -48,9 +49,14 @@ class OpenAIChatMessage:
         return cls(role, [ContentSegment.text_content(text)])
 
     @classmethod
-    def from_template(cls, role: Literal["user", "assistant", "system"], template: PromptTemplate) -> "OpenAIChatMessage":
+    def from_template(
+        cls,
+        role: Literal["user", "assistant", "system"],
+        template: PromptTemplate,
+        env: Environment,
+    ) -> "OpenAIChatMessage":
         """添加 Jinja2 模板渲染片段"""
-        return cls(role, [ContentSegment.text_content(template.render())])
+        return cls(role, [ContentSegment.text_content(template.render(env))])
 
     @classmethod
     def create_empty(cls, role: Literal["user", "assistant", "system"]) -> "OpenAIChatMessage":
@@ -71,6 +77,8 @@ class OpenAIChatMessage:
         """合并消息"""
         if self.role != other.role:
             raise ValueError("消息角色不一致")
+        if isinstance(other.content, str):
+            other.content = [ContentSegment.text_content(other.content)]
         return OpenAIChatMessage(self.role, self.content + other.content)
 
     def tidy(self) -> "OpenAIChatMessage":
@@ -109,6 +117,12 @@ class ContentSegment:
     @staticmethod
     def image_content_from_path(image_path: Union[str, Path]) -> Dict[str, Any]:
         """根据图片路径生成图片内容片段"""
+        if isinstance(image_path, str) and image_path.startswith("data:"):
+            return {
+                "type": "image_url",
+                "image_url": {"url": image_path},
+            }
+
         path = Path(image_path)
         if not path.exists():
             raise FileNotFoundError(f"图片路径不存在: {path}")

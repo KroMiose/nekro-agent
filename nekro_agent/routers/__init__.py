@@ -8,12 +8,15 @@ from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
+from nekro_agent.adapters import load_adapters_api
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user.util import user_login
+from nekro_agent.tools.common_util import get_app_version
 
+from .adapters import router as adapters_router
 from .chat_channel import router as chat_channel_router
 from .cloud.auth import router as cloud_auth_router
 from .cloud.plugins_market import router as plugins_market_router
@@ -23,7 +26,6 @@ from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
 from .logs import router as logs_router
-from .napcat import router as napcat_router
 from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
 from .presets import router as presets_router
@@ -62,7 +64,6 @@ def mount_routers(app: FastAPI):
     api.include_router(config_router)
     api.include_router(plugins_router)
     api.include_router(plugin_editor_router)
-    api.include_router(napcat_router)
     api.include_router(sandbox_router)
     api.include_router(dashboard_router)
     api.include_router(chat_channel_router)
@@ -72,7 +73,10 @@ def mount_routers(app: FastAPI):
     api.include_router(presets_market_router)
     api.include_router(plugins_market_router)
     api.include_router(cloud_auth_router)
+    api.include_router(adapters_router)
     api.include_router(common_router)
+
+    api.include_router(load_adapters_api())
 
     @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
     async def _() -> Ret:
@@ -91,7 +95,7 @@ def mount_routers(app: FastAPI):
     async def openapi():
         openapi_schema = get_openapi(
             title="Nekro Agent API",
-            version="0.1.0",
+            version=get_app_version(),
             routes=api.routes,
             description="Nekro Agent API 文档",
         )

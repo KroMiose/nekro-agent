@@ -1,3 +1,29 @@
+"""
+# 笔记 (Note)
+
+为 AI 提供一个强大的、持久化的长期记忆系统，解决其对话上下文长度有限的"失忆"问题。
+
+## 设计理念：外置记忆
+
+AI 的对话记忆是滚动的、有长度限制的，就像一个只能记住最近几分钟事情的人。为了让 AI 能够记住关键信息（如用户偏好、重要约定、长期存在的角色状态等），这个笔记插件充当了它的"外置大脑"。
+
+AI 可以将任何需要长期记住的信息，以"标题-内容"的形式记录为一条笔记。这些笔记会被永久保存，并在每次对话开始前自动"提醒"AI，确保它能基于这些关键记忆来与用户互动。
+
+## 主要功能
+
+- **记录笔记**: AI 可以随时将信息记录为一条笔记，并可以设置一个可选的"有效期"。
+- **查询笔记**: AI 可以根据标题查询某条笔记的详细内容。
+- **删除笔记**: 当一条信息不再重要或已过期时，AI 可以将其删除。
+- **状态提示**: 插件会自动将当前所有的笔记列表注入到提示词中，让 AI 时刻清楚地知道自己记住了哪些事情。
+
+## 使用方法
+
+此插件主要由 AI 在后台自动使用。例如：
+- 当用户告诉 AI 自己的昵称时，AI 可能会用笔记记下："用户的昵称是XX"。
+- 在角色扮演中，当角色获得一个"受伤"状态时，AI 会用笔记记下："手臂受伤了，行动不便"，直到这个状态被解除。
+- 它可以作为一个简单的键值数据库来存储和跟踪变量。
+"""
+
 import time
 from typing import Dict, Optional
 
@@ -136,7 +162,7 @@ class ChannelNoteData(BaseModel):
 @plugin.mount_prompt_inject_method("note_prompt")
 async def note_prompt(_ctx: schemas.AgentCtx) -> str:
     """笔记提示"""
-    data = await store.get(chat_key=_ctx.from_chat_key, store_key="note")
+    data = await store.get(chat_key=_ctx.chat_key, store_key="note")
     channel_data: ChannelNoteData = ChannelNoteData.model_validate_json(data) if data else ChannelNoteData()
     return "Current Notes:\n" + channel_data.render_prompts()
 

@@ -6,7 +6,6 @@ try:
 
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
-
     nonebot.load_from_toml("pyproject.toml")
 except Exception as e:
     import traceback

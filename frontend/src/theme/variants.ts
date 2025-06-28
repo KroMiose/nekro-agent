@@ -30,18 +30,18 @@ export const LAYOUT = {
     DEFAULT: {
       get transition() {
         return getTransition('all 0.3s ease')
-      }
+      },
     },
     SLOW: {
       get transition() {
         return getTransition('all 0.5s ease')
-      }
+      },
     },
     FAST: {
       get transition() {
         return getTransition('all 0.15s ease')
-      }
-    }
+      },
+    },
   },
 }
 
@@ -50,24 +50,31 @@ export const CARD_VARIANTS = {
   default: {
     get styles(): SxProps<Theme> {
       const mode = getCurrentThemeMode()
+
       return {
-        transition: LAYOUT.TRANSITION.DEFAULT.transition,
-        background: getBackground(
+        // 半透明背景以支持毛玻璃效果
+        backgroundColor:
           mode === 'dark'
-            ? 'rgba(25, 25, 30, 0.85)'
-            : 'rgba(255, 255, 255, 0.9)'
-        ),
-        backdropFilter: getBackdropFilter('blur(12px)'),
-        WebkitBackdropFilter: getBackdropFilter('blur(12px)'),
-        boxShadow: getShadow('0 4px 6px rgba(0, 0, 0, 0.1)'),
+            ? 'rgba(47, 47, 47, 0.75)' // 深色模式：中等透明度
+            : 'rgba(255, 255, 255, 0.75)', // 浅色模式：中等透明度
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        backdropFilter: getBackdropFilter('blur(16px) saturate(1.1)'),
+        WebkitBackdropFilter: getBackdropFilter('blur(16px) saturate(1.1)'),
+        boxShadow: getShadow('0 4px 6px rgba(0, 0, 0, 0.05)'),
         border: '1px solid',
-        borderColor: mode === 'dark' 
-          ? 'rgba(255, 255, 255, 0.1)' 
-          : 'rgba(0, 0, 0, 0.06)',
+        borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
         borderRadius: BORDER_RADIUS.DEFAULT,
+        // 确保内容可读性
+        position: 'relative',
+        overflow: 'hidden',
         '&:hover': {
-          boxShadow: getShadow('0 6px 12px rgba(0, 0, 0, 0.15)'),
-        }
+          backgroundColor:
+            mode === 'dark'
+              ? 'rgba(47, 47, 47, 0.85)' // hover 时稍微增加不透明度
+              : 'rgba(255, 255, 255, 0.85)',
+          borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.12)',
+          boxShadow: getShadow('0 8px 24px rgba(0, 0, 0, 0.12)'),
+        },
       }
     },
   },
@@ -88,6 +95,55 @@ export const CARD_VARIANTS = {
       }
     },
   },
+  glassmorphism: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+
+      return {
+        // 强透明效果用于现代毛玻璃设计
+        backgroundColor:
+          mode === 'dark'
+            ? 'rgba(30, 30, 30, 0.4)' // 深色模式：强透明
+            : 'rgba(255, 255, 255, 0.3)', // 浅色模式：强透明
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        backdropFilter: getBackdropFilter('blur(24px) saturate(1.4) brightness(1.1)'),
+        WebkitBackdropFilter: getBackdropFilter('blur(24px) saturate(1.4) brightness(1.1)'),
+        boxShadow: getShadow('0 8px 32px rgba(0, 0, 0, 0.06)'),
+        border: '1px solid',
+        borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.15)' : 'rgba(255, 255, 255, 0.6)',
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        position: 'relative',
+        overflow: 'hidden',
+        // 添加内光效果
+        '&:before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '1px',
+          background:
+            mode === 'dark'
+              ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)'
+              : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)',
+          zIndex: 1,
+        },
+        '&:hover': {
+          backgroundColor: mode === 'dark' ? 'rgba(30, 30, 30, 0.6)' : 'rgba(255, 255, 255, 0.5)',
+          borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.8)',
+          boxShadow: getShadow('0 16px 64px rgba(0, 0, 0, 0.12)'),
+          transform: 'translateY(-1px)',
+        },
+      }
+    },
+  },
+  transparent: {
+    get styles(): SxProps<Theme> {
+      return {
+        background: 'transparent',
+      }
+    },
+  },
 }
 
 // 按钮组件样式变体
@@ -96,10 +152,14 @@ export const BUTTON_VARIANTS = {
     get styles(): SxProps<Theme> {
       const palette = getCurrentExtendedPalette()
       return {
-        background: getBackground(`linear-gradient(45deg, ${palette.primary.main} 0%, ${palette.primary.dark} 100%)`),
+        background: getBackground(
+          `linear-gradient(45deg, ${palette.primary.main} 0%, ${palette.primary.dark} 100%)`
+        ),
         color: '#fff',
         '&:hover': {
-          background: getBackground(`linear-gradient(45deg, ${palette.primary.dark} 0%, ${palette.primary.main} 100%)`),
+          background: getBackground(
+            `linear-gradient(45deg, ${palette.primary.dark} 0%, ${palette.primary.main} 100%)`
+          ),
           boxShadow: getShadow('0 4px 8px rgba(0, 0, 0, 0.15)'),
         },
         transition: LAYOUT.TRANSITION.DEFAULT.transition,
@@ -186,6 +246,14 @@ export const CHIP_VARIANTS = {
     },
   }),
 
+  // 基础Chip样式 - 带颜色
+  baseWithColor: (isSmall: boolean = false, color: string = ''): SxProps<Theme> => ({
+    ...CHIP_VARIANTS.base(isSmall),
+    backgroundColor: alpha(color, 0.12),
+    color: color,
+    borderColor: alpha(color, 0.2),
+  }),
+
   // 获取状态类型的Chip样式 - 使用纯函数而非Hooks
   getStatusChip: (_colorName: string, isSmall: boolean = false): SxProps<Theme> => {
     // 直接返回基础样式，颜色将由组件中的color属性决定
@@ -208,6 +276,19 @@ export const CHIP_VARIANTS = {
   // 停止类型Chip样式
   getStopTypeChip: (stopType: number, isSmall: boolean = false): SxProps<Theme> => {
     const color = stopTypeColorValues[stopType as keyof typeof stopTypeColorValues] || '#9e9e9e'
+
+    return {
+      ...CHIP_VARIANTS.base(isSmall),
+      backgroundColor: alpha(color, 0.12),
+      color: color,
+      borderColor: alpha(color, 0.2),
+    }
+  },
+
+  // 流式模式Chip样式
+  getStreamModeChip: (isStream: boolean, isSmall: boolean = false): SxProps<Theme> => {
+    const palette = getCurrentExtendedPalette()
+    const color = isStream ? palette.primary.main : palette.secondary.main
 
     return {
       ...CHIP_VARIANTS.base(isSmall),
@@ -294,7 +375,7 @@ export const pluginTypeColors: Record<
 
 export const pluginTypeTexts: Record<string, string> = {
   builtin: '内置',
-  package: '插件包',
+  package: '云端',
   local: '本地',
 }
 
@@ -395,12 +476,15 @@ export const UNIFIED_TABLE_STYLES = {
     return {
       willChange: 'background-color',
       transition: 'background-color 0.15s ease',
-      '&:hover': {
-        backgroundColor: alpha(palette.primary.main, 0.08),
-      },
       '&:nth-of-type(odd)': {
         backgroundColor:
-          getCurrentThemeMode() === 'light' ? 'rgba(0, 0, 0, 0.02)' : 'rgba(255, 255, 255, 0.03)',
+          getCurrentThemeMode() === 'light' ? 'rgba(0, 0, 0, 0.01)' : 'rgba(255, 255, 255, 0.015)',
+      },
+      '&:nth-of-type(even)': {
+        backgroundColor: 'transparent',
+      },
+      '&:hover': {
+        backgroundColor: `${alpha(palette.primary.main, 0.08)} !important`,
       },
     }
   },
@@ -552,6 +636,51 @@ export const UNIFIED_TABLE_STYLES = {
       },
     }
   },
+
+  // 嵌套配置行样式
+  get nestedRow(): SxProps<Theme> {
+    const palette = getCurrentExtendedPalette()
+    const mode = getCurrentThemeMode()
+    return {
+      willChange: 'background-color',
+      transition: 'background-color 0.15s ease',
+      '&:nth-of-type(odd)': {
+        backgroundColor: mode === 'light' ? 'rgba(0, 0, 0, 0.012)' : 'rgba(255, 255, 255, 0.018)',
+      },
+      '&:nth-of-type(even)': {
+        backgroundColor: 'transparent',
+      },
+      '&:hover': {
+        backgroundColor: `${alpha(palette.primary.main, 0.08)} !important`,
+      },
+    }
+  },
+
+  // 嵌套配置容器样式
+  get nestedContainer(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+    return {
+      backgroundColor: mode === 'light' ? 'rgba(0, 0, 0, 0.025)' : 'rgba(255, 255, 255, 0.025)',
+      borderRadius: '0',
+      border: 'none',
+      borderTop: `1px solid ${mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'}`,
+      borderBottom: `1px solid ${mode === 'light' ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.05)'}`,
+      margin: '0',
+      padding: '4px 0',
+      overflow: 'hidden',
+      position: 'relative',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        width: '2px',
+        backgroundColor: alpha(palette.primary.main, 0.4),
+      },
+    }
+  },
 }
 
 // 导出日志表格样式到包含新的统一样式
@@ -666,7 +795,7 @@ export const SCROLLBAR_VARIANTS = {
           },
         },
       }
-    }
+    },
   },
   thin: {
     get styles(): SxProps<Theme> {
@@ -689,7 +818,7 @@ export const SCROLLBAR_VARIANTS = {
           },
         },
       }
-    }
+    },
   },
 }
 
@@ -727,5 +856,232 @@ export const CARD_STYLES = {
       transform: 'translateY(-2px)',
       boxShadow: '0 8px 25px 0 rgba(0,0,0,0.1)',
     },
-  }
+  },
+}
+
+// Alert组件样式变体
+export const ALERT_VARIANTS = {
+  // 默认样式 - 符合主题系统的毛玻璃质感
+  default: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+
+      return {
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        backdropFilter: getBackdropFilter('blur(12px) saturate(1.2)'),
+        WebkitBackdropFilter: getBackdropFilter('blur(12px) saturate(1.2)'),
+        backgroundColor: mode === 'dark' ? 'rgba(47, 47, 47, 0.8)' : 'rgba(255, 255, 255, 0.85)',
+        border: '1px solid',
+        borderColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)',
+        boxShadow: getShadow('0 4px 20px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.05)'),
+        transition: LAYOUT.TRANSITION.DEFAULT.transition,
+        position: 'relative',
+        overflow: 'hidden',
+
+        // 内容文本样式
+        '& .MuiAlert-message': {
+          fontSize: '0.875rem',
+          fontWeight: 500,
+          lineHeight: 1.5,
+          textShadow:
+            mode === 'dark' ? '0 1px 2px rgba(0, 0, 0, 0.4)' : '0 1px 2px rgba(255, 255, 255, 0.8)',
+        },
+
+        // 图标样式
+        '& .MuiAlert-icon': {
+          opacity: 0.9,
+          filter:
+            mode === 'dark'
+              ? 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4))'
+              : 'drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))',
+        },
+
+        // 操作按钮样式
+        '& .MuiAlert-action': {
+          '& .MuiIconButton-root': {
+            backdropFilter: getBackdropFilter('blur(8px)'),
+            borderRadius: BORDER_RADIUS.SMALL,
+            transition: LAYOUT.TRANSITION.FAST.transition,
+            '&:hover': {
+              backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.08)',
+            },
+          },
+        },
+
+        // 顶部装饰线
+        '&:before': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '1px',
+          background:
+            mode === 'dark'
+              ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent)'
+              : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent)',
+          zIndex: 1,
+        },
+      }
+    },
+  },
+
+  // 严重性变体 - 基于不同的Alert类型
+  severity: {
+    info: {
+      get styles(): SxProps<Theme> {
+        const mode = getCurrentThemeMode()
+
+        return {
+          ...ALERT_VARIANTS.default.styles,
+          backgroundColor:
+            mode === 'dark' ? `rgba(33, 150, 243, 0.15)` : `rgba(33, 150, 243, 0.05)`,
+          borderColor: `rgba(33, 150, 243, ${mode === 'dark' ? 0.3 : 0.2})`,
+          boxShadow: getShadow(
+            `0 4px 20px rgba(33, 150, 243, 0.15), 0 1px 3px rgba(33, 150, 243, 0.1)`
+          ),
+
+          '& .MuiAlert-icon': {
+            color: '#2196F3',
+          },
+
+          '&:before': {
+            background: 'linear-gradient(90deg, transparent, rgba(33, 150, 243, 0.4), transparent)',
+          },
+        }
+      },
+    },
+
+    success: {
+      get styles(): SxProps<Theme> {
+        const mode = getCurrentThemeMode()
+
+        return {
+          ...ALERT_VARIANTS.default.styles,
+          backgroundColor: mode === 'dark' ? `rgba(76, 175, 80, 0.15)` : `rgba(76, 175, 80, 0.05)`,
+          borderColor: `rgba(76, 175, 80, ${mode === 'dark' ? 0.3 : 0.2})`,
+          boxShadow: getShadow(
+            `0 4px 20px rgba(76, 175, 80, 0.15), 0 1px 3px rgba(76, 175, 80, 0.1)`
+          ),
+
+          '& .MuiAlert-icon': {
+            color: '#4CAF50',
+          },
+
+          '&:before': {
+            background: 'linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.4), transparent)',
+          },
+        }
+      },
+    },
+
+    warning: {
+      get styles(): SxProps<Theme> {
+        const mode = getCurrentThemeMode()
+
+        return {
+          ...ALERT_VARIANTS.default.styles,
+          backgroundColor: mode === 'dark' ? `rgba(255, 152, 0, 0.15)` : `rgba(255, 152, 0, 0.05)`,
+          borderColor: `rgba(255, 152, 0, ${mode === 'dark' ? 0.3 : 0.2})`,
+          boxShadow: getShadow(
+            `0 4px 20px rgba(255, 152, 0, 0.15), 0 1px 3px rgba(255, 152, 0, 0.1)`
+          ),
+
+          '& .MuiAlert-icon': {
+            color: '#FF9800',
+          },
+
+          '&:before': {
+            background: 'linear-gradient(90deg, transparent, rgba(255, 152, 0, 0.4), transparent)',
+          },
+        }
+      },
+    },
+
+    error: {
+      get styles(): SxProps<Theme> {
+        const mode = getCurrentThemeMode()
+
+        return {
+          ...ALERT_VARIANTS.default.styles,
+          backgroundColor: mode === 'dark' ? `rgba(244, 67, 54, 0.15)` : `rgba(244, 67, 54, 0.05)`,
+          borderColor: `rgba(244, 67, 54, ${mode === 'dark' ? 0.3 : 0.2})`,
+          boxShadow: getShadow(
+            `0 4px 20px rgba(244, 67, 54, 0.15), 0 1px 3px rgba(244, 67, 54, 0.1)`
+          ),
+
+          '& .MuiAlert-icon': {
+            color: '#F44336',
+          },
+
+          '&:before': {
+            background: 'linear-gradient(90deg, transparent, rgba(244, 67, 54, 0.4), transparent)',
+          },
+        }
+      },
+    },
+  },
+
+  // 紧凑样式 - 用于空间受限的场景
+  compact: {
+    get styles(): SxProps<Theme> {
+      return {
+        ...ALERT_VARIANTS.default.styles,
+        padding: '8px 12px',
+        minHeight: 'auto',
+
+        '& .MuiAlert-message': {
+          fontSize: '0.75rem',
+          lineHeight: 1.4,
+        },
+
+        '& .MuiAlert-icon': {
+          marginRight: '8px',
+          fontSize: '1rem',
+        },
+      }
+    },
+  },
+
+  // 突出样式 - 用于重要通知
+  prominent: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+
+      return {
+        ...ALERT_VARIANTS.default.styles,
+        backgroundColor: mode === 'dark' ? 'rgba(47, 47, 47, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: getBackdropFilter('blur(20px) saturate(1.4) brightness(1.1)'),
+        WebkitBackdropFilter: getBackdropFilter('blur(20px) saturate(1.4) brightness(1.1)'),
+        boxShadow: getShadow('0 8px 32px rgba(0, 0, 0, 0.15), 0 2px 8px rgba(0, 0, 0, 0.08)'),
+        borderWidth: '1.5px',
+
+        '& .MuiAlert-message': {
+          fontSize: '0.9rem',
+          fontWeight: 600,
+        },
+
+        // 增强的装饰效果
+        '&:before': {
+          height: '2px',
+          background:
+            mode === 'dark'
+              ? 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent)'
+              : 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent)',
+        },
+
+        // 底部光影效果
+        '&:after': {
+          content: '""',
+          position: 'absolute',
+          bottom: 0,
+          left: '10%',
+          right: '10%',
+          height: '1px',
+          background: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+          borderRadius: '1px',
+        },
+      }
+    },
+  },
 }

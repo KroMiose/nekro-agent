@@ -1,5 +1,6 @@
 import re
 from pathlib import Path
+from types import ModuleType
 from typing import (
     Any,
     Callable,
@@ -12,6 +13,8 @@ from typing import (
     TypeVar,
     cast,
 )
+
+import aiofiles
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
@@ -42,6 +45,7 @@ class NekroPlugin:
         version: str,
         author: str,
         url: str,
+        support_adapter: Optional[List[str]] = None,
         is_builtin: bool = False,
         is_package: bool = False,
     ):
@@ -58,14 +62,16 @@ class NekroPlugin:
         self.version = version.strip()
         self.author = _validate_name(author, "Author")
         self.url = url.strip()
+        self.support_adapter = support_adapter or []
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
         self._collect_methods_func: Optional[CollectMethodsFunc] = None
         self._is_builtin: bool = is_builtin  # 标记是否为内置插件
         self._is_package: bool = is_package  # 标记是否为包
+        self._module: Optional["ModuleType"] = None  # 模块对象
 
-        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key / "config.yaml"
-        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugins" / self.key
+        self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
+        self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
         self._store = PluginStore(self)
 
     def reset_methods(self) -> None:
@@ -120,7 +126,16 @@ class NekroPlugin:
 
         # 获取配置对象
         if not hasattr(self, "_config"):
-            self._config = self._Configs.load_config(file_path=self._plugin_config_path)
+            # 设置配置类的配置键和文件路径
+            config_key = f"plugin_{self.key}"
+            self._Configs.set_config_key(config_key)
+            self._Configs.set_config_file_path(self._plugin_config_path)
+
+            try:
+                self._config = self._Configs.load_config(file_path=self._plugin_config_path, auto_register=True)
+            except Exception:
+                logger.exception(f"读取插件配置失败: {self.key} | 配置文件格式错误")
+                raise
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)
 
@@ -259,12 +274,23 @@ class NekroPlugin:
             List[SandboxMethod]: 可用方法列表
         """
         if self._collect_methods_func:
-            return await self._collect_methods_func(ctx)
+            available_methods: List[SandboxMethod] = []
+            for func in await self._collect_methods_func(ctx):
+                if isinstance(func, SandboxMethod):
+                    available_methods.append(func)
+                else:
+                    for method in self.sandbox_methods:
+                        if method.func == func:
+                            available_methods.append(method)
+                            break
+                    else:
+                        raise ValueError(f"方法 {func.__name__} 未找到对应的沙盒方法。")
+            return available_methods
         return self.sandbox_methods
 
     def mount_collect_methods(
         self,
-    ) -> Callable[[CollectMethodsFunc], CollectMethodsFunc]:
+    ) -> Callable:
         """挂载收集可用方法的重写函数
 
         此装饰器允许插件开发者自定义如何收集和过滤可用的方法，根据上下文决定哪些方法对当前用户可用。
@@ -353,6 +379,36 @@ class NekroPlugin:
             str: 向量数据库集合名称
         """
         return f"{self.key}-{key}" if key else self.key
+
+    def _set_module(self, module: "ModuleType") -> None:
+        """设置模块对象，由加载器调用"""
+        self._module = module
+
+    async def get_docs(self) -> Optional[str]:
+        """获取插件文档
+
+        优先级:
+        1. 插件模块同级目录下的 README.md 文件
+        2. 插件模块的 __doc__
+        """
+        if not self._module or not self._module.__file__:
+            return None
+
+        try:
+            module_path = Path(self._module.__file__)
+            readme_path = module_path.parent / "README.md"
+
+            if readme_path.is_file():
+                async with aiofiles.open(readme_path, "r", encoding="utf-8") as f:
+                    return await f.read()
+
+            if self._module.__doc__:
+                return self._module.__doc__.strip()
+        except Exception as e:
+            logger.error(f"获取插件 {self.key} 文档失败: {e}")
+            return f"获取文档失败: {e}"
+
+        return None
 
 
 class PluginStore:

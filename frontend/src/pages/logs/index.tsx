@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from 'react'
 import {
   Box,
   Paper,
@@ -39,6 +39,188 @@ import NekroDialog from '../../components/common/NekroDialog'
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
 const ROW_HEIGHT = 36 // 固定行高
+const LOG_UPDATE_INTERVAL = 250 // 实时日志更新间隔 (ms)
+
+// 拆分并优化的 TableHeader 组件
+const TableHeader = memo(
+  ({
+    isMobile,
+    isSmall,
+    isAdvanced,
+  }: {
+    isMobile: boolean
+    isSmall: boolean
+    isAdvanced: boolean
+  }) => {
+    const theme = useTheme()
+    return (
+      <Box
+        sx={{
+          display: 'flex',
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          py: 1,
+          px: 2,
+          ...UNIFIED_TABLE_STYLES.header,
+        }}
+      >
+        <Box
+          sx={{
+            flex: isMobile ? '0 0 90px' : '0 0 120px',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+          }}
+        >
+          时间
+        </Box>
+        <Box
+          sx={{
+            flex: '0 0 100px',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+            textAlign: 'center',
+          }}
+        >
+          级别
+        </Box>
+        <Box
+          sx={{
+            flex: '1 1 auto',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+            ml: 1,
+          }}
+        >
+          消息
+        </Box>
+        {isAdvanced && !isMobile && (
+          <Box
+            sx={{
+              flex: '0 0 100px',
+              fontSize: isSmall ? '0.75rem' : '0.8rem',
+              ml: 1,
+              textAlign: 'right',
+              pr: 2,
+            }}
+          >
+            来源
+          </Box>
+        )}
+      </Box>
+    )
+  }
+)
+TableHeader.displayName = 'TableHeader'
+
+// 拆分并优化的 LogRow 组件
+const LogRow = memo(
+  ({
+    style,
+    log,
+    isMobile,
+    isSmall,
+    isAdvanced,
+    onLogClick,
+  }: {
+    style: React.CSSProperties
+    log: LogEntry
+    isMobile: boolean
+    isSmall: boolean
+    isAdvanced: boolean
+    onLogClick: (log: LogEntry) => void
+  }) => {
+    const theme = useTheme()
+    const severityColor =
+      (LOG_TABLE_STYLES.SEVERITY as Record<string, { backgroundColor: string }>)[log.level]
+        ?.backgroundColor || 'transparent'
+
+    return (
+      <Box
+        style={{ ...style, width: '100%' }}
+        onClick={() => onLogClick(log)}
+        sx={{
+          cursor: 'pointer',
+          '&:hover': {
+            backgroundColor: LOG_TABLE_STYLES.ROW.HOVER,
+          },
+          borderBottom: `1px solid ${theme.palette.divider}`,
+          display: 'flex',
+          alignItems: 'center',
+          pl: 1,
+          width: '100%',
+          ...UNIFIED_TABLE_STYLES.row,
+        }}
+      >
+        <Box
+          sx={{
+            width: 4,
+            height: ROW_HEIGHT - 2,
+            backgroundColor: severityColor,
+            borderRadius: '2px',
+            mr: 1,
+          }}
+        />
+        <Box
+          sx={{
+            flex: isMobile ? '0 0 90px' : '0 0 120px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            fontSize: isSmall ? '0.7rem' : '0.75rem',
+            color: theme.palette.text.secondary,
+          }}
+        >
+          {isMobile ? log.timestamp.split(' ')[1] : log.timestamp}
+        </Box>
+        <Box
+          sx={{ flex: '0 0 100px', textAlign: 'center', display: 'flex', justifyContent: 'center' }}
+        >
+          <Chip
+            label={log.level}
+            size="small"
+            sx={{
+              ...CHIP_VARIANTS.getLogLevelChip(log.level, isSmall),
+              height: isSmall ? 18 : 20,
+              minWidth: '40px',
+              '.MuiChip-label': {
+                px: 1,
+                fontSize: isSmall ? '0.6rem' : '0.65rem',
+                lineHeight: 1,
+                textAlign: 'center',
+              },
+            }}
+          />
+        </Box>
+        <Box
+          sx={{
+            flex: '1 1 auto',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+            fontSize: isSmall ? '0.75rem' : '0.8rem',
+            ml: 1,
+          }}
+        >
+          {log.message}
+        </Box>
+        {isAdvanced && !isMobile && (
+          <Box
+            sx={{
+              flex: '0 0 100px',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+              textOverflow: 'ellipsis',
+              fontSize: isSmall ? '0.7rem' : '0.75rem',
+              color: theme.palette.text.secondary,
+              ml: 1,
+              textAlign: 'right',
+              pr: 2,
+            }}
+          >
+            {log.source}
+          </Box>
+        )}
+      </Box>
+    )
+  }
+)
+LogRow.displayName = 'LogRow'
 
 export default function LogsPage() {
   const [autoScroll, setAutoScroll] = useState(true)
@@ -53,22 +235,21 @@ export default function LogsPage() {
     source: '',
     message: '',
   })
-  // 日志详情对话框状态
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false)
+  const logQueue = useRef<LogEntry[]>([])
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
-  // 获取日志来源列表
   const { data: sources = [] } = useQuery({
     queryKey: ['log-sources'],
     queryFn: () => logsApi.getSources(),
     refetchInterval: 5000,
   })
 
-  // 获取初始实时日志
   const { data: initialLogs = [] } = useQuery({
     queryKey: ['initial-logs', filters.source],
     queryFn: async () => {
@@ -81,57 +262,50 @@ export default function LogsPage() {
     },
   })
 
-  // 初始化日志数据
   useEffect(() => {
     if (initialLogs.length > 0) {
       setRealtimeLogs(initialLogs)
     }
   }, [initialLogs])
 
-  // 过滤后的日志数据
   const filteredLogs = useMemo(() => {
+    const lowerCaseMessage = filters.message.toLowerCase()
     return realtimeLogs.filter(
       log =>
         (!filters.level || log.level === filters.level) &&
-        (!filters.message || log.message.toLowerCase().includes(filters.message.toLowerCase()))
+        (!lowerCaseMessage || log.message.toLowerCase().includes(lowerCaseMessage))
     )
   }, [realtimeLogs, filters])
 
-  // 自动滚动到底部
   useEffect(() => {
     if (autoScroll && listRef.current && filteredLogs.length > 0) {
-      // 添加一个小延迟确保列表已经完全渲染
       setTimeout(() => {
         listRef.current?.scrollToItem(filteredLogs.length - 1, 'end')
       }, 50)
     }
   }, [filteredLogs, autoScroll])
 
-  // 实时日志订阅
   useEffect(() => {
-    console.log('Starting real-time log subscription...')
     let cleanup: (() => void) | undefined
+    const intervalId = setInterval(() => {
+      if (logQueue.current.length > 0) {
+        const newLogs = [...logQueue.current]
+        logQueue.current = []
+        setRealtimeLogs(prev => [...prev, ...newLogs].slice(-MAX_REALTIME_LOGS))
+      }
+    }, LOG_UPDATE_INTERVAL)
 
     const connect = () => {
       try {
         cleanup = logsApi.streamLogs(
           data => {
-            if (!data) {
-              return
-            }
+            if (!data) return
             try {
               const log = JSON.parse(data) as LogEntry
-              setRealtimeLogs(prev => {
-                const isDuplicate = prev.some(
-                  existingLog =>
-                    existingLog.timestamp === log.timestamp && existingLog.message === log.message
-                )
-                const sourceMatch = !filters.source || log.source === filters.source
-                if (isDuplicate || !sourceMatch) {
-                  return prev
-                }
-                return [...prev, log].slice(-MAX_REALTIME_LOGS)
-              })
+              const sourceMatch = !filters.source || log.source === filters.source
+              if (sourceMatch) {
+                logQueue.current.push(log)
+              }
             } catch (error) {
               console.error('Failed to parse log data:', error)
             }
@@ -151,203 +325,38 @@ export default function LogsPage() {
     connect()
 
     return () => {
-      console.log('Closing real-time log subscription...')
       cleanup?.()
+      clearInterval(intervalId)
     }
   }, [filters.source])
 
-  // 处理下载日志
   const handleDownloadLogs = () => {
+    setDownloadConfirmOpen(true)
+  }
+
+  const confirmDownloadLogs = () => {
     const lines = parseInt(downloadLines) || 1000
     logsApi.downloadLogs({
       lines,
       source: filters.source || undefined,
     })
+    setDownloadConfirmOpen(false)
   }
 
-  // 处理日志点击，打开详情对话框
-  const handleLogClick = (log: LogEntry) => {
+  const handleLogClick = useCallback((log: LogEntry) => {
     setSelectedLog(log)
     setDialogOpen(true)
-  }
+  }, [])
 
-  // 复制日志内容
   const copyLogContent = (log: LogEntry) => {
     const logText = `${log.timestamp} [${log.level}] [${log.source}] ${log.message}`
     navigator.clipboard.writeText(logText).then(
-      () => {
-        console.log('Log copied to clipboard')
-      },
-      err => {
-        console.error('Could not copy log: ', err)
-      }
+      () => console.log('Log copied to clipboard'),
+      err => console.error('Could not copy log: ', err)
     )
   }
 
-  // 表头组件
-  const TableHeader = () => (
-    <Box
-      sx={{
-        display: 'flex',
-        borderBottom: `1px solid ${theme.palette.divider}`,
-        py: 1,
-        px: 2,
-        ...UNIFIED_TABLE_STYLES.header,
-      }}
-    >
-      <Box
-        sx={{
-          flex: isMobile ? '0 0 90px' : '0 0 120px',
-          fontSize: isSmall ? '0.75rem' : '0.8rem',
-        }}
-      >
-        时间
-      </Box>
-      <Box
-        sx={{
-          flex: '0 0 100px', // 固定宽度，确保一致性
-          fontSize: isSmall ? '0.75rem' : '0.8rem',
-          textAlign: 'center', // 居中对齐
-        }}
-      >
-        级别
-      </Box>
-      <Box
-        sx={{
-          flex: '1 1 auto',
-          fontSize: isSmall ? '0.75rem' : '0.8rem',
-          ml: 1,
-        }}
-      >
-        消息
-      </Box>
-      {isAdvanced && !isMobile && (
-        <Box
-          sx={{
-            flex: '0 0 100px',
-            fontSize: isSmall ? '0.75rem' : '0.8rem',
-            ml: 1,
-            textAlign: 'right', // 右对齐，与内容保持一致
-            pr: 2, // 右侧内边距，确保文本不会贴边
-          }}
-        >
-          来源
-        </Box>
-      )}
-    </Box>
-  )
-
-  // 日志行渲染器
-  const LogRow = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const log = filteredLogs[index]
-
-    // 根据日志级别获取样式
-    const severityColor =
-      (LOG_TABLE_STYLES.SEVERITY as Record<string, { backgroundColor: string }>)[log.level]
-        ?.backgroundColor || 'transparent'
-
-    return (
-      <Box
-        style={{ ...style, width: '100%' }}
-        onClick={() => handleLogClick(log)}
-        sx={{
-          cursor: 'pointer',
-          '&:hover': {
-            backgroundColor: LOG_TABLE_STYLES.ROW.HOVER,
-          },
-          borderBottom: `1px solid ${theme.palette.divider}`,
-          display: 'flex',
-          alignItems: 'center',
-          pl: 1,
-          width: '100%',
-          ...UNIFIED_TABLE_STYLES.row,
-        }}
-      >
-        {/* 左侧日志级别条 */}
-        <Box
-          sx={{
-            width: 4,
-            height: ROW_HEIGHT - 2,
-            backgroundColor: severityColor,
-            borderRadius: '2px',
-            mr: 1,
-          }}
-        />
-
-        {/* 时间 */}
-        <Box
-          sx={{
-            flex: isMobile ? '0 0 90px' : '0 0 120px',
-            whiteSpace: 'nowrap',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            fontSize: isSmall ? '0.7rem' : '0.75rem',
-            color: theme.palette.text.secondary,
-          }}
-        >
-          {isMobile ? log.timestamp.split(' ')[1] : log.timestamp}
-        </Box>
-
-        {/* 级别标签 */}
-        <Box
-          sx={{ flex: '0 0 100px', textAlign: 'center', display: 'flex', justifyContent: 'center' }}
-        >
-          {' '}
-          {/* 与表头保持一致 */}
-          <Chip
-            label={log.level}
-            size="small"
-            sx={{
-              ...CHIP_VARIANTS.getLogLevelChip(log.level, isSmall),
-              height: isSmall ? 18 : 20,
-              minWidth: '40px', // 设置最小宽度确保一致性
-              '.MuiChip-label': {
-                px: 1,
-                fontSize: isSmall ? '0.6rem' : '0.65rem',
-                lineHeight: 1,
-                textAlign: 'center', // 确保文本居中
-              },
-            }}
-          />
-        </Box>
-
-        {/* 消息 */}
-        <Box
-          sx={{
-            flex: '1 1 auto',
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-            fontSize: isSmall ? '0.75rem' : '0.8rem',
-            ml: 1,
-          }}
-        >
-          {log.message}
-        </Box>
-
-        {/* 仅在高级模式显示来源 */}
-        {isAdvanced && !isMobile && (
-          <Box
-            sx={{
-              flex: '0 0 100px',
-              overflow: 'hidden',
-              whiteSpace: 'nowrap',
-              textOverflow: 'ellipsis',
-              fontSize: isSmall ? '0.7rem' : '0.75rem',
-              color: theme.palette.text.secondary,
-              ml: 1,
-              textAlign: 'right', // 右对齐，与表头保持一致
-              pr: 2, // 右侧内边距，确保文本不会贴边
-            }}
-          >
-            {log.source}
-          </Box>
-        )}
-      </Box>
-    )
-  }
-
-  // 过滤器内容组件
+  // 拆分并优化的 FilterContent 组件
   const FilterContent = () => (
     <Stack spacing={2} sx={{ p: 2, width: isMobile ? '100%' : 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -384,6 +393,8 @@ export default function LogsPage() {
         options={sources}
         value={filters.source}
         onChange={(_, newValue: string | null) => {
+          setRealtimeLogs([]) // 切换源时清空日志
+          logQueue.current = [] // 并清空队列
           setFilters(prev => ({
             ...prev,
             source: newValue || '',
@@ -401,7 +412,6 @@ export default function LogsPage() {
         fullWidth
       />
 
-      {/* 高级模式开关 */}
       <FormControlLabel
         control={
           <Switch
@@ -413,7 +423,6 @@ export default function LogsPage() {
         label="高级模式"
       />
 
-      {/* 自动滚动开关 */}
       <FormControlLabel
         control={
           <Switch
@@ -425,7 +434,6 @@ export default function LogsPage() {
         label="自动滚动"
       />
 
-      {/* 下载日志组件 */}
       <Typography variant="subtitle2" sx={{ mt: 1 }}>
         日志下载
       </Typography>
@@ -468,23 +476,39 @@ export default function LogsPage() {
     </Stack>
   )
 
+  const renderRow = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const log = filteredLogs[index]
+      if (!log) return null
+      return (
+        <LogRow
+          style={style}
+          log={log}
+          isMobile={isMobile}
+          isSmall={isSmall}
+          isAdvanced={isAdvanced}
+          onLogClick={handleLogClick}
+        />
+      )
+    },
+    [filteredLogs, isMobile, isSmall, isAdvanced, handleLogClick]
+  )
+
   return (
     <Box
       sx={{
         display: 'flex',
         flexDirection: 'column',
-        height: 'calc(100vh - 90px)',
+        height: 'calc(100vh - 64px)',
         p: 2,
       }}
     >
-      {/* 连接状态提示 */}
       {isDisconnected && (
         <Alert severity="warning" sx={{ mb: 1 }}>
           日志流连接已断开，正在尝试重新连接...
         </Alert>
       )}
 
-      {/* 桌面版顶部工具栏 */}
       {!isMobile && (
         <Box
           sx={{
@@ -535,6 +559,8 @@ export default function LogsPage() {
             options={sources}
             value={filters.source}
             onChange={(_, newValue: string | null) => {
+              setRealtimeLogs([]) // 切换源时清空日志
+              logQueue.current = [] // 并清空队列
               setFilters(prev => ({
                 ...prev,
                 source: newValue || '',
@@ -551,7 +577,6 @@ export default function LogsPage() {
             sx={{ flexGrow: 1 }}
           />
 
-          {/* 下载日志组件 */}
           <Box sx={{ display: 'flex', gap: 1 }}>
             <Tooltip title="输入要下载的日志行数">
               <TextField
@@ -581,7 +606,6 @@ export default function LogsPage() {
         </Box>
       )}
 
-      {/* 日志表格 - 使用虚拟滚动 */}
       <Paper
         elevation={3}
         sx={{
@@ -593,7 +617,7 @@ export default function LogsPage() {
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-          <TableHeader />
+          <TableHeader isMobile={isMobile} isSmall={isSmall} isAdvanced={isAdvanced} />
           <Box
             sx={{
               flexGrow: 1,
@@ -614,7 +638,7 @@ export default function LogsPage() {
                     overflowX: 'hidden',
                   }}
                 >
-                  {LogRow}
+                  {renderRow}
                 </List>
               )}
             </AutoSizer>
@@ -622,7 +646,6 @@ export default function LogsPage() {
         </Box>
       </Paper>
 
-      {/* 移动端过滤器抽屉 */}
       {isMobile && (
         <>
           <Drawer
@@ -639,7 +662,6 @@ export default function LogsPage() {
             <FilterContent />
           </Drawer>
 
-          {/* 过滤器按钮 */}
           <Fab
             color="primary"
             aria-label="过滤器"
@@ -657,7 +679,6 @@ export default function LogsPage() {
         </>
       )}
 
-      {/* 日志详情对话框 - 使用通用NekroDialog组件 */}
       <NekroDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
@@ -768,6 +789,33 @@ export default function LogsPage() {
             </Box>
           </Stack>
         )}
+      </NekroDialog>
+
+      <NekroDialog
+        open={downloadConfirmOpen}
+        onClose={() => setDownloadConfirmOpen(false)}
+        title="确认下载日志"
+        maxWidth="sm"
+        dividers
+        actions={
+          <>
+            <Button onClick={() => setDownloadConfirmOpen(false)}>再想想</Button>
+            <Button onClick={confirmDownloadLogs} variant="contained" color="warning">
+              我已知晓风险，继续下载
+            </Button>
+          </>
+        }
+      >
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <strong>请注意！日志文件可能包含敏感信息！</strong>
+        </Alert>
+        <Typography variant="body1" gutterBottom>
+          日志中可能包含您的 API 密钥、用户信息、聊天信息或其他隐私数据。
+        </Typography>
+        <Typography variant="body1">
+          为了您的信息安全，请<b>不要</b>
+          将未经处理的日志文件直接发送给未受信任的对象或上传到公开平台。
+        </Typography>
       </NekroDialog>
     </Box>
   )

@@ -35,7 +35,7 @@ class PromptTemplate(BaseModel):
     _template_name: str = PrivateAttr()
     _macro_name: Optional[str] = PrivateAttr()
 
-    def render(self) -> str:
+    def render(self, env) -> str:
         """渲染模板"""
         # 使用类属性访问模板名和宏名
         template = env.get_template(self.__class__._template_name_str)  # type: ignore # noqa: SLF001

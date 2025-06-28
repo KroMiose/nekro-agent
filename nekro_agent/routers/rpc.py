@@ -14,7 +14,7 @@ from nekro_agent.schemas.http_exception import (
     server_error_exception,
 )
 from nekro_agent.schemas.rpc import RPCRequest
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.plugin.utils import get_sandbox_method_type
@@ -48,7 +48,10 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
     if not method:
         raise not_found_exception
 
-    ctx = AgentCtx(container_key=container_key, from_chat_key=from_chat_key)
+    ctx: AgentCtx = await AgentCtx.create_by_chat_key(
+        chat_key=from_chat_key,
+        container_key=container_key,
+    )
     args = [ctx, *rpc_request.args] if rpc_request.args else [ctx]
     kwargs = rpc_request.kwargs or {}
 

@@ -11,7 +11,9 @@ export enum UserStatus {
 export interface User {
   id: number
   username: string
-  bind_qq: string
+  adapter_key: string
+  platform_userid: string
+  unique_id: string
   perm_level: number
   perm_role: string
   login_time: string
@@ -42,7 +44,8 @@ export interface UserListResponse {
 export interface UserFormData {
   username: string
   password: string
-  bind_qq: string
+  adapter_key: string
+  platform_userid: string
   access_key: string
 }
 

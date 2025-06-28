@@ -22,7 +22,6 @@ import {
   CircularProgress,
   FormControlLabel,
   Checkbox,
-  Snackbar,
   Link,
   useTheme,
   useMediaQuery,
@@ -31,8 +30,6 @@ import {
   Add as AddIcon,
   Search as SearchIcon,
   Sync as SyncIcon,
-  ExpandMore as ExpandMoreIcon,
-  ExpandLess as ExpandLessIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   CloudDownload as CloudDownloadIcon,
@@ -42,12 +39,14 @@ import {
   Tag as TagIcon,
   CloudSync as CloudSyncIcon,
   Close as CloseIcon,
+  InfoOutlined as InfoIcon,
 } from '@mui/icons-material'
 import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
-import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
-import { LAYOUT, CHIP_VARIANTS } from '../../theme/variants'
+
+import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
+import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
 
 // 定义预设编辑表单数据类型
@@ -296,9 +295,32 @@ const PresetEditDialog = ({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-        <DialogTitle>{isNew ? '创建新人设' : '编辑人设'}</DialogTitle>
-        <DialogContent dividers>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        scroll="paper"
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+            overflow: 'hidden',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          {isNew ? '创建新人设' : '编辑人设'}
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
           <Box component="form" noValidate sx={{ mt: 1 }} className="space-y-4" autoComplete="off">
             {preset?.remote_id && preset?.on_shared && (
               <Alert severity="info" sx={{ mb: 2 }}>
@@ -499,28 +521,47 @@ const PresetEditDialog = ({
             </Grid>
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={onClose} disabled={loading}>
             取消
           </Button>
-          <Button onClick={handleSave} color="primary" disabled={loading}>
+          <Button onClick={handleSave} color="primary" disabled={loading} variant="contained">
             {loading ? <CircularProgress size={24} /> : '保存'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 确认解除云端关联的对话框 */}
-      <Dialog open={confirmDialog} onClose={() => setConfirmDialog(false)}>
-        <DialogTitle>解除云端关联确认</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={confirmDialog}
+        onClose={() => setConfirmDialog(false)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          解除云端关联确认
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
             此人设来自云端下载，编辑后将解除与云端的关联，无法再同步最新更新。
           </Alert>
           <Typography>确定要继续编辑并解除云端关联吗？</Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => handleRemoteConfirm(false)}>取消</Button>
-          <Button onClick={() => handleRemoteConfirm(true)} color="primary">
+          <Button onClick={() => handleRemoteConfirm(true)} color="primary" variant="contained">
             确认解除并继续
           </Button>
         </DialogActions>
@@ -584,7 +625,6 @@ const PresetCard = ({
           setDetailData(data)
         } catch (error) {
           console.error('获取人设详情失败', error)
-          enqueueSnackbar('获取人设详情失败', { variant: 'error', autoHideDuration: 5000 })
           showError('获取人设详情失败')
         } finally {
           setLoading(false)
@@ -672,11 +712,8 @@ const PresetCard = ({
       // 移除过程提示
       const response = await presetsApi.syncToCloud(preset.id, isSfw)
       if (response.code === 200) {
-        showSuccess('同步成功')
-        // 显示更详细的成功信息
-        if (response.msg) {
-          showSuccess(response.msg)
-        }
+        // 优先显示服务器返回的详细信息，如果没有则显示通用信息
+        showSuccess(response.msg || '同步成功')
         setShowSyncToCloudDialog(false)
         await onRefreshList()
       } else {
@@ -764,28 +801,21 @@ const PresetCard = ({
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         position: 'relative',
-        transition: LAYOUT.TRANSITION.DEFAULT,
         overflow: 'visible',
         height: isGridLayout ? '100%' : 'auto',
         display: 'flex',
         flexDirection: 'column',
+        transition: 'all 0.2s ease-in-out',
         '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
           transform: 'translateY(-2px)',
+          boxShadow: theme => theme.shadows[8],
         },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
         ...(preset.remote_id
           ? {
               boxShadow: theme =>
                 `0 0 0 1px ${theme.palette.primary.light}30, 0 2px 8px ${theme.palette.primary.light}20`,
-              bgcolor: theme =>
-                theme.palette.mode === 'dark'
-                  ? `rgba(25, 118, 210, 0.03)`
-                  : `rgba(25, 118, 210, 0.02)`,
             }
           : {}),
       }}
@@ -822,11 +852,11 @@ const PresetCard = ({
         />
       )}
 
-      <CardContent sx={{ pt: 3, pb: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <CardContent sx={{ p: 2.5, pb: 1, flex: 1, display: 'flex', flexDirection: 'column' }}>
         <Box
           sx={{
             display: 'flex',
-            gap: 2,
+            gap: 2.5,
             flexDirection: isGridLayout ? 'row' : isMobile && isSmall ? 'column' : 'row',
             height: '100%',
           }}
@@ -834,8 +864,12 @@ const PresetCard = ({
           {/* 左侧头像区域 */}
           <Box
             sx={{
-              width: isGridLayout ? 80 : isMobile && isSmall ? '100%' : { xs: '25%', sm: '16.66%' },
-              height: isGridLayout ? 80 : 'auto',
+              width: isGridLayout
+                ? 100
+                : isMobile && isSmall
+                  ? '100%'
+                  : { xs: '25%', sm: '16.66%' },
+              height: isGridLayout ? 100 : 'auto',
               flexShrink: 0,
               maxWidth: isMobile && isSmall && !isGridLayout ? '160px' : 'none',
               alignSelf: isMobile && isSmall && !isGridLayout ? 'center' : 'flex-start',
@@ -850,7 +884,7 @@ const PresetCard = ({
                 height: isGridLayout ? '100%' : 'auto',
                 aspectRatio: '1/1',
                 borderRadius: 2,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                boxShadow: '0 3px 10px rgba(0,0,0,0.1)',
               }}
               variant="rounded"
             />
@@ -877,7 +911,7 @@ const PresetCard = ({
             >
               {/* 标题 */}
               <Typography
-                variant={isGridLayout ? 'subtitle1' : 'h6'}
+                variant={isGridLayout ? 'h6' : 'h6'}
                 gutterBottom
                 sx={{
                   overflow: 'hidden',
@@ -885,6 +919,9 @@ const PresetCard = ({
                   display: '-webkit-box',
                   WebkitLineClamp: 1,
                   WebkitBoxOrient: 'vertical',
+                  fontWeight: 600,
+                  fontSize: '1.1rem',
+                  lineHeight: 1.4,
                 }}
               >
                 {preset.title}
@@ -898,8 +935,8 @@ const PresetCard = ({
                   flex: '1 0 auto',
                   flexGrow: 1,
                   mb: 1.5,
-                  lineHeight: '1.2',
-                  maxHeight: expanded ? 'none' : isGridLayout ? '2.4em' : '4.5em',
+                  lineHeight: 1.4,
+                  maxHeight: expanded ? 'none' : isGridLayout ? '2.8em' : '4.2em',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   display: '-webkit-box',
@@ -917,10 +954,10 @@ const PresetCard = ({
                 <Box
                   sx={{
                     display: 'flex',
-                    gap: 0.5,
+                    gap: 0.75,
                     flexWrap: 'wrap',
-                    pb: 3,
-                    maxHeight: isGridLayout ? '20px' : 'auto',
+                    my: 1,
+                    maxHeight: isGridLayout ? '24px' : 'auto',
                     overflow: 'hidden',
                   }}
                 >
@@ -931,9 +968,10 @@ const PresetCard = ({
                         label={tag.trim()}
                         size="small"
                         sx={{
-                          ...(theme.palette.mode === 'dark'
-                            ? CHIP_VARIANTS.getCustomColorChip('rgba(255,255,255,0.7)', isSmall)
-                            : CHIP_VARIANTS.getCustomColorChip('rgba(0,0,0,0.7)', isSmall)),
+                          ...CHIP_VARIANTS.base(false),
+                          bgcolor: UI_STYLES.HOVER,
+                          fontWeight: 500,
+                          borderRadius: 1,
                         }}
                       />
                     ))
@@ -976,11 +1014,21 @@ const PresetCard = ({
         </Box>
       </CardContent>
 
-      <CardActions sx={{ justifyContent: 'space-between', pt: 0, mt: 'auto' }}>
+      <CardActions
+        sx={{
+          justifyContent: 'space-between',
+          p: 1.5,
+          mt: 'auto',
+          bgcolor: UI_STYLES.SELECTED,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
         <Button
           size="small"
+          variant="text"
+          startIcon={<InfoIcon />}
           onClick={onExpand}
-          endIcon={expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
           sx={{
             textTransform: 'none',
             fontWeight: 'normal',
@@ -990,7 +1038,7 @@ const PresetCard = ({
             },
           }}
         >
-          {expanded ? '收起' : '展开'}
+          详情
         </Button>
         <Box>
           <Tooltip title="编辑">
@@ -1034,83 +1082,192 @@ const PresetCard = ({
         onClose={onExpand}
         maxWidth="md"
         fullWidth
+        scroll="paper"
         TransitionComponent={Fade}
         transitionDuration={{ enter: 300, exit: 200 }}
         PaperProps={{
           elevation: 8,
           sx: {
-            borderRadius: BORDER_RADIUS.DEFAULT,
-            background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-            backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-            border: UI_STYLES.BORDERS.CARD.DEFAULT,
+            ...CARD_VARIANTS.default.styles,
             overflow: 'hidden',
             maxWidth: isMobile ? '95%' : '800px',
             maxHeight: '80vh',
           },
         }}
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, p: 2 }}>
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <Avatar
             src={preset.avatar}
             sx={{ width: 36, height: 36, borderRadius: 1 }}
             variant="rounded"
           />
           <Typography variant="h6" component="div" sx={{ flex: 1 }}>
-            {preset.title}
+            人设详情：{preset.title}
           </Typography>
           <IconButton size="small" onClick={onExpand} edge="end">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
-        <Divider />
-        <DialogContent>
+        <DialogContent dividers sx={{ p: 3 }}>
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
               <CircularProgress />
             </Box>
           ) : detailData ? (
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" gutterBottom>
+            <Grid container spacing={3}>
+              <Grid item xs={12} sm={4} md={3}>
+                <Box
+                  sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2.5 }}
+                >
+                  <Avatar
+                    src={preset.avatar}
+                    alt={preset.name}
+                    variant="rounded"
+                    sx={{
+                      width: '100%',
+                      height: 'auto',
+                      aspectRatio: '1/1',
+                      borderRadius: 2,
+                      boxShadow: theme => theme.shadows[3],
+                    }}
+                  />
+                  <Box sx={{ width: '100%' }}>
+                    <Typography variant="subtitle2" gutterBottom fontWeight={600}>
+                      标签:
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
+                      {tagsArray.length > 0 ? (
+                        tagsArray.map((tag, index) => (
+                          <Chip
+                            key={index}
+                            label={tag.trim()}
+                            size="small"
+                            sx={{
+                              ...CHIP_VARIANTS.base(false),
+                              margin: '2px',
+                              bgcolor: theme =>
+                                theme.palette.mode === 'dark'
+                                  ? 'rgba(255,255,255,0.08)'
+                                  : 'rgba(0,0,0,0.05)',
+                            }}
+                          />
+                        ))
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">
+                          无标签
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={8} md={9}>
+                <Typography variant="h5" gutterBottom fontWeight={600}>
+                  {preset.title}
+                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                    作者: {preset.author || '未知'}
+                  </Typography>
+                  <Typography
+                    variant="body1"
+                    paragraph
+                    sx={{
+                      backgroundColor: theme =>
+                        theme.palette.mode === 'dark'
+                          ? 'rgba(255,255,255,0.03)'
+                          : 'rgba(0,0,0,0.02)',
+                      p: 2,
+                      borderRadius: 1,
+                      borderLeft: '4px solid',
+                      borderColor: 'primary.main',
+                      mt: 1,
+                    }}
+                  >
+                    {preset.description || '无描述'}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                        更新时间:
+                      </Typography>
+                      <Typography variant="body2">
+                        {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+                <Divider sx={{ mb: 2.5 }} />
+                <Typography variant="h6" gutterBottom fontWeight={600}>
                   人设内容:
                 </Typography>
                 <Typography
                   variant="body2"
                   sx={{
                     whiteSpace: 'pre-wrap',
-                    bgcolor: 'background.paper',
-                    p: 2,
-                    borderRadius: 1,
+                    bgcolor: theme =>
+                      theme.palette.mode === 'dark' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.03)',
+                    p: 2.5,
+                    borderRadius: 2,
                     border: '1px solid',
                     borderColor: 'divider',
-                    maxHeight: '50vh',
+                    maxHeight: '350px',
                     overflow: 'auto',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    lineHeight: 1.6,
                   }}
                 >
                   {detailData.content || '无内容'}
                 </Typography>
-              </Grid>
-              <Grid item xs={12}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    作者: {preset.author || '未知'}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    最近更新: {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
-                  </Typography>
-                </Box>
               </Grid>
             </Grid>
           ) : (
             <Typography color="text.secondary">加载失败</Typography>
           )}
         </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button variant="contained" onClick={onExpand} color="primary">
+            关闭
+          </Button>
+        </DialogActions>
       </Dialog>
 
       {/* 共享对话框 */}
-      <Dialog open={showShareDialog} onClose={() => setShowShareDialog(false)}>
-        <DialogTitle>共享人设到云端</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={showShareDialog}
+        onClose={() => setShowShareDialog(false)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          共享人设到云端
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Typography paragraph>
             确定要将此人设共享到云端平台吗？共享后将可被其他实例下载使用。
           </Typography>
@@ -1145,13 +1302,14 @@ const PresetCard = ({
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
             取消
           </Button>
           <Button
             onClick={handleShareToCloud}
             color="primary"
+            variant="contained"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : '共享'}
@@ -1160,28 +1318,71 @@ const PresetCard = ({
       </Dialog>
 
       {/* 撤回共享对话框 */}
-      <Dialog open={showUnshareDialog} onClose={() => setShowUnshareDialog(false)}>
-        <DialogTitle>撤回共享</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={showUnshareDialog}
+        onClose={() => setShowUnshareDialog(false)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          撤回共享
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
             撤回共享将从云端删除此人设，其他实例可能无法再下载此人设。
           </Alert>
           <Typography>确定要撤回共享吗？</Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowUnshareDialog(false)} disabled={shareLoading}>
             取消
           </Button>
-          <Button onClick={handleUnshare} color="warning" disabled={shareLoading}>
+          <Button
+            onClick={handleUnshare}
+            color="warning"
+            variant="contained"
+            disabled={shareLoading}
+          >
             {shareLoading ? <CircularProgress size={24} /> : '撤回共享'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 同步云端对话框 */}
-      <Dialog open={showSyncToCloudDialog} onClose={() => setShowSyncToCloudDialog(false)}>
-        <DialogTitle>同步更新到云端</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={showSyncToCloudDialog}
+        onClose={() => setShowSyncToCloudDialog(false)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          同步更新到云端
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Typography paragraph>
             确定要将本地修改同步到云端平台吗？这将覆盖云端的当前版本。
           </Typography>
@@ -1216,13 +1417,14 @@ const PresetCard = ({
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
             取消
           </Button>
           <Button
             onClick={handleSyncToCloud}
             color="primary"
+            variant="contained"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
             {shareLoading ? <CircularProgress size={24} /> : '同步'}
@@ -1245,10 +1447,6 @@ export default function PresetsPage() {
   const [editingPreset, setEditingPreset] = useState<PresetDetail | undefined>(undefined)
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
   const { enqueueSnackbar } = useSnackbar()
-  const [errorMessage, setErrorMessage] = useState<{
-    type: 'success' | 'error' | 'info' | 'warning'
-    content: string
-  } | null>(null)
   const [refreshingShared, setRefreshingShared] = useState(false)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -1257,19 +1455,23 @@ export default function PresetsPage() {
   const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'))
   const isExtraLargeScreen = useMediaQuery(theme.breakpoints.up('xl'))
 
-  // 添加全局错误处理函数
-  const showError = useCallback((message: string) => {
-    console.error(message)
-    setErrorMessage({ type: 'error', content: message })
-    setTimeout(() => setErrorMessage(null), 5000) // 5秒后自动关闭
-  }, [])
+  // 统一使用 notistack 的通知系统
+  const showError = useCallback(
+    (message: string) => {
+      console.error(message)
+      enqueueSnackbar(message, { variant: 'error', autoHideDuration: 5000 })
+    },
+    [enqueueSnackbar]
+  )
 
-  // 添加全局成功处理函数
-  const showSuccess = useCallback((message: string) => {
-    console.log(message)
-    setErrorMessage({ type: 'success', content: message })
-    setTimeout(() => setErrorMessage(null), 2000) // 2秒后自动关闭
-  }, [])
+  // 统一使用 notistack 的通知系统
+  const showSuccess = useCallback(
+    (message: string) => {
+      console.log(message)
+      enqueueSnackbar(message, { variant: 'success', autoHideDuration: 3000 })
+    },
+    [enqueueSnackbar]
+  )
 
   const fetchData = useCallback(async () => {
     try {
@@ -1282,12 +1484,11 @@ export default function PresetsPage() {
       setPresets(data.items)
     } catch (error) {
       console.error('获取人设列表失败', error)
-      enqueueSnackbar('获取人设列表失败', { variant: 'error', autoHideDuration: 5000 })
       showError('获取人设列表失败')
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, search, enqueueSnackbar, showError])
+  }, [page, pageSize, search, showError])
 
   useEffect(() => {
     fetchData()
@@ -1305,14 +1506,13 @@ export default function PresetsPage() {
 
   const handleEditClick = async (preset: Preset) => {
     try {
-      enqueueSnackbar('正在加载人设详情...', { variant: 'info', autoHideDuration: 2000 })
+      showSuccess('正在加载人设详情...')
       // 加载详细数据
       const detailData = await presetsApi.getDetail(preset.id)
       setEditingPreset(detailData)
       setEditDialog(true)
     } catch (error) {
       console.error('获取人设详情失败', error)
-      enqueueSnackbar('获取人设详情失败', { variant: 'error', autoHideDuration: 5000 })
       showError('获取人设详情失败')
     }
   }
@@ -1322,21 +1522,20 @@ export default function PresetsPage() {
     try {
       if (editingPreset) {
         console.log('更新现有人设:', editingPreset.id)
-        enqueueSnackbar('正在更新人设...', { variant: 'info', autoHideDuration: 2000 })
+        showSuccess('正在更新人设...')
         await presetsApi.update(editingPreset.id, data)
-        enqueueSnackbar('更新成功', { variant: 'success', autoHideDuration: 3000 })
+        showSuccess('更新成功')
       } else {
         console.log('创建新人设')
-        enqueueSnackbar('正在创建人设...', { variant: 'info', autoHideDuration: 2000 })
+        showSuccess('正在创建人设...')
         const result = await presetsApi.create(data)
         console.log('创建人设API响应:', result)
-        enqueueSnackbar('创建成功', { variant: 'success', autoHideDuration: 3000 })
+        showSuccess('创建成功')
       }
       fetchData()
     } catch (error) {
       console.error('保存失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`保存失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
       showError(`保存失败: ${errorMessage}`)
       throw error // 传递错误以便上层组件处理
     }
@@ -1350,9 +1549,9 @@ export default function PresetsPage() {
     if (confirmDelete === null) return
 
     try {
-      enqueueSnackbar('正在删除人设...', { variant: 'info', autoHideDuration: 2000 })
+      showSuccess('正在删除人设...')
       await presetsApi.delete(confirmDelete)
-      enqueueSnackbar('删除成功', { variant: 'success', autoHideDuration: 3000 })
+      showSuccess('删除成功')
       fetchData()
       if (expandedId === confirmDelete) {
         setExpandedId(null)
@@ -1360,7 +1559,6 @@ export default function PresetsPage() {
     } catch (error) {
       console.error('删除失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`删除失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
       showError(`删除失败: ${errorMessage}`)
     } finally {
       setConfirmDelete(null)
@@ -1371,10 +1569,8 @@ export default function PresetsPage() {
     try {
       const response = await presetsApi.sync(id)
       if (response.code === 200) {
-        showSuccess('同步成功')
-        if (response.msg) {
-          showSuccess(response.msg)
-        }
+        // 优先显示服务器返回的详细信息，如果没有则显示通用成功信息
+        showSuccess(response.msg || '同步成功')
         // 强制刷新数据
         await fetchData()
         // 如果当前有展开的详情，也需要刷新
@@ -1399,29 +1595,23 @@ export default function PresetsPage() {
   const handleRefreshSharedStatus = async () => {
     try {
       setRefreshingShared(true)
-      enqueueSnackbar('正在刷新共享状态...', { variant: 'info', autoHideDuration: 2000 })
+      showSuccess('正在刷新共享状态...')
       const response = await presetsApi.refreshSharedStatus()
       if (response.code === 200) {
-        enqueueSnackbar(response.msg || '刷新共享状态成功', {
-          variant: 'success',
-          autoHideDuration: 3000,
-        })
+        showSuccess(response.msg || '刷新共享状态成功')
         if (response.data) {
-          enqueueSnackbar(
-            `更新了${response.data.updated_count}个人设的共享状态，云端共有${response.data.total_cloud_presets}个人设`,
-            { variant: 'info', autoHideDuration: 5000 }
+          showSuccess(
+            `更新了${response.data.updated_count}个人设的共享状态，云端共有${response.data.total_cloud_presets}个人设`
           )
         }
         // 刷新人设列表
         await fetchData()
       } else {
-        enqueueSnackbar(`刷新失败: ${response.msg}`, { variant: 'error', autoHideDuration: 10000 })
         showError(`刷新失败: ${response.msg}`)
       }
     } catch (error) {
       console.error('刷新共享状态失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      enqueueSnackbar(`刷新失败: ${errorMessage}`, { variant: 'error', autoHideDuration: 10000 })
       showError(`刷新失败: ${errorMessage}`)
     } finally {
       setRefreshingShared(false)
@@ -1458,7 +1648,7 @@ export default function PresetsPage() {
       <Box className="flex justify-between items-center mb-4 flex-wrap gap-2">
         <Box component="form" onSubmit={handleSearch} className="flex" autoComplete="off">
           <TextField
-            size={isSmall ? 'small' : 'medium'}
+            size="small"
             placeholder="搜索人设"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -1560,35 +1750,37 @@ export default function PresetsPage() {
       />
 
       {/* 删除确认对话框 */}
-      <Dialog open={confirmDelete !== null} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>确认删除</DialogTitle>
-        <DialogContent>
+      <Dialog
+        open={confirmDelete !== null}
+        onClose={() => setConfirmDelete(null)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          确认删除
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
           <Typography>确定要删除这个人设吗？此操作不可恢复。</Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setConfirmDelete(null)}>取消</Button>
-          <Button onClick={handleDeleteConfirm} color="error">
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             确认删除
           </Button>
         </DialogActions>
       </Dialog>
-
-      {/* 全局错误提示 */}
-      <Snackbar
-        open={!!errorMessage}
-        autoHideDuration={5000}
-        onClose={() => setErrorMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setErrorMessage(null)}
-          severity={errorMessage?.type || 'error'}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {errorMessage?.content}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

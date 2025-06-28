@@ -23,7 +23,8 @@ import {
 } from 'recharts'
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns'
 import { TrendDataPoint } from '../../../services/api/dashboard'
-import { UI_STYLES, BORDER_RADIUS, metricColors, metricNames } from '../../../theme/themeConfig'
+import { metricColors, metricNames } from '../../../theme/themeConfig'
+import { CARD_VARIANTS } from '../../../theme/variants'
 
 interface TrendsChartProps {
   title: string
@@ -184,16 +185,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
   return (
     <Card
       className="w-full h-full"
-      sx={{
-        transition: UI_STYLES.CARD_LAYOUT.TRANSITION,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: UI_STYLES.CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
-      }}
+      sx={CARD_VARIANTS.default.styles}
     >
       <CardContent className="h-full">
         <Typography variant="h6" gutterBottom color="text.primary">

@@ -4,8 +4,6 @@ import {
   TextField,
   Button,
   Typography,
-  Alert,
-  Snackbar,
   Stack,
   Card,
   CardContent,
@@ -13,14 +11,19 @@ import {
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '../../services/api/auth'
+import {
+  CARD_VARIANTS,
+  INPUT_VARIANTS,
+  BUTTON_VARIANTS,
+  BORDER_RADIUS,
+} from '../../theme/variants'
+import { useNotification } from '../../hooks/useNotification'
 
 export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; content: string } | null>(
-    null
-  )
   const [loading, setLoading] = useState(false)
+  const notification = useNotification()
 
   // 获取用户信息
   const { data: userInfo } = useQuery({
@@ -31,12 +34,12 @@ export default function ProfilePage() {
   // 处理修改密码
   const handleChangePassword = async () => {
     if (!newPassword || !confirmPassword) {
-      setMessage({ type: 'error', content: '请填写所有密码字段' })
+      notification.error('请填写所有密码字段')
       return
     }
 
     if (newPassword !== confirmPassword) {
-      setMessage({ type: 'error', content: '新密码和确认密码不匹配' })
+      notification.error('新密码和确认密码不匹配')
       return
     }
 
@@ -45,15 +48,15 @@ export default function ProfilePage() {
       await authApi.updatePassword({
         password: newPassword,
       })
-      setMessage({ type: 'success', content: '密码修改成功' })
+      notification.success('密码修改成功')
       // 清空输入框
       setNewPassword('')
       setConfirmPassword('')
     } catch (error) {
       if (error instanceof Error) {
-        setMessage({ type: 'error', content: error.message })
+        notification.error(error.message)
       } else {
-        setMessage({ type: 'error', content: '密码修改失败' })
+        notification.error('密码修改失败')
       }
     } finally {
       setLoading(false)
@@ -63,7 +66,7 @@ export default function ProfilePage() {
   return (
     <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
       {/* 用户信息卡片 */}
-      <Card sx={{ mb: 4 }}>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE, mb: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             个人信息
@@ -93,7 +96,7 @@ export default function ProfilePage() {
       </Card>
 
       {/* 修改密码卡片 */}
-      <Card>
+      <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
             修改密码
@@ -106,6 +109,7 @@ export default function ProfilePage() {
               label="新密码"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
+              sx={INPUT_VARIANTS.default.styles}
             />
             <TextField
               fullWidth
@@ -113,34 +117,19 @@ export default function ProfilePage() {
               label="确认新密码"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+              sx={INPUT_VARIANTS.default.styles}
             />
             <Button
               variant="contained"
               onClick={handleChangePassword}
               disabled={loading || !newPassword || !confirmPassword}
+              sx={BUTTON_VARIANTS.primary.styles}
             >
               {loading ? '提交中...' : '修改密码'}
             </Button>
           </Stack>
         </CardContent>
       </Card>
-
-      {/* 消息提示 */}
-      <Snackbar
-        open={!!message}
-        autoHideDuration={3000}
-        onClose={() => setMessage(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setMessage(null)}
-          severity={message?.type || 'info'}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {message?.content}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

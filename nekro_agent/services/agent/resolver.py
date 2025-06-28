@@ -93,32 +93,34 @@ def fix_raw_response(raw_response: str) -> str:
     """修复原始响应"""
     # logger.debug(f"Raw response: {raw_response}")
     # 修正基本 at 格式
-    raw_response = raw_response.replace("[qq:", "[@qq:")
-    raw_response = raw_response.replace("@[qq:", "[@qq:")
-    # 修正 [@qq:123456] -> [@qq:123456@]
-    raw_response = re.sub(r"\[@qq:(\d+)\]", r"[@qq:\1@]", raw_response)
-    # 修正 [@qq:123456;nickname:Abc] -> [@qq:123456@]
-    raw_response = re.sub(r"\[@qq:(\d+);nickname[\=\:](.+)\]", r"[@qq:\1@]", raw_response)
-    # 修正 [@123456] -> [@qq:123456@]
-    raw_response = re.sub(r"\[@(\d+)\]", r"[@qq:\1@]", raw_response)
-    # 修正 (@qq:123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@qq:(\d+)@\)", r"[@qq:\1@]", raw_response)
-    # 修正 (@qq:123456) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@qq:(\d+)\)", r"[@qq:\1@]", raw_response)
-    # 修正 (@123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"\( ?@(\d+)@ ?\)", r"[@qq:\1@]", raw_response)
-    # 修正  <7e56b348 | At:[@qq:xxx@]> -> [@qq:xxx@]
-    raw_response = re.sub(r"<\w{8} ?\| At:\[@qq:(\d+)@\]>", r"[@qq:\1@]", raw_response)
-    # 修正 (@[@qq:123456@]) -> [@qq:123456@]
-    raw_response = re.sub(r"\(@\[@qq:(\d+)@\]\)", r"[@qq:\1@]", raw_response)
-    # 修正 <@123456> -> [@qq:123456@]
-    raw_response = re.sub(r"<@(\d+)>", r"[@qq:\1@]", raw_response)
-    # 修正 @123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"@(\d+)@\)", r"[@qq:\1@]", raw_response)
-    # 修正 (@123456) -> [@qq:123456@]
-    raw_response = re.sub(r"\( ?@(\d+) ?\)", r"[@qq:\1@]", raw_response)
-    # 修正 @123456@) -> [@qq:123456@]
-    raw_response = re.sub(r"@(\d+)@ ?\)", r"[@qq:\1@]", raw_response)
+    raw_response = raw_response.replace("[id:", "[@id:")
+    raw_response = raw_response.replace("@[id:", "[@id:")
+    # 修正 [@id:123456] -> [@id:123456@]
+    raw_response = re.sub(r"\[@id:(\d+)\]", r"[@id:\1@]", raw_response)
+    # 修正 [@id:123456;nickname:Abc] -> [@id:123456@]
+    raw_response = re.sub(r"\[@id:(\d+);nickname[\=\:](.+)\]", r"[@id:\1@]", raw_response)
+    # 修正 (@id:123456;nickname:Abc) -> [@id:123456@]
+    raw_response = re.sub(r"\(@id:(\d+);nickname[\=\:](.+)\)", r"[@id:\1@]", raw_response)
+    # 修正 [@123456] -> [@id:123456@]
+    raw_response = re.sub(r"\[@(\d+)\]", r"[@id:\1@]", raw_response)
+    # 修正 (@id:123456@) -> [@id:123456@]
+    raw_response = re.sub(r"\(@id:(\d+)@\)", r"[@id:\1@]", raw_response)
+    # 修正 (@id:123456) -> [@id:123456@]
+    raw_response = re.sub(r"\(@id:(\d+)\)", r"[@id:\1@]", raw_response)
+    # 修正 (@123456@) -> [@id:123456@]
+    raw_response = re.sub(r"\( ?@(\d+)@ ?\)", r"[@id:\1@]", raw_response)
+    # 修正  <7e56b348 | At:[@id:xxx@]> -> [@id:xxx@]
+    raw_response = re.sub(r"<\w{8} ?\| At:\[@id:(\d+)@\]>", r"[@id:\1@]", raw_response)
+    # 修正 (@[@id:123456@]) -> [@id:123456@]
+    raw_response = re.sub(r"\(@\[@id:(\d+)@\]\)", r"[@id:\1@]", raw_response)
+    # 修正 <@123456> -> [@id:123456@]
+    raw_response = re.sub(r"<@(\d+)>", r"[@id:\1@]", raw_response)
+    # 修正 @123456@) -> [@id:123456@]
+    raw_response = re.sub(r"@(\d+)@\)", r"[@id:\1@]", raw_response)
+    # 修正 (@123456) -> [@id:123456@]
+    raw_response = re.sub(r"\( ?@(\d+) ?\)", r"[@id:\1@]", raw_response)
+    # 修正 @123456@) -> [@id:123456@]
+    raw_response = re.sub(r"@(\d+)@ ?\)", r"[@id:\1@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"

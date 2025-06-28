@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Awaitable, Callable, Dict, List, Optional
 
 from nekro_agent.core import logger
-from nekro_agent.services.message.message_service import message_service
+from nekro_agent.services.message_service import message_service
 
 
 class TimerTask:

@@ -1,9 +1,11 @@
-from datetime import datetime
-from typing import List, Optional
+import json
+from pathlib import Path
+from typing import Optional
 
-from fastapi import APIRouter, Depends
-from tortoise.functions import Count
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import JSONResponse
 
+from nekro_agent.core.os_env import PROMPT_LOG_DIR
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.message import Ret
@@ -53,11 +55,47 @@ async def get_sandbox_logs(
                     "generation_time_ms": log.generation_time_ms,
                     "total_time_ms": log.total_time_ms,
                     "use_model": log.use_model,
+                    "extra_data": log.extra_data,
                 }
                 for log in logs
             ],
         },
     )
+
+
+@router.get("/log-content", summary="获取沙盒执行日志内容")
+@require_role(Role.Admin)
+async def get_sandbox_log_content(
+    log_path: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> JSONResponse:
+    """根据路径获取沙盒执行日志的详细内容"""
+    # 安全性检查：确保文件路径在允许的日志目录内
+    allowed_dir = Path(PROMPT_LOG_DIR).parent.resolve()
+    target_path = Path(log_path).resolve()
+
+    if not target_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Log file not found.")
+
+    try:
+        # 检查 target_path 是否在 allowed_dir 之下
+        target_path.relative_to(allowed_dir)
+    except ValueError as e:
+        # 如果不在，说明是路径穿越攻击
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access to this path is forbidden.",
+        ) from e
+
+    try:
+        log_content = target_path.read_text(encoding="utf-8")
+        log_content = json.loads(log_content)
+        return JSONResponse(content=log_content)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read or parse log file: {e}",
+        ) from e
 
 
 @router.get("/stats", summary="获取沙盒执行统计")

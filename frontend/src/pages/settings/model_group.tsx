@@ -48,7 +48,8 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { configApi, ModelGroupConfig } from '../../services/api/config'
+import { ModelGroupConfig } from '../../services/api/config'
+import { unifiedConfigApi } from '../../services/api/unified-config'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 interface EditDialogProps {
@@ -98,7 +99,7 @@ function EditDialog({
   // 获取模型类型列表
   const { data: modelTypes = [] } = useQuery({
     queryKey: ['model-types'],
-    queryFn: () => configApi.getModelTypes(),
+    queryFn: () => unifiedConfigApi.getModelTypes(),
   })
 
   // 获取模型类型的图标
@@ -535,13 +536,13 @@ export default function ModelGroupsPage() {
 
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
-    queryFn: () => configApi.getModelGroups(),
+    queryFn: () => unifiedConfigApi.getModelGroups(),
   })
 
   // 获取模型类型列表，用于显示模型类型名称
   const { data: modelTypes = [] } = useQuery({
     queryKey: ['model-types'],
-    queryFn: () => configApi.getModelTypes(),
+    queryFn: () => unifiedConfigApi.getModelTypes(),
   })
 
   // 获取模型类型的显示名称
@@ -626,7 +627,7 @@ export default function ModelGroupsPage() {
 
   const handleDelete = async (name: string) => {
     try {
-      await configApi.deleteModelGroup(name)
+      await unifiedConfigApi.deleteModelGroup(name)
       setMessage(`模型组 "${name}" 已删除！`)
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
       setDeleteDialogOpen(false)
@@ -649,11 +650,11 @@ export default function ModelGroupsPage() {
     // 检查新模型组名称是否已存在
     if (modelGroups[groupName] && !editingGroup.isCopy && editingGroup.name === groupName) {
       // 如果是编辑已有模型组，允许相同名称
-      await configApi.updateModelGroup(groupName, config)
+      await unifiedConfigApi.updateModelGroup(groupName, config)
       setMessage('保存成功～ (=^･ω･^=)')
     } else if (!modelGroups[groupName]) {
       // 如果是新建或复制模型组，名称必须不存在
-      await configApi.updateModelGroup(groupName, config)
+      await unifiedConfigApi.updateModelGroup(groupName, config)
       setMessage(
         editingGroup.isCopy ? `模型组 "${groupName}" 复制成功～ (≧ω≦)ノ` : '保存成功～ (=^･ω･^=)'
       )
@@ -697,16 +698,7 @@ export default function ModelGroupsPage() {
           gap: 1,
         }}
       >
-        <Alert
-          severity="info"
-          className={isMobile ? 'w-full' : 'mr-4'}
-          sx={{
-            py: isSmall ? 0.5 : 1,
-            '& .MuiAlert-message': {
-              fontSize: isSmall ? '0.75rem' : 'inherit',
-            },
-          }}
-        >
+        <Alert severity="info">
           需要 API 密钥？可访问{' '}
           <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
             Nekro 合作中转
@@ -737,14 +729,14 @@ export default function ModelGroupsPage() {
           flexDirection: 'column',
           minHeight: 0,
           overflow: 'hidden',
-          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>)
+          ...(UNIFIED_TABLE_STYLES.paper as SxProps<Theme>),
         }}
       >
         <TableContainer
           sx={{
             flex: 1,
             overflow: 'auto',
-            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>)
+            ...(UNIFIED_TABLE_STYLES.scrollbar as SxProps<Theme>),
           }}
         >
           <Table
@@ -754,64 +746,84 @@ export default function ModelGroupsPage() {
           >
             <TableHead>
               <TableRow>
-                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) 
-                }}>
+                <TableCell
+                  width={isMobile ? '15%' : '12%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   组名
                 </TableCell>
-                <TableCell width={isMobile ? '15%' : '12%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '18%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   模型名称
                 </TableCell>
-                <TableCell width={isMobile ? '15%' : '10%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '15%' : '10%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   模型类型
                 </TableCell>
                 {!isSmall && (
-                  <TableCell width="20%" sx={{ 
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    width="18%"
+                    sx={{
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
                     API地址
                   </TableCell>
                 )}
                 {!isMobile && (
-                  <TableCell width="13%" sx={{ 
-                    py: isSmall ? 1 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    width="15%"
+                    sx={{
+                      py: isSmall ? 1 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                    }}
+                  >
                     代理地址
                   </TableCell>
                 )}
-                <TableCell width={isMobile ? '25%' : '18%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '23%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   功能
                 </TableCell>
-                <TableCell width={isMobile ? '30%' : '15%'} sx={{ 
-                  py: isSmall ? 1 : 1.5,
-                  ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>)
-                }}>
+                <TableCell
+                  width={isMobile ? '30%' : '15%'}
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
                   操作
                 </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {Object.entries(modelGroups).map(([name, config]) => (
-                <TableRow 
-                  key={name}
-                  sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}
-                >
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                <TableRow key={name} sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Typography
                       className={name === 'default' ? 'font-bold' : ''}
                       variant="subtitle2"
@@ -820,27 +832,30 @@ export default function ModelGroupsPage() {
                       {name}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Typography
                       variant="body2"
                       sx={{
                         fontSize: isSmall ? '0.75rem' : 'inherit',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: isMobile ? 100 : 150,
+                        maxWidth: isMobile ? 120 : 180,
                       }}
                     >
                       {config.CHAT_MODEL}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Chip
                       icon={getModelTypeIcon(config.MODEL_TYPE)}
                       label={getModelTypeLabel(config.MODEL_TYPE)}
@@ -857,18 +872,22 @@ export default function ModelGroupsPage() {
                     />
                   </TableCell>
                   {!isSmall && (
-                    <TableCell sx={{ 
-                      py: isSmall ? 0.75 : 1.5,
-                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                    }}>
+                    <TableCell
+                      sx={{
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                      }}
+                    >
                       <BlurredText>{config.BASE_URL}</BlurredText>
                     </TableCell>
                   )}
                   {!isMobile && (
-                    <TableCell sx={{ 
-                      py: isSmall ? 0.75 : 1.5,
-                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                    }}>
+                    <TableCell
+                      sx={{
+                        py: isSmall ? 0.75 : 1.5,
+                        ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                      }}
+                    >
                       <Typography
                         variant="body2"
                         sx={{
@@ -882,10 +901,12 @@ export default function ModelGroupsPage() {
                       </Typography>
                     </TableCell>
                   )}
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Stack direction="row" spacing={0.5} flexWrap={isSmall ? 'wrap' : 'nowrap'}>
                       <Tooltip title={config.ENABLE_VISION ? '支持视觉功能' : '不支持视觉功能'}>
                         <Chip
@@ -929,10 +950,12 @@ export default function ModelGroupsPage() {
                       </Tooltip>
                     </Stack>
                   </TableCell>
-                  <TableCell sx={{ 
-                    py: isSmall ? 0.75 : 1.5,
-                    ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>)
-                  }}>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
                     <Stack
                       direction="row"
                       spacing={0.5}

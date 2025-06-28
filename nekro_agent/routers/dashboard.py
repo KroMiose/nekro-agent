@@ -12,6 +12,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.schemas.message import Ret
 from nekro_agent.services.user.deps import get_current_active_user
 
@@ -164,7 +165,7 @@ async def get_ranking(
     if ranking_type == "users":
         execs = await DBExecCode.filter(
             create_time__gte=start_time,
-            trigger_user_id__not_in=[0, -1],  # 过滤掉系统触发的执行
+            trigger_user_id__not_in=["0", "-1", ""],  # 过滤掉系统触发的执行
         ).all()
 
         user_counts = {}
@@ -345,8 +346,9 @@ async def get_distributions(
     message_type_data = []
 
     if total_messages > 0:
-        group_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type="group").count()
-        private_count = total_messages - group_count
+        group_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type=ChatType.GROUP).count()
+        private_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type=ChatType.PRIVATE).count()
+        unknown_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type=ChatType.UNKNOWN).count()
 
         message_type_data = [
             {
@@ -358,6 +360,11 @@ async def get_distributions(
                 "label": "私聊消息",
                 "value": private_count,
                 "percentage": round(private_count / total_messages * 100, 2),
+            },
+            {
+                "label": "未知来源",
+                "value": unknown_count,
+                "percentage": round(unknown_count / total_messages * 100, 2),
             },
         ]
 

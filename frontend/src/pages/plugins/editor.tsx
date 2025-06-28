@@ -854,9 +854,10 @@ export default function PluginsEditorPage() {
   return (
     <Box
       sx={{
-        height: 'calc(100vh - 90px)',
+        height: 'calc(100vh - 64px)',
         display: 'flex',
         flexDirection: 'column',
+        p: 2,
       }}
     >
       {/* 移动设备顶部导航栏 */}
@@ -1141,7 +1142,7 @@ export default function PluginsEditorPage() {
               flex: 2,
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
+              gap: 1,
               p: 2,
               minWidth: 0,
             }}
@@ -1331,8 +1332,8 @@ export default function PluginsEditorPage() {
               flexDirection: 'column',
               gap: 2,
               p: 2,
-              minWidth: 0,
-              maxWidth: '420px',
+              minWidth: '430px',
+              maxWidth: '460px',
               overflow: 'hidden',
             }}
           >

@@ -1,3 +1,5 @@
+import hashlib
+import uuid
 from enum import Enum
 from pathlib import Path
 from typing import Optional
@@ -14,7 +16,7 @@ class PathLocation(Enum):
     SHARED = "shared"
 
 
-def detect_path_location(path: Path) -> Optional[PathLocation]:
+def _detect_path_location(path: Path) -> Optional[PathLocation]:
     """
     检测路径所属位置
 
@@ -64,17 +66,17 @@ def convert_to_host_path(
 
     Examples:
         >>> # 转换绝对路径
-        >>> convert_to_host_path(Path("/app/uploads/test.txt"), "group_123456")
-        Path("/data/uploads/group_123456/test.txt")
+        >>> convert_to_host_path(Path("/app/uploads/test.txt"), chat_key)
+        Path("/data/uploads/nonebot-group_123456/test.txt")
 
         >>> # 转换相对路径
-        >>> convert_to_host_path(Path("./uploads/test.txt"), "group_123456")
-        Path("/data/uploads/group_123456/test.txt")
+        >>> convert_to_host_path(Path("./uploads/test.txt"), chat_key)
+        Path("/data/uploads/nonebot-group_123456/test.txt")
 
         >>> # 转换 shared 路径
         >>> convert_to_host_path(
         ...     Path("/app/shared/test.txt"),
-        ...     "group_123456",
+        ...     chat_key,
         ...     container_key="container_789"
         ... )
         Path("/data/shared/container_789/test.txt")
@@ -95,7 +97,7 @@ def convert_to_host_path(
     clean_path = Path(*sandbox_path.parts)
 
     # 检测路径位置
-    location = detect_path_location(clean_path)
+    location = _detect_path_location(clean_path)
     if not location:
         logger.warning(f"Unable to detect path location for: {sandbox_path}")
         raise ValueError(
@@ -132,28 +134,54 @@ def is_url_path(path: str) -> bool:
     return path.startswith(("http://", "https://"))
 
 
-def convert_to_container_path(path: Path) -> Path:
-    """将路径转换为容器内路径
+def convert_filename_to_sandbox_upload_path(filename: str | Path) -> Path:
+    """将文件名转换为沙盒内上传文件路径
 
-    Args:
-        path (Path): 宿主机路径
-
-    Returns:
-        Path: 容器内路径
-    """
-    return Path("/app/uploads") / path.name
-
-
-def convert_filename_to_container_path(filename: str | Path) -> Path:
-    """将文件名转换为容器内路径
+    注意：不支持多级路径
 
     Args:
         filename (Union[str, Path]): 文件名
 
     Returns:
-        Path: 容器内路径
+        Path: 沙盒内路径
     """
     return Path("/app/uploads") / Path(filename).name
+
+
+def convert_filename_to_sandbox_shared_path(filename: str | Path) -> Path:
+    """将文件名转换为沙盒内共享文件路径
+
+    Args:
+        filename (Union[str, Path]): 文件名
+
+    Returns:
+        Path: 沙盒内路径
+    """
+    return Path("/app/shared") / Path(filename).name
+
+
+def convert_filepath_to_sandbox_shared_path(filepath: str | Path) -> Path:
+    """将文件路径转换为沙盒内共享文件路径
+
+    Args:
+        filename (Union[str, Path]): 文件名
+
+    Returns:
+        Path: 沙盒内路径
+    """
+    return Path("/app/shared") / filepath
+
+
+def convert_filepath_to_sandbox_upload_path(filepath: str | Path) -> Path:
+    """将文件路径转换为沙盒内上传文件路径
+
+    Args:
+        filepath (Union[str, Path]): 文件路径
+
+    Returns:
+        Path: 沙盒内路径
+    """
+    return Path("/app/uploads") / filepath
 
 
 def convert_filename_to_access_path(filename: str | Path, chat_key: str) -> Path:
@@ -169,13 +197,18 @@ def convert_filename_to_access_path(filename: str | Path, chat_key: str) -> Path
     return Path(USER_UPLOAD_DIR) / chat_key / Path(filename).name
 
 
-def get_sandbox_path(filename: str | Path) -> Path:
-    """获取文件的沙盒路径
+def get_upload_file_path(from_chat_key: str, file_name: str = "", use_suffix: str = "", seed: str = "") -> str:
+    """生成一个可用的上传文件路径
 
     Args:
-        filename (Union[str, Path]): 文件名
-
-    Returns:
-        Path: 沙盒内路径
+        from_chat_key (str): 聊天会话ID
+        file_name (str): 文件名
+        use_suffix (str): 文件后缀
     """
-    return Path("/app/uploads") / Path(filename).name
+    if not file_name:
+        if not seed:
+            seed = str(uuid.uuid4())
+        file_name = f"{hashlib.md5(seed.encode()).hexdigest()}{use_suffix}"
+    save_path = Path(USER_UPLOAD_DIR) / from_chat_key / Path(file_name)
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    return str(save_path)

@@ -1,16 +1,36 @@
-import datetime
-import time
-from typing import Dict, List, Optional
+"""
+# 漫游历史 (History Travel)
 
-from pydantic import BaseModel, Field
+赋予 AI 超越当前对话窗口、回顾和检索完整历史聊天记录的能力。
+
+## 设计理念：历史回溯
+
+AI 的"记忆"（即对话上下文）是有限的，它只能看到最近的几十条消息。当需要回顾很久以前的对话时，这个插件就派上了用场。它就像一个历史记录浏览器，允许 AI "穿越"回过去的任意时间点，查看当时的对话，从而获取完成当前任务所需的旧信息。
+
+这极大地扩展了 AI 的记忆广度，使其能够处理需要长期上下文的复杂任务。
+
+## 主要功能
+
+- **关键词检索**: AI 可以使用关键词（支持 `与/或/非` 的高级搜索语法）在海量的历史记录中进行精确查找。
+- **上下文漫游**: 当 AI 通过关键词定位到一条相关的旧消息后，可以进一步获取该消息前后的完整对话，从而精准地"回溯"到当时的场景，全面理解上下文。
+
+## 使用方法
+
+此插件主要由 AI 在后台根据任务需要自动调用。例如：
+- 当用户问"我们上次讨论那个项目计划是什么时候？"时，AI 会使用"关键词检索"找到相关的记录。
+- 找到记录后，为了解详情，它可能会接着使用"上下文漫游"来查看完整的讨论过程。
+"""
+
+import datetime
+from typing import List
+
+from pydantic import Field
 
 from nekro_agent.api import core, schemas
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
-from nekro_agent.core.config import config as global_config
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
-from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
     name="漫游历史记录",
@@ -36,9 +56,9 @@ store = plugin.store
 
 
 # region: 漫游消息处理方法
-def parse_history_travel_message(db_chat_message: DBChatMessage) -> str:
+def parse_history_travel_message(db_chat_message: DBChatMessage, config: core.CoreConfig) -> str:
     """解析漫游消息"""
-    return db_chat_message.parse_chat_history_prompt("", travel_mode=True)
+    return db_chat_message.parse_chat_history_prompt("", config, ref_mode=True)
 
 
 # endregion: 漫游消息处理方法
@@ -62,15 +82,16 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
                  normal "word" for OR (any match).
 
     Examples:
-        >>> find_history_travel("group_123456789", ["吃饭", "午饭"]) # Find messages containing either "吃饭" OR "午饭"
-        >>> find_history_travel("group_123456789", ["+吃饭", "+午饭"]) # Find messages containing BOTH "吃饭" AND "午饭"
-        >>> find_history_travel("group_123456789", ["晚餐", "-鱼"]) # Find messages containing "晚餐" but NOT "鱼"
+        >>> find_history_travel(_ck, ["吃饭", "午饭"]) # Find messages containing either "吃饭" OR "午饭"
+        >>> find_history_travel(_ck, ["+吃饭", "+午饭"]) # Find messages containing BOTH "吃饭" AND "午饭"
+        >>> find_history_travel(_ck, ["晚餐", "-鱼"]) # Find messages containing "晚餐" but NOT "鱼"
         "Stop and wait for the result..."
     """
     db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not db_chat_channel:
         raise ValueError("未找到会话")
 
+    core_config = await db_chat_channel.get_effective_config()
     conversation_start_time: datetime.datetime = db_chat_channel.conversation_start_time
     conversation_start_timestamp = int(conversation_start_time.timestamp())
 
@@ -80,12 +101,12 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     context_cutoff_timestamp = 0
     # 只有当消息数量超过上下文大小时才设置截止时间
-    if total_messages > global_config.AI_CHAT_CONTEXT_MAX_LENGTH:
+    if total_messages > core_config.AI_CHAT_CONTEXT_MAX_LENGTH:
         # 获取上下文边界消息
         oldest_context_message = (
             await DBChatMessage.filter(chat_key=chat_key)
             .order_by("-send_timestamp")  # 按时间降序排列
-            .offset(global_config.AI_CHAT_CONTEXT_MAX_LENGTH - 1)  # 跳过最近的N-1条
+            .offset(core_config.AI_CHAT_CONTEXT_MAX_LENGTH - 1)  # 跳过最近的N-1条
             .limit(1)  # 只取一条
             .first()
         )
@@ -122,7 +143,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     # 处理OR关键词
     db_chat_message_list = []
-    db_chat_message_id_set = set()
+    db_chat_msg_id_set = set()
     keyword_match_count = {}  # 记录每条消息匹配的关键词数量
 
     if or_keywords:
@@ -136,9 +157,9 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
             logger.info(f"OR关键词 '{keyword}' 匹配到 {len(db_chat_message)} 条消息")
 
             for msg in db_chat_message:
-                if msg.id not in db_chat_message_id_set:
+                if msg.id not in db_chat_msg_id_set:
                     db_chat_message_list.append(msg)
-                    db_chat_message_id_set.add(msg.id)
+                    db_chat_msg_id_set.add(msg.id)
                     keyword_match_count[msg.id] = 1
                 else:
                     # 增加已存在消息的关键词匹配计数
@@ -148,7 +169,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
         db_chat_message = await base_query.order_by("-update_time").limit(config.MAX_HISTORY_TRAVEL_QUERY_SIZE * 4).all()
         for msg in db_chat_message:
             db_chat_message_list.append(msg)
-            db_chat_message_id_set.add(msg.id)
+            db_chat_msg_id_set.add(msg.id)
             keyword_match_count[msg.id] = 0
 
     # 处理AND和NOT关键词进行过滤
@@ -202,122 +223,79 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
 
     additional_info = f"\n\n[Query {len(result_messages)} messages. You NEED to use the 'find_history_travel_range' method to get more context around a specific message. DO NOT GUESS THE EXACT CONTEXT ACCORDING TO THE SIMPLIFIED MESSAGE.]"
 
-    return "\n\n".join([parse_history_travel_message(msg) for msg in result_messages]) + additional_info
+    return "\n\n".join([parse_history_travel_message(msg, core_config) for msg in result_messages]) + additional_info
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.AGENT, "漫游记录范围查询")
 async def find_history_travel_range(
     _ctx: schemas.AgentCtx,
     chat_key: str,
-    base_message_id: str,
+    base_msg_id: str,
     prev_count: int = 2,
     next_count: int = 10,
 ):
-    """Search chat history around a specific message
+    """Search chat history around a specific message (Useful for finding the context of a specific message or reference message)
 
     Args:
         chat_key: Chat unique identifier
-        base_message_id: Base message ID
+        base_msg_id: Base message ID
         prev_count: Number of messages to fetch before the base message (default: 2)
         next_count: Number of messages to fetch after the base message (default: 10)
 
     Examples:
-        >>> find_history_travel_range("group_123456789", "100") # Get from the 2nd message before to the 10th message after the message with ID 100
+        >>> find_history_travel_range(_ck, "xxxxxx") # Get from the 2nd message before to the 10th message after the message with ID xxxxxx
         "Stop and wait for the result..."
     """
+    if prev_count + next_count > config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE:
+        raise ValueError("查询范围过大")
 
     db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not db_chat_channel:
         raise ValueError("未找到会话")
 
-    conversation_start_time: datetime.datetime = db_chat_channel.conversation_start_time
-    conversation_start_timestamp = int(conversation_start_time.timestamp())
-
-    # 获取基准消息
-    base_message = await DBChatMessage.get_or_none(id=base_message_id)
+    base_message = await DBChatMessage.get_or_none(message_id=base_msg_id)
     if not base_message:
-        raise ValueError("未找到漫游基准消息")
+        raise ValueError("未找到消息")
 
-    # 检查基准消息是否在当前会话中
-    if base_message.chat_key != chat_key or base_message.send_timestamp < conversation_start_timestamp:
-        raise ValueError("基准消息不在当前会话中")
+    db_chat_channel = await DBChatChannel.get(chat_key=chat_key)
+    core_config = await db_chat_channel.get_effective_config()
 
-    # 记录原始请求的数量
-    original_prev_count = prev_count
-    original_next_count = next_count
-    limit_message = ""
-
-    # 检查总数是否超过允许的最大查询数
-    total_requested = prev_count + next_count + 1  # +1 为基准消息本身
-    if total_requested > config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE:
-        # 记录超限情况
-        limit_message = f"\n\n[Query exceeds the limit: requested {prev_count} messages before and {next_count} messages after the base message, but the maximum allowed is {config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE} messages]"
-
-        # 计算超出的数量
-        excess = total_requested - config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE
-
-        # 优先从索取更多的那一侧进行限制
-        if prev_count >= next_count:
-            # 前面的消息更多，优先减少前面的
-            prev_count = max(1, prev_count - excess)
-            # 如果前面已经减到最小，继续减少后面的
-            if prev_count == 1 and excess > original_prev_count - 1:
-                next_count = max(0, next_count - (excess - (original_prev_count - 1)))
-        else:
-            # 后面的消息更多，优先减少后面的
-            next_count = max(1, next_count - excess)
-            # 如果后面已经减到最小，继续减少前面的
-            if next_count == 1 and excess > original_next_count - 1:
-                prev_count = max(0, prev_count - (excess - (original_next_count - 1)))
-
-    result_messages = []
-
-    # 获取基准消息之前的消息
-    if prev_count > 0:
-        previous_messages = (
-            await DBChatMessage.filter(
-                chat_key=chat_key,
-                send_timestamp__gte=conversation_start_timestamp,
-                send_timestamp__lt=base_message.send_timestamp,
-            )
-            .order_by("-send_timestamp")
-            .limit(prev_count)
-            .all()
+    # 查询前的消息
+    prev_messages = (
+        await DBChatMessage.filter(
+            chat_key=chat_key,
+            send_timestamp__lt=base_message.send_timestamp,
         )
+        .order_by("-send_timestamp")
+        .limit(prev_count)
+    )[
+        ::-1
+    ]  # 反转以确保时间顺序
 
-        # 将之前的消息按时间正序加入结果列表
-        result_messages.extend(sorted(previous_messages, key=lambda x: x.send_timestamp))
-
-    # 添加基准消息本身
-    result_messages.append(base_message)
-
-    # 获取基准消息之后的消息
-    if next_count > 0:
-        next_messages = (
-            await DBChatMessage.filter(chat_key=chat_key, send_timestamp__gt=base_message.send_timestamp)
-            .order_by("send_timestamp")
-            .limit(next_count)
-            .all()
+    # 查询后的消息
+    next_messages = (
+        await DBChatMessage.filter(
+            chat_key=chat_key,
+            send_timestamp__gt=base_message.send_timestamp,
         )
+        .order_by("send_timestamp")
+        .limit(next_count)
+    )
 
-        # 将之后的消息添加到结果列表
-        result_messages.extend(next_messages)
+    result_messages = [*prev_messages, base_message, *next_messages]
 
-    # 最后确保所有消息按照发送时间从早到晚排序
-    result_messages = sorted(result_messages, key=lambda x: x.send_timestamp)
-
-    result = "\n\n".join([parse_history_travel_message(msg) for msg in result_messages])
+    result = "\n\n".join([parse_history_travel_message(msg, core_config) for msg in result_messages])
 
     # 添加超限说明
-    if limit_message:
-        result += limit_message
+    if len(result_messages) >= config.MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE:
+        result += "\n\n[The number of returned messages has reached the query limit. If you need more context, please make another query.]"
 
     return result
 
 
 @plugin.mount_on_channel_reset()
 async def on_channel_reset(_ctx: schemas.AgentCtx):
-    """重置插件"""
+    """重置插件状态"""
 
 
 @plugin.mount_cleanup_method()

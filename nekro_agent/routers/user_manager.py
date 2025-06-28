@@ -41,7 +41,7 @@ async def list_users(
     # 搜索
     if search:
         query = query.filter(
-            Q(username__icontains=search) | Q(bind_qq__icontains=search),
+            Q(username__icontains=search) | Q(platform_userid__icontains=search),
         )
 
     # 排序
@@ -64,7 +64,9 @@ async def list_users(
             {
                 "id": user.id,
                 "username": user.username,
-                "bind_qq": user.bind_qq,
+                "adapter_key": user.adapter_key,
+                "platform_userid": user.platform_userid,
+                "unique_id": user.unique_id,
                 "perm_level": user.perm_level,
                 "perm_role": get_perm_role(user.perm_level),
                 "login_time": user.login_time,
@@ -106,7 +108,9 @@ async def get_user(
         data={
             "id": user.id,
             "username": user.username,
-            "bind_qq": user.bind_qq,
+            "adapter_key": user.adapter_key,
+            "platform_userid": user.platform_userid,
+            "unique_id": user.unique_id,
             "perm_level": user.perm_level,
             "perm_role": get_perm_role(user.perm_level),
             "login_time": user.login_time,

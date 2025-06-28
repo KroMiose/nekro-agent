@@ -1,12 +1,38 @@
+"""
+# AI 语音 (AI Voice)
+
+提供文本转语音（TTS）功能，让 AI 可以"开口说话"。
+
+## 主要功能
+
+- **文本转语音**: AI 可以将指定的文本，通过预设的 AI 语音角色（声源）合成为语音消息，并发送到群聊中。
+- **角色查询**: 用户可以通过 `/ai_voices` 命令，查询当前协议端支持的所有可用语音角色。
+
+## 使用方法
+
+- **AI 自动调用**: 在某些场景下，AI 可能会决定使用语音来回复，此时它会自动调用此插件。
+- **命令查询**: 用户可以使用 `/ai_voices` 命令查看可用的声音列表，然后在插件配置中修改 `AI_VOICE_CHARACTER` 来切换 AI 的声音。
+
+## 特别说明
+
+此插件的功能**高度依赖**于您所使用的 OneBot v11 协议端。它需要协议端实现了 `send_group_ai_record` 和 `get_ai_characters` 这两个自定义 API。如果您的协议端不支持这些 API，此插件将无法正常工作。
+"""
+
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pydantic import Field
 
-from nekro_agent.api import context, core
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
+from nekro_agent.adapters.onebot_v11.matchers.command import (
+    command_guard,
+    finish_with,
+    on_command,
+)
+from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.matchers.command import command_guard, finish_with, on_command
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
@@ -16,6 +42,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["onebot_v11"],
 )
 
 
@@ -63,17 +90,18 @@ async def ai_voice(_ctx: AgentCtx, chat_key: str, text: str) -> bool:
     Returns:
         bool: 操作是否成功
     """
-    chat_type = context.get_chat_type(chat_key)
-    chat_id = context.get_chat_id(chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    chat_type = db_chat_channel.chat_type
+    chat_id = db_chat_channel.channel_id
 
-    if chat_type != "group":
+    if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
         return False
 
     try:
-        await core.get_bot().call_api(
+        await get_bot().call_api(
             "send_group_ai_record",
-            group_id=int(chat_id),
+            group_id=int(chat_id.split("_")[1]),
             character=config.AI_VOICE_CHARACTER,
             text=text,
         )

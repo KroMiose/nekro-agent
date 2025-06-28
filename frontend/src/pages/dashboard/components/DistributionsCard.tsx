@@ -11,18 +11,14 @@ import {
 } from '@mui/material'
 import { PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip } from 'recharts'
 import { DistributionItem } from '../../../services/api/dashboard'
-import {
-  UI_STYLES,
-  BORDER_RADIUS,
-  CARD_LAYOUT
-} from '../../../theme/themeConfig'
+import { CARD_VARIANTS, BORDER_RADIUS } from '../../../theme/variants'
+import { UI_STYLES } from '../../../theme/themeConfig'
 import {
   getStopTypeText,
   getStopTypeColorValue,
   getMessageTypeColor,
   LEGACY_COLORS
 } from '../../../theme/utils'
-import { LAYOUT } from '../../../theme/variants'
 
 interface DistributionsCardProps {
   stopTypeData?: DistributionItem[]
@@ -133,16 +129,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
   return (
     <Card
       className="w-full h-full"
-      sx={{
-        transition: LAYOUT.TRANSITION.DEFAULT,
-        '&:hover': {
-          boxShadow: UI_STYLES.SHADOWS.CARD.HOVER,
-        },
-        background: UI_STYLES.GRADIENTS.CARD.DEFAULT,
-        backdropFilter: CARD_LAYOUT.BACKDROP_FILTER,
-        border: UI_STYLES.BORDERS.CARD.DEFAULT,
-        borderRadius: BORDER_RADIUS.DEFAULT,
-      }}
+      sx={CARD_VARIANTS.default.styles}
     >
       <CardContent>
         <Typography variant="h6" gutterBottom color="text.primary">
@@ -152,14 +139,14 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
         {loading ? (
           <Box
             className="flex justify-center items-center"
-            sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}
+            sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}
           >
             <CircularProgress />
           </Box>
         ) : formattedStopTypeData.length === 0 && formattedMessageTypeData.length === 0 ? (
           <Box
             className="flex justify-center items-center"
-            sx={{ height: CARD_LAYOUT.LOADING_HEIGHT }}
+            sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}
           >
             <Typography variant="body2" color="text.secondary">
               暂无数据
@@ -179,7 +166,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                 </Typography>
                 <Box
                   height={
-                    isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                    isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
                   }
                 >
                   <ResponsiveContainer width="100%" height="100%">
@@ -228,7 +215,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                 </Typography>
                 <Box
                   height={
-                    isMobile ? CARD_LAYOUT.CHART_HEIGHT.MOBILE : CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                    isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
                   }
                 >
                   <ResponsiveContainer width="100%" height="100%">

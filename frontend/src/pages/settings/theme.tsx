@@ -46,7 +46,7 @@ import {
   Wallpaper as WallpaperIcon,
   Palette as PaletteIcon,
   FormatColorFill as FormatColorFillIcon,
-  Computer as ComputerIcon,
+
 } from '@mui/icons-material'
 import { useColorMode } from '../../stores/theme'
 import {
@@ -63,7 +63,7 @@ import { useNotification } from '../../hooks/useNotification'
 import { useWallpaperStore } from '../../stores/wallpaper'
 import { commonApi, Wallpaper } from '../../services/api/common'
 import WallpaperBackground from '../../components/common/WallpaperBackground'
-import { BUTTON_VARIANTS } from '../../theme/variants'
+import { BUTTON_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import GitHubStarWarning from '../../components/common/GitHubStarWarning'
 import { useGitHubStarStore } from '../../stores/githubStar'
 
@@ -237,12 +237,12 @@ const ThemePreviewCard = ({
   const theme = useTheme()
   const { mode } = useColorMode()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
-  const currentMode =
-    mode === 'system' ? (theme.palette.mode as 'light' | 'dark') : (mode as 'light' | 'dark')
+  const currentMode = mode as 'light' | 'dark'
 
   return (
     <Card
       sx={{
+        ...CARD_VARIANTS.default.styles,
         cursor: 'pointer',
         transition: 'all 0.2s ease',
         transform: active ? 'scale(1.02)' : 'scale(1)',
@@ -335,8 +335,7 @@ export default function ThemeConfigPage() {
   const { mode, setColorMode, setThemePreset, setCustomColors, performanceMode, setPerformanceMode } = useColorMode()
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
-  const currentMode =
-    mode === 'system' ? (theme.palette.mode as 'light' | 'dark') : (mode as 'light' | 'dark')
+  const currentMode = mode as 'light' | 'dark'
   const notification = useNotification()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initializedRef = useRef(false)
@@ -797,10 +796,10 @@ export default function ThemeConfigPage() {
   }
 
   // 切换主题模式
-  const handleThemeModeChange = (newMode: 'light' | 'dark' | 'system') => {
+  const handleThemeModeChange = (newMode: 'light' | 'dark') => {
     setColorMode(newMode)
     notification.info(
-      `已切换至${newMode === 'light' ? '浅色' : newMode === 'dark' ? '深色' : '跟随系统'}模式`
+      `已切换至${newMode === 'light' ? '浅色' : '深色'}模式`
     )
   }
 
@@ -897,7 +896,7 @@ export default function ThemeConfigPage() {
       {/* 主标题和内容容器 */}
       <Box sx={{ mb: 4 }}>
         {/* 主题模式控制 */}
-        <Paper className="p-4 mb-4">
+        <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <LightModeIcon sx={{ mr: 1, color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
@@ -923,25 +922,15 @@ export default function ThemeConfigPage() {
             >
               深色模式
             </Button>
-
-            <Button
-              variant={mode === 'system' ? 'contained' : 'outlined'}
-              startIcon={<ComputerIcon />}
-              onClick={() => handleThemeModeChange('system')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              跟随系统
-            </Button>
           </Stack>
 
           <Typography variant="body2" color="text.secondary">
-            当前模式: {mode === 'light' ? '浅色' : mode === 'dark' ? '深色' : '跟随系统'}
-            {mode === 'system' && ` (${theme.palette.mode === 'light' ? '浅色' : '深色'})`}
+            当前模式: {mode === 'light' ? '浅色' : '深色'}
           </Typography>
         </Paper>
 
         {/* 性能模式控制 */}
-        <Paper className="p-4 mb-4">
+        <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <TuneIcon sx={{ mr: 1, color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
@@ -1008,7 +997,7 @@ export default function ThemeConfigPage() {
           searchParam="NEKRO_CLOUD"
         >
           {/* 主题预设选择 */}
-          <Paper className="p-4 mb-4">
+          <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <PaletteIcon sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
@@ -1033,7 +1022,7 @@ export default function ThemeConfigPage() {
 
           {/* 自定义主题编辑 */}
           {selectedPresetId === 'custom' && allStarred && (
-            <Paper className="p-4">
+            <Paper className="p-4" sx={CARD_VARIANTS.default.styles}>
               <Box className="mb-3 flex justify-between items-center">
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <FormatColorFillIcon sx={{ mr: 1, color: 'primary.main' }} />
@@ -1053,7 +1042,7 @@ export default function ThemeConfigPage() {
               <Grid container spacing={3}>
                 {/* 浅色模式 */}
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={CARD_VARIANTS.default.styles}>
                     <CardContent>
                       <Typography
                         variant="subtitle1"
@@ -1158,7 +1147,7 @@ export default function ThemeConfigPage() {
 
                 {/* 深色模式 */}
                 <Grid item xs={12} md={6}>
-                  <Card>
+                  <Card sx={CARD_VARIANTS.default.styles}>
                     <CardContent>
                       <Typography
                         variant="subtitle1"
@@ -1265,7 +1254,7 @@ export default function ThemeConfigPage() {
           )}
 
           {/* 壁纸设置 */}
-          <Paper className="p-4 mt-4">
+          <Paper className="p-4 mt-4" sx={CARD_VARIANTS.default.styles}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <WallpaperIcon sx={{ mr: 1, verticalAlign: 'text-bottom', color: 'primary.main' }} />
               <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
@@ -1590,19 +1579,20 @@ export default function ThemeConfigPage() {
                     <Grid container spacing={2}>
                       {wallpapers.map(wallpaper => (
                         <Grid item key={wallpaper.id} xs={12} sm={6} md={4} lg={3}>
-                          <Card
-                            sx={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              height: '100%',
-                              overflow: 'hidden',
-                              transition: 'all 0.2s',
-                              '&:hover': {
-                                transform: 'translateY(-4px)',
-                                boxShadow: theme.shadows[4],
-                              },
-                            }}
-                          >
+                                                      <Card
+                              sx={{
+                                ...CARD_VARIANTS.default.styles,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                height: '100%',
+                                overflow: 'hidden',
+                                transition: 'all 0.2s',
+                                '&:hover': {
+                                  transform: 'translateY(-4px)',
+                                  boxShadow: theme.shadows[4],
+                                },
+                              }}
+                            >
                             <CardMedia
                               component="div"
                               sx={{

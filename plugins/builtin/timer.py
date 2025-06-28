@@ -1,3 +1,22 @@
+"""
+# 定时器 (Timer)
+
+提供强大的定时任务能力，让 AI 能够"记住"在未来的某个时间点去做某件事，或者在短暂延迟后"唤醒"自己以跟进对话。
+
+## 主要功能
+
+- **设置定时器**: AI 可以设置一个未来的时间点和需要做的事情。当时间到达时，系统会自动触发 AI，并把事情的描述告诉它，让它继续处理。
+- **临时唤醒**: 一种特殊的短期定时器。AI 可以用它在发送消息后，等待一小段时间（比如 60 秒）再"醒来"，看看用户是否有了新的回复或情况是否发生了变化。这赋予了 AI 持续跟进和观察的能力。
+- **清除定时器**: AI 可以清除已经设置好的定时器。
+- **状态提示**: 插件会自动将当前生效的定时器列表注入到提示词中，让 AI 时刻了解自己有哪些"待办事项"。
+
+## 使用方法
+
+此插件完全由 AI 在后台自动调用。例如：
+- 当用户说"半小时后提醒我开会"时，AI 会调用此插件设置一个普通定时器。
+- 当 AI 给出建议后，想观察用户的反馈时，它可能会设置一个临时定时器来"稍后看看"。
+"""
+
 import time
 from datetime import datetime
 
@@ -33,7 +52,7 @@ config = plugin.get_config(TimerConfig)
 async def timer_prompt(_ctx: AgentCtx) -> str:
     """定时器提示词注入"""
     # 获取当前会话未触发的定时器
-    chat_key = _ctx.from_chat_key
+    chat_key = _ctx.chat_key
     timers = await timer.get_timers(chat_key)
 
     # 过滤掉节日祝福定时器
@@ -109,21 +128,21 @@ async def set_timer(
         ```python
         # 临时定时器（自我唤醒）
         set_timer(
-            chat_key="group_123",
+            chat_key=_ck,
             trigger_time=int(time.time()) + 60,
             event_desc="我刚才建议用户重启，需要观察反馈。",
             temporary=True
         )
 
         # 清空临时定时器
-        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=True)
+        set_timer(chat_key=_ck, trigger_time=-1, event_desc="", temporary=True)
 
         # 清空非临时定时器
-        set_timer(chat_key="group_123", trigger_time=-1, event_desc="", temporary=False)
+        set_timer(chat_key=_ck, trigger_time=-1, event_desc="", temporary=False)
 
         # 普通定时器（常规提醒）
         set_timer(
-            chat_key="group_123",
+            chat_key=_ck,
             trigger_time=int(time.time()) + 300,
             event_desc="提醒吃早餐。context: 用户5分钟前说要吃早餐，让我提醒。",
             temporary=False

@@ -33,7 +33,7 @@ async def upload_wallpaper(
     try:
         # 检查文件扩展名
         filename = file.filename or "unknown.jpg"
-        file_ext = os.path.splitext(filename)[1].lower()
+        file_ext = Path(filename).suffix.lower()
         if file_ext not in ALLOWED_EXTENSIONS:
             return Ret.fail(msg=f"不支持的文件类型，允许的类型: {', '.join(ALLOWED_EXTENSIONS)}")
 
@@ -47,7 +47,7 @@ async def upload_wallpaper(
         filepath = WALLPAPER_PATH / f"{file_md5}{file_ext}"
 
         # 写入文件
-        with open(filepath, "wb") as f:
+        with filepath.open("wb") as f:
             f.write(content)
 
         logger.info(f"用户 {current_user.username} 上传壁纸: {filepath}")

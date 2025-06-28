@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense, useCallback } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -18,127 +18,38 @@ import {
   Link,
   useMediaQuery,
   useTheme,
+  CircularProgress,
 } from '@mui/material'
 import {
-  Terminal as TerminalIcon,
-  Settings as SettingsIcon,
   Logout as LogoutIcon,
-  Storage as StorageIcon,
   ExpandLess as ExpandLessIcon,
   ExpandMore as ExpandMoreIcon,
-  Tune as TuneIcon,
-  Extension as ExtensionIcon,
-  Chat as ChatIcon,
-  Code as CodeIcon,
   GitHub as GitHubIcon,
-  Dashboard as DashboardIcon,
-  Group as GroupIcon,
-  Face as FaceIcon,
-  AccountCircle as AccountCircleIcon,
-  CloudDownload as CloudDownloadIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
-  Palette as PaletteIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
 import { motion } from 'framer-motion'
-import { UI_STYLES, getAnimationDuration, getBackdropFilter, getShadow } from '../theme/themeApi'
+import { UI_STYLES, getAnimationDuration } from '../theme/themeApi'
 import ThemeToggleButton from '../theme/ThemeToggleButton'
 import { useNotification } from '../hooks/useNotification'
 import { alpha } from '@mui/material/styles'
 import { CHIP_VARIANTS } from '../theme/variants'
 import { useWallpaperStore } from '../stores/wallpaper'
 import WallpaperBackground from '../components/common/WallpaperBackground'
+import {
+  createMenuItems,
+  getCurrentPageFromConfigs,
+  getCurrentTitleFromConfigs,
+} from '../config/navigation'
+import { useDevModeStore } from '../stores/devMode'
+import { useSecretCode } from '../hooks/useSecretCode'
 
-interface PageConfig {
-  path: string
-  text: string
-  icon: JSX.Element
-  parent?: string // 父菜单的 key
-}
+// 获取菜单项配置
+const menuItems = createMenuItems()
 
-interface MenuGroup {
-  key: string
-  text: string
-  icon: JSX.Element
-  children: PageConfig[]
-}
-
-// 集中的页面配置
-const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
-  {
-    key: 'cloud',
-    text: 'Nekro 云',
-    icon: <CloudDownloadIcon />,
-    children: [
-      { path: '/cloud/telemetry', text: '社区观测', icon: <DashboardIcon />, parent: 'cloud' },
-      { path: '/cloud/presets-market', text: '人设市场', icon: <FaceIcon />, parent: 'cloud' },
-      { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
-    ],
-  },
-  { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
-  { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
-  { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
-  { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
-  {
-    key: 'plugins',
-    text: '插件管理',
-    icon: <ExtensionIcon />,
-    children: [
-      {
-        path: '/plugins/management',
-        text: '插件管理',
-        icon: <ExtensionIcon />,
-        parent: 'plugins',
-      },
-      { path: '/plugins/editor', text: '插件编辑器', icon: <CodeIcon />, parent: 'plugins' },
-    ],
-  },
-  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
-  { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
-  {
-    key: 'protocols',
-    text: '协议端',
-    icon: <ChatIcon />,
-    children: [
-      { path: '/protocols/napcat', text: 'NapCat', icon: <ChatIcon />, parent: 'protocols' },
-    ],
-  },
-  {
-    key: 'settings',
-    text: '系统配置',
-    icon: <SettingsIcon />,
-    children: [
-      { path: '/settings/system', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
-      { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
-      { path: '/settings/theme', text: '调色盘', icon: <PaletteIcon />, parent: 'settings' },
-    ],
-  },
-  { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
-]
-
-// 转换配置为菜单项
-const menuItems = PAGE_CONFIGS.map(config => {
-  if ('children' in config) {
-    return {
-      text: config.text,
-      icon: config.icon,
-      path: undefined,
-      key: config.key,
-      children: config.children.map(child => ({
-        text: child.text,
-        icon: child.icon,
-        path: child.path,
-      })),
-    }
-  }
-  return {
-    text: config.text,
-    icon: config.icon,
-    path: config.path,
-  }
-})
+const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 
 export default function MainLayout() {
   const navigate = useNavigate()
@@ -149,9 +60,11 @@ export default function MainLayout() {
   const [version, setVersion] = useState('0.0.0')
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({})
   const [drawerOpen, setDrawerOpen] = useState(true)
+  const [refreshKey, setRefreshKey] = useState(0)
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { devMode, toggleDevMode } = useDevModeStore()
 
   // 使用壁纸store
   const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =
@@ -162,22 +75,57 @@ export default function MainLayout() {
     setDrawerOpen(!isMobile)
   }, [isMobile])
 
+  // 开发者模式 "组合键"
+  const enableDevMode = useCallback(() => {
+    if (!devMode) {
+      toggleDevMode()
+      notification.success('开发者模式已开启！')
+    }
+  }, [devMode, toggleDevMode, notification])
+
+  const recordClick = useSecretCode(DEV_MODE_SEQUENCE, enableDevMode)
+
+  const handleLogoClick = useCallback(
+    (part: 'nekro' | 'agent') => {
+      if (devMode) {
+        toggleDevMode()
+        notification.info('开发者模式已关闭')
+      } else {
+        recordClick(part)
+      }
+    },
+    [devMode, toggleDevMode, notification, recordClick]
+  )
+
+  // 自动展开包含当前路由的菜单项
+  useEffect(() => {
+    menuItems.forEach(item => {
+      if (item.children && item.key) {
+        const hasActiveChild = item.children.some(
+          child =>
+            location.pathname === child.path || location.pathname.startsWith(child.path + '/')
+        )
+        if (hasActiveChild) {
+          setOpenMenus(prev => ({
+            ...prev,
+            [item.key]: true,
+          }))
+        }
+      }
+    })
+  }, [location.pathname])
+
   const getCurrentPage = () => {
-    const currentPath = location.pathname
-    // 扁平化所有页面配置
-    const allPages = PAGE_CONFIGS.flatMap(config =>
-      'children' in config ? config.children : [config]
-    )
-    // 查找匹配的页面
-    return allPages.find(
-      page =>
-        'path' in page &&
-        (page.path === currentPath || (currentPath.startsWith(page.path) && page.path !== '/'))
-    )
+    return getCurrentPageFromConfigs(location.pathname)
   }
 
   const getCurrentTitle = () => {
-    return getCurrentPage()?.text || '管理面板'
+    return getCurrentTitleFromConfigs(location.pathname)
+  }
+
+  const handleComponentRefresh = () => {
+    setRefreshKey(prev => prev + 1)
+    notification.success('页面已刷新', { autoHideDuration: 1500 })
   }
 
   const handleLogout = () => {
@@ -201,6 +149,15 @@ export default function MainLayout() {
         setDrawerOpen(false)
       }
     }
+  }
+
+  const logoPartSx = {
+    display: 'inline-block', // to allow transform
+    transition: 'transform 0.1s ease-in-out',
+    userSelect: 'none',
+    '&:active': {
+      transform: 'scale(0.95)',
+    },
   }
 
   const drawer = (
@@ -266,9 +223,14 @@ export default function MainLayout() {
               },
             }}
           >
-            <span className="highlight">N</span>
-            <span className="text">ekro</span> <span className="highlight">A</span>
-            <span className="text">gent</span>
+            <Box component="span" sx={logoPartSx} onClick={() => handleLogoClick('nekro')}>
+              <span className="highlight">N</span>
+              <span className="text">ekro</span>
+            </Box>{' '}
+            <Box component="span" sx={logoPartSx} onClick={() => handleLogoClick('agent')}>
+              <span className="highlight">A</span>
+              <span className="text">gent</span>
+            </Box>
             <Chip
               label={`v ${version}`}
               size="small"
@@ -292,6 +254,26 @@ export default function MainLayout() {
                 },
               }}
             />
+            {devMode && (
+              <Chip
+                label="DEV"
+                size="small"
+                color="secondary"
+                className="absolute -top-3.5 -left-5 h-4"
+                sx={{
+                  ...CHIP_VARIANTS.baseWithColor(true, theme.palette.secondary.main),
+                  fontSize: '0.6rem',
+                  letterSpacing: '0.05em',
+                  height: '18px',
+                  minWidth: 'auto',
+                  '.MuiChip-label': {
+                    px: 0.5,
+                    py: 0,
+                    lineHeight: 1,
+                  },
+                }}
+              />
+            )}
           </Typography>
         </Box>
       </Toolbar>
@@ -301,7 +283,11 @@ export default function MainLayout() {
             <ListItem disablePadding>
               <ListItemButton
                 onClick={() => handleMenuItemClick(item.path, item.key)}
-                selected={!item.children && location.pathname === item.path}
+                selected={Boolean(
+                  !item.children &&
+                    (location.pathname === item.path ||
+                      (item.path && location.pathname.startsWith(item.path + '/')))
+                )}
                 sx={{
                   '&.Mui-selected': {
                     backgroundColor: UI_STYLES.SELECTED,
@@ -343,7 +329,10 @@ export default function MainLayout() {
                           setDrawerOpen(false)
                         }
                       }}
-                      selected={location.pathname === child.path}
+                      selected={Boolean(
+                        location.pathname === child.path ||
+                          location.pathname.startsWith(child.path + '/')
+                      )}
                       sx={{
                         pl: 4,
                         py: isSmall ? 0.75 : 1,
@@ -458,6 +447,7 @@ export default function MainLayout() {
         backgroundColor: theme.palette.mode === 'dark' ? '#181818' : '#f8f8f8',
         minHeight: '100vh',
         transition: 'background 0.5s ease',
+        padding: 0,
       }}
     >
       {/* 壁纸背景组件 */}
@@ -506,7 +496,7 @@ export default function MainLayout() {
             '0 4px 15px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 10px rgba(0, 0, 0, 0.03)',
           borderBottom:
             theme.palette.mode === 'dark' ? `1px solid rgba(255, 255, 255, 0.08)` : 'none',
-          color: 'inherit',
+          color: theme.palette.common.white,
           zIndex: theme.zIndex.drawer + 1,
         }}
       >
@@ -515,7 +505,7 @@ export default function MainLayout() {
             color="inherit"
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
-            sx={{ mr: 2 }}
+            sx={{ mr: 2, color: 'white' }}
             aria-label={drawerOpen ? '收起侧边栏' : '展开侧边栏'}
           >
             {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
@@ -527,17 +517,27 @@ export default function MainLayout() {
               noWrap
               component="div"
               className="font-medium select-none text-ellipsis overflow-hidden"
+              onClick={handleComponentRefresh}
               sx={{
                 color: 'inherit',
                 fontSize: { xs: '1rem', sm: '1.25rem' },
                 textShadow: '0 0 2px rgba(255,255,255,0.15)',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease-in-out',
+                '&:hover': {
+                  opacity: 0.9,
+                },
+                '&:active': {
+                  transform: 'scale(0.98)',
+                  opacity: 0.8,
+                },
               }}
             >
               {getCurrentTitle()}
             </Typography>
           </Box>
 
-          <ThemeToggleButton />
+          <ThemeToggleButton sx={{ color: 'white' }} />
 
           <Button
             variant="text"
@@ -588,7 +588,6 @@ export default function MainLayout() {
                 theme.palette.mode === 'dark'
                   ? alpha(theme.palette.background.paper, 0.68)
                   : alpha(theme.palette.background.paper, 0.86),
-              backdropFilter: 'blur(8px)',
               transition: theme =>
                 theme.transitions.create('width', {
                   easing: theme.transitions.easing.sharp,
@@ -603,7 +602,7 @@ export default function MainLayout() {
       </Box>
       <Box
         component="main"
-        className="flex-grow p-3 h-screen overflow-hidden flex flex-col"
+        className="flex-grow h-screen overflow-hidden flex flex-col"
         sx={{
           position: 'relative',
           zIndex: 1, // 确保主内容在壁纸上层
@@ -611,6 +610,7 @@ export default function MainLayout() {
             xs: '100%',
             md: drawerOpen ? 'calc(100% - 240px)' : '100%',
           },
+          padding: 0,
           transition: theme =>
             theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
@@ -620,7 +620,7 @@ export default function MainLayout() {
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
-          key={location.key}
+          key={`${location.pathname.split('/').slice(0, 3).join('/')}-${refreshKey}`}
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{
@@ -629,14 +629,6 @@ export default function MainLayout() {
           }}
           className="h-full flex-grow overflow-auto rounded-xl performance-adaptive motion-div"
           style={{
-            backdropFilter: getBackdropFilter('blur(6px)'),
-            WebkitBackdropFilter: getBackdropFilter('blur(6px)'),
-            background:
-              theme.palette.mode === 'dark'
-                ? 'rgba(32, 32, 32, 0.48)'
-                : 'rgba(255, 255, 255, 0.68)',
-            boxShadow: getShadow(`0 8px 24px rgba(0, 0, 0, ${theme.palette.mode === 'dark' ? 0.15 : 0.06})`),
-            border: `1px solid ${alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.1 : 0.05)}`,
             position: 'relative',
             overflow: 'hidden',
           }}
@@ -655,7 +647,22 @@ export default function MainLayout() {
               zIndex: 1,
             }}
           />
-          <Outlet />
+          <Suspense
+            fallback={
+              <Box
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '100%',
+                }}
+              >
+                <CircularProgress />
+              </Box>
+            }
+          >
+            <Outlet />
+          </Suspense>
         </motion.div>
       </Box>
     </Box>

@@ -1,8 +1,26 @@
+"""
+# 群荣誉 (Group Honor)
+
+一个简单的群组管理插件，赋予 AI 在群聊中为用户设置"特殊头衔"的能力。
+
+## 主要功能
+
+- **设置头衔**: AI 可以根据与用户的互动情况（例如完成任务、达成成就等），调用工具为用户授予一个自定义的、有期限的特殊头衔（即 QQ 群中昵称前方的彩色称号）。
+- **移除头衔**: 将头衔设置为空即可移除。
+
+## 使用方法
+
+此插件主要由 AI 在后台根据特定情况自动调用，例如，当用户在与 AI 的互动中表现出色时，AI 可能会决定授予其一个头衔作为奖励。
+"""
+
 from pydantic import Field
 
-from nekro_agent.api import context, core
+from nekro_agent.adapters.onebot_v11.core.bot import get_bot
+from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.schemas.chat_message import ChatType
 
 plugin = NekroPlugin(
     name="群荣誉插件",
@@ -11,6 +29,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["onebot_v11"],
 )
 
 
@@ -38,10 +57,11 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
     Returns:
         bool: 操作是否成功
     """
-    chat_type = context.get_chat_type(chat_key)
-    chat_id = context.get_chat_id(chat_key)
+    db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
+    chat_type = db_chat_channel.chat_type
+    chat_id = db_chat_channel.channel_id
 
-    if chat_type != "group":
+    if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
         return False
 
@@ -51,9 +71,9 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
         return False
 
     try:
-        await core.get_bot().call_api(
+        await get_bot().call_api(
             "set_group_special_title",
-            group_id=int(chat_id),
+            group_id=int(chat_id.split("_")[1]),
             user_id=int(user_qq),
             special_title=special_title,
             duration=days * 24 * 60 * 60,

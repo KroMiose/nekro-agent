@@ -56,7 +56,7 @@ async def get_current_user(request: Request, token: Optional[str] = None) -> DBU
     if token_data.username == "admin":
         user = await DBUser.get_or_none(username="admin")
     else:
-        user = await DBUser.get_or_none(bind_qq=token_data.username)
+        user = await DBUser.get_or_none(username=token_data.username)
     if user is None:
         logger.debug(f"User '{token_data.username}' not found")
         raise credentials_exception

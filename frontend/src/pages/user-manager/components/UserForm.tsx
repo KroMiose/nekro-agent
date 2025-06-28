@@ -26,7 +26,8 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
   const [formData, setFormData] = useState<UserFormData>({
     username: '',
     password: '',
-    bind_qq: '',
+    adapter_key: '',
+    platform_userid: '',
     access_key: ''
   });
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -69,10 +70,12 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
       newErrors.confirmPassword = '两次输入的密码不一致';
     }
     
-    if (!formData.bind_qq.trim()) {
-      newErrors.bind_qq = 'QQ号不能为空';
-    } else if (!/^\d+$/.test(formData.bind_qq)) {
-      newErrors.bind_qq = 'QQ号必须为数字';
+    if (!formData.adapter_key.trim()) {
+      newErrors.adapter_key = '适配器不能为空';
+    }
+    
+    if (!formData.platform_userid.trim()) {
+      newErrors.platform_userid = '平台用户ID不能为空';
     }
     
     if (!formData.access_key) {
@@ -102,7 +105,8 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
     setFormData({
       username: '',
       password: '',
-      bind_qq: '',
+      adapter_key: '',
+      platform_userid: '',
       access_key: ''
     });
     setConfirmPassword('');
@@ -185,12 +189,30 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
           <TextField
             fullWidth
             margin="normal"
-            label="QQ号"
-            name="bind_qq"
-            value={formData.bind_qq}
+            label="适配器"
+            name="adapter_key"
+            value={formData.adapter_key}
             onChange={handleChange}
-            error={!!errors.bind_qq}
-            helperText={errors.bind_qq}
+            error={!!errors.adapter_key}
+            helperText={errors.adapter_key}
+            required
+            size={isSmall ? "small" : "medium"}
+            InputLabelProps={{
+              shrink: true,
+              sx: { fontSize: isSmall ? '0.9rem' : '1rem' }
+            }}
+            sx={{ mb: isSmall ? 1.5 : 2 }}
+          />
+          
+          <TextField
+            fullWidth
+            margin="normal"
+            label="平台用户ID"
+            name="platform_userid"
+            value={formData.platform_userid}
+            onChange={handleChange}
+            error={!!errors.platform_userid}
+            helperText={errors.platform_userid}
             required
             size={isSmall ? "small" : "medium"}
             InputLabelProps={{

@@ -1,20 +1,61 @@
-import difflib
-import hashlib
+"""
+# 基础交互插件 (Basic)
+
+提供智能体与聊天平台进行基础交互的核心功能，并内置了智能防刷屏机制。
+
+## 主要功能
+
+- **基础通信**: 负责 AI 发送文本、图片、文件的核心能力。
+- **智能防刷屏**: 能够自动检测并过滤重复或高度相似的内容，避免 AI 发送无意义的重复消息，保持对话的清爽。
+- **动态工具**: 能够根据当前所用的聊天适配器，动态提供一些特殊功能（例如在 QQ 中获取用户头像）。
+
+## 配置说明
+
+此插件包含一些关于消息过滤的配置，例如：
+- **消息相似度过滤**: 是否启用防刷屏功能。
+- **严格重复消息过滤**: 开启后，发送完全相同的消息会直接失败。
+- **相似度警告阈值**: 用于判断消息是否相似的灵敏度。
+
+## Agent 可用工具 (Sandbox Methods)
+
+### 通用工具
+- **send_msg_text**:
+  - 描述: 发送文本消息到指定的会话。
+  - 注意: 插件会检查近期消息，如果发现重复或高度相似的内容，可能会阻止发送或发出警告。
+
+- **send_msg_file**:
+  - 描述: 发送文件或图片到指定的会话。插件会自动识别文件类型（图片/普通文件）并发送。
+  - 参数: `file_path` 可以是 URL 或容器内的共享路径。
+  - 注意: 同样具有防重复发送机制，通过文件内容的 MD5 判断。
+
+### OneBot v11 专属工具
+- **get_user_avatar**:
+  - 描述: 获取 QQ 用户的头像。
+  - 参数: `user_qq` (用户 QQ 号)。
+  - 返回: 头像文件的容器内共享路径。
+  - **注意: 此工具仅在 `onebot_v11` 适配器下可用。**
+"""
+
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Callable, Dict, List, Optional
 
 import aiofiles
 import magic
 from pydantic import Field
 
-from nekro_agent.api import core, message, user
+from nekro_agent.adapters.onebot_v11.tools import user
+from nekro_agent.api import core
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.services.message.message_service import message_service
-from nekro_agent.tools.common_util import download_file
+from nekro_agent.services.message_service import message_service
+from nekro_agent.tools.common_util import (
+    calculate_file_md5,
+    calculate_text_similarity,
+    download_file,
+)
 from nekro_agent.tools.path_convertor import (
-    convert_to_container_path,
+    convert_filename_to_sandbox_upload_path,
     convert_to_host_path,
     is_url_path,
 )
@@ -22,10 +63,11 @@ from nekro_agent.tools.path_convertor import (
 plugin = NekroPlugin(
     name="基础交互插件",
     module_name="basic",
-    description="提供基础的聊天消息发送、图片/文件资源发送、用户头像获取、图片观察工具等基础功能",
+    description="提供基础的聊天消息发送、图片/文件资源发送等基础功能",
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    support_adapter=["onebot_v11", "minecraft", "sse"],
 )
 
 
@@ -47,6 +89,11 @@ plugin = NekroPlugin(
 class BasicConfig(ConfigBase):
     """基础配置"""
 
+    SIMILARITY_MESSAGE_FILTER: bool = Field(
+        default=True,
+        title="启用消息相似度过滤",
+        description="启用后将按以下策略自动过滤重复消息并提示 AI 调整生成策略",
+    )
     STRICT_MESSAGE_FILTER: bool = Field(
         default=False,
         title="启用严格重复消息过滤",
@@ -76,52 +123,18 @@ config: BasicConfig = plugin.get_config(BasicConfig)
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")
 async def basic_prompt_inject(_ctx: AgentCtx):
     """示例提示注入"""
-    return ""
+    features: Dict[str, bool] = {
+        "Reference_Message": False,
+    }
+    base_prompt = "Current Adapter Support Feature:\n"
+    if _ctx.adapter_key in ["onebot_v11"]:
+        features["Reference_Message"] = True
+    tips: str = "When you reference a message, user can click it to jump to the referenced message."
+    return base_prompt + "\n".join([f"{k}: {v}" for k, v in features.items()]) + "\n" + tips
 
 
 SEND_MSG_CACHE: Dict[str, List[str]] = {}
 SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_key: [md5_1, md5_2, md5_3]}
-
-
-def _calculate_text_similarity(text1: str, text2: str) -> float:
-    """计算两段文本的相似度
-
-    Args:
-        text1 (str): 第一段文本
-        text2 (str): 第二段文本
-
-    Returns:
-        float: 相似度（0-1）
-    """
-    return difflib.SequenceMatcher(None, text1, text2).ratio()
-
-
-async def _calculate_file_md5(file_path: str) -> str:
-    """计算文件的 MD5 值或获取标识
-
-    Args:
-        file_path (str): 文件路径或 URL
-
-    Returns:
-        str: 本地文件返回 MD5 哈希值，URL 返回其链接
-    """
-    # 对于网络资源，直接返回 URL 作为标识
-    if is_url_path(file_path):
-        return file_path
-
-    # 处理本地文件
-    try:
-        md5_hash = hashlib.md5()
-        async with aiofiles.open(file_path, "rb") as f:
-            while True:
-                chunk = await f.read(4096)
-                if not chunk:
-                    break
-                md5_hash.update(chunk)
-        return md5_hash.hexdigest()
-    except Exception as e:
-        core.logger.warning(f"计算文件 MD5 失败: {e}")
-        return file_path  # 如果无法计算 MD5，则返回文件路径作为标识
 
 
 @plugin.mount_sandbox_method(
@@ -129,7 +142,7 @@ async def _calculate_file_md5(file_path: str) -> str:
     name="发送聊天消息文本",
     description="发送聊天消息文本，附带缓存消息重复检查",
 )
-async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
+async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_msg_id: Optional[str] = None):
     """发送聊天消息文本
 
     Attention: Do not expose any unnecessary technical id or key in the message content.
@@ -137,6 +150,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     Args:
         chat_key (str): 会话标识
         message_text (str): 消息内容
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_MSG_CACHE
 
@@ -159,24 +173,24 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     recent_messages = SEND_MSG_CACHE[chat_key][-5:] if SEND_MSG_CACHE[chat_key] else []
 
     # 检查完全匹配
-    if message_text in recent_messages:
-        # 清空缓存允许再次发送
-        SEND_MSG_CACHE[chat_key] = []
-        if config.STRICT_MESSAGE_FILTER:
-            raise Exception(
-                "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+    if config.SIMILARITY_MESSAGE_FILTER:
+        if message_text in recent_messages:
+            # 清空缓存允许再次发送
+            SEND_MSG_CACHE[chat_key] = []
+            if config.STRICT_MESSAGE_FILTER:
+                raise Exception(
+                    "Error: Identical message has been sent recently. Carefully read the recent chat history whether it has sent duplicate messages. Please generate more interesting replies. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+                )
+            await message_service.push_system_message(
+                chat_key=chat_key,
+                agent_messages="System Alert: Identical message has been sent recently. Auto Skip this message. Carefully read the recent chat history whether it has sent duplicate messages. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
+                trigger_agent=False,
             )
-        await message_service.push_system_message(
-            chat_key=chat_key,
-            agent_messages="System Alert: Identical message has been sent recently. Auto Skip this message. Carefully read the recent chat history whether it has sent duplicate messages. If you COMPLETELY DETERMINED that it is necessary, resend it. SPAM IS NOT ALLOWED!",
-            trigger_agent=False,
-        )
-        return
+            return
 
-    # 检查相似度（仅对超过限定字符的消息进行检查）
-    if len(message_text) > config.SIMILARITY_CHECK_LENGTH:
+        # 检查相似度（仅对超过限定字符的消息进行检查）
         for recent_msg in recent_messages:
-            similarity = _calculate_text_similarity(message_text, recent_msg)
+            similarity = calculate_text_similarity(message_text, recent_msg, min_length=config.SIMILARITY_CHECK_LENGTH)
             if similarity > config.SIMILARITY_THRESHOLD:
                 # 发送系统消息提示避免类似内容
                 core.logger.warning(f"[{chat_key}] 检测到相似度过高的消息: {similarity:.2f}")
@@ -188,7 +202,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
                 break
 
     try:
-        await message.send_text(chat_key, message_text, _ctx)
+        await _ctx.ms.send_text(chat_key, message_text, _ctx, ref_msg_id=ref_msg_id)
     except Exception as e:
         core.logger.exception(f"发送消息失败: {e}")
         raise Exception(
@@ -205,12 +219,13 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str):
     name="发送聊天消息图片/文件资源",
     description="发送聊天消息图片/文件资源，附带缓存文件重复检查",
 )
-async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
+async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_id: Optional[str] = None):
     """发送聊天消息图片/文件资源
 
     Args:
         chat_key (str): 会话标识
         file_path (str): 图片/文件路径或 URL 容器内路径
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
     global SEND_FILE_CACHE
     file_container_path = file_path  # 防止误导llm
@@ -219,10 +234,10 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
 
     if is_url_path(file_container_path):
         file_host_path, _ = await download_file(file_container_path, from_chat_key=chat_key)
-        file_container_path = str(convert_to_container_path(Path(file_host_path)))
+        file_container_path = str(convert_filename_to_sandbox_upload_path(Path(file_host_path)))
     else:
         file_host_path = str(
-            convert_to_host_path(Path(file_container_path), _ctx.from_chat_key, container_key=_ctx.container_key),
+            convert_to_host_path(Path(file_container_path), _ctx.chat_key, container_key=_ctx.container_key),
         )
         if not Path(file_host_path).exists():
             raise FileNotFoundError(
@@ -233,10 +248,10 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
         SEND_FILE_CACHE[chat_key] = []
 
     # 计算文件 MD5
-    file_md5 = await _calculate_file_md5(file_host_path)
+    file_md5 = await calculate_file_md5(file_host_path)
 
-    # 检查是否重复发送
-    if file_md5 in SEND_FILE_CACHE[chat_key]:
+    # 过滤重复文件
+    if config.SIMILARITY_MESSAGE_FILTER and file_md5 in SEND_FILE_CACHE[chat_key]:
         SEND_FILE_CACHE[chat_key].remove(file_md5)
         if config.STRICT_MESSAGE_FILTER:
             raise Exception(
@@ -257,9 +272,9 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str):
             is_image = mime_type.startswith("image/")
 
         if is_image:
-            await message.send_image(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_image(chat_key, file_container_path, _ctx, ref_msg_id=ref_msg_id)
         else:
-            await message.send_file(chat_key, file_container_path, _ctx)
+            await _ctx.ms.send_file(chat_key, file_container_path, _ctx, ref_msg_id=ref_msg_id)
 
         # 更新文件缓存
         SEND_FILE_CACHE[chat_key].append(file_md5)
@@ -288,6 +303,18 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
         return await user.get_avatar(user_qq, _ctx)
     except Exception as e:
         raise Exception(f"Error getting user avatar: {e}") from e
+
+
+@plugin.mount_collect_methods()
+async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
+    """根据适配器收集可用方法"""
+
+    if _ctx.adapter_key == "minecraft":
+        return [send_msg_text]
+    if _ctx.adapter_key == "sse":
+        return [send_msg_text, send_msg_file]
+
+    return [send_msg_text, send_msg_file, get_user_avatar]
 
 
 @plugin.mount_cleanup_method()
