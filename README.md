@@ -144,7 +144,7 @@ sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-a
 ```
 如果从 Github 下载脚本遇到网络问题，您可以使用国内的 GitCode 镜像源：
 
-# 从 GitCode (国内加速)
+#### 从 GitCode (国内加速)
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker/install.sh)" - --with-napcat
 ```
