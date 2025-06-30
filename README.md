@@ -136,11 +136,6 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 - [Windows 部署教程](https://doc.nekro.ai/docs/02_quick_start/deploy/windows)
 - [MacOS 部署教程](https://doc.nekro.ai/docs/02_quick_start/deploy/macos)
 
-### 一键部署脚本 (推荐)
-
-```bash
-sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start_x_napcat.sh)"
-```
 
 ## 🖥️ 开发者资源
 
