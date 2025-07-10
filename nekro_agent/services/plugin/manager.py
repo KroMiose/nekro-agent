@@ -64,6 +64,17 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         for endpoint, method in plugin.webhook_methods.items()
     ]
 
+    # 获取路由信息
+    router_info = None
+    if plugin.get_plugin_router():
+        router_data = plugin_collector.get_plugin_router_info().get(plugin_id)
+        if router_data:
+            router_info = {
+                "mount_path": router_data["mount_path"],
+                "routes_count": router_data["routes_count"],
+                "routes": router_data["routes"],
+            }
+
     # 构建插件详情
     return {
         "name": plugin.name,
@@ -77,13 +88,37 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
         "methods": methods,
         "webhooks": webhooks,
+        "router": router_info,  # 新增路由信息
         "isBuiltin": plugin.is_builtin,
         "isPackage": plugin.is_package,
     }
 
 
+async def get_all_plugin_router_info() -> Dict[str, Any]:
+    """获取所有插件的路由信息
+
+    Returns:
+        Dict[str, Any]: 插件路由信息汇总
+    """
+    try:
+        from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+        # 使用新的路由管理器获取信息
+        return plugin_router_manager.get_plugins_router_info()
+
+    except Exception as e:
+        logger.error(f"获取插件路由信息失败: {e}")
+        return {
+            "total_plugins": 0,
+            "plugins_with_router": 0,
+            "router_summary": [],
+            "detailed_routes": {},
+            "error": str(e),
+        }
+
+
 async def enable_plugin(plugin_id: str) -> bool:
-    """启用插件"""
+    """启用插件（支持热重载）"""
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -92,10 +127,24 @@ async def enable_plugin(plugin_id: str) -> bool:
         return True  # 已经启用，直接返回成功
 
     try:
+        # 启用插件
         plugin.enable()
         if plugin.key not in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
+
+        # 热挂载插件路由
+        try:
+            from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+            if plugin_router_manager.mount_plugin_router(plugin):
+                logger.info(f"插件 {plugin.name} 启用并热挂载路由成功")
+            else:
+                logger.debug(f"插件 {plugin.name} 启用成功，但没有路由需要挂载")
+        except Exception as router_error:
+            logger.exception(f"插件 {plugin.name} 启用成功，但路由挂载失败: {router_error}")
+            # 路由挂载失败不影响插件启用
+
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
         return False
@@ -104,7 +153,7 @@ async def enable_plugin(plugin_id: str) -> bool:
 
 
 async def disable_plugin(plugin_id: str) -> bool:
-    """禁用插件"""
+    """禁用插件（支持热重载）"""
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -113,10 +162,24 @@ async def disable_plugin(plugin_id: str) -> bool:
         return True  # 已经禁用，直接返回成功
 
     try:
+        # 热卸载插件路由
+        try:
+            from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+            if plugin_router_manager.unmount_plugin_router(plugin.key):
+                logger.info(f"插件 {plugin.name} 路由已热卸载")
+            else:
+                logger.debug(f"插件 {plugin.name} 没有路由需要卸载")
+        except Exception as router_error:
+            logger.exception(f"插件 {plugin.name} 路由卸载失败: {router_error}")
+            # 路由卸载失败不影响插件禁用
+
+        # 禁用插件
         plugin.disable()
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
+
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")
         return False

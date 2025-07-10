@@ -154,6 +154,9 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     """
     global SEND_MSG_CACHE
 
+    if _ctx.adapter_key not in ["onebot_v11", "minecraft", "sse"]:
+        raise Exception(f"Error: This method is not available in this adapter. Current adapter: {_ctx.adapter_key}")
+
     if not message_text.strip():
         raise Exception("Error: The message content cannot be empty.")
 

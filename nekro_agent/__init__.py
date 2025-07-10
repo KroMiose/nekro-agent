@@ -12,14 +12,12 @@ from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
 from nekro_agent.core.logger import logger
-from nekro_agent.routers import mount_routers
+from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.festival_service import festival_service
 from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.timer_service import timer_service
 from nekro_agent.systems.cloud.scheduler import start_telemetry_task
-
-from .app import start
 
 logging.getLogger("passlib").setLevel(logging.ERROR)
 
@@ -36,14 +34,44 @@ if config.WEAVE_ENABLED:
     except Exception as e:
         logger.error(f"Weave 服务连接失败: {e}")
 
-mount_routers(get_app())
+# 在应用启动前挂载中间件和主路由
+# 这是确保应用生命周期正确的唯一方法
+app = get_app()
+mount_middlewares(app)
+mount_api_routes(app)
 
 
 @get_driver().on_startup
 async def on_startup():
+    # 启动时不再挂载主路由，它们已在启动前挂载完毕
+    app = get_app()
+
+    # 初始化数据库、适配器和插件
     await init_db()
-    await init_adapters(get_app())
+    await init_adapters(app)
     await init_plugins()
+
+    # 🎯 关键修复：在静态文件挂载之前挂载插件路由！
+    # 初始化插件路由管理器并挂载插件路由
+    try:
+        from nekro_agent.services.plugin.collector import plugin_collector
+        from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+        # 绑定FastAPI应用实例到路由管理器
+        plugin_router_manager.set_app(app)
+
+        # 挂载所有启用的插件路由
+        plugins_with_router = plugin_collector.get_plugins_with_router()
+        success_count = 0
+        for plugin in plugins_with_router:
+            if plugin_router_manager.mount_plugin_router(plugin):
+                success_count += 1
+
+        logger.info(f"插件路由热挂载完成，成功挂载 {success_count} 个插件的路由")
+
+    except Exception as e:
+        logger.exception(f"初始化插件路由管理器失败: {e}")
+
     await timer_service.start()
     logger.info("Timer service initialized")
 

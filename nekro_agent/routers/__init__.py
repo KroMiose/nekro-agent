@@ -6,7 +6,6 @@ from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
 from nekro_agent.core.logger import logger
@@ -35,9 +34,12 @@ from .user import router as user_router
 from .user_manager import router as user_manager_router
 from .webhook import router as webhook_router
 
+# 注意：插件路由现在通过插件路由管理器动态挂载，支持热重载
+# 不再使用静态路由挂载方式
 
-def mount_routers(app: FastAPI):
-    """挂载 API 路由"""
+
+def mount_middlewares(app: FastAPI):
+    """挂载中间件和全局处理器"""
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -55,6 +57,9 @@ def mount_routers(app: FastAPI):
             content=Ret.error(msg=str(exc)).model_dump(),
         )
 
+
+def mount_api_routes(app: FastAPI):
+    """挂载 API 路由"""
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)
@@ -90,37 +95,74 @@ def mount_routers(app: FastAPI):
             UserLogin(username=form_data.username, password=form_data.password),
         )
 
-    # 生成 OpenAPI 文档
-    @api.get("/openapi.json", include_in_schema=False)
-    async def openapi():
-        openapi_schema = get_openapi(
-            title="Nekro Agent API",
-            version=get_app_version(),
-            routes=api.routes,
-            description="Nekro Agent API 文档",
-        )
-        return JSONResponse(openapi_schema)
-
     # 挂载 API 文档
     @api.get("/docs", include_in_schema=False)
-    async def custom_swagger_ui_html():
+    async def custom_swagger_ui_html(request: Request):
         return get_swagger_ui_html(
-            openapi_url="/api/openapi.json",
+            openapi_url=request.app.openapi_url,
             title="Nekro Agent API",
             oauth2_redirect_url="/api/token",
         )
 
     # redoc
     @api.get("/redoc", include_in_schema=False)
-    async def redoc_html():
+    async def redoc_html(request: Request):
         return get_redoc_html(
-            openapi_url="/api/openapi.json",
+            openapi_url=request.app.openapi_url,
             title="Nekro Agent API",
         )
 
+    @api.get("/openapi.json", include_in_schema=False)
+    async def custom_openapi(request: Request):
+        """生成并缓存全局 OpenAPI 文档"""
+        app_instance = request.app
+        # 总是重新生成，以反映动态添加/删除的路由
+        openapi_schema = get_openapi(
+            title="Nekro Agent API",
+            version=get_app_version(),
+            routes=app_instance.routes,
+            description="Nekro Agent API 文档（包含动态插件路由）",
+        )
+        app_instance.openapi_schema = openapi_schema
+
+        # 添加HTTP头，强制浏览器不缓存OpenAPI文档
+        headers = {
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+            "Pragma": "no-cache",
+            "Expires": "0",
+        }
+        return JSONResponse(openapi_schema, headers=headers)
+
     app.include_router(api)
 
-    # 挂载静态文件
-    static_dir = Path(OsEnv.STATIC_DIR)
-    if static_dir.exists():
-        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+    # 🎯 正确的静态文件挂载方案：/webui + 根路径重定向
+    try:
+        static_dir = Path(OsEnv.STATIC_DIR)
+        if static_dir.exists():
+            # 将前端静态文件挂载到 /webui 路径
+            from fastapi.responses import RedirectResponse
+            from fastapi.staticfiles import StaticFiles
+
+            app.mount("/webui", StaticFiles(directory=str(static_dir), html=True), name="webui")
+            logger.info(f"✅ 前端静态文件已挂载到 /webui 路径: {static_dir}")
+
+            # 添加根路径重定向到前端界面
+            @app.get("/", include_in_schema=False)
+            async def redirect_to_webui():
+                """根路径重定向到前端界面"""
+                return RedirectResponse(url="/webui/", status_code=302)
+
+            # 也处理 /index.html 的情况
+            @app.get("/index.html", include_in_schema=False)
+            async def redirect_index_to_webui():
+                """index.html 重定向到前端界面"""
+                return RedirectResponse(url="/webui/", status_code=302)
+
+            logger.info("✅ 根路径重定向已配置：/ -> /webui/")
+        else:
+            logger.debug(f"静态文件目录不存在: {static_dir}")
+    except Exception as e:
+        logger.exception(f"❌ 挂载静态文件失败: {e}")
+
+    # 将 OpenAPI 文档生成和 URL 设置移到 app 上，确保全局生效
+    app.openapi_url = "/api/openapi.json"

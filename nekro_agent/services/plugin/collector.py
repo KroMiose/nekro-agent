@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Set, Tuple
 
 import git
+from fastapi import APIRouter
 from pydantic import BaseModel
 
 from nekro_agent.core.config import config
@@ -112,15 +113,24 @@ class PluginCollector:
 
         # 加载内置插件
         for item in self.builtin_plugin_dir.iterdir():
-            await self._try_load_plugin(item, is_builtin=True)
+            try:
+                await self._try_load_plugin(item, is_builtin=True)
+            except Exception as e:
+                logger.exception(f"加载内置插件失败: {item}: {e}")
 
-        # 加载工作目录插件
+        # 加载本地插件
         for item in self.workdir_plugin_dir.iterdir():
-            await self._try_load_plugin(item, is_builtin=False)
+            try:
+                await self._try_load_plugin(item, is_builtin=False)
+            except Exception as e:
+                logger.exception(f"加载本地插件失败: {item}: {e}")
 
-        # 加载packages插件
+        # 加载云端插件
         for item in self.packages_dir.iterdir():
-            await self._try_load_plugin(item, is_package=True)
+            try:
+                await self._try_load_plugin(item, is_package=True)
+            except Exception as e:
+                logger.exception(f"加载云端插件失败: {item}: {e}")
 
     async def unload_plugin_by_module_name(self, module_name: str, scope: Literal["all", "package", "local"] = "all") -> None:
         """卸载指定插件
@@ -229,6 +239,19 @@ class PluginCollector:
 
         # logger.debug(f"尝试加载插件: {real_path} 从 {fixed_module_name}")
         await self._try_load_plugin(real_path, is_builtin=is_builtin, is_package=is_package)
+
+        # 重载完成后，如果插件有路由，进行热重载
+        try:
+            reloaded_plugin = self.get_plugin_by_module_name(fixed_module_name)
+            if reloaded_plugin and reloaded_plugin.is_enabled:
+                from nekro_agent.services.plugin.router_manager import (
+                    plugin_router_manager,
+                )
+
+                if plugin_router_manager.reload_plugin_router(reloaded_plugin):
+                    logger.info(f"插件 {reloaded_plugin.name} 路由热重载成功")
+        except Exception as router_error:
+            logger.exception(f"插件路由热重载失败: {router_error}")
 
     async def clone_package(
         self,
@@ -527,6 +550,84 @@ class PluginCollector:
                 webhook_methods[plugin_key] = {endpoint: method.func for endpoint, method in plugin.webhook_methods.items()}
         logger.debug(f"获取到 {sum(len(methods) for methods in webhook_methods.values())} 个webhook方法")
         return webhook_methods
+
+    def load_plugins_api(self) -> APIRouter:
+        """加载所有插件的路由API
+
+        仿照适配器系统的设计，为所有启用的插件动态加载路由。
+        每个插件的路由将挂载在 /plugins/{plugin_key} 路径下。
+
+        Returns:
+            APIRouter: 包含所有插件路由的API路由器
+        """
+        api = APIRouter()
+        mounted_count = 0
+
+        logger.info(f"开始加载插件路由，当前已加载插件数量: {len(self.loaded_plugins)}")
+
+        for plugin_key, plugin in self.loaded_plugins.items():
+            try:
+                plugin_router = plugin.get_plugin_router()
+                if plugin_router:
+                    # 挂载插件路由，路径为 /plugins/{plugin_key}
+                    api.include_router(
+                        plugin_router,
+                        prefix=f"/plugins/{plugin_key}",
+                        tags=[f"Plugin:{plugin.name}"],
+                    )
+                    mounted_count += 1
+                    logger.info(f"✅ 插件 {plugin.name} 的路由已挂载到 /plugins/{plugin_key}")
+
+            except Exception as e:
+                logger.exception(f"❌ 加载插件 {plugin.name} 的路由失败: {e}")
+                continue
+
+        logger.info(f"插件路由加载完成，成功挂载 {mounted_count} 个插件的路由")
+        return api
+
+    def get_plugins_with_router(self) -> List[NekroPlugin]:
+        """获取所有具有自定义路由的插件
+
+        Returns:
+            List[NekroPlugin]: 具有自定义路由的插件列表
+        """
+        return [
+            plugin for plugin in self.loaded_plugins.values() if plugin.is_enabled and plugin.get_plugin_router() is not None
+        ]
+
+    def get_plugin_router_info(self) -> Dict[str, Dict[str, Any]]:
+        """获取所有插件的路由信息
+
+        Returns:
+            Dict[str, Dict[str, Any]]: 插件路由信息字典
+        """
+        router_info = {}
+
+        for plugin_key, plugin in self.loaded_plugins.items():
+            if not plugin.is_enabled:
+                continue
+
+            plugin_router = plugin.get_plugin_router()
+            if plugin_router:
+                routes_info = []
+                for route in plugin_router.routes:
+                    # 使用getattr安全地访问路由属性
+                    route_info = {
+                        "name": getattr(route, "name", ""),
+                        "path": getattr(route, "path", "unknown"),
+                        "methods": list(getattr(route, "methods", [])),
+                    }
+                    routes_info.append(route_info)
+
+                router_info[plugin_key] = {
+                    "plugin_name": plugin.name,
+                    "plugin_description": plugin.description,
+                    "mount_path": f"/plugins/{plugin_key}",
+                    "routes_count": len(routes_info),
+                    "routes": routes_info,
+                }
+
+        return router_info
 
     async def chat_channel_on_reset(self, ctx: AgentCtx) -> None:
         """聊天频道重置时执行"""

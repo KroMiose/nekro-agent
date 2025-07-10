@@ -15,6 +15,7 @@ from typing import (
 )
 
 import aiofiles
+from fastapi import APIRouter
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
@@ -70,6 +71,10 @@ class NekroPlugin:
         self._is_package: bool = is_package  # 标记是否为包
         self._module: Optional["ModuleType"] = None  # 模块对象
 
+        # 路由相关
+        self._router_func: Optional[Callable[[], APIRouter]] = None
+        self._router: Optional[APIRouter] = None
+
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
         self._store = PluginStore(self)
@@ -82,6 +87,9 @@ class NekroPlugin:
         self.sandbox_methods = []
         self.webhook_methods = {}
         self._collect_methods_func = None
+        # 重置路由相关
+        self._router_func = None
+        self._router = None
 
     def mount_init_method(self) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
         """挂载初始化方法
@@ -143,6 +151,76 @@ class NekroPlugin:
     def get_plugin_path(self) -> Path:
         self._plugin_path.mkdir(parents=True, exist_ok=True)
         return self._plugin_path
+
+    def mount_router(self) -> Callable[[Callable[[], APIRouter]], Callable[[], APIRouter]]:
+        """挂载路由生成方法
+
+        用于挂载插件的自定义路由，提供完整的FastAPI路由功能。
+        插件路由将挂载在 /plugins/{plugin_key} 路径下。
+
+        Example:
+            ```python
+            @plugin.mount_router()
+            def create_router():
+                router = APIRouter()
+
+                @router.get("/hello")
+                async def hello():
+                    return {"message": "Hello from plugin!"}
+
+                @router.post("/data")
+                async def create_data(data: dict):
+                    return {"received": data}
+
+                return router
+            ```
+
+        Returns:
+            装饰器函数
+        """
+
+        def decorator(func: Callable[[], APIRouter]) -> Callable[[], APIRouter]:
+            logger.debug(f"插件 {self.name} 注册路由生成函数: {func.__name__}")
+            self._router_func = func
+            # 清除缓存的路由实例，确保重新生成
+            self._router = None
+            logger.debug(f"插件 {self.name} 路由生成函数注册完成")
+            return func
+
+        return decorator
+
+    def get_plugin_router(self) -> Optional[APIRouter]:
+        """获取插件路由实例
+
+        Returns:
+            Optional[APIRouter]: 插件路由实例，如果插件没有注册路由则返回None
+        """
+        logger.debug(f"插件 {self.name} 获取路由: _router_func={self._router_func is not None}, _router={self._router is not None}")
+        
+        if not self._router_func:
+            logger.debug(f"插件 {self.name} 没有注册路由生成函数")
+            return None
+
+        # 如果已有缓存的路由实例，直接返回
+        if self._router is not None:
+            logger.debug(f"插件 {self.name} 返回缓存的路由实例")
+            return self._router
+
+        try:
+            logger.debug(f"插件 {self.name} 正在调用路由生成函数...")
+            # 调用路由生成函数
+            self._router = self._router_func()
+            logger.debug(f"插件 {self.name} 路由生成完成，类型: {type(self._router)}")
+            
+            if not isinstance(self._router, APIRouter):
+                logger.error(f"插件 {self.name} 的路由生成函数必须返回 APIRouter 实例，实际返回: {type(self._router)}")
+                return None
+        except Exception as e:
+            logger.exception(f"插件 {self.name} 生成路由时出错: {e}")
+            return None
+        else:
+            logger.info(f"插件 {self.name} 路由生成成功，路由数量: {len(self._router.routes)}")
+            return self._router
 
     def mount_sandbox_method(
         self,

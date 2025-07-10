@@ -14,6 +14,7 @@ from nekro_agent.services.plugin.manager import (
     disable_plugin,
     enable_plugin,
     get_all_ext_meta_data,
+    get_all_plugin_router_info,
     get_plugin_detail,
 )
 from nekro_agent.services.plugin.schema import SandboxMethodType
@@ -224,3 +225,76 @@ async def update_package(
     except Exception as e:
         logger.error(f"更新云端插件失败: {e}")
         return Ret.error(msg=f"更新失败: {e!s}")
+
+
+@router.get("/router-info", summary="获取所有插件路由信息")
+@require_role(Role.Admin)
+async def get_plugin_router_info(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取所有插件的路由信息"""
+    try:
+        router_info = await get_all_plugin_router_info()
+        return Ret.success(msg="获取插件路由信息成功", data=router_info)
+    except Exception as e:
+        logger.error(f"获取插件路由信息失败: {e}")
+        return Ret.error(msg=f"获取失败: {e!s}")
+
+
+@router.post("/refresh-routes", summary="刷新插件路由")
+@require_role(Role.Admin)
+async def refresh_plugin_routes(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """刷新所有插件路由，更新OpenAPI文档"""
+    try:
+        from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+        plugin_router_manager.refresh_all_plugin_routes()
+        return Ret.success(msg="插件路由刷新成功")
+    except Exception as e:
+        logger.error(f"刷新插件路由失败: {e}")
+        return Ret.error(msg=f"刷新失败: {e!s}")
+
+
+@router.get("/debug-routes", summary="调试路由信息")
+@require_role(Role.Admin)
+async def debug_routes(_current_user: DBUser = Depends(get_current_active_user)):
+    """调试当前应用的所有路由信息（管理员专用）"""
+    try:
+        from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+        plugin_routes = plugin_router_manager.debug_routes()
+
+        return Ret.success(
+            msg="路由调试信息已输出到日志",
+            data={
+                "plugin_routes": plugin_routes,
+                "debug_completed": True,
+            },
+        )
+    except Exception as e:
+        logger.exception(f"调试路由失败: {e}")
+        return Ret.error(msg=f"调试路由失败: {e!s}")
+
+
+@router.get("/verify-plugin-routes/{plugin_key}", summary="验证插件路由")
+@require_role(Role.Admin)
+async def verify_plugin_routes_endpoint(plugin_key: str, _current_user: DBUser = Depends(get_current_active_user)):
+    """验证指定插件的路由是否正确挂载（管理员专用）"""
+    try:
+        from nekro_agent.services.plugin.router_manager import plugin_router_manager
+
+        found_routes = plugin_router_manager.verify_plugin_routes(plugin_key)
+
+        return Ret.success(
+            msg=f"插件 {plugin_key} 共找到 {len(found_routes)} 个路由",
+            data={
+                "plugin_key": plugin_key,
+                "found_routes": found_routes,
+                "routes_count": len(found_routes),
+            },
+        )
+    except Exception as e:
+        logger.exception(f"验证插件路由失败: {e}")
+        return Ret.error(msg=f"验证插件路由失败: {e!s}")
