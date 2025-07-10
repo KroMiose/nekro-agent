@@ -27,7 +27,7 @@
 AI 可以通过以下方法操作白板：
 - `display_image()`: 展示图片
 - `display_video()`: 播放视频
-- `display_html()`: 展示 HTML 内容
+- `display_html()`: 展示 HTML 渲染内容
 - `display_text()`: 显示文本信息
 - `clear_whiteboard()`: 清空白板
 - `set_layout()`: 设置布局模式
@@ -103,55 +103,75 @@ class WhiteboardState(BaseModel):
     last_update: float = Field(default_factory=time.time)
 
 
-# SSE 连接管理
-sse_connections: Set[asyncio.Queue] = set()
+# 白板客户端类
+class WhiteboardClient:
+    """白板SSE客户端"""
+    
+    def __init__(self):
+        self.is_alive = True
+        self.event_queue: asyncio.Queue = asyncio.Queue()
+        
+    async def send_event(self, data: Dict[str, Any]) -> None:
+        """发送事件到客户端"""
+        if not self.is_alive:
+            return
+        try:
+            await asyncio.wait_for(self.event_queue.put(data), timeout=0.5)
+        except asyncio.TimeoutError:
+            # 客户端可能卡住，标记为失活
+            self.is_alive = False
+
+# 客户端管理器
+class WhiteboardClientManager:
+    """白板客户端管理器"""
+    
+    def __init__(self):
+        self.clients: Set[WhiteboardClient] = set()
+        
+    def add_client(self, client: WhiteboardClient) -> None:
+        """添加客户端"""
+        self.clients.add(client)
+        
+    def remove_client(self, client: WhiteboardClient) -> None:
+        """移除客户端"""
+        self.clients.discard(client)
+        client.is_alive = False
+        
+    async def broadcast(self, data: Dict[str, Any]) -> None:
+        """广播消息到所有客户端"""
+        dead_clients = set()
+        
+        for client in self.clients.copy():
+            if not client.is_alive:
+                dead_clients.add(client)
+                continue
+                
+            await client.send_event(data)
+            
+        # 清理失效客户端
+        for client in dead_clients:
+            self.clients.discard(client)
+            
+    def stop_all(self) -> None:
+        """停止所有客户端"""
+        for client in self.clients.copy():
+            client.is_alive = False
+        self.clients.clear()
+
+# 全局管理器和状态
+client_manager = WhiteboardClientManager()
 whiteboard_state = WhiteboardState()
 
 
 async def broadcast_to_sse(data: Dict[str, Any]) -> None:
     """向所有 SSE 连接广播数据"""
-    if not sse_connections:
-        return
-
-    message = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-    dead_connections = set()
-
-    for queue in sse_connections.copy():
-        try:
-            await asyncio.wait_for(queue.put(message), timeout=1.0)
-        except (asyncio.TimeoutError, Exception):
-            dead_connections.add(queue)
-
-    # 清理失效连接
-    sse_connections.difference_update(dead_connections)
+    await client_manager.broadcast(data)
 
 
 async def close_all_sse_connections() -> None:
     """关闭所有SSE连接"""
-    if not sse_connections:
-        return
-
-    # 发送关闭信号给所有连接
-    close_message = 'data: {"type": "server_shutdown"}\n\n'
-    tasks = []
-
-    for queue in sse_connections.copy():
-        try:
-            # 发送关闭信号
-            task = asyncio.create_task(asyncio.wait_for(queue.put(close_message), timeout=0.5))
-            tasks.append(task)
-        except Exception:
-            pass
-
-    # 等待所有发送任务完成
-    if tasks:
-        try:
-            await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=2.0)
-        except asyncio.TimeoutError:
-            logger.warning("部分SSE连接关闭超时")
-
-    # 强制清空所有连接
-    sse_connections.clear()
+    logger.info(f"开始关闭 {len(client_manager.clients)} 个SSE连接")
+    client_manager.stop_all()
     logger.info("所有SSE连接已关闭")
 
 
@@ -632,9 +652,9 @@ def create_router() -> APIRouter:
         """SSE 长连接端点"""
 
         async def event_generator():
-            queue = asyncio.Queue()
-            sse_connections.add(queue)
-            logger.info(f"新的SSE连接建立，当前连接数: {len(sse_connections)}")
+            client = WhiteboardClient()
+            client_manager.add_client(client)
+            logger.info(f"新的SSE连接建立，当前连接数: {len(client_manager.clients)}")
 
             try:
                 # 发送初始状态
@@ -645,25 +665,23 @@ def create_router() -> APIRouter:
                     logger.warning(f"发送初始状态失败: {e}")
 
                 # 持续发送事件
-                while True:
+                while client.is_alive:
                     try:
                         if await request.is_disconnected():
                             break
 
-                        message = await asyncio.wait_for(queue.get(), timeout=30.0)
-
-                        # 检查是否为关闭信号
-                        if '"type": "server_shutdown"' in message:
-                            yield message
-                            break
-
+                        # 等待事件，使用较短超时
+                        data = await asyncio.wait_for(client.event_queue.get(), timeout=5.0)
+                        message = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
                         yield message
+
                     except asyncio.TimeoutError:
-                        # 发送心跳
-                        try:
-                            yield 'data: {"type": "heartbeat"}\n\n'
-                        except Exception:
-                            break
+                        # 发送心跳保持连接
+                        if client.is_alive:
+                            try:
+                                yield 'data: {"type": "heartbeat"}\n\n'
+                            except Exception:
+                                break
                     except asyncio.CancelledError:
                         logger.info("SSE连接被取消")
                         break
@@ -676,8 +694,8 @@ def create_router() -> APIRouter:
             except Exception as e:
                 logger.warning(f"SSE 连接错误: {e}")
             finally:
-                sse_connections.discard(queue)
-                logger.info(f"SSE连接断开，当前连接数: {len(sse_connections)}")
+                client_manager.remove_client(client)
+                logger.info(f"SSE连接断开，当前连接数: {len(client_manager.clients)}")
 
         return StreamingResponse(
             event_generator(),
@@ -687,6 +705,7 @@ def create_router() -> APIRouter:
                 "Connection": "keep-alive",
                 "Access-Control-Allow-Origin": "*",
                 "Access-Control-Allow-Headers": "Cache-Control",
+                "X-Accel-Buffering": "no",  # 禁用缓冲
             },
         )
 
@@ -697,7 +716,7 @@ def create_router() -> APIRouter:
             "success": True,
             "data": {
                 "state": whiteboard_state.model_dump(),
-                "connections": len(sse_connections),
+                "connections": len(client_manager.clients),
                 "last_update": datetime.fromtimestamp(whiteboard_state.last_update).isoformat(),
             },
         }
@@ -728,7 +747,7 @@ async def whiteboard_prompt(_ctx: AgentCtx) -> str:
         elif content.type == "video":
             summary = f"视频 #{idx+1}: {content.title or '无标题'}"
         elif content.type == "html":
-            summary = f"HTML内容 #{idx+1}: {content.title or '无标题'}"
+            summary = f"HTML渲染内容 #{idx+1}: {content.title or '无标题'}"
         elif content.type == "text":
             text_preview = content.content[:50] + "..." if len(content.content) > 50 else content.content
             summary = f"文本 #{idx+1}: {content.title or text_preview}"
@@ -769,9 +788,10 @@ async def whiteboard_prompt(_ctx: AgentCtx) -> str:
 - 这是一个直播展示白板，观众只能观看无法交互
 - 合理选择布局模式来展示多个内容
 - 图片和视频文件会自动转换为base64格式在浏览器中显示
-- HTML内容可以展示代码演示、图表等静态内容
+- HTML内容可以展示任意内容，将会在白板中通过浏览器引擎直接渲染
 - 链接功能会在白板中直接打开网页，观众可以看到实际的网页内容
 - 文本内容支持HTML格式，可添加丰富的样式和格式
+- 由于你无法直接和白板交互，例如用户让你制作一个小游戏，你可以同时编写自动游玩的代码来实现
 """
 
 
@@ -847,7 +867,7 @@ async def display_image(
         # 广播更新
         await broadcast_to_sse({"type": "update_state", "state": whiteboard_state.model_dump()})
 
-        logger.info(f"白板展示图片成功: {title or image_path}, 连接数: {len(sse_connections)}")
+        logger.info(f"白板展示图片成功: {title or image_path}, 连接数: {len(client_manager.clients)}")
 
     except Exception as e:
         raise Exception(f"展示图片失败: {e}") from e
@@ -920,7 +940,7 @@ async def display_video(
 
         await broadcast_to_sse({"type": "update_state", "state": whiteboard_state.model_dump()})
 
-        logger.info(f"白板播放视频成功: {title or video_path}, 连接数: {len(sse_connections)}")
+        logger.info(f"白板播放视频成功: {title or video_path}, 连接数: {len(client_manager.clients)}")
 
     except Exception as e:
         raise Exception(f"播放视频失败: {e}") from e
@@ -950,7 +970,7 @@ async def display_html(
         str: 操作结果描述
 
     Example:
-        display_html(chat_key, "<h1>Hello World</h1><p>这是一个示例</p>", "示例页面")
+        display_html("<h1>Hello World</h1><p>这是一个示例</p>", "示例页面")
     """
     global whiteboard_state
 
@@ -1144,30 +1164,29 @@ async def clear_whiteboard(_ctx: AgentCtx) -> str:
 
 @plugin.mount_cleanup_method()
 async def cleanup():
-    """清理插件资源"""
+    """快速清理插件资源"""
     global whiteboard_state
 
-    logger.info("开始清理白板插件资源...")
+    logger.info("开始快速清理白板插件资源...")
 
-    # 正确关闭所有SSE连接
-    await close_all_sse_connections()
+    try:
+        # 快速关闭所有SSE连接
+        await asyncio.wait_for(close_all_sse_connections(), timeout=1.0)
+    except asyncio.TimeoutError:
+        logger.warning("SSE连接关闭超时，强制继续")
+    except Exception as e:
+        logger.warning(f"关闭SSE连接时发生错误: {e}")
 
-    # 清理白板状态
+    # 立即重置白板状态
     whiteboard_state = WhiteboardState()
 
-    # 等待一小段时间确保资源完全释放
-    await asyncio.sleep(0.1)
-
-    logger.info("白板插件清理完成")
+    logger.info("白板插件快速清理完成")
 
 
 @plugin.mount_init_method()
 async def init():
     """初始化插件"""
-    global whiteboard_state, sse_connections
-
-    # 确保清理任何残留的连接
-    sse_connections.clear()
+    global whiteboard_state
 
     # 重置白板状态
     whiteboard_state = WhiteboardState(layout=config.DEFAULT_LAYOUT)

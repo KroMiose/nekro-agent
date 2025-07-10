@@ -180,7 +180,6 @@ class NekroPlugin:
         """
 
         def decorator(func: Callable[[], APIRouter]) -> Callable[[], APIRouter]:
-            logger.debug(f"插件 {self.name} 注册路由生成函数: {func.__name__}")
             self._router_func = func
             # 清除缓存的路由实例，确保重新生成
             self._router = None
@@ -195,23 +194,18 @@ class NekroPlugin:
         Returns:
             Optional[APIRouter]: 插件路由实例，如果插件没有注册路由则返回None
         """
-        logger.debug(f"插件 {self.name} 获取路由: _router_func={self._router_func is not None}, _router={self._router is not None}")
-        
+
         if not self._router_func:
-            logger.debug(f"插件 {self.name} 没有注册路由生成函数")
             return None
 
         # 如果已有缓存的路由实例，直接返回
         if self._router is not None:
-            logger.debug(f"插件 {self.name} 返回缓存的路由实例")
             return self._router
 
         try:
-            logger.debug(f"插件 {self.name} 正在调用路由生成函数...")
             # 调用路由生成函数
             self._router = self._router_func()
-            logger.debug(f"插件 {self.name} 路由生成完成，类型: {type(self._router)}")
-            
+
             if not isinstance(self._router, APIRouter):
                 logger.error(f"插件 {self.name} 的路由生成函数必须返回 APIRouter 实例，实际返回: {type(self._router)}")
                 return None

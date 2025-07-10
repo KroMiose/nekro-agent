@@ -33,7 +33,6 @@ class PluginRouteMiddleware:
 
         plugin = plugin_collector.get_plugin(self.plugin_key)
         if not plugin or not plugin.is_enabled:
-            logger.debug(f"插件 {self.plugin_name} ({self.plugin_key}) 已禁用，拒绝路由访问")
             raise HTTPException(status_code=404, detail="Plugin not found or disabled")
 
         # 插件启用，继续处理请求
@@ -74,12 +73,10 @@ class PluginRouterManager:
             return False
 
         if not plugin.is_enabled:
-            logger.debug(f"插件 {plugin.name} 已禁用，跳过路由挂载")
             return False
 
         plugin_router = plugin.get_plugin_router()
         if not plugin_router:
-            logger.debug(f"插件 {plugin.name} 没有提供路由")
             return False
 
         try:
@@ -113,7 +110,7 @@ class PluginRouterManager:
                 original_endpoint = route.endpoint
 
                 # 使用闭包创建新的端点函数，包含中间件逻辑
-                def create_wrapped_endpoint(orig_func, key, name):
+                def create_wrapped_endpoint(orig_func, key, _name):
 
                     # 保持原始函数的签名
                     @wraps(orig_func)
@@ -125,7 +122,6 @@ class PluginRouterManager:
 
                         plugin = plugin_collector.get_plugin(key)
                         if not plugin or not plugin.is_enabled:
-                            logger.debug(f"插件 {name} ({key}) 已禁用，拒绝路由访问")
                             raise HTTPException(status_code=404, detail="Plugin not found or disabled")
 
                         # 插件启用，调用原始端点
@@ -137,7 +133,6 @@ class PluginRouterManager:
 
                 # 替换路由的端点函数
                 route.endpoint = create_wrapped_endpoint(original_endpoint, plugin_key, plugin_name)
-                logger.debug(f"为插件 {plugin_name} 的路由 {getattr(route, 'path', 'unknown')} 添加状态检查中间件")
 
     def unmount_plugin_router(self, plugin_key: str) -> bool:
         """动态卸载插件路由
@@ -157,7 +152,6 @@ class PluginRouterManager:
             return False
 
         if plugin_key not in self._mounted_plugins:
-            logger.debug(f"插件 {plugin_key} 的路由未挂载，无需卸载")
             return True
 
         try:
@@ -187,7 +181,6 @@ class PluginRouterManager:
 
         # 清除缓存的 OpenAPI schema
         self._app.openapi_schema = None
-        logger.debug("🔄 OpenAPI 文档缓存已清除，将在下次请求时重新生成")
 
     def reload_plugin_router(self, plugin: NekroPlugin) -> bool:
         """重载插件路由
@@ -326,8 +319,6 @@ class PluginRouterManager:
             if hasattr(route, "methods"):
                 methods = getattr(route, "methods", set())
                 route_info += f" [{', '.join(methods)}]"
-
-            logger.debug(route_info)
 
             # 检查是否是插件路由
             if hasattr(route, "path") and "plugins" in str(getattr(route, "path", "")):

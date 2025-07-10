@@ -135,7 +135,7 @@ async def draw(
         draw("a illustration style cute orange cat napping on a sunny windowsill, watercolor painting style", "1024x1024")
 
         # Modify existing image
-        send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg"))
+        send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg")) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
     """
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
