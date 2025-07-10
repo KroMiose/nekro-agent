@@ -66,7 +66,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if chat_type is ChatType.GROUP:
-        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[1])
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[2])
         formatted_characters = []
         for tag in tags:
             char_list = []

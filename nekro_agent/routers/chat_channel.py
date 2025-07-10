@@ -26,8 +26,17 @@ async def get_chat_channel_list(
     is_active: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """获取会话列表"""
-    query = DBChatChannel.all()
+    """获取会话列表
+
+    排序逻辑：
+    - 按最后活跃时间排序，最后活跃时间 = max(conversation_start_time, 最后消息时间)
+    - 这样重置的会话会根据重置时间合理排序，同时考虑历史消息的影响
+
+    统计逻辑：
+    - 消息数量：仅统计conversation_start_time之后的消息（重置后的有效消息）
+    - 最后消息时间：从整个消息表中查询，不受重置影响
+    """
+    query = DBChatChannel
 
     # 搜索条件
     if search:
@@ -35,31 +44,51 @@ async def get_chat_channel_list(
             Q(chat_key__contains=search) | Q(channel_name__contains=search),
         )
     if chat_type:
-        query = query.filter(chat_key__startswith=f"{chat_type}_")
+        query = query.filter(chat_key__contains=f"{chat_type}_")
     if is_active is not None:
         query = query.filter(is_active=is_active)
 
     # 获取所有符合条件的频道
     channels = await query.all()
 
-    # 获取每个频道的最后消息时间和其他信息
+    # 获取每个频道的统计信息
     channel_info_list = []
     for channel in channels:
-        message_count = await DBChatMessage.filter(chat_key=channel.chat_key).count()
+        # 1. 计算重置后的消息数量（从conversation_start_time开始）
+        message_count = await DBChatMessage.filter(
+            chat_key=channel.chat_key,
+            create_time__gte=channel.conversation_start_time,
+        ).count()
+
+        # 2. 获取整个会话中的最后一条消息（不限制conversation_start_time）
         last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
-        # 确保时间是 naive 的
-        last_message_time = last_message.create_time.replace(tzinfo=None) if last_message else datetime.min
+
+        # 3. 计算最后活跃时间：max(conversation_start_time, 最后消息时间)
+        conversation_start_time = channel.conversation_start_time
+        if conversation_start_time.tzinfo is not None:
+            conversation_start_time = conversation_start_time.replace(tzinfo=None)
+
+        if last_message:
+            last_message_time = last_message.create_time
+            if last_message_time.tzinfo is not None:
+                last_message_time = last_message_time.replace(tzinfo=None)
+            # 取conversation_start_time和最后消息时间中更晚的那个
+            last_active_time = max(conversation_start_time, last_message_time)
+        else:
+            # 如果没有消息，使用conversation_start_time作为活跃时间
+            last_active_time = conversation_start_time
 
         channel_info_list.append(
             {
                 "channel": channel,
                 "message_count": message_count,
-                "last_message_time": last_message_time,
+                "last_active_time": last_active_time,
+                "last_message_time": last_message_time if last_message else None,
             },
         )
 
-    # 按最后消息时间排序
-    channel_info_list.sort(key=lambda x: x["last_message_time"], reverse=True)
+    # 按最后活跃时间排序（最近活跃的在前）
+    channel_info_list.sort(key=lambda x: x["last_active_time"], reverse=True)
 
     # 分页
     start_idx = (page - 1) * page_size
@@ -80,10 +109,9 @@ async def get_chat_channel_list(
                 "message_count": info["message_count"],
                 "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
+                # 保持前端接口兼容：last_message_time显示实际的最后消息时间
                 "last_message_time": (
-                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S")
-                    if info["last_message_time"] != datetime.min
-                    else None
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S") if info["last_message_time"] is not None else None
                 ),
             },
         )
@@ -91,7 +119,7 @@ async def get_chat_channel_list(
     return Ret.success(
         msg="获取成功",
         data={
-            "total": len(result),
+            "total": len(channels),
             "items": result,
         },
     )
@@ -106,7 +134,7 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
         return Ret.fail(msg="会话不存在")
 
     # 获取会话数据
-    message_count = await DBChatMessage.filter(chat_key=chat_key).count()
+    message_count = await DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time).count()
 
     # 获取最近一条消息的时间
     last_message = await DBChatMessage.filter(chat_key=chat_key).order_by("-create_time").first()
