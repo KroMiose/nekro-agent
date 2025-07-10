@@ -1282,7 +1282,23 @@ export default function PluginsEditorPage() {
                 theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
                 value={code}
                 onChange={handleCodeChange}
-                loading={<CircularProgress />}
+                loading={
+                  <Box 
+                    sx={{ 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      justifyContent: 'center', 
+                      alignItems: 'center', 
+                      height: '100%',
+                      gap: 2 
+                    }}
+                  >
+                    <CircularProgress />
+                    <Typography variant="body2" color="text.secondary">
+                      正在加载编辑器...
+                    </Typography>
+                  </Box>
+                }
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
@@ -1292,29 +1308,44 @@ export default function PluginsEditorPage() {
                   formatOnPaste: true,
                   formatOnType: true,
                   scrollBeyondLastLine: false,
+                  automaticLayout: true,  // 自动布局
                 }}
                 onMount={editor => {
-                  if (isMobile) {
-                    // 获取Monaco编辑器的DOM元素
-                    const editorElement = editor.getDomNode()
-                    if (editorElement) {
-                      // 阻止编辑器内的触摸事件冒泡到外层容器
-                      editorElement.addEventListener(
-                        'touchmove',
-                        e => {
-                          e.stopPropagation()
-                        },
-                        { passive: true }
-                      )
+                  try {
+                    if (isMobile) {
+                      // 获取Monaco编辑器的DOM元素
+                      const editorElement = editor.getDomNode()
+                      if (editorElement) {
+                        // 阻止编辑器内的触摸事件冒泡到外层容器
+                        editorElement.addEventListener(
+                          'touchmove',
+                          e => {
+                            e.stopPropagation()
+                          },
+                          { passive: true }
+                        )
 
-                      // 找到实际的滚动容器并设置样式
-                      const scrollElement = editorElement.querySelector(
-                        '.monaco-scrollable-element'
-                      )
-                      if (scrollElement instanceof HTMLElement) {
-                        scrollElement.style.overflowY = 'auto'
-                        scrollElement.style.touchAction = 'pan-y'
+                        // 找到实际的滚动容器并设置样式
+                        const scrollElement = editorElement.querySelector(
+                          '.monaco-scrollable-element'
+                        )
+                        if (scrollElement instanceof HTMLElement) {
+                          scrollElement.style.overflowY = 'auto'
+                          scrollElement.style.touchAction = 'pan-y'
+                        }
                       }
+                    }
+                  } catch (error) {
+                    console.error('Monaco Editor mount error:', error)
+                    notification.error('编辑器初始化失败，请刷新页面重试')
+                  }
+                }}
+                onValidate={markers => {
+                  // 处理编辑器验证错误
+                  if (markers.length > 0) {
+                    const errors = markers.filter(marker => marker.severity === 8) // 只处理错误，不处理警告
+                    if (errors.length > 0) {
+                      console.warn('Monaco Editor validation errors:', errors)
                     }
                   }
                 }}
@@ -1791,7 +1822,23 @@ export default function PluginsEditorPage() {
                     theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
                     value={code}
                     onChange={handleCodeChange}
-                    loading={<CircularProgress />}
+                    loading={
+                      <Box 
+                        sx={{ 
+                          display: 'flex', 
+                          flexDirection: 'column',
+                          justifyContent: 'center', 
+                          alignItems: 'center', 
+                          height: '100%',
+                          gap: 2 
+                        }}
+                      >
+                        <CircularProgress />
+                        <Typography variant="body2" color="text.secondary">
+                          正在加载编辑器...
+                        </Typography>
+                      </Box>
+                    }
                     options={{
                       minimap: { enabled: false },
                       fontSize: 14,
@@ -1801,29 +1848,44 @@ export default function PluginsEditorPage() {
                       formatOnPaste: true,
                       formatOnType: true,
                       scrollBeyondLastLine: false,
+                      automaticLayout: true,  // 自动布局
                     }}
                     onMount={editor => {
-                      if (isMobile) {
-                        // 获取Monaco编辑器的DOM元素
-                        const editorElement = editor.getDomNode()
-                        if (editorElement) {
-                          // 阻止编辑器内的触摸事件冒泡到外层容器
-                          editorElement.addEventListener(
-                            'touchmove',
-                            e => {
-                              e.stopPropagation()
-                            },
-                            { passive: true }
-                          )
+                      try {
+                        if (isMobile) {
+                          // 获取Monaco编辑器的DOM元素
+                          const editorElement = editor.getDomNode()
+                          if (editorElement) {
+                            // 阻止编辑器内的触摸事件冒泡到外层容器
+                            editorElement.addEventListener(
+                              'touchmove',
+                              e => {
+                                e.stopPropagation()
+                              },
+                              { passive: true }
+                            )
 
-                          // 找到实际的滚动容器并设置样式
-                          const scrollElement = editorElement.querySelector(
-                            '.monaco-scrollable-element'
-                          )
-                          if (scrollElement instanceof HTMLElement) {
-                            scrollElement.style.overflowY = 'auto'
-                            scrollElement.style.touchAction = 'pan-y'
+                            // 找到实际的滚动容器并设置样式
+                            const scrollElement = editorElement.querySelector(
+                              '.monaco-scrollable-element'
+                            )
+                            if (scrollElement instanceof HTMLElement) {
+                              scrollElement.style.overflowY = 'auto'
+                              scrollElement.style.touchAction = 'pan-y'
+                            }
                           }
+                        }
+                      } catch (error) {
+                        console.error('Monaco Editor mount error:', error)
+                        notification.error('编辑器初始化失败，请刷新页面重试')
+                      }
+                    }}
+                    onValidate={markers => {
+                      // 处理编辑器验证错误
+                      if (markers.length > 0) {
+                        const errors = markers.filter(marker => marker.severity === 8) // 只处理错误，不处理警告
+                        if (errors.length > 0) {
+                          console.warn('Monaco Editor validation errors:', errors)
                         }
                       }
                     }}

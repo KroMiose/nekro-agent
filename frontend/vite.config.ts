@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react-swc'
 export default defineConfig({
   plugins: [react()],
   base: '/',  // 使用根路径
+  optimizeDeps: {
+    include: ['@monaco-editor/react'],  // 预构建Monaco Editor
+  },
   server: {
     proxy: {
       '/api': {
@@ -21,6 +24,7 @@ export default defineConfig({
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
           'mui-vendor': ['@mui/material', '@mui/icons-material'],
+          'monaco-editor': ['@monaco-editor/react'],  // Monaco Editor 单独分chunk
         }
       }
     }
