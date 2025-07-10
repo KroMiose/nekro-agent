@@ -7,7 +7,6 @@ import {
   Button,
   Stack,
   Alert,
-  Snackbar,
   Table,
   TableBody,
   TableCell,
@@ -51,6 +50,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ModelGroupConfig } from '../../services/api/config'
 import { unifiedConfigApi } from '../../services/api/unified-config'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { useNotification } from '../../hooks/useNotification'
 
 interface EditDialogProps {
   open: boolean
@@ -519,7 +519,7 @@ const BlurredText = styled('div')`
 
 export default function ModelGroupsPage() {
   const queryClient = useQueryClient()
-  const [message, setMessage] = useState('')
+  const notification = useNotification()
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<{
     name: string
@@ -628,14 +628,14 @@ export default function ModelGroupsPage() {
   const handleDelete = async (name: string) => {
     try {
       await unifiedConfigApi.deleteModelGroup(name)
-      setMessage(`模型组 "${name}" 已删除！`)
+      notification.success(`模型组 "${name}" 已删除！`)
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
       setDeleteDialogOpen(false)
     } catch (error) {
       if (error instanceof Error) {
-        setMessage(error.message)
+        notification.error(error.message)
       } else {
-        setMessage('删除失败')
+        notification.error('删除失败')
       }
     }
   }
@@ -651,16 +651,16 @@ export default function ModelGroupsPage() {
     if (modelGroups[groupName] && !editingGroup.isCopy && editingGroup.name === groupName) {
       // 如果是编辑已有模型组，允许相同名称
       await unifiedConfigApi.updateModelGroup(groupName, config)
-      setMessage('保存成功～ (=^･ω･^=)')
+      notification.success('保存模型配置成功')
     } else if (!modelGroups[groupName]) {
       // 如果是新建或复制模型组，名称必须不存在
       await unifiedConfigApi.updateModelGroup(groupName, config)
-      setMessage(
-        editingGroup.isCopy ? `模型组 "${groupName}" 复制成功～ (≧ω≦)ノ` : '保存成功～ (=^･ω･^=)'
+      notification.success(
+        editingGroup.isCopy ? `模型组 "${groupName}" 复制模型配置成功` : '保存模型配置成功'
       )
     } else {
       // 如果是已有名称
-      setMessage(`模型组名称 "${groupName}" 已存在，请换一个名称～ (>﹏<)`)
+      notification.error(`模型组名称 "${groupName}" 已存在，请换一个名称～ (>﹏<)`)
       return
     }
 
@@ -1059,16 +1059,6 @@ export default function ModelGroupsPage() {
         </DialogActions>
       </Dialog>
 
-      <Snackbar
-        open={!!message}
-        autoHideDuration={3000}
-        onClose={() => setMessage('')}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={() => setMessage('')} severity="info" variant="filled" className="w-full">
-          {message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

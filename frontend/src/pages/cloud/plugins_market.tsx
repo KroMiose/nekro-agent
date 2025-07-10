@@ -25,7 +25,6 @@ import {
   MenuItem,
   Checkbox,
   Link,
-  Snackbar,
   Menu,
   useMediaQuery,
   ListItemIcon,
@@ -58,6 +57,7 @@ import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { useNotification } from '../../hooks/useNotification'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -1269,32 +1269,7 @@ export default function PluginsMarket() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
   const pageSize = 12
-  // 添加全局消息状态
-  const [messageInfo, setMessageInfo] = useState<{
-    type: 'success' | 'error' | 'info' | 'warning'
-    content: string
-  } | null>(null)
-
-  // 全局错误显示函数
-  const showError = useCallback((message: string) => {
-    console.error(message)
-    setMessageInfo({ type: 'error', content: message })
-    setTimeout(() => setMessageInfo(null), 5000) // 5秒后自动关闭
-  }, [])
-
-  // 全局成功显示函数
-  const showSuccess = useCallback((message: string) => {
-    console.log(message)
-    setMessageInfo({ type: 'success', content: message })
-    setTimeout(() => setMessageInfo(null), 2000) // 2秒后自动关闭
-  }, [])
-
-  // 全局警告显示函数
-  const showWarning = useCallback((message: string) => {
-    console.warn(message)
-    setMessageInfo({ type: 'warning', content: message })
-    setTimeout(() => setMessageInfo(null), 4000) // 4秒后自动关闭
-  }, [])
+  const notification = useNotification()
 
   const fetchPlugins = useCallback(
     async (page: number, keyword: string = '', hasWebhook: boolean | undefined = undefined) => {
@@ -1441,17 +1416,17 @@ export default function PluginsMarket() {
           }
         }
 
-        showSuccess(successMessage)
+        notification.success(successMessage)
         // 重新获取插件列表以更新状态
         fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
       } else if (response) {
-        showError(`操作失败: ${response.msg}`)
+        notification.error(`操作失败: ${response.msg}`)
       } else {
-        showError('操作失败: 未知错误')
+        notification.error('操作失败: 未知错误')
       }
     } catch (error) {
       console.error('操作失败', error)
-      showError('操作失败，请重试')
+      notification.error('操作失败，请重试')
     } finally {
       setProcessingId(null)
       setConfirmDialog({ open: false, plugin: null, action: 'download' })
@@ -1470,26 +1445,21 @@ export default function PluginsMarket() {
 
       if (response.code === 200) {
         // 成功创建
-        showSuccess('插件发布成功！')
+        notification.success('插件发布成功！')
         setCreateDialogOpen(false)
         // 刷新插件列表
         fetchPlugins(1, debouncedSearchKeyword, filterWebhook || undefined)
       } else {
         // 处理不同的错误情况
         const errorMsg = response.msg || '未知错误'
-        showError(errorMsg)
+        notification.error(errorMsg)
       }
     } catch (error) {
       console.error('创建插件失败', error)
 
       // 网络错误或其他未处理的错误
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`发布失败: ${errorMessage}`)
-
-      // 显示重试建议
-      setTimeout(() => {
-        showWarning('请检查网络连接或稍后重试')
-      }, 1000)
+      notification.error(`发布失败: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -1507,7 +1477,7 @@ export default function PluginsMarket() {
       const response = await pluginsMarketApi.updateUserPlugin(moduleName, data)
 
       if (response.code === 200) {
-        showSuccess('插件信息更新成功！')
+        notification.success('插件信息更新成功！')
         setEditingPlugin(null)
 
         // 刷新插件列表
@@ -1523,11 +1493,11 @@ export default function PluginsMarket() {
           })
         }
       } else {
-        showError(response.msg || '更新失败')
+        notification.error(response.msg || '更新失败')
       }
     } catch (error) {
       console.error('更新插件信息失败', error)
-      showError(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+      notification.error(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -2356,23 +2326,6 @@ export default function PluginsMarket() {
         onSubmit={handleUpdatePluginInfo}
         isSubmitting={isSubmitting}
       />
-
-      {/* 全局消息提示 */}
-      <Snackbar
-        open={!!messageInfo}
-        autoHideDuration={messageInfo?.type === 'success' ? 2000 : 5000}
-        onClose={() => setMessageInfo(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setMessageInfo(null)}
-          severity={messageInfo?.type || 'error'}
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {messageInfo?.content}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }

@@ -1,13 +1,32 @@
-import { lazy, ComponentType, ReactElement } from 'react'
+import { lazy, ComponentType, Suspense } from 'react'
 import { createHashRouter, Navigate } from 'react-router-dom'
+import { CircularProgress, Box } from '@mui/material'
 import MainLayout from '../layouts/MainLayout'
 import AdapterLayout from '../layouts/AdapterLayout'
 import LoginPage from '../pages/login'
 
-// 创建一个包装器组件来处理懒加载，这样就不会有lint错误了
-const lazyLoad = (importFn: () => Promise<{ default: ComponentType }>): ReactElement => {
+// 创建一个包装器组件来处理懒加载和加载状态
+const lazyLoad = (importFn: () => Promise<{ default: ComponentType }>) => {
   const LazyComponent = lazy(importFn)
-  return <LazyComponent />
+  return (
+    <Suspense 
+      fallback={
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '100%',
+            minHeight: 200 
+          }}
+        >
+          <CircularProgress />
+        </Box>
+      }
+    >
+      <LazyComponent />
+    </Suspense>
+  )
 }
 
 const router = createHashRouter([
@@ -48,6 +67,10 @@ const router = createHashRouter([
         path: 'plugins',
         children: [
           {
+            index: true,
+            element: <Navigate to="management" />,
+          },
+          {
             path: 'management',
             element: lazyLoad(() => import('../pages/plugins/management')),
           },
@@ -77,7 +100,12 @@ const router = createHashRouter([
       },
       {
         path: 'settings',
+        element: lazyLoad(() => import('../pages/settings')),
         children: [
+          {
+            index: true,
+            element: <Navigate to="system" />,
+          },
           {
             path: 'system',
             element: lazyLoad(() => import('../pages/settings/system')),

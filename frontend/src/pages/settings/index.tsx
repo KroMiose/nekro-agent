@@ -1,11 +1,9 @@
-import { useState } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { Box, Paper, Tabs, Tab, Alert, Snackbar, useTheme, useMediaQuery } from '@mui/material'
+import { Box, Paper, Tabs, Tab, useTheme, useMediaQuery } from '@mui/material'
 
 export default function SettingsLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const [message, setMessage] = useState<string>('')
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
@@ -77,23 +75,6 @@ export default function SettingsLayout() {
       >
         <Outlet />
       </Box>
-
-      {/* 消息提示 */}
-      <Snackbar
-        open={!!message}
-        autoHideDuration={3000}
-        onClose={() => setMessage('')}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert
-          onClose={() => setMessage('')}
-          severity="info"
-          variant="filled"
-          sx={{ width: '100%' }}
-        >
-          {message}
-        </Alert>
-      </Snackbar>
     </Box>
   )
 }
