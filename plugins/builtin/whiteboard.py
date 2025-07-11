@@ -59,6 +59,7 @@ plugin = NekroPlugin(
     version="1.0.0",
     author="nekro",
     url="https://github.com/nekro-agent/nekro-agent",
+    support_adapter=["bilibili_live"],
 )
 
 

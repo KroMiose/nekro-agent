@@ -33,6 +33,7 @@ import { useNotification } from '../../hooks/useNotification'
 import { useWallpaperStore } from '../../stores/wallpaper'
 import WallpaperBackground from '../../components/common/WallpaperBackground'
 import { useGitHubStarStore } from '../../stores/githubStar'
+import logoImage from '../../assets/logo.png'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -310,7 +311,7 @@ export default function LoginPage() {
                 >
                   <Box
                     component="img"
-                    src="/logo.png"
+                    src={logoImage}
                     alt="Nekro Agent Logo"
                     sx={{
                       width: { sm: 180, md: 240 },
@@ -445,7 +446,7 @@ export default function LoginPage() {
                   >
                     <Box
                       component="img"
-                      src="/logo.png"
+                      src={logoImage}
                       alt="Nekro Agent Logo"
                       sx={{
                         width: 120,

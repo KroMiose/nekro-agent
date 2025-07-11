@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react-swc'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/',  // 使用根路径
+  base: '/webui/',  // 配置为webui路径，与后端静态文件挂载路径一致
   optimizeDeps: {
     include: ['@monaco-editor/react'],  // 预构建Monaco Editor
   },
