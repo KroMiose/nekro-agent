@@ -35,17 +35,19 @@ AI 可以通过以下方法操作白板：
 
 import asyncio
 import base64
+import contextlib
 import json
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 import aiofiles
 import magic
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
+from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
@@ -107,57 +109,118 @@ class WhiteboardState(BaseModel):
 # 白板客户端类
 class WhiteboardClient:
     """白板SSE客户端"""
-    
-    def __init__(self):
+
+    def __init__(self, client_id: str):
+        self.client_id = client_id
         self.is_alive = True
-        self.event_queue: asyncio.Queue = asyncio.Queue()
-        
+        self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=50)
+        self.last_heartbeat = time.time()
+
     async def send_event(self, data: Dict[str, Any]) -> None:
         """发送事件到客户端"""
         if not self.is_alive:
             return
         try:
-            await asyncio.wait_for(self.event_queue.put(data), timeout=0.5)
-        except asyncio.TimeoutError:
+            await asyncio.wait_for(self.event_queue.put(data), timeout=0.1)
+            self.last_heartbeat = time.time()
+        except (asyncio.TimeoutError, asyncio.QueueFull):
             # 客户端可能卡住，标记为失活
             self.is_alive = False
+
+    def is_expired(self, timeout_seconds: int = 60) -> bool:
+        """检查客户端是否过期"""
+        return time.time() - self.last_heartbeat > timeout_seconds
+
+    def update_heartbeat(self) -> None:
+        """更新心跳时间"""
+        self.last_heartbeat = time.time()
+
 
 # 客户端管理器
 class WhiteboardClientManager:
     """白板客户端管理器"""
-    
+
     def __init__(self):
-        self.clients: Set[WhiteboardClient] = set()
-        
-    def add_client(self, client: WhiteboardClient) -> None:
-        """添加客户端"""
-        self.clients.add(client)
-        
-    def remove_client(self, client: WhiteboardClient) -> None:
-        """移除客户端"""
-        self.clients.discard(client)
-        client.is_alive = False
-        
+        self.clients: Dict[str, WhiteboardClient] = {}
+        self.cleanup_task: Optional[asyncio.Task] = None
+        self.is_shutting_down = False
+
+    async def start(self) -> None:
+        """启动客户端管理器"""
+        if self.cleanup_task is None:
+            self.cleanup_task = asyncio.create_task(self._cleanup_loop())
+
+    async def stop(self) -> None:
+        """停止客户端管理器"""
+        self.is_shutting_down = True
+
+        # 标记所有客户端为非活跃
+        for client in self.clients.values():
+            client.is_alive = False
+
+        # 取消清理任务
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self.cleanup_task
+            self.cleanup_task = None
+
+        # 清空客户端列表
+        self.clients.clear()
+
+    async def _cleanup_loop(self) -> None:
+        """定期清理过期客户端"""
+        try:
+            while not self.is_shutting_down:
+                await asyncio.sleep(30)  # 每30秒检查一次
+
+                expired_clients = []
+                for client_id, client in self.clients.items():
+                    if client.is_expired():
+                        expired_clients.append(client_id)
+
+                for client_id in expired_clients:
+                    client = self.clients.pop(client_id, None)
+                    if client:
+                        client.is_alive = False
+                        logger.info(f"清理过期的白板 SSE 客户端: {client_id}")
+
+        except asyncio.CancelledError:
+            pass
+
+    def register_client(self, client_id: str) -> WhiteboardClient:
+        """注册新客户端"""
+        client = WhiteboardClient(client_id)
+        self.clients[client_id] = client
+        return client
+
+    def unregister_client(self, client_id: str) -> None:
+        """注销客户端"""
+        client = self.clients.pop(client_id, None)
+        if client:
+            client.is_alive = False
+
     async def broadcast(self, data: Dict[str, Any]) -> None:
         """广播消息到所有客户端"""
-        dead_clients = set()
-        
-        for client in self.clients.copy():
-            if not client.is_alive:
-                dead_clients.add(client)
+        if self.is_shutting_down:
+            return
+
+        dead_clients = []
+        for client_id, client in self.clients.items():
+            if not client.is_alive or client.is_expired():
+                dead_clients.append(client_id)
                 continue
-                
+
             await client.send_event(data)
-            
+
         # 清理失效客户端
-        for client in dead_clients:
-            self.clients.discard(client)
-            
-    def stop_all(self) -> None:
-        """停止所有客户端"""
-        for client in self.clients.copy():
-            client.is_alive = False
-        self.clients.clear()
+        for client_id in dead_clients:
+            self.unregister_client(client_id)
+
+    def get_client_count(self) -> int:
+        """获取当前客户端数量"""
+        return len(self.clients)
+
 
 # 全局管理器和状态
 client_manager = WhiteboardClientManager()
@@ -171,8 +234,26 @@ async def broadcast_to_sse(data: Dict[str, Any]) -> None:
 
 async def close_all_sse_connections() -> None:
     """关闭所有SSE连接"""
-    logger.info(f"开始关闭 {len(client_manager.clients)} 个SSE连接")
-    client_manager.stop_all()
+    logger.info(f"开始关闭 {client_manager.get_client_count()} 个SSE连接")
+
+    # 向所有客户端发送关闭信号
+    if client_manager.clients:
+        try:
+            await asyncio.wait_for(
+                client_manager.broadcast({"type": "server_shutdown"}),
+                timeout=0.5,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("发送关闭信号超时")
+
+    # 等待连接自然关闭
+    for _ in range(5):  # 最多等待0.5秒
+        if not client_manager.clients:
+            break
+        await asyncio.sleep(0.1)
+
+    # 强制关闭所有剩余连接
+    await client_manager.stop()
     logger.info("所有SSE连接已关闭")
 
 
@@ -653,11 +734,14 @@ def create_router() -> APIRouter:
         """SSE 长连接端点"""
 
         async def event_generator():
-            client = WhiteboardClient()
-            client_manager.add_client(client)
-            logger.info(f"新的SSE连接建立，当前连接数: {len(client_manager.clients)}")
+            client_id = f"whiteboard-{int(time.time() * 1000)}"
+            client = client_manager.register_client(client_id)
+            logger.info(f"新的SSE连接建立，客户端ID: {client_id}, 当前连接数: {client_manager.get_client_count()}")
 
             try:
+                # 发送初始连接事件
+                yield f'data: {json.dumps({"type": "connected", "client_id": client_id}, ensure_ascii=False)}\n\n'
+
                 # 发送初始状态
                 try:
                     initial_data = {"type": "update_state", "state": whiteboard_state.model_dump()}
@@ -665,40 +749,56 @@ def create_router() -> APIRouter:
                 except Exception as e:
                     logger.warning(f"发送初始状态失败: {e}")
 
+                # 心跳计时器
+                heartbeat_timer = 0
+
                 # 持续发送事件
-                while client.is_alive:
+                while client.is_alive and not client_manager.is_shutting_down:
                     try:
+                        # 检查请求是否断开
                         if await request.is_disconnected():
+                            logger.info(f"客户端 {client_id} 断开连接")
                             break
 
-                        # 等待事件，使用较短超时
-                        data = await asyncio.wait_for(client.event_queue.get(), timeout=5.0)
-                        message = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-                        yield message
-
-                    except asyncio.TimeoutError:
-                        # 发送心跳保持连接
-                        if client.is_alive:
+                        # 发送心跳
+                        if time.time() - heartbeat_timer >= 5:
                             try:
                                 yield 'data: {"type": "heartbeat"}\n\n'
+                                heartbeat_timer = time.time()
+                                client.update_heartbeat()
                             except Exception:
                                 break
+
+                        # 等待事件，使用较短超时
+                        try:
+                            data = await asyncio.wait_for(client.event_queue.get(), timeout=1.0)
+                            message = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+                            yield message
+                        except asyncio.TimeoutError:
+                            # 超时继续循环
+                            pass
+
                     except asyncio.CancelledError:
-                        logger.info("SSE连接被取消")
+                        logger.info(f"SSE连接 {client_id} 被取消")
                         break
                     except Exception as e:
                         logger.warning(f"SSE事件处理错误: {e}")
                         break
 
+                # 如果是因为关闭事件退出，尝试发送关闭信号
+                if client_manager.is_shutting_down:
+                    with contextlib.suppress(Exception):
+                        yield 'data: {"type": "server_shutdown"}\n\n'
+
             except asyncio.CancelledError:
-                logger.info("SSE连接生成器被取消")
+                logger.info(f"SSE连接生成器 {client_id} 被取消")
             except Exception as e:
                 logger.warning(f"SSE 连接错误: {e}")
             finally:
-                client_manager.remove_client(client)
-                logger.info(f"SSE连接断开，当前连接数: {len(client_manager.clients)}")
+                client_manager.unregister_client(client_id)
+                logger.info(f"SSE连接断开，客户端ID: {client_id}, 当前连接数: {client_manager.get_client_count()}")
 
-        return StreamingResponse(
+        return EventSourceResponse(
             event_generator(),
             media_type="text/event-stream",
             headers={
@@ -717,7 +817,7 @@ def create_router() -> APIRouter:
             "success": True,
             "data": {
                 "state": whiteboard_state.model_dump(),
-                "connections": len(client_manager.clients),
+                "connections": client_manager.get_client_count(),
                 "last_update": datetime.fromtimestamp(whiteboard_state.last_update).isoformat(),
             },
         }
@@ -868,7 +968,7 @@ async def display_image(
         # 广播更新
         await broadcast_to_sse({"type": "update_state", "state": whiteboard_state.model_dump()})
 
-        logger.info(f"白板展示图片成功: {title or image_path}, 连接数: {len(client_manager.clients)}")
+        logger.info(f"白板展示图片成功: {title or image_path}, 连接数: {client_manager.get_client_count()}")
 
     except Exception as e:
         raise Exception(f"展示图片失败: {e}") from e
@@ -941,7 +1041,7 @@ async def display_video(
 
         await broadcast_to_sse({"type": "update_state", "state": whiteboard_state.model_dump()})
 
-        logger.info(f"白板播放视频成功: {title or video_path}, 连接数: {len(client_manager.clients)}")
+        logger.info(f"白板播放视频成功: {title or video_path}, 连接数: {client_manager.get_client_count()}")
 
     except Exception as e:
         raise Exception(f"播放视频失败: {e}") from e
@@ -1166,17 +1266,19 @@ async def clear_whiteboard(_ctx: AgentCtx) -> str:
 @plugin.mount_cleanup_method()
 async def cleanup():
     """快速清理插件资源"""
-    global whiteboard_state
+    global whiteboard_state, client_manager
 
     logger.info("开始快速清理白板插件资源...")
 
     try:
         # 快速关闭所有SSE连接
-        await asyncio.wait_for(close_all_sse_connections(), timeout=1.0)
+        await asyncio.wait_for(close_all_sse_connections(), timeout=2.0)
     except asyncio.TimeoutError:
         logger.warning("SSE连接关闭超时，强制继续")
+        await client_manager.stop()
     except Exception as e:
         logger.warning(f"关闭SSE连接时发生错误: {e}")
+        await client_manager.stop()
 
     # 立即重置白板状态
     whiteboard_state = WhiteboardState()
@@ -1187,9 +1289,12 @@ async def cleanup():
 @plugin.mount_init_method()
 async def init():
     """初始化插件"""
-    global whiteboard_state
+    global whiteboard_state, client_manager
 
     # 重置白板状态
     whiteboard_state = WhiteboardState(layout=config.DEFAULT_LAYOUT)
+
+    # 启动客户端管理器
+    await client_manager.start()
 
     logger.info(f"白板插件初始化完成，默认布局: {config.DEFAULT_LAYOUT}")

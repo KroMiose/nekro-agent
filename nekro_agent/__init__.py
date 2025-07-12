@@ -87,6 +87,14 @@ async def on_startup():
 async def on_shutdown():
     await timer_service.stop()
     await cleanup_adapters(get_app())
+
+    try:
+        from nekro_agent.services.plugin.collector import plugin_collector
+
+        await plugin_collector.cleanup_all_plugins()
+    except Exception as e:
+        logger.exception(f"清理插件时发生错误: {e}")
+
     logger.info("Timer service stopped")
 
 

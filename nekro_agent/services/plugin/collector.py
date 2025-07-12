@@ -635,6 +635,24 @@ class PluginCollector:
             if plugin.is_enabled and plugin.on_reset_method:
                 await plugin.on_reset_method(ctx.model_copy())
 
+    async def cleanup_all_plugins(self) -> None:
+        """清理所有插件资源
+        
+        在应用关闭时调用所有插件的 cleanup_method
+        """
+        logger.info(f"开始清理所有插件资源，当前已加载插件数量: {len(self.loaded_plugins)}")
+        
+        cleanup_count = 0
+        for _plugin_key, plugin in self.loaded_plugins.items():
+            try:
+                if plugin.cleanup_method:
+                    await plugin.cleanup_method()
+                    cleanup_count += 1
+            except Exception as e:
+                logger.exception(f"清理插件 {plugin.name} 时发生错误: {e}")
+        
+        logger.info(f"所有插件清理完成，成功清理 {cleanup_count} 个插件")
+
 
 # 全局插件收集器实例
 plugin_collector = PluginCollector()

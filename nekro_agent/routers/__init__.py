@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
 from nekro_agent.core.logger import logger
@@ -140,8 +141,6 @@ def mount_api_routes(app: FastAPI):
         static_dir = Path(OsEnv.STATIC_DIR)
         if static_dir.exists():
             # 将前端静态文件挂载到 /webui 路径
-            from fastapi.responses import RedirectResponse
-            from fastapi.staticfiles import StaticFiles
 
             app.mount("/webui", StaticFiles(directory=str(static_dir), html=True), name="webui")
             logger.info(f"✅ 前端静态文件已挂载到 /webui 路径: {static_dir}")
@@ -150,13 +149,13 @@ def mount_api_routes(app: FastAPI):
             @app.get("/", include_in_schema=False)
             async def redirect_to_webui():
                 """根路径重定向到前端界面"""
-                return RedirectResponse(url="/webui/", status_code=302)
+                return RedirectResponse(url="/webui", status_code=302)
 
             # 也处理 /index.html 的情况
             @app.get("/index.html", include_in_schema=False)
             async def redirect_index_to_webui():
                 """index.html 重定向到前端界面"""
-                return RedirectResponse(url="/webui/", status_code=302)
+                return RedirectResponse(url="/webui", status_code=302)
 
             logger.info("✅ 根路径重定向已配置：/ -> /webui/")
         else:
