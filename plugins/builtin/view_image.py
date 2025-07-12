@@ -40,7 +40,7 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "sse"],
+    support_adapter=["onebot_v11", "sse", "discord"],
 )
 
 
@@ -69,35 +69,35 @@ def get_model_group_info(model_name: str) -> ModelConfigGroup:
         raise ValueError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
 
 
-@plugin.mount_sandbox_method(
-    SandboxMethodType.MULTIMODAL_AGENT,
-    name="查看图片",
-    description="使 Agent 能够读取图片内容，以更好地理解上下文",
-)
-async def view_image(_ctx: AgentCtx, image_path: str, prompt: str) -> Dict[str, Any]:
-    """查看图片
+# @plugin.mount_sandbox_method(
+#     SandboxMethodType.MULTIMODAL_AGENT,
+#     name="查看图片",
+#     description="使 Agent 能够读取图片内容，以更好地理解上下文",
+# )
+# async def view_image(_ctx: AgentCtx, image_path: str, prompt: str) -> Dict[str, Any]:
+#     """查看图片
 
-    Args:
-        image_path (str): 图片路径
-        prompt (str): 提示
+#     Args:
+#         image_path (str): 图片路径
+#         prompt (str): 提示
 
-    Returns:
-        Dict: 多模态消息
-    """
-    msg = OpenAIChatMessage.create_empty("user")
-    msg = msg.add(ContentSegment.image_content_from_path(image_path))
-    msg = msg.add(ContentSegment.text_content(prompt))
-    return msg.to_dict()
+#     Returns:
+#         Dict: 多模态消息
+#     """
+#     msg = OpenAIChatMessage.create_empty("user")
+#     msg = msg.add(ContentSegment.image_content_from_path(image_path))
+#     msg = msg.add(ContentSegment.text_content(prompt))
+#     return msg.to_dict()
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.AGENT, "图片观察工具")
-async def view_image_old(_ctx: AgentCtx, images: List[str]):
+async def view_image(_ctx: AgentCtx, images: List[str]):
     """利用视觉观察图片
 
     Attention: Do not repeatedly observe the contents of the visual image given in the context!
 
     Args:
-        images (List[str]): 图片共享路径或在线url列表
+        images (List[str]): 图片路径或在线url列表
     """
 
     core.logger.debug(f"图片观察工具: {images}")

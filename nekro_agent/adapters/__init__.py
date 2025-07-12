@@ -12,6 +12,7 @@ ADAPTER_DICT: Dict[str, str] = {
     "minecraft": "nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",
     "sse": "nekro_agent.adapters.sse.adapter.SSEAdapter",
     "bilibili_live": "nekro_agent.adapters.bilibili_live.adapter.BilibiliLiveAdapter",
+    "discord": "nekro_agent.adapters.discord.adapter.DiscordAdapter",
 }
 
 

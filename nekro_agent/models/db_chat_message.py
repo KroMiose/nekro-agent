@@ -74,7 +74,10 @@ class DBChatMessage(Model):
         """扩展数据"""
         if not self.ext_data or self.ext_data == "{}":
             return PlatformMessageExt()
-        return PlatformMessageExt.model_validate(json5.loads(self.ext_data))
+        try:
+            return PlatformMessageExt.model_validate(json5.loads(self.ext_data))
+        except Exception:
+            return PlatformMessageExt()
 
 
 def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:

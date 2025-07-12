@@ -1,5 +1,7 @@
 # Nekro Agent - 更智能、更优雅的代理执行 AI
 
+Switch to [English](./README_en.md)
+
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
@@ -16,15 +18,26 @@
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
+  <a href="https://discord.gg/awuETjEJjA" target="_blank">
+    <img src="https://img.shields.io/discord/1266347495582990336?label=discord&logo=discord&color=5865F2" alt="discord">
+  </a>
   <a href="https://qm.qq.com/q/eT30LxDcSA" target="_blank">
-    <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
+    <img src="https://img.shields.io/badge/QQ交流群-636925153-c42.svg" alt="qq group">
   </a>
   <br/>
   🚅 源自首批大模型应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
   📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
-  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> 🗨️ <br/>
+  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> | <a href="https://discord.gg/awuETjEJjA">Discord Channel</a> 🗨️ <br/>
   🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
 </div>
+
+## 💬 社区与贡献
+
+我们很高兴地宣布，我们正在计划进行国际化改造，以更好地支持我们的全球社区。我们欢迎来自世界各地的开发者加入我们的行列。
+
+来我们的官方 Discord 服务器上与我们聊天，分享您的想法，成为 Nekro Agent 未来的重要一员！
+
+- **加入我们的 Discord:** [https://discord.gg/awuETjEJjA](https://discord.gg/awuETjEJjA)
 
 ## 🚀 核心能力
 
@@ -111,6 +124,7 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 
 - ✅ **多平台适配**：
   - ✅ OneBot v11 (QQ)
+  - ✅ Discord
   - ✅ Minecraft
   - ✅ Bilibili Live (B 站直播)
   - ✅ SSE+SDK (Server-Sent Events + SDK)

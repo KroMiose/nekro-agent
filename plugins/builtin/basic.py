@@ -67,7 +67,7 @@ plugin = NekroPlugin(
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "minecraft", "sse"],
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord"],
 )
 
 
@@ -154,7 +154,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     """
     global SEND_MSG_CACHE
 
-    if _ctx.adapter_key not in ["onebot_v11", "minecraft", "sse"]:
+    if _ctx.adapter_key not in plugin.support_adapter:
         raise Exception(f"Error: This method is not available in this adapter. Current adapter: {_ctx.adapter_key}")
 
     if not message_text.strip():
