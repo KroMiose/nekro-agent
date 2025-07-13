@@ -18,7 +18,7 @@ Switch to [English](./README_en.md)
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
-  <a href="https://discord.gg/awuETjEJjA" target="_blank">
+  <a href="https://discord.gg/eMsgwFnxUB" target="_blank">
     <img src="https://img.shields.io/discord/1266347495582990336?label=discord&logo=discord&color=5865F2" alt="discord">
   </a>
   <a href="https://qm.qq.com/q/eT30LxDcSA" target="_blank">
@@ -27,7 +27,7 @@ Switch to [English](./README_en.md)
   <br/>
   🚅 源自首批大模型应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
   📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
-  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> | <a href="https://discord.gg/awuETjEJjA">Discord Channel</a> 🗨️ <br/>
+  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> | <a href="https://discord.gg/eMsgwFnxUB">Discord Channel</a> 🗨️ <br/>
   🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
 </div>
 
@@ -37,7 +37,7 @@ Switch to [English](./README_en.md)
 
 来我们的官方 Discord 服务器上与我们聊天，分享您的想法，成为 Nekro Agent 未来的重要一员！
 
-- **加入我们的 Discord:** [https://discord.gg/awuETjEJjA](https://discord.gg/awuETjEJjA)
+- **加入我们的 Discord:** [https://discord.gg/eMsgwFnxUB](https://discord.gg/eMsgwFnxUB)
 
 ## 🚀 核心能力
 

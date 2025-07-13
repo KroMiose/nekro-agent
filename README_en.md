@@ -18,7 +18,7 @@
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
-  <a href="https://discord.gg/awuETjEJjA" target="_blank">
+  <a href="https://discord.gg/eMsgwFnxUB" target="_blank">
     <img src="https://img.shields.io/discord/1266347495582990336?label=discord&logo=discord&color=5865F2" alt="discord">
   </a>
   <a href="https://qm.qq.com/q/eT30LxDcSA" target="_blank">
@@ -27,7 +27,7 @@
   <br/>
   🚅 An upgraded and refactored Agent sequel, originating from one of the first major LLM applications, <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 🌈<br/>
   📚 <a href="https://doc.nekro.ai">Nekro Agent Doc Center</a> provides complete getting started guides and development documentation (Chinese) 📚<br/>
-  💬 For technical discussions and Q&A, join our <a href="https://discord.gg/awuETjEJjA">Official Discord Server</a>! 🗨️ <br/>
+  💬 For technical discussions and Q&A, join our <a href="https://discord.gg/eMsgwFnxUB">Official Discord Server</a>! 🗨️ <br/>
   🚀 <a href="https://community.nekro.ai">NekroAI Cloud Community</a> offers real-time sharing of plugins and personas! (Chinese) 🚀<br/>
 </div>
 
@@ -37,7 +37,7 @@ We are excited to announce that we are planning an internationalization refactor
 
 Come and chat with us on our official Discord server, share your ideas, and be a part of Nekro Agent's future!
 
-- **Join our Discord:** [https://discord.gg/awuETjEJjA](https://discord.gg/awuETjEJjA)
+- **Join our Discord:** [https://discord.gg/eMsgwFnxUB](https://discord.gg/eMsgwFnxUB)
 
 ## 🚀 Core Capabilities
 
