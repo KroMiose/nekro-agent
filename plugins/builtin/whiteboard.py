@@ -740,12 +740,12 @@ def create_router() -> APIRouter:
 
             try:
                 # 发送初始连接事件
-                yield f'data: {json.dumps({"type": "connected", "client_id": client_id}, ensure_ascii=False)}\n\n'
+                yield f'{json.dumps({"type": "connected", "client_id": client_id}, ensure_ascii=False)}\n\n'
 
                 # 发送初始状态
                 try:
                     initial_data = {"type": "update_state", "state": whiteboard_state.model_dump()}
-                    yield f"data: {json.dumps(initial_data, ensure_ascii=False)}\n\n"
+                    yield f"{json.dumps(initial_data, ensure_ascii=False)}\n\n"
                 except Exception as e:
                     logger.warning(f"发送初始状态失败: {e}")
 
@@ -763,7 +763,7 @@ def create_router() -> APIRouter:
                         # 发送心跳
                         if time.time() - heartbeat_timer >= 5:
                             try:
-                                yield 'data: {"type": "heartbeat"}\n\n'
+                                yield '{"type": "heartbeat"}\n\n'
                                 heartbeat_timer = time.time()
                                 client.update_heartbeat()
                             except Exception:
@@ -772,7 +772,7 @@ def create_router() -> APIRouter:
                         # 等待事件，使用较短超时
                         try:
                             data = await asyncio.wait_for(client.event_queue.get(), timeout=1.0)
-                            message = f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+                            message = f"{json.dumps(data, ensure_ascii=False)}\n\n"
                             yield message
                         except asyncio.TimeoutError:
                             # 超时继续循环
@@ -788,7 +788,7 @@ def create_router() -> APIRouter:
                 # 如果是因为关闭事件退出，尝试发送关闭信号
                 if client_manager.is_shutting_down:
                     with contextlib.suppress(Exception):
-                        yield 'data: {"type": "server_shutdown"}\n\n'
+                        yield '{"type": "server_shutdown"}\n\n'
 
             except asyncio.CancelledError:
                 logger.info(f"SSE连接生成器 {client_id} 被取消")

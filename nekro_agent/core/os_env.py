@@ -26,6 +26,7 @@ class OsEnv:
     """Qdrant 数据库配置"""
     QDRANT_URL: str = OsEnvTypes.Str("QDRANT_URL", default="http://localhost:6333")
     QDRANT_API_KEY: str = OsEnvTypes.Str("QDRANT_API_KEY", default="")
+
     """JWT 配置"""
     JWT_SECRET_KEY: str = OsEnvTypes.Str("JWT_SECRET_KEY", default=f"secret:{secrets.token_urlsafe(32)}")
     JWT_REFRESH_SECRET_KEY: str = OsEnvTypes.Str("JWT_REFRESH_SECRET_KEY", default=f"refresh:{secrets.token_urlsafe(32)}")
@@ -54,6 +55,9 @@ class OsEnv:
     """Nekro Cloud API"""
     NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.ai")
     # NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="http://localhost:8787")
+
+    """OPENAPI 配置"""
+    ENABLE_OPENAPI_DOCS: bool = OsEnvTypes.Bool("ENABLE_OPENAPI_DOCS")
 
 
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"

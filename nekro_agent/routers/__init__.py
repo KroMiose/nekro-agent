@@ -9,6 +9,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
+from nekro_agent.core.args import Args
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
@@ -96,43 +97,44 @@ def mount_api_routes(app: FastAPI):
             UserLogin(username=form_data.username, password=form_data.password),
         )
 
-    # 挂载 API 文档
-    @api.get("/docs", include_in_schema=False)
-    async def custom_swagger_ui_html(request: Request):
-        return get_swagger_ui_html(
-            openapi_url=request.app.openapi_url,
-            title="Nekro Agent API",
-            oauth2_redirect_url="/api/token",
-        )
+    if Args.DOCS or OsEnv.ENABLE_OPENAPI_DOCS:
+        # 挂载 API 文档
+        @api.get("/docs", include_in_schema=False)
+        async def custom_swagger_ui_html(request: Request):
+            return get_swagger_ui_html(
+                openapi_url=request.app.openapi_url,
+                title="Nekro Agent API",
+                oauth2_redirect_url="/api/token",
+            )
 
-    # redoc
-    @api.get("/redoc", include_in_schema=False)
-    async def redoc_html(request: Request):
-        return get_redoc_html(
-            openapi_url=request.app.openapi_url,
-            title="Nekro Agent API",
-        )
+        # redoc
+        @api.get("/redoc", include_in_schema=False)
+        async def redoc_html(request: Request):
+            return get_redoc_html(
+                openapi_url=request.app.openapi_url,
+                title="Nekro Agent API",
+            )
 
-    @api.get("/openapi.json", include_in_schema=False)
-    async def custom_openapi(request: Request):
-        """生成并缓存全局 OpenAPI 文档"""
-        app_instance = request.app
-        # 总是重新生成，以反映动态添加/删除的路由
-        openapi_schema = get_openapi(
-            title="Nekro Agent API",
-            version=get_app_version(),
-            routes=app_instance.routes,
-            description="Nekro Agent API 文档（包含动态插件路由）",
-        )
-        app_instance.openapi_schema = openapi_schema
+        @api.get("/openapi.json", include_in_schema=False)
+        async def custom_openapi(request: Request):
+            """生成并缓存全局 OpenAPI 文档"""
+            app_instance = request.app
+            # 总是重新生成，以反映动态添加/删除的路由
+            openapi_schema = get_openapi(
+                title="Nekro Agent API",
+                version=get_app_version(),
+                routes=app_instance.routes,
+                description="Nekro Agent API 文档（包含动态插件路由）",
+            )
+            app_instance.openapi_schema = openapi_schema
 
-        # 添加HTTP头，强制浏览器不缓存OpenAPI文档
-        headers = {
-            "Cache-Control": "no-cache, no-store, must-revalidate",
-            "Pragma": "no-cache",
-            "Expires": "0",
-        }
-        return JSONResponse(openapi_schema, headers=headers)
+            # 添加HTTP头，强制浏览器不缓存OpenAPI文档
+            headers = {
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            }
+            return JSONResponse(openapi_schema, headers=headers)
 
     app.include_router(api)
 
