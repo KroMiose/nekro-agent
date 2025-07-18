@@ -72,8 +72,13 @@ class WeChatPadClient:
             method="POST",
             endpoint="/message/SendTextMessage",
             json_data={
-                "ToUserName": to_wxid,
-                "TextContent": content,
+                "MsgItem": [
+                    {
+                        "MsgType": 1,  # 1 = Text
+                        "TextContent": content,
+                        "ToUserName": to_wxid,
+                    }
+                ]
             },
         )
     
@@ -85,6 +90,103 @@ class WeChatPadClient:
             json_data={
                 "ToUserName": to_wxid,
                 "ImageContent": image_base64,
+            },
+        )
+    
+    async def send_image_new_message(self, image_file_data: bytes) -> Dict[str, Any]:
+        """发送图片消息（New版本，使用文件上传）"""
+        # 使用文件上传方式发送图片
+        params = {"key": self._config.WECHATPAD_AUTH_KEY}
+        
+        try:
+            response = await self._http_client.post(
+                "/message/SendImageNewMessage",
+                params=params,
+                files={"file": ("image.jpg", image_file_data, "image/jpeg")}
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            code = result.get("Code")
+            if code == 200:
+                return result.get("Data", {})
+            else:
+                error_msg = result.get("Text", "Unknown error")
+                logger.error(f"发送图片消息失败: Code={code}, Text={error_msg}")
+                raise ValueError(f"发送图片消息失败: {error_msg}")
+                
+        except Exception as e:
+            logger.error(f"发送图片消息异常: {e}")
+            raise
+    
+    async def send_voice_message(self, voice_file_data: bytes) -> Dict[str, Any]:
+        """发送语音消息"""
+        params = {"key": self._config.WECHATPAD_AUTH_KEY}
+        
+        try:
+            response = await self._http_client.post(
+                "/message/SendVoice",
+                params=params,
+                files={"file": ("voice.wav", voice_file_data, "audio/wav")}
+            )
+            response.raise_for_status()
+            result = response.json()
+            
+            code = result.get("Code")
+            if code == 200:
+                return result.get("Data", {})
+            else:
+                error_msg = result.get("Text", "Unknown error")
+                logger.error(f"发送语音消息失败: Code={code}, Text={error_msg}")
+                raise ValueError(f"发送语音消息失败: {error_msg}")
+                
+        except Exception as e:
+            logger.error(f"发送语音消息异常: {e}")
+            raise
+    
+    async def send_emoji_message(self, to_wxid: str, emoji_md5: str, emoji_size: int) -> Dict[str, Any]:
+        """发送表情消息"""
+        return await self._request(
+            method="POST",
+            endpoint="/message/SendEmojiMessage",
+            json_data={
+                "EmojiList": [{
+                    "ToUserName": to_wxid,
+                    "EmojiMd5": emoji_md5,
+                    "EmojiSize": emoji_size
+                }]
+            },
+        )
+    
+    async def get_msg_big_img(self, msg_id: int, from_user: str, to_user: str, 
+                             total_len: int, compress_type: int = 0) -> Dict[str, Any]:
+        """获取高清图片"""
+        return await self._request(
+            method="POST",
+            endpoint="/message/GetMsgBigImg",
+            json_data={
+                "MsgId": msg_id,
+                "FromUserName": from_user,
+                "ToUserName": to_user,
+                "TotalLen": total_len,
+                "CompressType": compress_type,
+                "Section": {
+                    "StartPos": 0,
+                    "DataLen": min(total_len, 65535)  # 分包长度不超过65535
+                }
+            },
+        )
+    
+    async def get_msg_voice(self, new_msg_id: str, to_user: str, bufid: str, length: int) -> Dict[str, Any]:
+        """下载语音消息"""
+        return await self._request(
+            method="POST",
+            endpoint="/message/GetMsgVoice",
+            json_data={
+                "NewMsgId": new_msg_id,
+                "ToUserName": to_user,
+                "Bufid": bufid,
+                "Length": length
             },
         )
     

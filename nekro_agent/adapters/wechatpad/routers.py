@@ -8,7 +8,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformMessage,
     PlatformUser,
 )
-from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatType
+from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType, ChatType
 from nekro_agent.adapters.utils import adapter_utils
 
 from .schemas import WeChatPadMessageEvent, MessageType
@@ -99,8 +99,8 @@ async def handle_text_message(adapter: "WeChatPadAdapter", msg_event: WeChatPadM
     # 构造消息段
     content_segments = [
         ChatMessageSegment(
-            type="text",
-            data={"text": msg_event.Content}
+            type=ChatMessageSegmentType.TEXT,
+            text=msg_event.Content
         )
     ]
     

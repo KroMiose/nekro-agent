@@ -1,5 +1,6 @@
 import time
 import asyncio
+import os
 from typing import Type, Optional, List
 from fastapi import APIRouter
 
@@ -68,6 +69,9 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
         # 初始化实时消息处理器（传递适配器引用）
         self.realtime_processor = WeChatRealtimeProcessor(self.config, adapter=self)
         logger.info("WeChatPad 实时消息处理器已初始化")
+        
+        # 启动实时消息处理
+        await self.start_realtime_processing()
 
     async def cleanup(self) -> None:
         """清理适配器"""
@@ -78,28 +82,54 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到微信协议端"""
+        logger.info(f"开始发送消息: chat_key={request.chat_key}, segments_count={len(request.segments)}")
         try:
             message_ids = []
+            
+            # 从 chat_key 中解析 channel_id
+            channel_id = self.parse_channel_id(request.chat_key)
+            logger.info(f"解析得到 channel_id: {channel_id}")
+            
+            # 检查是否有有效的消息段
+            has_valid_content = False
+            for segment in request.segments:
+                if segment.type == PlatformSendSegmentType.TEXT and segment.content and segment.content.strip():
+                    has_valid_content = True
+                    break
+                elif segment.type == PlatformSendSegmentType.AT and segment.at_info:
+                    has_valid_content = True
+                    break
+                elif segment.type in [PlatformSendSegmentType.IMAGE, PlatformSendSegmentType.FILE] and segment.file_path:
+                    has_valid_content = True
+                    break
+            
+            if not has_valid_content:
+                logger.info("空消息，跳过发送")
+                return PlatformSendResponse(success=True, message_id="")
             
             # 遍历消息段并发送
             for segment in request.segments:
                 if segment.type == PlatformSendSegmentType.TEXT:
                     # 发送文本消息
-                    text_content = segment.data.get("text", "")
-                    if text_content:
+                    text_content = segment.content
+                    if text_content and text_content.strip():
                         result = await self.http_client.send_text_message(
-                            to_wxid=request.channel_id,
+                            to_wxid=channel_id,
                             content=text_content
                         )
                         # 根据实际 API 响应解析 message_id
-                        if isinstance(result, list) and len(result) > 0:
-                            # API 返回的是列表格式
-                            first_msg = result[0]
-                            if first_msg.get("isSendSuccess"):
-                                resp = first_msg.get("resp", {})
-                                chat_send_ret_list = resp.get("chat_send_ret_list", [])
-                                if chat_send_ret_list:
-                                    msg_id = str(chat_send_ret_list[0].get("newMsgId", int(time.time() * 1000)))
+                        if isinstance(result, dict) and result.get("Code") == 200:
+                            # API 返回的是字典格式，包含 Data 字段
+                            data_list = result.get("Data", [])
+                            if data_list and len(data_list) > 0:
+                                first_msg = data_list[0]
+                                if first_msg.get("isSendSuccess"):
+                                    resp = first_msg.get("resp", {})
+                                    chat_send_ret_list = resp.get("chat_send_ret_list", [])
+                                    if chat_send_ret_list:
+                                        msg_id = str(chat_send_ret_list[0].get("newMsgId", int(time.time() * 1000)))
+                                    else:
+                                        msg_id = f"wechat_{int(time.time() * 1000)}"
                                 else:
                                     msg_id = f"wechat_{int(time.time() * 1000)}"
                             else:
@@ -109,38 +139,99 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
                         message_ids.append(msg_id)
                         logger.info(f"发送文本消息成功: {text_content[:50]}...")
                 
-                elif segment.type == PlatformSendSegmentType.IMAGE:
-                    # 发送图片消息
-                    image_data = segment.data.get("file", "")
-                    if image_data:
-                        # 如果是文件路径，需要转换为 base64
-                        if image_data.startswith("data:image/"):
-                            # 已经是 base64 格式
-                            image_base64 = image_data.split(",")[1] if "," in image_data else image_data
-                        else:
-                            # 假设是 base64 编码的图片数据
-                            image_base64 = image_data
-                        
-                        result = await self.http_client.send_image_message(
-                            to_wxid=request.channel_id,
-                            image_base64=image_base64
+                elif segment.type == PlatformSendSegmentType.AT:
+                    # 处理@消息段，在微信中作为文本发送
+                    if segment.at_info:
+                        at_text = f"@{segment.at_info.nickname or segment.at_info.platform_user_id}"
+                        result = await self.http_client.send_text_message(
+                            to_wxid=channel_id,
+                            content=at_text
                         )
-                        # 根据实际 API 响应解析 message_id
-                        if isinstance(result, list) and len(result) > 0:
-                            first_msg = result[0]
-                            if first_msg.get("isSendSuccess"):
-                                resp = first_msg.get("resp", {})
-                                chat_send_ret_list = resp.get("chat_send_ret_list", [])
-                                if chat_send_ret_list:
-                                    msg_id = str(chat_send_ret_list[0].get("newMsgId", int(time.time() * 1000)))
-                                else:
-                                    msg_id = f"wechat_{int(time.time() * 1000)}"
-                            else:
-                                msg_id = f"wechat_{int(time.time() * 1000)}"
-                        else:
-                            msg_id = f"wechat_{int(time.time() * 1000)}"
+                        msg_id = f"wechat_{int(time.time() * 1000)}"
                         message_ids.append(msg_id)
-                        logger.info(f"发送图片消息成功")
+                        logger.info(f"发送@消息成功: {at_text}")
+                
+                elif segment.type == PlatformSendSegmentType.IMAGE:
+                    # 发送图片消息，优先使用新版API
+                    file_path = segment.file_path
+                    image_data = segment.content  # base64数据在content中
+                    
+                    msg_id = f"wechat_{int(time.time() * 1000)}"
+                    
+                    # 优先使用文件路径发送（新版API）
+                    if file_path and os.path.exists(file_path):
+                        try:
+                            with open(file_path, 'rb') as f:
+                                image_bytes = f.read()
+                            
+                            result = await self.http_client.send_image_new_message(image_bytes)
+                            logger.info(f"使用新版API发送图片成功: {file_path}")
+                            message_ids.append(msg_id)
+                            continue
+                        except Exception as e:
+                            logger.warning(f"新版API发送图片失败，回退到旧版API: {e}")
+                    
+                    # 回退到旧版API（base64模式）
+                    if image_data:
+                        try:
+                            # 如果是文件路径，需要转换为 base64
+                            if image_data.startswith("data:image/"):
+                                # 已经是 base64 格式
+                                image_base64 = image_data.split(",")[1] if "," in image_data else image_data
+                            else:
+                                # 假设是 base64 编码的图片数据
+                                image_base64 = image_data
+                            
+                            result = await self.http_client.send_image_message(
+                                to_wxid=channel_id,
+                                image_base64=image_base64
+                            )
+                            logger.info(f"使用旧版API发送图片成功")
+                            message_ids.append(msg_id)
+                        except Exception as e:
+                            logger.error(f"发送图片消息失败: {e}")
+                
+                elif segment.type == PlatformSendSegmentType.FILE:
+                    # 发送文件消息（语音文件等）
+                    file_path = segment.file_path
+                    file_data = segment.content  # base64数据在content中
+                    # 从文件路径中提取文件名
+                    file_name = os.path.basename(file_path) if file_path else "unknown"
+                    
+                    msg_id = f"wechat_{int(time.time() * 1000)}"
+                    
+                    # 判断是否为语音文件
+                    is_voice = (
+                        file_name.lower().endswith(('.wav', '.mp3', '.amr', '.silk'))
+                        # 暂时去掉mime_type检查，因为PlatformSendSegment没有这个字段
+                    )
+                    
+                    if is_voice:
+                        # 发送语音消息
+                        if file_path and os.path.exists(file_path):
+                            try:
+                                with open(file_path, 'rb') as f:
+                                    voice_bytes = f.read()
+                                
+                                result = await self.http_client.send_voice_message(voice_bytes)
+                                logger.info(f"发送语音消息成功: {file_path}")
+                                message_ids.append(msg_id)
+                            except Exception as e:
+                                logger.error(f"发送语音消息失败: {e}")
+                        elif file_data:
+                            try:
+                                # 假设 file_data 是 base64编码的数据
+                                import base64
+                                voice_bytes = base64.b64decode(file_data)
+                                
+                                result = await self.http_client.send_voice_message(voice_bytes)
+                                logger.info(f"发送语音消息成功")
+                                message_ids.append(msg_id)
+                            except Exception as e:
+                                logger.error(f"发送语音消息失败: {e}")
+                    else:
+                        # 其他文件类型暂不支持
+                        logger.warning(f"暂不支持的文件类型: {file_name}")
                 
                 else:
                     logger.warning(f"不支持的消息段类型: {segment.type}")
@@ -153,10 +244,14 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
             
         except Exception as e:
             logger.error(f"发送消息失败: {e}")
+            logger.error(f"错误类型: {type(e).__name__}")
+            logger.error(f"错误详情: {e}")
+            import traceback
+            logger.error(f"堆栈跟踪: {traceback.format_exc()}")
             return PlatformSendResponse(
                 message_id="",
                 success=False,
-                error=str(e)
+                error_message=str(e)
             )
 
     async def get_self_info(self) -> PlatformUser:
@@ -309,8 +404,29 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
             return True
         
         try:
-            self._realtime_task = asyncio.create_task(self.realtime_processor.start())
+            # 创建异步任务并添加错误处理
+            async def _start_with_error_handling():
+                try:
+                    await self.realtime_processor.start()
+                except Exception as e:
+                    logger.error(f"实时消息处理器运行失败: {e}")
+                    logger.error(f"错误类型: {type(e).__name__}")
+                    import traceback
+                    logger.error(f"堆栈跟踪: {traceback.format_exc()}")
+                    
+            self._realtime_task = asyncio.create_task(_start_with_error_handling())
             logger.info("实时消息处理已启动")
+            
+            # 等待一小段时间检查是否成功启动
+            await asyncio.sleep(1.0)
+            if self._realtime_task.done():
+                # 如果任务已经结束，可能是出错了
+                try:
+                    await self._realtime_task  # 获取异常
+                except Exception as e:
+                    logger.error(f"实时消息处理器启动失败: {e}")
+                    return False
+            
             return True
         except Exception as e:
             logger.error(f"启动实时消息处理失败: {e}")
