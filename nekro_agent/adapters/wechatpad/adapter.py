@@ -41,7 +41,7 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
             description="基于 WeChatPadPro 和 nekro_agent 项目的微信适配器，允许 Agent 通过 HTTP API 与微信进行交互。",
             version="0.1.0",
             author="Dirac",
-            homepage="https://github.com/1A7432",
+            homepage="https://github.com/1A7432/nekro-agent/tree/main/nekro_agent/adapters/wechatpad",
             tags=["wechat", "wechatpad", "http", "chat"],
         )
     

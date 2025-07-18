@@ -2,7 +2,7 @@ from pydantic import Field
 
 from nekro_agent.adapters.interface.base import BaseAdapterConfig
 from nekro_agent.core.core_utils import ExtraField
-
+from typing import Optional
 
 class WeChatPadConfig(BaseAdapterConfig):
     """WeChatPad 适配器配置"""
@@ -24,4 +24,10 @@ class WeChatPadConfig(BaseAdapterConfig):
         default="",
         title="WeChatPadPro 回调地址",
         description="用于接收微信事件（如新消息）的回调地址。需要是一个公网可访问的 URL，例如: http://your_domain.com/api/v1/adapters/wechatpad/webhook",
+    )
+
+    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
+        default=False,
+        title="显示处理中表情反馈",
+        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈（微信不支持此功能）",
     )
