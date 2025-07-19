@@ -242,7 +242,7 @@ class WeChatPadClient:
         return await self._request(
             method="POST",
             endpoint="/group/GetChatRoomInfo",
-            json_data={"ChatroomId": chatroom_id},
+            json_data={"ChatRoomWxIdList": [chatroom_id]},  # 根据API文档使用数组格式
         )
     
     # 兼容性方法

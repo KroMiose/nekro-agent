@@ -262,6 +262,9 @@ class WeChatRealtimeProcessor:
         self.logger = logging.getLogger(self.__class__.__name__)
         self.logger.setLevel(logging.INFO)
         
+        # 群名缓存，避免重复API调用
+        self._group_name_cache: Dict[str, str] = {}
+    
     def add_handler(self, handler: MessageHandler):
         """添加消息处理器"""
         self.handlers.append(handler)
@@ -390,7 +393,7 @@ class WeChatRealtimeProcessor:
         # 构造平台频道信息
         platform_channel = PlatformChannel(
             channel_id=channel_id,
-            channel_name=message.group_name if is_group else "",  # 
+            channel_name=await self._get_group_name(channel_id) if is_group else "",  # 
             channel_type=chat_type,
         )
         
@@ -652,6 +655,40 @@ class WeChatRealtimeProcessor:
             "messages_per_minute": round(messages_per_minute, 2),
             "handlers_count": len(self.handlers)
         }
+    
+    async def _get_group_name(self, group_id: str) -> str:
+        """获取群聊名称，使用缓存机制"""
+        # 检查缓存
+        if group_id in self._group_name_cache:
+            return self._group_name_cache[group_id]
+        
+        try:
+            # 使用GetChatRoomInfo API获取群聊详细信息
+            response = await self.adapter.http_client.get_chatroom_info(group_id)
+            
+            if response:
+                # 根据API文档，群名应该在返回的数据中
+                # 需要根据实际API响应结构调整字段名
+                group_name = (
+                    response.get("ChatRoomName") or 
+                    response.get("chatroomName") or 
+                    response.get("name") or 
+                    group_id  # 如果都没有，使用群ID作为备选
+                )
+                
+                # 缓存结果
+                self._group_name_cache[group_id] = group_name
+                self.logger.debug(f"获取群名成功: {group_id} -> {group_name}")
+                return group_name
+            else:
+                self.logger.warning(f"获取群聊信息返回空数据: {group_id}")
+                return group_id
+                
+        except Exception as e:
+            self.logger.warning(f"获取群名失败: {group_id}, 错误: {e}")
+            # 缓存失败结果，避免重复尝试
+            self._group_name_cache[group_id] = group_id
+            return group_id
     
     async def _handle_image_from_xml_or_api(self, message: WeChatMessage, content_segments: List, channel_id: str):
         """处理图片消息：从 XML 解析或使用 API 下载"""
