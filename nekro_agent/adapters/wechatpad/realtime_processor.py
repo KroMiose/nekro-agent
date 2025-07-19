@@ -527,72 +527,102 @@ class WeChatRealtimeProcessor:
         nekro_logger.info(f"实时消息已转发: [{channel_id}] {message.sender_name}: {message.actual_content}")
     
     async def start(self):
-        """启动实时消息处理"""
+        """开始实时消息处理（带自动重连）"""
         if self.is_running:
             self.logger.warning("实时消息处理器已在运行")
             return
-        
+            
         self.is_running = True
         self.start_time = datetime.now()
         self.message_count = 0
         
+        # 启动WebSocket连接重试机制
+        await self._connect_websocket_with_retry()
+        
+        self.logger.info("🛑 实时消息处理器已完全停止")
+    
+    async def _connect_websocket_with_retry(self):
+        """WebSocket连接重试机制"""
         ws_url = self._build_websocket_url()
         self.logger.info(f"🔗 准备连接WebSocket: {ws_url}")
         
-        try:
-            self.logger.info(f"🔄 正在尝试连接到: {ws_url}")
-            
-            # 添加连接参数和超时设置
-            connect_kwargs = {
-                "ping_interval": 30,
-                "ping_timeout": 10,
-                "close_timeout": 10,
-            }
-            
-            self.logger.info(f"🔧 WebSocket连接参数: {connect_kwargs}")
-            
-            async with websockets.connect(ws_url, **connect_kwargs) as websocket:
-                self.websocket = websocket
-                self.logger.info("✅ WebSocket连接成功！")
-                self.logger.info(f"📊 连接状态: {websocket.state}")
-                self.logger.info(f"🌐 远程地址: {websocket.remote_address}")
-                self.logger.info(f"🔄 开始接收消息...")
+        while self.is_running:
+            try:
+                await self._connect_and_listen_once(ws_url)
+            except Exception as e:
+                if not self.is_running:
+                    break
+                    
+                self.logger.error(f"❌ WebSocket连接失败: {type(e).__name__}: {e}")
+                self.logger.info("⏰ 5秒后尝试重连...")
                 
-                async for raw_message in websocket:
-                    if not self.is_running:
-                        break
+                # 固定5秒重连间隔
+                await asyncio.sleep(5)
+    
+    async def _connect_and_listen_once(self, ws_url: str):
+        """单次WebSocket连接和监听（超时重连策略）"""
+        # 确保先关闭任何现有连接
+        if self.websocket:
+            try:
+                await self.websocket.close()
+                self.logger.info("关闭了现有的WebSocket连接")
+            except Exception as e:
+                self.logger.warning(f"关闭现有连接时出错: {e}")
+            finally:
+                self.websocket = None
+        
+        self.logger.info(f"🔄 正在尝试连接到: {ws_url}")
+        
+        # 使用简单的websockets.connect，不设置ping参数
+        async with websockets.connect(ws_url) as websocket:
+            self.websocket = websocket
+            self.logger.info("✅ WebSocket连接成功！")
+            self.logger.info(f"📊 连接状态: {websocket.state}")
+            self.logger.info(f"🌐 远程地址: {websocket.remote_address}")
+            self.logger.info(f"🔄 开始接收消息...")
+            
+            # 超时重连策略
+            wait_time = 120  # 2分钟超时
+            
+            while self.is_running:
+                try:
+                    # 使用超时等待消息
+                    raw_message = await asyncio.wait_for(
+                        websocket.recv(), timeout=wait_time
+                    )
                     
                     self.logger.info(f"📨 收到原始消息: {raw_message[:200]}...")
                     
-                    # 解析消息
-                    message = self._parse_message(raw_message)
-                    if message:
-                        self.logger.info(f"✅ 消息解析成功: {message.from_user} -> {message.content[:50]}...")
-                        # 处理消息
-                        await self._process_message(message)
-                    else:
-                        self.logger.warning(f"❌ 无法解析消息: {raw_message}")
-                        
-        except websockets.exceptions.ConnectionClosed as e:
-            self.logger.warning(f"🔌 WebSocket连接已关闭: {e}")
-        except websockets.exceptions.InvalidURI as e:
-            self.logger.error(f"❌ WebSocket URI无效: {e}")
-        except websockets.exceptions.InvalidHandshake as e:
-            self.logger.error(f"❌ WebSocket握手失败: {e}")
-        except websockets.exceptions.WebSocketException as e:
-            self.logger.error(f"❌ WebSocket异常: {type(e).__name__}: {e}")
-        except ConnectionError as e:
-            self.logger.error(f"❌ 连接错误: {e}")
-        except TimeoutError as e:
-            self.logger.error(f"❌ 连接超时: {e}")
+                    # 异步处理消息，不阻塞接收循环
+                    asyncio.create_task(self._handle_message_async(raw_message))
+                    
+                except asyncio.TimeoutError:
+                    self.logger.debug(f"WebSocket 连接空闲超过 {wait_time} 秒，主动重连")
+                    break  # 超时后重连
+                except websockets.exceptions.ConnectionClosed as e:
+                    self.logger.warning(f"🔌 WebSocket连接已关闭: {e}")
+                    break  # 连接关闭，重连
+                except Exception as e:
+                    self.logger.error(f"❌ 处理WebSocket消息时发生错误: {e}")
+                    break  # 其他错误，重连
+            
+            self.websocket = None
+    
+    async def _handle_message_async(self, raw_message: str):
+        """异步处理单条消息（避免阻塞WebSocket接收）"""
+        try:
+            # 解析消息
+            message = self._parse_message(raw_message)
+            if message:
+                self.logger.info(f"✅ 消息解析成功: {message.from_user} -> {message.content[:50]}...")
+                # 处理消息
+                await self._process_message(message)
+            else:
+                self.logger.warning(f"❌ 无法解析消息: {raw_message}")
         except Exception as e:
-            self.logger.error(f"❌ 未预期的WebSocket错误: {type(e).__name__}: {e}")
+            self.logger.error(f"❌ 异步处理消息失败: {e}")
             import traceback
             self.logger.error(f"堆栈跟踪: {traceback.format_exc()}")
-        finally:
-            self.is_running = False
-            self.websocket = None
-            self.logger.info("🛑 实时消息处理器已停止")
     
     async def stop(self):
         """停止实时消息处理"""
@@ -700,7 +730,7 @@ class WeChatRealtimeProcessor:
                     )
                     
                     if voice_data and "Data" in voice_data:
-                        # TODO: 将来可以创建语音文件消息段
+                        # TODO: 将来可以实现语音文件处理，类似OneBot的文件上传
                         # voice_segment = await ChatMessageSegmentFile.create_from_bytes(...)
                         # content_segments.append(voice_segment)
                         

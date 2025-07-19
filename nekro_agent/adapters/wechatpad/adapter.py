@@ -152,44 +152,60 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
                         logger.info(f"发送@消息成功: {at_text}")
                 
                 elif segment.type == PlatformSendSegmentType.IMAGE:
-                    # 发送图片消息，优先使用新版API
+                    # 发送图片消息，学习OneBot V11的做法：直接传输字节数据
                     file_path = segment.file_path
                     image_data = segment.content  # base64数据在content中
                     
                     msg_id = f"wechat_{int(time.time() * 1000)}"
+                    image_bytes = None
                     
-                    # 优先使用文件路径发送（新版API）
+                    # 方法1：从文件路径读取字节数据（学习OneBot V11）
                     if file_path and os.path.exists(file_path):
                         try:
                             with open(file_path, 'rb') as f:
                                 image_bytes = f.read()
-                            
-                            result = await self.http_client.send_image_new_message(image_bytes)
-                            logger.info(f"使用新版API发送图片成功: {file_path}")
-                            message_ids.append(msg_id)
-                            continue
+                            logger.info(f"从文件读取图片数据: {file_path}, 大小: {len(image_bytes)} bytes")
                         except Exception as e:
-                            logger.warning(f"新版API发送图片失败，回退到旧版API: {e}")
+                            logger.warning(f"读取图片文件失败: {e}")
                     
-                    # 回退到旧版API（base64模式）
-                    if image_data:
+                    # 方法2：从base64数据解码（如果没有文件路径）
+                    if not image_bytes and image_data:
                         try:
-                            # 如果是文件路径，需要转换为 base64
                             if image_data.startswith("data:image/"):
-                                # 已经是 base64 格式
+                                # data:image/jpeg;base64,xxxxx 格式
                                 image_base64 = image_data.split(",")[1] if "," in image_data else image_data
                             else:
-                                # 假设是 base64 编码的图片数据
+                                # 纯base64数据
                                 image_base64 = image_data
                             
-                            result = await self.http_client.send_image_message(
-                                to_wxid=channel_id,
-                                image_base64=image_base64
-                            )
-                            logger.info(f"使用旧版API发送图片成功")
+                            import base64
+                            image_bytes = base64.b64decode(image_base64)
+                            logger.info(f"从base64解码图片数据，大小: {len(image_bytes)} bytes")
+                        except Exception as e:
+                            logger.warning(f"解码base64图片数据失败: {e}")
+                    
+                    # 发送图片字节数据
+                    if image_bytes:
+                        try:
+                            # 优先使用SendImageNewMessage API
+                            result = await self.http_client.send_image_new_message(channel_id, image_bytes)
+                            logger.info(f"✅ 使用SendImageNewMessage API发送图片成功，大小: {len(image_bytes)} bytes")
                             message_ids.append(msg_id)
                         except Exception as e:
-                            logger.error(f"发送图片消息失败: {e}")
+                            logger.warning(f"⚠️ SendImageNewMessage API失败，尝试SendTextMessage API: {e}")
+                            try:
+                                # 回退到SendTextMessage API，使用压缩图片
+                                compressed_image_base64 = self.http_client._compress_image(image_bytes)
+                                result = await self.http_client.send_image_message(
+                                    to_wxid=channel_id,
+                                    image_base64=compressed_image_base64
+                                )
+                                logger.info(f"✅ 使用SendTextMessage API发送图片成功，大小: {len(image_bytes)} bytes")
+                                message_ids.append(msg_id)
+                            except Exception as e2:
+                                logger.error(f"❌ 发送图片消息完全失败: {e2}")
+                    else:
+                        logger.error(f"❌ 无法获取图片数据，file_path={file_path}, content={image_data[:100] if image_data else None}")
                 
                 elif segment.type == PlatformSendSegmentType.FILE:
                     # 发送文件消息（语音文件等）
@@ -268,32 +284,33 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
             
             if "userName" in user_info:
                 user_name_data = user_info["userName"]
-                if isinstance(user_name_data, dict) and "str" in user_name_data:
-                    wxid = user_name_data["str"]
-                else:
-                    wxid = str(user_name_data)
+                if isinstance(user_name_data, str):
+                    wxid = user_name_data
+                elif isinstance(user_name_data, dict):
+                    wxid = user_name_data.get("str", "")  # 修复：使用"str"而不是"string"
             
             if "nickName" in user_info:
                 nick_name_data = user_info["nickName"]
-                if isinstance(nick_name_data, dict) and "str" in nick_name_data:
-                    nickname = nick_name_data["str"]
-                else:
-                    nickname = str(nick_name_data)
+                if isinstance(nick_name_data, str):
+                    nickname = nick_name_data
+                elif isinstance(nick_name_data, dict):
+                    nickname = nick_name_data.get("str", "")  # 修复：使用"str"而不是"string"
             
-            # 如果没有昵称，使用微信号
-            if not nickname:
-                nickname = wxid
+            # 如果解析失败，尝试直接获取
+            if not wxid and not nickname:
+                wxid = result.get("wxid", result.get("userName", ""))
+                nickname = result.get("nickname", result.get("nickName", ""))
             
             return PlatformUser(
-                user_id=wxid,
-                user_name=nickname,
+                user_id=wxid or "unknown",
+                user_name=nickname or "未知用户",
                 platform_name="微信",
                 avatar_url="",  # 头像 URL 需要另外处理
             )
             
         except Exception as e:
-            logger.error(f"获取自身信息失败: {e}")
-            # 返回默认值
+            logger.warning(f"获取自身信息失败: {type(e).__name__}: {e}")
+            # 降级策略：返回默认值，避免阻塞消息处理
             return PlatformUser(
                 user_id="unknown",
                 user_name="未知用户",
@@ -413,6 +430,7 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
                     logger.error(f"错误类型: {type(e).__name__}")
                     import traceback
                     logger.error(f"堆栈跟踪: {traceback.format_exc()}")
+                    logger.warning("实时消息处理器将不会自动重启，请检查配置和网络连接")
                     
             self._realtime_task = asyncio.create_task(_start_with_error_handling())
             logger.info("实时消息处理已启动")

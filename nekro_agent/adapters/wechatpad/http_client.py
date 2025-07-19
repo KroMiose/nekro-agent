@@ -12,7 +12,7 @@ class WeChatPadClient:
         self._config = config
         self._http_client = httpx.AsyncClient(
             base_url=self._config.WECHATPAD_API_URL,
-            timeout=30.0,
+            timeout=90.0,  # 增加超时时间到90秒，因为API响应较慢
         )
 
     async def _request(self, method: str, endpoint: str, json_data: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -47,10 +47,14 @@ class WeChatPadClient:
                 raise ValueError(f"WeChatPad API 错误: {error_msg}")
                 
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error occurred: {e!s} | Response: {e.response.text}")
+            logger.error(f"HTTP error occurred: {e!s} | Response: {e.response.text} | Request: {e.request.method} {e.request.url}")
+            import traceback
+            logger.error(f"堆栈跟踪: {traceback.format_exc()}")
             raise
         except Exception as e:
-            logger.error(f"An unexpected error occurred: {e!s}")
+            logger.error(f"An unexpected error occurred: {type(e).__name__}: {e} | Request: {method} {endpoint}")
+            import traceback
+            logger.error(f"堆栈跟踪: {traceback.format_exc()}")
             raise
 
     async def set_callback_url(self) -> None:
@@ -83,66 +87,77 @@ class WeChatPadClient:
         )
     
     async def send_image_message(self, to_wxid: str, image_base64: str) -> Dict[str, Any]:
-        """发送图片消息"""
+        """发送图片消息（使用SendTextMessage API，MsgType=3）"""
         return await self._request(
             method="POST",
-            endpoint="/message/SendImageMessage",
+            endpoint="/message/SendTextMessage",
             json_data={
-                "ToUserName": to_wxid,
-                "ImageContent": image_base64,
+                "MsgItem": [
+                    {
+                        "MsgType": 3,  # 3 = Image
+                        "ImageContent": image_base64,
+                        "ToUserName": to_wxid,
+                    }
+                ]
             },
         )
     
-    async def send_image_new_message(self, image_file_data: bytes) -> Dict[str, Any]:
-        """发送图片消息（New版本，使用文件上传）"""
-        # 使用文件上传方式发送图片
-        params = {"key": self._config.WECHATPAD_AUTH_KEY}
+    async def send_image_new_message(self, to_wxid: str, image_file_data: bytes) -> Dict[str, Any]:
+        """发送图片消息（New版本，使用MsgItem格式）"""
+        # 先压缩图片，然后转换为base64
+        compressed_image_data = self._compress_image(image_file_data)
         
-        try:
-            response = await self._http_client.post(
-                "/message/SendImageNewMessage",
-                params=params,
-                files={"file": ("image.jpg", image_file_data, "image/jpeg")}
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            code = result.get("Code")
-            if code == 200:
-                return result.get("Data", {})
-            else:
-                error_msg = result.get("Text", "Unknown error")
-                logger.error(f"发送图片消息失败: Code={code}, Text={error_msg}")
-                raise ValueError(f"发送图片消息失败: {error_msg}")
-                
-        except Exception as e:
-            logger.error(f"发送图片消息异常: {e}")
-            raise
+        return await self._request(
+            method="POST",
+            endpoint="/message/SendImageNewMessage",
+            json_data={
+                "MsgItem": [
+                    {
+                        "MsgType": 3,  # 3 = Image
+                        "ImageContent": compressed_image_data,
+                        "ToUserName": to_wxid
+                    }
+                ]
+            },
+        )
     
-    async def send_voice_message(self, voice_file_data: bytes) -> Dict[str, Any]:
-        """发送语音消息"""
-        params = {"key": self._config.WECHATPAD_AUTH_KEY}
+    def _compress_image(self, image_data: bytes) -> str:
+        """压缩图片并转换为base64"""
+        import base64
+        import io
+        from PIL import Image
         
         try:
-            response = await self._http_client.post(
-                "/message/SendVoice",
-                params=params,
-                files={"file": ("voice.wav", voice_file_data, "audio/wav")}
-            )
-            response.raise_for_status()
-            result = response.json()
-            
-            code = result.get("Code")
-            if code == 200:
-                return result.get("Data", {})
+            img = Image.open(io.BytesIO(image_data))
+            buf = io.BytesIO()
+            if img.format == "JPEG":
+                img.save(buf, "JPEG", quality=80)
             else:
-                error_msg = result.get("Text", "Unknown error")
-                logger.error(f"发送语音消息失败: Code={code}, Text={error_msg}")
-                raise ValueError(f"发送语音消息失败: {error_msg}")
-                
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                img.save(buf, "JPEG", quality=80)
+            return base64.b64encode(buf.getvalue()).decode()
         except Exception as e:
-            logger.error(f"发送语音消息异常: {e}")
-            raise
+            logger.error(f"图片压缩失败，使用原始数据: {e}")
+            return base64.b64encode(image_data).decode('utf-8')
+    
+    async def send_voice_message(self, to_wxid: str, voice_file_data: bytes, duration: int = 0) -> Dict[str, Any]:
+        """发送语音消息"""
+        import base64
+        
+        # 将语音数据转换为base64
+        voice_base64 = base64.b64encode(voice_file_data).decode('utf-8')
+        
+        return await self._request(
+            method="POST",
+            endpoint="/message/SendVoice",
+            json_data={
+                "ToUserName": to_wxid,
+                "VoiceData": voice_base64,
+                "VoiceFormat": 4,  # 4 = silk格式
+                "VoiceSecond": duration,
+            },
+        )
     
     async def send_emoji_message(self, to_wxid: str, emoji_md5: str, emoji_size: int) -> Dict[str, Any]:
         """发送表情消息"""
@@ -159,21 +174,18 @@ class WeChatPadClient:
         )
     
     async def get_msg_big_img(self, msg_id: int, from_user: str, to_user: str, 
-                             total_len: int, compress_type: int = 0) -> Dict[str, Any]:
+                             total_len: int = 0, compress_type: int = 0) -> Dict[str, Any]:
         """获取高清图片"""
         return await self._request(
             method="POST",
             endpoint="/message/GetMsgBigImg",
             json_data={
-                "MsgId": msg_id,
+                "CompressType": compress_type,
                 "FromUserName": from_user,
+                "MsgId": msg_id,
+                "Section": {"DataLen": 61440, "StartPos": 0},
                 "ToUserName": to_user,
                 "TotalLen": total_len,
-                "CompressType": compress_type,
-                "Section": {
-                    "StartPos": 0,
-                    "DataLen": min(total_len, 65535)  # 分包长度不超过65535
-                }
             },
         )
     
@@ -183,10 +195,10 @@ class WeChatPadClient:
             method="POST",
             endpoint="/message/GetMsgVoice",
             json_data={
-                "NewMsgId": new_msg_id,
-                "ToUserName": to_user,
                 "Bufid": bufid,
-                "Length": length
+                "ToUserName": to_user,
+                "NewMsgId": new_msg_id,
+                "Length": length,
             },
         )
     
