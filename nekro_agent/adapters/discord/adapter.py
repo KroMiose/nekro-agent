@@ -22,6 +22,8 @@ from .tools import SegAt, parse_at_from_text
 class DiscordAdapter(BaseAdapter[DiscordConfig]):
     def __init__(self, config_cls: Type[DiscordConfig] = DiscordConfig):
         super().__init__(config_cls)
+        if not self.config.BOT_TOKEN:
+            raise ValueError("Discord 未启用，需要设置 BOT_TOKEN") from None
         self.client = DiscordClient(
             token=self.config.BOT_TOKEN,
             adapter=self,
