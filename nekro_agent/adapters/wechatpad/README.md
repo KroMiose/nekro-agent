@@ -30,14 +30,41 @@ WeChatPad 适配器是 nekro-agent 的一个组件，用于通过 WeChatPadPro �
 3.  **修改.env配置文件**
     (建议手动修改`ADMIN_KEY`，实在懒得改那不改也行)
 
-4.  **启动服务与登录**
-    - 如果是在同一台机器上部署`nekro_agent`和`WeChatPadPro`，需要修改`docker-compose.yml`文件，把service里所有容器的网络（network）更改为`nekro_network`，以便与`nekro_agent`容器通信。
-    - 启动服务后，返回的参数中有登录二维码链接，打开扫码登录即可。如果是云服务器，可能需要设置代理填入填入 Proxy 参数才能正常登录。
+4.  **配置网络（同机部署）**
+    如果是在同一台机器上部署`nekro_agent`和`WeChatPadPro`，需要修改`docker-compose.yml`文件，把service里所有容器的网络（network）更改为`nekro_network`，以便与`nekro_agent`容器通信。
 
-5.  **记录AuthKey**
-    - 记住你的`AuthKey`，后面配置适配器时需要填入。
+5.  **启动服务**
+    ```sh
+    docker-compose up -d
+    ```
 
-### 2. 配置适配器
+6.  **查看服务状态**
+    ```sh
+    docker-compose ps
+    ```
+
+### 2. 登录微信
+
+1.  **访问 Swagger 界面**
+    成功启动 WeChatPadPro 后根据你的 `serverip:port` 访问 WeChatPadPro 的 Swagger
+
+2.  **填入 ADMIN_KEY**
+    在 Swagger 界面中填入你的 `ADMIN_KEY`
+
+3.  **获取 AuthKey**
+    - 使用 `/admin/GanAuthKey1` 接口
+    - **Try it out** → body 中的 `days` 改为 `365` 即可（AuthKey有效期365天）
+
+4.  **登录微信**
+    - 使用 `/login/GetLoginQrCodeNew` 接口
+    - **Try it out** → 获取登录二维码
+    - 返回的参数中有登录二维码链接，打开扫码登录即可
+    - 如果是云服务器（和服务器不是同市或同省），可能需要设置代理填入 Proxy 参数才能正常登录
+
+5.  **记录 AuthKey**
+    记住你的 `AuthKey`，后面配置适配器时需要填入。
+
+### 3. 配置适配器
 
 1.  **填写核心配置**
     - 适配器目前只需要填写 `WECHATPAD_API_URL` 和 `WECHATPAD_AUTH_KEY`，`WECHATPAD_CALLBACK_URL` 可以不填（暂时还是ws接收实时消息，webhook功能还未实现）。
@@ -49,6 +76,8 @@ WeChatPad 适配器是 nekro-agent 的一个组件，用于通过 WeChatPadPro �
 
 3.  **配置认证密钥 (`WECHATPAD_AUTH_KEY`)**
     - 填写你的 WeChatPadPro `AuthKey`。
+
+#### 环境变量配置
 
 适配器支持以下环境变量配置：
 
