@@ -4,7 +4,9 @@
 """
 
 import json
+import os
 import shutil
+import stat
 import sys
 from datetime import datetime
 from importlib import import_module, reload
@@ -71,6 +73,15 @@ class PackageData(BaseModel):
 
 
 PACKAGE_DATA_PATH = Path(PACKAGES_DIR) / "package_data.json"
+
+
+def _remove_readonly(func, path, _):
+    """错误处理函数，用于删除只读文件"""
+    try:
+        Path(path).chmod(stat.S_IWRITE)
+        func(path)
+    except Exception as e:
+        logger.warning(f"无法删除文件 {path}: {e}")
 
 
 class PluginCollector:
@@ -313,21 +324,39 @@ class PluginCollector:
         if auto_reload:
             await self.reload_plugin_by_module_name(module_name, is_package=True)
 
-    async def remove_package(self, module_name: str) -> None:
+    async def remove_package(self, module_name: str, clear_config: bool = False) -> None:
         """删除云端插件
 
         Args:
             module_name: 云端插件模块名
+            clear_config: 是否删除插件配置文件和数据目录，默认为False
         """
         package_dir = self.packages_dir / module_name
         if not package_dir.exists():
             raise ValueError(f"云端插件 `{module_name}` 不存在")
 
+        # 获取插件实例以便删除配置文件
+        plugin = self.get_plugin_by_module_name(module_name)
+        
         # 先卸载插件，从插件收集器中移除，限制只卸载云端插件
         await self.unload_plugin_by_module_name(module_name, scope="package")
 
+        # 删除插件配置文件和数据目录
+        if clear_config and plugin:
+            plugin_data_dir = plugin._plugin_path  # noqa: SLF001
+            if plugin_data_dir.exists():
+                try:
+                    shutil.rmtree(plugin_data_dir, onerror=_remove_readonly)
+                    logger.info(f"已删除插件 {plugin.name} 的配置文件和数据目录: {plugin_data_dir}")
+                except Exception as e:
+                    logger.warning(f"删除插件 {plugin.name} 配置文件时发生错误: {e}")
+
         # 然后删除文件和包信息
-        shutil.rmtree(package_dir)
+        try:
+            shutil.rmtree(package_dir, onerror=_remove_readonly)
+        except Exception as e:
+            logger.error(f"删除云端插件目录失败: {package_dir}: {e}")
+            raise
         self.package_data.remove_package(module_name)
 
     async def _try_load_plugin(self, item_path: Path, is_builtin: bool = False, is_package: bool = False) -> bool:
@@ -652,6 +681,69 @@ class PluginCollector:
                 logger.exception(f"清理插件 {plugin.name} 时发生错误: {e}")
         
         logger.info(f"所有插件清理完成，成功清理 {cleanup_count} 个插件")
+
+    async def clear_plugin_store_data(self, plugin_key: str) -> int:
+        """清除指定插件的所有存储数据
+
+        Args:
+            plugin_key: 插件键，格式为 "作者.插件名"
+
+        Returns:
+            int: 删除的数据条数
+
+        Raises:
+            ValueError: 当插件不存在时抛出
+        """
+        from nekro_agent.models.db_plugin_data import DBPluginData
+
+        plugin = self.get_plugin(plugin_key)
+        if not plugin:
+            raise ValueError(f"插件 `{plugin_key}` 不存在")
+
+        try:
+            # 删除该插件的所有存储数据
+            deleted_count = await DBPluginData.filter(plugin_key=plugin_key).delete()
+        except Exception as e:
+            logger.exception(f"清除插件 {plugin.name} 存储数据时发生错误: {e}")
+            raise
+        else:
+            logger.info(f"成功清除插件 {plugin.name} 的所有存储数据，共删除 {deleted_count} 条记录")
+            return deleted_count
+
+    async def clear_plugin_store_data_by_module_name(self, module_name: str) -> int:
+        """根据模块名清除指定插件的所有存储数据
+
+        Args:
+            module_name: 插件模块名
+
+        Returns:
+            int: 删除的数据条数
+
+        Raises:
+            ValueError: 当插件不存在时抛出
+        """
+        plugin = self.get_plugin_by_module_name(module_name)
+        if not plugin:
+            raise ValueError(f"插件模块 `{module_name}` 不存在")
+
+        return await self.clear_plugin_store_data(plugin.key)
+
+    async def clear_all_plugin_store_data(self) -> int:
+        """清除所有插件的存储数据
+
+        Returns:
+            int: 删除的数据条数
+        """
+        from nekro_agent.models.db_plugin_data import DBPluginData
+
+        try:
+            deleted_count = await DBPluginData.all().delete()
+        except Exception as e:
+            logger.exception(f"清除所有插件存储数据时发生错误: {e}")
+            raise
+        else:
+            logger.info(f"成功清除所有插件的存储数据，共删除 {deleted_count} 条记录")
+            return deleted_count
 
 
 # 全局插件收集器实例

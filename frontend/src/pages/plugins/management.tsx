@@ -96,6 +96,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteDataConfirmOpen, setDeleteDataConfirmOpen] = useState(false)
   const [deleteDataId, setDeleteDataId] = useState<number | null>(null)
+  const [clearDataOnDelete, setClearDataOnDelete] = useState(false) // 新增：删除时是否清除数据的状态
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -176,9 +177,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
   // 删除云端插件
   const removePackageMutation = useMutation({
-    mutationFn: () => pluginsApi.removePackage(plugin.moduleName),
+    mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
     onSuccess: () => {
-      notification.success(`云端插件 ${plugin.name} 已删除～`)
+      notification.success(`云端插件 ${plugin.name} 已删除${clearDataOnDelete ? '（包括数据）' : ''}～`)
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       onBack() // 返回插件列表
     },
@@ -999,10 +1000,29 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           <DialogContentText>
             此操作将删除云端插件 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
           </DialogContentText>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={clearDataOnDelete}
+                onChange={(e) => setClearDataOnDelete(e.target.checked)}
+                color="error"
+              />
+            }
+            label="同时清除插件数据"
+            sx={{ mt: 2, mb: 1 }}
+          />
+          {clearDataOnDelete && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              勾选此选项将删除该插件的所有存储数据
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
-            onClick={() => setDeleteConfirmOpen(false)}
+            onClick={() => {
+              setDeleteConfirmOpen(false)
+              setClearDataOnDelete(false) // 重置勾选状态
+            }}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             取消
@@ -1011,6 +1031,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             onClick={() => {
               removePackageMutation.mutate()
               setDeleteConfirmOpen(false)
+              setClearDataOnDelete(false) // 重置勾选状态
             }}
             color="error"
             variant="contained"

@@ -1,7 +1,7 @@
 import json
 from typing import AsyncGenerator, Dict, List, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Path
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -53,16 +53,16 @@ class PluginDataResponse(BaseModel):
     update_time: str
 
     @classmethod
-    def from_orm(cls, db_data: DBPluginData) -> "PluginDataResponse":
+    def from_orm(cls, obj: DBPluginData) -> "PluginDataResponse":
         return cls(
-            id=db_data.id,
-            plugin_key=db_data.plugin_key,
-            target_chat_key=db_data.target_chat_key,
-            target_user_id=db_data.target_user_id,
-            data_key=db_data.data_key,
-            data_value=db_data.data_value,
-            create_time=db_data.create_time.isoformat(),
-            update_time=db_data.update_time.isoformat(),
+            id=obj.id,
+            plugin_key=obj.plugin_key,
+            target_chat_key=obj.target_chat_key,
+            target_user_id=obj.target_user_id,
+            data_key=obj.data_key,
+            data_value=obj.data_value,
+            create_time=obj.create_time.isoformat(),
+            update_time=obj.update_time.isoformat(),
         )
 
 
@@ -200,12 +200,18 @@ async def reset_plugin_data(
 @require_role(Role.Admin)
 async def remove_package(
     module_name: str,
+    clear_data: bool = Query(False, description="是否删除插件在数据库中的存储数据"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """删除云端插件"""
     try:
-        # remove_package方法现在包含了卸载步骤
-        await plugin_collector.remove_package(module_name)
+        # remove_package方法现在包含了卸载步骤和配置文件删除
+        
+        if clear_data:
+            await plugin_collector.remove_package(module_name, clear_config=True)
+            await plugin_collector.clear_plugin_store_data_by_module_name(module_name)
+        else:
+            await plugin_collector.remove_package(module_name, clear_config=False)
         return Ret.success(msg=f"云端插件 {module_name} 删除成功")
     except Exception as e:
         logger.exception(f"删除云端插件失败: {e}")

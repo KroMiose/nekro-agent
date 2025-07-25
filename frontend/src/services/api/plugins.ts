@@ -325,9 +325,11 @@ export const pluginsApi = {
   },
 
   // 删除云端插件
-  removePackage: async (moduleName: string): Promise<boolean> => {
+  removePackage: async (moduleName: string, clearData: boolean = false): Promise<boolean> => {
     try {
-      await axios.delete(`/plugins/package/${moduleName}`)
+      await axios.delete(`/plugins/package/${moduleName}`, {
+        params: { clear_data: clearData }
+      })
       return true
     } catch (error) {
       console.error(`删除云端插件 ${moduleName} 失败:`, error)
