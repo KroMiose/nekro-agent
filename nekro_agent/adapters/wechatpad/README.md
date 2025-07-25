@@ -13,13 +13,42 @@ WeChatPad 适配器是 nekro-agent 的一个组件，用于通过 WeChatPadPro �
 - ✅ 实时消息接收和处理
 - ✅ 支持自定义 API 端点和认证
 
-## 安装
+## 使用
 
-1. 确保已安装 nekro-agent
-2. 将 `wechatpad` 适配器目录复制到 `nekro_agent/adapters/` 目录下
-3. 在 `nekro_agent/adapters/__init__.py` 中注册适配器
+### 1. 部署 WeChatPadPro 服务
 
-## 配置
+1.  **克隆项目**
+    ```sh
+    git clone https://github.com/WeChatPadPro/WeChatPadPro.git
+    ```
+
+2.  **进入部署目录**
+    ```sh
+    cd WeChatPadPro/deploy
+    ```
+
+3.  **修改.env配置文件**
+    (建议手动修改`ADMIN_KEY`，实在懒得改那不改也行)
+
+4.  **启动服务与登录**
+    - 如果是在同一台机器上部署`nekro_agent`和`WeChatPadPro`，需要修改`docker-compose.yml`文件，把service里所有容器的网络（network）更改为`nekro_network`，以便与`nekro_agent`容器通信。
+    - 启动服务后，返回的参数中有登录二维码链接，打开扫码登录即可。如果是云服务器，可能需要设置代理填入填入 Proxy 参数才能正常登录。
+
+5.  **记录AuthKey**
+    - 记住你的`AuthKey`，后面配置适配器时需要填入。
+
+### 2. 配置适配器
+
+1.  **填写核心配置**
+    - 适配器目前只需要填写 `WECHATPAD_API_URL` 和 `WECHATPAD_AUTH_KEY`，`WECHATPAD_CALLBACK_URL` 可以不填（暂时还是ws接收实时消息，webhook功能还未实现）。
+
+2.  **配置API地址 (`WECHATPAD_API_URL`)**
+    - 填写你的 WeChatPadPro API 地址。
+    - 如果两者部署在同一台机器上，填入 `http://wechatpadpro:8080`
+    - 如果两者部署在不同台机器上，填入 `http://yourserverip:8080`
+
+3.  **配置认证密钥 (`WECHATPAD_AUTH_KEY`)**
+    - 填写你的 WeChatPadPro `AuthKey`。
 
 适配器支持以下环境变量配置：
 
