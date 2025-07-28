@@ -67,7 +67,7 @@ plugin = NekroPlugin(
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord"],
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad"],
 )
 
 
