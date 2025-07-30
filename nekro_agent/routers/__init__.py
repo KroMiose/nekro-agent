@@ -30,6 +30,7 @@ from .logs import router as logs_router
 from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
 from .presets import router as presets_router
+from .restart import router as restart_router
 from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
 from .user import router as user_router
@@ -76,6 +77,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(chat_channel_router)
     api.include_router(webhook_router)
     api.include_router(presets_router)
+    api.include_router(restart_router)
     api.include_router(telemetry_router)
     api.include_router(presets_market_router)
     api.include_router(plugins_market_router)

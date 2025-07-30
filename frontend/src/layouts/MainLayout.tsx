@@ -27,9 +27,11 @@ import {
   GitHub as GitHubIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
+  RestartAlt as RestartIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
+import { restartApi } from '../services/api/restart'
 import { motion } from 'framer-motion'
 import { UI_STYLES, getAnimationDuration } from '../theme/themeApi'
 import ThemeToggleButton from '../theme/ThemeToggleButton'
@@ -132,6 +134,20 @@ export default function MainLayout() {
     logout()
     navigate('/login')
     notification.info('已退出登录')
+  }
+
+  const handleRestart = async () => {
+    try {
+      const result = await restartApi.restartSystem()
+      if (result.code === 200) {
+        notification.success('重启命令已发送')
+      } else {
+        notification.error(result.msg || '重启失败')
+      }
+    } catch (error) {
+      console.error('重启系统失败:', error)
+      notification.error('重启命令发送失败')
+    }
   }
 
   const handleMenuItemClick = (path?: string, key?: string) => {
@@ -285,8 +301,8 @@ export default function MainLayout() {
                 onClick={() => handleMenuItemClick(item.path, item.key)}
                 selected={Boolean(
                   !item.children &&
-                    (location.pathname === item.path ||
-                      (item.path && location.pathname.startsWith(item.path + '/')))
+                  (location.pathname === item.path ||
+                    (item.path && location.pathname.startsWith(item.path + '/')))
                 )}
                 sx={{
                   '&.Mui-selected': {
@@ -331,7 +347,7 @@ export default function MainLayout() {
                       }}
                       selected={Boolean(
                         location.pathname === child.path ||
-                          location.pathname.startsWith(child.path + '/')
+                        location.pathname.startsWith(child.path + '/')
                       )}
                       sx={{
                         pl: 4,
@@ -367,6 +383,28 @@ export default function MainLayout() {
         ))}
       </List>
       <List>
+        <ListItem disablePadding>
+          <ListItemButton
+            onClick={handleRestart}
+            sx={{
+              py: isSmall ? 1 : 1.5, // 在移动端调整垂直内边距
+              '&:hover': {
+                backgroundColor: UI_STYLES.HOVER,
+              },
+              transition: 'all 0.2s ease-in-out',
+            }}
+          >
+            <ListItemIcon>
+              <RestartIcon />
+            </ListItemIcon>
+            <ListItemText
+              primary="重启系统"
+              primaryTypographyProps={{
+                fontSize: isSmall ? '0.9rem' : 'inherit',
+              }}
+            />
+          </ListItemButton>
+        </ListItem>
         <ListItem disablePadding>
           <ListItemButton
             onClick={handleLogout}
