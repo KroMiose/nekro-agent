@@ -80,6 +80,9 @@ class MinecraftConfig(BaseAdapterConfig):
         default_factory=list,
         title="服务器列表",
         description="在这里配置你的 Minecraft 服务器",
+        json_schema_extra=ExtraField(
+            is_need_restart= True,
+        ).model_dump(),
     )
     MINECRAFT_WS_URLS: str = Field(
         default="{}",

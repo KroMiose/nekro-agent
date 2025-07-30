@@ -199,7 +199,7 @@ def _get_model_schema(model_class: Any) -> Dict[str, Any]:
 
         # 添加特殊字段标记
         if hasattr(field, "json_schema_extra") and isinstance(field.json_schema_extra, dict):
-            extra_fields = ["is_secret", "is_textarea", "placeholder"]
+            extra_fields = ["is_secret", "is_textarea", "placeholder","is"]
             for extra_field in extra_fields:
                 if field.json_schema_extra.get(extra_field):
                     field_info[extra_field] = field.json_schema_extra.get(extra_field)
@@ -456,6 +456,7 @@ class ConfigService:
                     "load_sysenv_as",
                     "load_to_nonebot_env",
                     "load_nbenv_as",
+                    "is_need_restart",
                 ]
                 for extra_field in extra_fields:
                     if field.json_schema_extra.get(extra_field):
@@ -522,6 +523,7 @@ class ConfigService:
                 "load_sysenv_as",
                 "load_to_nonebot_env",
                 "load_nbenv_as",
+                "is_need_restart",
             ]
             for extra_field in extra_fields:
                 if field.json_schema_extra.get(extra_field):

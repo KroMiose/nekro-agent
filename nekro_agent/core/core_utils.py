@@ -124,6 +124,11 @@ class ExtraField(BaseModel):
         title="nonebot环境变量名称定义",
         description="指定将配置项加载到nonebot的环境变量时使用的变量名，仅在load_to_nbenv_as为True时生效",
     )
+    is_need_restart: bool = Field(
+        default=False,
+        title="重启需求标识",
+        description="设置为True时，修改该配置项后需要重启应用才能生效",
+    )
 
 
 class ConfigManager:

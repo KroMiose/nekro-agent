@@ -1,13 +1,32 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Box, Tabs, Tab, Grid, Stack, useMediaQuery, useTheme, Card } from '@mui/material'
+import { 
+  Box, 
+  Tabs, 
+  Tab, 
+  Grid, 
+  Stack, 
+  useMediaQuery, 
+  useTheme, 
+  Card,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Typography,
+  Alert
+} from '@mui/material'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   Message as MessageIcon,
   Group as GroupIcon,
   Code as CodeIcon,
   CheckCircle as CheckCircleIcon,
+  RestartAlt as RestartIcon,
 } from '@mui/icons-material'
 import { dashboardApi, RealTimeDataPoint } from '../../services/api/dashboard'
+import { restartApi } from '../../services/api/restart'
+import { useNotification } from '../../hooks/useNotification'
 import { StatCard } from './components/StatCard'
 import { TrendsChart } from './components/TrendsChart'
 import { DistributionsCard } from './components/DistributionsCard'
@@ -25,10 +44,13 @@ const DashboardContent: React.FC = () => {
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
   const [streamCancel, setStreamCancel] = useState<(() => void) | null>(null)
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false)
+  const [isRestarting, setIsRestarting] = useState(false)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const notification = useNotification()
 
   // 处理实时数据
   const handleRealTimeData = useCallback((data: string) => {
@@ -129,46 +151,95 @@ const DashboardContent: React.FC = () => {
     setTimeRange(newValue)
   }
 
+  // 处理重启系统
+  const handleRestartSystem = async () => {
+    setIsRestarting(true)
+    try {
+      const response = await restartApi.restartSystem()
+      if (response.code === 200) {
+        notification.success('系统重启请求已发送，请稍候...')
+        setRestartDialogOpen(false)
+      } else {
+        notification.error(response.msg || '重启失败')
+      }
+    } catch (error) {
+      console.error('重启系统失败:', error)
+      notification.error('重启系统失败，请检查网络连接')
+    } finally {
+      setIsRestarting(false)
+    }
+  }
+
   return (
     <Box className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4">
       {/* 时间范围选择器 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
-      <Tabs 
-        value={timeRange} 
-        onChange={handleTimeRangeChange} 
-          variant={isSmallMobile ? 'fullWidth' : 'standard'}
-          indicatorColor="primary"
-          textColor="primary"
-        sx={{
-            minHeight: 56,
-            px: { xs: 1, md: 3 },
-            '& .MuiTab-root': {
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between',
+          px: { xs: 1, md: 3 }
+        }}>
+          <Tabs 
+            value={timeRange} 
+            onChange={handleTimeRangeChange} 
+            variant={isSmallMobile ? 'fullWidth' : 'standard'}
+            indicatorColor="primary"
+            textColor="primary"
+            sx={{
               minHeight: 56,
+              flex: 1,
+              '& .MuiTab-root': {
+                minHeight: 56,
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                textTransform: 'none',
+                transition: 'all 0.2s ease',
+                borderRadius: '8px',
+                mx: 0.5,
+                '&:hover': {
+                  backgroundColor: theme.palette.action.hover,
+                },
+                '&.Mui-selected': {
+                  color: theme.palette.primary.main,
+                  backgroundColor: theme.palette.primary.main + '10',
+                },
+              },
+              '& .MuiTabs-indicator': {
+                height: 3,
+                borderRadius: '2px',
+                boxShadow: `0 0 8px ${theme.palette.primary.main}`,
+              },
+            }}
+          >
+            <Tab value="day" label="今天" />
+            <Tab value="week" label="本周" />
+            <Tab value="month" label="本月" />
+          </Tabs>
+          
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<RestartIcon />}
+            onClick={() => setRestartDialogOpen(true)}
+            sx={{
+              ml: 2,
+              minWidth: 'auto',
+              px: { xs: 1.5, sm: 2 },
               fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
-              transition: 'all 0.2s ease',
               borderRadius: '8px',
-              mx: 0.5,
+              transition: 'all 0.2s ease',
               '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-          },
-            '&.Mui-selected': {
-              color: theme.palette.primary.main,
-                backgroundColor: theme.palette.primary.main + '10',
+                transform: 'translateY(-1px)',
+                boxShadow: `0 4px 12px ${theme.palette.error.main}20`,
               },
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: '2px',
-              boxShadow: `0 0 8px ${theme.palette.primary.main}`,
-          },
-        }}
-      >
-        <Tab value="day" label="今天" />
-        <Tab value="week" label="本周" />
-        <Tab value="month" label="本月" />
-      </Tabs>
+            }}
+          >
+            {isSmallMobile ? '' : '重启系统'}
+          </Button>
+        </Box>
       </Card>
 
       {/* 统计卡片 - 移动端改为两行显示 */}
@@ -325,6 +396,53 @@ const DashboardContent: React.FC = () => {
           <RankingList title="活跃排名" data={activeUsers} loading={usersLoading} type="users" />
         </Grid>
       </Grid>
+
+      {/* 重启系统确认对话框 */}
+      <Dialog
+        open={restartDialogOpen}
+        onClose={() => !isRestarting && setRestartDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            ...CARD_VARIANTS.default.styles,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          }}
+        >
+          重启系统确认
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            重启期间 WebUI 功能将无法正常使用，如果长时间未恢复请检查 NekroAgent 容器日志是否出现异常
+          </Alert>
+          <Typography sx={{ mt: 1, mb: 2 }}>
+            确定要重启系统吗？重启过程可能需要大概一分钟，请耐心等待。
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={() => setRestartDialogOpen(false)}
+            disabled={isRestarting}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={handleRestartSystem}
+            color="error" 
+            variant="contained"
+            disabled={isRestarting}
+            startIcon={<RestartIcon />}
+          >
+            {isRestarting ? '重启中...' : '确认重启'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

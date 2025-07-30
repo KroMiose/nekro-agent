@@ -44,10 +44,12 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   HelpOutline as HelpOutlineIcon,
+  RestartAlt as RestartIcon,
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
 
 const HtmlTooltip = ThemedTooltip
@@ -78,6 +80,7 @@ export interface ConfigItem {
       element_type?: string
       key_type?: string
       value_type?: string
+      is_need_restart?: boolean
     }
   >
   enum?: string[]
@@ -90,6 +93,7 @@ export interface ConfigItem {
   sub_item_name?: string
   enable_toggle?: string
   overridable?: boolean
+  is_need_restart?: boolean
 }
 
 export interface ModelGroupConfig {
@@ -835,6 +839,8 @@ export default function ConfigTable({
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false)
+  const [isRestarting, setIsRestarting] = useState(false)
 
   useEffect(() => {
     const loadData = async () => {
@@ -914,12 +920,34 @@ export default function ConfigTable({
         setDirtyKeys(new Set())
         setSaveWarningOpen(false)
         onRefresh?.()
+
+        // 检查是否有需要重启的配置项
+        const needRestartConfigs = configs.filter(config => {
+          if (!dirtyKeys.has(config.key)) return false
+          
+          // 首先检查配置项本身的 is_need_restart 属性
+          if (config.is_need_restart === true) {
+            return true
+          }
+          
+          // 然后检查字段模式中的 is_need_restart 属性
+          const fieldInfo = config.field_schema?.[config.key]
+          if (fieldInfo && fieldInfo.is_need_restart === true) {
+            return true
+          }
+          
+          return false
+        })
+
+        if (needRestartConfigs.length > 0) {
+          setRestartDialogOpen(true)
+        }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '保存失败'
         notification.error(errorMessage)
       }
     },
-    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh]
+    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh, configs]
   )
 
   useEffect(() => {
@@ -944,6 +972,25 @@ export default function ConfigTable({
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '重载失败'
       notification.error(errorMessage)
+    }
+  }
+
+  // 处理重启系统
+  const handleRestartSystem = async () => {
+    setIsRestarting(true)
+    try {
+      const response = await restartApi.restartSystem()
+      if (response.code === 200) {
+        notification.success('系统重启请求已发送，请稍候...')
+        setRestartDialogOpen(false)
+      } else {
+        notification.error(response.msg || '重启失败')
+      }
+    } catch (error) {
+      console.error('重启系统失败:', error)
+      notification.error('重启系统失败，请检查网络连接')
+    } finally {
+      setIsRestarting(false)
     }
   }
 
@@ -1489,6 +1536,54 @@ export default function ConfigTable({
         }
         onConfirm={() => handleSaveAllChanges(true)}
       />
+      
+      {/* 重启系统确认对话框 */}
+      <Dialog
+        open={restartDialogOpen}
+        onClose={() => !isRestarting && setRestartDialogOpen(false)}
+        PaperProps={{
+          sx: {
+            borderRadius: '12px',
+            maxWidth: '500px',
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            px: 3,
+            py: 2,
+            background: theme =>
+              theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+          }}
+        >
+          重启系统确认
+        </DialogTitle>
+        <DialogContent sx={{ p: 3 }}>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            重启期间 WebUI 功能将无法正常使用，如果长时间未恢复请检查 NekroAgent 容器日志是否出现异常
+          </Alert>
+          <Typography sx={{ mt: 1, mb: 2 }}>
+            检测到您修改了需要重启才能生效的配置项，确定要重启系统吗？重启过程可能需要大概一分钟，请耐心等待。
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button 
+            onClick={() => setRestartDialogOpen(false)}
+            disabled={isRestarting}
+          >
+            取消
+          </Button>
+          <Button 
+            onClick={handleRestartSystem}
+            color="error" 
+            variant="contained"
+            disabled={isRestarting}
+            startIcon={<RestartIcon />}
+          >
+            {isRestarting ? '重启中...' : '确认重启'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
