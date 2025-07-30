@@ -1,8 +1,9 @@
+
 from pydantic import Field
 
 from nekro_agent.adapters.interface.base import BaseAdapterConfig
 from nekro_agent.core.core_utils import ExtraField
-from typing import Optional
+
 
 class WeChatPadConfig(BaseAdapterConfig):
     """WeChatPad 适配器配置"""
