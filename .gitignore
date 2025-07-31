@@ -171,3 +171,9 @@ plugins/workdir
 
 # webui build files
 static
+
+# macos files
+**/.DS_Store
+
+# Trae files
+.vercel
