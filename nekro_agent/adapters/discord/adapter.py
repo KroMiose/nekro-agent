@@ -1,4 +1,4 @@
-from typing import List, Type
+from typing import List, Optional, Type
 
 import discord
 from nonebot import get_driver
@@ -20,20 +20,26 @@ from .tools import SegAt, parse_at_from_text
 
 
 class DiscordAdapter(BaseAdapter[DiscordConfig]):
+    client: Optional[DiscordClient]
+    
     def __init__(self, config_cls: Type[DiscordConfig] = DiscordConfig):
         super().__init__(config_cls)
         if not self.config.BOT_TOKEN:
-            raise ValueError("Discord 未启用，需要设置 BOT_TOKEN") from None
+            logger.warning("Discord 未启用，需要设置 BOT_TOKEN")
+            self.client = None
+            return
         self.client = DiscordClient(
             token=self.config.BOT_TOKEN,
             adapter=self,
         )
 
     async def init(self) -> None:
-        await self.client.start()
+        if self.client is not None:
+            await self.client.start()
 
     async def cleanup(self) -> None:
-        await self.client.stop()
+        if self.client is not None:
+            await self.client.stop()
 
     @property
     def key(self) -> str:
@@ -51,6 +57,11 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
         )
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
+        if self.client is None:
+            error_msg = "Discord client is not initialized. Check BOT_TOKEN configuration."
+            logger.warning(error_msg)
+            return PlatformSendResponse(success=False, error_message=error_msg)
+            
         try:
             _, channel_id = self.parse_chat_key(request.chat_key)
             channel = self.client.get_channel(int(channel_id))
@@ -112,6 +123,8 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
             return PlatformSendResponse(success=False, error_message=str(e))
 
     async def get_self_info(self) -> PlatformUser:
+        if self.client is None:
+            raise RuntimeError("Discord client is not initialized. Check BOT_TOKEN configuration.")
         if not self.client.user:
             raise RuntimeError("Discord client is not ready yet.")
         user = self.client.user
@@ -123,6 +136,9 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
         )
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+        if self.client is None:
+            raise RuntimeError("Discord client is not initialized. Check BOT_TOKEN configuration.")
+            
         user = self.client.get_user(int(user_id))
         # If user is not in cache, try fetching from the channel (guild)
         if not user and channel_id:
@@ -149,6 +165,9 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         from nekro_agent.schemas.chat_message import ChatType
 
+        if self.client is None:
+            raise RuntimeError("Discord client is not initialized. Check BOT_TOKEN configuration.")
+
         channel = self.client.get_channel(int(channel_id))
         if not channel:
             try:
@@ -174,6 +193,10 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:
         """为消息添加或移除反应"""
         from nekro_agent.models.db_chat_message import DBChatMessage
+
+        if self.client is None:
+            logger.warning("Discord client is not initialized. Check BOT_TOKEN configuration.")
+            return False
 
         try:
             # 1. 通过 message_id 反向查询数据库获取 chat_key

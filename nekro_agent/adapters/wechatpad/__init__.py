@@ -12,18 +12,18 @@
 from .adapter import WeChatPadAdapter
 from .config import WeChatPadConfig
 from .http_client import WeChatPadClient
-from .schemas import WeChatPadMessageEvent, MessageType
 from .realtime_processor import (
-    WeChatRealtimeProcessor,
-    WeChatMessage,
+    GroupMessageHandler,
     MessageHandler,
     TextMessageHandler,
-    GroupMessageHandler,
+    WeChatMessage,
+    WeChatRealtimeProcessor,
 )
+from .schemas import MessageType, WeChatPadMessageEvent
 
 __all__ = [
     "WeChatPadAdapter",
-    "WeChatPadConfig", 
+    "WeChatPadConfig",
     "WeChatPadClient",
     "WeChatPadMessageEvent",
     "MessageType",
