@@ -82,7 +82,7 @@ class DrawConfig(ConfigBase):
     )
     MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
     NEGATIVE_PROMPT: str = Field(
-        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
         title="负面提示",
         description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
     )
