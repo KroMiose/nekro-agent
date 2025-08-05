@@ -214,6 +214,22 @@ async def draw(
 
 async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
+
+    # 构造请求体
+    json_data = {
+        "model": model_group.CHAT_MODEL,
+        "prompt": prompt,
+        "image_size": size,
+        "batch_size": 1,
+        "seed": random.randint(0, 9999999999),
+        "num_inference_steps": num_inference_steps,
+        "guidance_scale": guidance_scale,
+    }
+    # 如果source_image_data != "data:image/webp;base64, XXX"(根据前面refer_image)则在json_data中填入image
+    # 防止siliconcloud在image填入错误数据会失败
+    if source_image_data != "data:image/webp;base64, XXX":
+        json_data["image"] = source_image_data
+
     async with AsyncClient() as client:
         response = await client.post(
             f"{model_group.BASE_URL}/images/generations",
@@ -222,16 +238,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
                 "Accept": "application/json",
                 "Authorization": f"Bearer {model_group.API_KEY}",
             },
-            json={
-                "model": model_group.CHAT_MODEL,
-                "prompt": prompt,
-                "image_size": size,
-                "batch_size": 1,
-                "seed": random.randint(0, 9999999999),
-                "num_inference_steps": num_inference_steps,
-                "guidance_scale": guidance_scale,
-                "image": source_image_data,
-            },
+            json=json_data,
             timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
     response.raise_for_status()
