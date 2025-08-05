@@ -225,7 +225,6 @@ async def _generate_image(model_group, prompt, negative_prompt, size, num_infere
     json_data = {
         "model": model_group.CHAT_MODEL,
         "prompt": prompt,
-        "negative_prompt": negative_prompt,
         "image_size": size,
         "batch_size": 1,
         "seed": random.randint(0, 9999999999),
@@ -236,6 +235,9 @@ async def _generate_image(model_group, prompt, negative_prompt, size, num_infere
     # 防止siliconcloud在image填入错误数据会失败
     if source_image_data != "data:image/webp;base64, XXX":
         json_data["image"] = source_image_data
+    # 检测negative_prompt删去所有空格字符是否为空
+    if negative_prompt.replace(" ", "") != "":
+        json_data["negative_prompt"] = negative_prompt
 
     async with AsyncClient() as client:
         response = await client.post(
