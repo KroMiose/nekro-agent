@@ -81,6 +81,11 @@ class DrawConfig(ConfigBase):
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
     MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
+    NEGATIVE_PROMPT: str = Field(
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
+        title="负面提示",
+        description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+    )
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
     USE_SYSTEM_ROLE: bool = Field(
         default=False,
@@ -106,7 +111,6 @@ last_successful_mode: Optional[str] = None
 async def draw(
     _ctx: AgentCtx,
     prompt: str,
-    negative_prompt: str = "((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
@@ -123,15 +127,6 @@ async def draw(
             - Overall mood or atmosphere
             - Very detailed description or story (optional, recommend for comics)
             - Art style (e.g., illustration, watercolor... any style you want)
-        negative_prompt (str): Natural language description of the image you don't want to draw. (Only supports English)
-            Suggested elements to include:
-            - Bad drawing details (blur, low resolution, low contrast...)
-            - Bad quality (low quality, bad quality:2.0)
-            - Bad element 
-            - NSFW content (nsfw:1.0)
-            - Unstable element (marble, low resolution, blur)
-            - Other bad content you don't like
-            - Please use a comma to split the prompts.
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
@@ -215,7 +210,7 @@ async def draw(
 
     if config.MODEL_MODE == "图像生成":
         return await _ctx.fs.mixed_forward_file(
-            await _generate_image(model_group, prompt, negative_prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+            await _generate_image(model_group, prompt, config.NEGATIVE_PROMPT, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
         )
     # 聊天模式
     return await _ctx.fs.mixed_forward_file(
