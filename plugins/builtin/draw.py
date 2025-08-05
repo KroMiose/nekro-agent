@@ -59,6 +59,7 @@ from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
+from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 plugin = NekroPlugin(
     name="绘画插件",
