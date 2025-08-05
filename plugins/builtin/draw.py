@@ -59,12 +59,13 @@ from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
+from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 plugin = NekroPlugin(
     name="绘画插件",
     module_name="draw",
     description="学会画画！",
-    version="0.1.1",
+    version="0.1.2",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
 )
@@ -93,6 +94,12 @@ class DrawConfig(ConfigBase):
         description="由于模型生成时间问题，部分模型需要在聊天模式下启用流式 API 才能正常工作",
     )
     TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
+    NEGATIVE_PROMPT: str = Field(
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
+        title="负面提示",
+        description="模型生成图像时的负面提示，置空则请求中不添加负面提示词，不修改原行为，支持自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+        json_schema_extra=ExtraField(is_textarea=True).model_dump(),
+    )
 
 
 # 获取配置
@@ -139,6 +146,7 @@ async def draw(
     """
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
+    # logger.info (f"负面提示: {config.NEGATIVE_PROMPT}")
     # logger.info(f"绘图尺寸: {size}")
     logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
@@ -204,7 +212,7 @@ async def draw(
 
     if config.MODEL_MODE == "图像生成":
         return await _ctx.fs.mixed_forward_file(
-            await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+            await _generate_image(model_group, prompt, config.NEGATIVE_PROMPT, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
         )
     # 聊天模式
     return await _ctx.fs.mixed_forward_file(
@@ -212,8 +220,27 @@ async def draw(
     )
 
 
-async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
+async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
+
+    # 构造请求体
+    json_data = {
+        "model": model_group.CHAT_MODEL,
+        "prompt": prompt,
+        "image_size": size,
+        "batch_size": 1,
+        "seed": random.randint(0, 9999999999),
+        "num_inference_steps": num_inference_steps,
+        "guidance_scale": guidance_scale,
+    }
+    # 如果source_image_data != "data:image/webp;base64, XXX"(根据前面refer_image)则在json_data中填入image
+    # 防止siliconcloud在image填入错误数据会失败
+    if source_image_data != "data:image/webp;base64, XXX":
+        json_data["image"] = source_image_data
+    # 检测negative_prompt删去所有空格字符是否为空
+    if negative_prompt.replace(" ", "") != "":
+        json_data["negative_prompt"] = negative_prompt
+
     async with AsyncClient() as client:
         response = await client.post(
             f"{model_group.BASE_URL}/images/generations",
@@ -222,16 +249,7 @@ async def _generate_image(model_group, prompt, size, num_inference_steps, guidan
                 "Accept": "application/json",
                 "Authorization": f"Bearer {model_group.API_KEY}",
             },
-            json={
-                "model": model_group.CHAT_MODEL,
-                "prompt": prompt,
-                "image_size": size,
-                "batch_size": 1,
-                "seed": random.randint(0, 9999999999),
-                "num_inference_steps": num_inference_steps,
-                "guidance_scale": guidance_scale,
-                "image": source_image_data,
-            },
+            json=json_data,
             timeout=Timeout(read=config.TIMEOUT, write=config.TIMEOUT, connect=10, pool=10),
         )
     response.raise_for_status()
