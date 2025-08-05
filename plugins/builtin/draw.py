@@ -64,7 +64,7 @@ plugin = NekroPlugin(
     name="绘画插件",
     module_name="draw",
     description="学会画画！",
-    version="0.1.1",
+    version="0.1.2",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
 )
@@ -106,6 +106,7 @@ last_successful_mode: Optional[str] = None
 async def draw(
     _ctx: AgentCtx,
     prompt: str,
+    negative_prompt: str = "((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text, error",
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
@@ -122,6 +123,15 @@ async def draw(
             - Overall mood or atmosphere
             - Very detailed description or story (optional, recommend for comics)
             - Art style (e.g., illustration, watercolor... any style you want)
+        negative_prompt (str): Natural language description of the image you don't want to draw. (Only supports English)
+            Suggested elements to include:
+            - Bad drawing details (blur, low resolution, low contrast...)
+            - Bad quality (low quality, bad quality:2.0)
+            - Bad element 
+            - NSFW content (nsfw:1.0)
+            - Unstable element (marble, low resolution, blur)
+            - Other bad content you don't like
+            - Please use a comma to split the prompts.
 
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
@@ -139,6 +149,7 @@ async def draw(
     """
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
+    # logger.info (f"负面提示: {negative_prompt}")
     # logger.info(f"绘图尺寸: {size}")
     logger.info(f"使用绘图模型组: {config.USE_DRAW_MODEL_GROUP} 绘制: {prompt}")
     if refer_image:
@@ -204,7 +215,7 @@ async def draw(
 
     if config.MODEL_MODE == "图像生成":
         return await _ctx.fs.mixed_forward_file(
-            await _generate_image(model_group, prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+            await _generate_image(model_group, prompt, negative_prompt, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
         )
     # 聊天模式
     return await _ctx.fs.mixed_forward_file(
@@ -212,13 +223,14 @@ async def draw(
     )
 
 
-async def _generate_image(model_group, prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
+async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
     """使用图像生成模式绘图"""
 
     # 构造请求体
     json_data = {
         "model": model_group.CHAT_MODEL,
         "prompt": prompt,
+        "negative_prompt": negative_prompt,
         "image_size": size,
         "batch_size": 1,
         "seed": random.randint(0, 9999999999),
