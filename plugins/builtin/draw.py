@@ -81,11 +81,6 @@ class DrawConfig(ConfigBase):
         description="主要使用的绘图模型组，可在 `系统配置` -> `模型组` 选项卡配置",
     )
     MODEL_MODE: Literal["自动选择", "图像生成", "聊天模式"] = Field(default="自动选择", title="绘图模型调用格式")
-    NEGATIVE_PROMPT: str = Field(
-        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
-        title="负面提示",
-        description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
-    )
     NUM_INFERENCE_STEPS: int = Field(default=20, title="模型推理步数")
     USE_SYSTEM_ROLE: bool = Field(
         default=False,
@@ -98,6 +93,11 @@ class DrawConfig(ConfigBase):
         description="由于模型生成时间问题，部分模型需要在聊天模式下启用流式 API 才能正常工作",
     )
     TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
+    NEGATIVE_PROMPT: str = Field(
+        default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
+        title="负面提示",
+        description="模型生成图像时的负面提示，支持正则表达式和自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+    )
 
 
 # 获取配置
