@@ -148,6 +148,31 @@ class NekroPlugin:
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)
 
+    def save_config(self, config: ConfigBase) -> None:
+        """保存插件配置
+
+        Args:
+            config: 配置实例，必须是已注册的配置类型的实例
+
+        Raises:
+            TypeError: 当传入的配置实例类型与注册的配置类型不匹配时
+            Exception: 当配置保存失败时
+        """
+        if not isinstance(config, self._Configs):
+            raise TypeError("存入的配置项类型有误")
+        
+        self._plugin_config_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        try:
+            # 更新内部配置实例
+            self._config = config
+            # 保存配置到文件
+            config.dump_config(self._plugin_config_path)
+            logger.debug(f"插件 {self.key} 配置保存成功")
+        except Exception:
+            logger.exception(f"保存插件配置失败: {self.key} | 配置文件写入错误")
+            raise
+
     def get_plugin_path(self) -> Path:
         self._plugin_path.mkdir(parents=True, exist_ok=True)
         return self._plugin_path

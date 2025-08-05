@@ -10,7 +10,13 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // API 请求代理
       '/api': {
+        target: 'http://127.0.0.1:8021',
+        changeOrigin: true,
+      },
+      // 插件路由代理 - 用于访问插件的 Web 界面和 API
+      '/plugins': {
         target: 'http://127.0.0.1:8021',
         changeOrigin: true,
       }
