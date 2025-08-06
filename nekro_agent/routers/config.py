@@ -161,20 +161,20 @@ async def save_config_api(
         return Ret.error(msg=f"保存失败: {e!s}")
 
 
-@router.post("/reload/{config_key}", summary="重载配置")
+@router.post("/reload/{config_key}", summary="重置配置")
 @require_role(Role.Admin)
 async def reload_config_api(
     config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """重新加载指定配置"""
+    """重置指定配置"""
     try:
         success, error_msg = UnifiedConfigService.reload_config(config_key)
         if not success:
-            return Ret.fail(msg=f"重载失败: {error_msg or '未知错误'}")
-        return Ret.success(msg="重载成功")
+            return Ret.fail(msg=f"重置失败: {error_msg or '未知错误'}")
+        return Ret.success(msg="重置成功")
     except Exception as e:
-        logger.error(f"重载配置失败: {config_key}, 错误: {e}")
+        logger.error(f"重置配置失败: {config_key}, 错误: {e}")
         return Ret.error(msg=f"重载失败: {e!s}")
 
 

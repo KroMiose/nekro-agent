@@ -55,11 +55,11 @@ from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
 from nekro_agent.core.config import config as global_config
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
-from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 plugin = NekroPlugin(
     name="绘画插件",
@@ -213,7 +213,15 @@ async def draw(
 
     if config.MODEL_MODE == "图像生成":
         return await _ctx.fs.mixed_forward_file(
-            await _generate_image(model_group, prompt, config.NEGATIVE_PROMPT, size, config.NUM_INFERENCE_STEPS, guidance_scale, source_image_data),
+            await _generate_image(
+                model_group,
+                prompt,
+                config.NEGATIVE_PROMPT,
+                size,
+                config.NUM_INFERENCE_STEPS,
+                guidance_scale,
+                source_image_data,
+            ),
         )
     # 聊天模式
     return await _ctx.fs.mixed_forward_file(
@@ -221,7 +229,15 @@ async def draw(
     )
 
 
-async def _generate_image(model_group, prompt, negative_prompt, size, num_inference_steps, guidance_scale, source_image_data) -> str:
+async def _generate_image(
+    model_group,
+    prompt,
+    negative_prompt,
+    size,
+    num_inference_steps,
+    guidance_scale,
+    source_image_data,
+) -> str:
     """使用图像生成模式绘图"""
 
     # 构造请求体
