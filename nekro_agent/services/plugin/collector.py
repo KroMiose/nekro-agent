@@ -21,6 +21,8 @@ from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, PACKAGES_DIR, WORKDIR_PLUGIN_DIR
 from nekro_agent.schemas.agent_ctx import AgentCtx
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
 
 from .base import NekroPlugin
 from .schema import SandboxMethod
@@ -337,7 +339,7 @@ class PluginCollector:
 
         # 获取插件实例以便删除配置文件
         plugin = self.get_plugin_by_module_name(module_name)
-        
+
         # 先卸载插件，从插件收集器中移除，限制只卸载云端插件
         await self.unload_plugin_by_module_name(module_name, scope="package")
 
@@ -529,6 +531,34 @@ class PluginCollector:
         logger.debug(f"获取到 {len(methods)} 个沙盒方法")
         return methods
 
+    async def handle_on_user_message(self, ctx: AgentCtx, message: ChatMessage) -> MsgSignal:
+        """处理用户消息
+
+        Args:
+            ctx: 上下文
+            message: 消息
+        """
+        final_signal: MsgSignal = MsgSignal.CONTINUE
+        for plugin in self.loaded_plugins.values():
+            if plugin.is_enabled and plugin.on_user_message_method:
+                signal = await plugin.on_user_message_method(ctx, message) or MsgSignal.CONTINUE
+                final_signal = MsgSignal(max(final_signal.value, signal.value))
+        return final_signal
+
+    async def handle_on_system_message(self, ctx: AgentCtx, message: str) -> MsgSignal:
+        """处理系统消息
+
+        Args:
+            ctx: 上下文
+            message: 消息
+        """
+        final_signal: MsgSignal = MsgSignal.CONTINUE
+        for plugin in self.loaded_plugins.values():
+            if plugin.is_enabled and plugin.on_system_message_method:
+                signal = await plugin.on_system_message_method(ctx, message) or MsgSignal.CONTINUE
+                final_signal = MsgSignal(max(final_signal.value, signal.value))
+        return final_signal
+
     def get_webhook_method(self, plugin_key: str, endpoint: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
         """获取指定插件的webhook方法
 
@@ -666,11 +696,11 @@ class PluginCollector:
 
     async def cleanup_all_plugins(self) -> None:
         """清理所有插件资源
-        
+
         在应用关闭时调用所有插件的 cleanup_method
         """
         logger.info(f"开始清理所有插件资源，当前已加载插件数量: {len(self.loaded_plugins)}")
-        
+
         cleanup_count = 0
         for _plugin_key, plugin in self.loaded_plugins.items():
             try:
@@ -679,7 +709,7 @@ class PluginCollector:
                     cleanup_count += 1
             except Exception as e:
                 logger.exception(f"清理插件 {plugin.name} 时发生错误: {e}")
-        
+
         logger.info(f"所有插件清理完成，成功清理 {cleanup_count} 个插件")
 
     async def clear_plugin_store_data(self, plugin_key: str) -> int:

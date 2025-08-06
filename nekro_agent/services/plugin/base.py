@@ -22,6 +22,8 @@ from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.schemas.agent_ctx import AgentCtx
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
 
 from .schema import PromptInjectMethod, SandboxMethod, SandboxMethodType, WebhookMethod
 
@@ -54,7 +56,8 @@ class NekroPlugin:
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
         self.on_reset_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
-        self.on_message_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
+        self.on_user_message_method: Optional[Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]] = None
+        self.on_system_message_method: Optional[Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]] = None
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
         self.name = name
@@ -160,9 +163,9 @@ class NekroPlugin:
         """
         if not isinstance(config, self._Configs):
             raise TypeError("存入的配置项类型有误")
-        
+
         self._plugin_config_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         try:
             # 更新内部配置实例
             self._config = config
@@ -308,9 +311,12 @@ class NekroPlugin:
 
         return decorator
 
-    def mount_on_message(
+    def mount_on_user_message(
         self,
-    ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
+    ) -> Callable[
+        [Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]],
+        Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]],
+    ]:
         """挂载消息回调方法
 
         用于挂载消息回调方法，在收到消息时执行。
@@ -319,8 +325,26 @@ class NekroPlugin:
             装饰器函数
         """
 
-        def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, Any]]) -> Callable[[AgentCtx], Coroutine[Any, Any, Any]]:
-            self.on_message_method = func
+        def decorator(
+            func: Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]],
+        ) -> Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]:
+            self.on_user_message_method = func
+            return func
+
+        return decorator
+
+    def mount_on_system_message(
+        self,
+    ) -> Callable[
+        [Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]],
+        Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]],
+    ]:
+        """挂载系统消息回调方法"""
+
+        def decorator(
+            func: Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]],
+        ) -> Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]:
+            self.on_system_message_method = func
             return func
 
         return decorator

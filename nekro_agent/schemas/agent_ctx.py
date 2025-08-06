@@ -11,6 +11,7 @@ from nekro_agent.tools.file_utils import FileSystem
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface import BaseAdapter
     from nekro_agent.models.db_chat_channel import DBChatChannel
+    from nekro_agent.models.db_user import DBUser
 
 
 class WebhookRequest(BaseModel):
@@ -43,7 +44,8 @@ class AgentCtx(BaseModel):
     channel_name: Optional[str] = Field(default=None, description="当前会话的频道名称，例如 QQ 群名或 用户名等。")
     channel_type: Optional[str] = Field(default=None, description="当前会话的频道类型，例如 `group` 或 `private` 等。")
     adapter_key: Optional[str] = Field(default=None, description="当前会话所使用的适配器标识，例如 `onebot_v11` 等。")
-    _db_chat_channel: Optional["DBChatChannel"] = None
+    _db_chat_channel: Optional["DBChatChannel"] = None  # 当前会话的数据库聊天频道实例
+    _trigger_db_user: Optional["DBUser"] = None  # 触发本次 Agent 的 DBUser 实例
 
     @property
     def chat_key(self) -> str:
@@ -59,6 +61,20 @@ class AgentCtx(BaseModel):
         if not self.from_chat_key:
             raise ValueError("missing from_chat_key")
         return self.from_chat_key
+
+    @property
+    def db_chat_channel(self) -> Optional["DBChatChannel"]:
+        """
+        当前会话的数据库聊天频道实例。
+        """
+        return self._db_chat_channel
+
+    @property
+    def db_user(self) -> Optional["DBUser"]:
+        """
+        触发本次 Agent 的数据库用户实例。
+        """
+        return self._trigger_db_user
 
     @property
     def adapter(self) -> "BaseAdapter":

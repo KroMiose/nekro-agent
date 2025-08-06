@@ -22,12 +22,13 @@ Example:
     ```
 """
 
-from nekro_agent.api import core, message, plugin, schemas, timer
+from nekro_agent.api import core, message, plugin, schemas, signal, timer
 
 __all__ = [
     "core",
     "message",
     "plugin",
     "schemas",
+    "signal",
     "timer",
 ]

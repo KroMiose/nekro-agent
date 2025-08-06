@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import weave
-from jinja2 import Environment
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
@@ -45,13 +44,22 @@ RECENT_ERR_LOGS = deque(maxlen=100)
 async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,
+    ctx: Optional[AgentCtx] = None,
 ):
     # 获取当前会话的有效配置
     one_time_code = os.urandom(4).hex()
-    db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+    if ctx:
+        if ctx.db_chat_channel:
+            db_chat_channel: DBChatChannel = ctx.db_chat_channel
+        else:
+            db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+            ctx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
+    else:
+        db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+        ctx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
+
     config = await db_chat_channel.get_effective_config()
     preset = await db_chat_channel.get_preset()
-    ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
     self_info = await ctx.adapter.get_self_info()

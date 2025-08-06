@@ -12,6 +12,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
 )
+from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat.universal_chat_service import universal_chat_service
 from nekro_agent.tools.common_util import (
     download_file,
@@ -19,6 +20,7 @@ from nekro_agent.tools.common_util import (
 from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 __all__ = [
+    "ChatMessage",
     "download_from_url",
     "send_file",
     "send_image",
@@ -107,7 +109,12 @@ async def send_file(
 
 
 async def send_image(
-    chat_key: str, image_path: str, ctx: AgentCtx, *, record: bool = True, ref_msg_id: Optional[str] = None,
+    chat_key: str,
+    image_path: str,
+    ctx: AgentCtx,
+    *,
+    record: bool = True,
+    ref_msg_id: Optional[str] = None,
 ) -> None:
     """发送图片消息
 

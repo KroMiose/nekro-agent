@@ -46,8 +46,10 @@ from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.tools import user
 from nekro_agent.api import core
+from nekro_agent.api.message import ChatMessage
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.api.signal import MsgSignal
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import (
     calculate_file_md5,
@@ -118,6 +120,11 @@ class BasicConfig(ConfigBase):
 
 # 获取配置
 config: BasicConfig = plugin.get_config(BasicConfig)
+
+
+@plugin.mount_on_user_message()
+async def on_user_message(_ctx: AgentCtx, message: ChatMessage):
+    """用户任意消息回调"""
 
 
 @plugin.mount_prompt_inject_method(name="basic_prompt_inject")

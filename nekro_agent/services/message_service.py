@@ -14,12 +14,15 @@ from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_forbidden_message,
@@ -59,7 +62,12 @@ class MessageService:
 
         return True
 
-    async def schedule_agent_task(self, chat_key: Optional[str] = None, message: Optional[ChatMessage] = None):
+    async def schedule_agent_task(
+        self,
+        chat_key: Optional[str] = None,
+        message: Optional[ChatMessage] = None,
+        ctx: Optional[AgentCtx] = None,
+    ):
         """调度 agent 任务，实现防抖和任务控制"""
         if not message:
             if not chat_key:
@@ -79,9 +87,9 @@ class MessageService:
             return
 
         # 创建防抖任务
-        asyncio.create_task(self._debounce_task(chat_key, current_time))
+        asyncio.create_task(self._debounce_task(chat_key, current_time, ctx))
 
-    async def _debounce_task(self, chat_key: str, start_time: float):
+    async def _debounce_task(self, chat_key: str, start_time: float, ctx: Optional[AgentCtx] = None):
         """防抖任务处理
 
         Args:
@@ -104,11 +112,15 @@ class MessageService:
 
         # 创建新的agent任务
         task = asyncio.create_task(
-            self._run_chat_agent_task(chat_key=chat_key, message=final_message if not final_message.is_empty() else None),
+            self._run_chat_agent_task(
+                chat_key=chat_key,
+                message=final_message if not final_message.is_empty() else None,
+                ctx=ctx,
+            ),
         )
         self.running_tasks[chat_key] = task
 
-    async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None):
+    async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import run_agent
 
@@ -123,7 +135,7 @@ class MessageService:
         try:
             for _i in range(3):
                 try:
-                    await run_agent(chat_key=chat_key, chat_message=message)
+                    await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
                 except Exception as e:
                     logger.exception(f"执行失败: {e}")
                 else:
@@ -144,7 +156,7 @@ class MessageService:
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
-                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message))
+                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
                 self.running_tasks[chat_key] = new_task
 
     async def push_human_message(
@@ -167,6 +179,14 @@ class MessageService:
 
         if check_forbidden_message(message.content_text, config):
             logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
+            return
+
+        ctx: AgentCtx = await AgentCtx.create_by_chat_key(chat_key=message.chat_key)
+        ctx._trigger_db_user = user  # noqa: SLF001
+
+        signal = await plugin_collector.handle_on_user_message(ctx, message)
+        if signal == MsgSignal.BLOCK_ALL:
+            logger.info(f"用户消息 {message.content_text} 被插件阻止响应，跳过本次处理...")
             return
 
         # 添加聊天记录
@@ -204,7 +224,11 @@ class MessageService:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
-            await self.schedule_agent_task(message=message)
+            if signal != MsgSignal.CONTINUE:
+                logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
+                return
+
+            await self.schedule_agent_task(message=message, ctx=ctx)
 
     async def push_bot_message(
         self,
@@ -291,6 +315,13 @@ class MessageService:
 
         content_text = convert_agent_message_to_prompt(agent_messages)
 
+        ctx: AgentCtx = await AgentCtx.create_by_chat_key(chat_key=chat_key)
+
+        signal = await plugin_collector.handle_on_system_message(ctx, content_text)
+        if signal == MsgSignal.BLOCK_ALL:
+            logger.info(f"系统消息 {content_text} 被插件阻止响应，跳过本次处理...")
+            return
+
         await DBChatMessage.create(
             message_id="",
             sender_id=-1,
@@ -313,7 +344,10 @@ class MessageService:
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
                 return
-            await self.schedule_agent_task(chat_key=chat_key)
+            if signal != MsgSignal.CONTINUE:
+                logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")
+                return
+            await self.schedule_agent_task(chat_key=chat_key, ctx=ctx)
 
 
 # 全局消息服务实例
