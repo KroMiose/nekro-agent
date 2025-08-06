@@ -1319,7 +1319,7 @@ export default function ConfigTable({
                 onClick={() => setReloadConfirmOpen(true)}
                 startIcon={<RefreshIcon />}
               >
-                重载配置
+                重置配置
               </Button>
             </Stack>
           </Stack>
@@ -1508,8 +1508,8 @@ export default function ConfigTable({
       <ConfirmDialog
         open={reloadConfirmOpen}
         onClose={() => setReloadConfirmOpen(false)}
-        title="确认重载配置"
-        content="重载配置将丢失所有未保存的修改，是否继续？"
+        title="确认重置配置"
+        content="重置配置将丢失所有未保存的修改，是否继续？"
         onConfirm={handleReloadConfig}
       />
       <ConfirmDialog
