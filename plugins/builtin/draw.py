@@ -97,7 +97,7 @@ class DrawConfig(ConfigBase):
     NEGATIVE_PROMPT: str = Field(
         default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, nsfw, text, error",
         title="负面提示",
-        description="模型生成图像时的负面提示，置空则请求中不添加负面提示词，不修改原行为，支持自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
+        description="模型生成图像时的负面提示。置空则请求中不添加负面提示词，不修改原行为，支持自然语言，默认为 `(blurred), (disorderly), (morbid), (low quality:2), (bad art)` 等",
         json_schema_extra=ExtraField(is_textarea=True).model_dump(),
     )
 
@@ -186,6 +186,7 @@ async def draw(
                     ret_file_url = await _generate_image(
                         model_group,
                         prompt,
+                        config.NEGATIVE_PROMPT,
                         size,
                         config.NUM_INFERENCE_STEPS,
                         guidance_scale,
