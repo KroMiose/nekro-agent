@@ -116,6 +116,7 @@ async def draw(
     size: str = "1024x1024",
     guidance_scale: float = 7.5,
     refer_image: str = "",
+    send_to_chat: str = "",
 ) -> str:
     """Generate or modify images
 
@@ -133,6 +134,7 @@ async def draw(
         size (str): Image dimensions (e.g., "1024x1024" square, "512x768" portrait, "768x512" landscape)
         guidance_scale (float): Guidance scale for the image generation, lower is more random, higher is more like the prompt (default: 7.5, from 0 to 20)
         refer_image (str): Optional source image path for image reference (useful for image style transfer or keep the elements of the original image)
+        send_to_chat (str): if send_to_chat is not empty, the image will be sent to the chat_key after generation
 
     Returns:
         str: Generated image path
@@ -141,8 +143,8 @@ async def draw(
         # Generate new image but **NOT** send to chat
         draw("a illustration style cute orange cat napping on a sunny windowsill, watercolor painting style", "1024x1024")
 
-        # Modify existing image
-        send_msg_file(chat_key, draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg")) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
+        # Modify existing image and send to chat
+        draw("change the background to a cherry blossom park, keep the anime style", "1024x1024", "shared/refer_image.jpg", send_to_chat=_ck) # if adapter supports file, you can use this method to send the image to the chat. Otherwise, find another method to use the image.
     """
     global last_successful_mode
     # logger.info(f"绘图提示: {prompt}")
@@ -212,21 +214,24 @@ async def draw(
         raise Exception("所有绘图模式都失败")  # 确保有返回值或异常
 
     if config.MODEL_MODE == "图像生成":
-        return await _ctx.fs.mixed_forward_file(
-            await _generate_image(
-                model_group,
-                prompt,
-                config.NEGATIVE_PROMPT,
-                size,
-                config.NUM_INFERENCE_STEPS,
-                guidance_scale,
-                source_image_data,
-            ),
+        result_file_url: str = await _generate_image(
+            model_group,
+            prompt,
+            config.NEGATIVE_PROMPT,
+            size,
+            config.NUM_INFERENCE_STEPS,
+            guidance_scale,
+            source_image_data,
         )
-    # 聊天模式
-    return await _ctx.fs.mixed_forward_file(
-        await _chat_image(model_group, prompt, size, refer_image, source_image_data),
-    )
+    else:
+        result_file_url: str = await _chat_image(model_group, prompt, size, refer_image, source_image_data)
+
+    result_sandbox_file = await _ctx.fs.mixed_forward_file(result_file_url)
+
+    if send_to_chat:
+        await _ctx.ms.send_image(send_to_chat, result_sandbox_file, ctx=_ctx)
+
+    return result_sandbox_file
 
 
 async def _generate_image(
@@ -321,14 +326,21 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
         )
     messages.append(msg.to_dict())
 
-    response = await gen_openai_chat_response(
-        model=model_group.CHAT_MODEL,
-        messages=messages,
-        base_url=model_group.BASE_URL,
-        api_key=model_group.API_KEY,
-        stream_mode=config.STREAM_MODE,
-        max_wait_time=config.TIMEOUT,
-    )
+    try:
+        response = await gen_openai_chat_response(
+            model=model_group.CHAT_MODEL,
+            messages=messages,
+            base_url=model_group.BASE_URL,
+            api_key=model_group.API_KEY,
+            stream_mode=config.STREAM_MODE,
+            max_wait_time=config.TIMEOUT,
+        )
+    except ValueError as e:
+        logger.error(f"绘图响应中未找到图片信息: {e}")
+        raise Exception(
+            "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is not contain any sensitive or illegal information.",
+        ) from e
+
     content = response.response_content
 
     # 尝试 markdown 语法匹配，例如 ![alt](url)
@@ -345,7 +357,7 @@ async def _chat_image(model_group, prompt, size, refer_image, source_image_data)
         return m.group(1)
     logger.error(f"绘图响应中未找到图片信息: {limited_text_output(str(content))}")
     raise Exception(
-        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is clear and detailed.",
+        "No image content found in image generation AI response. You can adjust the prompt and try again. Make sure the prompt is not contain any sensitive or illegal information.",
     )
 
 

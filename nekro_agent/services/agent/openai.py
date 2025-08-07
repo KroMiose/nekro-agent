@@ -390,7 +390,7 @@ async def gen_openai_chat_response(
                     messages=messages,
                     **gen_kwargs,
                 )
-                if not res.choices[0].message.content:
+                if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
                     raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
 
                 output = res.choices[0].message.content
