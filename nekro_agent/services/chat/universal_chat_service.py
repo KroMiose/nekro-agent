@@ -48,7 +48,7 @@ class UniversalChatService:
         adapter = await adapter_utils.get_adapter_for_chat(chat_key)
         await self.send_agent_message(
             chat_key=chat_key,
-            messages="[Opt Output] " + message,
+            messages=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
             adapter=adapter,
         )
 

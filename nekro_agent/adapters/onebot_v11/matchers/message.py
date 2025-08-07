@@ -72,7 +72,12 @@ def register_matcher(adapter: BaseAdapter):
         )
         content_text, is_tome = await gen_chat_text(event=event, bot=bot, db_chat_channel=db_chat_channel)
 
-        if any(content_text.startswith(prefix) for prefix in config.AI_IGNORED_PREFIXES):
+        ignored_prefixes = (
+            [config.AI_COMMAND_OUTPUT_PREFIX, *config.AI_IGNORED_PREFIXES]
+            if config.AI_COMMAND_OUTPUT_PREFIX
+            else config.AI_IGNORED_PREFIXES
+        )
+        if any(content_text.startswith(prefix) for prefix in ignored_prefixes):
             logger.info(f"忽略前缀匹配的消息: {content_text[:32]}...")
             return
 

@@ -302,7 +302,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(
         matcher,
         message=(
-            f"=> [Nekro-Agent 信息]\n"
+            f"[Nekro-Agent 信息]\n"
             f"> 更智能、更优雅的代理执行 AI\n"
             f"Author: KroMiose\n"
             f"Github: https://github.com/KroMiose/nekro-agent\n"
@@ -438,7 +438,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     # 基本信息
     info = [
-        f"=> [{target_plugin.name}] 插件详情",
+        f"[{target_plugin.name}] 插件详情",
         f"版本: v{target_plugin.version} ({'已启用' if target_plugin.is_enabled else '已禁用'})",
         f"键名: {target_plugin.key}",
         f"作者: {target_plugin.author}",
@@ -538,7 +538,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(
         matcher,
         (
-            "=> [Nekro-Agent 帮助]\n"
+            "[Nekro-Agent 帮助]\n"
             "na_info: 查看系统信息\n"
             "====== [聊天管理] ======\n"
             "reset <chat_key?>: 清空指定会话的聊天记录\n"
@@ -680,7 +680,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             model_test_fail_result_map[model_group.CHAT_MODEL] += 1
 
     # 构建测试结果输出
-    result_lines = ["=> [模型测试结果]"]
+    result_lines = ["[模型测试结果]"]
     for model_name in set(list(model_test_success_result_map.keys()) + list(model_test_fail_result_map.keys())):
         success = model_test_success_result_map.get(model_name, 0)
         fail = model_test_fail_result_map.get(model_name, 0)
@@ -787,7 +787,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         unstarred = ", ".join(result.data.unstarred_repositories) if result.data.unstarred_repositories else "无"
         status = "已Star所有官方仓库" if result.data.all_starred else "还有未Star的官方仓库"
 
-        message = f"=> [GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+        message = f"[GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
 
     except Exception as e:
         logger.error(f"检查GitHub Star状态时发生错误: {e}")

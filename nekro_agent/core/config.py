@@ -234,6 +234,12 @@ class CoreConfig(ConfigBase):
         description="带有这些前缀的消息不会被参考或者触发",
         json_schema_extra=ExtraField(sub_item_name="前缀").model_dump(),
     )
+    AI_COMMAND_OUTPUT_PREFIX: str = Field(
+        default="≡NA≡:",
+        title="命令输出前缀",
+        description="命令输出前缀，用于标识命令输出",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
         default=0.0,
         title="随机回复概率",

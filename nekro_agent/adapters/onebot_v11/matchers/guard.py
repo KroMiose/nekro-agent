@@ -15,7 +15,7 @@ from nekro_agent.schemas.chat_message import ChatType
 
 
 async def finish_with(matcher: Matcher, message: str) -> NoReturn:
-    await matcher.finish(message=f"[Opt Output] {message}")
+    await matcher.finish(message=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip())
 
 
 async def command_guard(
