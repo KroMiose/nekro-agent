@@ -23,10 +23,6 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     ChatType,
 )
-from nekro_agent.tools.common_util import (
-    copy_to_upload_dir,
-    download_file,
-)
 
 
 async def convert_chat_message(

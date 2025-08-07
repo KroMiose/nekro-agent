@@ -76,7 +76,14 @@ async def download_file(
             Path(file_path).chmod(0o755)
     except Exception:
         if retry_count > 0:
-            return await download_file(url, file_path, file_name, use_suffix, retry_count=retry_count - 1)
+            return await download_file(
+                url,
+                file_path,
+                file_name,
+                use_suffix,
+                retry_count=retry_count - 1,
+                from_chat_key=from_chat_key,
+            )
         raise
     else:
         return file_path, file_name
