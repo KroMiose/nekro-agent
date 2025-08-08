@@ -243,15 +243,6 @@ class FestivalService:
                 minute=0,
             ),
             FestivalConfig(
-                name="清明节",
-                description="传统扫墓祭祖、踏青郊游的节日",
-                festival_type=FestivalType.SOLAR,
-                month=4,
-                day=5,
-                hour=10,
-                minute=0,
-            ),
-            FestivalConfig(
                 name="世界地球日",
                 description="提高环保意识，保护地球家园的主题日",
                 festival_type=FestivalType.SOLAR,
@@ -403,228 +394,180 @@ class FestivalService:
             ),
         ]
 
-        # 二十四节气
-        solar_terms = [
+        # 二十四节气（动态计算精确时刻，不使用固定日期）
+        jieqi_festivals = [
             FestivalConfig(
                 name="立春",
                 description="二十四节气之首，春季的开始，万物复苏",
-                festival_type=FestivalType.SOLAR,
-                month=2,
-                day=4,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="雨水",
                 description="雨量渐增，雨水滋润大地",
-                festival_type=FestivalType.SOLAR,
-                month=2,
-                day=19,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="惊蛰",
                 description="冬眠的昆虫被春雷惊醒，春耕开始",
-                festival_type=FestivalType.SOLAR,
-                month=3,
-                day=6,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="春分",
                 description="昼夜平分，阴阳相半",
-                festival_type=FestivalType.SOLAR,
-                month=3,
-                day=21,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="清明",
                 description="祭祖扫墓，春光明媚",
-                festival_type=FestivalType.SOLAR,
-                month=4,
-                day=5,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="谷雨",
                 description="雨生百谷，播种的好时节",
-                festival_type=FestivalType.SOLAR,
-                month=4,
-                day=20,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="立夏",
                 description="夏季的开始，万物繁茂",
-                festival_type=FestivalType.SOLAR,
-                month=5,
-                day=6,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="小满",
                 description="麦类等夏熟作物籽粒开始饱满",
-                festival_type=FestivalType.SOLAR,
-                month=5,
-                day=21,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="芒种",
                 description="麦类等夏熟农作物成熟，适合播种",
-                festival_type=FestivalType.SOLAR,
-                month=6,
-                day=6,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="夏至",
                 description="一年中白昼最长的一天",
-                festival_type=FestivalType.SOLAR,
-                month=6,
-                day=21,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="小暑",
                 description="暑气开始，天气炎热",
-                festival_type=FestivalType.SOLAR,
-                month=7,
-                day=7,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="大暑",
                 description="一年中最热的时期",
-                festival_type=FestivalType.SOLAR,
-                month=7,
-                day=23,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="立秋",
                 description="秋季的开始，暑气渐消",
-                festival_type=FestivalType.SOLAR,
-                month=8,
-                day=8,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="处暑",
                 description="暑气结束，天气开始转凉",
-                festival_type=FestivalType.SOLAR,
-                month=8,
-                day=23,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="白露",
                 description="天气转凉，露水开始凝结",
-                festival_type=FestivalType.SOLAR,
-                month=9,
-                day=8,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="秋分",
                 description="昼夜平分，阴阳相半",
-                festival_type=FestivalType.SOLAR,
-                month=9,
-                day=23,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="寒露",
                 description="露水寒冷，将要结冰",
-                festival_type=FestivalType.SOLAR,
-                month=10,
-                day=8,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="霜降",
                 description="天气渐冷，开始有霜",
-                festival_type=FestivalType.SOLAR,
-                month=10,
-                day=24,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="立冬",
                 description="冬季的开始，万物收藏",
-                festival_type=FestivalType.SOLAR,
-                month=11,
-                day=8,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="小雪",
                 description="开始下雪，但雪量较小",
-                festival_type=FestivalType.SOLAR,
-                month=11,
-                day=22,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="大雪",
                 description="降雪量大，地面可能积雪",
-                festival_type=FestivalType.SOLAR,
-                month=12,
-                day=7,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="冬至",
                 description="一年中白昼最短的一天，阳气开始回升",
-                festival_type=FestivalType.SOLAR,
-                month=12,
-                day=22,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="小寒",
                 description="天气寒冷，但尚未到极点",
-                festival_type=FestivalType.SOLAR,
-                month=1,
-                day=6,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
             FestivalConfig(
                 name="大寒",
                 description="一年中最冷的时期",
-                festival_type=FestivalType.SOLAR,
-                month=1,
-                day=20,
-                hour=9,
-                minute=0,
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
             ),
         ]
 
         # 合并所有节日配置
-        self._festival_configs = lunar_festivals + solar_festivals + special_festivals + solar_terms
+        self._festival_configs = lunar_festivals + solar_festivals + special_festivals + jieqi_festivals
 
     def _get_nth_weekday_of_month(self, year: int, month: int, weekday: int, nth: int) -> datetime:
         """获取某月第n个星期几的日期
@@ -660,6 +603,38 @@ class FestivalService:
         """
         now = datetime.now()
         current_year = now.year
+
+        # 精确计算节气（包含名称在二十四节气或特判“清明节”的公历项）
+        if festival.festival_type in (FestivalType.SPECIAL, FestivalType.SOLAR) and (
+            (festival.special_type == "jieqi") or (festival.name in Lunar.JIE_QI) or (festival.name == "清明节")
+        ):
+            # 将“清明节”映射为节气“清明”，其余直接按名称匹配
+            jq_name = "清明" if festival.name == "清明节" else festival.name
+
+            def _compute_jieqi_time(target_year: int) -> Tuple[int, int, int, int]:
+                table = Lunar.fromYmd(target_year, 1, 1).getJieQiTable()
+                solar = table.get(jq_name)
+                if solar is None:
+                    return 0, 0, 0, 0
+                ts = datetime(
+                    solar.getYear(),
+                    solar.getMonth(),
+                    solar.getDay(),
+                    solar.getHour(),
+                    solar.getMinute(),
+                    solar.getSecond(),
+                ).timestamp()
+                return int(ts), solar.getYear(), solar.getMonth(), solar.getDay()
+
+            ts, y, m, d = _compute_jieqi_time(current_year)
+            if ts == 0:
+                return 0, "", 0, 0
+            if ts < time.time():
+                ts, y, m, d = _compute_jieqi_time(current_year + 1)
+                if ts == 0:
+                    return 0, "", 0, 0
+                return ts, str(current_year + 1), m, d
+            return ts, str(current_year), m, d
 
         if festival.festival_type == FestivalType.LUNAR:
             # 农历固定日期节日
@@ -819,7 +794,12 @@ class FestivalService:
             trigger_time, year, month, day = self._get_next_festival_date(festival)
 
             if trigger_time > 0:
-                calendar_type = "农历" if festival.festival_type == FestivalType.LUNAR else "公历"
+                if festival.festival_type in (FestivalType.SPECIAL, FestivalType.SOLAR) and (
+                    (festival.special_type == "jieqi") or (festival.name in Lunar.JIE_QI) or (festival.name == "清明节")
+                ):
+                    calendar_type = "节气"
+                else:
+                    calendar_type = "农历" if festival.festival_type == FestivalType.LUNAR else "公历"
                 await self._set_festival_timer(
                     trigger_time=trigger_time,
                     year=year,
