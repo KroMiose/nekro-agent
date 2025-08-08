@@ -30,8 +30,8 @@ class DBChatMessage(Model):
 
     adapter_key = fields.CharField(max_length=64, index=True, description="适配器标识")
     message_id = fields.CharField(max_length=64, index=True, description="消息平台 ID")
-    chat_key = fields.CharField(max_length=64, index=True, description="会话唯一标识")
-    chat_type = fields.CharField(max_length=32, index=True, description="会话类型")
+    chat_key = fields.CharField(max_length=64, index=True, description="聊天频道唯一标识")
+    chat_type = fields.CharField(max_length=32, index=True, description="聊天频道类型")
     platform_userid = fields.CharField(max_length=128, index=True, description="平台用户 ID")
 
     content_text = fields.TextField(description="消息内容文本")

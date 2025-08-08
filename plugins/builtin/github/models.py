@@ -49,7 +49,7 @@ class RepoSubscription(BaseModel):
 
 
 class ChatSubscriptions(BaseModel):
-    """会话订阅数据"""
+    """频道订阅数据"""
 
     subscriptions: Dict[str, RepoSubscription] = Field(default_factory=dict)
 

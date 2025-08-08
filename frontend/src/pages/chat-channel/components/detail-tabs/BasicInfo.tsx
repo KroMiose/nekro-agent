@@ -48,7 +48,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
 
-  // 获取当前会话的人设信息
+  // 获取当前聊天频道的人设信息
   useEffect(() => {
     const fetchCurrentPreset = async () => {
       if (channel.preset_id) {
@@ -107,7 +107,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       })
       setPresetDialogOpen(false)
 
-      // 刷新会话详情
+      // 刷新聊天频道详情
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
     } catch (error) {
       console.error('设置人设失败', error)

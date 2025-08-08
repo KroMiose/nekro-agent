@@ -756,7 +756,7 @@ class FestivalService:
             "表达你的祝福，记得加入应景的表情。"
         )
 
-        # 获取所有活跃会话并推送节日祝福
+        # 获取所有活跃聊天频道并推送节日祝福
         async def festival_callback():
             # 检查节日祝福是否开启
             if not config.ENABLE_FESTIVAL_REMINDER:
@@ -771,9 +771,9 @@ class FestivalService:
                         agent_messages=event_desc,
                         trigger_agent=True,
                     )
-                    await asyncio.sleep(random.randint(1, 120))  # 每个会话间隔随机时间，防止并发过高
+                    await asyncio.sleep(random.randint(1, 120))  # 每个聊天频道间隔随机时间，防止并发过高
 
-            logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个会话")
+            logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个聊天频道")
 
         # 设置定时器
         await timer_service.set_timer(

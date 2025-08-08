@@ -20,11 +20,11 @@
 
 ### 通用工具
 - **send_msg_text**:
-  - 描述: 发送文本消息到指定的会话。
+  - 描述: 发送文本消息到指定的聊天频道。
   - 注意: 插件会检查近期消息，如果发现重复或高度相似的内容，可能会阻止发送或发出警告。
 
 - **send_msg_file**:
-  - 描述: 发送文件或图片到指定的会话。插件会自动识别文件类型（图片/普通文件）并发送。
+  - 描述: 发送文件或图片到指定的聊天频道。插件会自动识别文件类型（图片/普通文件）并发送。
   - 参数: `file_path` 可以是 URL 或容器内的共享路径。
   - 注意: 同样具有防重复发送机制，通过文件内容的 MD5 判断。
 
@@ -78,11 +78,11 @@ plugin = NekroPlugin(
 # ========================================================================================
 #   插件编写注意:
 #     1. 所有注解会被 AI 引用时参考，请务必准确填写
-#     2. _ctx: AgentCtx 中存储有关当前会话的上下文信息，不需要且不能加入到注释，以免误导 AI
+#     2. _ctx: AgentCtx 中存储有关当前聊天频道的上下文信息，不需要且不能加入到注释，以免误导 AI
 #     3. _ctx 参数务必放在第一个，否则会因为参数位置匹配错误导致调用失败
 #     4. 如果需要在注解中编写应用示例等信息，务必不要体现 _ctx 的存在，并且使用 `同步调用` 的方式
 #        (即不需要 `await func()` )，因为其实际执行是通过 rpc 在 Nekro-Agent 主服务进行的
-#     5. `inject_prompt` 方法会在每次会话触发开始时调用一次，并将返回值注入到会话提示词中
+#     5. `inject_prompt` 方法会在每次聊天频道触发开始时调用一次，并将返回值注入到聊天频道提示词中
 #     6. 插件的清理方法 `clean_up` 会在插件卸载时自动调用，请在此方法中实现清理或重置逻辑
 # ========================================================================================
 
@@ -155,7 +155,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Attention: Do not expose any unnecessary technical id or key in the message content.
 
     Args:
-        chat_key (str): 会话标识
+        chat_key (str): 聊天频道标识
         message_text (str): 消息内容
         ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """
@@ -233,7 +233,7 @@ async def send_msg_file(_ctx: AgentCtx, chat_key: str, file_path: str, ref_msg_i
     """发送聊天消息图片/文件资源
 
     Args:
-        chat_key (str): 会话标识
+        chat_key (str): 聊天频道标识
         file_path (str): 图片/文件路径或 URL 容器内路径
         ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
     """

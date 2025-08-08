@@ -43,7 +43,7 @@ export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
     ],
   },
   { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
-  { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
+  { path: '/chat-channel', text: '聊天管理', icon: <ChatIcon /> },
   { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
   { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
   {

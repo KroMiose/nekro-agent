@@ -79,7 +79,7 @@ Nekro-Agent 提供了三种不同类型的方法，每种类型都有其特定�
 ### 扩展注意事项
 
 1. 所有注解会被 AI 引用时参考，请务必准确填写
-2. `_ctx: AgentCtx` 中存储有关当前会话的上下文信息，不需要也不能加入到注释，以免误导 AI
+2. `_ctx: AgentCtx` 中存储有关当前聊天的上下文信息，不需要也不能加入到注释，以免误导 AI
 3. `_ctx` 参数务必放在最后，以免因 AI 使用传递不规范导致错误
 4. 如果需要在注解中编写应用示例等信息，务必不要体现 `_ctx` 的存在，并且使用同步调用的方式
    (即不需要 `await func()`)，因为其实际执行是通过 rpc 在 Nekro-Agent 主服务进行的
@@ -120,7 +120,7 @@ async def send_text(chat_key: str, message: str, ctx: AgentCtx, *, record: bool 
     """发送文本消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         message (str): 要发送的文本消息
         record (bool, optional): 是否记录到上下文。默认为 True
     """
@@ -133,7 +133,7 @@ async def send_image(chat_key: str, image_path: str, ctx: AgentCtx, *, record: b
     """发送图片消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         image_path (str): 图片路径或URL
         record (bool, optional): 是否记录到上下文。默认为 True
     """
@@ -146,7 +146,7 @@ async def send_file(chat_key: str, file_path: str, ctx: AgentCtx, *, record: boo
     """发送文件消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         file_path (str): 文件路径或URL
         record (bool, optional): 是否记录到上下文。默认为 True
     """
@@ -181,7 +181,7 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
     """设置一个定时器
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         trigger_time (int): 触发时间戳
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
 
@@ -194,10 +194,10 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
 
 ```python
 async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
-    """设置一个临时定时器（用于短期自我唤醒检查新消息，同一会话只会保留最后一个临时定时器）
+    """设置一个临时定时器（用于短期自我唤醒检查新消息，同一聊天只会保留最后一个临时定时器）
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         trigger_time (int): 触发时间戳
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
 
@@ -210,10 +210,10 @@ async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> b
 
 ```python
 async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
-    """清空指定会话的定时器
+    """清空指定聊天的定时器
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
         temporary (Optional[bool], optional): 定时器类型筛选。None表示清除所有定时器，True只清除临时定时器，False只清除非临时定时器。
 
     Returns:
@@ -237,7 +237,7 @@ async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
 
 定时器使用说明：
 1. 普通定时器用于设置常规的定时提醒，如用户请求的提醒事项
-2. 临时定时器主要用于 AI 自我唤醒，观察用户反馈，每个会话只保留最后一个临时定时器
+2. 临时定时器主要用于 AI 自我唤醒，观察用户反馈，每个聊天只保留最后一个临时定时器
 3. 清除定时器时可以选择清除所有定时器、只清除临时定时器或只清除非临时定时器
 4. 定时器的本质功能是允许 AI 自行唤醒自己的回复流程，非必要不应反复自我唤醒
 
@@ -247,19 +247,19 @@ async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
 from nekro_agent.api import context
 ```
 
-上下文 API 提供了会话上下文相关的功能：
+上下文 API 提供了聊天上下文相关的功能：
 
 #### parse_chat_key
 
 ```python
 def parse_chat_key(chat_key: str) -> Tuple[str, str]:
-    """解析会话标识
+    """解析聊天标识
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
 
     Returns:
-        Tuple[str, str]: (会话类型, 会话ID)
+        Tuple[str, str]: (聊天类型, 聊天ID)
     """
 ```
 
@@ -267,13 +267,13 @@ def parse_chat_key(chat_key: str) -> Tuple[str, str]:
 
 ```python
 def get_chat_type(chat_key: str) -> str:
-    """获取会话类型
+    """获取聊天类型
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
 
     Returns:
-        str: 会话类型
+        str: 聊天类型
     """
 ```
 
@@ -281,13 +281,13 @@ def get_chat_type(chat_key: str) -> str:
 
 ```python
 def get_chat_id(chat_key: str) -> str:
-    """获取会话ID
+    """获取聊天ID
 
     Args:
-        chat_key (str): 会话标识，格式为 "{type}_{id}"，例如 "group_123456"
+        chat_key (str): 聊天标识，格式为 "{type}_{id}"，例如 "group_123456"
 
     Returns:
-        str: 会话ID
+        str: 聊天ID
     """
 ```
 
@@ -361,7 +361,7 @@ async def send_welcome(chat_key: str, user_qq: str, _ctx: AgentCtx):
     """发送欢迎消息并设置提醒
 
     Args:
-        chat_key (str): 会话标识
+        chat_key (str): 聊天标识
         user_qq (str): 用户QQ号
     """
     try:

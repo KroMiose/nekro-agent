@@ -58,7 +58,7 @@ class CoreConfig(ConfigBase):
         title="启用 NekroAI 云服务",
         description=(
             "是否启用 NekroAI 云服务，启用后可使用 NekroAI 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
-            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
+            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
         ),
     )
     NEKRO_CLOUD_API_KEY: str = Field(
@@ -91,7 +91,7 @@ class CoreConfig(ConfigBase):
     DEBUG_IN_CHAT: bool = Field(default=False, title="聊天调试模式")
     ADMIN_CHAT_KEY: str = Field(
         default="",
-        title="管理会话频道",
+        title="管理频道",
         json_schema_extra=ExtraField(
             is_secret=True,
             placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
@@ -194,15 +194,15 @@ class CoreConfig(ConfigBase):
     )
     AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = Field(
         default=60 * 30,
-        title="聊天上下文过期时间 (秒)",
+        title="对话上下文过期时间 (秒)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="超出该时间范围的消息不会被 AI 回复时参考",
     )
     AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(
         default=32,
-        title="聊天上下文最大条数",
+        title="对话上下文最大条数",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
-        description="AI 会话上下文最大条数, 超出该条数会自动截断",
+        description="AI 对话上下文最大条数, 超出该条数会自动截断",
     )
     AI_SCRIPT_MAX_RETRY_TIMES: int = Field(
         default=3,
@@ -268,13 +268,13 @@ class CoreConfig(ConfigBase):
         default=768,
         title="单条消息最大长度 (字符)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
-        description="会话上下文单条消息最大长度，超出该长度会自动截取并缩略显示",
+        description="聊天上下文单条消息最大长度，超出该长度会自动截取并缩略显示",
     )
     AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
         default=5120,
-        title="会话上下文最大长度 (字符)",
+        title="聊天上下文最大长度 (字符)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
-        description="会话历史记录上下文最大长度，超出该长度会自动截断",
+        description="聊天历史记录上下文最大长度，超出该长度会自动截断",
     )
     AI_VISION_IMAGE_LIMIT: int = Field(default=5, title="视觉参考图片数量限制")
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(
@@ -285,14 +285,14 @@ class CoreConfig(ConfigBase):
     )
     AI_SYSTEM_NOTIFY_WINDOW_SIZE: int = Field(
         default=10,
-        title="会话上下文系统消息通知窗口大小",
-        description="会话上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
+        title="聊天上下文系统消息通知窗口大小",
+        description="聊天上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_SYSTEM_NOTIFY_LIMIT: int = Field(
         default=3,
-        title="会话上下文系统消息通知条数限制",
-        description="会话上下文系统消息通知条数限制，超出该条数不会被参考",
+        title="聊天上下文系统消息通知条数限制",
+        description="聊天上下文系统消息通知条数限制，超出该条数不会被参考",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_ALWAYS_INCLUDE_MSG_ID: bool = Field(
@@ -308,7 +308,7 @@ class CoreConfig(ConfigBase):
         description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
     )
 
-    """会话设置"""
+    """聊天设置"""
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(default=True, title="新私聊默认启用聊天")
     SESSION_ENABLE_FAILED_LLM_FEEDBACK: bool = Field(
@@ -437,7 +437,7 @@ class CoreConfig(ConfigBase):
     ENABLE_FESTIVAL_REMINDER: bool = Field(
         default=True,
         title="启用节日祝福提醒",
-        description="启用后会在节日时自动向所有活跃会话发送祝福",
+        description="启用后会在节日时自动向所有活跃聊天发送祝福",
     )
 
     """插件配置"""

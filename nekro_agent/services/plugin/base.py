@@ -297,9 +297,9 @@ class NekroPlugin:
     def mount_on_channel_reset(
         self,
     ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
-        """挂载重置会话回调方法
+        """挂载重置频道回调方法
 
-        用于挂载重置会话时的回调方法，在会话重置时执行。
+        用于挂载重置频道时的回调方法，在频道重置时执行。
 
         Returns:
             装饰器函数

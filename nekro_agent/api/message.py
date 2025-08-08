@@ -39,7 +39,7 @@ async def send_text(
     """发送文本消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
         message (str): 要发送的文本消息
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True
@@ -61,7 +61,7 @@ async def send_text(
         await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record, ref_msg_id=ref_msg_id)
     except Exception as e:
         logger.exception(f"发送文本消息失败: {e}")
-        raise Exception("发送文本消息失败: 请确保会话标识正确且内容不为空或过长") from e
+        raise Exception("发送文本消息失败: 请确保聊天标识正确且内容不为空或过长") from e
 
 
 async def send_file(
@@ -75,7 +75,7 @@ async def send_file(
     """发送文件消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
         file_path (str): 文件路径或URL
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True
@@ -119,7 +119,7 @@ async def send_image(
     """发送图片消息
 
     Args:
-        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
         image_path (str): 图片路径或URL
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True

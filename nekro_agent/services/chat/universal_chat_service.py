@@ -41,7 +41,7 @@ class UniversalChatService:
         """发送操作消息（通用方法）
 
         Args:
-            chat_key (str): 会话标识
+            chat_key (str): 聊天频道标识
             message (str): 操作消息内容
         """
 
@@ -140,7 +140,7 @@ class UniversalChatService:
 
         Args:
             messages: 原始的 Agent 消息段列表
-            chat_key: 会话标识
+            chat_key: 聊天频道标识
             ctx: 上下文
             file_mode: 是否为文件模式（用于决定 FILE 类型文件生成 FILE 还是 IMAGE 消息段）
 

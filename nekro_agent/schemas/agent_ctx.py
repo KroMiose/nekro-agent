@@ -34,25 +34,25 @@ class AgentCtx(BaseModel):
     在插件实践中通常以 `_ctx` 作为变量名提供给插件扩展方法使用。
     """
 
-    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同会话的运行环境。")
+    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。")
     from_chat_key: Optional[str] = Field(default=None, description="来源聊天的唯一标识，用于追溯消息来源。")
     webhook_request: Optional[WebhookRequest] = Field(
         default=None,
         description="当 Agent 由 Webhook 触发时，这里会包含 Webhook 的请求数据。",
     )
-    channel_id: Optional[str] = Field(default=None, description="当前会话的频道 ID，例如 QQ 群号或 用户 ID 等。")
-    channel_name: Optional[str] = Field(default=None, description="当前会话的频道名称，例如 QQ 群名或 用户名等。")
-    channel_type: Optional[str] = Field(default=None, description="当前会话的频道类型，例如 `group` 或 `private` 等。")
-    adapter_key: Optional[str] = Field(default=None, description="当前会话所使用的适配器标识，例如 `onebot_v11` 等。")
-    _db_chat_channel: Optional["DBChatChannel"] = None  # 当前会话的数据库聊天频道实例
+    channel_id: Optional[str] = Field(default=None, description="当前聊天频道的频道 ID，例如 QQ 群号或 用户 ID 等。")
+    channel_name: Optional[str] = Field(default=None, description="当前聊天频道的频道名称，例如 QQ 群名或 用户名等。")
+    channel_type: Optional[str] = Field(default=None, description="当前聊天频道的频道类型，例如 `group` 或 `private` 等。")
+    adapter_key: Optional[str] = Field(default=None, description="当前聊天频道所使用的适配器标识，例如 `onebot_v11` 等。")
+    _db_chat_channel: Optional["DBChatChannel"] = None  # 当前聊天频道的数据库聊天频道实例
     _trigger_db_user: Optional["DBUser"] = None  # 触发本次 Agent 的 DBUser 实例
 
     @property
     def chat_key(self) -> str:
         """
-        聊天会话唯一ID。
+        聊天频道唯一ID。
 
-        这是当前会话的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
+        这是当前聊天频道的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
 
         Example:
             >>> _ctx.chat_key
@@ -65,7 +65,7 @@ class AgentCtx(BaseModel):
     @property
     def db_chat_channel(self) -> Optional["DBChatChannel"]:
         """
-        当前会话的数据库聊天频道实例。
+        当前聊天频道的数据库聊天频道实例。
         """
         return self._db_chat_channel
 
@@ -131,16 +131,16 @@ class AgentCtx(BaseModel):
         """消息模块
 
         提供对底层 `nekro_agent.api.message` 模块的直接访问。
-        主要用于需要手动指定 `chat_key` 的高级场景，例如**向其他会话发送消息**。
+        主要用于需要手动指定 `chat_key` 的高级场景，例如**向其他聊天频道发送消息**。
 
-        当你需要向当前会话以外的会话发送通知或消息时，应使用此模块。
-        便捷方法如 `_ctx.send_text()` 默认只能向当前会话发送。
+        当你需要向当前聊天频道以外的聊天频道发送通知或消息时，应使用此模块。
+        便捷方法如 `_ctx.send_text()` 默认只能向当前聊天频道发送。
 
         Example:
             >>> # 假设插件需要向一个监控频道发送状态更新
             >>> monitor_chat_key = "onebot_v11-group_987654321"
             >>>
-            >>> # 使用 `_ctx.ms` 来向指定会话发送消息
+            >>> # 使用 `_ctx.ms` 来向指定聊天频道发送消息
             >>> await _ctx.ms.send_text(monitor_chat_key, "System status: OK", _ctx)
             >>>
             >>> # 注意：调用底层模块时，需要手动传入 `_ctx` 对象。
@@ -153,8 +153,8 @@ class AgentCtx(BaseModel):
         """
         获取当前生效的核心配置实例。
 
-        核心配置由 `系统基本设定 -> 适配器设定 -> 会话设定` 三层配置混合生成，
-        会话设定优先级最高。插件可以通过此方法获取配置项。
+        核心配置由 `系统基本设定 -> 适配器设定 -> 聊天频道设定` 三层配置混合生成，
+        聊天频道设定优先级最高。插件可以通过此方法获取配置项。
 
         Example:
             >>> core_config = await ctx.get_core_config()
@@ -183,9 +183,9 @@ class AgentCtx(BaseModel):
         return get_bot()
 
     async def send_text(self, content: str, *, record: bool = True):
-        """发送文本消息到当前会话。
+        """发送文本消息到当前聊天频道。
 
-        这是一个便捷方法，封装了 `message.send_text`，自动填充会话信息。
+        这是一个便捷方法，封装了 `message.send_text`，自动填充聊天频道信息。
 
         Args:
             content (str): 要发送的文本内容。
@@ -199,9 +199,9 @@ class AgentCtx(BaseModel):
         await self.ms.send_text(self.chat_key, content, self, record=record)
 
     async def send_image(self, file_path: str, *, record: bool = True):
-        """发送图片到当前会话。
+        """发送图片到当前聊天频道。
 
-        这是一个便捷方法，封装了 `message.send_image`，自动填充会话信息。
+        这是一个便捷方法，封装了 `message.send_image`，自动填充聊天频道信息。
 
         Args:
             file_path (str): 图片的沙盒路径。通常由 `_ctx.fs` 工具生成。
@@ -216,9 +216,9 @@ class AgentCtx(BaseModel):
         await self.ms.send_image(self.chat_key, file_path, self, record=record)
 
     async def send_file(self, file_path: str, *, record: bool = True):
-        """发送文件到当前会话。
+        """发送文件到当前聊天频道。
 
-        这是一个便捷方法，封装了 `message.send_file`，自动填充会话信息。
+        这是一个便捷方法，封装了 `message.send_file`，自动填充聊天频道信息。
 
         Args:
             file_path (str): 文件的沙盒路径。通常由 `_ctx.fs` 工具生成。

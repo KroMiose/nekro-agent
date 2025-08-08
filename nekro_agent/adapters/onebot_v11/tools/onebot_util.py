@@ -15,14 +15,14 @@ from nekro_agent.schemas.chat_message import ChatType
 
 
 async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
-    """生成合适的会话消息内容(eg. 将cq at 解析为真实的名字)
+    """生成合适的聊天消息内容(eg. 将cq at 解析为真实的名字)
 
     Args:
         event (MessageEvent): 事件对象
         bot (Bot): 机器人对象
 
     Returns:
-        Tuple[str, int]: 会话消息内容, 是否与自身相关
+        Tuple[str, int]: 聊天消息内容, 是否与自身相关
     """
     if not isinstance(event, GroupMessageEvent):
         return event.get_plaintext(), 0

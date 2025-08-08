@@ -98,7 +98,7 @@ class PlatformSendRequest(BaseModel):
     - TEXT/AT: 普通文本消息
     """
 
-    chat_key: str = Field(..., description="会话标识")
+    chat_key: str = Field(..., description="聊天标识")
     segments: List[PlatformSendSegment] = Field(default=[], description="消息段列表")
     ref_msg_id: Optional[str] = Field(default=None, description="引用消息ID")
 

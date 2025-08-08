@@ -46,9 +46,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key = cmd_content if cmd_content and event.get_user_id() in config.SUPER_USERS else chat_key
 
     if not target_chat_key:
-        logger.warning("会话标识获取失败")
+        logger.warning("聊天标识获取失败")
         if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
-            await finish_with(matcher, message="会话标识获取失败")
+            await finish_with(matcher, message="聊天标识获取失败")
         else:
             await matcher.finish()
 
@@ -67,7 +67,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await finish_with(matcher, message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的聊天")
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     preset = await db_chat_channel.get_preset()
     info = f"基本人设: {preset.name}\n"
@@ -162,7 +162,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await finish_with(matcher, message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的聊天")
     if target_chat_key == "*":
         for channel in await DBChatChannel.all():
             await channel.set_active(True)
@@ -188,7 +188,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
-        await finish_with(matcher, message="请指定要查询的会话")
+        await finish_with(matcher, message="请指定要查询的聊天")
     if target_chat_key == "*":
         for channel in await DBChatChannel.all():
             await channel.set_active(False)
@@ -308,7 +308,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             f"Github: https://github.com/KroMiose/nekro-agent\n"
             f"Version: {version}\n"
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
-            "========会话设定========\n"
+            "========聊天设定========\n"
             f"人设: {preset.name}\n"
             f"当前模型组: {config.USE_MODEL_GROUP}\n"
         ).strip(),
@@ -541,9 +541,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "[Nekro-Agent 帮助]\n"
             "na_info: 查看系统信息\n"
             "====== [聊天管理] ======\n"
-            "reset <chat_key?>: 清空指定会话的聊天记录\n"
-            "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
-            "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
+            "reset <chat_key?>: 清空指定聊天的聊天记录\n"
+            "na_on <chat_key?>/<*>: 开启指定聊天的聊天功能\n"
+            "na_off <chat_key?>/<*>: 关闭指定聊天的聊天功能\n"
             "\n====== [插件系统] ======\n"
             "na_plugins: 查看当前已加载的插件及其详细信息\n"
             "plugin_info <name/key>: 查看指定插件的详细信息\n"
@@ -557,7 +557,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "log_err_list [-p <页码>] [-s <每页数量>]: 查看最近错误日志\n"
             "log_err_list -a/--all: 查看全部日志目录文件\n"
             "log_chat_test <日志索引/文件名> [-g <模型组名>]: 测试错误日志\n"
-            "\n注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
+            "\n注: 未指定聊天时，默认操作对象为当前聊天, 星号(*)表示所有聊天\n"
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
             "Github: https://github.com/KroMiose/nekro-agent\n"

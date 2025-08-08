@@ -59,7 +59,7 @@ export default function AdapterOverrideConfigPage() {
           <Typography variant="body2" color="text.secondary">
             此处的配置将覆盖指定适配器的系统默认配置。
             <br />
-            如果启用了某个配置项的覆盖，该适配器下的所有会话都将默认使用此处设置的值，除非会话自身再次覆盖了该配置。
+            如果启用了某个配置项的覆盖，该适配器下的所有聊天都将默认使用此处设置的值，除非聊天自身再次覆盖了该配置。
           </Typography>
         }
         emptyMessage="该适配器暂无可覆盖的配置项"

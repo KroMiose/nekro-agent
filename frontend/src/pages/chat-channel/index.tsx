@@ -45,7 +45,7 @@ export default function ChatChannelPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
-  // 查询会话列表
+  // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
     queryKey: ['chat-channels', search, chatType, isActive, page, pageSize],
     queryFn: () =>
@@ -82,7 +82,7 @@ export default function ChatChannelPage() {
     setPage(1)
   }
 
-  // 处理选择会话
+  // 处理选择聊天
   const handleSelectChannel = (chatKey: string) => {
     setSelectedChatKey(chatKey)
     if (isMobile) {
@@ -90,12 +90,12 @@ export default function ChatChannelPage() {
     }
   }
 
-  // 返回会话列表（移动端）
+  // 返回聊天列表（移动端）
   const handleBackToList = () => {
     setSelectedChatKey(null)
   }
 
-  // 渲染会话列表组件
+  // 渲染聊天列表组件
   const renderChannelList = () => (
     <>
       <Box className="p-2 flex-shrink-0">
@@ -104,7 +104,7 @@ export default function ChatChannelPage() {
           <TextField
             fullWidth
             size={isSmall ? 'small' : 'medium'}
-            placeholder="搜索会话..."
+            placeholder="搜索聊天..."
             value={search}
             onChange={handleSearch}
             InputProps={{
@@ -147,7 +147,7 @@ export default function ChatChannelPage() {
 
       <Divider />
 
-      {/* 会话列表 */}
+      {/* 聊天列表 */}
       <Box className="flex-1 overflow-auto">
         <ChatChannelList
           channels={channelList?.items || []}
@@ -181,7 +181,7 @@ export default function ChatChannelPage() {
     </>
   )
 
-  // 渲染会话详情组件
+  // 渲染聊天详情组件
   const renderChannelDetail = () => (
     <>
       {selectedChatKey ? (
@@ -198,7 +198,7 @@ export default function ChatChannelPage() {
           }}
         >
           <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
-          <Typography color="textSecondary">请选择一个会话查看详情</Typography>
+          <Typography color="textSecondary">请选择一个聊天查看详情</Typography>
           {isMobile && (
             <Button
               onClick={() => setDrawerOpen(true)}
@@ -206,7 +206,7 @@ export default function ChatChannelPage() {
               startIcon={<ListIcon />}
               sx={{ mt: 2 }}
             >
-              查看会话列表
+              查看聊天列表
             </Button>
           )}
         </Card>
@@ -219,7 +219,7 @@ export default function ChatChannelPage() {
       {isMobile ? (
         // 移动端布局
         <>
-          {/* 主内容区 - 根据是否选择会话，显示详情或提示 */}
+          {/* 主内容区 - 根据是否选择聊天，显示详情或提示 */}
           <Box className="w-full flex-1 overflow-hidden">
             {selectedChatKey ? (
               <ChatChannelDetail chatKey={selectedChatKey} onBack={handleBackToList} />
@@ -235,20 +235,20 @@ export default function ChatChannelPage() {
                 }}
               >
                 <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
-                <Typography color="textSecondary">请选择一个会话查看详情</Typography>
+                <Typography color="textSecondary">请选择一个聊天查看详情</Typography>
                 <Button
                   onClick={() => setDrawerOpen(true)}
                   variant="outlined"
                   startIcon={<ListIcon />}
                   sx={{ mt: 2 }}
                 >
-                  查看会话列表
+                  查看聊天列表
                 </Button>
               </Card>
             )}
           </Box>
 
-          {/* 抽屉式侧边栏 - 会话列表 */}
+          {/* 抽屉式侧边栏 - 聊天列表 */}
           <Drawer
             anchor="left"
             open={drawerOpen}
@@ -266,7 +266,7 @@ export default function ChatChannelPage() {
             {renderChannelList()}
           </Drawer>
 
-          {/* 浮动按钮 - 打开会话列表 */}
+          {/* 浮动按钮 - 打开聊天列表 */}
           <Fab
             color="primary"
             size={isSmall ? 'medium' : 'large'}

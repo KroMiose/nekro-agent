@@ -39,7 +39,7 @@ class DBChatChannel(Model):
     channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
     channel_type = fields.CharField(max_length=32, null=True, description="频道类型")
 
-    chat_key = fields.CharField(max_length=64, index=True, description="全局会话唯一标识")
+    chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
     conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")

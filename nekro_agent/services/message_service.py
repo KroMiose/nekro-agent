@@ -36,9 +36,9 @@ class MessageService:
 
     def __init__(self):
         # 全局状态追踪
-        self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个会话正在执行的agent任务
-        self.debounce_timers: Dict[str, float] = {}  # 记录每个会话的防抖计时器
-        self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个会话待处理的最新消息
+        self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
+        self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
+        self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
 
     async def _message_validation_check(self, message: ChatMessage) -> bool:
         """消息校验"""
@@ -93,7 +93,7 @@ class MessageService:
         """防抖任务处理
 
         Args:
-            chat_key (str): 会话标识
+            chat_key (str): 频道标识
             start_time (float): 任务开始时间
         """
         db_chat_channel = await DBChatChannel.get(chat_key=chat_key)

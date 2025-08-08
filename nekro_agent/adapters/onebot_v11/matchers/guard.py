@@ -34,7 +34,7 @@ async def command_guard(
         matcher (Matcher): Matcher 对象
 
     Returns:
-        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
+        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 聊天标识, 聊天类型
     """
     chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
@@ -70,9 +70,9 @@ async def reset_command_guard(
 
     # 非超级用户
     if cmd_content and chat_key != cmd_content:
-        logger.warning(f"用户 {username} 尝试越权操作其他会话")
+        logger.warning(f"用户 {username} 尝试越权操作其他聊天")
         if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
-            await finish_with(matcher, "您只能操作当前会话")
+            await finish_with(matcher, "您只能操作当前聊天")
         else:
             await matcher.finish()
 

@@ -177,7 +177,7 @@ async def _handle_push_event(repo_full_name: str, body: Dict) -> None:
                 if added > 0 or modified > 0 or removed > 0:
                     message += f"变更: +{added} ~{modified} -{removed} 个文件\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "push", message)
 
     except Exception as e:
@@ -260,7 +260,7 @@ async def _handle_issues_event(repo_full_name: str, body: Dict) -> None:
             label_name = label.get("name", "Unknown") if label else "Unknown"
             message += f"添加标签: {label_name}\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "issues", message)
 
     except Exception as e:
@@ -345,7 +345,7 @@ async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
             if merge_commit_sha:
                 message += f"合并提交: {merge_commit_sha[:7]}\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "pull_request", message)
 
     except Exception as e:
@@ -431,7 +431,7 @@ async def _handle_release_event(repo_full_name: str, body: Dict) -> None:
             release_body = release_body[:200] + "..."
         message += f"\n发布说明:\n{release_body}\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "release", message)
 
     except Exception as e:
@@ -484,7 +484,7 @@ async def _handle_star_event(repo_full_name: str, body: Dict) -> None:
         if action == "created" and (star_count == 1 or star_count % 100 == 0):
             message += f"恭喜！仓库达到了 {star_count} 个star！\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "star", message)
 
     except Exception as e:
@@ -762,7 +762,7 @@ async def _handle_generic_event(repo_full_name: str, event_type: str, body: Dict
             elif action == "edited":
                 message += "权限已编辑\n"
 
-        # 向所有订阅的会话发送消息
+        # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, event_type, message)
 
     except Exception as e:
@@ -770,21 +770,21 @@ async def _handle_generic_event(repo_full_name: str, event_type: str, body: Dict
 
 
 async def send_to_subscribers(repo_name: str, event_type: str, message: str):
-    """向所有订阅的会话发送消息
+    """向所有订阅的频道发送消息
 
     Args:
         repo_name: 仓库名称
         event_type: 事件类型
         message: 要发送的消息
     """
-    # 获取所有聊天会话
+    # 获取所有聊天频道
     from nekro_agent.models.db_chat_channel import DBChatChannel
 
     chat_channels = await DBChatChannel.all()
 
     message += "\n\n[Attention] This message is visible for you only. Transfer to the chat channel to make other users see it."
 
-    # 遍历所有会话，查找订阅了该仓库的会话
+    # 遍历所有频道，查找订阅了该仓库的频道
     sent_count = 0
     for channel in chat_channels:
         chat_key = channel.chat_key
@@ -798,8 +798,8 @@ async def send_to_subscribers(repo_name: str, event_type: str, message: str):
                 # 发送消息并触发AI响应
                 await message_service.push_system_message(chat_key=chat_key, agent_messages=message, trigger_agent=True)
                 sent_count += 1
-                core.logger.info(f"已向会话 {chat_key} 推送 {repo_name} 的 {event_type} 事件")
+                core.logger.info(f"已向频道 {chat_key} 推送 {repo_name} 的 {event_type} 事件")
             except Exception as e:
-                core.logger.error(f"向会话 {chat_key} 推送消息失败: {e!s}")
+                core.logger.error(f"向频道 {chat_key} 推送消息失败: {e!s}")
 
-    core.logger.info(f"共向 {sent_count} 个会话推送了 {repo_name} 的 {event_type} 事件")
+    core.logger.info(f"共向 {sent_count} 个频道推送了 {repo_name} 的 {event_type} 事件")

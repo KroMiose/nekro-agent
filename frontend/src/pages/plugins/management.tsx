@@ -757,7 +757,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Table size={isSmall ? 'small' : 'medium'}>
                     <TableHead>
                       <TableRow>
-                        <TableCell width={isMobile ? 80 : 150}>会话</TableCell>
+                        <TableCell width={isMobile ? 80 : 150}>频道</TableCell>
                         <TableCell width={isMobile ? 80 : 150}>用户</TableCell>
                         <TableCell>存储键</TableCell>
                         <TableCell width={isMobile ? 100 : 132} align="center">
@@ -940,7 +940,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         <DialogTitle>确认重置数据？</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            此操作将删除该插件的所有存储数据，包括全局数据、会话数据和用户数据。此操作不可恢复，是否继续？
+            此操作将删除该插件的所有存储数据，包括全局数据、频道数据和用户数据。此操作不可恢复，是否继续？
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>

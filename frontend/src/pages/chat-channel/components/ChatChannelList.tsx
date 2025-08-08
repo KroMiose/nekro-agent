@@ -49,7 +49,7 @@ export default function ChatChannelList({
   if (channels.length === 0) {
     return (
       <Box className="h-full flex items-center justify-center">
-        <Typography color="textSecondary">暂无会话</Typography>
+        <Typography color="textSecondary">暂无聊天频道</Typography>
       </Box>
     )
   }

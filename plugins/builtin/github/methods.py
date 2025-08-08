@@ -29,7 +29,7 @@ async def subscribe_github_repo(_ctx: AgentCtx, repo_name: str, events: Optional
         str: 订阅结果消息
     """
     try:
-        # 获取当前会话的订阅数据
+        # 获取当前频道的订阅数据
         data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         chat_subs = ChatSubscriptions.model_validate_json(data) if data else ChatSubscriptions()
         # 创建或更新订阅
@@ -55,7 +55,7 @@ async def unsubscribe_github_repo(_ctx: AgentCtx, repo_name: str) -> str:
     Returns:
         str: 取消订阅结果消息
     """
-    # 获取当前会话的订阅数据
+    # 获取当前频道的订阅数据
     data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
     if not data:
         raise ValueError(f"未找到仓库 {repo_name} 的订阅")
@@ -69,13 +69,13 @@ async def unsubscribe_github_repo(_ctx: AgentCtx, repo_name: str) -> str:
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取GitHub仓库订阅列表")
 async def get_github_subscriptions(_ctx: AgentCtx) -> Dict[str, Any]:
-    """获取当前会话的GitHub仓库订阅列表
+    """获取当前频道的GitHub仓库订阅列表
 
     Returns:
         Dict: 订阅列表信息
     """
     try:
-        # 获取当前会话的订阅数据
+        # 获取当前频道的订阅数据
         data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         chat_subs = ChatSubscriptions.model_validate_json(data) if data else ChatSubscriptions()
 
@@ -107,7 +107,7 @@ async def update_github_subscription_events(_ctx: AgentCtx, repo_name: str, even
         str: 更新结果消息
     """
     try:
-        # 获取当前会话的订阅数据
+        # 获取当前频道的订阅数据
         data = await store.get(chat_key=_ctx.chat_key, store_key="github_subs")
         if not data:
             return f"未找到仓库 {repo_name} 的订阅"

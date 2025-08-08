@@ -16,7 +16,7 @@ from nekro_agent.services.user.perm import Role, require_role
 router = APIRouter(prefix="/chat-channel", tags=["ChatChannel"])
 
 
-@router.get("/list", summary="获取会话列表")
+@router.get("/list", summary="获取聊天频道列表")
 @require_role(Role.Admin)
 async def get_chat_channel_list(
     page: int = 1,
@@ -26,11 +26,11 @@ async def get_chat_channel_list(
     is_active: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """获取会话列表
+    """获取聊天频道列表
 
     排序逻辑：
     - 按最后活跃时间排序，最后活跃时间 = max(conversation_start_time, 最后消息时间)
-    - 这样重置的会话会根据重置时间合理排序，同时考虑历史消息的影响
+    - 这样重置的聊天频道会根据重置时间合理排序，同时考虑历史消息的影响
 
     统计逻辑：
     - 消息数量：仅统计conversation_start_time之后的消息（重置后的有效消息）
@@ -60,7 +60,7 @@ async def get_chat_channel_list(
             create_time__gte=channel.conversation_start_time,
         ).count()
 
-        # 2. 获取整个会话中的最后一条消息（不限制conversation_start_time）
+        # 2. 获取整个聊天频道中的最后一条消息（不限制conversation_start_time）
         last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
 
         # 3. 计算最后活跃时间：max(conversation_start_time, 最后消息时间)
@@ -125,15 +125,15 @@ async def get_chat_channel_list(
     )
 
 
-@router.get("/detail/{chat_key}", summary="获取会话详情")
+@router.get("/detail/{chat_key}", summary="获取聊天频道详情")
 @require_role(Role.Admin)
 async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
-    """获取会话详情"""
+    """获取聊天频道详情"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
-        return Ret.fail(msg="会话不存在")
+        return Ret.fail(msg="聊天频道不存在")
 
-    # 获取会话数据
+    # 获取聊天频道数据
     message_count = await DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time).count()
 
     # 获取最近一条消息的时间
@@ -162,38 +162,38 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
     )
 
 
-@router.post("/{chat_key}/active", summary="设置会话激活状态")
+@router.post("/{chat_key}/active", summary="设置聊天频道激活状态")
 @require_role(Role.Admin)
 async def set_chat_channel_active(
     chat_key: str,
     is_active: bool,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """设置会话激活状态"""
+    """设置聊天频道激活状态"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
-        return Ret.fail(msg="会话不存在")
+        return Ret.fail(msg="聊天频道不存在")
 
     await channel.set_active(is_active)
     return Ret.success(msg="设置成功")
 
 
-@router.post("/{chat_key}/reset", summary="重置会话状态")
+@router.post("/{chat_key}/reset", summary="重置聊天频道状态")
 @require_role(Role.Admin)
 async def reset_chat_channel(
     chat_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """重置会话状态"""
+    """重置聊天频道状态"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
-        return Ret.fail(msg="会话不存在")
+        return Ret.fail(msg="聊天频道不存在")
 
     await channel.reset_channel()
     return Ret.success(msg="重置成功")
 
 
-@router.get("/{chat_key}/messages", summary="获取会话消息列表")
+@router.get("/{chat_key}/messages", summary="获取聊天频道消息列表")
 @require_role(Role.Admin)
 async def get_chat_channel_messages(
     chat_key: str,
@@ -201,10 +201,10 @@ async def get_chat_channel_messages(
     page_size: int = 32,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """获取会话消息列表"""
+    """获取聊天频道消息列表"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
-        return Ret.fail(msg="会话不存在")
+        return Ret.fail(msg="聊天频道不存在")
 
     # 查询消息，只返回conversation_start_time之后的消息
     query = DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time)
@@ -235,17 +235,17 @@ async def get_chat_channel_messages(
     )
 
 
-@router.post("/{chat_key}/preset", summary="设置会话人设")
+@router.post("/{chat_key}/preset", summary="设置聊天频道人设")
 @require_role(Role.Admin)
 async def set_chat_channel_preset(
     chat_key: str,
     preset_id: Optional[int] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
-    """设置会话人设，传入 preset_id=None 则使用默认人设"""
+    """设置聊天频道人设，传入 preset_id=None 则使用默认人设"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
-        return Ret.fail(msg="会话不存在")
+        return Ret.fail(msg="聊天频道不存在")
 
     # 设置人设ID，None需要作为null处理
     if preset_id is None:

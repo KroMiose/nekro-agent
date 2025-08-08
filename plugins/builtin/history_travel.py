@@ -89,7 +89,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
     """
     db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not db_chat_channel:
-        raise ValueError("未找到会话")
+        raise ValueError("未找到聊天频道")
 
     core_config = await db_chat_channel.get_effective_config()
     conversation_start_time: datetime.datetime = db_chat_channel.conversation_start_time
@@ -127,8 +127,7 @@ async def find_history_travel(_ctx: schemas.AgentCtx, chat_key: str, keywords: L
         else:
             or_keywords.append(keyword)
 
-    # 记录日志，方便调试
-    logger.info(f"搜索会话 {chat_key} 中的关键词，OR: {or_keywords}, AND: {and_keywords}, NOT: {not_keywords}")
+    logger.info(f"搜索聊天频道 {chat_key} 中的关键词，OR: {or_keywords}, AND: {and_keywords}, NOT: {not_keywords}")
     logger.info(f"上下文截止时间戳: {context_cutoff_timestamp}")
 
     # 构建基础查询
@@ -251,7 +250,7 @@ async def find_history_travel_range(
 
     db_chat_channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not db_chat_channel:
-        raise ValueError("未找到会话")
+        raise ValueError("未找到聊天频道")
 
     base_message = await DBChatMessage.get_or_none(message_id=base_msg_id)
     if not base_message:

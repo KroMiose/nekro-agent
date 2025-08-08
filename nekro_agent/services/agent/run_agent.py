@@ -46,7 +46,7 @@ async def run_agent(
     chat_message: Optional[ChatMessage] = None,
     ctx: Optional[AgentCtx] = None,
 ):
-    # 获取当前会话的有效配置
+    # 获取当前聊天频道的有效配置
     one_time_code = os.urandom(4).hex()
     if ctx:
         if ctx.db_chat_channel:

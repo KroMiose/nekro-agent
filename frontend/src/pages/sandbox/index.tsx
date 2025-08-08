@@ -537,7 +537,7 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  会话标识
+                  聊天标识
                 </TableCell>
                 <TableCell
                   sx={{

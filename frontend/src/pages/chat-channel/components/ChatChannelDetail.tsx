@@ -50,13 +50,13 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
-  // 查询会话详情
+  // 查询聊天详情
   const { data: channel, isLoading } = useQuery({
     queryKey: ['chat-channel-detail', chatKey],
     queryFn: () => chatChannelApi.getDetail(chatKey),
   })
 
-  // 激活/停用会话
+  // 激活/停用聊天
   const { mutate: toggleActive, isPending: isToggling } = useMutation({
     mutationFn: (isActive: boolean) => chatChannelApi.setActive(chatKey, isActive),
     onSuccess: () => {
@@ -65,7 +65,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
     },
   })
 
-  // 重置会话
+  // 重置聊天
   const { mutate: resetChannel, isPending: isResetting } = useMutation({
     mutationFn: () => chatChannelApi.reset(chatKey),
     onSuccess: () => {
@@ -74,7 +74,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
     },
   })
 
-  // 刷新会话信息
+  // 刷新聊天信息
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
@@ -119,9 +119,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
             <Box className="flex-1 overflow-hidden">
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="h6" className="font-medium truncate">
-                  {channel.channel_name || '未命名会话'}
+                  {channel.channel_name || '未命名聊天'}
                 </Typography>
-                <Tooltip title="刷新会话信息">
+                <Tooltip title="刷新聊天信息">
                   <IconButton
                     size="small"
                     onClick={handleRefresh}
@@ -225,9 +225,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
 
       {/* 重置确认对话框 */}
       <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
-        <DialogTitle>确认重置会话？</DialogTitle>
+        <DialogTitle>确认重置聊天？</DialogTitle>
         <DialogContent>
-          <Typography>重置会话将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+          <Typography>重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResetDialogOpen(false)}>取消</Button>

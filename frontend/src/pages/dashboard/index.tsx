@@ -255,7 +255,7 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={6} sm={6}>
             <StatCard
-              title="活跃会话"
+              title="活跃频道"
               value={overview?.active_sessions || 0}
               loading={overviewLoading}
               icon={<GroupIcon />}
@@ -312,7 +312,7 @@ const DashboardContent: React.FC = () => {
             icon={<MessageIcon />}
           />
           <StatCard
-            title="活跃会话"
+            title="活跃频道"
             value={overview?.active_sessions || 0}
             loading={overviewLoading}
             icon={<GroupIcon />}

@@ -290,7 +290,7 @@ async def send_text_message(_ctx: AgentCtx, chat_key: str, message_text: str, tt
         - 此函数不会返回任何值
 
     参数:
-        chat_key (str): 聊天的会话标识符,例如 "bilibili_live-ROOM_ID".
+        chat_key (str): 聊天的频道标识符,例如 "bilibili_live-ROOM_ID".
         message_text (str): 字符串,用于展示字幕的文字,语言要求为中文,不能为空.
         tts_text (str): 字符串,用于文本转语音的文字,语言要求为日语,字符串中只能出现片假名和其他标点符号,不允许使用日文汉字,不能为空.
 
@@ -387,7 +387,7 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
         - 此函数将任务添加到队列中.请调用 `send_execute` 来触发执行.
 
     参数:
-        chat_key (str): 会话标识符,例如 "bilibili_live-ROOM_ID".
+        chat_key (str): 频道标识符,例如 "bilibili_live-ROOM_ID".
         expression (str): 要设置的表情文件名(例如 "happy.exp3.json").请参考提示中提供的可用表情列表.
         duration (float): 表情应保持激活的持续时间(秒).
         - 如果 `duration < 0`,表情将无限期持续.
@@ -439,7 +439,7 @@ async def set_expression(_ctx: AgentCtx, chat_key: str, expression: str, duratio
 #         - 此函数将任务添加到队列中.请调用 `send_execute` 来触发执行.
 
 #     参数:
-#         chat_key (str): 会话标识符,例如 "bilibili_live-ROOM_ID".
+#         chat_key (str): 频道标识符,例如 "bilibili_live-ROOM_ID".
 #         parameter (str): 要动画化的面部参数名称.请参见下方的"可用面部参数".
 #         target (float): 参数的目标值.有效范围取决于参数.
 #         duration (float): 参数从当前值动画到 `target` 值所需的时间(秒).
@@ -501,7 +501,7 @@ async def play_sound(_ctx: AgentCtx, chat_key: str, sound_name: str, volume: flo
     注意:
         - 此函数将任务添加到队列中.请调用 `send_execute` 来触发执行.
     参数:
-        chat_key (str): 会话标识符,例如 "bilibili_live-ROOM_ID".
+        chat_key (str): 频道标识符,例如 "bilibili_live-ROOM_ID".
         sound_name (str): 要播放的声音的路径.
         volume (float): 声音的音量(0.0-1.0).
         speed (float): 声音的速度(0.0-1.0).
@@ -539,7 +539,7 @@ async def play_preformed_animation(_ctx: AgentCtx, chat_key: str, animation_name
         - 此函数将任务添加到队列中.请调用 `send_execute` 来触发执行.
         - 此函数只作用于面部参数等,若要实现更好展示效果请搭配`set_expression`使用
     参数:
-        chat_key (str): 会话标识符,例如 "bilibili_live-ROOM_ID".
+        chat_key (str): 频道标识符,例如 "bilibili_live-ROOM_ID".
         animation_name (str): 要播放的预制动画的名称.
         params (Dict): 预制动画的参数.dict的key为参数名称,value为参数值.
         delay (float): 在 `send_execute` 命令(或队列中的前一个任务)开始后,此预制动画任务开始前的延迟时间(秒).
@@ -589,7 +589,7 @@ async def send_execute(_ctx: AgentCtx, chat_key: str, loop: int):
         - 此函数执行当前队列中的所有任务.
 
     参数:
-        chat_key (str): 会话标识符,例如 "bilibili_live-ROOM_ID".
+        chat_key (str): 频道标识符,例如 "bilibili_live-ROOM_ID".
         loop (int): 重复执行当前队列中整个任务序列的次数.例如,`loop=1` 将执行当前队列,然后再次执行它.值为 `0` 表示执行一次.
 
     行为:

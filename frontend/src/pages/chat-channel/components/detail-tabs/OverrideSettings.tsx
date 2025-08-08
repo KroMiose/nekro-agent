@@ -11,11 +11,11 @@ interface OverrideSettingsProps {
 export default function OverrideSettings({ chatKey }: OverrideSettingsProps) {
   const [searchText, setSearchText] = useState<string>('')
 
-  // 创建会话覆盖配置服务
+  // 创建聊天频道覆盖配置服务
   const configKey = `channel_config_${chatKey}`
   const configService = createConfigService(configKey)
 
-  // 获取会话覆盖配置列表
+  // 获取聊天频道覆盖配置列表
   const {
     data: configs = [],
     refetch,
@@ -55,12 +55,12 @@ export default function OverrideSettings({ chatKey }: OverrideSettingsProps) {
         showToolbar={true}
         infoBox={
           <Typography variant="body2" color="text.secondary">
-            此处的配置将仅对当前会话生效。
+            此处的配置将仅对当前聊天频道生效。
             <br />
             它的优先级最高，将覆盖所有来自适配器和系统的同名配置。
           </Typography>
         }
-        emptyMessage="该会话暂无可覆盖的配置项"
+        emptyMessage="该聊天频道暂无可覆盖的配置项"
         isOverridePage={true}
       />
     </Box>

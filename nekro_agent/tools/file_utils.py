@@ -27,7 +27,7 @@ class FileUtils:
 
         Args:
             sandbox_path: 沙盒内互通路径
-            chat_key: 聊天会话ID
+            chat_key: 聊天频道ID
             container_key: 容器ID
 
         Returns:
@@ -57,7 +57,7 @@ class FileUtils:
         """获取沙盒共享目录的宿主机路径
 
         Args:
-            chat_key: 聊天会话ID
+            chat_key: 聊天频道ID
             container_key: 容器ID
         """
         path = cls.to_absolute_path(SANDBOX_SHARED_HOST_DIR) / container_key
@@ -69,7 +69,7 @@ class FileUtils:
         """获取或生成一个可用的上传文件路径
 
         Args:
-            from_chat_key: 聊天会话ID
+            from_chat_key: 聊天频道ID
             file_name: 文件名
             use_suffix: 指定文件后缀
             seed: 种子
@@ -107,12 +107,12 @@ class FileSystem:
 
     @property
     def shared_path(self) -> Path:
-        """获取当前会话的文件共享目录"""
+        """获取当前频道的文件共享目录"""
         return FileUtils.get_sandbox_shared_host_path(self.container_key)
 
     @property
     def upload_path(self) -> Path:
-        """获取当前会话的文件上传目录"""
+        """获取当前频道的文件上传目录"""
         return Path(USER_UPLOAD_DIR) / self.chat_key
 
     def get_file(self, file_path: Path | str) -> Path:

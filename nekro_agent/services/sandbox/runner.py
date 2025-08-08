@@ -84,13 +84,13 @@ else
 fi
 """
 
-# 会话沙盒活跃时间记录表
+# 频道沙盒活跃时间记录表
 chat_key_sandbox_map: Dict[str, float] = {}
 
-# 会话沙盒容器记录表
+# 频道沙盒容器记录表
 chat_key_sandbox_container_map: Dict[str, DockerContainer] = {}
 
-# 会话清理任务记录表
+# 频道清理任务记录表
 chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
 
 # 沙盒并发限制
@@ -109,7 +109,7 @@ async def limited_run_code(
 
     Args:
         code_run_data: 代码执行数据
-        from_chat_key: 会话键
+        from_chat_key: 频道键
         output_limit: 输出限制
         generation_time: 生成时间
         llm_response: LLM 响应

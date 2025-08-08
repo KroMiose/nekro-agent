@@ -97,7 +97,7 @@ class ExtraField(BaseModel):
     overridable: bool = Field(
         default=False,
         title="可覆盖字段标识",
-        description="设置为True时，该配置项将可以在适配器或会话级进行独立覆盖",
+        description="设置为True时，该配置项将可以在适配器或频道级进行独立覆盖",
     )
     sub_item_name: str = Field(
         default="项目",

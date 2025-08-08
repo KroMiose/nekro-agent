@@ -157,14 +157,14 @@ class ChatMessage(BaseModel):
     message_id: str  # 消息的平台 ID
     sender_id: str  # 发送者人平台 id
     sender_name: str  # 发送者原始昵称
-    sender_nickname: str  # 发送者会话昵称
+    sender_nickname: str  # 发送者频道显示昵称
     adapter_key: str  # 适配器标识
     platform_userid: Optional[str]  # 发送者平台用户ID
     is_tome: Optional[int] = 0  # 是否与 Bot 相关消息
     is_recalled: Optional[bool] = False  # 是否为撤回消息
 
-    chat_key: str  # 聊天会话唯一标识
-    chat_type: ChatType  # 聊天会话类型
+    chat_key: str  # 聊天频道唯一标识
+    chat_type: ChatType  # 聊天频道类型
     content_text: str  # 聊天内容文本
     content_data: List[ChatMessageSegment]  # 聊天内容数据
 

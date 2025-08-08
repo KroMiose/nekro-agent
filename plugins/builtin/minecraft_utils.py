@@ -213,7 +213,7 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
     """发送Minecraft富文本消息
     CAUTION: THIS METHOD IS USED FOR SENDING MESSAGES VIA MINECRAFT ADAPTER, NOT A MODEL CONTEXT PROTOCOL (MCP) SERVICE.
     Args:
-        chat_key (str): Minecraft 服务器的会话标识 (例如 'minecraft-servername')。
+        chat_key (str): Minecraft 服务器的频道标识 (例如 'minecraft-servername')。
         rich_text_json (str): 一个 JSON 字符串，表示一个消息段(segment)的列表。
             每个 segment 都是一个 JSON 对象，用于描述一段具有特定样式的文本及其交互行为。
 
@@ -367,7 +367,7 @@ async def execute_rcon_commands(
     """批量执行Minecraft RCON命令
     CAUTION: THIS METHOD IS USED FOR EXECUTING RCON COMMANDS VIA MINECRAFT ADAPTER, NOT A MODEL CONTEXT PROTOCOL (MCP) SERVICE.
     Args:
-        chat_key (str): Minecraft 服务器的会话标识 (例如 'minecraft-servername')。
+        chat_key (str): Minecraft 服务器的频道标识 (例如 'minecraft-servername')。
         commands (List[str]): 要执行的 RCON 命令列表。
         continue_on_error (bool, optional): 如果为 True，则在单个命令出错时继续执行后续命令，
                                         并将错误信息记录在对应命令的结果中。

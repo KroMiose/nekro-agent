@@ -27,19 +27,19 @@ class TelemetryStats(BaseModel):
 
     stats_type: TelemetryStatsType = Field(..., description="统计类型")
     total_users: int = Field(default=0, description="总用户量")
-    total_sessions: int = Field(default=0, description="总会话量")
+    total_sessions: int = Field(default=0, description="总频道量")
     total_messages: int = Field(default=0, description="总消息量")
     total_sandbox_calls: int = Field(default=0, description="总沙盒执行次数")
     stop_type_stats: List[ExecStopTypeStat] = Field(default_factory=list, description="停止类型统计")
 
     active_users: Optional[int] = Field(default=None, description="活跃用户量（小时统计专用）")
-    active_sessions: Optional[int] = Field(default=None, description="活跃会话量（小时统计专用）")
+    active_sessions: Optional[int] = Field(default=None, description="活跃频道量（小时统计专用）")
 
     # 性能指标
     avg_exec_time_ms: Optional[float] = Field(default=None, description="平均执行时间(毫秒)")
     max_exec_time_ms: Optional[float] = Field(default=None, description="最大执行时间(毫秒)")
 
-    # 会话类型分布
+    # 频道类型分布
     group_messages: Optional[int] = Field(default=None, description="群聊消息数")
     private_messages: Optional[int] = Field(default=None, description="私聊消息数")
 
