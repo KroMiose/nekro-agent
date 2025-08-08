@@ -236,6 +236,21 @@ class AgentCtx(BaseModel):
         """
         await self.ms.send_file(self.chat_key, file_path, self, record=record)
 
+    async def push_system(self, message: str, trigger_agent: bool = False):
+        """推送系统消息
+
+        这是一个便捷方法，封装了 `message.push_system`，自动填充聊天频道信息。
+
+        Args:
+            message (str): 要推送的系统消息内容。
+            trigger_agent (bool): 是否触发 AI 响应。默认为 False。
+
+        Example:
+            >>> # 推送处理结果并触发 AI 响应
+            >>> await _ctx.push_system_message("Search result of 'xxx' is: xxx. Please check the result.", trigger_agent=True)
+        """
+        await self.ms.push_system(self.chat_key, message, self, trigger_agent=trigger_agent)
+
     @classmethod
     def create_by_db_chat_channel(
         cls,

@@ -14,6 +14,7 @@ from nekro_agent.schemas.agent_message import (
 )
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import (
     download_file,
 )
@@ -142,6 +143,42 @@ async def send_image(
     except Exception as e:
         logger.exception(f"发送图片消息失败: {e}")
         raise Exception(f"发送图片消息失败: {e}") from e
+
+
+async def push_system(
+    chat_key: str,
+    message: str,
+    ctx: Optional[AgentCtx] = None,
+    trigger_agent: bool = False,
+) -> None:
+    """推送系统消息
+
+    Args:
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{channel_id}"，例如 "platform-group_123456"
+        message (str): 要推送的系统消息内容。
+        ctx (AgentCtx): 上下文对象
+        trigger_agent (bool, optional): 是否触发 AI 响应。默认为 False。
+
+    Example:
+        ```python
+        from nekro_agent.api.message import push_system
+
+        # 推送系统消息并触发 AI 响应
+        push_system(chat_key, "Search result of 'xxx' is: xxx. Please check the result.", trigger_agent=True)
+    """
+    if not ctx:
+        ctx = await AgentCtx.create_by_chat_key(chat_key)
+
+    try:
+        await message_service.push_system_message(
+            chat_key=chat_key,
+            agent_messages=message,
+            trigger_agent=trigger_agent,
+            db_chat_channel=ctx.db_chat_channel,
+        )
+    except Exception as e:
+        logger.exception(f"发送系统消息失败: {e}")
+        raise Exception(f"发送系统消息失败: {e}") from e
 
 
 async def download_from_url(url: str, ctx: AgentCtx) -> str:
