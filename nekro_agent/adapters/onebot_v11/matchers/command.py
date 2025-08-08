@@ -565,23 +565,6 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
-@on_command("telemetry_report", aliases={"telemetry-report"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    """手动触发遥测数据提交（用于调试）"""
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
-    # 获取当前时间和上一个整点时间
-    now = datetime.now()
-    current_hour = now.replace(minute=0, second=0, microsecond=0)
-    prev_hour = current_hour - timedelta(hours=1)
-
-    # 上报上一个小时的数据
-    response = await send_telemetry_report(prev_hour, current_hour)
-    if response.success:
-        await finish_with(matcher, message=f"遥测数据上报成功: {prev_hour} - {current_hour}")
-    else:
-        await finish_with(matcher, message=f"遥测数据上报失败: {response.message}")
-
-
 @on_command("model_test", aliases={"model-test"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)

@@ -51,11 +51,15 @@ from httpx import AsyncClient, Timeout
 from pydantic import Field
 
 from nekro_agent.api import core
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
 from nekro_agent.core.config import config as global_config
-from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.tools.common_util import limited_text_output

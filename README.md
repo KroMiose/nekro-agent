@@ -11,7 +11,7 @@ Switch to [English](./README_en.md)
 
 <div align="center">
   ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天 & 代理执行 Bot! ✨<br/>
-    <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
+    <img src="https://img.shields.io/badge/python-3.10+-6a9.svg" alt="python">
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
   </a>
@@ -22,12 +22,15 @@ Switch to [English](./README_en.md)
     <img src="https://img.shields.io/discord/1266347495582990336?label=discord&logo=discord&color=5865F2" alt="discord">
   </a>
   <a href="https://qm.qq.com/q/eT30LxDcSA" target="_blank">
-    <img src="https://img.shields.io/badge/QQ交流群-636925153-c42.svg" alt="qq group">
+    <img src="https://img.shields.io/badge/QQ 1群-将满-c42.svg" alt="qq group">
+  </a>
+  <a href="https://qm.qq.com/q/ZQ6QHdkXu0" target="_blank">
+    <img src="https://img.shields.io/badge/QQ 2群-新开-c42.svg" alt="qq group 2">
   </a>
   <br/>
-  🚅 源自首批大模型应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
+  🚅 源自首批大模型机器人应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
   📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
-  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> | <a href="https://discord.gg/eMsgwFnxUB">Discord Channel</a> 🗨️ <br/>
+  💬 技术交流/答疑 -> 加入社区 QQ 交流群:<a href="https://qm.qq.com/q/eT30LxDcSA"> 636925153 (1群|将满)</a>  | <a href="https://qm.qq.com/q/ZQ6QHdkXu0"> 679808796 (2群|新开)</a>  | <a href="https://discord.gg/eMsgwFnxUB">Discord Channel</a> 🗨️ <br/>
   🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
 </div>
 
@@ -37,7 +40,7 @@ Switch to [English](./README_en.md)
 
 来我们的官方 Discord 服务器上与我们聊天，分享您的想法，成为 Nekro Agent 未来的重要一员！
 
-- **加入我们的 Discord:** [https://discord.gg/eMsgwFnxUB](https://discord.gg/eMsgwFnxUB)
+- **加入我们的 Discord:** [NekroAI Official](https://discord.gg/eMsgwFnxUB)
 
 ## 🚀 核心能力
 
@@ -153,15 +156,19 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 ### 一键部署脚本 (推荐)
 
 #### 从 Github (推荐)
+
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh)" - --with-napcat
 ```
+
 如果从 Github 下载脚本遇到网络问题，您可以使用国内的 GitCode 镜像源：
 
 #### 从 GitCode (国内加速)
+
 ```bash
 sudo -E bash -c "$(curl -fsSL https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker/install.sh)" - --with-napcat
 ```
+
 提示:
 
 上述命令中的 --with-napcat 参数会启动全自动标准部署。
