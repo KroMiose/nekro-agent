@@ -1,5 +1,6 @@
 import base64
 import io
+from collections import Counter
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -24,6 +25,32 @@ from nekro_agent.tools.image_utils import process_image_data_url
 from nekro_agent.tools.telemetry_util import generate_instance_id
 
 router = APIRouter(prefix="/presets", tags=["Presets"])
+
+
+@router.get("/tags", summary="获取所有可用的人设标签")
+@require_role(Role.Admin)
+async def get_all_preset_tags(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取所有可用的人设标签及其数量"""
+    all_presets = await DBPreset.all().values("tags")
+
+    tag_counts = Counter()
+    for preset in all_presets:
+        tags_str = preset.get("tags")
+        if tags_str:
+            tags = [tag.strip() for tag in tags_str.split(",") if tag.strip()]
+            tag_counts.update(tags)
+
+    # 按数量降序，然后按标签字母顺序升序
+    sorted_tags = sorted(tag_counts.items(), key=lambda item: (-item[1], item[0]))
+
+    result = [{"tag": tag, "count": count} for tag, count in sorted_tags]
+
+    return Ret.success(
+        msg="获取成功",
+        data=result,
+    )
 
 
 @router.get("/list", summary="获取人设列表")

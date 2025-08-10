@@ -34,6 +34,11 @@ interface RefreshStatusResponse {
   total_cloud_presets: number
 }
 
+export interface TagInfo {
+  tag: string
+  count: number
+}
+
 export const presetsApi = {
   getList: async (params: {
     page: number
@@ -118,11 +123,9 @@ export const presetsApi = {
 
   shareToCloud: async (id: number | string, is_sfw: boolean = true) => {
     try {
-      const response = await axios.post<ApiResponse<ShareResponse>>(
-        `/presets/${id}/share`, 
-        null, 
-        { params: { is_sfw } }
-      )
+      const response = await axios.post<ApiResponse<ShareResponse>>(`/presets/${id}/share`, null, {
+        params: { is_sfw },
+      })
       return response.data
     } catch (error) {
       console.error('共享人设失败:', error)
@@ -142,24 +145,34 @@ export const presetsApi = {
 
   syncToCloud: async (id: number, is_sfw: boolean = true) => {
     try {
-      const response = await axios.post<ApiResponse<null>>(
-        `/presets/${id}/sync-to-cloud`, 
-        null, 
-        { params: { is_sfw } }
-      )
+      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync-to-cloud`, null, {
+        params: { is_sfw },
+      })
       return response.data
     } catch (error) {
       console.error('同步到云端失败:', error)
       throw error
     }
   },
-  
+
   refreshSharedStatus: async () => {
     try {
-      const response = await axios.post<ApiResponse<RefreshStatusResponse>>('/presets/refresh-shared-status')
+      const response = await axios.post<ApiResponse<RefreshStatusResponse>>(
+        '/presets/refresh-shared-status'
+      )
       return response.data
     } catch (error) {
       console.error('刷新共享状态失败:', error)
+      throw error
+    }
+  },
+
+  getTags: async (): Promise<TagInfo[]> => {
+    try {
+      const response = await axios.get<ApiResponse<TagInfo[]>>('/presets/tags')
+      return response.data.data
+    } catch (error) {
+      console.error('获取标签列表失败:', error)
       throw error
     }
   },

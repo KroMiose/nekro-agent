@@ -40,14 +40,17 @@ import {
   CloudSync as CloudSyncIcon,
   Close as CloseIcon,
   InfoOutlined as InfoIcon,
+  FilterList as FilterListIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material'
-import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
+import { Preset, PresetDetail, presetsApi, TagInfo } from '../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { formatLastActiveTime } from '../../utils/time'
 
-import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
+import { CHIP_VARIANTS, CARD_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/variants'
 import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
+import PaginationStyled from '../../components/common/PaginationStyled'
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -1442,6 +1445,9 @@ export default function PresetsPage() {
   const [page, setPage] = useState(1)
   const pageSize = 25
   const [search, setSearch] = useState('')
+  const [selectedTag, setSelectedTag] = useState<string>('')
+  const [totalPages, setTotalPages] = useState(1)
+  const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [editDialog, setEditDialog] = useState(false)
   const [editingPreset, setEditingPreset] = useState<PresetDetail | undefined>(undefined)
@@ -1480,24 +1486,56 @@ export default function PresetsPage() {
         page,
         page_size: pageSize,
         search: search || undefined,
+        tag: selectedTag || undefined,
       })
       setPresets(data.items)
+      setTotalPages(Math.ceil(data.total / pageSize))
+
+      // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
+      if (data.items.length === 0 && data.total > 0 && page > 1) {
+        setPage(1)
+      }
     } catch (error) {
       console.error('获取人设列表失败', error)
       showError('获取人设列表失败')
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, search, showError])
+  }, [page, pageSize, search, selectedTag, showError])
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
+  // 获取所有可用标签
+  const fetchAvailableTags = useCallback(async () => {
+    try {
+      const tags = await presetsApi.getTags()
+      setAvailableTags(tags)
+    } catch (error) {
+      console.error('获取标签失败', error)
+      showError('获取标签列表失败，请检查网络连接')
+    }
+  }, [showError])
+
+  useEffect(() => {
+    fetchAvailableTags()
+  }, [fetchAvailableTags])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
-    fetchData()
+  }
+
+  const handleTagFilter = (tag: string) => {
+    setSelectedTag(tag === selectedTag ? '' : tag)
+    setPage(1)
+  }
+
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, newPage: number) => {
+    setPage(newPage)
+    // 页面变化时滚动到顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleExpandClick = (id: number) => {
@@ -1533,6 +1571,7 @@ export default function PresetsPage() {
         showSuccess('创建成功')
       }
       fetchData()
+      fetchAvailableTags() // 刷新标签列表
     } catch (error) {
       console.error('保存失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1553,6 +1592,7 @@ export default function PresetsPage() {
       await presetsApi.delete(confirmDelete)
       showSuccess('删除成功')
       fetchData()
+      fetchAvailableTags() // 刷新标签列表
       if (expandedId === confirmDelete) {
         setExpandedId(null)
       }
@@ -1695,24 +1735,128 @@ export default function PresetsPage() {
         </Box>
       </Box>
 
+      {/* 标签过滤栏 */}
+      {availableTags.length > 0 && (
+        <Box
+          sx={{
+            mb: 3,
+            ...CARD_VARIANTS.default.styles,
+            p: 2,
+            borderRadius: 2,
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              mb: 2,
+              flexWrap: 'wrap',
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <FilterListIcon fontSize="small" color="primary" />
+              <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                按标签筛选 ({availableTags.length} 个标签)
+              </Typography>
+            </Box>
+            {selectedTag && (
+              <Button
+                size="small"
+                startIcon={<ClearIcon />}
+                onClick={() => handleTagFilter('')}
+                sx={{
+                  fontSize: '0.75rem',
+                  minHeight: 24,
+                  px: 1,
+                  color: 'text.secondary',
+                  '&:hover': {
+                    color: 'primary.main',
+                  },
+                }}
+              >
+                清除筛选
+              </Button>
+            )}
+          </Box>
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 1,
+              flexWrap: 'wrap',
+              maxHeight: isSmall ? '140px' : '100px',
+              overflow: 'auto',
+              ...SCROLLBAR_VARIANTS.thin.styles,
+            }}
+          >
+            {availableTags.map(({ tag, count }) => (
+              <Chip
+                key={tag}
+                label={`${tag} (${count})`}
+                onClick={() => handleTagFilter(tag)}
+                color={selectedTag === tag ? 'primary' : 'default'}
+                variant={selectedTag === tag ? 'filled' : 'outlined'}
+                size={isSmall ? 'small' : 'medium'}
+                sx={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontWeight: selectedTag === tag ? 600 : 400,
+                  '&:hover': {
+                    transform: 'translateY(-1px)',
+                    boxShadow: theme => theme.shadows[2],
+                  },
+                  // 使用主题系统的背景样式
+                  ...(selectedTag !== tag && {
+                    background: UI_STYLES.HOVER,
+                    '&:hover': {
+                      background: UI_STYLES.SELECTED,
+                      transform: 'translateY(-1px)',
+                      boxShadow: theme => theme.shadows[2],
+                    },
+                  }),
+                }}
+              />
+            ))}
+          </Box>
+        </Box>
+      )}
+
       {loading && presets.length === 0 ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
       ) : presets.length > 0 ? (
-        <Grid container spacing={isSmall ? 1.5 : 2}>
-          {presets.map(preset => (
-            <Grid
-              item
-              xs={12}
-              md={getGridColumns() === 2 ? 6 : 12}
-              lg={getGridColumns() === 3 ? 4 : 6}
-              key={preset.id}
-            >
-              {renderPresetCard(preset)}
-            </Grid>
-          ))}
-        </Grid>
+        <>
+          <Grid container spacing={isSmall ? 1.5 : 2}>
+            {presets.map(preset => (
+              <Grid
+                item
+                xs={12}
+                md={getGridColumns() === 2 ? 6 : 12}
+                lg={getGridColumns() === 3 ? 4 : 6}
+                key={preset.id}
+              >
+                {renderPresetCard(preset)}
+              </Grid>
+            ))}
+          </Grid>
+
+          {/* 分页组件和统计信息 */}
+          <Box
+            sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, mt: 3 }}
+          >
+            {/* 总数统计 */}
+            <PaginationStyled
+              totalPages={totalPages}
+              currentPage={page}
+              onPageChange={handlePageChange}
+              loading={loading}
+              showPageInfo={!isSmall}
+              siblingCount={isSmall ? 0 : 1}
+              boundaryCount={isSmall ? 1 : 1}
+            />
+          </Box>
+        </>
       ) : (
         <Box
           sx={{
