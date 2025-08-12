@@ -1,4 +1,5 @@
 import asyncio
+import os
 
 import aiodocker
 from aiodocker.docker import DockerContainer
@@ -33,25 +34,20 @@ async def get_container(container_name: str) -> DockerContainer:
 
 
 async def get_self_container() -> DockerContainer:
-    """获取当前应用所在的容器实例
+    """通过 HOSTNAME 直接获取当前容器实例。
 
-    Returns:
-        DockerContainer: 当前应用容器实例
-
-    Raises:
-        Exception: 获取容器失败时抛出异常
+    说明:
+        在 Docker 中若设置了 container_name, HOSTNAME 即该名称；
+        若未显式设置, HOSTNAME 为容器短 ID, 也可被 Docker API 解析。
     """
-    # 从环境变量中获取实例名称前缀
-    instance_name = OsEnv.INSTANCE_NAME
-    # 构建完整的容器名称
-    container_name = f"{instance_name}nekro_agent"
-    if not instance_name:
-        raise RuntimeError("未设置实例名称")
+    hostname = os.environ.get("HOSTNAME", "").strip()
+    if not hostname:
+        raise RuntimeError("HOSTNAME 未找到，无法定位容器")
     try:
         docker = await get_docker_client()
-        return await docker.containers.get(container_name)
+        return await docker.containers.get(hostname)
     except Exception as e:
-        logger.error(f"获取自身容器失败: {e!s}")
+        logger.error(f"获取自身容器失败: {e!s} (HOSTNAME={hostname})")
         raise
 
 
