@@ -60,6 +60,7 @@ async def get_preset_list(
     page_size: int = 20,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+    tags: Optional[str] = None,
     remote_only: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
@@ -69,8 +70,18 @@ async def get_preset_list(
     # 搜索条件
     if search:
         query = query.filter(Q(name__contains=search) | Q(title__contains=search) | Q(description__contains=search))
+    # 标签过滤（支持单标签 tag 与多标签 tags，逗号分隔，采用 AND 逻辑）
+    selected_tags: List[str] = []
+    if tags:
+        selected_tags.extend([t.strip() for t in tags.split(",") if t.strip()])
     if tag:
-        query = query.filter(tags__contains=tag)
+        # 兼容旧参数
+        selected_tags.append(tag.strip())
+
+    if selected_tags:
+        # AND 逻辑：每个标签都必须匹配
+        for t in selected_tags:
+            query = query.filter(tags__contains=t)
     if remote_only is not None:
         if remote_only:
             query = query.filter(remote_id__not_isnull=True)

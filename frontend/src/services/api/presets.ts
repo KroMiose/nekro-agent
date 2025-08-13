@@ -45,6 +45,7 @@ export const presetsApi = {
     page_size: number
     search?: string
     tag?: string
+    tags?: string
     remote_only?: boolean
   }) => {
     const response = await axios.get<{

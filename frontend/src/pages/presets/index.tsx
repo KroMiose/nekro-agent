@@ -1445,7 +1445,7 @@ export default function PresetsPage() {
   const [page, setPage] = useState(1)
   const pageSize = 25
   const [search, setSearch] = useState('')
-  const [selectedTag, setSelectedTag] = useState<string>('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
   const [expandedId, setExpandedId] = useState<number | null>(null)
@@ -1486,7 +1486,7 @@ export default function PresetsPage() {
         page,
         page_size: pageSize,
         search: search || undefined,
-        tag: selectedTag || undefined,
+        tags: selectedTags.length ? selectedTags.join(',') : undefined,
       })
       setPresets(data.items)
       setTotalPages(Math.ceil(data.total / pageSize))
@@ -1501,7 +1501,7 @@ export default function PresetsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, search, selectedTag, showError])
+  }, [page, pageSize, search, selectedTags, showError])
 
   useEffect(() => {
     fetchData()
@@ -1528,7 +1528,11 @@ export default function PresetsPage() {
   }
 
   const handleTagFilter = (tag: string) => {
-    setSelectedTag(tag === selectedTag ? '' : tag)
+    setSelectedTags(prev => {
+      const exists = prev.includes(tag)
+      const next = exists ? prev.filter(t => t !== tag) : [...prev, tag]
+      return next
+    })
     setPage(1)
   }
 
@@ -1760,11 +1764,11 @@ export default function PresetsPage() {
                 按标签筛选 ({availableTags.length} 个标签)
               </Typography>
             </Box>
-            {selectedTag && (
+            {selectedTags.length > 0 && (
               <Button
                 size="small"
                 startIcon={<ClearIcon />}
-                onClick={() => handleTagFilter('')}
+                onClick={() => setSelectedTags([])}
                 sx={{
                   fontSize: '0.75rem',
                   minHeight: 24,
@@ -1794,19 +1798,19 @@ export default function PresetsPage() {
                 key={tag}
                 label={`${tag} (${count})`}
                 onClick={() => handleTagFilter(tag)}
-                color={selectedTag === tag ? 'primary' : 'default'}
-                variant={selectedTag === tag ? 'filled' : 'outlined'}
+                color={selectedTags.includes(tag) ? 'primary' : 'default'}
+                variant={selectedTags.includes(tag) ? 'filled' : 'outlined'}
                 size={isSmall ? 'small' : 'medium'}
                 sx={{
                   cursor: 'pointer',
                   transition: 'all 0.2s',
-                  fontWeight: selectedTag === tag ? 600 : 400,
+                  fontWeight: selectedTags.includes(tag) ? 600 : 400,
                   '&:hover': {
                     transform: 'translateY(-1px)',
                     boxShadow: theme => theme.shadows[2],
                   },
                   // 使用主题系统的背景样式
-                  ...(selectedTag !== tag && {
+                  ...(!selectedTags.includes(tag) && {
                     background: UI_STYLES.HOVER,
                     '&:hover': {
                       background: UI_STYLES.SELECTED,
