@@ -52,7 +52,11 @@ class ViewImageConfig(ConfigBase):
         default="default",
         title="用于查看图片的模型,如果主模型自带视觉请勿开启本插件",
         description="用于查看图片并描述内容,以文本形式返回给主模型",
-        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "chat"},
+        json_schema_extra={
+            "ref_model_groups": True,
+            "required": True,
+            "model_type": "chat",
+        },
     )
 
 
@@ -118,8 +122,10 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
         raise ValueError("当前模型组不支持视觉功能")
 
     # 构造发送给视觉模型的消息
-    vision_prompt = "Describe the content shown in this images in relatively detailed language."
-    vision_msg = OpenAIChatMessage.from_text("system", vision_prompt)
+    vision_prompt = (
+        "Describe the content shown in this images in relatively detailed language."
+    )
+    vision_msg = OpenAIChatMessage.from_text("user", vision_prompt)
 
     for i, image_path in enumerate(images):
         # 判断是否为URL（简单判断是否以http开头）
@@ -127,7 +133,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
             # 使用URL方式
             vision_msg.batch_add(
                 [
-                    ContentSegment.text_content(f"Image {i+1}: {image_path}"),
+                    ContentSegment.text_content(f"Image {i + 1}: {image_path}"),
                     ContentSegment.image_content(image_path),
                 ],
             )
@@ -138,7 +144,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
                 raise ValueError(f"图片路径不存在: {image_path}")
             vision_msg.batch_add(
                 [
-                    ContentSegment.text_content(f"Image {i+1}: {image_path}"),
+                    ContentSegment.text_content(f"Image {i + 1}: {image_path}"),
                     ContentSegment.image_content_from_path(path),
                 ],
             )
