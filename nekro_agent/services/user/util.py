@@ -81,6 +81,8 @@ async def user_login(data: UserLogin) -> UserToken:
 
 
 async def user_change_password(user: DBUser, new_password: str) -> Ret:
+    if user.username == "admin":
+        return Ret.fail("请在.env文件中修改管理员密码")
     try:
         user.password = get_hashed_password(new_password)
         await user.save()

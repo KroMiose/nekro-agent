@@ -50,6 +50,7 @@ class StatusConfig(ConfigBase):
     MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=5, title="每次引用预设状态条数")
     ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用根据状态更改群名片")
     NICKNAME_PREFIX: str = Field(default="", title="群名片前缀")
+    NICKNAME_SUFFIX: str = Field(default="", title="群名片后缀")
 
 
 # 获取配置和插件存储
@@ -84,7 +85,7 @@ async def set_bot_group_card(ctx: schemas.AgentCtx, card_name: str) -> None:
             return
 
         user_id = int((await ctx.adapter.get_self_info()).user_id)
-        final_card = f"{config.NICKNAME_PREFIX}{card_name}"
+        final_card = f"{config.NICKNAME_PREFIX}{card_name}{config.NICKNAME_SUFFIX}"
 
         await bot.set_group_card(
             group_id=int(chat_id),
