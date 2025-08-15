@@ -509,7 +509,9 @@ class PluginCollector:
         Returns:
             Optional[Callable]: 方法实例，如果不存在则返回 None
         """
-        for plugin in self.loaded_plugins.values():
+        # 简单处理同名方法禁用冲突
+        # TODO:引入plugin_key::method_name命名空间进一步修复
+        for plugin in self.get_all_active_plugins():
             for method in plugin.sandbox_methods:
                 if method.func.__name__ == method_name:
                     return method.func
@@ -526,8 +528,10 @@ class PluginCollector:
             if plugin.is_enabled:
                 if ctx:
                     methods.extend(await plugin.collect_available_methods(ctx))
+                    logger.debug(f"插件 {plugin.name} 的沙盒方法已收集: {len(methods)} 个方法")
                 else:
                     methods.extend(plugin.sandbox_methods)
+                    logger.debug(f"插件 {plugin.name} 的沙盒方法已收集: {len(plugin.sandbox_methods)} 个方法")
         logger.debug(f"获取到 {len(methods)} 个沙盒方法")
         return methods
 
