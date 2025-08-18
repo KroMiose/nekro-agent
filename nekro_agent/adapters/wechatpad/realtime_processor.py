@@ -38,22 +38,25 @@ from .config import WeChatPadConfig
 if TYPE_CHECKING:
     from .adapter import WeChatPadAdapter
 
+
 class MessageType(Enum):
     """消息类型枚举"""
-    TEXT = 1          # 文本消息
-    IMAGE = 3         # 图片消息
-    VOICE = 34        # 语音消息
-    VIDEO = 43        # 视频消息
-    EMOJI = 47        # 表情消息
-    LOCATION = 48     # 位置消息
-    LINK = 49         # 链接消息
-    FILE = 6          # 文件消息
-    SYSTEM = 10000    # 系统消息
+
+    TEXT = 1  # 文本消息
+    IMAGE = 3  # 图片消息
+    VOICE = 34  # 语音消息
+    VIDEO = 43  # 视频消息
+    EMOJI = 47  # 表情消息
+    LOCATION = 48  # 位置消息
+    LINK = 49  # 链接消息
+    FILE = 6  # 文件消息
+    SYSTEM = 10000  # 系统消息
 
 
 @dataclass
 class WeChatMessage:
     """微信消息数据结构"""
+
     msg_id: int
     from_user: str
     to_user: str
@@ -65,7 +68,7 @@ class WeChatMessage:
     push_content: str
     new_msg_id: int
     img_buffer: str = ""  # base64编码的图片/语音数据
-    img_status: int = 1   # 图片状态
+    img_status: int = 1  # 图片状态
 
     @property
     def message_type(self) -> MessageType:
@@ -81,36 +84,57 @@ class WeChatMessage:
             root = ET.fromstring(content)
 
             # 检查是否是图片消息
-            img_elem = root.find('.//img')
+            img_elem = root.find(".//img")
             if img_elem is not None:
                 # 尝试获取图片URL
-                img_url = img_elem.get('src') or img_elem.get('cdnurl') or img_elem.get('aeskey')
+                img_url = (
+                    img_elem.get("src")
+                    or img_elem.get("cdnurl")
+                    or img_elem.get("aeskey")
+                )
                 if img_url:
                     return {"type": "image", "url": img_url, "data": content}
 
             # 检查是否是语音消息
-            voicemsg_elem = root.find('.//voicemsg')
+            voicemsg_elem = root.find(".//voicemsg")
             if voicemsg_elem is not None:
-                voice_url = voicemsg_elem.get('voiceurl') or voicemsg_elem.get('clientmsgid')
-                voice_length = voicemsg_elem.get('voicelength', '0')
+                voice_url = voicemsg_elem.get("voiceurl") or voicemsg_elem.get(
+                    "clientmsgid"
+                )
+                voice_length = voicemsg_elem.get("voicelength", "0")
                 if voice_url:
-                    return {"type": "voice", "url": voice_url, "length": voice_length, "data": content}
+                    return {
+                        "type": "voice",
+                        "url": voice_url,
+                        "length": voice_length,
+                        "data": content,
+                    }
 
             # 检查是否是表情消息
-            emoji_elem = root.find('.//emoji')
+            emoji_elem = root.find(".//emoji")
             if emoji_elem is not None:
-                emoji_url = emoji_elem.get('cdnurl') or emoji_elem.get('encrypturl')
-                emoji_md5 = emoji_elem.get('md5')
+                emoji_url = emoji_elem.get("cdnurl") or emoji_elem.get("encrypturl")
+                emoji_md5 = emoji_elem.get("md5")
                 if emoji_url:
-                    return {"type": "emoji", "url": emoji_url, "md5": emoji_md5, "data": content}
+                    return {
+                        "type": "emoji",
+                        "url": emoji_url,
+                        "md5": emoji_md5,
+                        "data": content,
+                    }
 
             # 检查是否是文件消息
-            appmsg_elem = root.find('.//appmsg')
+            appmsg_elem = root.find(".//appmsg")
             if appmsg_elem is not None:
-                title_elem = appmsg_elem.find('title')
-                url_elem = appmsg_elem.find('url')
+                title_elem = appmsg_elem.find("title")
+                url_elem = appmsg_elem.find("url")
                 if title_elem is not None and url_elem is not None:
-                    return {"type": "file", "title": title_elem.text, "url": url_elem.text, "data": content}
+                    return {
+                        "type": "file",
+                        "title": title_elem.text,
+                        "url": url_elem.text,
+                        "data": content,
+                    }
 
             # 默认返回原始XML内容
             return {"type": "xml", "data": content}
@@ -162,9 +186,8 @@ class WeChatMessage:
         if self.is_group_message:
             # 群消息：使用to_user作为群ID
             return self.to_user
-        else:
-            # 私聊：使用实际发送者ID
-            return self.actual_sender_wxid
+        # 私聊：使用实际发送者ID
+        return self.actual_sender_wxid
 
     def to_dict(self) -> dict[str, Any]:
         """转换为字典格式"""
@@ -182,7 +205,7 @@ class WeChatMessage:
             "push_content": self.push_content,
             "new_msg_id": self.new_msg_id,
             "is_group_message": self.is_group_message,
-            "sender_name": self.sender_name
+            "sender_name": self.sender_name,
         }
 
 
@@ -209,10 +232,12 @@ class TextMessageHandler(MessageHandler):
             return False
 
         # 关键词过滤
-        if self.keywords and not any(keyword in message.content for keyword in self.keywords):
-                return False
+        if self.keywords and not any(
+            keyword in message.content for keyword in self.keywords
+        ):
+            return False
 
-        logging.info(f"处理文本消息: {message.sender_name} -> {message.content}")
+        logger.info(f"处理文本消息: {message.sender_name} -> {message.content}")
 
         if self.callback:
             await self.callback(message)
@@ -233,11 +258,14 @@ class GroupMessageHandler(MessageHandler):
 
         # 群ID过滤
         if self.group_ids and not any(
-            group_id in message.to_user or group_id in message.from_user for group_id in self.group_ids
+            group_id in message.to_user or group_id in message.from_user
+            for group_id in self.group_ids
         ):
             return False
 
-        logging.info(f"处理群消息: {message.sender_name} 在群中发送 -> {message.content}")
+        logger.info(
+            f"处理群消息: {message.sender_name} 在群中发送 -> {message.content}"
+        )
 
         if self.callback:
             await self.callback(message)
@@ -248,7 +276,9 @@ class GroupMessageHandler(MessageHandler):
 class WeChatRealtimeProcessor:
     """微信实时消息处理器"""
 
-    def __init__(self, config: WeChatPadConfig, adapter: WeChatPadAdapter | None = None):
+    def __init__(
+        self, config: WeChatPadConfig, adapter: WeChatPadAdapter | None = None
+    ):
         self.config = config
         self.adapter = adapter  # 适配器引用，用于消息转发
         self.handlers: list[MessageHandler] = []
@@ -317,7 +347,7 @@ class WeChatRealtimeProcessor:
                 push_content=push_content,
                 new_msg_id=new_msg_id,
                 img_buffer=img_buffer,
-                img_status=img_status
+                img_status=img_status,
             )
 
         except (json.JSONDecodeError, KeyError, TypeError) as e:
@@ -328,7 +358,9 @@ class WeChatRealtimeProcessor:
         """处理单条消息"""
         self.message_count += 1
 
-        logger.info(f"🔄 处理消息 #{self.message_count}: {message.from_user} -> {message.content[:50]}...")
+        logger.info(
+            f"🔄 处理消息 #{self.message_count}: {message.from_user} -> {message.content[:50]}..."
+        )
 
         # 1. 转发消息到nekro-agent核心系统
         if self.adapter:
@@ -379,8 +411,10 @@ class WeChatRealtimeProcessor:
         is_tome = False
         if is_group and bot_wxid:
             # 检查消息中是否包含 @ 机器人的内容
-            is_tome = (f"@{bot_wxid}" in message.actual_content or
-                      message.actual_content.startswith("@"))
+            is_tome = (
+                f"@{bot_wxid}" in message.actual_content
+                or message.actual_content.startswith("@")
+            )
         elif not is_group:
             # 私聊消息默认为 @ 机器人
             is_tome = True
@@ -403,10 +437,12 @@ class WeChatRealtimeProcessor:
         # 构造消息段（根据消息类型处理）
         content_segments = []
         if message.message_type == MessageType.TEXT:
-            content_segments.append(ChatMessageSegment(
-                type=ChatMessageSegmentType.TEXT,
-                text=message.actual_content
-            ))
+            content_segments.append(
+                ChatMessageSegment(
+                    type=ChatMessageSegmentType.TEXT,
+                    text=message.actual_content,
+                )
+            )
         elif message.message_type == MessageType.IMAGE:
             # 处理图片消息，参考OneBot V11模式
             logger.debug(f"处理图片消息: {message.actual_content[:100]}...")
@@ -421,17 +457,21 @@ class WeChatRealtimeProcessor:
                     image_segment = await ChatMessageSegmentImage.create_from_base64(
                         base64_data,
                         from_chat_key=channel_id,
-                        file_name="image.jpg"
+                        file_name="image.jpg",
                     )
                     content_segments.append(image_segment)
                     logger.info("✅ 使用base64数据创建图片消息段成功")
                 except Exception as e:
                     logger.warning(f"使用base64数据创建图片消息段失败: {e}")
                     # 回退到XML解析模式
-                    await self._handle_image_from_xml_or_api(message, content_segments, channel_id)
+                    await self._handle_image_from_xml_or_api(
+                        message, content_segments, channel_id
+                    )
             else:
                 # 回退到XML解析模式，尝试使用API下载高清图片
-                await self._handle_image_from_xml_or_api(message, content_segments, channel_id)
+                await self._handle_image_from_xml_or_api(
+                    message, content_segments, channel_id
+                )
         elif message.message_type == MessageType.VOICE:
             # 处理语音消息，参考OneBot V11模式
             logger.debug(f"处理语音消息: {message.actual_content[:100]}...")
@@ -448,23 +488,31 @@ class WeChatRealtimeProcessor:
                     if parsed_xml["type"] == "voice" and parsed_xml.get("length"):
                         voice_length_ms = int(parsed_xml["length"])
                         voice_length_sec = voice_length_ms / 1000.0
-                        content_segments.append(ChatMessageSegment(
-                            type=ChatMessageSegmentType.TEXT,
-                            text=f"[语音] {voice_length_sec:.1f}秒 (有数据)"
-                        ))
+                        content_segments.append(
+                            ChatMessageSegment(
+                                type=ChatMessageSegmentType.TEXT,
+                                text=f"[语音] {voice_length_sec:.1f}秒 (有数据)",
+                            )
+                        )
                         logger.info(f"✅ 语音消息包含数据: {voice_length_sec:.1f}秒")
                     else:
-                        content_segments.append(ChatMessageSegment(
-                            type=ChatMessageSegmentType.TEXT,
-                            text="[语音] (有数据)"
-                        ))
+                        content_segments.append(
+                            ChatMessageSegment(
+                                type=ChatMessageSegmentType.TEXT,
+                                text="[语音] (有数据)",
+                            )
+                        )
                 except Exception as e:
                     logger.warning(f"处理语音数据失败: {e}")
                     # 回退到XML解析模式
-                    await self._handle_voice_from_xml_or_api(message, content_segments, channel_id)
+                    await self._handle_voice_from_xml_or_api(
+                        message, content_segments, channel_id
+                    )
             else:
                 # 回退到XML解析模式，尝试使用API下载语音文件
-                await self._handle_voice_from_xml_or_api(message, content_segments, channel_id)
+                await self._handle_voice_from_xml_or_api(
+                    message, content_segments, channel_id
+                )
         elif message.message_type == MessageType.EMOJI:
             # 处理表情消息，参考OneBot V11模式
             logger.debug(f"处理表情消息: {message.actual_content[:100]}...")
@@ -482,28 +530,34 @@ class WeChatRealtimeProcessor:
                         url=emoji_url,
                         from_chat_key=channel_id,
                         file_name=f"emoji{suffix}",
-                        use_suffix=suffix
+                        use_suffix=suffix,
                     )
                     content_segments.append(emoji_segment)
                     logger.info("✅ 表情消息段创建成功")
                 except Exception as e:
                     logger.warning(f"创建表情消息段失败: {e}")
-                    content_segments.append(ChatMessageSegment(
-                        type=ChatMessageSegmentType.TEXT,
-                        text="[表情]"
-                    ))
+                    content_segments.append(
+                        ChatMessageSegment(
+                            type=ChatMessageSegmentType.TEXT,
+                            text="[表情]",
+                        )
+                    )
             else:
                 # 回退到文本模式
-                content_segments.append(ChatMessageSegment(
-                    type=ChatMessageSegmentType.TEXT,
-                    text="[表情]"
-                ))
+                content_segments.append(
+                    ChatMessageSegment(
+                        type=ChatMessageSegmentType.TEXT,
+                        text="[表情]",
+                    )
+                )
         else:
             # 其他类型消息，使用原始内容
-            content_segments.append(ChatMessageSegment(
-                type=ChatMessageSegmentType.TEXT,
-                text=message.actual_content
-            ))
+            content_segments.append(
+                ChatMessageSegment(
+                    type=ChatMessageSegmentType.TEXT,
+                    text=message.actual_content,
+                )
+            )
 
         # 构造平台消息
         platform_message = PlatformMessage(
@@ -520,9 +574,13 @@ class WeChatRealtimeProcessor:
         )
 
         # 提交消息到收集器
-        await collect_message(self.adapter, platform_channel, platform_user, platform_message)
+        await collect_message(
+            self.adapter, platform_channel, platform_user, platform_message
+        )
 
-        nekro_logger.info(f"实时消息已转发: [{channel_id}] {message.sender_name}: {message.actual_content}")
+        logger.info(
+            f"实时消息已转发: [{channel_id}] {message.sender_name}: {message.actual_content}"
+        )
 
     async def start(self):
         """开始实时消息处理（带自动重连）"""
@@ -586,7 +644,8 @@ class WeChatRealtimeProcessor:
                 try:
                     # 使用超时等待消息
                     raw_message = await asyncio.wait_for(
-                        websocket.recv(), timeout=wait_time
+                        websocket.recv(),
+                        timeout=wait_time,
                     )
 
                     logger.info(f"📨 收到原始消息: {raw_message[:200]}...")
@@ -612,14 +671,16 @@ class WeChatRealtimeProcessor:
             # 解析消息
             message = self._parse_message(raw_message)
             if message:
-                logger.info(f"✅ 消息解析成功: {message.from_user} -> {message.content[:50]}...")
+                logger.info(
+                    f"✅ 消息解析成功: {message.from_user} -> {message.content[:50]}..."
+                )
                 # 处理消息
                 await self._process_message(message)
             else:
                 logger.warning(f"❌ 无法解析消息: {raw_message}")
         except Exception as e:
             logger.error(f"❌ 异步处理消息失败: {e}")
-    
+
             logger.error(f"堆栈跟踪: {traceback.format_exc()}")
 
     async def stop(self):
@@ -637,7 +698,9 @@ class WeChatRealtimeProcessor:
         """获取统计信息"""
         if self.start_time:
             running_time = datetime.now() - self.start_time
-            messages_per_minute = self.message_count / max(running_time.total_seconds() / 60, 1)
+            messages_per_minute = self.message_count / max(
+                running_time.total_seconds() / 60, 1
+            )
         else:
             running_time = None
             messages_per_minute = 0
@@ -648,7 +711,7 @@ class WeChatRealtimeProcessor:
             "start_time": self.start_time.isoformat() if self.start_time else None,
             "running_time_seconds": running_time.total_seconds() if running_time else 0,
             "messages_per_minute": round(messages_per_minute, 2),
-            "handlers_count": len(self.handlers)
+            "handlers_count": len(self.handlers),
         }
 
     async def _get_group_name(self, group_id: str) -> str:
@@ -665,19 +728,18 @@ class WeChatRealtimeProcessor:
                 # 根据API文档，群名应该在返回的数据中
                 # 需要根据实际API响应结构调整字段名
                 group_name = (
-                    response.get("ChatRoomName") or
-                    response.get("chatroomName") or
-                    response.get("name") or
-                    group_id  # 如果都没有，使用群ID作为备选
+                    response.get("ChatRoomName")
+                    or response.get("chatroomName")
+                    or response.get("name")
+                    or group_id  # 如果都没有，使用群ID作为备选
                 )
 
                 # 缓存结果
                 self._group_name_cache[group_id] = group_name
                 logger.debug(f"获取群名成功: {group_id} -> {group_name}")
                 return group_name
-            else:
-                logger.warning(f"获取群聊信息返回空数据: {group_id}")
-                return group_id
+            logger.warning(f"获取群聊信息返回空数据: {group_id}")
+            return group_id
 
         except Exception as e:
             logger.warning(f"获取群名失败: {group_id}, 错误: {e}")
@@ -685,13 +747,15 @@ class WeChatRealtimeProcessor:
             self._group_name_cache[group_id] = group_id
             return group_id
 
-    async def _handle_image_from_xml_or_api(self, message: WeChatMessage, content_segments: list, channel_id: str):
+    async def _handle_image_from_xml_or_api(
+        self, message: WeChatMessage, content_segments: list, channel_id: str
+    ):
         """处理图片消息：从 XML 解析或使用 API 下载"""
         parsed_xml = self._parse_xml_content(message.actual_content)
 
         if parsed_xml["type"] == "image":
             # 尝试使用 API 下载高清图片
-            if hasattr(message, 'msg_id') and message.msg_id and self.adapter:
+            if hasattr(message, "msg_id") and message.msg_id and self.adapter:
                 try:
                     logger.debug(f"尝试使用API下载高清图片: msg_id={message.msg_id}")
 
@@ -700,18 +764,21 @@ class WeChatRealtimeProcessor:
                         msg_id=message.msg_id,
                         from_user=message.sender_wxid,
                         to_user=message.receiver_wxid,
-                        total_len=parsed_xml.get("length", 0) or 100000  # 默认大小
+                        total_len=parsed_xml.get("length", 0) or 100000,  # 默认大小
                     )
 
                     if img_data and "Data" in img_data:
                         # 将下载的数据转换为 base64
                         import base64
+
                         base64_data = f"data:image/jpeg;base64,{base64.b64encode(img_data['Data']).decode()}"
 
-                        image_segment = await ChatMessageSegmentImage.create_from_base64(
-                            base64_data,
-                            from_chat_key=channel_id,
-                            file_name="image.jpg"
+                        image_segment = (
+                            await ChatMessageSegmentImage.create_from_base64(
+                                base64_data,
+                                from_chat_key=channel_id,
+                                file_name="image.jpg",
+                            )
                         )
                         content_segments.append(image_segment)
                         logger.info("✅ 使用API下载高清图片成功")
@@ -728,7 +795,7 @@ class WeChatRealtimeProcessor:
                         url=parsed_xml["url"],
                         from_chat_key=channel_id,
                         file_name=f"image{suffix}",
-                        use_suffix=suffix
+                        use_suffix=suffix,
                     )
                     content_segments.append(image_segment)
                     logger.info("✅ 从 URL 创建图片消息段成功")
@@ -737,28 +804,38 @@ class WeChatRealtimeProcessor:
                     logger.warning(f"从 URL 创建图片消息段失败: {e}")
 
         # 最后的回退方案
-        content_segments.append(ChatMessageSegment(
-            type=ChatMessageSegmentType.TEXT,
-            text="[图片]"
-        ))
+        content_segments.append(
+            ChatMessageSegment(
+                type=ChatMessageSegmentType.TEXT,
+                text="[图片]",
+            )
+        )
 
-    async def _handle_voice_from_xml_or_api(self, message: WeChatMessage, content_segments: list, channel_id: str):
+    async def _handle_voice_from_xml_or_api(
+        self, message: WeChatMessage, content_segments: list, channel_id: str
+    ):
         """处理语音消息：从 XML 解析或使用 API 下载"""
         parsed_xml = self._parse_xml_content(message.actual_content)
 
         if parsed_xml["type"] == "voice":
             # 尝试使用 API 下载语音文件
-            if (hasattr(message, 'new_msg_id') and message.new_msg_id and
-                parsed_xml.get("url") and self.adapter):
+            if (
+                hasattr(message, "new_msg_id")
+                and message.new_msg_id
+                and parsed_xml.get("url")
+                and self.adapter
+            ):
                 try:
-                    logger.debug(f"尝试使用API下载语音文件: new_msg_id={message.new_msg_id}")
+                    logger.debug(
+                        f"尝试使用API下载语音文件: new_msg_id={message.new_msg_id}"
+                    )
 
                     # 使用 WeChatPad API 下载语音文件
                     voice_data = await self.adapter.http_client.get_msg_voice(
                         new_msg_id=message.new_msg_id,
                         to_user=message.receiver_wxid,
                         bufid=parsed_xml.get("url", ""),
-                        length=parsed_xml.get("length", 0) or 1000
+                        length=parsed_xml.get("length", 0) or 1000,
                     )
 
                     if voice_data and "Data" in voice_data:
@@ -769,10 +846,12 @@ class WeChatRealtimeProcessor:
                         # 目前仍然显示文本信息
                         voice_length_ms = int(parsed_xml.get("length", 0))
                         voice_length_sec = voice_length_ms / 1000.0
-                        content_segments.append(ChatMessageSegment(
-                            type=ChatMessageSegmentType.TEXT,
-                            text=f"[语音] {voice_length_sec:.1f}秒 (已下载)"
-                        ))
+                        content_segments.append(
+                            ChatMessageSegment(
+                                type=ChatMessageSegmentType.TEXT,
+                                text=f"[语音] {voice_length_sec:.1f}秒 (已下载)",
+                            )
+                        )
                         logger.info("✅ 使用API下载语音文件成功")
                         return
 
@@ -784,25 +863,30 @@ class WeChatRealtimeProcessor:
                 try:
                     voice_length_ms = int(parsed_xml["length"])
                     voice_length_sec = voice_length_ms / 1000.0
-                    content_segments.append(ChatMessageSegment(
-                        type=ChatMessageSegmentType.TEXT,
-                        text=f"[语音] {voice_length_sec:.1f}秒"
-                    ))
+                    content_segments.append(
+                        ChatMessageSegment(
+                            type=ChatMessageSegmentType.TEXT,
+                            text=f"[语音] {voice_length_sec:.1f}秒",
+                        )
+                    )
                     logger.debug(f"语音消息: {voice_length_sec:.1f}秒")
                     return
                 except (ValueError, TypeError):
                     pass
 
         # 最后的回退方案
-        content_segments.append(ChatMessageSegment(
-            type=ChatMessageSegmentType.TEXT,
-            text="[语音]"
-        ))
+        content_segments.append(
+            ChatMessageSegment(
+                type=ChatMessageSegmentType.TEXT,
+                text="[语音]",
+            )
+        )
 
 
 # 便捷函数
 async def create_simple_text_handler(keywords: list[str], response_callback: Callable):
     """创建简单的文本消息处理器"""
+
     async def handle_text_message(message: WeChatMessage):
         await response_callback(message)
 
@@ -811,6 +895,7 @@ async def create_simple_text_handler(keywords: list[str], response_callback: Cal
 
 async def create_echo_handler():
     """创建回显处理器（用于调试）"""
+
     async def echo_message(message: WeChatMessage):
         print(f"[{message.create_datetime}] {message.sender_name}: {message.content}")
 
