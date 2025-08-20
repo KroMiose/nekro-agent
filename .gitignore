@@ -177,3 +177,6 @@ static
 
 # Trae files
 .vercel
+
+# local
+**.local.md
