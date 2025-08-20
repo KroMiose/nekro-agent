@@ -152,12 +152,29 @@ SEND_FILE_CACHE: Dict[str, List[str]] = {}  # 文件 MD5 缓存，格式: {chat_
 async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_msg_id: Optional[str] = None):
     """发送聊天消息文本
 
-    Attention: Do not expose any unnecessary technical id or key in the message content.
+    Attention:
+        1. Do not expose any unnecessary technical id or key in the message content.
+        2. You can always send messages that are confident in the content, not content that you don't even know what it will be.
 
     Args:
         chat_key (str): 聊天频道标识
         message_text (str): 消息内容
         ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
+
+    Example:
+        # Send some valid message
+        send_msg_text(_ck, f"Hello, 1 + 1 = {1+1}")  # You can predict the result of the calculation
+
+        # Bad Example:
+        try:
+            ... # Do something
+        except Exception as e:
+            send_msg_text(_ck, f"Error: {e}")  # You can't send error message directly, because you can't be sure about the content.
+
+        # Good Example:
+        ... # Just do something **WITHOUT ANY TRY-EXCEPT BLOCK**! You have the opportunity to debug and fix it only if you let the error happen directly instead of covering it up.
+        result = ... # Always use the right result, not the error message.
+        send_msg_text(_ck, f"Result: {result}")  # You can send the result of the calculation directly.
     """
     global SEND_MSG_CACHE
 

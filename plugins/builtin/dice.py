@@ -306,7 +306,7 @@ async def probability_wheel(
 
     for choice, probability in sorted_probs:
         if probability > 0:  # 只显示概率大于0的事件
-            marker = "🎯" if choice == selected_choice else "  "
+            marker = "🎯" if choice == selected_choice else "📦"
             percentage = (probability / total_probability) * 100
             probability_lines.append(f"{marker} {choice}: {percentage:.1f}%")
 
