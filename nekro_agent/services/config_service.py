@@ -373,6 +373,41 @@ class UnifiedConfigService:
             return True, None
 
     @staticmethod
+    def reset_config(config_key: str) -> Tuple[bool, Optional[str]]:
+        """重置指定配置为默认值
+
+        Args:
+            config_key: 配置键
+
+        Returns:
+            Tuple[bool, Optional[str]]: (是否成功, 错误消息)
+        """
+        try:
+            config_obj = UnifiedConfigService._get_config_instance(config_key)
+            if not config_obj:
+                return False, f"配置实例不存在: {config_key}"
+
+            # 创建一个新的配置实例以获取默认值
+            defaults = config_obj.__class__()
+
+            # 将当前配置重置为默认值
+            for key in config_obj.model_fields:
+                setattr(config_obj, key, getattr(defaults, key))
+
+            # 保存重置后的配置
+            success, error_msg = ConfigService.save_config(config_obj)
+            if not success:
+                return False, error_msg
+
+            # 重新加载到env
+            config_obj.load_config_to_env()
+
+            return True, None
+        except Exception as e:
+            logger.error(f"重置配置为默认值失败: {config_key}, 错误: {e}")
+            return False, str(e)
+
+    @staticmethod
     def get_all_config_keys() -> List[str]:
         """获取所有已注册的配置键"""
         return ConfigManager.get_all_config_keys()

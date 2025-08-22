@@ -60,6 +60,11 @@ export const unifiedConfigApi = {
     await axios.post(`/config/reload/${configKey}`)
   },
 
+  // 重置指定配置为默认值
+  resetConfig: async (configKey: string): Promise<void> => {
+    await axios.post(`/config/reset/${configKey}`)
+  },
+
   // 获取模型组列表（兼容性API）
   getModelGroups: async (): Promise<Record<string, ModelGroupConfig>> => {
     const response = await axios.get<{ data: Record<string, ModelGroupConfig> }>(
@@ -102,6 +107,7 @@ export const createConfigService = (configKey: string) => ({
     unifiedConfigApi.batchUpdateConfig(key || configKey, configs),
   saveConfig: (key: string = configKey) => unifiedConfigApi.saveConfig(key),
   reloadConfig: (key: string = configKey) => unifiedConfigApi.reloadConfig(key),
+  resetConfig: (key: string = configKey) => unifiedConfigApi.resetConfig(key),
 })
 
 export default unifiedConfigApi

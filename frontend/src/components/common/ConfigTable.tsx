@@ -127,6 +127,7 @@ export interface ConfigService {
   batchUpdateConfig: (configKey: string, configs: Record<string, string>) => Promise<void>
   saveConfig: (configKey: string) => Promise<void>
   reloadConfig: (configKey: string) => Promise<void>
+  resetConfig: (configKey: string) => Promise<void>
 }
 
 interface ExpandedRowsState {
@@ -834,6 +835,7 @@ export default function ConfigTable({
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set())
   const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({})
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false)
   const [saveWarningOpen, setSaveWarningOpen] = useState(false)
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
@@ -964,13 +966,27 @@ export default function ConfigTable({
   const handleReloadConfig = async () => {
     try {
       await configService.reloadConfig(configKey)
-      notification.success('配置已重载')
+      notification.success('配置已从文件重载')
       setReloadConfirmOpen(false)
       setEditingValues({})
       setDirtyKeys(new Set())
       onRefresh?.()
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '重载失败'
+      notification.error(errorMessage)
+    }
+  }
+
+  const handleResetConfig = async () => {
+    try {
+      await configService.resetConfig(configKey)
+      notification.success('配置已重置为默认值')
+      setResetConfirmOpen(false)
+      setEditingValues({})
+      setDirtyKeys(new Set())
+      onRefresh?.()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : '重置失败'
       notification.error(errorMessage)
     }
   }
@@ -1319,7 +1335,16 @@ export default function ConfigTable({
                 onClick={() => setReloadConfirmOpen(true)}
                 startIcon={<RefreshIcon />}
               >
-                重置配置
+                重载配置
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                size="small"
+                onClick={() => setResetConfirmOpen(true)}
+                startIcon={<RestartIcon />}
+              >
+                重置为默认
               </Button>
             </Stack>
           </Stack>
@@ -1508,9 +1533,16 @@ export default function ConfigTable({
       <ConfirmDialog
         open={reloadConfirmOpen}
         onClose={() => setReloadConfirmOpen(false)}
-        title="确认重置配置"
-        content="重置配置将丢失所有未保存的修改，是否继续？"
+        title="确认重载配置"
+        content="从文件重载配置将丢失所有未保存的修改，是否继续？"
         onConfirm={handleReloadConfig}
+      />
+      <ConfirmDialog
+        open={resetConfirmOpen}
+        onClose={() => setResetConfirmOpen(false)}
+        title="确认重置配置"
+        content="重置配置为默认值将丢失所有自定义修改，且操作不可逆，是否继续？"
+        onConfirm={handleResetConfig}
       />
       <ConfirmDialog
         open={saveWarningOpen}
