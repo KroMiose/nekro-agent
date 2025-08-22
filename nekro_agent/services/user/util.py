@@ -81,8 +81,6 @@ async def user_login(data: UserLogin) -> UserToken:
 
 
 async def user_change_password(user: DBUser, new_password: str) -> Ret:
-    if user.username == "admin":
-        return Ret.fail("请在.env文件中修改管理员密码或修改NEKRO_ADMIN_PASSWORD环境变量")
     try:
         user.password = get_hashed_password(new_password)
         await user.save()
