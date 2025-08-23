@@ -13,11 +13,18 @@
 此插件主要由 AI 在后台根据特定情况自动调用，例如，当用户在与 AI 的互动中表现出色时，AI 可能会决定授予其一个头衔作为奖励。
 """
 
+from typing import List
+
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.api import core
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
@@ -25,8 +32,8 @@ from nekro_agent.schemas.chat_message import ChatType
 plugin = NekroPlugin(
     name="群荣誉插件",
     module_name="group_honor",
-    description="提供群荣誉功能，支持设置用户特殊头衔",
-    version="0.1.0",
+    description="提供群荣誉功能，支持设置用户群组头衔",
+    version="0.2.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
@@ -38,10 +45,41 @@ class GroupHonorConfig(ConfigBase):
     """群荣誉配置"""
 
     MAX_TITLE_LENGTH: int = Field(default=6, title="最大头衔长度")
+    ALLOW_GROUPS: List[str] = Field(
+        default=[],
+        title="允许使用头衔管理功能的群组列表",
+        description="如果为空，则允许所有群组使用头衔管理功能",
+        json_schema_extra=ExtraField(sub_item_name="群组").model_dump(),
+    )
+    PROTECTED_USER_IDS: List[str] = Field(
+        default=[],
+        title="受保护的用户 QQ 列表",
+        description="受保护的用户无法被授予头衔",
+        json_schema_extra=ExtraField(sub_item_name="QQ").model_dump(),
+    )
+    BLOCK_KEYWORDS: List[str] = Field(
+        default=["管理员", "群主"],
+        title="禁止使用的关键词",
+        json_schema_extra=ExtraField(sub_item_name="关键词").model_dump(),
+    )
 
 
 # 获取配置
 config = plugin.get_config(GroupHonorConfig)
+
+
+@plugin.mount_prompt_inject_method(name="group_honor_prompt_inject")
+async def group_honor_prompt_inject(_ctx: AgentCtx):
+    """群荣誉提示注入"""
+
+    if len(config.ALLOW_GROUPS) == 0:
+        return "状态: 群头衔管理功能在当前聊天可用"
+
+    group_id = _ctx.chat_key.split("_")[1]
+    if group_id in config.ALLOW_GROUPS:
+        return "状态: 群头衔管理功能在当前聊天可用"
+
+    return "状态: 群头衔管理功能在当前聊天不可用"
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "赋予用户头衔称号")
@@ -60,6 +98,13 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
     chat_type = db_chat_channel.chat_type
     chat_id = db_chat_channel.channel_id
+
+    if user_qq in config.PROTECTED_USER_IDS:
+        raise ValueError("用户头衔受保护，无法变更")
+
+    for keyword in config.BLOCK_KEYWORDS:
+        if keyword in special_title:
+            raise ValueError(f"头衔中包含禁止使用的关键词: {keyword}")
 
     if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
@@ -85,6 +130,20 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
         return False
     else:
         return True
+
+
+@plugin.mount_collect_methods()
+async def collect_available_methods(_ctx: AgentCtx):
+    """根据适配器收集可用方法"""
+
+    if len(config.ALLOW_GROUPS) == 0:
+        return [set_user_special_title]
+
+    group_id = _ctx.chat_key.split("_")[1]
+    if group_id in config.ALLOW_GROUPS:
+        return [set_user_special_title]
+
+    return []
 
 
 @plugin.mount_cleanup_method()
