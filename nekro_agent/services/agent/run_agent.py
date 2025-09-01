@@ -197,11 +197,25 @@ async def run_agent(
             ExecStopType.AGENT: "Sandbox exited due to agent method",
             ExecStopType.MULTIMODAL_AGENT: "Sandbox exited due to multimodal agent method",
         }
+
+        # 异常处理建议
+        exception_suggestion_map: Dict[str, str] = {
+            "SyntaxError": "You are prohibited from adding anything other than the content of the code that might break the syntax of the code. Please ensure your output specification and try again",
+        }
+
+        new_message_notification = "During the generation and execution, the following messages were sent (You **CANT NOT** send any messages which you have sent before!):"
+
         if stop_type in exception_reason_map:
+            for suggestion_key in exception_suggestion_map:
+                if suggestion_key in sandbox_output:
+                    suggestion_text = f"\nResolve Suggestion: {exception_suggestion_map[suggestion_key]}"
+                    break
+            else:
+                suggestion_text = ""
             msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
-                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}. During the generation and execution, the following messages were sent (You **CANT NOT** send any messages which you have sent before!):\n",
+                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}\n{suggestion_text}. {new_message_notification}",
                 ),
             )
 
@@ -210,7 +224,7 @@ async def run_agent(
             msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
-                    "\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry.",
+                    f"\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry. {new_message_notification}",
                 ),
             )
 
@@ -225,6 +239,7 @@ async def run_agent(
                 config=config,
             ),
         )
+
         msg = msg.extend(
             OpenAIChatMessage.from_text(
                 "user",
