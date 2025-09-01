@@ -7,6 +7,7 @@ from nekro_agent.tools.common_util import (
     download_file,
     download_file_from_base64,
     download_file_from_bytes,
+    limited_text_output,
 )
 
 from .path_convertor import (
@@ -166,7 +167,16 @@ class FileSystem:
                 file_path, file_name = await download_file(file, from_chat_key=self.chat_key, file_name=file_name)
             elif file.startswith("data:"):
                 file_path, file_name = await download_file_from_base64(file, from_chat_key=self.chat_key, file_name=file_name)
-        elif isinstance(file, bytes):
+            else:
+                try:  # 普通字符串路径，验证并转换为 Path 对象处理
+                    path_obj = Path(file)
+                    if not path_obj.exists():
+                        raise FileNotFoundError(f"文件不存在: {limited_text_output(file)}")
+                    file = path_obj
+                except (ValueError, OSError) as e:
+                    raise ValueError(f"无效的文件路径: {limited_text_output(file)}") from e
+
+        if isinstance(file, bytes):
             file_path, file_name = await download_file_from_bytes(file, from_chat_key=self.chat_key, file_name=file_name)
         elif isinstance(file, Path):
             if file.is_relative_to(self.shared_path):
@@ -178,4 +188,5 @@ class FileSystem:
                 file_path = self.shared_path / file.name
         else:
             raise TypeError(f"不支持的文件类型: {type(file)}")
+
         return self.forward_file(file_path)
