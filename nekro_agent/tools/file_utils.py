@@ -187,6 +187,7 @@ class FileSystem:
                 shutil.copy(file, self.shared_path / file.name)
                 file_path = self.shared_path / file.name
         else:
-            raise TypeError(f"不支持的文件类型: {type(file)}")
+            if not isinstance(file, str):
+                raise TypeError(f"不支持的文件类型: {type(file)}")
 
         return self.forward_file(file_path)
