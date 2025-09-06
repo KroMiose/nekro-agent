@@ -42,6 +42,7 @@ class DrawConfig(ConfigBase):
         title="启用多图输入参考",
         description="仅在聊天模式下有效，允许AI使用多张参考图片来生成新图片。推荐使用 gemini-2.5-flash-image-preview 等高一致性模型。",
     )
+    MAX_IMAGE_NUM: int = Field(default=5, title="最大参考图片数量", description="允许的最大参考图片数量", ge=1)
     TIMEOUT: int = Field(default=300, title="绘图超时时间", description="单位: 秒")
     NEGATIVE_PROMPT: str = Field(
         default="((blurred)), ((disorderly)), ((bad art)), ((morbid)), ((Luminous)), out of frame, not clear, overexposure, lens flare, bokeh, jpeg artifacts, glowing light, (low quality:2.0),((black color)), shadowlowers, bad anatomy, ((bad hands)), (worst quality:2), (low quality:2), (normal quality:2), lowres, bad anatomy, text",

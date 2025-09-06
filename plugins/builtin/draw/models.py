@@ -2,6 +2,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from .plugin import config
+
 
 class ImageReference(BaseModel):
     """图片参考信息"""
@@ -25,8 +27,8 @@ class MultiImageDrawRequest(BaseModel):
 
     def validate_images(self) -> None:
         """验证图片数量"""
-        if len(self.reference_images) > 5:
-            raise ValueError("最多支持5张参考图片")
+        if len(self.reference_images) > config.MAX_IMAGE_NUM:
+            raise ValueError(f"最多支持{config.MAX_IMAGE_NUM}张参考图片")
         if len(self.reference_images) == 0:
             raise ValueError("至少需要1张参考图片")
 
