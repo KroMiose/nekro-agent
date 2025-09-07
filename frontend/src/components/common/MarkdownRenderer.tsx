@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react'
+import React from 'react'
 import { Box, useTheme, Link, SxProps, Theme } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -7,12 +7,12 @@ import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import { useColorMode } from '../../stores/theme'
 
-// 将常用的插件数组提取为常量，避免每次渲染都创建新数组
+// 将插件数组提取为模块级常量
 const REMARK_PLUGINS = [remarkGfm]
 const REHYPE_PLUGINS = [rehypeRaw]
 
-// 优化样式函数，使用更高效的样式生成
-const createMarkdownStyles = (theme: Theme): SxProps<Theme> => ({
+// 样式函数，保持简洁
+const markdownStyles = (theme: Theme): SxProps<Theme> => ({
   '& h1': {
     fontSize: '1.75rem',
     fontWeight: 600,
@@ -202,6 +202,7 @@ interface MarkdownRendererProps {
   enableSyntaxHighlight?: boolean
   /**
    * 是否启用HTML渲染（默认：true）
+   * ⚠️ 安全警告：启用HTML渲染可能存在XSS风险，请确保内容来源可信
    */
   enableHtml?: boolean
   /**
@@ -210,130 +211,73 @@ interface MarkdownRendererProps {
   className?: string
 }
 
-// 代码组件单独抽离，提升性能
-interface CodeComponentProps {
-  inline?: boolean
-  className?: string
-  children?: React.ReactNode
-  enableSyntaxHighlight: boolean
-  syntaxStyle: any
-}
-
-const CodeComponent = memo<CodeComponentProps>(({ 
-  inline, 
-  className, 
-  children, 
-  enableSyntaxHighlight,
-  syntaxStyle,
-  ...props 
-}) => {
-  const match = /language-(\w+)/.exec(className || '')
-  
-  if (!inline && match && enableSyntaxHighlight) {
-    return (
-      <SyntaxHighlighter
-        style={syntaxStyle}
-        language={match[1]}
-        PreTag="div"
-        {...props}
-      >
-        {String(children).replace(/\n$/, '')}
-      </SyntaxHighlighter>
-    )
-  }
-  
-  return (
-    <code className={className} {...props}>
-      {children}
-    </code>
-  )
-})
-CodeComponent.displayName = 'CodeComponent'
-
-// 链接组件单独抽离
-interface LinkComponentProps {
-  href?: string
-  children?: React.ReactNode
-}
-
-const LinkComponent = memo<LinkComponentProps>(({ href, children }) => (
-  <Link 
-    href={href} 
-    target="_blank" 
-    rel="noopener noreferrer"
-  >
-    {children}
-  </Link>
-))
-LinkComponent.displayName = 'LinkComponent'
-
-const MarkdownRenderer = memo<MarkdownRendererProps>(({
+export default function MarkdownRenderer({
   children,
   sx,
   enableSyntaxHighlight = true,
   enableHtml = true,
   className
-}) => {
+}: MarkdownRendererProps) {
   const theme = useTheme()
   const { mode } = useColorMode()
   
-  // 使用 useMemo 缓存样式，避免每次渲染都重新计算
-  const markdownStyles = useMemo(
-    () => createMarkdownStyles(theme),
-    [theme]
-  )
-  
-  // 使用 useMemo 缓存语法高亮样式
-  const syntaxStyle = useMemo(
-    () => mode === 'dark' ? vscDarkPlus : oneLight,
-    [mode]
-  )
-  
-  // 使用 useMemo 缓存组件配置，避免每次渲染都创建新对象
-  const markdownComponents = useMemo(
-    () => ({
-      code: (props: any) => (
-        <CodeComponent
-          {...props}
-          enableSyntaxHighlight={enableSyntaxHighlight}
-          syntaxStyle={syntaxStyle}
-        />
-      ),
-      a: LinkComponent,
-    }),
-    [enableSyntaxHighlight, syntaxStyle]
-  )
-  
-  // 使用 useMemo 缓存插件配置
-  const plugins = useMemo(
-    () => ({
-      remarkPlugins: REMARK_PLUGINS,
-      rehypePlugins: enableHtml ? REHYPE_PLUGINS : undefined,
-    }),
-    [enableHtml]
-  )
-  
-  // 使用 useMemo 缓存最终样式
-  const finalStyles = useMemo(
-    () => [markdownStyles, ...(Array.isArray(sx) ? sx : [sx])],
-    [markdownStyles, sx]
-  )
+  const markdownComponents = {
+    code({ inline, className, children, ...props }: {
+      inline?: boolean
+      className?: string
+      children?: React.ReactNode
+    }) {
+      const match = /language-(\w+)/.exec(className || '')
+      
+      if (!inline && match && enableSyntaxHighlight) {
+        return (
+          <SyntaxHighlighter
+            style={mode === 'dark' ? vscDarkPlus : oneLight}
+            language={match[1]}
+            PreTag="div"
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        )
+      }
+      
+      return (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    },
+    
+    // 修复 Link 组件，转发所有 props
+    a: ({ href, children, ...props }: {
+      href?: string
+      children?: React.ReactNode
+      [key: string]: any
+    }) => (
+      <Link 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        {...props}
+      >
+        {children}
+      </Link>
+    ),
+  }
 
   return (
     <Box 
       className={className}
-      sx={finalStyles}
+      sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}
     >
       <ReactMarkdown 
         components={markdownComponents}
-        remarkPlugins={plugins.remarkPlugins}
-        rehypePlugins={plugins.rehypePlugins}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={enableHtml ? REHYPE_PLUGINS : undefined}
       >
         {children}
       </ReactMarkdown>
     </Box>
   )
-})
-MarkdownRenderer.displayName = 'MarkdownRenderer'
-
-export default MarkdownRenderer
+}
