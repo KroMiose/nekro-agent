@@ -37,6 +37,8 @@ import {
   Drawer,
   Fab,
   ListItemButton,
+  Menu,
+  MenuItem,
 } from '@mui/material'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
 import {
@@ -59,6 +61,7 @@ import {
   Link as LinkIcon,
   Category as CategoryIcon,
   Bookmark as BookmarkIcon,
+  MoreVert as MoreVertIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
@@ -97,6 +100,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [deleteDataConfirmOpen, setDeleteDataConfirmOpen] = useState(false)
   const [deleteDataId, setDeleteDataId] = useState<number | null>(null)
   const [clearDataOnDelete, setClearDataOnDelete] = useState(false) // 新增：删除时是否清除数据的状态
+  const [moreMenuAnchorEl, setMoreMenuAnchorEl] = useState<null | HTMLElement>(null) // 更多操作菜单锚点
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -362,47 +366,129 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
           {/* 操作按钮组 */}
           <Stack direction="row" spacing={1} sx={{ pl: 2, flexShrink: 0 }}>
-            {!plugin.isBuiltin && (
-              <Button
-                variant="outlined"
-                startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
-                onClick={() =>
-                  plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
-                }
-                color={plugin.isPackage ? 'error' : 'warning'}
-                size="small"
-              >
-                {plugin.isPackage ? '删除' : '编辑'}
-              </Button>
+            {isMobile ? (
+              // 移动端：只显示更多操作按钮
+              <>
+                <IconButton
+                  size="small"
+                  onClick={(event) => setMoreMenuAnchorEl(event.currentTarget)}
+                  sx={{ border: 1, borderColor: 'divider' }}
+                >
+                  <MoreVertIcon />
+                </IconButton>
+                <Menu
+                  anchorEl={moreMenuAnchorEl}
+                  open={Boolean(moreMenuAnchorEl)}
+                  onClose={() => setMoreMenuAnchorEl(null)}
+                  transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                  anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                >
+                  {!plugin.isBuiltin && (
+                    <MenuItem
+                      onClick={() => {
+                        if (plugin.isPackage) {
+                          setDeleteConfirmOpen(true)
+                        } else {
+                          handleNavigateToEditor()
+                        }
+                        setMoreMenuAnchorEl(null)
+                      }}
+                      sx={{ color: plugin.isPackage ? 'error.main' : 'warning.main' }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {plugin.isPackage ? <DeleteIcon fontSize="small" /> : <EditIcon fontSize="small" />}
+                        {plugin.isPackage ? '删除' : '编辑'}
+                      </Box>
+                    </MenuItem>
+                  )}
+                  {plugin.isPackage && (
+                    <MenuItem
+                      onClick={() => {
+                        setUpdateConfirmOpen(true)
+                        setMoreMenuAnchorEl(null)
+                      }}
+                      sx={{ color: 'success.main' }}
+                    >
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <RefreshIcon fontSize="small" />
+                        更新
+                      </Box>
+                    </MenuItem>
+                  )}
+                  <MenuItem
+                    onClick={() => {
+                      setResetDataConfirmOpen(true)
+                      setMoreMenuAnchorEl(null)
+                    }}
+                    sx={{ color: 'warning.main' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <DeleteIcon fontSize="small" />
+                      重置
+                    </Box>
+                  </MenuItem>
+                  <MenuItem
+                    onClick={() => {
+                      setReloadConfirmOpen(true)
+                      setMoreMenuAnchorEl(null)
+                    }}
+                    disabled={plugin.isBuiltin}
+                    sx={{ color: plugin.isBuiltin ? 'text.disabled' : 'primary.main' }}
+                  >
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <RefreshIcon fontSize="small" />
+                      重载
+                    </Box>
+                  </MenuItem>
+                </Menu>
+              </>
+            ) : (
+              // 桌面端：显示所有按钮
+              <>
+                {!plugin.isBuiltin && (
+                  <Button
+                    variant="outlined"
+                    startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
+                    onClick={() =>
+                      plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
+                    }
+                    color={plugin.isPackage ? 'error' : 'warning'}
+                    size="small"
+                  >
+                    {plugin.isPackage ? '删除' : '编辑'}
+                  </Button>
+                )}
+                {plugin.isPackage && (
+                  <Button
+                    variant="outlined"
+                    startIcon={<RefreshIcon />}
+                    onClick={() => setUpdateConfirmOpen(true)}
+                    color="success"
+                    size="small"
+                  >
+                    更新
+                  </Button>
+                )}
+                <Button
+                  variant="outlined"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setResetDataConfirmOpen(true)}
+                  color="warning"
+                  size="small"
+                >
+                  重置
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<RefreshIcon />}
+                  onClick={() => setReloadConfirmOpen(true)}
+                  disabled={plugin.isBuiltin}
+                  size="small"
+                >
+                  重载
+                </Button>
+              </>
             )}
-            {plugin.isPackage && (
-              <Button
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={() => setUpdateConfirmOpen(true)}
-                color="success"
-                size="small"
-              >
-                更新
-              </Button>
-            )}
-            <Button
-              variant="outlined"
-              startIcon={<DeleteIcon />}
-              onClick={() => setResetDataConfirmOpen(true)}
-              color="warning"
-              size="small"
-            >
-              重置
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={() => setReloadConfirmOpen(true)}
-              size="small"
-            >
-              重载
-            </Button>
           </Stack>
         </Box>
       </Card>
