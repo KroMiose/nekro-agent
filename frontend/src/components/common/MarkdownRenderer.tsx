@@ -4,8 +4,14 @@ import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { useColorMode } from '../../stores/theme'
 
+// 将插件数组提取为模块级常量
+const REMARK_PLUGINS = [remarkGfm]
+const REHYPE_PLUGINS = [rehypeRaw]
+
+// 样式函数，保持简洁
 const markdownStyles = (theme: Theme): SxProps<Theme> => ({
   '& h1': {
     fontSize: '1.75rem',
@@ -109,54 +115,167 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
       fontWeight: 600,
     },
   },
+  // HTML 元素样式
+  '& img': {
+    maxWidth: '100%',
+    height: 'auto',
+    borderRadius: '4px',
+    marginBottom: theme.spacing(1),
+  },
+  '& hr': {
+    border: 'none',
+    borderTop: `1px solid ${theme.palette.divider}`,
+    margin: theme.spacing(3, 0),
+  },
+  '& strong, & b': {
+    fontWeight: 600,
+    color: theme.palette.text.primary,
+  },
+  '& em, & i': {
+    fontStyle: 'italic',
+  },
+  '& mark': {
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 235, 59, 0.5)',
+    color: theme.palette.text.primary,
+    padding: '2px 4px',
+    borderRadius: '2px',
+  },
+  '& del': {
+    textDecoration: 'line-through',
+    color: theme.palette.text.disabled,
+  },
+  '& kbd': {
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+    border: `1px solid ${theme.palette.divider}`,
+    borderRadius: '3px',
+    padding: '2px 6px',
+    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+    fontSize: '0.875rem',
+    color: theme.palette.text.primary,
+  },
+  '& sub, & sup': {
+    fontSize: '0.75rem',
+    lineHeight: 0,
+    position: 'relative',
+    verticalAlign: 'baseline',
+  },
+  '& sub': {
+    bottom: '-0.25em',
+  },
+  '& sup': {
+    top: '-0.5em',
+  },
+  '& details': {
+    marginBottom: theme.spacing(2),
+    '& summary': {
+      cursor: 'pointer',
+      fontWeight: 600,
+      color: theme.palette.text.primary,
+      marginBottom: theme.spacing(1),
+      '&:hover': {
+        color: theme.palette.primary.main,
+      },
+    },
+  },
+  // 标准 HTML 元素样式
+  '& div[align="center"]': {
+    textAlign: 'center',
+    margin: theme.spacing(2, 0),
+  },
+  '& center': {
+    display: 'block',
+    textAlign: 'center',
+    margin: theme.spacing(2, 0),
+  },
+  '& u': {
+    textDecoration: 'underline',
+  },
 })
 
 interface MarkdownRendererProps {
   children: string
   sx?: SxProps<Theme>
+  /**
+   * 是否启用语法高亮（默认：true）
+   * 在大文档中禁用可以提升性能
+   */
+  enableSyntaxHighlight?: boolean
+  /**
+   * 是否启用HTML渲染（默认：true）
+   * ⚠️ 安全警告：启用HTML渲染可能存在XSS风险，请确保内容来源可信
+   */
+  enableHtml?: boolean
+  /**
+   * 自定义类名
+   */
+  className?: string
 }
 
-export default function MarkdownRenderer({ children, sx }: MarkdownRendererProps) {
+export default function MarkdownRenderer({
+  children,
+  sx,
+  enableSyntaxHighlight = true,
+  enableHtml = true,
+  className
+}: MarkdownRendererProps) {
   const theme = useTheme()
   const { mode } = useColorMode()
-
+  
   const markdownComponents = {
-    code({
-      inline,
-      className,
-      children,
-      ...props
-    }: {
+    code({ inline, className, children, ...props }: {
       inline?: boolean
       className?: string
       children?: React.ReactNode
     }) {
       const match = /language-(\w+)/.exec(className || '')
-      return !inline && match ? (
-        <SyntaxHighlighter
-          style={mode === 'dark' ? vscDarkPlus : oneLight}
-          language={match[1]}
-          PreTag="div"
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
+      
+      if (!inline && match && enableSyntaxHighlight) {
+        return (
+          <SyntaxHighlighter
+            style={mode === 'dark' ? vscDarkPlus : oneLight}
+            language={match[1]}
+            PreTag="div"
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        )
+      }
+      
+      return (
         <code className={className} {...props}>
           {children}
         </code>
       )
     },
-    a: (props: { href?: string; children?: React.ReactNode }) => (
-      <Link href={props.href} target="_blank" rel="noopener noreferrer">
-        {props.children}
+    
+    // 修复 Link 组件，转发所有 props
+    a: ({ href, children, ...props }: {
+      href?: string
+      children?: React.ReactNode
+      [key: string]: any
+    }) => (
+      <Link 
+        href={href} 
+        target="_blank" 
+        rel="noopener noreferrer"
+        {...props}
+      >
+        {children}
       </Link>
     ),
   }
 
   return (
-    <Box sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}>
-      <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
+    <Box 
+      className={className}
+      sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}
+    >
+      <ReactMarkdown 
+        components={markdownComponents}
+        remarkPlugins={REMARK_PLUGINS}
+        rehypePlugins={enableHtml ? REHYPE_PLUGINS : undefined}
+      >
         {children}
       </ReactMarkdown>
     </Box>
