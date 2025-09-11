@@ -23,10 +23,28 @@ from pydantic import BaseModel
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import CHANNEL_CONFIG_DIR
-from nekro_agent.core.core_utils import ConfigBase, ConfigManager
+from nekro_agent.core.core_utils import ConfigBase, ConfigManager, ExtraField
 from nekro_agent.core.os_env import OsEnv
 
 T = TypeVar("T", bound=ConfigBase)
+
+
+def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
+    """从字段的 json_schema_extra 中提取 ExtraField 定义的字段
+
+    Args:
+        field_json_schema_extra: 字段的 json_schema_extra 字典
+
+    Returns:
+        dict: 提取的额外字段字典
+    """
+    extra_data = {}
+    # 动态获取 ExtraField 中定义的所有字段
+    extra_field_names = list(ExtraField.model_fields.keys())
+    for extra_field in extra_field_names:
+        if field_json_schema_extra.get(extra_field):
+            extra_data[extra_field] = field_json_schema_extra.get(extra_field)
+    return extra_data
 
 
 class ConfigType(str, Enum):
@@ -199,10 +217,7 @@ def _get_model_schema(model_class: Any) -> Dict[str, Any]:
 
         # 添加特殊字段标记
         if hasattr(field, "json_schema_extra") and isinstance(field.json_schema_extra, dict):
-            extra_fields = ["is_secret", "is_textarea", "placeholder","is"]
-            for extra_field in extra_fields:
-                if field.json_schema_extra.get(extra_field):
-                    field_info[extra_field] = field.json_schema_extra.get(extra_field)
+            field_info.update(_extract_extra_fields(field.json_schema_extra))
 
         schema[field_name] = field_info
 
@@ -442,25 +457,7 @@ class ConfigService:
 
             # 添加特殊字段标记
             if hasattr(field, "json_schema_extra") and isinstance(field.json_schema_extra, dict):
-                extra_fields = [
-                    "is_secret",
-                    "is_textarea",
-                    "required",
-                    "is_hidden",
-                    "ref_model_groups",
-                    "model_type",
-                    "sub_item_name",
-                    "enable_toggle",
-                    "overridable",
-                    "load_to_sysenv",
-                    "load_sysenv_as",
-                    "load_to_nonebot_env",
-                    "load_nbenv_as",
-                    "is_need_restart",
-                ]
-                for extra_field in extra_fields:
-                    if field.json_schema_extra.get(extra_field):
-                        config_item[extra_field] = field.json_schema_extra.get(extra_field)
+                config_item.update(_extract_extra_fields(field.json_schema_extra))
 
             # 添加枚举选项
             enum_values = _get_field_enum(field.annotation)

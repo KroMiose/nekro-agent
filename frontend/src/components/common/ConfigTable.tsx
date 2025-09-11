@@ -17,6 +17,7 @@ import {
   Typography,
   Chip,
   Button,
+  Avatar,
   List,
   ListItem,
   Dialog,
@@ -51,6 +52,7 @@ import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
+import { presetsApi, Preset } from '../../services/api/presets'
 
 const HtmlTooltip = ThemedTooltip
 
@@ -87,6 +89,8 @@ export interface ConfigItem {
   is_secret?: boolean
   is_textarea?: boolean
   ref_model_groups?: boolean
+  ref_presets?: boolean
+  ref_presets_multiple?: boolean
   is_hidden?: boolean
   required?: boolean
   model_type?: string
@@ -160,6 +164,10 @@ const getTypeColor = (type: string, isComplex: boolean = false) => {
       return 'primary'
     case 'dict':
       return 'primary'
+    case 'preset':
+      return 'secondary'
+    case 'presets':
+      return 'secondary'
     default:
       return 'default'
   }
@@ -838,6 +846,7 @@ export default function ConfigTable({
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
+  const [presets, setPresets] = useState<Preset[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
@@ -853,6 +862,13 @@ export default function ConfigTable({
           const types = await configService.getModelTypes()
           setModelTypes(types)
         }
+        
+        // 加载人设数据
+        const presetsResponse = await presetsApi.getList({
+          page: 1,
+          page_size: 1000, // 加载所有人设
+        })
+        setPresets(presetsResponse.items)
       } catch (error) {
         console.error('加载模型数据失败:', error)
       }
@@ -863,6 +879,11 @@ export default function ConfigTable({
   const modelTypeMap = useMemo(
     () => Object.fromEntries(modelTypes.map(mt => [mt.value, mt])),
     [modelTypes]
+  )
+
+  const presetMap = useMemo(
+    () => Object.fromEntries(presets.map(preset => [preset.id.toString(), preset])),
+    [presets]
   )
 
   const enableStateMap = useMemo(() => {
@@ -1113,6 +1134,208 @@ export default function ConfigTable({
               {`${typeOption.label}模型组`}
             </Button>
           )}
+        </Box>
+      )
+    }
+
+    if (config.ref_presets_multiple) {
+      // 多人设选择器，rawValue 应该是 JSON 数组字符串
+      let selectedIds: number[] = []
+      try {
+        const parsed = JSON.parse(rawValue || '[]')
+        selectedIds = Array.isArray(parsed) ? parsed : []
+      } catch {
+        selectedIds = []
+      }
+
+      return (
+        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            select
+            value={selectedIds}
+            onChange={e => {
+              const value = e.target.value as unknown as number[]
+              handleConfigChange(config.key, JSON.stringify(value))
+            }}
+            size="small"
+            sx={{ flex: 1 }}
+            placeholder={config.placeholder || '选择多个人设'}
+            disabled={disabled}
+            SelectProps={{
+              multiple: true,
+              displayEmpty: true,
+              renderValue: (selected) => {
+                const selectedArray = selected as number[]
+                if (selectedArray.length === 0) {
+                  return <em>未选择人设</em>
+                }
+                return (
+                  <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                    {selectedArray.map(id => {
+                      const preset = presetMap[id.toString()]
+                      return preset ? (
+                        <Chip
+                          key={id}
+                          size="small"
+                          avatar={<Avatar src={preset.avatar} sx={{ width: 16, height: 16 }} />}
+                          label={preset.title}
+                          sx={{ height: 20, fontSize: '0.7rem' }}
+                        />
+                      ) : (
+                        <Chip
+                          key={id}
+                          size="small"
+                          label={`ID:${id}`}
+                          color="error"
+                          sx={{ height: 20, fontSize: '0.7rem' }}
+                        />
+                      )
+                    })}
+                  </Box>
+                )
+              }
+            }}
+          >
+            {presets.map(preset => (
+              <MenuItem key={preset.id} value={preset.id}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+                  <Avatar
+                    src={preset.avatar}
+                    alt={preset.name}
+                    sx={{ width: 20, height: 20 }}
+                  />
+                  <Typography variant="body2" sx={{ flex: 1 }}>
+                    {preset.title}
+                  </Typography>
+                  {preset.is_remote && (
+                    <Chip
+                      label="云端"
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{ height: 16, fontSize: '0.6rem' }}
+                    />
+                  )}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            variant="outlined"
+            color="warning"
+            size="small"
+            onClick={() => handleConfigChange(config.key, JSON.stringify([]))}
+            disabled={disabled || selectedIds.length === 0}
+            sx={{
+              flexShrink: 0,
+              borderRadius: 999,
+              fontWeight: 600,
+              px: isSmall ? 1 : 1.5,
+              py: isSmall ? 0.1 : 0.4,
+              minWidth: 'auto',
+              height: isSmall ? 24 : 28,
+              fontSize: isSmall ? '0.68rem' : '0.8rem',
+              mr: 1,
+            }}
+            aria-label="清空所有选择"
+          >
+            清空
+          </Button>
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="small"
+            endIcon={<LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />}
+            onClick={() => navigate('/presets')}
+            sx={{
+              flexShrink: 0,
+              borderRadius: 999,
+              fontWeight: 600,
+              px: isSmall ? 1 : 1.5,
+              py: isSmall ? 0.1 : 0.4,
+              minWidth: 'auto',
+              height: isSmall ? 24 : 28,
+              fontSize: isSmall ? '0.68rem' : '0.8rem',
+            }}
+            aria-label="跳转到人设管理页面"
+            disabled={disabled}
+          >
+            管理人设
+          </Button>
+        </Box>
+      )
+    }
+
+    if (config.ref_presets) {
+      // 对于人设选择器，rawValue 应该是数字字符串或 "-1"
+      const numericValue = rawValue === '' ? '-1' : rawValue
+      const selectedPreset = numericValue !== '-1' ? presetMap[numericValue] : null
+      const isInvalidValue = Boolean(numericValue !== '-1' && !selectedPreset)
+
+      return (
+        <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TextField
+            select
+            value={numericValue}
+            onChange={e => handleConfigChange(config.key, e.target.value)}
+            size="small"
+            sx={{ flex: 1 }}
+            error={isInvalidValue}
+            helperText={isInvalidValue ? '当前选择的人设已不存在' : undefined}
+            placeholder={config.placeholder || '选择人设'}
+            disabled={disabled}
+            SelectProps={{
+              displayEmpty: true
+            }}
+          >
+            <MenuItem value="-1">
+              <em>默认人设</em>
+            </MenuItem>
+            {presets.map(preset => (
+              <MenuItem key={preset.id} value={preset.id.toString()}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Avatar
+                    src={preset.avatar}
+                    alt={preset.name}
+                    sx={{ width: 20, height: 20 }}
+                  />
+                  <Typography variant="body2">
+                    {preset.title}
+                  </Typography>
+                  {preset.is_remote && (
+                    <Chip
+                      label="云端"
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                      sx={{ height: 16, fontSize: '0.6rem', ml: 0.5 }}
+                    />
+                  )}
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+          <Button
+            variant="outlined"
+            color="secondary"
+            size="small"
+            endIcon={<LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />}
+            onClick={() => navigate('/presets')}
+            sx={{
+              flexShrink: 0,
+              borderRadius: 999,
+              fontWeight: 600,
+              px: isSmall ? 1 : 1.5,
+              py: isSmall ? 0.1 : 0.4,
+              minWidth: 'auto',
+              height: isSmall ? 24 : 28,
+              fontSize: isSmall ? '0.68rem' : '0.8rem',
+            }}
+            aria-label="跳转到人设管理页面"
+            disabled={disabled}
+          >
+            管理人设
+          </Button>
         </Box>
       )
     }
@@ -1456,9 +1679,18 @@ export default function ConfigTable({
                     </TableCell>
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
                       <Chip
-                        label={config.type}
+                        label={
+                          config.ref_presets_multiple ? 'presets' :
+                          config.ref_presets ? 'preset' : 
+                          config.type
+                        }
                         size="small"
-                        color={getTypeColor(config.type, config.is_complex)}
+                        color={getTypeColor(
+                          config.ref_presets_multiple ? 'presets' :
+                          config.ref_presets ? 'preset' : 
+                          config.type, 
+                          config.is_complex
+                        )}
                         variant="outlined"
                         sx={CHIP_VARIANTS.base(isSmall)}
                       />

@@ -129,6 +129,16 @@ class ExtraField(BaseModel):
         title="重启需求标识",
         description="设置为True时，修改该配置项后需要重启应用才能生效",
     )
+    ref_presets: bool = Field(
+        default=False,
+        title="人设引用标识",
+        description="设置为True时，表示该字段需要从系统中已配置的人设中选择，值为人设ID",
+    )
+    ref_presets_multiple: bool = Field(
+        default=False,
+        title="多人设引用标识",
+        description="设置为True时，表示该字段支持选择多个人设，值为人设ID列表",
+    )
 
 
 class ConfigManager:
