@@ -213,6 +213,7 @@ class MessageService:
         # 检查是否需要触发回复
         should_trigger = (
             trigger_agent
+            or signal == MsgSignal.FORCE_TRIGGER
             or preset.name in message.content_text
             or message.is_tome
             or random_chat_check(config)
@@ -224,7 +225,7 @@ class MessageService:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
-            if signal != MsgSignal.CONTINUE:
+            if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
 
@@ -340,11 +341,11 @@ class MessageService:
             send_timestamp=int(time.time()),
         )
 
-        if trigger_agent:
+        if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
                 return
-            if signal != MsgSignal.CONTINUE:
+            if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")
                 return
             await self.schedule_agent_task(chat_key=chat_key, ctx=ctx)

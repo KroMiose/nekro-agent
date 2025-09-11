@@ -538,12 +538,18 @@ class PluginCollector:
             ctx: 上下文
             message: 消息
         """
-        final_signal: MsgSignal = MsgSignal.CONTINUE
+        max_signal: MsgSignal = MsgSignal.CONTINUE
+        min_signal: MsgSignal = MsgSignal.CONTINUE
         for plugin in self.loaded_plugins.values():
             if plugin.is_enabled and plugin.on_user_message_method:
                 signal = await plugin.on_user_message_method(ctx, message) or MsgSignal.CONTINUE
-                final_signal = MsgSignal(max(final_signal.value, signal.value))
-        return final_signal
+                max_signal = MsgSignal(max(max_signal.value, signal.value))
+                min_signal = MsgSignal(min(min_signal.value, signal.value))
+        if max_signal == MsgSignal.BLOCK_ALL:
+            return max_signal
+        if min_signal == MsgSignal.FORCE_TRIGGER:
+            return min_signal
+        return max_signal
 
     async def handle_on_system_message(self, ctx: AgentCtx, message: str) -> MsgSignal:
         """处理系统消息
@@ -552,12 +558,18 @@ class PluginCollector:
             ctx: 上下文
             message: 消息
         """
-        final_signal: MsgSignal = MsgSignal.CONTINUE
+        max_signal: MsgSignal = MsgSignal.CONTINUE
+        min_signal: MsgSignal = MsgSignal.CONTINUE
         for plugin in self.loaded_plugins.values():
             if plugin.is_enabled and plugin.on_system_message_method:
                 signal = await plugin.on_system_message_method(ctx, message) or MsgSignal.CONTINUE
-                final_signal = MsgSignal(max(final_signal.value, signal.value))
-        return final_signal
+                max_signal = MsgSignal(max(max_signal.value, signal.value))
+                min_signal = MsgSignal(min(min_signal.value, signal.value))
+        if max_signal == MsgSignal.BLOCK_ALL:
+            return max_signal
+        if min_signal == MsgSignal.FORCE_TRIGGER:
+            return min_signal
+        return max_signal
 
     def get_webhook_method(self, plugin_key: str, endpoint: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
         """获取指定插件的webhook方法

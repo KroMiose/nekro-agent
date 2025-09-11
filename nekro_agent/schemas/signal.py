@@ -7,6 +7,7 @@ class MsgSignal(Enum):
     处理顺序是：记录消息 -> 触发处理。
     """
 
+    FORCE_TRIGGER = -1  # 强制触发后续处理
     CONTINUE = 0  # 继续处理消息，默认行为
     BLOCK_TRIGGER = 1  # 允许消息被记录到历史，但阻止消息触发后续处理
     BLOCK_ALL = 2  # 阻止消息被记录到历史，同时也会阻止消息触发后续处理

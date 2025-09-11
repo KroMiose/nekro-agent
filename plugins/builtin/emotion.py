@@ -118,7 +118,11 @@ async def init_vector_db():
     collection_name = plugin.get_vector_collection_name()
 
     # 检查集合是否存在
-    collections = await client.get_collections()
+    try:
+        collections = await client.get_collections()
+    except Exception as e:
+        raise ValueError(f"获取Qdrant集合失败: {e}") from e
+
     collection_names = [collection.name for collection in collections.collections]
 
     if collection_name not in collection_names:
