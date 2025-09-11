@@ -11,6 +11,8 @@ parser.add_argument("--reload", action="store_true", help="启用自动重载功
 parser.add_argument("--reload-dirs", nargs="*", help="指定要监控的重载目录")
 parser.add_argument("--reload-excludes", nargs="*", help="指定要排除的文件/目录模式")
 parser.add_argument("--docs", action="store_true", help="启用文档功能")
+parser.add_argument("--load-test", action="store_true", help="启用加载测试功能")
+parser.add_argument("--verbose", action="store_true", help="启用详细日志功能")
 args = parser.parse_args()
 
 # 🔧 准备 FastAPI 配置参数
