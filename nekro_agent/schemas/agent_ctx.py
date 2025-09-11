@@ -5,7 +5,8 @@ from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot
 from pydantic import BaseModel, Field
 
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core.config import CoreConfig
+from nekro_agent.core.config import CoreConfig, config
+from nekro_agent.models.db_preset import DBPreset
 from nekro_agent.tools.file_utils import FileSystem
 
 if TYPE_CHECKING:
@@ -105,7 +106,7 @@ class AgentCtx(BaseModel):
             >>> image_url = "https://nekro-agent-dev.oss-cn-beijing.aliyuncs.com/images/NA_logo.png"
             >>> # `mixed_forward_file` 将其转换为 AI 可用的沙盒路径
             >>> sandbox_path = await _ctx.fs.mixed_forward_file(image_url, file_name="logo.png")
-            >>> print(sandbox_path)
+            >>> logger.info(sandbox_path)
             /app/uploads/logo.png
             >>> # 插件函数可以直接 `return sandbox_path`，AI 就能接收到这个文件。
             ...
@@ -116,7 +117,7 @@ class AgentCtx(BaseModel):
             >>> ai_provided_path = "/app/shared/photo.jpg"
             >>> # 插件使用 `get_file` 将沙盒路径转换为宿主机可访问的真实路径
             >>> host_path = _ctx.fs.get_file(ai_provided_path)
-            >>> print(host_path)  # doctest: +SKIP
+            >>> logger.info(host_path)  # doctest: +SKIP
             /path/to/project/data/sandbox_shared/sandbox_xxxx/photo.jpg
             >>> # 现在插件就可以读取这个文件了
             >>> # with open(host_path, "rb") as f:
@@ -158,7 +159,7 @@ class AgentCtx(BaseModel):
 
         Example:
             >>> core_config = await ctx.get_core_config()
-            >>> print(core_config.ENABLE_NEKRO_CLOUD)
+            >>> logger.info(core_config.ENABLE_NEKRO_CLOUD)
             True
         """
         if self._db_chat_channel is None:
@@ -250,6 +251,82 @@ class AgentCtx(BaseModel):
             >>> await _ctx.push_system_message("Search result of 'xxx' is: xxx. Please check the result.", trigger_agent=True)
         """
         await self.ms.push_system(self.chat_key, message, self, trigger_agent=trigger_agent)
+
+    async def get_preset_by_id(self, preset_id: int) -> Optional[DBPreset]:
+        """根据人设ID获取人设数据对象
+
+        Args:
+            preset_id (int): 人设ID，-1表示未选择
+
+        Returns:
+            DBPreset | None: 人设数据对象，如果不存在或为-1则返回None
+
+        Example:
+            >>> preset = await _ctx.get_preset_by_id(123)
+            >>> if preset:
+            ...     logger.info(f"人设名称: {preset.title}")
+            ...     logger.info(f"人设内容: {preset.content}")
+        """
+        if preset_id == -1:
+            return None
+
+        return await DBPreset.get_or_none(id=preset_id)
+
+    async def get_effective_preset_by_id(self, preset_id: int = -1):
+        """根据人设ID获取生效的人设数据对象
+
+        与 get_preset_by_id 的区别：
+        - get_preset_by_id: 当 preset_id 为 -1 时返回 None
+        - get_effective_preset_by_id: 当 preset_id 为 -1 时返回默认人设
+
+        Args:
+            preset_id (int): 人设ID，-1表示使用默认人设
+
+        Returns:
+            DBPreset | DefaultPreset: 人设数据对象，如果为-1则返回默认人设
+
+        Example:
+            >>> preset = await _ctx.get_effective_preset_by_id(-1)
+            >>> logger.info(f"生效人设名称: {preset.title}")  # 总是有值
+        """
+
+        if preset_id == -1:
+            # 返回默认人设，使用当前聊天频道的默认人设逻辑
+            if self._db_chat_channel:
+                return await self._db_chat_channel.get_preset()
+            # 如果没有聊天频道上下文，返回系统默认人设
+
+            from nekro_agent.models.db_chat_channel import DefaultPreset
+
+            return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
+
+        # 尝试获取指定的人设
+        preset = await DBPreset.get_or_none(id=preset_id)
+        if preset:
+            return preset
+
+        # 如果指定的人设不存在，也返回默认人设
+        if self._db_chat_channel:
+            return await self._db_chat_channel.get_preset()
+
+        from nekro_agent.models.db_chat_channel import DefaultPreset
+
+        return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
+
+    async def set_preset(self, preset_id: Optional[int] = None) -> bool:
+        """设置当前生效的人设"""
+        if not self._db_chat_channel:
+            raise ValueError("未找到关联的数据库聊天频道")
+        if preset_id == -1:
+            preset_id = None
+        if self._db_chat_channel.preset_id == preset_id:
+            return False
+        await self._db_chat_channel.set_preset(preset_id)
+        return True
+
+    async def current_preset(self):
+        """当前生效的人设"""
+        return await self.get_effective_preset_by_id()
 
     @classmethod
     def create_by_db_chat_channel(

@@ -247,15 +247,6 @@ async def set_chat_channel_preset(
     if not channel:
         return Ret.fail(msg="聊天频道不存在")
 
-    # 设置人设ID，None需要作为null处理
-    if preset_id is None:
-        channel.preset_id = None  # type: ignore  # 在数据库模型中允许为null
-    else:
-        channel.preset_id = preset_id
-    await channel.save()
-
-    # 获取人设信息
-    preset = await channel.get_preset()
-    preset_name = preset.name if hasattr(preset, "name") else "默认人设"
-
-    return Ret.success(msg=f"设置成功，当前人设: {preset_name}")
+    # 使用模型的 set_preset 方法
+    result_msg = await channel.set_preset(preset_id)
+    return Ret.success(msg=result_msg)

@@ -148,3 +148,25 @@ class DBChatChannel(Model):
         if self._effective_config is None:
             self._effective_config = await config_resolver.get_effective_config(self.chat_key)
         return self._effective_config
+
+    async def set_preset(self, preset_id: Optional[int] = None) -> str:
+        """设置聊天频道人设
+
+        Args:
+            preset_id: 人设ID，传入None则使用默认人设
+
+        Returns:
+            str: 设置成功的消息，包含当前人设名称
+        """
+        # 设置人设ID，None需要作为null处理
+        if preset_id is None or preset_id == -1:
+            self.preset_id = None  # type: ignore  # 在数据库模型中允许为null
+        else:
+            self.preset_id = preset_id
+        await self.save()
+
+        # 获取人设信息
+        preset = await self.get_preset()
+        preset_name = preset.name if hasattr(preset, "name") else "默认人设"
+
+        return f"设置成功，当前人设: {preset_name}"

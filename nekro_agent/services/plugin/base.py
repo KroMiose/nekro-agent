@@ -52,12 +52,36 @@ class NekroPlugin:
         is_builtin: bool = False,
         is_package: bool = False,
     ):
+        """
+        Args:
+            name: 插件名称
+            module_name: 插件模块名
+            description: 插件描述
+            version: 插件版本
+            author: 插件作者
+            url: 插件地址
+            support_adapter: 支持的适配器
+
+        可用回调方法:
+            init_method: 初始化方法
+            collect_methods_func: 收集可用方法的重写函数
+            prompt_inject_method: 提示注入方法
+            on_user_message_method: 消息回调方法
+            on_system_message_method: 系统消息回调方法
+            sandbox_methods: 沙盒方法
+            on_reset_method: 重置频道回调方法
+            cleanup_method: 清理方法
+            mount_router: 挂载路由方法
+        """
+
+        # 回调方法
         self.init_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
         self.on_reset_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
         self.on_user_message_method: Optional[Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]] = None
         self.on_system_message_method: Optional[Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]] = None
+
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
         self.name = name
