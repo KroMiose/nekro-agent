@@ -51,7 +51,6 @@ async def on_startup():
     await init_adapters(app)
     await init_plugins()
 
-    # 🎯 关键修复：在静态文件挂载之前挂载插件路由！
     # 初始化插件路由管理器并挂载插件路由
     try:
         from nekro_agent.services.plugin.collector import plugin_collector

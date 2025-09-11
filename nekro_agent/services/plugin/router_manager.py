@@ -59,7 +59,7 @@ class PluginRouterManager:
     def mount_plugin_router(self, plugin: NekroPlugin) -> bool:
         """动态挂载插件路由到主应用
 
-        🎯 关键修复：APIRouter 应该使用 include_router 而不是 Mount！
+        注意：APIRouter 应该使用 include_router 而不是 Mount！
         Mount 是用于挂载整个 FastAPI 子应用的，不是 APIRouter！
 
         Args:
@@ -174,7 +174,7 @@ class PluginRouterManager:
     def _update_openapi_schema(self) -> None:
         """更新OpenAPI文档架构
 
-        🎯 关键修复：清除缓存，让 FastAPI 在下次请求时自动重新生成文档。
+        清除缓存，让 FastAPI 在下次请求时自动重新生成文档。
         """
         if not self._app:
             return

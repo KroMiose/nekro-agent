@@ -1,7 +1,7 @@
 // 环境变量配置
 export const config = {
   // API 基础路径
-  apiBaseUrl: import.meta.env.VITE_API_BASE_URL || '/api',
+  apiBaseUrl: '/api',
 
   // 是否是开发环境
   isDev: import.meta.env.DEV,
