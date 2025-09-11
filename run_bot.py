@@ -18,23 +18,37 @@ args = parser.parse_args()
 # 🔧 准备 FastAPI 配置参数
 fastapi_config = {}
 if args.reload:
-    fastapi_config.update({
-        "fastapi_reload": True,
-        "fastapi_reload_dirs": args.reload_dirs or ["./nekro_agent", "./plugins"],
-        "fastapi_reload_excludes": args.reload_excludes or [
-            "*.pyc", "*.pyo", "*__pycache__*", "*.git*",
-            "*/data/*", "*/logs/*", "*/sandboxes/*", "*/uploads/*",
-            "*/frontend/*", "*/docker/*", "*/.venv/*", "*/node_modules/*",
-        ],
-        "fastapi_reload_delay": 0.5,
-    })
+    fastapi_config.update(
+        {
+            "fastapi_reload": True,
+            "fastapi_reload_dirs": args.reload_dirs or ["./nekro_agent", "./plugins"],
+            "fastapi_reload_excludes": args.reload_excludes
+            or [
+                "*.pyc",
+                "*.pyo",
+                "*__pycache__*",
+                "*.git*",
+                "*/data/*",
+                "*/logs/*",
+                "*/sandboxes/*",
+                "*/uploads/*",
+                "*/frontend/*",
+                "*/docker/*",
+                "*/.venv/*",
+                "*/node_modules/*",
+            ],
+            "fastapi_reload_delay": 0.5,
+        },
+    )
 
 if args.docs:
-    fastapi_config.update({
-        "fastapi_docs_url": "/docs",
-        "fastapi_redoc_url": "/redoc", 
-        "fastapi_openapi_url": "/openapi.json",
-    })
+    fastapi_config.update(
+        {
+            "fastapi_docs_url": "/docs",
+            "fastapi_redoc_url": "/redoc",
+            "fastapi_openapi_url": "/openapi.json",
+        },
+    )
 
 env_file: Optional[Path] = None
 
@@ -53,6 +67,14 @@ if not args.env:
 
 if env_file and not env_file.exists():
     raise FileNotFoundError(f"环境文件不存在: {env_file}")  # noqa: TRY301
+
+# 添加 Nekro 环境变量到系统环境变量
+if env_file:
+    for line in env_file.read_text().splitlines():
+        if "=" in line and not line.startswith("#"):
+            key, value = line.split("=", 1)
+            if key.startswith("NEKRO_"):
+                os.environ[key] = value
 
 try:
     import nonebot
@@ -84,19 +106,30 @@ def main():
             print(f"📁 监控目录: {args.reload_dirs or ['./nekro_agent', './plugins']}")
             if args.reload_excludes:
                 print(f"🚫 排除模式: {args.reload_excludes}")
-            
+
             # 在 reload 模式下使用 uvicorn 直接启动
             import uvicorn
+
             uvicorn.run(
                 "run_bot:app",
                 host=str(driver.config.host) or "0.0.0.0",
                 port=int(driver.config.port) or 8021,
                 reload=True,
                 reload_dirs=args.reload_dirs or ["./nekro_agent", "./plugins"],
-                reload_excludes=args.reload_excludes or [
-                    "*.pyc", "*.pyo", "*__pycache__*", "*.git*",
-                    "*/data/*", "*/logs/*", "*/sandboxes/*", "*/uploads/*",
-                    "*/frontend/*", "*/docker/*", "*/.venv/*", "*/node_modules/*",
+                reload_excludes=args.reload_excludes
+                or [
+                    "*.pyc",
+                    "*.pyo",
+                    "*__pycache__*",
+                    "*.git*",
+                    "*/data/*",
+                    "*/logs/*",
+                    "*/sandboxes/*",
+                    "*/uploads/*",
+                    "*/frontend/*",
+                    "*/docker/*",
+                    "*/.venv/*",
+                    "*/node_modules/*",
                 ],
                 reload_delay=0.5,
             )
