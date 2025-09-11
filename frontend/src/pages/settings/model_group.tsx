@@ -691,6 +691,7 @@ export default function ModelGroupsPage() {
   }>({
     name: '',
   })
+  const [dialogKey, setDialogKey] = useState(0) // 用于控制对话框重建
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingGroupName, setDeletingGroupName] = useState('')
   const theme = useTheme()
@@ -770,12 +771,14 @@ export default function ModelGroupsPage() {
 
   const handleAdd = () => {
     setEditingGroup({ name: '' })
+    setDialogKey(prev => prev + 1)
     setEditDialogOpen(true)
   }
 
   const handleEdit = (name: string) => {
     // 确保每次打开都基于当前 name 和最新配置，避免状态复用
     setEditingGroup({ name: '', config: undefined, isCopy: false })
+    setDialogKey(prev => prev + 1)
     // 使用微任务队列确保状态重置后再设置新值，强制 EditDialog 触发 useEffect
     Promise.resolve().then(() => {
       setEditingGroup({ name, config: modelGroups[name] })
@@ -786,6 +789,7 @@ export default function ModelGroupsPage() {
   // 添加复制模型组功能
   const handleCopy = (name: string) => {
     setEditingGroup({ name: '', config: undefined, isCopy: false })
+    setDialogKey(prev => prev + 1)
     Promise.resolve().then(() => {
       setEditingGroup({
         name: name,
@@ -1200,9 +1204,9 @@ export default function ModelGroupsPage() {
         </TableContainer>
       </Paper>
 
-      {/* 使用 key 强制不同模型组之间的 EditDialog 完整重建，避免保留上次状态 */}
+      {/* EditDialog 使用稳定的 key，避免输入时重置 */}
       <EditDialog
-        key={`${editDialogOpen ? 'open' : 'closed'}-${editingGroup.name}-${editingGroup.isCopy ? 'copy' : 'edit'}`}
+        key={dialogKey}
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         groupName={editingGroup.name}
