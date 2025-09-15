@@ -18,6 +18,9 @@ Switch to [English](./README_en.md)
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
+  <a href="https://wakatime.com/badge/github/KroMiose/nekro-agent" target="_blank">
+    <img src="https://wakatime.com/badge/github/KroMiose/nekro-agent.svg" alt="wakatime">
+  </a>
   <a href="https://discord.gg/eMsgwFnxUB" target="_blank">
     <img src="https://img.shields.io/discord/1266347495582990336?label=discord&logo=discord&color=5865F2" alt="discord">
   </a>
