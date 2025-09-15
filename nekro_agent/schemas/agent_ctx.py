@@ -315,8 +315,12 @@ class AgentCtx(BaseModel):
 
     async def set_preset(self, preset_id: Optional[int] = None) -> bool:
         """设置当前生效的人设"""
+        from nekro_agent.models.db_chat_channel import DBChatChannel
+
+        if not self.chat_key:
+            raise ValueError("未找到关联的聊天频道")
         if not self._db_chat_channel:
-            raise ValueError("未找到关联的数据库聊天频道")
+            self._db_chat_channel = await DBChatChannel.get_channel(chat_key=self.chat_key)
         if preset_id == -1:
             preset_id = None
         if self._db_chat_channel.preset_id == preset_id:
