@@ -76,7 +76,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("exec", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     result, _, _ = await limited_run_code(
         ParsedCodeRunData(raw_content=cmd_content, code_content=cmd_content, thought_chain=""),
@@ -216,7 +216,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_show", aliases={"conf-show"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     if not cmd_content:
         modifiable_config_key: List[str] = []
@@ -237,7 +237,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_set", aliases={"conf-set"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     try:
         key, value = cmd_content.strip().split("=", 1)
@@ -269,7 +269,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_reload", aliases={"conf-reload"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     try:
         reload_config()
@@ -281,7 +281,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_save", aliases={"conf-save"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     try:
         save_config()
@@ -1022,7 +1022,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 # ! 高风险命令
 @on_command("docker_restart", aliases={"docker-restart"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     if not OsEnv.RUN_IN_DOCKER:
         await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
@@ -1033,7 +1033,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("docker_logs", aliases={"docker-logs"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     if not OsEnv.RUN_IN_DOCKER:
         await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
@@ -1046,7 +1046,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("sh", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
 
     outputs = os.popen(cmd_content).read()
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
@@ -1059,7 +1059,7 @@ DB_RESET_LATEST_TRIGGER_TIME: float = 0
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     global DB_RESET_LATEST_TRIGGER_TIME
 
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
     args = cmd_content.split(" ")
 
     if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:

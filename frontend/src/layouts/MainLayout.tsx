@@ -27,6 +27,7 @@ import {
   GitHub as GitHubIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
+  MenuBook as MenuBookIcon,
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
@@ -371,7 +372,7 @@ export default function MainLayout() {
           <ListItemButton
             onClick={handleLogout}
             sx={{
-              py: isSmall ? 1 : 1.5, // 在移动端调整垂直内边距
+              py: isSmall ? 0.75 : 1,
               '&:hover': {
                 backgroundColor: UI_STYLES.HOVER,
               },
@@ -539,6 +540,24 @@ export default function MainLayout() {
 
           <ThemeToggleButton sx={{ color: 'white' }} />
 
+          <IconButton
+            color="inherit"
+            size={isSmall ? 'small' : 'medium'}
+            onClick={() => window.open('https://doc.nekro.ai', '_blank')}
+            className="transition-colors"
+            sx={{
+              mr: { xs: 1, sm: 1 },
+              ml: { xs: 1, sm: 1 },
+              color: 'white',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              },
+            }}
+            aria-label="打开文档"
+          >
+            <MenuBookIcon />
+          </IconButton>
+
           <Button
             variant="text"
             color="inherit"
@@ -548,7 +567,7 @@ export default function MainLayout() {
             className="normal-case transition-colors"
             sx={{
               mr: { xs: 0, sm: 1 },
-              ml: { xs: 1, sm: 2 },
+              ml: { xs: 1, sm: 1 },
               minWidth: { xs: 'auto', sm: '100px' },
               '& .MuiButton-startIcon': {
                 mr: { xs: 0, sm: 1 },

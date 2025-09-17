@@ -41,6 +41,9 @@ def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
     extra_data = {}
     # 动态获取 ExtraField 中定义的所有字段
     extra_field_names = list(ExtraField.model_fields.keys())
+    # 添加运行时动态字段，这些字段不在 ExtraField 模型中定义但需要被提取
+    extra_field_names.append("enable_toggle")
+    
     for extra_field in extra_field_names:
         if field_json_schema_extra.get(extra_field):
             extra_data[extra_field] = field_json_schema_extra.get(extra_field)

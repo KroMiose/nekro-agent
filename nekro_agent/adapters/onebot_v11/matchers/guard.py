@@ -24,6 +24,7 @@ async def command_guard(
     arg: Message,
     matcher: Matcher,
     trigger_on_off: bool = False,
+    require_advanced_command: bool = False,
 ) -> Tuple[str, str, str, ChatType]:
     """指令执行前处理
 
@@ -48,6 +49,12 @@ async def command_guard(
             await finish_with(matcher, f"用户 [{event.get_user_id()}]{username} 不在允许的管理用户中")
         else:
             await matcher.finish()
+
+    if require_advanced_command:
+        try:
+            config.require_advanced_command()
+        except PermissionError:
+            await finish_with(matcher, "当前未启用高级管理命令，无法执行此命令")
 
     cmd_content: str = arg.extract_plain_text().strip()
     return username, cmd_content, chat_key, chat_type

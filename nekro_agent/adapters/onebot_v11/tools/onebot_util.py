@@ -12,6 +12,7 @@ from nonebot.adapters.onebot.v11 import (
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.tools.common_util import limited_text_output
 
 
 async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
@@ -151,6 +152,9 @@ async def get_chat_info_old(
     else:
         chat_type = ChatType.UNKNOWN
         raise ValueError("未知的消息类型")
+
+    if str(channel_id) == "0":
+        raise ValueError(f"接收到频道ID为 0 的消息，源消息数据 -> {limited_text_output(event.model_dump_json(), 1024)}")
 
     return f"onebot_v11-{channel_id}", chat_type
 
