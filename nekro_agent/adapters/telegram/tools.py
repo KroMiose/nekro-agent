@@ -171,3 +171,24 @@ def extract_telegram_chat_id(update_data: dict) -> Optional[str]:
         return str(update_data['edited_channel_post'].get('chat', {}).get('id'))
     
     return None
+
+
+def escape_html(text: str) -> str:
+    """最小化转义 HTML 特殊字符，供 Telegram parse_mode=HTML 使用"""
+    return (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+
+
+def build_mention_html(user_id: str, nickname: Optional[str] = None) -> str:
+    """构建 Telegram 的用户超链接 mention 片段 (HTML)
+
+    Args:
+        user_id: Telegram 数值用户ID或用户名
+        nickname: 显示文本，缺省则用 user_id
+    """
+    display = escape_html(nickname or user_id)
+    # 使用 tg://user?id=<id> 的形式可在群内正确 @ 到用户
+    return f'<a href="tg://user?id={user_id}">{display}</a>'

@@ -21,7 +21,7 @@ from nekro_agent.schemas.chat_message import ChatType
 from .client import TelegramClient
 from .bot_api import TelegramBotAPIClient
 from .config import TelegramConfig
-from .tools import parse_at_from_text
+from .tools import parse_at_from_text, build_mention_html
 
 
 class TelegramAdapter(BaseAdapter[TelegramConfig]):
@@ -91,13 +91,16 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             return PlatformSendResponse(success=False, error_message=error_msg)
 
         try:
-            # 解析聊天键获取频道ID
-            _, chat_id = self.parse_chat_key(request.chat_key)
+            # 解析聊天键获取频道ID（OneBot 风格：group_123 / private_123）
+            _, channel_id = self.parse_chat_key(request.chat_key)
+            chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
 
             content_parts: List[str] = []
-            files_to_send: List[str] = []
+            # 收集文件段，保留类型信息，形如: [(path, 'image'|'file')]
+            files_to_send: List[Tuple[str, str]] = []
 
             # 处理消息段
+            use_html = False
             for seg in request.segments:
                 if seg.type == PlatformSendSegmentType.TEXT:
                     # 处理文本内容和@信息
@@ -107,13 +110,15 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                             content_parts.append(parsed_seg)
                         else:
                             # 这是一个@对象
-                            content_parts.append(f"@{parsed_seg.platform_user_id}")
+                            content_parts.append(build_mention_html(parsed_seg.platform_user_id, parsed_seg.nickname))
+                            use_html = True
                 elif seg.type == PlatformSendSegmentType.AT:
                     if seg.at_info:
-                        content_parts.append(f"@{seg.at_info.platform_user_id}")
+                        content_parts.append(build_mention_html(seg.at_info.platform_user_id, seg.at_info.nickname))
+                        use_html = True
                 elif seg.type in [PlatformSendSegmentType.IMAGE, PlatformSendSegmentType.FILE]:
                     if seg.file_path:
-                        files_to_send.append(seg.file_path)
+                        files_to_send.append((seg.file_path, 'image' if seg.type == PlatformSendSegmentType.IMAGE else 'file'))
 
             final_content = "".join(content_parts)
 
@@ -123,24 +128,26 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 return PlatformSendResponse(success=True)
 
             # 发送消息
+            message_id: Optional[str] = None
             if isinstance(self.client, TelegramBotAPIClient):
-                success = await self.client.send_message(
+                success, message_id = await self.client.send_message(
                     chat_id=chat_id,
                     text=final_content,
-                    files=files_to_send
+                    files=files_to_send,
+                    reply_to=request.ref_msg_id,
                 )
             elif hasattr(self.client, "send_message"):
                 success = await self.client.send_message(
                     chat_id=chat_id,
                     text=final_content,
-                    files=files_to_send
+                    files=[p for p, _t in files_to_send]
                 )
             else:
                 logger.error("Telegram 客户端不支持 send_message 方法")
                 return PlatformSendResponse(success=False, error_message="No send_message method")
 
             if success:
-                return PlatformSendResponse(success=True)
+                return PlatformSendResponse(success=True, message_id=message_id)
             else:
                 return PlatformSendResponse(
                     success=False,
@@ -199,10 +206,11 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
     async def get_platform_channel(self, channel_id: str) -> Optional[PlatformChannel]:
         """获取平台频道信息"""
         # 在实际实现中，这里应该调用 Telegram API 获取频道信息
+        channel_type = ChatType.PRIVATE if channel_id.startswith("private_") else ChatType.GROUP
         return PlatformChannel(
             channel_id=channel_id,
             channel_name=f"Channel_{channel_id}",
-            channel_type=ChatType.PRIVATE if channel_id.startswith('-100') else ChatType.GROUP,
+            channel_type=channel_type,
             channel_avatar=""
         )
     

@@ -77,8 +77,10 @@ async def send_telegram_message(
         raise HTTPException(status_code=503, detail="Telegram适配器未启用")
     
     try:
-        # 构建聊天键
-        chat_key = adapter.build_chat_key(chat_id)
+        # 构建聊天键（OneBot 风格），根据 chat_id 正负判断类型
+        # Telegram 中群/频道 chat_id 通常为负数（如 -100xxxxxxxxxx），私聊为正数
+        channel_id = f"group_{chat_id}" if str(chat_id).startswith("-") else f"private_{chat_id}"
+        chat_key = adapter.build_chat_key(channel_id)
         
         # 创建发送请求
         from nekro_agent.adapters.interface.schemas.platform import (
