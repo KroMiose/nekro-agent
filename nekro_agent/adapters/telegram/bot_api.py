@@ -110,8 +110,9 @@ class TelegramBotAPIClient:
                                         #     segments.append(ChatMessageSegmentImage(file_path=file_path))
                                         pass
 
-                                    is_tome = False
-                                    if content_text and self._bot_username and f"@{self._bot_username}" in content_text:
+                                    # 私聊默认触发自动响应；群/频道需@或命中其他触发规则
+                                    is_tome = (raw_type == "private")
+                                    if (not is_tome) and content_text and self._bot_username and f"@{self._bot_username}" in content_text:
                                         is_tome = True
 
                                     # 引用消息

@@ -196,9 +196,9 @@ class TelegramClient:
                 logger.debug("空消息，已忽略")
                 return
 
-            # 检查是否被@
-            is_tome = False
-            if message.text and self._bot_username and f"@{self._bot_username}" in message.text:
+            # 私聊默认触发自动响应；群聊中需被@
+            is_tome = getattr(message.chat, "type", "private") == "private"
+            if (not is_tome) and message.text and self._bot_username and f"@{self._bot_username}" in message.text:
                 is_tome = True
 
             # 创建平台消息对象

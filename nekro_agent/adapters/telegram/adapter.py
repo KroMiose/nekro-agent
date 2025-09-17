@@ -78,7 +78,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             name="Telegram",
             description="连接到 Telegram 平台的适配器，允许通过 Bot 与频道和用户进行交互。",
             version="1.0.0",
-            author="KroMiose",
+            author="johntime",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["telegram", "chat", "im"],
         )
