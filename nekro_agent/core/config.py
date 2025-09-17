@@ -439,6 +439,11 @@ class CoreConfig(ConfigBase):
         title="启用节日祝福提醒",
         description="启用后会在节日时自动向所有活跃聊天发送祝福",
     )
+    ENABLE_ADVANCED_COMMAND: bool = Field(
+        default=False,
+        title="启用高级管理命令",
+        description="启用后可以执行包含危险操作的管理员高级命令，请谨慎使用",
+    )
 
     """插件配置"""
     PLUGIN_ENABLED: List[str] = Field(
@@ -453,6 +458,11 @@ class CoreConfig(ConfigBase):
             return self.MODEL_GROUPS[model_name]
         except KeyError as e:
             raise KeyError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
+
+    def require_advanced_command(self) -> bool:
+        if not self.ENABLE_ADVANCED_COMMAND:
+            raise PermissionError("高级管理命令未启用，请在配置文件中启用")
+        return True
 
     @classmethod
     def load_config(cls, file_path: Optional[Path] = None, auto_register: bool = True):
