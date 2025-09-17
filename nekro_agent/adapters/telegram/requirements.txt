@@ -1,0 +1,3 @@
+# Telegram 适配器依赖
+pyrogram>=2.0.0
+tgcrypto>=1.2.5
