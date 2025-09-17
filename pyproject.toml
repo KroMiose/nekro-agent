@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "nekro-agent"
-version = "2.0.2"
+version = "2.0.3"
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -94,6 +94,7 @@ ignore = [
     "RUF003",
     "RUF006",
     "RUF012",
+    "RUF059",
     "RUF100",
     "PGH003",
     "N801",

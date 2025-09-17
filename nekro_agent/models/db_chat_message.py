@@ -22,7 +22,7 @@ class DBChatMessage(Model):
     """数据库聊天消息模型"""
 
     id = fields.IntField(pk=True, generated=True, description="ID")
-    sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID")
+    sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID") # -1 表示 Bot 发送的消息
     sender_name = fields.CharField(max_length=128, index=True, description="发送者真实昵称")
     sender_nickname = fields.CharField(max_length=128, index=True, description="发送者显示昵称")
     is_tome = fields.IntField(description="是否与 Bot 相关")
