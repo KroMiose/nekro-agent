@@ -13,7 +13,7 @@ async def get_telegram_info():
     return {
         "adapter": "telegram",
         "status": "ready",
-        "message": "Telegram 适配器已准备就绪"
+        "message": "Telegram 适配器已准备就绪",
     }
 
 

@@ -25,33 +25,14 @@
 
 1. 在 Nekro-Agent 中启用 Telegram 适配器
 2. 配置必要参数（仅需 BOT_TOKEN）
-3. 启动 Nekro-Agent，适配器会自动连接到 Telegram
+3. 重动 Nekro-Agent，适配器会自动连接到 Telegram
 4. 在 Telegram 中与机器人进行交互
-
-## 支持的消息类型
-
-### 接收消息
-- **文本消息**: 普通文本内容
-- **图片消息**: 转换为 ChatMessageSegmentImage
-- **文档消息**: 转换为 ChatMessageSegmentFile
-- **视频消息**: 转换为 ChatMessageSegmentFile
-- **音频消息**: 转换为 ChatMessageSegmentFile
-- **语音消息**: 转换为 ChatMessageSegmentFile
-- **贴纸消息**: 转换为 ChatMessageSegmentImage
-- **视频笔记**: 转换为 ChatMessageSegmentFile
-
-### 发送消息
-- **文本消息**: 支持发送纯文本
-- **图片消息**: 支持发送图片文件
-- **文件消息**: 支持发送任意文件
-- **@用户**: 通过文本形式实现（@username）
 
 ## 注意事项
 
 1. 机器人需要有足够的权限来读取和发送消息
 2. 在群聊中，需要明确 @机器人 或在私聊中发送消息才会触发 AI 回复
 3. 大文件可能需要较长时间传输，请耐心等待
-4. 适配器会自动下载文件到临时目录并在处理完成后清理
 
 ## 常见问题
 
@@ -63,7 +44,6 @@ A: 请检查：
 - `BOT_TOKEN` 是否已正确填写
 - 机器人是否已通过 @BotFather 正确创建
 - 网络连接是否正常（新版本基于 python-telegram-bot，网络要求较低）
-- 通过接口 `/api/adapters/telegram/status` 或 `/api/adapters/telegram/info` 查看状态
 
 ### Q: 如何在群聊中使用机器人？
 A: 在群聊中，需要：
@@ -90,14 +70,9 @@ A: 请检查：
 - **TelegramHTTPClient**: HTTP 客户端，处理消息发送
 - **TelegramConfig**: 配置管理类
 
-### 消息流程
-1. Telegram → python-telegram-bot → MessageProcessor
-2. MessageProcessor → ChatMessageSegment → 核心引擎
-3. 核心引擎 → PlatformSendRequest → TelegramHTTPClient → Telegram
-
 ## 开发者信息
 
-- **作者**: nekro-agent 团队
+- **作者**: Dirac，johntime
 - **版本**: 2.0.0
 - **技术栈**: python-telegram-bot 21.11.1
 - **主页**: https://github.com/KroMiose/nekro-agent

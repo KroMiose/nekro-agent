@@ -3,26 +3,28 @@ Telegram 适配器实现
 """
 
 import asyncio
+import contextlib
 import os
-from typing import List, Optional, TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, List, Optional
 
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.schemas.platform import (
+    ChatType,
     PlatformChannel,
     PlatformSendRequest,
     PlatformSendResponse,
     PlatformSendSegmentType,
     PlatformUser,
-    ChatType,
 )
 from nekro_agent.core.logger import logger
 
 from .config import TelegramConfig
-from .message_processor import MessageProcessor
 from .http_client import TelegramHTTPClient
+from .message_processor import MessageProcessor
 
 if TYPE_CHECKING:
     from fastapi import APIRouter
@@ -68,9 +70,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         try:
             # 初始化 Application
             self.application = (
-                Application.builder()
-                .token(self.config.BOT_TOKEN)
-                .build()
+                Application.builder().token(self.config.BOT_TOKEN).build()
             )
 
             # 初始化消息处理器
@@ -78,7 +78,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
             # 添加消息处理器
             self.application.add_handler(
-                MessageHandler(filters.ALL, self.message_processor.process_update)
+                MessageHandler(filters.ALL, self.message_processor.process_update),
             )
 
             # 初始化 HTTP 客户端
@@ -87,10 +87,10 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             # 启动应用
             await self.application.initialize()
             await self.application.start()
-            
+
             # 在后台启动轮询
             self._polling_task = asyncio.create_task(self._start_polling())
-            
+
             logger.info("Telegram 适配器初始化成功")
 
         except Exception as e:
@@ -112,10 +112,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             # 停止轮询任务
             if self._polling_task and not self._polling_task.done():
                 self._polling_task.cancel()
-                try:
+                with contextlib.suppress(asyncio.CancelledError):
                     await self._polling_task
-                except asyncio.CancelledError:
-                    pass
 
             # 停止应用
             if self.application:
@@ -125,19 +123,26 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 await self.application.shutdown()
 
             # 关闭 HTTP 客户端
-            if self.http_client and hasattr(self.http_client, "client") and self.http_client.client:
+            if (
+                self.http_client
+                and hasattr(self.http_client, "client")
+                and self.http_client.client
+            ):
                 await self.http_client.client.aclose()
 
             logger.info("Telegram 适配器已清理")
         except Exception as e:
             logger.error(f"Telegram 适配器清理失败: {e}")
 
-    async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
+    async def forward_message(
+        self,
+        request: PlatformSendRequest,
+    ) -> PlatformSendResponse:
         """转发消息到 Telegram 平台"""
         if not self.http_client:
             return PlatformSendResponse(
                 success=False,
-                error_message="Telegram HTTP 客户端未初始化"
+                error_message="Telegram HTTP 客户端未初始化",
             )
 
         try:
@@ -147,7 +152,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
 
             message_ids = []
-            
+
             async with self.http_client:
                 # 处理消息段
                 for segment in request.segments:
@@ -175,8 +180,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                                 message_ids.append(msg_id)
 
                     elif segment.type == PlatformSendSegmentType.IMAGE:
-                        if segment.file_path and os.path.exists(segment.file_path):
-                            with open(segment.file_path, "rb") as f:
+                        if segment.file_path and Path(segment.file_path).exists():
+                            with Path(segment.file_path).open("rb") as f:
                                 photo_data = f.read()
                             msg_id = await self.http_client.send_photo(
                                 chat_id=chat_id,
@@ -186,33 +191,37 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                             if msg_id:
                                 message_ids.append(msg_id)
 
-                    elif segment.type == PlatformSendSegmentType.FILE:
-                        if segment.file_path and os.path.exists(segment.file_path):
-                            with open(segment.file_path, "rb") as f:
-                                file_data = f.read()
-                            filename = os.path.basename(segment.file_path)
-                            msg_id = await self.http_client.send_document(
-                                chat_id=chat_id,
-                                document_data=file_data,
-                                filename=filename,
-                                reply_to_message_id=request.ref_msg_id,
-                            )
-                            if msg_id:
-                                message_ids.append(msg_id)
+                    elif (
+                        segment.type == PlatformSendSegmentType.FILE
+                        and segment.file_path
+                        and Path(segment.file_path).exists()
+                    ):
+                        with Path(segment.file_path).open("rb") as f:
+                            file_data = f.read()
+                        filename = Path(segment.file_path).name
+                        msg_id = await self.http_client.send_document(
+                            chat_id=chat_id,
+                            document_data=file_data,
+                            filename=filename,
+                            reply_to_message_id=request.ref_msg_id,
+                        )
+                        if msg_id:
+                            message_ids.append(msg_id)
 
             if message_ids:
                 return PlatformSendResponse(
                     success=True,
-                    message_id=message_ids[0] if len(message_ids) == 1 else ",".join(message_ids)
+                    message_id=message_ids[0]
+                    if len(message_ids) == 1
+                    else ",".join(message_ids),
                 )
-            else:
-                return PlatformSendResponse(
-                    success=True,
-                    message_id="empty"
-                )
+            return PlatformSendResponse(
+                success=True,
+                message_id="empty",
+            )
 
         except Exception as e:
-            error_msg = f"Telegram 消息发送失败: {str(e)}"
+            error_msg = f"Telegram 消息发送失败: {e!s}"
             logger.error(error_msg)
             return PlatformSendResponse(success=False, error_message=error_msg)
 
@@ -223,7 +232,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
         async with self.http_client:
             bot_info = await self.http_client.get_me()
-            
+
         return PlatformUser(
             platform_name=self.key,
             user_id=str(bot_info.get("id", "")),
@@ -238,11 +247,11 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
         try:
             chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
-            
+
             async with self.http_client:
                 member_info = await self.http_client.get_chat_member(chat_id, user_id)
                 user_info = member_info.get("user", {})
-                
+
             return PlatformUser(
                 platform_name=self.key,
                 user_id=str(user_info.get("id", user_id)),
@@ -266,16 +275,22 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
         try:
             chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
-            
+
             async with self.http_client:
                 chat_info = await self.http_client.get_chat(chat_id)
-                
-            chat_type = ChatType.PRIVATE if chat_info.get("type") == "private" else ChatType.GROUP
-            
+
+            chat_type = (
+                ChatType.PRIVATE
+                if chat_info.get("type") == "private"
+                else ChatType.GROUP
+            )
+
             return PlatformChannel(
                 platform_name=self.key,
                 channel_id=channel_id,
-                channel_name=chat_info.get("title") or chat_info.get("first_name") or chat_id,
+                channel_name=chat_info.get("title")
+                or chat_info.get("first_name")
+                or chat_id,
                 channel_type=chat_type,
             )
         except Exception as e:
@@ -292,4 +307,5 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
     def get_adapter_router(self) -> "APIRouter":
         """获取适配器路由"""
         from .routers import router
+
         return router

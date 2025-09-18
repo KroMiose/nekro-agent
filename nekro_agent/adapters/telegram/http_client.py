@@ -3,7 +3,8 @@ Telegram HTTP 客户端
 """
 
 import asyncio
-from typing import Optional, List, Tuple, Any, Dict
+from typing import Any, Dict, List, Optional, Tuple
+
 import httpx
 
 from nekro_agent.core.logger import logger
@@ -31,19 +32,18 @@ class TelegramHTTPClient:
         """发送 HTTP 请求"""
         if not self.client:
             self.client = httpx.AsyncClient(timeout=30.0)
-            
+
         url = f"{self.base_url}/{endpoint}"
-        
+
         try:
             response = await self.client.request(method, url, **kwargs)
             response.raise_for_status()
-            
+
             result = response.json()
-            if not result.get("ok"):
-                logger.error(f"Telegram API 错误: {result}")
-                return {}
-                
-            return result
+            if result.get("ok"):
+                return result
+            logger.error(f"Telegram API 错误: {result}")
+            return {}
         except Exception as e:
             logger.error(f"Telegram HTTP 请求失败: {e}")
             return {}
@@ -61,12 +61,12 @@ class TelegramHTTPClient:
             "text": text,
             "parse_mode": parse_mode,
         }
-        
+
         if reply_to_message_id:
             data["reply_to_message_id"] = reply_to_message_id
 
         result = await self._request("POST", "sendMessage", json=data)
-        
+
         if result and result.get("result"):
             return str(result["result"]["message_id"])
         return None
@@ -83,14 +83,14 @@ class TelegramHTTPClient:
             "chat_id": chat_id,
             "caption": caption,
         }
-        
+
         if reply_to_message_id:
             data["reply_to_message_id"] = reply_to_message_id
 
         files = {"photo": ("photo.jpg", photo_data, "image/jpeg")}
-        
+
         result = await self._request("POST", "sendPhoto", data=data, files=files)
-        
+
         if result and result.get("result"):
             return str(result["result"]["message_id"])
         return None
@@ -108,14 +108,14 @@ class TelegramHTTPClient:
             "chat_id": chat_id,
             "caption": caption,
         }
-        
+
         if reply_to_message_id:
             data["reply_to_message_id"] = reply_to_message_id
 
         files = {"document": (filename, document_data, "application/octet-stream")}
-        
+
         result = await self._request("POST", "sendDocument", data=data, files=files)
-        
+
         if result and result.get("result"):
             return str(result["result"]["message_id"])
         return None
@@ -133,8 +133,8 @@ class TelegramHTTPClient:
     async def get_chat_member(self, chat_id: str, user_id: str) -> Dict[str, Any]:
         """获取聊天成员信息"""
         result = await self._request(
-            "GET", 
-            "getChatMember", 
-            params={"chat_id": chat_id, "user_id": user_id}
+            "GET",
+            "getChatMember",
+            params={"chat_id": chat_id, "user_id": user_id},
         )
         return result.get("result", {})
