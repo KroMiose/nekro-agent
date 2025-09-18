@@ -241,7 +241,11 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         )
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
-        """获取用户信息"""
+        """获取用户信息
+        
+        注意：这个方法主要用于其他地方需要获取用户信息时调用
+        在消息处理过程中，应直接使用 message.from_user 中的信息
+        """
         if not self.http_client:
             raise RuntimeError("HTTP 客户端未初始化")
 
@@ -249,13 +253,33 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
 
             async with self.http_client:
-                member_info = await self.http_client.get_chat_member(chat_id, user_id)
-                user_info = member_info.get("user", {})
+                # 对于群聊，尝试获取群成员信息
+                if "group" in channel_id:
+                    member_info = await self.http_client.get_chat_member(chat_id, user_id)
+                    user_info = member_info.get("user", {})
+                else:
+                    # 对于私聊，无法获取详细信息，只能返回基本信息
+                    user_info = {"id": user_id}
+
+            # 构建完整的用户名称
+            first_name = user_info.get("first_name", "")
+            last_name = user_info.get("last_name", "")
+            username = user_info.get("username", "")
+            
+            # 优先使用完整名称，然后是用户名
+            if first_name and last_name:
+                display_name = f"{first_name} {last_name}"
+            elif first_name:
+                display_name = first_name
+            elif username:
+                display_name = username
+            else:
+                display_name = user_id
 
             return PlatformUser(
                 platform_name=self.key,
                 user_id=str(user_info.get("id", user_id)),
-                user_name=user_info.get("username", ""),
+                user_name=display_name,
                 user_avatar="",
             )
         except Exception as e:
