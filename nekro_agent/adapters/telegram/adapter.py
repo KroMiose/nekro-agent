@@ -2,13 +2,18 @@
 Telegram 适配器实现
 """
 
-from typing import List, Optional, Type, Tuple
 import asyncio
+import contextlib
+import os
+from pathlib import Path
+from typing import TYPE_CHECKING, List, Optional
 
-from fastapi import APIRouter
+from telegram import Bot
+from telegram.ext import Application, MessageHandler, filters
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.schemas.platform import (
+    ChatType,
     PlatformChannel,
     PlatformSendRequest,
     PlatformSendResponse,
@@ -16,231 +21,315 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core.logger import logger
-from nekro_agent.schemas.chat_message import ChatType
 
-from .client import TelegramClient
-from .bot_api import TelegramBotAPIClient
 from .config import TelegramConfig
-from .tools import parse_at_from_text, build_mention_html
+from .http_client import TelegramHTTPClient
+from .message_processor import MessageProcessor
+
+if TYPE_CHECKING:
+    from fastapi import APIRouter
 
 
 class TelegramAdapter(BaseAdapter[TelegramConfig]):
-    """Telegram 适配器，支持 MTProto 和 Bot API 两种模式"""
+    """基于 python-telegram-bot 的 Telegram 适配器"""
 
-    def __init__(self, config_cls: Type[TelegramConfig] = TelegramConfig):
+    def __init__(self, config_cls: type[TelegramConfig] = TelegramConfig):
         super().__init__(config_cls)
-        self._task: Optional[asyncio.Task] = None
-        if self.config.USE_BOT_API:
-            self.client = TelegramBotAPIClient(token=self.config.BOT_TOKEN, proxy_url=self.config.PROXY_URL or "")
-        else:
-            self.client = TelegramClient(self)
-
-    async def init(self) -> None:
-        """初始化适配器"""
-        if self.client:
-            if isinstance(self.client, TelegramBotAPIClient):
-                async def on_message(platform_channel, platform_user, platform_message):
-                    from nekro_agent.adapters.interface.collector import collect_message
-                    await collect_message(self, platform_channel, platform_user, platform_message)
-                # 在后台启动，避免阻塞应用启动流程
-                self._task = asyncio.create_task(self.client.start(on_message))
-                logger.info("Telegram Bot API client started in background")
-            else:
-                # 在后台启动 MTProto 客户端
-                self._task = asyncio.create_task(self.client.start())
-                logger.info("Telegram MTProto client started in background")
-
-    async def cleanup(self) -> None:
-        """清理适配器"""
-        if self.client:
-            if hasattr(self.client, "stop"):
-                try:
-                    await self.client.stop()
-                except Exception as e:
-                    logger.warning(f"Telegram client stop warning: {e}")
-        # 取消后台任务
-        if self._task and not self._task.done():
-            self._task.cancel()
-            try:
-                await self._task
-            except asyncio.CancelledError:
-                pass
+        self.application: Optional[Application] = None
+        self.message_processor: Optional[MessageProcessor] = None
+        self.http_client: Optional[TelegramHTTPClient] = None
+        self._polling_task: Optional[asyncio.Task] = None
 
     @property
     def key(self) -> str:
-        """适配器唯一标识"""
         return "telegram"
 
     @property
     def metadata(self) -> AdapterMetadata:
-        """适配器元数据"""
         return AdapterMetadata(
             name="Telegram",
-            description="连接到 Telegram 平台的适配器，允许通过 Bot 与频道和用户进行交互。",
-            version="1.0.0",
-            author="johntime",
-            homepage="https://github.com/KroMiose/nekro-agent",
-            tags=["telegram", "chat", "im"],
+            description="基于 python-telegram-bot 的 Telegram 适配器",
+            version="2.0.0",
+            author="nekro-agent",
+            tags=["telegram", "chat", "bot"],
         )
 
-    async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
-        """转发消息到 Telegram 平台"""
-        if self.client is None:
-            error_msg = "Telegram client is not initialized. Check BOT_TOKEN configuration."
-            logger.warning(error_msg)
-            return PlatformSendResponse(success=False, error_message=error_msg)
+    @property
+    def chat_key_rules(self) -> List[str]:
+        return [
+            "群聊: `telegram-group_-123456789` (负数为超级群组)",
+            "私聊: `telegram-private_123456789` (正数为私聊用户)",
+        ]
+
+    async def init(self) -> None:
+        """初始化适配器"""
+        if not self.config.BOT_TOKEN:
+            logger.warning("BOT_TOKEN 未配置，跳过 Telegram 适配器初始化")
+            return
 
         try:
-            # 解析聊天键获取频道ID（OneBot 风格：group_123 / private_123）
-            _, channel_id = self.parse_chat_key(request.chat_key)
-            chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
+            # 初始化 Application
+            self.application = (
+                Application.builder().token(self.config.BOT_TOKEN).build()
+            )
 
-            content_parts: List[str] = []
-            # 收集文件段，保留类型信息，形如: [(path, 'image'|'file')]
-            files_to_send: List[Tuple[str, str]] = []
+            # 初始化消息处理器
+            self.message_processor = MessageProcessor(self)
 
-            # 处理消息段
-            use_html = False
-            for seg in request.segments:
-                if seg.type == PlatformSendSegmentType.TEXT:
-                    # 处理文本内容和@信息
-                    parsed_segments = parse_at_from_text(seg.content)
-                    for parsed_seg in parsed_segments:
-                        if isinstance(parsed_seg, str):
-                            content_parts.append(parsed_seg)
-                        else:
-                            # 这是一个@对象
-                            content_parts.append(build_mention_html(parsed_seg.platform_user_id, parsed_seg.nickname))
-                            use_html = True
-                elif seg.type == PlatformSendSegmentType.AT:
-                    if seg.at_info:
-                        content_parts.append(build_mention_html(seg.at_info.platform_user_id, seg.at_info.nickname))
-                        use_html = True
-                elif seg.type in [PlatformSendSegmentType.IMAGE, PlatformSendSegmentType.FILE]:
-                    if seg.file_path:
-                        files_to_send.append((seg.file_path, 'image' if seg.type == PlatformSendSegmentType.IMAGE else 'file'))
+            # 添加消息处理器
+            self.application.add_handler(
+                MessageHandler(filters.ALL, self.message_processor.process_update),
+            )
 
-            final_content = "".join(content_parts)
+            # 初始化 HTTP 客户端
+            self.http_client = TelegramHTTPClient(self.config.BOT_TOKEN)
 
-            # 如果消息为空，跳过发送
-            if not final_content.strip() and not files_to_send:
-                logger.info("Empty message, skipping send.")
-                return PlatformSendResponse(success=True)
+            # 启动应用
+            await self.application.initialize()
+            await self.application.start()
 
-            # 发送消息
-            message_id: Optional[str] = None
-            if isinstance(self.client, TelegramBotAPIClient):
-                success, message_id = await self.client.send_message(
-                    chat_id=chat_id,
-                    text=final_content,
-                    files=files_to_send,
-                    reply_to=request.ref_msg_id,
-                )
-            elif hasattr(self.client, "send_message"):
-                success = await self.client.send_message(
-                    chat_id=chat_id,
-                    text=final_content,
-                    files=[p for p, _t in files_to_send]
-                )
-            else:
-                logger.error("Telegram 客户端不支持 send_message 方法")
-                return PlatformSendResponse(success=False, error_message="No send_message method")
+            # 在后台启动轮询
+            self._polling_task = asyncio.create_task(self._start_polling())
 
-            if success:
-                return PlatformSendResponse(success=True, message_id=message_id)
-            else:
-                return PlatformSendResponse(
-                    success=False,
-                    error_message="Failed to send message to Telegram"
-                )
+            logger.info("Telegram 适配器初始化成功")
 
         except Exception as e:
-            error_msg = f"Error sending message to Telegram: {str(e)}"
+            logger.error(f"Telegram 适配器初始化失败: {e}")
+            await self.cleanup()
+
+    async def _start_polling(self) -> None:
+        """启动轮询"""
+        try:
+            if self.application and self.application.updater:
+                await self.application.updater.start_polling()
+                logger.info("Telegram 轮询已启动")
+        except Exception as e:
+            logger.error(f"Telegram 轮询启动失败: {e}")
+
+    async def cleanup(self) -> None:
+        """清理适配器"""
+        try:
+            # 停止轮询任务
+            if self._polling_task and not self._polling_task.done():
+                self._polling_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await self._polling_task
+
+            # 停止应用
+            if self.application:
+                if self.application.updater:
+                    await self.application.updater.stop()
+                await self.application.stop()
+                await self.application.shutdown()
+
+            # 关闭 HTTP 客户端
+            if (
+                self.http_client
+                and hasattr(self.http_client, "client")
+                and self.http_client.client
+            ):
+                await self.http_client.client.aclose()
+
+            logger.info("Telegram 适配器已清理")
+        except Exception as e:
+            logger.error(f"Telegram 适配器清理失败: {e}")
+
+    async def forward_message(
+        self,
+        request: PlatformSendRequest,
+    ) -> PlatformSendResponse:
+        """转发消息到 Telegram 平台"""
+        if not self.http_client:
+            return PlatformSendResponse(
+                success=False,
+                error_message="Telegram HTTP 客户端未初始化",
+            )
+
+        try:
+            # 解析聊天键获取频道ID
+            _, channel_id = self.parse_chat_key(request.chat_key)
+            # 提取实际的 chat_id
+            chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
+
+            message_ids = []
+
+            async with self.http_client:
+                # 处理消息段
+                for segment in request.segments:
+                    if segment.type == PlatformSendSegmentType.TEXT:
+                        if segment.content and segment.content.strip():
+                            msg_id = await self.http_client.send_message(
+                                chat_id=chat_id,
+                                text=segment.content,
+                                reply_to_message_id=request.ref_msg_id,
+                            )
+                            if msg_id:
+                                message_ids.append(msg_id)
+
+                    elif segment.type == PlatformSendSegmentType.AT:
+                        # Telegram @ 功能通过在文本中包含 @username 或用户ID来实现
+                        # 这里将 AT 段转换为文本形式
+                        if segment.at_info:
+                            at_text = f"@{segment.at_info.nickname or segment.at_info.platform_user_id}"
+                            msg_id = await self.http_client.send_message(
+                                chat_id=chat_id,
+                                text=at_text,
+                                reply_to_message_id=request.ref_msg_id,
+                            )
+                            if msg_id:
+                                message_ids.append(msg_id)
+
+                    elif segment.type == PlatformSendSegmentType.IMAGE:
+                        if segment.file_path and Path(segment.file_path).exists():
+                            with Path(segment.file_path).open("rb") as f:
+                                photo_data = f.read()
+                            msg_id = await self.http_client.send_photo(
+                                chat_id=chat_id,
+                                photo_data=photo_data,
+                                reply_to_message_id=request.ref_msg_id,
+                            )
+                            if msg_id:
+                                message_ids.append(msg_id)
+
+                    elif (
+                        segment.type == PlatformSendSegmentType.FILE
+                        and segment.file_path
+                        and Path(segment.file_path).exists()
+                    ):
+                        with Path(segment.file_path).open("rb") as f:
+                            file_data = f.read()
+                        filename = Path(segment.file_path).name
+                        msg_id = await self.http_client.send_document(
+                            chat_id=chat_id,
+                            document_data=file_data,
+                            filename=filename,
+                            reply_to_message_id=request.ref_msg_id,
+                        )
+                        if msg_id:
+                            message_ids.append(msg_id)
+
+            if message_ids:
+                return PlatformSendResponse(
+                    success=True,
+                    message_id=message_ids[0]
+                    if len(message_ids) == 1
+                    else ",".join(message_ids),
+                )
+            return PlatformSendResponse(
+                success=True,
+                message_id="empty",
+            )
+
+        except Exception as e:
+            error_msg = f"Telegram 消息发送失败: {e!s}"
             logger.error(error_msg)
             return PlatformSendResponse(success=False, error_message=error_msg)
 
-    def build_chat_key(self, channel_id: str) -> str:
-        """构建聊天键"""
-        return f"{self.key}-{channel_id}"
+    async def get_self_info(self) -> PlatformUser:
+        """获取自身信息"""
+        if not self.http_client:
+            raise RuntimeError("HTTP 客户端未初始化")
 
-    def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
-        """解析聊天键"""
-        parts = chat_key.split('-', 1)
-        if len(parts) != 2:
-            return self.key, chat_key  # 如果解析失败，返回默认值
-        return parts[0], parts[1]
+        async with self.http_client:
+            bot_info = await self.http_client.get_me()
 
-    def get_adapter_router(self) -> APIRouter:
+        return PlatformUser(
+            platform_name=self.key,
+            user_id=str(bot_info.get("id", "")),
+            user_name=bot_info.get("username", ""),
+            user_avatar="",
+        )
+
+    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+        """获取用户信息
+        
+        注意：这个方法主要用于其他地方需要获取用户信息时调用
+        在消息处理过程中，应直接使用 message.from_user 中的信息
+        """
+        if not self.http_client:
+            raise RuntimeError("HTTP 客户端未初始化")
+
+        try:
+            chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
+
+            async with self.http_client:
+                # 对于群聊，尝试获取群成员信息
+                if "group" in channel_id:
+                    member_info = await self.http_client.get_chat_member(chat_id, user_id)
+                    user_info = member_info.get("user", {})
+                else:
+                    # 对于私聊，无法获取详细信息，只能返回基本信息
+                    user_info = {"id": user_id}
+
+            # 构建完整的用户名称
+            first_name = user_info.get("first_name", "")
+            last_name = user_info.get("last_name", "")
+            username = user_info.get("username", "")
+            
+            # 优先使用完整名称，然后是用户名
+            if first_name and last_name:
+                display_name = f"{first_name} {last_name}"
+            elif first_name:
+                display_name = first_name
+            elif username:
+                display_name = username
+            else:
+                display_name = user_id
+
+            return PlatformUser(
+                platform_name=self.key,
+                user_id=str(user_info.get("id", user_id)),
+                user_name=display_name,
+                user_avatar="",
+            )
+        except Exception as e:
+            logger.error(f"获取用户信息失败: {e}")
+            # 返回默认用户信息
+            return PlatformUser(
+                platform_name=self.key,
+                user_id=user_id,
+                user_name=user_id,
+                user_avatar="",
+            )
+
+    async def get_channel_info(self, channel_id: str) -> PlatformChannel:
+        """获取频道信息"""
+        if not self.http_client:
+            raise RuntimeError("HTTP 客户端未初始化")
+
+        try:
+            chat_id = channel_id.split("_", 1)[1] if "_" in channel_id else channel_id
+
+            async with self.http_client:
+                chat_info = await self.http_client.get_chat(chat_id)
+
+            chat_type = (
+                ChatType.PRIVATE
+                if chat_info.get("type") == "private"
+                else ChatType.GROUP
+            )
+
+            return PlatformChannel(
+                platform_name=self.key,
+                channel_id=channel_id,
+                channel_name=chat_info.get("title")
+                or chat_info.get("first_name")
+                or chat_id,
+                channel_type=chat_type,
+            )
+        except Exception as e:
+            logger.error(f"获取频道信息失败: {e}")
+            # 返回默认频道信息
+            chat_type = ChatType.PRIVATE if "private" in channel_id else ChatType.GROUP
+            return PlatformChannel(
+                platform_name=self.key,
+                channel_id=channel_id,
+                channel_name=channel_id,
+                channel_type=chat_type,
+            )
+
+    def get_adapter_router(self) -> "APIRouter":
         """获取适配器路由"""
-        router = APIRouter(prefix=f"/adapters/{self.key}", tags=["adapters", self.key])
-
-        # 这里可以添加适配器特有的API路由
-        # 例如：获取机器人信息、管理群组等
-
-        @router.get("/info")
-        async def get_telegram_info():
-            """获取 Telegram 适配器信息"""
-            return {
-                "adapter": self.key,
-                "metadata": self.metadata.model_dump(),
-                # is_connected 在未安装 pyrogram 或未 start 时应容错
-                "status": (
-                    "connected"
-                    if getattr(getattr(self.client, "_client", None), "is_connected", False)
-                    else "disconnected"
-                ),
-            }
+        from .routers import router
 
         return router
-
-    async def get_platform_user(self, user_id: str) -> Optional[PlatformUser]:
-        """获取平台用户信息"""
-        # 在实际实现中，这里应该调用 Telegram API 获取用户信息
-        return PlatformUser(
-            platform_name=self.key,
-            user_id=user_id,
-            user_name=f"User_{user_id}",
-            user_avatar=""
-        )
-
-    async def get_platform_channel(self, channel_id: str) -> Optional[PlatformChannel]:
-        """获取平台频道信息"""
-        # 在实际实现中，这里应该调用 Telegram API 获取频道信息
-        channel_type = ChatType.PRIVATE if channel_id.startswith("private_") else ChatType.GROUP
-        return PlatformChannel(
-            channel_id=channel_id,
-            channel_name=f"Channel_{channel_id}",
-            channel_type=channel_type,
-            channel_avatar=""
-        )
-    
-    async def get_self_info(self) -> PlatformUser:
-        """获取自身信息（实现抽象方法）"""
-        # 在实际实现中，这里应该调用 Telegram API 获取机器人自身信息
-        return PlatformUser(
-            platform_name=self.key,
-            user_id="telegram_bot",
-            user_name="Telegram Bot",
-            user_avatar=""
-        )
-    
-    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
-        """获取用户(或者群聊用户)信息（实现抽象方法）"""
-        # 在实际实现中，这里应该调用 Telegram API 获取用户信息
-        # channel_id 参数在这里可以用于获取群聊中的用户特定信息
-        return await self.get_platform_user(user_id) or PlatformUser(
-            platform_name=self.key,
-            user_id=user_id,
-            user_name=f"User_{user_id}",
-            user_avatar=""
-        )
-    
-    async def get_channel_info(self, channel_id: str) -> PlatformChannel:
-        """获取频道信息（实现抽象方法）"""
-        # 在实际实现中，这里应该调用 Telegram API 获取频道信息
-        return await self.get_platform_channel(channel_id) or PlatformChannel(
-            channel_id=channel_id,
-            channel_name=f"Channel_{channel_id}",
-            channel_type=ChatType.PRIVATE if channel_id.startswith('-100') else ChatType.GROUP,
-            channel_avatar=""
-        )
