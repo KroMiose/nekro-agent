@@ -435,20 +435,7 @@ class PluginCollector:
                 logger.warning(f"未找到原始模块 {module_path}，无法卸载旧模块")
 
         if isinstance(plugin, NekroPlugin):
-            # 直接设置内置/云端插件标识
-            plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
-
-            # 未在启用列表内：注册但跳过初始化，避免外部依赖阻塞启动
-            if plugin.key not in config.PLUGIN_ENABLED:
-                plugin.disable()
-                self.loaded_plugins[plugin.key] = plugin
-                self.loaded_module_names.add(module_path)
-                logger.info(
-                    f'插件已注册但未启用，跳过初始化: "{plugin.name}" by "{plugin.author or "未知"}"'
-                )
-                return
-
-            # 已启用插件：执行初始化
+            # 直接设置内置插件标识
             try:
                 if plugin.init_method:
                     await plugin.init_method()
@@ -459,6 +446,9 @@ class PluginCollector:
             logger.success(
                 f'插件加载成功: "{plugin.name}" by "{plugin.author or "未知"}"{" [内置]" if is_builtin else ""}{" [云端]" if is_package else ""}',
             )
+            plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
+            if plugin.key not in config.PLUGIN_ENABLED:
+                plugin.disable()
             self.loaded_plugins[plugin.key] = plugin
             self.loaded_module_names.add(module_path)
         else:

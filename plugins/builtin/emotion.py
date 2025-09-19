@@ -121,9 +121,7 @@ async def init_vector_db():
     try:
         collections = await client.get_collections()
     except Exception as e:
-        # 降级处理：无法连接 Qdrant 时跳过初始化，避免在启动阶段刷大量报错
-        logger.warning(f"获取Qdrant集合失败，已跳过表情包向量数据库初始化：{e}")
-        return
+        raise ValueError(f"获取Qdrant集合失败: {e}") from e
 
     collection_names = [collection.name for collection in collections.collections]
 
