@@ -53,7 +53,9 @@ async def convert_chat_message(
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
             if not ob_event.file.model_extra["url"].startswith("http"):
-                logger.warning(f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}")
+                logger.warning(
+                    f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}"
+                )
                 return ret_list, False, ""
             ret_list.append(
                 await ChatMessageSegmentFile.create_from_url(
@@ -165,7 +167,34 @@ async def convert_chat_message(
                 )
 
         elif seg.type == "file":
-            ...  # TODO: llob 传递过来的文件没有直链，待补充实现
+            if (
+                "size" in seg.data
+                and seg.data["size"] > config.MAX_UPLOAD_SIZE_MB * 1024 * 1024
+            ):
+                file_name = seg.data.get("name", "unknown")
+                logger.warning(f"文件过大，跳过处理: {file_name}")
+                continue
+            if "url" in seg.data:
+                ret_list.append(
+                    await ChatMessageSegmentFile.create_from_url(
+                        url=seg.data["url"],
+                        from_chat_key=db_chat_channel.chat_key,
+                    ),
+                )
+            elif "file" in seg.data:
+                file_path = seg.data["file"]
+                if file_path.startswith("file:"):
+                    file_path = file_path[len("file:") :]
+                ret_list.append(
+                    await ChatMessageSegmentFile.create_form_local_path(
+                        local_path=file_path,
+                        from_chat_key=db_chat_channel.chat_key,
+                        file_name=seg.data.get("name", ""),
+                    ),
+                )
+            else:
+                logger.warning(f"OneBot file message without url or file: {seg}")
+                continue
 
     if msg_to_me and not is_tome:
         is_tome = True
