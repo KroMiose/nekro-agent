@@ -328,6 +328,48 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+  // Telegram 适配器配置
+  telegram: {
+    key: 'telegram',
+    visual: {
+      displayName: 'Telegram',
+      iconText: 'TG',
+      navIcon: <ChatIcon />,
+      description: 'Telegram 适配器，支持 Telegram 机器人通信',
+      tags: ['Telegram', '聊天', 'IM'],
+    },
+    tabs: [
+      {
+        label: '主页',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: '适配器配置',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: '高级',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
   // 默认适配器配置（用于其他适配器）
   default: {
     key: 'default',

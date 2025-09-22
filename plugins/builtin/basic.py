@@ -69,7 +69,8 @@ plugin = NekroPlugin(
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad"],
+    # 开放给 telegram 使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram"],
 )
 
 
@@ -335,13 +336,16 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
 @plugin.mount_collect_methods()
 async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
     """根据适配器收集可用方法"""
-
+    # 基础能力：大多数适配器支持文本与文件发送
     if _ctx.adapter_key == "minecraft":
         return [send_msg_text]
     if _ctx.adapter_key == "sse":
         return [send_msg_text, send_msg_file]
-
-    return [send_msg_text, send_msg_file, get_user_avatar]
+    if _ctx.adapter_key == "onebot_v11":
+        # 仅 OneBot 提供头像工具
+        return [send_msg_text, send_msg_file, get_user_avatar]
+    # 其他（包含 telegram、discord、wechatpad 等）
+    return [send_msg_text, send_msg_file]
 
 
 @plugin.mount_cleanup_method()

@@ -51,6 +51,9 @@ matplotlib = "^3.10.3"
 pandas = "^2.3.0"
 websockets = "^15.0.1"
 discord-py = "^2.5.2"
+aiohttp = "^3.11.15"
+pyrogram = "^2.0.0"
+tgcrypto = "^1.2.5"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
@@ -64,6 +67,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.nonebot]
 adapters = [
     { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
+    { name = "Telegram", module_name = "nekro_agent.adapters.telegram.adapter" },
 ]
 plugins = ["nekro_agent"]
 plugin_dirs = []
