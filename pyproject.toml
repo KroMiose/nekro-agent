@@ -51,7 +51,6 @@ matplotlib = "^3.10.3"
 pandas = "^2.3.0"
 websockets = "^15.0.1"
 discord-py = "^2.5.2"
-python-telegram-bot = { version = "^21.4", extras = ["ext"] }
 aiohttp = "^3.11.15"
 
 [tool.poetry.group.dev.dependencies]
