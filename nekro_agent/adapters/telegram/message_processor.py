@@ -25,11 +25,10 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.core.logger import logger
 from nekro_agent.schemas.chat_message import (
-    ChatMessageSegment, 
-    ChatMessageSegmentType, 
-    ChatMessageSegmentImage, 
+    ChatMessageSegment,
+    ChatMessageSegmentType,
+    ChatMessageSegmentImage,
     ChatMessageSegmentFile,
-    ChatMessageSegmentText,
 )
 from nekro_agent.tools.common_util import download_file_from_bytes
 
@@ -111,7 +110,7 @@ class MessageProcessor:
 
         # 处理文本内容
         if message.text:
-            segment = ChatMessageSegmentText.create_from_text(message.text)
+            segment = ChatMessageSegment(type=ChatMessageSegmentType.TEXT, text=message.text)
             segments.append(segment)
 
         # 处理照片
@@ -320,6 +319,8 @@ class MessageProcessor:
                 extension = ext
                 
         return mime_type, extension
+
+    def _extract_text_content(self, segments: List[ChatMessageSegment]) -> str:
         """提取文本内容"""
         text_parts = []
         for segment in segments:
