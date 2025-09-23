@@ -39,6 +39,9 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         self.message_processor: Optional[MessageProcessor] = None
         self.http_client: Optional[TelegramHTTPClient] = None
         self._polling_task: Optional[asyncio.Task] = None
+        self._polling_retries = 0
+        self._max_polling_retries = 5
+        self._polling_retry_delay = 5  # 秒
 
     @property
     def key(self) -> str:
@@ -89,7 +92,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             await self.application.start()
 
             # 在后台启动轮询
-            self._polling_task = asyncio.create_task(self._start_polling())
+            self._polling_retries = 0  # 重置重试计数
+            self._polling_task = asyncio.create_task(self._start_polling_with_retry())
 
             logger.info("Telegram 适配器初始化成功")
 
@@ -103,8 +107,32 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             if self.application and self.application.updater:
                 await self.application.updater.start_polling()
                 logger.info("Telegram 轮询已启动")
+                # 成功启动后重置重试计数
+                self._polling_retries = 0
         except Exception as e:
             logger.error(f"Telegram 轮询启动失败: {e}")
+            raise
+
+    async def _start_polling_with_retry(self) -> None:
+        """启动带重试机制的轮询"""
+        while self._polling_retries < self._max_polling_retries:
+            try:
+                await self._start_polling()
+                return  # 成功启动，退出循环
+            except Exception as e:
+                self._polling_retries += 1
+                if self._polling_retries < self._max_polling_retries:
+                    logger.warning(
+                        f"Telegram 轮询启动失败，第 {self._polling_retries} 次重试，"
+                        f"{self._polling_retry_delay} 秒后重试: {e}"
+                    )
+                    await asyncio.sleep(self._polling_retry_delay)
+                else:
+                    logger.error(
+                        f"Telegram 轮询启动失败，已达到最大重试次数 {self._max_polling_retries}，"
+                        f"请检查网络连接或 Bot Token 配置"
+                    )
+                    break
 
     async def cleanup(self) -> None:
         """清理适配器"""

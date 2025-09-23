@@ -29,6 +29,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     ChatMessageSegmentImage,
     ChatMessageSegmentFile,
+    ChatMessageSegmentAt,
 )
 from nekro_agent.tools.common_util import download_file_from_bytes
 
