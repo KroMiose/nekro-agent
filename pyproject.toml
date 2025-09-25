@@ -52,6 +52,7 @@ pandas = "^2.3.0"
 websockets = "^15.0.1"
 discord-py = "^2.5.2"
 aiohttp = "^3.11.15"
+python-telegram-bot = "^22.4"
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
