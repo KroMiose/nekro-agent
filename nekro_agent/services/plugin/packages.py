@@ -1,142 +1,128 @@
+# nekro_agent/services/plugin/packages.py
 import importlib
+import shlex
 import subprocess
 import sys
 import urllib.parse
-from importlib.metadata import PackageNotFoundError, distributions
+from importlib.metadata import distributions
 from pathlib import Path
 from typing import Any, Optional
 
+from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
-from packaging.version import parse
+from packaging.version import parse as parse_version
 
 from nekro_agent.core.os_env import OsEnv
 
+# ---------- 公开 API ----------
 def load_packages(
     package_spec: str,
     import_name: Optional[str] = None,
+    *,
     mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
     trusted_host: bool = True,
     timeout: int = 300,
-    repo_dir: Optional[str] = Path(OsEnv.DATA_DIR) / "packages",
+    repo_dir: Optional[Path] = None,
 ) -> Any:
-    """动态安装并导入Python包
-
-    Args:
-        package_spec: 包名称和版本规范 (如 "requests" 或 "numpy==1.21.0")
-        import_name: 导入名称（如果与包名不同）
-        mirror: PyPI镜像源URL
-        trusted_host: 是否信任镜像源主机
-        timeout: 安装超时时间（秒）
-        repo_dir: 持久化存储目录 (默认使用系统路径)
-
-    Returns:
-        导入的模块对象
-
-    Raises:
-        RuntimeError: 安装失败时抛出
-        ImportError: 导入失败时抛出
     """
-    # 提取基础包名和版本约束
-    package_name = package_spec.strip()
-    version_spec = ""
-    for sep in ["==", ">=", "<=", "!=", ">", "<", "~="]:
-        if sep in package_name:
-            package_name, version_spec = package_name.split(sep, 1)
-            package_name = package_name.strip()
-            version_spec = f"{sep}{version_spec.strip()}"
-            break
+    动态安装并导入 Python 包
+     Raises
+        RuntimeError: 安装失败
+        ImportError:  导入失败
+    """
+    req = _parse_spec(package_spec)
+    repo_dir = repo_dir or Path(OsEnv.DATA_DIR) / "packages"
+    site_dir = _ensure_repo(repo_dir)
 
-    # 配置持久化仓库路径
-    if repo_dir:
-        repo_path = Path(repo_dir)
-        repo_path.mkdir(parents=True, exist_ok=True)
-        repo_site_packages = repo_path / "site-packages"
-        repo_site_packages.mkdir(parents=True, exist_ok=True)
+    if not _is_installed(req, site_dir):
+        _install_package(req, mirror, trusted_host, timeout, repo_dir)
 
-        # 添加路径到sys.path
-        for path in [str(repo_path), str(repo_site_packages)]:
-            if path not in sys.path:
-                sys.path.insert(0, path)
+    return _import_module(import_name or req.name, site_dir)
 
-    # 检查是否已安装符合条件的版本
-    need_install = True
+
+# ---------- 内部辅助 ----------
+def _parse_spec(spec: str) -> Requirement:
+    """解析 'requests>=2.25,<3' 这类规范"""
     try:
-        # 处理distributions函数的path参数
-        if repo_dir:
-            path_list = [repo_dir]
-            dists = distributions(path=path_list)
-        else:
-            dists = distributions()
+        return Requirement(spec)
+    except Exception as e:
+        raise ValueError(f"非法包规范 {spec!r}: {e}") from e
 
-        for dist in dists:
-            metadata = dist.metadata
-            dist_name = getattr(metadata, "Name", None) or dist.name
-            if dist_name.lower() == package_name.lower() and (
-                not version_spec or parse(dist.version) in SpecifierSet(version_spec)
-            ):
-                need_install = False
-                break
-    except PackageNotFoundError:
-        pass
 
-    # 构建安装命令
-    if need_install:
-        install_cmd = [
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--disable-pip-version-check",
-            "--quiet",
-            "--no-input",
-            "--no-warn-script-location",
-        ]
+def _ensure_repo(repo_dir: Path) -> Path:
+    """确保仓库目录存在，返回 site-packages 路径"""
+    site_dir = repo_dir.resolve() / "site-packages"
+    site_dir.mkdir(parents=True, exist_ok=True)
+    # 注入 import 路径
+    for p in (repo_dir.resolve(), site_dir):
+        if str(p) not in sys.path:
+            sys.path.insert(0, str(p))
+    return site_dir
 
-        # 添加持久化目录参数
-        if repo_dir:
-            install_cmd += ["--target", repo_dir]
 
-        # 添加镜像源配置
-        if mirror:
-            install_cmd += ["--index-url", mirror]
-            if trusted_host:
-                host = urllib.parse.urlparse(mirror).hostname
-                if host:
-                    install_cmd += ["--trusted-host", host]
+def _is_installed(req: Requirement, site_dir: Path) -> bool:
+    """检查 site_dir 是否已满足规范"""
+    for dist in distributions(path=[str(site_dir)]):
+        if dist.metadata["Name"] == req.name and (
+            not req.specifier or parse_version(dist.version) in req.specifier
+        ):
+            return True
+    return False
 
-        install_cmd.append(package_spec)
 
-        # 执行安装
-        try:
-            subprocess.run(install_cmd, capture_output=True, text=True, check=True, timeout=timeout)
-        except subprocess.CalledProcessError as e:
-            error_msg = _parse_pip_error(e.stderr or e.stdout)
-            print(f"安装 {package_spec} 失败: {error_msg}")
-            exit(1)
-        except subprocess.TimeoutExpired:
-            print(f"安装 {package_spec} 超时（{timeout}秒），请检查网络连接")
-            exit(1)
+def _install_package(
+    req: Requirement,
+    mirror: Optional[str],
+    trusted_host: bool,
+    timeout: int,
+    repo_dir: Path,
+) -> None:
+    """pip 安装到指定目录"""
+    cmd = [
+        sys.executable, "-m", "pip", "install",
+        "--disable-pip-version-check",
+        "--quiet", "--no-input", "--no-warn-script-location",
+        "--target", str(repo_dir),
+        str(req),
+    ]
+    if mirror:
+        cmd.extend(["--index-url", mirror])
+        if trusted_host and (host := urllib.parse.urlparse(mirror).hostname):
+            cmd.extend(["--trusted-host", shlex.quote(host)])
 
-    # 确定导入模块名称
-    module_name = import_name if import_name is not None else package_name
-
-    # 动态导入模块
     try:
-        module = importlib.import_module(module_name)
-        module = importlib.reload(module)  # 确保加载最新版本
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(_parse_pip_error(e.stderr or e.stdout)) from e
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"安装 {req} 超时（{timeout}s）") from e
+
+
+def _import_module(name: str, site_dir: Path) -> Any:
+    """导入模块，失败时刷新 site 目录再试一次"""
+    try:
+        return importlib.import_module(name)
     except ImportError:
-        # 尝试刷新导入路径
-        if repo_dir:
-            import site
+        import site
+        site.addsitedir(str(site_dir))
+        try:
+            return importlib.import_module(name)
+        except ImportError as e:
+            raise ImportError(f"安装成功但无法导入 {name}") from e
 
-            site.addsitedir(repo_dir)
-            try:
-                module = importlib.import_module(module_name)
-            except ImportError:
-                print(f"安装成功但无法导入 {module_name}，请确认模块名正确")
-                exit(1)
-        else:
-            print(f"安装成功但无法导入 {module_name}，请确认模块名正确")
-            exit(1)
 
-    return module
+def _parse_pip_error(output: str) -> str:
+    """友好化 pip 报错"""
+    patterns = {
+        "No matching distribution": "包不存在或版本不可用",
+        "Could not find a version": "找不到指定版本",
+        "SSL: CERTIFICATE_VERIFY_FAILED": "SSL 验证失败，尝试 trusted_host=True",
+        "403": "访问被拒绝（镜像源可能需要认证）",
+        "404": "资源不存在",
+        "Connection refused": "连接被拒绝，检查镜像源地址",
+        "Network is unreachable": "网络不可达",
+    }
+    for k, v in patterns.items():
+        if k in output:
+            return v
+    return output[:200] + "..." if len(output) > 200 else output
