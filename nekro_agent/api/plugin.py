@@ -5,7 +5,7 @@
 
 from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin
-from nekro_agent.services.plugin.packages import load_packages
+from nekro_agent.services.plugin.packages import dynamic_import_pkg
 from nekro_agent.services.plugin.schema import SandboxMethod, SandboxMethodType
 
 __all__ = [
@@ -14,5 +14,5 @@ __all__ = [
     "NekroPlugin",
     "SandboxMethod",
     "SandboxMethodType",
-    "load_packages",
+    "dynamic_import_pkg",
 ]

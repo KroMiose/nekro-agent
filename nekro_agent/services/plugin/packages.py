@@ -15,7 +15,7 @@ from packaging.version import parse as parse_version
 from nekro_agent.core.os_env import OsEnv
 
 # ---------- 公开 API ----------
-def load_packages(
+def dynamic_import_pkg(
     package_spec: str,
     import_name: Optional[str] = None,
     *,
