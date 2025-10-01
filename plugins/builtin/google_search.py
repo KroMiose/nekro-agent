@@ -97,13 +97,16 @@ async def google_search(_ctx: AgentCtx, keyword: str) -> str:
     if not api_key or not cx_key:
         return "[Google] 未配置 API Key 或 CX Key"
 
-    if proxy and not proxy.startswith("http"):
-        proxy = f"http://{proxy}"
+    proxy = (
+        proxy if proxy and proxy.startswith(("http://", "https://"))
+        else f"http://{proxy}" if proxy
+        else None
+    )
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
-        async with AsyncClient(proxies=proxy) as cli:
+        async with AsyncClient(proxy=proxy) as cli:
             response = (
                 await cli.get(
                     "https://www.googleapis.com/customsearch/v1",
