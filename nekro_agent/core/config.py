@@ -110,7 +110,7 @@ class CoreConfig(ConfigBase):
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
         default={
             "default": ModelConfigGroup(
-                CHAT_MODEL="gemini-1.5-pro-002",
+                CHAT_MODEL="gemini-2.5-flash",
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
@@ -128,7 +128,7 @@ class CoreConfig(ConfigBase):
                 ENABLE_COT=False,
             ),
             "default-draw-chat": ModelConfigGroup(
-                CHAT_MODEL="gemini-2.0-flash-exp-image-generation",
+                CHAT_MODEL="gemini-2.5-flash-image-preview",
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
