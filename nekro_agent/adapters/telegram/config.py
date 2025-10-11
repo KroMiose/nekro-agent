@@ -13,7 +13,7 @@ def _get_default_proxy() -> str:
     try:
         from nekro_agent.core.config import config
         return config.DEFAULT_PROXY or ""
-    except:
+    except Exception:
         return ""
 
 
@@ -30,7 +30,7 @@ class TelegramConfig(BaseAdapterConfig):
     PROXY_URL: str = Field(
         default_factory=_get_default_proxy,
         title="代理地址",
-        description="Telegram API 访问代理，支持 http/https/socks5 协议",
+        description="Telegram API 访问代理，支持 http/https/socks5 协议.空白表示不使用代理",
         json_schema_extra=ExtraField(placeholder="例: http://127.0.0.1:7890 或 socks5://127.0.0.1:1080").model_dump(),
     )
 

@@ -23,7 +23,9 @@ class TelegramHTTPClient:
         """异步上下文管理器入口"""
         proxies = None
         if self.proxy_url and self.proxy_url.strip():
-            proxies = self.proxy_url.strip()
+            proxies = {
+                "all://": self.proxy_url.strip(),
+            }
             logger.info(f"Telegram HTTP客户端使用代理: {proxies}")
         
         self.client = httpx.AsyncClient(timeout=30.0, proxies=proxies)
@@ -39,7 +41,9 @@ class TelegramHTTPClient:
         if not self.client:
             proxies = None
             if self.proxy_url and self.proxy_url.strip():
-                proxies = self.proxy_url.strip()
+                proxies = {
+                    "all://": self.proxy_url.strip(),
+                }
             
             self.client = httpx.AsyncClient(timeout=30.0, proxies=proxies)
 
