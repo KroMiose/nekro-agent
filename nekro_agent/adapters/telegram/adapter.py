@@ -71,6 +71,11 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             return
 
         try:
+            # 使用配置中的代理地址（默认na代理配置）
+            proxy_url = self.config.PROXY_URL.strip() if self.config.PROXY_URL else None
+            if proxy_url:
+                logger.info(f"Telegram 适配器使用代理: {proxy_url}")
+            
             # 初始化 Application
             self.application = (
                 Application.builder().token(self.config.BOT_TOKEN).build()
@@ -84,8 +89,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 MessageHandler(filters.ALL, self.message_processor.process_update),
             )
 
-            # 初始化 HTTP 客户端
-            self.http_client = TelegramHTTPClient(self.config.BOT_TOKEN)
+            # 初始化 HTTP 客户端（传入代理配置）
+            self.http_client = TelegramHTTPClient(self.config.BOT_TOKEN, proxy_url)
 
             # 启动应用
             await self.application.initialize()

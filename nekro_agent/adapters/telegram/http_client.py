@@ -13,14 +13,22 @@ from nekro_agent.core.logger import logger
 class TelegramHTTPClient:
     """Telegram HTTP API 客户端"""
 
-    def __init__(self, bot_token: str):
+    def __init__(self, bot_token: str, proxy_url: Optional[str] = None):
         self.bot_token = bot_token
         self.base_url = f"https://api.telegram.org/bot{bot_token}"
         self.client: Optional[httpx.AsyncClient] = None
+        self.proxy_url = proxy_url
 
     async def __aenter__(self):
         """异步上下文管理器入口"""
-        self.client = httpx.AsyncClient(timeout=30.0)
+        proxies = None
+        if self.proxy_url and self.proxy_url.strip():
+            proxies = {
+                "all://": self.proxy_url.strip(),
+            }
+            logger.info(f"Telegram HTTP客户端使用代理: {proxies}")
+        
+        self.client = httpx.AsyncClient(timeout=30.0, proxies=proxies)
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
@@ -31,7 +39,13 @@ class TelegramHTTPClient:
     async def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """发送 HTTP 请求"""
         if not self.client:
-            self.client = httpx.AsyncClient(timeout=30.0)
+            proxies = None
+            if self.proxy_url and self.proxy_url.strip():
+                proxies = {
+                    "all://": self.proxy_url.strip(),
+                }
+            
+            self.client = httpx.AsyncClient(timeout=30.0, proxies=proxies)
 
         url = f"{self.base_url}/{endpoint}"
 
