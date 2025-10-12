@@ -121,7 +121,7 @@ class MessageProcessor:
             photo_bytes = await self._download_file_bytes(largest_photo.file_id)
             if photo_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(photo_bytes)
@@ -139,7 +139,7 @@ class MessageProcessor:
             doc_bytes = await self._download_file_bytes(message.document.file_id)
             if doc_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(
@@ -164,7 +164,7 @@ class MessageProcessor:
             video_bytes = await self._download_file_bytes(message.video.file_id)
             if video_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(video_bytes)
@@ -182,7 +182,7 @@ class MessageProcessor:
             audio_bytes = await self._download_file_bytes(message.audio.file_id)
             if audio_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(
@@ -207,7 +207,7 @@ class MessageProcessor:
             voice_bytes = await self._download_file_bytes(message.voice.file_id)
             if voice_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(voice_bytes)
@@ -225,7 +225,7 @@ class MessageProcessor:
             sticker_bytes = await self._download_file_bytes(message.sticker.file_id)
             if sticker_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(sticker_bytes)
@@ -243,7 +243,7 @@ class MessageProcessor:
             video_note_bytes = await self._download_file_bytes(message.video_note.file_id)
             if video_note_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(video_note_bytes)
