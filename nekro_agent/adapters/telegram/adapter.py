@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
@@ -63,6 +63,30 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             "群聊: `telegram-group_-123456789` (负数为超级群组)",
             "私聊: `telegram-private_123456789` (正数为私聊用户)",
         ]
+
+    def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
+        """解析聊天标识（Telegram 特殊处理负数群组ID）
+
+        Args:
+            chat_key: 聊天标识，格式如 telegram-group_-1002768666191
+
+        Returns:
+            Tuple[str, str]: (adapter_key, channel_id)
+
+        Raises:
+            ValueError: 当聊天标识格式无效时
+        """
+        # 使用限制分割次数的方式处理，只在第一个 '-' 处分割
+        # 这样可以正确处理负数群组ID，如: telegram-group_-1002768666191
+        parts = chat_key.split("-", 1)
+
+        if len(parts) != 2:
+            raise ValueError(f"无效的聊天标识: {chat_key}")
+
+        adapter_key = parts[0]
+        channel_id = parts[1]
+
+        return adapter_key, channel_id
 
     async def init(self) -> None:
         """初始化适配器"""
