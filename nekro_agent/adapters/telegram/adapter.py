@@ -77,11 +77,6 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         if hasattr(chat_id_or_chat, 'type') and hasattr(chat_id_or_chat, 'id'):
             chat_type = "private" if chat_id_or_chat.type == "private" else "group"
             return f"{self.key}-{chat_type}_{chat_id_or_chat.id}"
-        
-        # 如果传入的是纯 ID（兼容旧调用）
-        chat_id = chat_id_or_chat
-        chat_type = "private" if int(chat_id) > 0 else "group"
-        return f"{self.key}-{chat_type}_{chat_id}"
 
     def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
         """解析聊天标识（Telegram 特殊处理负数群组ID）
