@@ -121,11 +121,12 @@ class MessageProcessor:
             photo_bytes = await self._download_file_bytes(largest_photo.file_id)
             if photo_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(photo_bytes)
-                filename = f"photo_{largest_photo.file_id}{extension or '.jpg'}"
+                safe_id = self._sanitize_filename(largest_photo.file_id)
+                filename = f"photo_{safe_id}{extension or '.jpg'}"
                 
                 segment = await ChatMessageSegmentImage.create_from_bytes(
                     photo_bytes,
@@ -139,7 +140,7 @@ class MessageProcessor:
             doc_bytes = await self._download_file_bytes(message.document.file_id)
             if doc_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(
@@ -150,7 +151,8 @@ class MessageProcessor:
                 if message.document.file_name:
                     filename = message.document.file_name
                 else:
-                    filename = f"document_{message.document.file_id}{extension or '.bin'}"
+                    safe_id = self._sanitize_filename(message.document.file_id)
+                    filename = f"document_{safe_id}{extension or '.bin'}"
                 
                 segment = await ChatMessageSegmentFile.create_from_bytes(
                     doc_bytes,
@@ -164,11 +166,12 @@ class MessageProcessor:
             video_bytes = await self._download_file_bytes(message.video.file_id)
             if video_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(video_bytes)
-                filename = f"video_{message.video.file_id}{extension or '.mp4'}"
+                safe_id = self._sanitize_filename(message.video.file_id)
+                filename = f"video_{safe_id}{extension or '.mp4'}"
                 
                 segment = await ChatMessageSegmentFile.create_from_bytes(
                     video_bytes,
@@ -182,7 +185,7 @@ class MessageProcessor:
             audio_bytes = await self._download_file_bytes(message.audio.file_id)
             if audio_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(
@@ -193,7 +196,8 @@ class MessageProcessor:
                 if message.audio.file_name:
                     filename = message.audio.file_name
                 else:
-                    filename = f"audio_{message.audio.file_id}{extension or '.mp3'}"
+                    safe_id = self._sanitize_filename(message.audio.file_id)
+                    filename = f"audio_{safe_id}{extension or '.mp3'}"
                 
                 segment = await ChatMessageSegmentFile.create_from_bytes(
                     audio_bytes,
@@ -207,11 +211,12 @@ class MessageProcessor:
             voice_bytes = await self._download_file_bytes(message.voice.file_id)
             if voice_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(voice_bytes)
-                filename = f"voice_{message.voice.file_id}{extension or '.ogg'}"
+                safe_id = self._sanitize_filename(message.voice.file_id)
+                filename = f"voice_{safe_id}{extension or '.ogg'}"
                 
                 segment = await ChatMessageSegmentFile.create_from_bytes(
                     voice_bytes,
@@ -225,11 +230,12 @@ class MessageProcessor:
             sticker_bytes = await self._download_file_bytes(message.sticker.file_id)
             if sticker_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(sticker_bytes)
-                filename = f"sticker_{message.sticker.file_id}{extension or '.webp'}"
+                safe_id = self._sanitize_filename(message.sticker.file_id)
+                filename = f"sticker_{safe_id}{extension or '.webp'}"
                 
                 segment = await ChatMessageSegmentImage.create_from_bytes(
                     sticker_bytes,
@@ -243,11 +249,12 @@ class MessageProcessor:
             video_note_bytes = await self._download_file_bytes(message.video_note.file_id)
             if video_note_bytes:
                 # 使用适配器的 chat_key 格式
-                chat_key = self.adapter.build_chat_key(message.chat.id)
+                chat_key = self.adapter.build_chat_key(message.chat)
                 
                 # 智能检测文件类型
                 mime_type, extension = self._detect_file_type_and_extension(video_note_bytes)
-                filename = f"video_note_{message.video_note.file_id}{extension or '.mp4'}"
+                safe_id = self._sanitize_filename(message.video_note.file_id)
+                filename = f"video_note_{safe_id}{extension or '.mp4'}"
                 
                 segment = await ChatMessageSegmentFile.create_from_bytes(
                     video_note_bytes,
@@ -257,6 +264,14 @@ class MessageProcessor:
                 segments.append(segment)
 
         return segments
+
+    def _sanitize_filename(self, file_id: str) -> str:
+        """清理文件 ID 用于文件名（移除非法字符）"""
+        import re
+        # 移除或替换文件名中的非法字符
+        safe_name = re.sub(r'[^a-zA-Z0-9_.-]', '_', file_id)
+        # 限制文件名长度
+        return safe_name[:100] if len(safe_name) > 100 else safe_name
 
     async def _download_file_bytes(self, file_id: str) -> Optional[bytes]:
         """下载文件并返回字节数据"""

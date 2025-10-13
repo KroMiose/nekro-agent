@@ -6,7 +6,7 @@ import asyncio
 import contextlib
 import os
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from telegram import Bot
 from telegram.ext import Application, MessageHandler, filters
@@ -64,6 +64,44 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             "私聊: `telegram-private_123456789` (正数为私聊用户)",
         ]
 
+    def build_chat_key(self, chat_id_or_chat) -> str:
+        """重写基类方法，生成包含类型前缀的聊天标识
+        
+        Args:
+            chat_id_or_chat: 可以是 chat.id (int) 或 Chat 对象
+        
+        Returns:
+            str: 完整的聊天标识，格式为 telegram-{type}_{id}
+        """
+        # 如果传入的是 Chat 对象
+        if hasattr(chat_id_or_chat, 'type') and hasattr(chat_id_or_chat, 'id'):
+            chat_type = "private" if chat_id_or_chat.type == "private" else "group"
+            return f"{self.key}-{chat_type}_{chat_id_or_chat.id}"
+
+    def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
+        """解析聊天标识（Telegram 特殊处理负数群组ID）
+
+        Args:
+            chat_key: 聊天标识，格式如 telegram-group_-1002768666191
+
+        Returns:
+            Tuple[str, str]: (adapter_key, channel_id)
+
+        Raises:
+            ValueError: 当聊天标识格式无效时
+        """
+        # 使用限制分割次数的方式处理，只在第一个 '-' 处分割
+        # 这样可以正确处理负数群组ID，如: telegram-group_-1002768666191
+        parts = chat_key.split("-", 1)
+
+        if len(parts) != 2:
+            raise ValueError(f"无效的聊天标识: {chat_key}")
+
+        adapter_key = parts[0]
+        channel_id = parts[1]
+
+        return adapter_key, channel_id
+
     async def init(self) -> None:
         """初始化适配器"""
         if not self.config.BOT_TOKEN:
@@ -71,6 +109,11 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             return
 
         try:
+            # 使用配置中的代理地址（默认na代理配置）
+            proxy_url = self.config.PROXY_URL.strip() if self.config.PROXY_URL else None
+            if proxy_url:
+                logger.info(f"Telegram 适配器使用代理: {proxy_url}")
+            
             # 初始化 Application
             self.application = (
                 Application.builder().token(self.config.BOT_TOKEN).build()
@@ -84,8 +127,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 MessageHandler(filters.ALL, self.message_processor.process_update),
             )
 
-            # 初始化 HTTP 客户端
-            self.http_client = TelegramHTTPClient(self.config.BOT_TOKEN)
+            # 初始化 HTTP 客户端（传入代理配置）
+            self.http_client = TelegramHTTPClient(self.config.BOT_TOKEN, proxy_url)
 
             # 启动应用
             await self.application.initialize()
