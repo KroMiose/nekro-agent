@@ -15,6 +15,7 @@ import {
   Style as StyleIcon,
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
+  Send as SendIcon,
 } from '@mui/icons-material'
 import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
@@ -334,7 +335,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     visual: {
       displayName: 'Telegram',
       iconText: 'TG',
-      navIcon: <ChatIcon />,
+      navIcon: <SendIcon />,
       description: 'Telegram 适配器，支持 Telegram 机器人通信',
       tags: ['Telegram', '聊天', 'IM'],
     },
@@ -369,6 +370,50 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
       },
     ],
   },
+
+  // // 企业微信智能机器人适配器配置
+  // 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
+  // 文档: https://developer.work.weixin.qq.com/document/path/101031
+  // wxwork: {
+  //   key: 'wxwork',
+  //   visual: {
+  //     displayName: 'WeWork Bot',
+  //     iconText: '企微',
+  //     navIcon: <ChatIcon />,
+  //     description: '企业微信智能机器人适配器，支持在企业内部与成员进行智能交互',
+  //     tags: ['企业微信', 'WeWork', '智能机器人', 'IM'],
+  //   },
+  //   tabs: [
+  //     {
+  //       label: '主页',
+  //       value: 'home',
+  //       icon: <HomeIcon fontSize="small" />,
+  //       path: '',
+  //       component: <AdapterHomePage />,
+  //     },
+  //     {
+  //       label: '适配器配置',
+  //       value: 'config',
+  //       icon: <SettingsIcon fontSize="small" />,
+  //       path: 'config',
+  //       component: <AdapterConfigPage />,
+  //     },
+  //     {
+  //       label: '覆盖配置',
+  //       value: 'overrides',
+  //       icon: <StyleIcon fontSize="small" />,
+  //       path: 'overrides',
+  //       component: <AdapterOverrideConfigPage />,
+  //     },
+  //     {
+  //       label: '高级',
+  //       value: 'advanced',
+  //       icon: <EngineeringIcon fontSize="small" />,
+  //       path: 'advanced',
+  //       component: <AdapterAdvancedPage />,
+  //     },
+  //   ],
+  // },
 
   // 默认适配器配置（用于其他适配器）
   default: {
