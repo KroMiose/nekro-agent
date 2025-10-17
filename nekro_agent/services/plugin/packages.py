@@ -14,6 +14,7 @@ from packaging.version import parse as parse_version
 
 from nekro_agent.core.os_env import OsEnv
 
+
 # ---------- 公开 API ----------
 def dynamic_import_pkg(
     package_spec: str,
@@ -63,9 +64,7 @@ def _ensure_repo(repo_dir: Path) -> Path:
 def _is_installed(req: Requirement, site_dir: Path) -> bool:
     """检查 site_dir 是否已满足规范"""
     for dist in distributions(path=[str(site_dir)]):
-        if dist.metadata["Name"] == req.name and (
-            not req.specifier or parse_version(dist.version) in req.specifier
-        ):
+        if dist.metadata["Name"] == req.name and (not req.specifier or parse_version(dist.version) in req.specifier):
             return True
     return False
 
@@ -79,10 +78,16 @@ def _install_package(
 ) -> None:
     """pip 安装到指定目录"""
     cmd = [
-        sys.executable, "-m", "pip", "install",
+        sys.executable,
+        "-m",
+        "pip",
+        "install",
         "--disable-pip-version-check",
-        "--quiet", "--no-input", "--no-warn-script-location",
-        "--target", str(repo_dir),
+        "--quiet",
+        "--no-input",
+        "--no-warn-script-location",
+        "--target",
+        str(repo_dir),
         str(req),
     ]
     if mirror:
@@ -104,6 +109,7 @@ def _import_module(name: str, site_dir: Path) -> Any:
         return importlib.import_module(name)
     except ImportError:
         import site
+
         site.addsitedir(str(site_dir))
         try:
             return importlib.import_module(name)

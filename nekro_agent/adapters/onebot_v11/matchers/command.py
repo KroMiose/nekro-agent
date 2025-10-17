@@ -53,12 +53,17 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             await matcher.finish()
 
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
-    await db_chat_channel.reset_channel()
-    query = DBChatMessage.filter(chat_key=target_chat_key)
-    msg_cnt = await query.count()
-    await query.delete()
 
-    await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
+    # 获取重置前的消息统计
+    msg_cnt = await DBChatMessage.filter(
+        chat_key=target_chat_key,
+        send_timestamp__gte=int(db_chat_channel.conversation_start_time.timestamp()),
+    ).count()
+
+    # 只重置对话起始时间，不删除历史消息
+    await db_chat_channel.reset_channel()
+
+    await finish_with(matcher, message=f"已重置 {target_chat_key} 的对话上下文（当前会话 {msg_cnt} 条消息已归档）")
 
 
 @on_command("inspect", priority=5, block=True).handle()

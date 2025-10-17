@@ -21,6 +21,7 @@
 - `emo_search <关键词>`: 语义搜索表情包。
 - `emo_stats`: 查看表情包统计信息。
 - `emo_list [页码]`: 分页列出所有表情包。
+- `emo_migrate`: 迁移旧的绝对路径到相对路径格式（适用于数据目录迁移后）。
 - `emo_reindex -y`: 重建索引（高级功能，一般无需使用）。
 
 ## 配置说明
@@ -52,7 +53,12 @@ from nekro_agent.adapters.onebot_v11.matchers.command import (
 from nekro_agent.api import schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message_service import message_service
@@ -87,7 +93,7 @@ class EmotionConfig(ConfigBase):
         default="text-embedding",
         title="嵌入模型组",
         description="在此填入向量嵌入模型组名称",
-        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "embedding"},
+        json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="embedding").model_dump(),
     )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
     STRICT_EMOTION_COLLECT: bool = Field(
@@ -109,6 +115,12 @@ store_dir.mkdir(parents=True, exist_ok=True)
 @plugin.mount_init_method()
 async def init_vector_db():
     """初始化表情包向量数据库"""
+    # 先执行路径迁移（如果需要）
+    try:
+        await migrate_emotion_paths()
+    except Exception as e:
+        logger.error(f"迁移表情包路径失败: {e}")
+
     # 获取Qdrant客户端
     client = await get_qdrant_client()
     if client is None:
@@ -209,6 +221,43 @@ class EmotionStore(BaseModel):
 
 
 # region: 表情包工具方法
+
+
+def resolve_emotion_file_path(file_path: str) -> Path:
+    """解析表情包文件路径，支持向后兼容
+
+    如果传入的是绝对路径且文件不存在，会尝试从插件数据目录中查找同名文件。
+    新数据统一使用相对路径（仅文件名）。
+
+    Args:
+        file_path (str): 文件路径（可能是绝对路径或相对路径）
+
+    Returns:
+        Path: 解析后的绝对路径
+    """
+    path_obj = Path(file_path)
+
+    # 如果是绝对路径
+    if path_obj.is_absolute():
+        # 如果文件存在，直接返回
+        if path_obj.exists():
+            return path_obj
+
+        # 文件不存在，尝试从插件数据目录中查找同名文件（兼容性修复）
+        file_name = path_obj.name
+        fallback_path = store_dir / file_name
+
+        if fallback_path.exists():
+            logger.info(f"检测到旧的绝对路径不存在，已适配到新路径: {file_name}")
+            return fallback_path
+
+        # 两者都不存在，返回原路径（让调用方处理错误）
+        return path_obj
+
+    # 相对路径，拼接到插件数据目录
+    return store_dir / file_path
+
+
 async def load_emotion_store() -> EmotionStore:
     """加载表情包存储"""
     data = await store.get(store_key="emotion_store")
@@ -218,6 +267,48 @@ async def load_emotion_store() -> EmotionStore:
 async def save_emotion_store(emotion_store: EmotionStore):
     """保存表情包存储"""
     await store.set(store_key="emotion_store", value=json.dumps(emotion_store.model_dump(), ensure_ascii=False))
+
+
+async def migrate_emotion_paths():
+    """迁移旧的绝对路径到新的相对路径格式
+
+    这个函数会检查所有表情包的路径，将绝对路径转换为相对路径。
+    适用于数据迁移场景。
+    """
+    emotion_store = await load_emotion_store()
+    migrated_count = 0
+    skipped_count = 0
+
+    for emotion_id, metadata in emotion_store.emotions.items():
+        file_path = Path(metadata.file_path)
+
+        # 如果是绝对路径，尝试转换为相对路径
+        if file_path.is_absolute():
+            # 提取文件名
+            file_name = file_path.name
+            new_path = store_dir / file_name
+
+            # 检查文件是否在新目录中存在（按文件名查找）
+            if new_path.exists():
+                # 文件在新目录中存在，直接使用文件名作为相对路径
+                metadata.file_path = file_name
+                migrated_count += 1
+                logger.info(f"迁移表情包路径: {emotion_id} -> {file_name}")
+            else:
+                # 文件不存在，跳过但记录（这些文件可能真的丢失了）
+                skipped_count += 1
+                logger.warning(f"表情包文件不存在，跳过迁移: {emotion_id} -> {file_name}")
+
+    if migrated_count > 0:
+        await save_emotion_store(emotion_store)
+        logger.success(f"成功迁移 {migrated_count} 个表情包路径到新格式，跳过 {skipped_count} 个文件不存在的表情包")
+    else:
+        if skipped_count > 0:
+            logger.warning(f"没有需要迁移的表情包路径，但有 {skipped_count} 个文件不存在")
+        else:
+            logger.info("没有需要迁移的表情包路径")
+
+    return migrated_count
 
 
 async def generate_embedding(text: str) -> List[float]:
@@ -260,15 +351,24 @@ async def download_image(url: str, save_path: Path) -> bool:
         return False
 
 
-async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -> Tuple[bool, Path]:
-    """保存图片到表情包存储目录"""
+async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -> Tuple[bool, str]:
+    """保存图片到表情包存储目录
+
+    Args:
+        source_path (str): 源图片路径或URL
+        file_name (str): 目标文件名
+        _ctx (schemas.AgentCtx): 上下文
+
+    Returns:
+        Tuple[bool, str]: (是否成功, 相对路径文件名)
+    """
     target_path = store_dir / file_name
 
     # 如果是URL，则下载图片
     if source_path.startswith(("http://", "https://")):
         logger.info(f"从URL下载图片: {source_path} 到 {target_path}")
         success = await download_image(source_path, target_path)
-        return success, target_path
+        return success, file_name  # 返回相对路径（文件名）
 
     # 如果是本地路径，则复制图片
     try:
@@ -277,7 +377,7 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
         if not source_path_obj.exists():
             logger.error(f"图片不存在: {source_path}")
-            return False, target_path
+            return False, file_name  # 返回相对路径（文件名）
 
         async with aiofiles.open(source_path_obj, "rb") as src_file:
             content = await src_file.read()
@@ -287,9 +387,9 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
     except Exception as e:
         logger.error(f"保存图片失败: {source_path}, 错误: {e}")
-        return False, target_path
+        return False, file_name  # 返回相对路径（文件名）
     else:
-        return True, target_path
+        return True, file_name  # 返回相对路径（文件名）
 
 
 def generate_emotion_id(file_path: str, description: str) -> str:
@@ -325,7 +425,7 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 
     # 遍历查找匹配哈希值的表情包
     for emotion_id, metadata in emotion_store.emotions.items():
-        existing_path = Path(metadata.file_path)
+        existing_path = resolve_emotion_file_path(metadata.file_path)
         if existing_path.exists():
             existing_hash = calculate_file_hash(existing_path)
             if existing_hash == target_hash:
@@ -487,6 +587,17 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=_message)
 
 
+@on_command("emo_migrate", aliases={"emo-migrate"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    # 执行路径迁移
+    await matcher.send("喵~ 开始迁移表情包路径到新格式...")
+
+    migrated_count = await migrate_emotion_paths()
+    await finish_with(matcher, message=f"喵~ 路径迁移完成！成功迁移 {migrated_count} 个表情包路径～")
+
+
 @on_command("emo_reindex", aliases={"emo-reindex"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -557,7 +668,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     for emotion_id, metadata in emotion_store.emotions.items():
         try:
             # 检查文件是否存在
-            file_path = Path(metadata.file_path)
+            file_path = resolve_emotion_file_path(metadata.file_path)
             if not file_path.exists():
                 logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
                 missing_file_count += 1
@@ -722,13 +833,14 @@ async def collect_emotion(
     path_obj = Path(file_name)
     file_name = f"{path_obj.stem}_{hashlib.md5(description.encode()).hexdigest()[:6]}{path_obj.suffix}"
 
-    # 保存图片
-    success, file_path = await save_image(source_path, file_name, _ctx)
+    # 保存图片（返回相对路径文件名）
+    success, relative_file_path = await save_image(source_path, file_name, _ctx)
     if not success:
         raise ValueError(f"Error: Failed to save image from {source_path}")
 
     # 检查是否有重复图片
-    duplicate_id = await find_duplicate_emotion(file_path)
+    absolute_file_path = resolve_emotion_file_path(relative_file_path)
+    duplicate_id = await find_duplicate_emotion(absolute_file_path)
 
     # 加载表情包存储
     emotion_store = await load_emotion_store()
@@ -782,14 +894,14 @@ async def collect_emotion(
             return duplicate_id
 
     # 生成唯一ID
-    emotion_id = generate_emotion_id(str(file_path), description)
+    emotion_id = generate_emotion_id(relative_file_path, description)
 
-    # 创建元数据
+    # 创建元数据（使用相对路径）
     metadata = EmotionMetadata.create(
         description=description,
         tags=tags,
         source_path=source_path,
-        file_path=str(file_path),
+        file_path=relative_file_path,  # 保存相对路径
     )
 
     # 添加到存储
@@ -964,7 +1076,7 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
 
     # 获取文件路径
-    file_path = Path(metadata.file_path)
+    file_path = resolve_emotion_file_path(metadata.file_path)
 
     # 从表情包存储中删除
     if emotion_id in emotion_store.emotions:
@@ -1041,14 +1153,14 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
 
     # 获取文件路径
-    file_path = Path(metadata.file_path)
+    file_path = resolve_emotion_file_path(metadata.file_path)
     if not file_path.exists():
         raise ValueError(f"Error: Emotion file not found: {file_path}")
 
     # 读取文件内容
     try:
         emo_file_path, _ = await copy_to_upload_dir(
-            metadata.file_path,
+            str(file_path),  # 使用解析后的绝对路径
             file_path.name,
             from_chat_key=_ctx.chat_key,
         )
@@ -1137,7 +1249,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         if not metadata:
             continue
 
-        file_path = Path(metadata.file_path)
+        file_path = resolve_emotion_file_path(metadata.file_path)
         if not file_path.exists():
             continue
 

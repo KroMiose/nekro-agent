@@ -3,7 +3,17 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Dict, Optional, Type, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    ClassVar,
+    Dict,
+    Literal,
+    Optional,
+    Type,
+    TypeVar,
+    Union,
+)
 from urllib.parse import quote_plus
 
 import nonebot
@@ -84,8 +94,8 @@ class ExtraField(BaseModel):
         title="模型组引用标识",
         description="设置为True时，表示该字段需要从系统中已配置的模型组中选择",
     )
-    model_type: str = Field(
-        default="",
+    model_type: Literal["chat", "embedding", "draw"] = Field(
+        default="chat",
         title="模型类型规范",
         description="指定引用的模型类型标识符，仅在ref_model_groups为True时生效",
     )

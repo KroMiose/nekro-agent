@@ -229,7 +229,7 @@ class CoreConfig(ConfigBase):
         description="AI 大模型生成响应结果的最大等待时间，超过该时间会自动停止生成并报错",
     )
     AI_IGNORED_PREFIXES: List[str] = Field(
-        default=["#", "＃", "[Debug]", "[Opt Output]"],
+        default=["#", "＃", "[Debug]", "[Opt Output]", "≡NA≡"],
         title="忽略的消息前缀",
         description="带有这些前缀的消息不会被参考或者触发",
         json_schema_extra=ExtraField(sub_item_name="前缀").model_dump(),
