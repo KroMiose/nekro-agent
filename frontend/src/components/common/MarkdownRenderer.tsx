@@ -153,6 +153,25 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
     fontSize: '0.875rem',
     color: theme.palette.text.primary,
   },
+  // IP地址标签样式
+  '& .client-ip-tag': {
+    display: 'inline-block',
+    backgroundColor: theme.palette.primary.main,
+    color: theme.palette.primary.contrastText,
+    padding: '2px 8px',
+    borderRadius: '12px',
+    fontSize: '0.875rem',
+    fontWeight: 500,
+    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
+    border: `1px solid ${theme.palette.primary.dark}`,
+    boxShadow: `0 1px 3px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)'}`,
+    transition: 'all 0.2s ease',
+    '&:hover': {
+      backgroundColor: theme.palette.primary.dark,
+      transform: 'translateY(-1px)',
+      boxShadow: `0 2px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'}`,
+    },
+  },
   '& sub, & sup': {
     fontSize: '0.75rem',
     lineHeight: 0,
@@ -220,6 +239,34 @@ export default function MarkdownRenderer({
 }: MarkdownRendererProps) {
   const theme = useTheme()
   const { mode } = useColorMode()
+
+  // 获取当前访问窗口的IP地址
+  const getClientIP = (): string => {
+    // 首先尝试从全局窗口对象获取IP（后端可能设置了这个值）
+    if (typeof window !== 'undefined' && (window as any).__CLIENT_IP__) {
+      return (window as any).__CLIENT_IP__
+    }
+
+    // 如果全局变量不存在，从当前URL中提取IP
+    if (typeof window !== 'undefined' && window.location) {
+      const hostname = window.location.hostname
+
+      // 检查是否是有效的IP地址格式
+      const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
+
+      if (ipRegex.test(hostname)) {
+        return hostname
+      }
+
+      // 如果是localhost，返回本地IP
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return '127.0.0.1'
+      }
+    }
+
+    // 最后的备选方案：返回本地回环地址
+    return '127.0.0.1'
+  }
   
   const markdownComponents = {
     code({ inline, className, children, ...props }: {
@@ -266,17 +313,23 @@ export default function MarkdownRenderer({
     ),
   }
 
+  // 处理IP标签替换 - 更智能的替换策略
+  const processedContent = children.replace(
+    /\{\{IP\}\}/g,
+    getClientIP()
+  )
+
   return (
-    <Box 
+    <Box
       className={className}
       sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}
     >
-      <ReactMarkdown 
+      <ReactMarkdown
         components={markdownComponents}
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={enableHtml ? REHYPE_PLUGINS : undefined}
       >
-        {children}
+        {processedContent}
       </ReactMarkdown>
     </Box>
   )
