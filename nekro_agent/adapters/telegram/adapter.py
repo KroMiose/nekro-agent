@@ -113,11 +113,15 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             proxy_url = self.config.PROXY_URL.strip() if self.config.PROXY_URL else None
             if proxy_url:
                 logger.info(f"Telegram 适配器使用代理: {proxy_url}")
-            
-            # 初始化 Application
-            self.application = (
-                Application.builder().token(self.config.BOT_TOKEN).build()
-            )
+
+            # 初始化 Application，配置代理
+            builder = Application.builder().token(self.config.BOT_TOKEN)
+            if proxy_url:
+                # 配置代理：同时为常规API请求和轮询配置代理
+                # proxy: 用于常规Bot API请求（发送消息、下载文件等）
+                # get_updates_proxy: 用于轮询获取更新
+                builder = builder.proxy(proxy_url).get_updates_proxy(proxy_url)
+            self.application = builder.build()
 
             # 初始化消息处理器
             self.message_processor = MessageProcessor(self)
