@@ -153,25 +153,6 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
     fontSize: '0.875rem',
     color: theme.palette.text.primary,
   },
-  // IP地址标签样式
-  '& .client-ip-tag': {
-    display: 'inline-block',
-    backgroundColor: theme.palette.primary.main,
-    color: theme.palette.primary.contrastText,
-    padding: '2px 8px',
-    borderRadius: '12px',
-    fontSize: '0.875rem',
-    fontWeight: 500,
-    fontFamily: 'Consolas, Monaco, "Courier New", monospace',
-    border: `1px solid ${theme.palette.primary.dark}`,
-    boxShadow: `0 1px 3px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.1)'}`,
-    transition: 'all 0.2s ease',
-    '&:hover': {
-      backgroundColor: theme.palette.primary.dark,
-      transform: 'translateY(-1px)',
-      boxShadow: `0 2px 6px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.4)' : 'rgba(0,0,0,0.15)'}`,
-    },
-  },
   '& sub, & sup': {
     fontSize: '0.75rem',
     lineHeight: 0,
