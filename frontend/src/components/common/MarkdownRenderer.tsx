@@ -230,7 +230,7 @@ export default function MarkdownRenderer({
 
     // 如果全局变量不存在，从当前URL中提取IP
     if (typeof window !== 'undefined' && window.location) {
-      const hostname = window.location.hostname
+      const { hostname } = window.location
 
       // 检查是否是有效的IP地址格式
       const ipRegex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
@@ -294,11 +294,16 @@ export default function MarkdownRenderer({
     ),
   }
 
-  // 处理IP标签替换 - 更智能的替换策略
-  const processedContent = children.replace(
-    /\{\{IP\}\}/g,
-    getClientIP()
-  )
+  // 处理IP标签替换 - 简化版本
+  const processContent = (): string => {
+    if (typeof children !== 'string') {
+      return String(children)
+    }
+
+    return children.replace(/\{\{IP\}\}/g, getClientIP())
+  }
+
+  const processedContent = processContent()
 
   return (
     <Box
