@@ -164,12 +164,12 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh)" - --with-napcat
 ```
 
-如果从 Github 下载脚本遇到网络问题，您可以使用国内的 GitCode 镜像源：
+如果从 Github 下载脚本遇到网络问题，您可以使用 Nekro Endpoint 的边缘代理访问地址：
 
-#### 从 GitCode (国内加速)
+#### 从 [NekroEndpoint](https://ep.nekro.ai) (Cloudflare 镜像)
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker/install.sh)" - --with-napcat
+sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker/install.sh)" - --with-napcat
 ```
 
 提示:

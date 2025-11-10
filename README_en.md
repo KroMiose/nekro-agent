@@ -157,12 +157,12 @@ We offer multiple deployment methods. Please visit the [Quick Start Guide (Chine
 sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh)"
 ```
 
-If you encounter network issues downloading the script from Github, you can use the domestic GitCode mirror:
+If you encounter network issues downloading the script from Github, you can use the Nekro Endpoint's edge proxy access address:
 
-#### From GitCode (China Mirror)
+#### From [NekroEndpoint](https://ep.nekro.ai) (Cloudflare Edge Proxy Access)
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker/install.sh)"
+sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker/install.sh)"
 ```
 
 ## 🖥️ Developer Resources
