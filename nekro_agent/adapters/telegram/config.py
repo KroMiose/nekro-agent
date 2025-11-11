@@ -26,7 +26,7 @@ class TelegramConfig(BaseAdapterConfig):
         description="Telegram Bot API Token",
         json_schema_extra={"is_secret": True},
     )
-    
+
     PROXY_URL: str = Field(
         default_factory=_get_default_proxy,
         title="代理地址",
