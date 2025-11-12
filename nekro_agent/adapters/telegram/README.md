@@ -21,6 +21,8 @@
 
 - **BOT_TOKEN**: 从 [@BotFather](https://t.me/BotFather) 获取的 Telegram Bot Token（必填）
 - **PROXY_URL**: 代理地址（可选），支持 HTTP/HTTPS/SOCKS5，格式如 `http://host:port` 或 `socks5://host:port`
+  - HTTP/HTTPS 代理无需额外依赖
+  - SOCKS5 代理需要安装额外依赖：`poetry add python-telegram-bot[socks]`
 
 ## 使用方法
 
@@ -71,8 +73,8 @@ A: 请检查：
 - **TelegramConfig**: 配置管理类
 
 ### 代理支持
-- 支持 HTTP/HTTPS 代理：`http://host:port`
-- 支持 SOCKS5 代理：`socks5://host:port`（需要安装 `python-telegram-bot[socks]`）
+- 支持 HTTP/HTTPS 代理：`http://host:port`（无需额外依赖）
+- 支持 SOCKS5 代理：`socks5://host:port`（需要运行 `poetry add python-telegram-bot[socks]` 安装依赖）
 - 支持带认证的代理：`http://user:pass@host:port`
 
 ## 开发者信息
