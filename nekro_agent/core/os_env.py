@@ -60,20 +60,20 @@ class OsEnv:
     ENABLE_OPENAPI_DOCS: bool = OsEnvTypes.Bool("ENABLE_OPENAPI_DOCS")
 
 
-USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
-SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
-SANDBOX_PIP_CACHE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.pip_cache"
-SANDBOX_PACKAGE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.packages"
-PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
-PROMPT_ERROR_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts_error"
-APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
-BUILTIN_PLUGIN_DIR: str = "plugins/builtin"
-WORKDIR_PLUGIN_DIR: str = OsEnv.DATA_DIR + "/plugins/workdir"
-PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"
-NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"
-NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"
-EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
-WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"
+USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"  # 用户资源上传目录
+SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"  # 沙盒共享目录
+SANDBOX_PIP_CACHE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.pip_cache"  # 沙盒动态 PIP 缓存目录
+SANDBOX_PACKAGE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.packages"  # 沙盒动态包目录
+PLUGIN_DYNAMIC_PACKAGE_DIR: str = OsEnv.DATA_DIR + "/plugins/.dynamic_packages"  # 插件动态包目录
+PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"  # 提示词日志目录
+PROMPT_ERROR_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts_error"  # 提示词错误日志目录
+APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"  # 应用日志目录
+BUILTIN_PLUGIN_DIR: str = "plugins/builtin"  # 内置插件目录
+WORKDIR_PLUGIN_DIR: str = OsEnv.DATA_DIR + "/plugins/workdir"  # 本地插件目录
+PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"  # 云端插件目录
+NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"  # NapCat 临时文件目录
+NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"  # NapCat OneBot 适配器目录
+WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"  # 壁纸目录
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
 

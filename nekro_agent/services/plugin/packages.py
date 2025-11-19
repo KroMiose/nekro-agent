@@ -12,7 +12,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import parse as parse_version
 
-from nekro_agent.core.os_env import OsEnv
+from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
 
 
 # ---------- 公开 API ----------
@@ -32,7 +32,7 @@ def dynamic_import_pkg(
         ImportError:  导入失败
     """
     req = _parse_spec(package_spec)
-    repo_dir = repo_dir or Path(OsEnv.DATA_DIR) / "packages"
+    repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
     site_dir = _ensure_repo(repo_dir)
 
     if not _is_installed(req, site_dir):
@@ -64,7 +64,8 @@ def _ensure_repo(repo_dir: Path) -> Path:
 def _is_installed(req: Requirement, site_dir: Path) -> bool:
     """检查 site_dir 是否已满足规范"""
     for dist in distributions(path=[str(site_dir)]):
-        if dist.metadata["Name"] == req.name and (not req.specifier or parse_version(dist.version) in req.specifier):
+        # if dist.metadata["Name"] == req.name and (not req.specifier or parse_version(dist.version) in req.specifier):
+        if dist.metadata["Name"] == req.name:
             return True
     return False
 
