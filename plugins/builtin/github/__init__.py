@@ -18,7 +18,7 @@
 - **与 AI 对话**: 你可以直接对 AI 说："帮我订阅 `owner/repo` 这个仓库的动态"，AI 就会调用工具来完成订阅。
 - **Webhook 配置**:
     1.  在需要接收通知的 GitHub 仓库的 `Settings -> Webhooks` 页面，点击 `Add webhook`。
-    2.  在 `Payload URL` 中填入你的 Nekro-Agent 服务地址，并加上 `/api/webhook/plugins/github` 路径（例如 `http://<你的 Nekro-Agent 服务地址>/api/webhook/plugins/github`）。
+    2.  在 `Payload URL` 中填入你的 Nekro-Agent 服务地址，并加上 `/api/webhook/github` 路径（例如 `http://<你的 Nekro-Agent 服务地址>/api/webhook/github`）。
     3.  `Content type` 选择 `application/json`。
     4.  （可选但推荐）设置一个 `Secret`，并将同样的内容填写到本插件的 `WEBHOOK_SECRET` 配置中，以确保不会被滥用访问。
     5.  选择你希望接收通知的事件类型，然后保存。
