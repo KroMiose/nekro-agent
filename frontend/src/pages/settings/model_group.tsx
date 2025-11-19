@@ -230,7 +230,7 @@ function EditDialog({
         ENABLE_COT: false,
       })
     }
-  }, [initialConfig, open, isCopy, groupName])
+  }, [initialConfig, open, isCopy])
 
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
@@ -885,9 +885,9 @@ export default function ModelGroupsPage() {
         }}
       >
         <Alert severity="info">
-          需要 API 密钥？可访问{' '}
+          支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问{' '}
           <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
-            Nekro 合作中转
+            NekroAI 中转
           </Link>{' '}
           获取专属密钥哦～
         </Alert>
