@@ -20,7 +20,7 @@ from openai import AsyncOpenAI, AsyncStream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel
 
-from nekro_agent.core import logger
+from nekro_agent.core import config, logger
 
 from .creator import OpenAIChatMessage
 
@@ -283,6 +283,47 @@ class OpenAIStreamChunk(BaseModel):
 _AsyncFunc = Callable[..., Coroutine[Any, Any, OpenAIStreamChunk]]
 
 
+def _create_http_client(
+    proxy_url: Optional[str] = None,
+    read_timeout: int = 3600,
+    write_timeout: int = 3600,
+    connect_timeout: int = 10,
+    pool_timeout: int = 10,
+) -> httpx.AsyncClient:
+    """创建配置好的 httpx.AsyncClient
+
+    统一管理 HTTP 客户端配置，包括：
+    - User-Agent 强制设置为 config.OPENAI_CLIENT_USER_AGENT（通过事件钩子防止被覆盖）
+    - 代理配置
+    - 超时配置
+
+    Args:
+        proxy_url: 代理 URL，如果提供则配置代理
+        read_timeout: 读取超时时间（秒），默认 3600
+        write_timeout: 写入超时时间（秒），默认 3600
+        connect_timeout: 连接超时时间（秒），默认 10
+        pool_timeout: 连接池超时时间（秒），默认 10
+
+    Returns:
+        配置好的 httpx.AsyncClient 实例
+    """
+
+    # 使用事件钩子强制设置 User-Agent，防止 AsyncOpenAI 覆盖
+    async def enforce_user_agent(request: httpx.Request) -> None:
+        request.headers["User-Agent"] = config.OPENAI_CLIENT_USER_AGENT
+
+    return httpx.AsyncClient(
+        timeout=httpx.Timeout(
+            connect=connect_timeout,
+            read=read_timeout,
+            write=write_timeout,
+            pool=pool_timeout,
+        ),
+        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+        event_hooks={"request": [enforce_user_agent]},
+    )
+
+
 async def gen_openai_chat_response(
     model: str,
     messages: Any,
@@ -333,9 +374,11 @@ async def gen_openai_chat_response(
 
     # 使用async with语法创建和管理httpx客户端
     try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10, read=max_wait_time or 3600, write=max_wait_time or 3600, pool=10),
-            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+        wait_timeout = max_wait_time or 3600
+        async with _create_http_client(
+            proxy_url=proxy_url,
+            read_timeout=wait_timeout,
+            write_timeout=wait_timeout,
         ) as http_client, AsyncOpenAI(
             api_key=api_key.strip() if api_key else None,
             base_url=base_url or _OPENAI_BASE_URL,
@@ -469,10 +512,7 @@ async def gen_openai_embeddings(
     endpoint: str = "/embeddings",
 ) -> List[float]:
     """生成文本的向量表示"""
-    async with httpx.AsyncClient(
-        timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
-        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
-    ) as client:
+    async with _create_http_client(proxy_url=proxy_url) as client:
         # 手动序列化JSON，并设置ensure_ascii=False
         data = json.dumps(
             {"model": model, "input": input, "dimensions": dimensions},
@@ -548,9 +588,10 @@ async def gen_openai_chat_stream(
 
     # 创建OpenAI客户端
     try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10, read=300, write=300, pool=10),
-            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+        async with _create_http_client(
+            proxy_url=proxy_url,
+            read_timeout=300,
+            write_timeout=300,
         ) as http_client:
             client = AsyncOpenAI(
                 api_key=api_key.strip() if api_key else None,

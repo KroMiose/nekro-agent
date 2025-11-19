@@ -444,6 +444,12 @@ class CoreConfig(ConfigBase):
         title="启用高级管理命令",
         description="启用后可以执行包含危险操作的管理员高级命令，请谨慎使用",
     )
+    OPENAI_CLIENT_USER_AGENT: str = Field(
+        default="nekro-agent",
+        title="OpenAI Client User Agent",
+        description="OpenAI Client User Agent",
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
 
     """插件配置"""
     PLUGIN_ENABLED: List[str] = Field(
