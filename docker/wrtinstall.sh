@@ -172,6 +172,20 @@ check_docker_space() {
     fi
 }
 
+# 检查防火墙规则是否存在
+check_firewall_rule_exists() {
+    local rule_name=$1
+    local dest_port=$2
+    
+    # 使用 uci 命令检查是否存在相同名称和端口的规则
+    if uci show firewall | grep -q "firewall.@rule.*\.name='${rule_name}'" && \
+       uci show firewall | grep -q "firewall.@rule.*\.dest_port='${dest_port}'"; then
+        return 0  # 规则存在
+    else
+        return 1  # 规则不存在
+    fi
+}
+
 # 初始化变量
 DOCKER_COMPOSE_CMD=""
 
@@ -352,8 +366,8 @@ fi
 if command -v uci >/dev/null 2>&1; then
     echo -e "\n正在配置防火墙..."
     
-    # 检查并添加 NekroAgent 端口
-    if ! uci show firewall | grep -q "nekro_agent.*${NEKRO_EXPOSE_PORT:-8021}"; then
+    # 检查并添加 NekroAgent 端口（使用更可靠的检测方法）
+    if ! check_firewall_rule_exists "NekroAgent" "${NEKRO_EXPOSE_PORT:-8021}"; then
         uci add firewall rule
         uci set firewall.@rule[-1].name='NekroAgent'
         uci set firewall.@rule[-1].src='wan'
@@ -367,7 +381,7 @@ if command -v uci >/dev/null 2>&1; then
 
     # 检查并添加 NapCat 端口（如果使用）
     if [ "$WITH_NAPCAT" ]; then
-        if ! uci show firewall | grep -q "napcat.*${NAPCAT_EXPOSE_PORT:-6099}"; then
+        if ! check_firewall_rule_exists "NapCat" "${NAPCAT_EXPOSE_PORT:-6099}"; then
             uci add firewall rule
             uci set firewall.@rule[-1].name='NapCat'
             uci set firewall.@rule[-1].src='wan'
@@ -408,7 +422,7 @@ LAN_IP=$(get_lan_ip)
 
 # 显示 Docker 存储信息
 echo -e "\n=== Docker 存储信息 ==="
-docker_root=$(docker info 2>/dev/null | grep "Docker Root Dir" | cut -d ':' -f2 | tr -d ' ' || echo "未知")
+docker_root=$(docker info 2>/dev/null | grep "Docker Root Dir" | cut -d '':' -f2 | tr -d ' ' || echo "未知")
 echo "Docker 根目录: $docker_root"
 
 # 显示存储使用情况
@@ -416,11 +430,6 @@ echo "存储使用情况:"
 df -h "$docker_root" 2>/dev/null || echo "无法获取存储信息"
 
 echo -e "\n=== 部署完成！==="
-echo "你可以通过以下命令查看服务日志："
-echo "  NekroAgent: 'docker logs -f ${INSTANCE_NAME}nekro_agent'"
-if [ "$WITH_NAPCAT" ]; then
-    echo "  NapCat: 'docker logs -f ${INSTANCE_NAME}napcat'"
-fi
 
 # 显示重要的配置信息
 echo -e "\n=== 重要配置信息 ==="
@@ -459,7 +468,7 @@ fi
 
 echo -e "\n=== 注意事项 ==="
 echo "1. 软路由防火墙规则已自动配置"
-echo "2. 请使用 'docker logs ${INSTANCE_NAME}napcat' 查看机器人 QQ 账号二维码进行登录"
+echo "2. 如果需要从外部访问，请将上述地址中的 127.0.0.1 替换为您的路由器IP"
 echo "3. 应用数据存储在: $NEKRO_DATA_DIR"
 
 echo -e "\n安装完成！祝您使用愉快！"
