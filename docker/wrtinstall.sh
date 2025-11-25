@@ -198,7 +198,7 @@ mkdir -p "$NEKRO_DATA_DIR" || {
 }
 
 # 设置目录权限
-chmod -R 755 "$NEKRO_DATA_DIR"
+chmod -R 777 "$NEKRO_DATA_DIR"
 
 # 进入应用目录
 cd "$NEKRO_DATA_DIR" || {
