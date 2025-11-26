@@ -364,30 +364,41 @@ if [ "$WITH_NAPCAT" ]; then
 fi
 
 if command -v uci >/dev/null 2>&1; then
-    echo -e "\n正在配置防火墙..."
+    echo "正在配置防火墙..."
     
-    # 检查并添加 NekroAgent 端口（使用更可靠的检测方法）
+    # 简化的防火墙规则检查
+    check_firewall_rule_exists() {
+        local rule_name=$1
+        local dest_port=$2
+        
+        # 简化检查逻辑
+        uci show firewall | grep -q "firewall.@rule.*\.name='${rule_name}'" && \
+        uci show firewall | grep -q "firewall.@rule.*\.dest_port='${dest_port}'"
+        return $?
+    }
+    
+    # NekroAgent 防火墙规则
     if ! check_firewall_rule_exists "NekroAgent" "${NEKRO_EXPOSE_PORT:-8021}"; then
         uci add firewall rule
-        uci set firewall.@rule[-1].name='NekroAgent'
-        uci set firewall.@rule[-1].src='wan'
-        uci set firewall.@rule[-1].proto='tcp'
+        uci set firewall.@rule[-1].name="NekroAgent"
+        uci set firewall.@rule[-1].src="wan"
+        uci set firewall.@rule[-1].proto="tcp"
         uci set firewall.@rule[-1].dest_port="${NEKRO_EXPOSE_PORT:-8021}"
-        uci set firewall.@rule[-1].target='ACCEPT'
+        uci set firewall.@rule[-1].target="ACCEPT"
         echo "已添加 NekroAgent 防火墙规则"
     else
         echo "NekroAgent 防火墙规则已存在"
     fi
 
-    # 检查并添加 NapCat 端口（如果使用）
-    if [ "$WITH_NAPCAT" ]; then
+    # NapCat 防火墙规则
+    if [ "$WITH_NAPCAT" = "true" ]; then
         if ! check_firewall_rule_exists "NapCat" "${NAPCAT_EXPOSE_PORT:-6099}"; then
             uci add firewall rule
-            uci set firewall.@rule[-1].name='NapCat'
-            uci set firewall.@rule[-1].src='wan'
-            uci set firewall.@rule[-1].proto='tcp'
+            uci set firewall.@rule[-1].name="NapCat"
+            uci set firewall.@rule[-1].src="wan"
+            uci set firewall.@rule[-1].proto="tcp"
             uci set firewall.@rule[-1].dest_port="${NAPCAT_EXPOSE_PORT:-6099}"
-            uci set firewall.@rule[-1].target='ACCEPT'
+            uci set firewall.@rule[-1].target="ACCEPT"
             echo "已添加 NapCat 防火墙规则"
         else
             echo "NapCat 防火墙规则已存在"
@@ -395,14 +406,8 @@ if command -v uci >/dev/null 2>&1; then
     fi
     
     uci commit firewall
-    
-    # 重启防火墙
     echo "重启防火墙服务..."
-    if /etc/init.d/firewall restart >/dev/null 2>&1; then
-        echo "防火墙规则已添加并重启"
-    else
-        echo "防火墙重启完成"
-    fi
+    /etc/init.d/firewall restart >/dev/null 2>&1 && echo "防火墙重启完成"
 fi
 
 # 获取局域网IP地址
@@ -421,24 +426,24 @@ get_lan_ip() {
 LAN_IP=$(get_lan_ip)
 
 # 显示 Docker 存储信息
-echo -e "\n=== Docker 存储信息 ==="
-docker_root=$(docker info 2>/dev/null | grep "Docker Root Dir" | cut -d '':' -f2 | tr -d ' ' || echo "未知")
+echo "=== Docker 存储信息 ==="
+docker_root=$(docker info 2>/dev/null | grep "Docker Root Dir" | cut -d ':' -f2 | tr -d ' ' || echo "未知")
 echo "Docker 根目录: $docker_root"
 
 # 显示存储使用情况
 echo "存储使用情况:"
 df -h "$docker_root" 2>/dev/null || echo "无法获取存储信息"
 
-echo -e "\n=== 部署完成！==="
+echo "=== 部署完成！==="
 
 # 显示重要的配置信息
-echo -e "\n=== 重要配置信息 ==="
+echo "=== 重要配置信息 ==="
 ONEBOT_ACCESS_TOKEN=$(grep -m1 '^ONEBOT_ACCESS_TOKEN=' .env | cut -d '=' -f2)
 NEKRO_ADMIN_PASSWORD=$(grep -m1 '^NEKRO_ADMIN_PASSWORD=' .env | cut -d '=' -f2)
 echo "OneBot 访问令牌: ${ONEBOT_ACCESS_TOKEN}"
 echo "管理员账号: admin | 密码: ${NEKRO_ADMIN_PASSWORD}"
 
-echo -e "\n=== 服务访问信息 ==="
+echo "=== 服务访问信息 ==="
 echo "NekroAgent 主服务端口: ${NEKRO_EXPOSE_PORT:-8021}"
 echo "NekroAgent Web 本地访问地址: http://127.0.0.1:${NEKRO_EXPOSE_PORT:-8021}"
 
@@ -466,9 +471,9 @@ else
     fi
 fi
 
-echo -e "\n=== 注意事项 ==="
+echo "=== 注意事项 ==="
 echo "1. 软路由防火墙规则已自动配置"
 echo "2. 如果需要从外部访问，请将上述地址中的 127.0.0.1 替换为您的路由器IP"
 echo "3. 应用数据存储在: $NEKRO_DATA_DIR"
 
-echo -e "\n安装完成！祝您使用愉快！"
+echo "安装完成！祝您使用愉快！"
