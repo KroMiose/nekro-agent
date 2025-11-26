@@ -172,18 +172,39 @@ check_docker_space() {
     fi
 }
 
-# 检查防火墙规则是否存在
+# 检查防火墙规则是否存在 - 原子性检查
 check_firewall_rule_exists() {
     local rule_name=$1
     local dest_port=$2
     
-    # 使用 uci 命令检查是否存在相同名称和端口的规则
-    if uci show firewall | grep -q "firewall.@rule.*\.name='${rule_name}'" && \
-       uci show firewall | grep -q "firewall.@rule.*\.dest_port='${dest_port}'"; then
-        return 0  # 规则存在
-    else
-        return 1  # 规则不存在
-    fi
+    # 原子性检查：确保名称和端口在同一个规则中
+    # 使用 awk 处理 uci 输出，确保名称和端口来自同一个规则段
+    uci show firewall | awk -v rule_name="$rule_name" -v dest_port="$dest_port" '
+    /^firewall\.@rule\[[0-9]+\]\.name=/ {
+        current_name = substr($0, index($0, "=")+2)
+        gsub(/\x27/, "", current_name)  # 移除单引号
+        name_matched = (current_name == rule_name)
+    }
+    /^firewall\.@rule\[[0-9]+\]\.dest_port=/ {
+        current_port = substr($0, index($0, "=")+2)
+        gsub(/\x27/, "", current_port)  # 移除单引号
+        port_matched = (current_port == dest_port)
+        
+        # 如果当前规则同时匹配名称和端口，则成功
+        if (name_matched && port_matched) {
+            found = 1
+            exit 0
+        }
+        
+        # 重置匹配状态，准备下一个规则
+        name_matched = 0
+        port_matched = 0
+    }
+    END {
+        exit !found
+    }' >/dev/null 2>&1
+    
+    return $?
 }
 
 # 初始化变量
@@ -365,17 +386,6 @@ fi
 
 if command -v uci >/dev/null 2>&1; then
     echo "正在配置防火墙..."
-    
-    # 简化的防火墙规则检查
-    check_firewall_rule_exists() {
-        local rule_name=$1
-        local dest_port=$2
-        
-        # 简化检查逻辑
-        uci show firewall | grep -q "firewall.@rule.*\.name='${rule_name}'" && \
-        uci show firewall | grep -q "firewall.@rule.*\.dest_port='${dest_port}'"
-        return $?
-    }
     
     # NekroAgent 防火墙规则
     if ! check_firewall_rule_exists "NekroAgent" "${NEKRO_EXPOSE_PORT:-8021}"; then
