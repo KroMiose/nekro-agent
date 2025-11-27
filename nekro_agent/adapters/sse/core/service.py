@@ -51,13 +51,22 @@ class SseApiService:
     封装与客户端的交互逻辑
     """
 
-    def __init__(self, client_manager: SseClientManager):
+    def __init__(
+        self,
+        client_manager: SseClientManager,
+        response_timeout: float = 30.0,
+        ignore_response: bool = False,
+    ):
         """初始化服务
 
         Args:
             client_manager: 客户端管理器
+            response_timeout: 响应超时时间（秒），默认30秒
+            ignore_response: 是否忽略客户端回执，默认False
         """
         self.client_manager = client_manager
+        self.response_timeout = response_timeout
+        self.ignore_response = ignore_response
 
     def _should_use_chunked_transfer(self, data: str) -> bool:
         """判断是否应该使用分块传输
@@ -179,20 +188,62 @@ class SseApiService:
         Returns:
             bool: 是否成功发送
         """
-        # 构建请求
-        request_id = str(uuid.uuid4())
-
+        # 如果启用了忽略回执模式，直接发送消息并返回成功
+        if self.ignore_response:
+            logger.warning("⚠️ 已启用忽略回执模式，将不等待客户端确认直接返回成功")
+            for client in clients:
+                request_id = str(uuid.uuid4())
+                try:
+                    await client.send_event(
+                        Event(
+                            event=RequestType.SEND_MESSAGE.value,
+                            data=Request(
+                                request_id=request_id,
+                                data={
+                                    "channel_id": message.channel_id,
+                                    "segments": [segment.model_dump() for segment in message.segments],
+                                },
+                            ),
+                        ),
+                    )
+                except Exception as e:
+                    logger.error(f"向客户端 {client.client_id} 推送消息异常: {e}")
+                    continue
+                else:
+                    logger.info(f"消息已推送到客户端 {client.client_id} (忽略回执模式)")
+                    return True  # 只要成功推送到一个客户端就返回成功
+            # 所有客户端推送失败
+            return False
+        
+        # 正常模式：等待客户端回执
         for client in clients:
+            # 每个客户端使用独立的 request_id
+            request_id = str(uuid.uuid4())
             # 创建请求和响应等待对象
-            response_future = asyncio.Future()
+            response_future: asyncio.Future[bool] = asyncio.Future()
 
-            # 注册响应处理器
-            async def handle_response(response_data: BaseModel, future=response_future) -> bool:
+            # 注册响应处理器（使用默认参数绑定循环变量）
+            async def handle_response(
+                response_data: BaseModel,
+                future: asyncio.Future[bool] = response_future,
+                req_id: str = request_id,
+            ) -> bool:
+                # 检查 Future 状态，避免在已取消或已完成的 Future 上设置结果
+                if future.done():
+                    logger.warning(f"响应处理器被调用，但 Future 已完成/取消 (request_id={req_id})")
+                    return False
+
                 # 使用字典转换访问属性，避免类型检查问题
                 data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
                 success = data_dict.get("success", False)
-                future.set_result(success)
-                return True
+
+                try:
+                    future.set_result(success)
+                except Exception as e:
+                    logger.error(f"设置 Future 结果失败: {e}")
+                    return False
+                else:
+                    return True
 
             client.register_handler(request_id, handle_response)
 
@@ -213,15 +264,28 @@ class SseApiService:
 
                 # 等待响应，设置超时
                 try:
-                    result = await asyncio.wait_for(response_future, timeout=15)
+                    result = await asyncio.wait_for(response_future, timeout=self.response_timeout)
                     if result:
                         return True
                 except asyncio.TimeoutError:
-                    logger.warning(f"等待客户端 {client.client_id} 响应超时")
+                    logger.warning(
+                        f"等待客户端 {client.client_id} 响应超时 "
+                        f"(request_id={request_id}, timeout={self.response_timeout}s)",
+                    )
+                    # 超时后取消 Future 并清理 handler，防止延迟响应触发回调
+                    if not response_future.done():
+                        response_future.cancel()
+                    # 注意：handler 已在 handle_response 中被 pop，但如果超时它仍可能存在
+                    # 为了保险起见，显式清理
+                    handler_name = f"_request_{request_id}"
+                    client.handlers.pop(handler_name, None)
                     continue
 
             except Exception as e:
                 logger.error(f"向客户端 {client.client_id} 发送消息异常: {e}")
+                # 清理 handler
+                handler_name = f"_request_{request_id}"
+                client.handlers.pop(handler_name, None)
                 continue
 
         # 所有客户端均发送失败
@@ -281,18 +345,21 @@ class SseApiService:
         self,
         request_type: RequestType,
         request_data: BaseModel,
-        timeout: float = 10.0,
+        timeout: Optional[float] = None,
     ) -> Optional[BaseModel]:
         """向任一可用客户端发送请求
 
         Args:
             request_type: 请求类型
             request_data: 请求数据（BaseModel对象）
-            timeout: 超时时间（秒）
+            timeout: 超时时间（秒），None则使用默认配置
 
         Returns:
             Optional[BaseModel]: 响应数据，失败则返回None
         """
+        # 使用配置的超时时间或传入的超时时间
+        actual_timeout = timeout if timeout is not None else self.response_timeout
+        
         # 获取任一可用客户端
         clients = list(self.client_manager.clients.values())
         if not clients:
@@ -303,20 +370,35 @@ class SseApiService:
         request_id = str(uuid.uuid4())
 
         # 创建请求和响应等待对象
-        response_future = asyncio.Future()
+        response_future: asyncio.Future[Optional[BaseModel]] = asyncio.Future()
 
-        # 注册响应处理器
-        async def handle_response(response_data: BaseModel, future=response_future) -> bool:
+        # 注册响应处理器（捕获 request_id 到局部变量）
+        req_id_for_handler = request_id
+
+        async def handle_response(
+            response_data: BaseModel,
+            future: asyncio.Future[Optional[BaseModel]] = response_future,
+        ) -> bool:
+            # 检查 Future 状态，避免在已取消或已完成的 Future 上设置结果
+            if future.done():
+                logger.warning(f"响应处理器被调用，但 Future 已完成/取消 (request_id={req_id_for_handler}, type={request_type})")
+                return False
+
             # 使用字典转换访问属性，避免类型检查问题
             data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
             success = data_dict.get("success", False)
 
-            if success:
-                # 直接返回原始响应数据，让调用方进行类型转换
-                future.set_result(response_data)
+            try:
+                if success:
+                    # 直接返回原始响应数据，让调用方进行类型转换
+                    future.set_result(response_data)
+                else:
+                    future.set_result(None)
+            except Exception as e:
+                logger.error(f"设置 Future 结果失败: {e}")
+                return False
             else:
-                future.set_result(None)
-            return True
+                return True
 
         client.register_handler(request_id, handle_response)
 
@@ -333,12 +415,23 @@ class SseApiService:
             )
 
             # 等待响应，设置超时
-            return await asyncio.wait_for(response_future, timeout=timeout)
+            return await asyncio.wait_for(response_future, timeout=actual_timeout)
         except asyncio.TimeoutError:
-            logger.warning(f"等待客户端 {client.client_id} 响应超时: {request_type}")
+            logger.warning(
+                f"等待客户端 {client.client_id} 响应超时: {request_type} "
+                f"(request_id={request_id}, timeout={actual_timeout}s)",
+            )
+            # 超时后取消 Future 并清理 handler
+            if not response_future.done():
+                response_future.cancel()
+            handler_name = f"_request_{request_id}"
+            client.handlers.pop(handler_name, None)
             return None
         except Exception as e:
             logger.error(f"向客户端 {client.client_id} 发送请求异常: {request_type}, {e}")
+            # 清理 handler
+            handler_name = f"_request_{request_id}"
+            client.handlers.pop(handler_name, None)
             return None
 
     async def get_self_info(self) -> Optional[UserInfo]:

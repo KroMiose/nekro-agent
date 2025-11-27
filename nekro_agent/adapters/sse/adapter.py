@@ -52,6 +52,18 @@ class SSEConfig(BaseAdapterConfig):
         title="允许的文件类型",
         description="允许的文件类型",
     )
+    RESPONSE_TIMEOUT: float = Field(
+        default=30.0,
+        title="响应超时时间（秒）",
+        description="等待客户端回执的超时时间，单位为秒。如果客户端在此时间内未响应，将认为发送失败",
+        ge=5.0,
+        le=300.0,
+    )
+    IGNORE_RESPONSE: bool = Field(
+        default=False,
+        title="忽略客户端回执",
+        description="启用后将不等待客户端回执，直接判定发送成功。仅用于特殊场景的临时放行，可能导致消息实际未发送但系统认为成功",
+    )
 
 
 class SSEAdapter(BaseAdapter[SSEConfig]):
@@ -69,7 +81,11 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         # 核心组件
         self.client_manager = SseClientManager()
         self.message_converter = SseMessageConverter()
-        self.service = SseApiService(self.client_manager)
+        self.service = SseApiService(
+            self.client_manager,
+            response_timeout=self.config.RESPONSE_TIMEOUT,
+            ignore_response=self.config.IGNORE_RESPONSE,
+        )
 
         # 设置全局client_manager变量，确保commands.py中可以访问
         set_client_manager(self.client_manager)

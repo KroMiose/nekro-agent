@@ -9,7 +9,7 @@ import asyncio
 from functools import wraps
 from typing import Any, Awaitable, Callable, TypeVar
 
-import aiohttp
+import httpx
 from loguru import logger
 
 # 添加返回类型变量T用于泛型函数
@@ -25,7 +25,8 @@ async def with_retry(
     max_delay: float = 5.0,
     backoff_factor: float = 2.0,
     retry_exceptions: tuple = (
-        aiohttp.ClientError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
         asyncio.TimeoutError,
         ConnectionError,
     ),
@@ -76,7 +77,8 @@ def retry_decorator(
     max_delay: float = 5.0,
     backoff_factor: float = 2.0,
     retry_exceptions: tuple = (
-        aiohttp.ClientError,
+        httpx.HTTPError,
+        httpx.TimeoutException,
         asyncio.TimeoutError,
         ConnectionError,
     ),
