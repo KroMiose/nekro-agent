@@ -33,6 +33,7 @@ def dynamic_import_pkg(
     """
     req = _parse_spec(package_spec)
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
+    repo_dir.mkdir(parents=True, exist_ok=True)
     site_dir = _ensure_repo(repo_dir)
 
     if not _is_installed(req, site_dir):

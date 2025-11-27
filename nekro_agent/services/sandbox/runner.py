@@ -152,6 +152,9 @@ async def run_code_in_sandbox(
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
     host_shared_dir.mkdir(parents=True, exist_ok=True)
 
+    HOST_PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
+    HOST_PIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
     api_caller_file_path.write_text(
@@ -275,7 +278,12 @@ async def run_code_in_sandbox(
         code_text=code_run_data.code_content,
         thought_chain=code_run_data.thought_chain or (llm_response.thought_chain if llm_response else ""),
         outputs=final_output,
-        success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT, ExecStopType.MULTIMODAL_AGENT],  # AGENT 状态也视为成功
+        success=stop_type
+        in [
+            ExecStopType.NORMAL,
+            ExecStopType.AGENT,
+            ExecStopType.MULTIMODAL_AGENT,
+        ],  # AGENT 状态也视为成功
         stop_type=stop_type,
         use_model=(llm_response and llm_response.use_model) or "",
         exec_time_ms=exec_time,

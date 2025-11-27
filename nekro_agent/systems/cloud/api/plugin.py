@@ -44,9 +44,10 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
                 },
             )
             response.raise_for_status()
+            logger.debug(f"创建插件资源响应数据: {response.json()}")
             return PluginCreateResponse(**response.json())
     except Exception as e:
-        logger.error(f"创建插件资源发生错误: {e}")
+        logger.exception(f"创建插件资源发生错误: {e}")
         return PluginCreateResponse.process_exception(e)
 
 
@@ -67,9 +68,10 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
                 json=updates,
             )
             response.raise_for_status()
+            logger.debug(f"更新插件资源响应数据: {response.json()}")
             return BasicResponse(**response.json())
     except Exception as e:
-        logger.error(f"更新插件资源发生错误: {e}")
+        logger.exception(f"更新插件资源发生错误: {e}")
         return BasicResponse.process_exception(e)
 
 
@@ -88,9 +90,10 @@ async def delete_plugin(module_name: str) -> BasicResponse:
                 url=f"/api/plugin/{module_name}",
             )
             response.raise_for_status()
+            logger.debug(f"删除插件资源响应数据: {response.json()}")
             return BasicResponse(**response.json())
     except Exception as e:
-        logger.error(f"删除插件资源发生错误: {e}")
+        logger.exception(f"删除插件资源发生错误: {e}")
         return BasicResponse.process_exception(e)
 
 
@@ -108,6 +111,7 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
             response = await client.get(url=f"/api/plugin/{module_name}")
             response.raise_for_status()
             data = response.json()
+            logger.debug(f"获取插件详情响应数据: {data}")
             return PluginDetailResponse(**data)
     except Exception as e:
         logger.error(f"获取插件详情发生错误: {e}")
