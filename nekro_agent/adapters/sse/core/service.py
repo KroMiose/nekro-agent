@@ -17,9 +17,12 @@ SSE 服务层
 import asyncio
 import math
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel
+
+if TYPE_CHECKING:
+    from nekro_agent.adapters.sse.adapter import SSEAdapter
 
 from nekro_agent.adapters.sse.sdk.models import (
     ChannelInfo,
@@ -54,19 +57,30 @@ class SseApiService:
     def __init__(
         self,
         client_manager: SseClientManager,
-        response_timeout: float = 30.0,
-        ignore_response: bool = False,
+        adapter: Optional["SSEAdapter"] = None,
     ):
         """初始化服务
 
         Args:
             client_manager: 客户端管理器
-            response_timeout: 响应超时时间（秒），默认30秒
-            ignore_response: 是否忽略客户端回执，默认False
+            adapter: SSE适配器实例，用于动态获取配置（支持热更新）
         """
         self.client_manager = client_manager
-        self.response_timeout = response_timeout
-        self.ignore_response = ignore_response
+        self.adapter = adapter
+    
+    @property
+    def response_timeout(self) -> float:
+        """动态获取响应超时配置（支持热更新）"""
+        if self.adapter:
+            return self.adapter.config.RESPONSE_TIMEOUT
+        return 30.0  # 默认值
+    
+    @property
+    def ignore_response(self) -> bool:
+        """动态获取忽略回执配置（支持热更新）"""
+        if self.adapter:
+            return self.adapter.config.IGNORE_RESPONSE
+        return False  # 默认值
 
     def _should_use_chunked_transfer(self, data: str) -> bool:
         """判断是否应该使用分块传输

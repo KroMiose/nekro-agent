@@ -15,6 +15,7 @@ SSE 适配器
 但对外部客户端，只暴露platform和channel_id概念。
 """
 
+import time
 from typing import List, Optional, Type, overload
 
 from fastapi import APIRouter
@@ -64,6 +65,13 @@ class SSEConfig(BaseAdapterConfig):
         title="忽略客户端回执",
         description="启用后将不等待客户端回执，直接判定发送成功。仅用于特殊场景的临时放行，可能导致消息实际未发送但系统认为成功",
     )
+    SELF_INFO_CACHE_TTL: int = Field(
+        default=3600,
+        title="自身信息缓存时长（秒）",
+        description="缓存机器人自身信息的时长，单位为秒。默认3600秒（60分钟）。设置为0则禁用缓存，每次都请求客户端",
+        ge=0,
+        le=86400,
+    )
 
 
 class SSEAdapter(BaseAdapter[SSEConfig]):
@@ -81,14 +89,15 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         # 核心组件
         self.client_manager = SseClientManager()
         self.message_converter = SseMessageConverter()
-        self.service = SseApiService(
-            self.client_manager,
-            response_timeout=self.config.RESPONSE_TIMEOUT,
-            ignore_response=self.config.IGNORE_RESPONSE,
-        )
+        # service 不再在初始化时传递配置，改为动态获取
+        self.service = SseApiService(self.client_manager, adapter=self)
 
         # 设置全局client_manager变量，确保commands.py中可以访问
         set_client_manager(self.client_manager)
+        
+        # 缓存 self_info，避免每次都请求客户端
+        self._self_info_cache: Optional[PlatformUser] = None
+        self._self_info_cache_time: float = 0.0  # 缓存时间戳
 
     def get_adapter_router(self) -> APIRouter:
         from .routers import router, set_router_client_manager
@@ -166,7 +175,7 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
                 seg for seg in request.segments if seg.type in [PlatformSendSegmentType.FILE, PlatformSendSegmentType.IMAGE]
             ]
 
-            # 如果存在文件但不允许文件传输，则返回错误
+            # 动态检查文件传输配置（支持热更新）
             if file_segments and not self.config.ALLOW_FILE_TRANSFER:
                 logger.warning(f"禁止文件传输: {request.chat_key}")
                 return PlatformSendResponse(success=False, error_message="文件传输已禁用")
@@ -195,18 +204,51 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             return PlatformSendResponse(success=False, error_message=f"发送SSE消息失败: {e!s}")
 
     async def get_self_info(self) -> PlatformUser:
-        """获取自身信息"""
+        """获取自身信息（带缓存，支持热更新配置）"""
+        current_time = time.time()
+        # 动态获取缓存TTL配置，支持热更新
+        cache_ttl = self.config.SELF_INFO_CACHE_TTL
+        
+        # 检查缓存是否有效
+        if (
+            self._self_info_cache is not None
+            and cache_ttl > 0
+            and (current_time - self._self_info_cache_time) < cache_ttl
+        ):
+            logger.debug(
+                f"使用缓存的 self_info (缓存时间: {int(current_time - self._self_info_cache_time)}s / {cache_ttl}s)",
+            )
+            return self._self_info_cache
+        
+        # 缓存过期或不存在，重新请求客户端
+        if self._self_info_cache is not None:
+            logger.debug("self_info 缓存已过期，重新请求客户端")
+        
         response = await self.service.get_self_info()
 
         if not response:
-            return PlatformUser(user_id="", user_name="", platform_name="sse")
+            # 如果获取失败，返回默认值并缓存
+            default_info = PlatformUser(user_id="sse-bot", user_name="SSE Bot", platform_name="sse")
+            if cache_ttl > 0:
+                self._self_info_cache = default_info
+                self._self_info_cache_time = current_time
+                logger.debug("self_info 获取失败，使用默认值并缓存")
+            return default_info
 
-        return PlatformUser(
+        # 缓存并返回
+        self._self_info_cache = PlatformUser(
             user_id=response.user_id,
             user_name=response.user_name,
             user_avatar=response.user_avatar or "",
             platform_name=response.platform_name,
         )
+        if cache_ttl > 0:
+            self._self_info_cache_time = current_time
+            logger.debug(f"self_info 已更新并缓存 (TTL: {cache_ttl}s)")
+        else:
+            logger.debug("self_info 缓存已禁用，每次都请求客户端")
+        
+        return self._self_info_cache
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
         """获取用户信息"""
