@@ -60,7 +60,8 @@ class SseClient:
         self.connected_at = datetime.now()
         self.last_heartbeat = datetime.now()
         self.subscribed_channels: Set[str] = set()  # 已订阅的频道(channel_id)
-        self.event_queue: asyncio.Queue = asyncio.Queue()
+        # 使用有界队列防止内存溢出，maxsize=100 意味着最多缓存100个待发送事件
+        self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
         self.is_alive = True
         self.handlers: Dict[str, Callable[[BaseModel], Awaitable[bool]]] = {}
 
@@ -80,13 +81,23 @@ class SseClient:
         return (datetime.now() - self.last_heartbeat).total_seconds() > timeout_seconds
 
     async def send_event(self, event: Event) -> None:
-        """发送事件到客户端的事件队列
+        """发送事件到客户端的事件队列（非阻塞，超时丢弃）
         Args:
             event: Event[Pydantic模型]
         """
         if not self.is_alive:
+            logger.warning(f"客户端 {self.client_id} 已断开，忽略事件")
             return
-        await self.event_queue.put(event)
+        
+        try:
+            # 使用非阻塞 put_nowait，如果队列满了立即抛出异常
+            self.event_queue.put_nowait(event)
+        except asyncio.QueueFull:
+            # 队列满了说明客户端消费太慢，记录警告并丢弃事件
+            logger.warning(
+                f"客户端 {self.client_id} 事件队列已满({self.event_queue.qsize()}/{self.event_queue.maxsize})，"
+                f"丢弃事件 {event.event}",
+            )
 
     def has_events(self) -> bool:
         """检查是否有待处理的事件"""
@@ -334,8 +345,10 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
                 client.event_queue.task_done()
             except asyncio.TimeoutError:
                 pass
-
-            if await request.is_disconnected():
+            
+            # 减少 is_disconnected 检查频率，每5秒检查一次即可
+            # 频繁检查会导致性能下降
+            if time.time() - heartbeat_timer >= 5 and await request.is_disconnected():
                 logger.info(f"SSE客户端 {client.client_id} 连接已断开")
                 break
 
