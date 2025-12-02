@@ -1,4 +1,5 @@
 import asyncio
+import json
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
@@ -31,6 +32,60 @@ async def get_onebot_token(_current_user: DBUser = Depends(get_current_active_us
     if not ONEBOT_ACCESS_TOKEN:
         return Ret.success(data=None, msg="未设置 OneBot 访问令牌")
     return Ret.success(data=ONEBOT_ACCESS_TOKEN, msg="获取 OneBot 访问令牌成功")
+
+
+@router.get("/napcat-token")
+@require_role(Role.Admin)
+async def get_napcat_token(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """获取 NapCat WebUI 访问令牌
+
+    通过读取宿主机上挂载的 NapCat 配置文件来获取 WebUI token。
+    配置文件路径: ${DATA_DIR}/napcat_data/napcat/webui.json
+    """
+    try:
+        # 检查容器状态
+        try:
+            container = await get_container()
+            state = (await container.show())["State"]
+            if not state["Running"]:
+                return Ret.fail("NapCat 容器未运行")
+        except Exception as e:
+            logger.warning(f"无法获取容器状态: {e!s}")
+            return Ret.fail("无法连接到 NapCat 容器")
+
+        # 构建配置文件路径（从宿主机读取）
+        from nekro_agent.core.os_env import OsEnv
+
+        config_file_path = Path(OsEnv.DATA_DIR) / "napcat_data" / "napcat" / "webui.json"
+
+        # 检查文件是否存在
+        if not config_file_path.exists():
+            logger.error(f"配置文件不存在: {config_file_path}")
+            return Ret.fail("配置文件不存在，请确保 NapCat 已完成初始化")
+
+        # 读取配置文件
+        try:
+            config_text = config_file_path.read_text(encoding="utf-8")
+        except Exception as e:
+            logger.error(f"读取配置文件失败: {e!s}")
+            return Ret.fail("读取配置文件失败")
+
+        # 解析 JSON 并提取 token
+        try:
+            config_data = json.loads(config_text)
+            token = config_data.get("token")
+
+            if not token:
+                return Ret.fail("配置文件中未找到 token 字段")
+
+            return Ret.success(data=token, msg="获取 NapCat WebUI 访问令牌成功")
+        except json.JSONDecodeError as e:
+            logger.error(f"解析 NapCat 配置文件失败: {e!s}")
+            return Ret.fail("配置文件格式错误，请检查 JSON 格式是否正确")
+
+    except Exception as e:
+        logger.error(f"获取 NapCat WebUI 令牌失败: {e!s}")
+        return Ret.fail(f"获取令牌失败: {e!s}")
 
 
 async def get_docker():

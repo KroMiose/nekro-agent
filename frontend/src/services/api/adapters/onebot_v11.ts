@@ -55,4 +55,14 @@ export const oneBotV11Api = {
     )
     return data.data
   },
+
+  /**
+   * 获取NapCat WebUI访问令牌
+   */
+  getNapcatToken: async () => {
+    const { data } = await axios.get<{ data: string | null }>(
+      '/adapters/onebot_v11/container/napcat-token'
+    )
+    return data.data
+  },
 }

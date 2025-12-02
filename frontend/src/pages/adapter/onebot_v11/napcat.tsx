@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Box, Alert, CircularProgress, Typography } from '@mui/material'
+import { Box, Alert, CircularProgress, Typography, Stack, Button } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
 import { useQuery } from '@tanstack/react-query'
 import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
-import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
+import { ContentCopy as ContentCopyIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material'
 import { unifiedConfigApi } from '../../../services/api/unified-config'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
@@ -32,6 +32,12 @@ export default function OneBotV11NapCatPage() {
     queryFn: () => oneBotV11Api.getOneBotToken(),
   })
 
+  const { data: napcatToken } = useQuery({
+    queryKey: ['onebot-v11-napcat-token'],
+    queryFn: () => oneBotV11Api.getNapcatToken(),
+    refetchInterval: 10000, // 每10秒刷新一次
+  })
+
   const handleCopyOnebotToken = async () => {
     if (onebotToken) {
       try {
@@ -44,29 +50,98 @@ export default function OneBotV11NapCatPage() {
     }
   }
 
+  const handleCopyNapcatToken = async () => {
+    if (napcatToken) {
+      try {
+        await navigator.clipboard.writeText(napcatToken)
+        notification.success('NapCat WebUI Token 已复制到剪贴板')
+      } catch (error) {
+        console.error('复制失败:', error)
+        notification.error('复制失败，请手动复制')
+      }
+    }
+  }
+
+  const handleOpenNapcat = () => {
+    if (napCatConfig) {
+      window.open(napCatConfig, '_blank', 'noopener,noreferrer')
+    }
+  }
+
   return (
     <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {onebotToken && (
-        <Alert
-          severity="info"
-          sx={{ mb: 2, ...CARD_VARIANTS.default.styles }}
-          action={
-            <LoadingButton
-              size="small"
-              startIcon={<ContentCopyIcon />}
-              onClick={handleCopyOnebotToken}
-            >
-              复制
-            </LoadingButton>
-          }
+      {(onebotToken || napcatToken) && (
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={2}
+          sx={{ mb: 2 }}
+          alignItems="stretch"
         >
-          OneBot 服务访问密钥: <strong>{onebotToken}</strong>
-        </Alert>
+          {onebotToken && (
+            <Alert
+              severity="info"
+              sx={{
+                flex: 1,
+                ...CARD_VARIANTS.default.styles,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              action={
+                <LoadingButton
+                  size="small"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={handleCopyOnebotToken}
+                >
+                  复制
+                </LoadingButton>
+              }
+            >
+              OneBot 服务访问密钥: <strong>{onebotToken}</strong>
+            </Alert>
+          )}
+          {napcatToken && (
+            <Alert
+              severity="success"
+              sx={{
+                flex: 1,
+                ...CARD_VARIANTS.default.styles,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              action={
+                <LoadingButton
+                  size="small"
+                  startIcon={<ContentCopyIcon />}
+                  onClick={handleCopyNapcatToken}
+                >
+                  复制
+                </LoadingButton>
+              }
+            >
+              NapCat 登录 Token: <strong>{napcatToken}</strong>
+            </Alert>
+          )}
+          {napCatConfig && (
+            <Button
+              variant="contained"
+              startIcon={<OpenInNewIcon />}
+              onClick={handleOpenNapcat}
+              sx={{
+                whiteSpace: 'nowrap',
+                alignSelf: 'center',
+                height: 'fit-content',
+              }}
+            >
+              前往 NapCat
+            </Button>
+          )}
+        </Stack>
       )}
       <Box
         sx={{
           position: 'relative',
-          height: onebotToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+          height:
+            onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
           flex: 1,
           '& iframe': {
             width: '100%',

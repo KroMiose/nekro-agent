@@ -67,10 +67,10 @@ export default function AdapterLayout() {
     }
   }
 
-  // 获取适配器图标
-  const getAdapterIcon = (key: string) => {
-    return createAdapterIcon(key, theme, 48)
-  }
+  // // 获取适配器图标
+  // const getAdapterIcon = (key: string) => {
+  //   return createAdapterIcon(key, theme, 48)
+  // }
 
   if (isLoading) {
     return (
@@ -124,18 +124,18 @@ export default function AdapterLayout() {
         overflow: 'hidden',
       }}
     >
-      {/* 适配器头部信息 - 简化版本 */}
+      {/* 适配器头部信息 - 紧凑版本 */}
       <Card
         sx={{
           ...CARD_VARIANTS.default.styles,
         }}
       >
-        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
-              gap: 2,
+              gap: 1.5,
             }}
           >
             {/* 适配器图标和状态 */}
@@ -145,8 +145,8 @@ export default function AdapterLayout() {
               badgeContent={
                 <Box
                   sx={{
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     borderRadius: '50%',
                     backgroundColor: statusDisplay.getBgColor(theme),
                     border: `2px solid ${theme.palette.background.paper}`,
@@ -154,39 +154,37 @@ export default function AdapterLayout() {
                 />
               }
             >
-              {getAdapterIcon(adapterKey!)}
+              {createAdapterIcon(adapterKey!, theme, 40)}
             </Badge>
 
             {/* 适配器信息 */}
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                 <Typography
-                  variant="h5"
+                  variant="h6"
                   component="h1"
                   sx={{
                     fontWeight: 600,
-                    fontSize: { xs: '1.25rem', md: '1.5rem' },
+                    fontSize: { xs: '1.125rem', md: '1.25rem' },
+                    lineHeight: 1.2,
                   }}
                 >
                   {adapterInfo.name}
                 </Typography>
-              </Box>
-
-              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
                 <Chip
                   icon={statusDisplay.icon}
                   label={statusDisplay.text}
                   color={statusDisplay.color}
                   variant="filled"
                   size="small"
-                  sx={{ fontWeight: 500 }}
+                  sx={{ height: 24, fontWeight: 500 }}
                 />
                 <Chip
                   label={adapterInfo.config_class}
                   color="primary"
                   variant="outlined"
                   size="small"
-                  sx={{ fontWeight: 400 }}
+                  sx={{ height: 24, fontWeight: 400 }}
                 />
               </Box>
             </Box>
@@ -194,7 +192,7 @@ export default function AdapterLayout() {
         </CardContent>
       </Card>
 
-      {/* 导航标签 - 使用默认透明效果 */}
+      {/* 导航标签 - 紧凑版本 */}
       <Card sx={CARD_VARIANTS.default.styles}>
         <Tabs
           value={getActiveTab()}
@@ -203,16 +201,17 @@ export default function AdapterLayout() {
           indicatorColor="primary"
           textColor="primary"
           sx={{
-            minHeight: 56,
-            px: { xs: 1, md: 3 },
+            minHeight: { xs: 48, md: 52 },
+            px: { xs: 0.5, md: 2 },
             '& .MuiTab-root': {
-              minHeight: 56,
+              minHeight: { xs: 48, md: 52 },
               fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
               transition: 'all 0.2s ease',
               borderRadius: '8px',
               mx: 0.5,
+              py: { xs: 1, md: 1.5 },
               '&:hover': {
                 backgroundColor: theme.palette.action.hover,
               },

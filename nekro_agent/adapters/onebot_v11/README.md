@@ -6,9 +6,8 @@ OneBot V11 适配器用于与兼容 OneBot V11 标准的 QQ 机器人实现进�
 
 ## 支持的实现
 
-- **go-cqhttp**: 基于 Mirai 的 OneBot 实现
-- **NapCat**: 基于官方 QQ 的 OneBot 实现
-- **Lagrange.OneBot**: 基于 Lagrange.Core 的 OneBot 实现
+- **NapCat**: 基于官方 QQ 的 OneBot 实现 (**推荐**: 可一体化部署)
+- **Lagrange.OneBot**: 基于 Lagrange.Core 的 OneBot 实现 (需要手动挂载映射容器目录)
 
 ## 功能特性
 
