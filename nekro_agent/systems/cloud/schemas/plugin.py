@@ -121,3 +121,68 @@ class UserPluginListResponse(BasicResponse):
     """获取用户插件列表响应模型"""
 
     data: Optional[UserPluginListData] = None
+
+
+# --- 仓库信息相关模型 ---
+
+class RepoUser(BaseModel):
+    login: str
+    avatarUrl: str
+    htmlUrl: str
+
+
+class RepoLabel(BaseModel):
+    name: str
+    color: str
+
+
+class RepoIssue(BaseModel):
+    number: int
+    title: str
+    state: str
+    htmlUrl: str
+    createdAt: str
+    updatedAt: str
+    user: RepoUser
+    comments: int
+    labels: List[RepoLabel]
+
+
+class RepoData(BaseModel):
+    """仓库详细数据模型"""
+    
+    # 基本信息
+    fullName: str
+    description: Optional[str] = None
+    htmlUrl: str
+    homepage: Optional[str] = None
+    
+    # 统计数据
+    stargazersCount: int
+    forksCount: int
+    watchersCount: int
+    openIssuesCount: int
+    
+    # 仓库属性
+    language: Optional[str] = None
+    license: Optional[str] = None
+    defaultBranch: str
+    
+    # 时间信息
+    createdAt: str
+    updatedAt: str
+    pushedAt: str
+    
+    # 动态
+    recentIssues: List[RepoIssue]
+    
+    # 快捷链接
+    issuesUrl: str
+    forksUrl: str
+    stargazersUrl: str
+
+
+class PluginRepoResponse(BasicResponse):
+    """获取插件仓库信息响应模型"""
+    
+    data: Optional[RepoData] = None

@@ -19,7 +19,6 @@ import {
   DialogActions,
   useTheme,
   Divider,
-  Switch,
   FormControlLabel,
   FormControl,
   MenuItem,
@@ -29,6 +28,11 @@ import {
   useMediaQuery,
   ListItemIcon,
   ListItemText,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemAvatar,
+  Avatar,
 } from '@mui/material'
 import {
   Search as SearchIcon,
@@ -45,12 +49,18 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Flag as FlagIcon,
+  Star as StarIcon,
+  CallSplit as ForkIcon,
+  Visibility as VisibilityIcon,
+  BugReport as IssueIcon,
+  ChatBubbleOutline as CommentIcon,
 } from '@mui/icons-material'
 import {
   pluginsMarketApi,
   CloudPlugin,
   PluginCreateRequest,
   PluginUpdateRequest,
+  PluginRepoInfo,
 } from '../../services/api/cloud/plugins_market'
 import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
@@ -212,19 +222,6 @@ const PluginCard = ({
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-          {plugin.hasWebhook && (
-            <Chip
-              size="small"
-              label="Webhook"
-              sx={{
-                height: 24,
-                fontSize: '0.75rem',
-                mr: 0.75,
-                bgcolor: theme =>
-                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-              }}
-            />
-          )}
           <Chip
             label={plugin.moduleName}
             size="small"
@@ -394,6 +391,8 @@ const PluginDetailDialog = ({
   // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
+  const [repoInfo, setRepoInfo] = useState<PluginRepoInfo | null>(null)
+  const [loadingRepo, setLoadingRepo] = useState(false)
 
   // 更多菜单状态
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null)
@@ -414,6 +413,24 @@ const PluginDetailDialog = ({
     const reportUrl = `https://github.com/KroMiose/nekro-agent/issues/new?template=plugin_report.yml&plugin_name=${encodeURIComponent(plugin.name)}&module_name=${encodeURIComponent(plugin.moduleName)}&repo_url=${encodeURIComponent(plugin.githubUrl || plugin.cloneUrl || '')}`
     window.open(reportUrl, '_blank')
   }
+
+  // 获取仓库信息
+  useEffect(() => {
+    if (open && plugin) {
+      setRepoInfo(null)
+      setLoadingRepo(true)
+      pluginsMarketApi.getPluginRepoInfo(plugin.moduleName)
+        .then(info => {
+          setRepoInfo(info)
+        })
+        .catch(err => {
+          console.error('Failed to fetch repo info:', err)
+        })
+        .finally(() => {
+          setLoadingRepo(false)
+        })
+    }
+  }, [open, plugin])
 
   if (!plugin) return null
 
@@ -528,6 +545,41 @@ const PluginDetailDialog = ({
               >
                 {plugin.description || '无描述'}
               </Typography>
+              
+              {/* 仓库统计信息 - 始终显示，使用占位符 */}
+              <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
+                <Chip 
+                  icon={<StarIcon sx={{ color: '#e3b341 !important' }} />} 
+                  label={repoInfo ? `${repoInfo.stargazersCount} Stars` : '- Stars'} 
+                  size="small" 
+                  variant="outlined" 
+                  onClick={repoInfo ? () => window.open(repoInfo.stargazersUrl, '_blank') : undefined}
+                  sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
+                />
+                <Chip 
+                  icon={<ForkIcon />} 
+                  label={repoInfo ? `${repoInfo.forksCount} Forks` : '- Forks'} 
+                  size="small" 
+                  variant="outlined"
+                  onClick={repoInfo ? () => window.open(repoInfo.forksUrl, '_blank') : undefined}
+                  sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
+                />
+                <Chip 
+                  icon={<VisibilityIcon />} 
+                  label={repoInfo ? `${repoInfo.watchersCount} Watchers` : '- Watchers'} 
+                  size="small" 
+                  variant="outlined"
+                />
+                <Chip 
+                  icon={<IssueIcon color={repoInfo && repoInfo.openIssuesCount > 0 ? "warning" : "success"} />} 
+                  label={repoInfo ? `${repoInfo.openIssuesCount} Issues` : '- Issues'} 
+                  size="small" 
+                  variant="outlined"
+                  onClick={repoInfo ? () => window.open(repoInfo.issuesUrl, '_blank') : undefined}
+                  sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
+                />
+              </Box>
+
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
@@ -608,12 +660,106 @@ const PluginDetailDialog = ({
                 )}
               </Grid>
             </Box>
+          </Grid>
 
-            <Box sx={{ mt: 3 }}>
-              <Typography color="text.secondary" variant="body2">
-                {plugin.hasWebhook ? '✅ 此插件使用 Webhook 支持' : '❌ 此插件不使用 Webhook'}
+          {/* 仓库动态 - 平铺展示 */}
+          <Grid item xs={12}>
+            <Divider sx={{ my: 2 }} />
+            <Typography variant="h6" gutterBottom>仓库动态</Typography>
+            {loadingRepo ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : repoInfo && repoInfo.recentIssues && repoInfo.recentIssues.length > 0 ? (
+              <List>
+                {repoInfo.recentIssues.map((issue) => (
+                  <ListItem 
+                    key={issue.number} 
+                    disablePadding
+                    sx={{ 
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1,
+                      mb: 1,
+                    }}
+                  >
+                    <ListItemButton
+                      alignItems="flex-start"
+                      onClick={() => window.open(issue.htmlUrl, '_blank')}
+                    >
+                      <ListItemAvatar>
+                        <Avatar alt={issue.user.login} src={issue.user.avatarUrl} />
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                            <Typography variant="subtitle1" component="span">
+                              #{issue.number} {issue.title}
+                            </Typography>
+                            <Chip 
+                              label={issue.state === 'open' ? '进行中' : '已关闭'} 
+                              size="small" 
+                              color={issue.state === 'open' ? 'success' : 'default'} 
+                              variant="outlined"
+                              sx={{ height: 20, fontSize: '0.7rem' }}
+                            />
+                          </Box>
+                        }
+                        secondary={
+                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
+                            <Typography
+                              component="span"
+                              variant="body2"
+                              color="text.primary"
+                            >
+                              {issue.user.login}
+                            </Typography>
+                            <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                更新于 {formatLastActiveTime(new Date(issue.updatedAt).getTime() / 1000)}
+                              </Typography>
+                              {issue.comments > 0 && (
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <CommentIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                                  <Typography variant="caption" color="text.secondary">
+                                    {issue.comments}
+                                  </Typography>
+                                </Box>
+                              )}
+                            </Box>
+                            {issue.labels.length > 0 && (
+                              <Box sx={{ display: 'flex', gap: 0.5, mt: 1, flexWrap: 'wrap' }}>
+                                {issue.labels.map(label => (
+                                  <Chip
+                                    key={label.name}
+                                    label={label.name}
+                                    size="small"
+                                    sx={{ 
+                                      height: 20, 
+                                      fontSize: '0.7rem',
+                                      backgroundColor: `#${label.color}`,
+                                      color: parseInt(label.color, 16) > 0xffffff / 2 ? '#000' : '#fff'
+                                    }}
+                                  />
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                        }
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            ) : !loadingRepo && repoInfo ? (
+              <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                暂无最近动态
               </Typography>
-            </Box>
+            ) : (
+              <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                无法获取仓库信息
+              </Typography>
+            )}
           </Grid>
         </Grid>
       </DialogContent>
@@ -864,11 +1010,6 @@ const CreatePluginDialog = ({
         })
       }
     }
-  }
-
-  // 处理切换变化
-  const handleSwitchChange = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({ ...prev, [name]: e.target.checked }))
   }
 
   // 处理SFW确认变更
@@ -1166,19 +1307,6 @@ const CreatePluginDialog = ({
               disabled={isSubmitting}
             />
           </Grid>
-          <Grid item xs={12} sm={6}>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={formData.hasWebhook}
-                  onChange={handleSwitchChange('hasWebhook')}
-                  color="primary"
-                  disabled={isSubmitting}
-                />
-              }
-              label="含有 Webhook 触发功能"
-            />
-          </Grid>
 
           {/* 添加分割线和确认选项 */}
           <Grid item xs={12}>
@@ -1264,7 +1392,6 @@ export default function PluginsMarket() {
     plugin: null,
     action: 'download',
   })
-  const [filterWebhook, setFilterWebhook] = useState(false)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
@@ -1272,7 +1399,7 @@ export default function PluginsMarket() {
   const notification = useNotification()
 
   const fetchPlugins = useCallback(
-    async (page: number, keyword: string = '', hasWebhook: boolean | undefined = undefined) => {
+    async (page: number, keyword: string = '') => {
       try {
         setLoading(true)
         setError(null)
@@ -1281,7 +1408,6 @@ export default function PluginsMarket() {
           page,
           page_size: pageSize,
           keyword: keyword || undefined,
-          has_webhook: hasWebhook,
         })
 
         setPlugins(data.items)
@@ -1290,7 +1416,7 @@ export default function PluginsMarket() {
         if (data.items.length === 0 && data.total > 0 && page > 1) {
           // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
           setCurrentPage(1)
-          fetchPlugins(1, keyword, hasWebhook)
+          fetchPlugins(1, keyword)
         }
       } catch (error) {
         console.error('获取云端插件列表失败', error)
@@ -1303,14 +1429,14 @@ export default function PluginsMarket() {
   )
 
   useEffect(() => {
-    fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
-  }, [fetchPlugins, currentPage, debouncedSearchKeyword, filterWebhook])
+    fetchPlugins(currentPage, debouncedSearchKeyword)
+  }, [fetchPlugins, currentPage, debouncedSearchKeyword])
 
   // 监听防抖后的搜索关键词变化，重置到第一页
   useEffect(() => {
     // 当搜索关键词变化时重置页码到第一页
     setCurrentPage(1)
-  }, [debouncedSearchKeyword, filterWebhook])
+  }, [debouncedSearchKeyword])
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
     if (loading) return // 加载中禁止翻页
@@ -1321,14 +1447,14 @@ export default function PluginsMarket() {
     e.preventDefault()
     if (loading) return // 加载中禁止搜索
     setCurrentPage(1)
-    fetchPlugins(1, searchKeyword, filterWebhook || undefined)
+    fetchPlugins(1, searchKeyword)
   }
 
   const handleSearchInputClear = () => {
     if (loading) return // 加载中禁止清空
     setSearchKeyword('')
     setCurrentPage(1)
-    fetchPlugins(1, '', filterWebhook || undefined)
+    fetchPlugins(1, '')
   }
 
   const handleShowDetail = (plugin: CloudPlugin) => {
@@ -1418,7 +1544,7 @@ export default function PluginsMarket() {
 
         notification.success(successMessage)
         // 重新获取插件列表以更新状态
-        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+        fetchPlugins(currentPage, debouncedSearchKeyword)
       } else if (response) {
         notification.error(`操作失败: ${response.msg}`)
       } else {
@@ -1433,10 +1559,6 @@ export default function PluginsMarket() {
     }
   }
 
-  const handleToggleWebhookFilter = () => {
-    setFilterWebhook(!filterWebhook)
-  }
-
   // 处理创建插件
   const handleCreatePlugin = async (data: PluginCreateRequest) => {
     try {
@@ -1448,7 +1570,7 @@ export default function PluginsMarket() {
         notification.success('插件发布成功！')
         setCreateDialogOpen(false)
         // 刷新插件列表
-        fetchPlugins(1, debouncedSearchKeyword, filterWebhook || undefined)
+        fetchPlugins(1, debouncedSearchKeyword)
       } else {
         // 处理不同的错误情况
         const errorMsg = response.msg || '未知错误'
@@ -1481,7 +1603,7 @@ export default function PluginsMarket() {
         setEditingPlugin(null)
 
         // 刷新插件列表
-        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+        fetchPlugins(currentPage, debouncedSearchKeyword)
 
         // 如果当前有选中的插件，更新选中插件的信息
         if (selectedPlugin && selectedPlugin.moduleName === moduleName) {
@@ -1599,11 +1721,6 @@ export default function PluginsMarket() {
           })
         }
       }
-    }
-
-    // 处理切换变化
-    const handleSwitchChange = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      setFormData(prev => ({ ...prev, [name]: e.target.checked }))
     }
 
     // 处理SFW确认变更
@@ -1899,19 +2016,6 @@ export default function PluginsMarket() {
                 disabled={isSubmitting}
               />
             </Grid>
-            <Grid item xs={12} sm={6}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={formData.hasWebhook}
-                    onChange={handleSwitchChange('hasWebhook')}
-                    color="primary"
-                    disabled={isSubmitting}
-                  />
-                }
-                label="含有 Webhook 触发功能"
-              />
-            </Grid>
 
             {/* 添加分割线和确认选项 */}
             <Grid item xs={12}>
@@ -2054,17 +2158,6 @@ export default function PluginsMarket() {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={filterWebhook}
-                onChange={handleToggleWebhookFilter}
-                color="primary"
-              />
-            }
-            label="仅支持 Webhook 插件"
-          />
-
           <Button
             variant="contained"
             color="primary"

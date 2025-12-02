@@ -20,6 +20,61 @@ export interface CloudPlugin {
   isOwner?: boolean // 标记是否为当前用户上传的插件
 }
 
+export interface RepoUser {
+  login: string
+  avatarUrl: string
+  htmlUrl: string
+}
+
+export interface RepoLabel {
+  name: string
+  color: string
+}
+
+export interface RepoIssue {
+  number: number
+  title: string
+  state: string
+  htmlUrl: string
+  createdAt: string
+  updatedAt: string
+  user: RepoUser
+  comments: number
+  labels: RepoLabel[]
+}
+
+export interface PluginRepoInfo {
+  // 基本信息
+  fullName: string
+  description: string
+  htmlUrl: string
+  homepage: string
+
+  // 统计数据
+  stargazersCount: number
+  forksCount: number
+  watchersCount: number
+  openIssuesCount: number
+
+  // 仓库属性
+  language: string
+  license: string
+  defaultBranch: string
+
+  // 时间信息
+  createdAt: string
+  updatedAt: string
+  pushedAt: string
+
+  // 动态
+  recentIssues: RepoIssue[]
+
+  // 快捷链接
+  issuesUrl: string
+  forksUrl: string
+  stargazersUrl: string
+}
+
 export interface CloudPluginListResponse {
   total: number
   items: CloudPlugin[]
@@ -121,6 +176,28 @@ export const pluginsMarketApi = {
       return response.data.data
     } catch (error) {
       console.error('获取插件详情失败:', error)
+      throw error
+    }
+  },
+
+  /**
+   * 获取插件仓库信息
+   */
+  getPluginRepoInfo: async (moduleName: string): Promise<PluginRepoInfo> => {
+    try {
+      const response = await axios.get<{
+        code: number
+        msg: string
+        data: PluginRepoInfo
+      }>(`/cloud/plugins-market/repo/${moduleName}`)
+      
+      if (response.data.code !== 200) {
+        throw new Error(response.data.msg)
+      }
+      
+      return response.data.data
+    } catch (error) {
+      console.error('获取插件仓库信息失败:', error)
       throw error
     }
   },

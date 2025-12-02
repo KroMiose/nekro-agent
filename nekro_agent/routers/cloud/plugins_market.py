@@ -12,6 +12,7 @@ from nekro_agent.systems.cloud.api.plugin import (
     create_plugin,
     delete_plugin,
     get_plugin,
+    get_plugin_repo_info,
     list_plugins,
     list_user_plugins,
 )
@@ -176,6 +177,25 @@ async def get_plugin_detail(
 
     except Exception as e:
         logger.error(f"获取插件详情失败: {e}")
+        return Ret.fail(msg=f"获取失败: {e}")
+
+
+@router.get("/repo/{module_name}", summary="获取插件仓库信息")
+@require_role(Role.Admin)
+async def get_plugin_repo(
+    module_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> Ret:
+    """获取插件仓库详细信息"""
+    try:
+        response = await get_plugin_repo_info(module_name)
+        
+        if not response.success:
+            return Ret.fail(msg=response.message)
+            
+        return Ret.success(msg="获取成功", data=response.data)
+    except Exception as e:
+        logger.error(f"获取插件仓库信息失败: {e}")
         return Ret.fail(msg=f"获取失败: {e}")
 
 

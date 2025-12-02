@@ -10,6 +10,7 @@ from nekro_agent.systems.cloud.schemas.plugin import (
     PluginCreateResponse,
     PluginDetailResponse,
     PluginListResponse,
+    PluginRepoResponse,
     UserPluginListResponse,
 )
 
@@ -175,3 +176,23 @@ async def list_user_plugins() -> UserPluginListResponse:
     except Exception as e:
         logger.error(f"获取用户上传插件列表发生错误: {e}")
         return UserPluginListResponse.process_exception(e)
+
+
+async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
+    """获取插件仓库信息
+
+    Args:
+        module_name: 插件模块名
+
+    Returns:
+        PluginRepoResponse: 插件仓库信息响应
+    """
+    try:
+        async with get_client() as client:
+            response = await client.get(url=f"/api/plugin/{module_name}/repo")
+            response.raise_for_status()
+            data = response.json()
+            return PluginRepoResponse(**data)
+    except Exception as e:
+        logger.error(f"获取插件仓库信息发生错误: {e}")
+        return PluginRepoResponse.process_exception(e)
