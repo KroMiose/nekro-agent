@@ -1,3 +1,10 @@
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import argparse
 import os
 import sys
@@ -76,12 +83,34 @@ if env_file:
             if key.startswith("NEKRO_"):
                 os.environ[key] = value
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 try:
     import nonebot
     from nonebot.adapters.onebot.v11 import Adapter as ONEBOT_V11Adapter
 
+<<<<<<< HEAD
     # 🎯 使用 NoneBot 原生方式初始化，传入 FastAPI 配置
     nonebot.init(_env_file=env_file, **fastapi_config)
+=======
+<<<<<<< HEAD
+    # 🎯 使用 NoneBot 原生方式初始化，传入 FastAPI 配置
+    nonebot.init(_env_file=env_file, **fastapi_config)
+=======
+<<<<<<< HEAD
+    # 🎯 使用 NoneBot 原生方式初始化，传入 FastAPI 配置
+    nonebot.init(_env_file=env_file, **fastapi_config)
+=======
+    nonebot.init()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     driver = nonebot.get_driver()
     driver.register_adapter(ONEBOT_V11Adapter)
@@ -93,6 +122,13 @@ except Exception as e:
     print(f"Nonebot Init Error: {e}")
     raise
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 # 创建应用实例供 uvicorn 导入（仅在 reload 模式下需要）
 if args.reload:
     app = nonebot.get_asgi()
@@ -138,6 +174,18 @@ def main():
             if args.docs:
                 print("📚 API 文档已启用: /docs, /redoc")
             nonebot.run(host=str(driver.config.host) or "0.0.0.0", port=int(driver.config.port) or 8021)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+def main():
+    try:
+        nonebot.run(host="0.0.0.0", port=8021)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     except Exception as e:
         import traceback
 

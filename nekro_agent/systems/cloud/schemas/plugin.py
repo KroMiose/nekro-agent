@@ -121,6 +121,13 @@ class UserPluginListResponse(BasicResponse):
     """获取用户插件列表响应模型"""
 
     data: Optional[UserPluginListData] = None
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 # --- 仓库信息相关模型 ---
@@ -186,3 +193,11 @@ class PluginRepoResponse(BasicResponse):
     """获取插件仓库信息响应模型"""
     
     data: Optional[RepoData] = None
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

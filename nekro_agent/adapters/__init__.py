@@ -12,12 +12,27 @@ ADAPTER_DICT: Dict[str, str] = {
     "minecraft": "nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",
     "sse": "nekro_agent.adapters.sse.adapter.SSEAdapter",
     "bilibili_live": "nekro_agent.adapters.bilibili_live.adapter.BilibiliLiveAdapter",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     "discord": "nekro_agent.adapters.discord.adapter.DiscordAdapter",
     "wechatpad": "nekro_agent.adapters.wechatpad.adapter.WeChatPadAdapter",
     "telegram": "nekro_agent.adapters.telegram.adapter.TelegramAdapter",
     # 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
     # 文档: https://developer.work.weixin.qq.com/document/path/101031
     # "wxwork": "nekro_agent.adapters.wxwork.adapter.WxWorkAdapter",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 }
 
 

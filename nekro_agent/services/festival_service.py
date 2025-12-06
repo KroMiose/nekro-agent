@@ -243,6 +243,24 @@ class FestivalService:
                 minute=0,
             ),
             FestivalConfig(
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+                name="清明节",
+                description="传统扫墓祭祖、踏青郊游的节日",
+                festival_type=FestivalType.SOLAR,
+                month=4,
+                day=5,
+                hour=10,
+                minute=0,
+            ),
+            FestivalConfig(
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 name="世界地球日",
                 description="提高环保意识，保护地球家园的主题日",
                 festival_type=FestivalType.SOLAR,
@@ -394,6 +412,13 @@ class FestivalService:
             ),
         ]
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 二十四节气（动态计算精确时刻，不使用固定日期）
         jieqi_festivals = [
             FestivalConfig(
@@ -402,172 +427,662 @@ class FestivalService:
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        # 二十四节气
+        solar_terms = [
+            FestivalConfig(
+                name="立春",
+                description="二十四节气之首，春季的开始，万物复苏",
+                festival_type=FestivalType.SOLAR,
+                month=2,
+                day=4,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="雨水",
                 description="雨量渐增，雨水滋润大地",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=2,
+                day=19,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="惊蛰",
                 description="冬眠的昆虫被春雷惊醒，春耕开始",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=3,
+                day=6,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="春分",
                 description="昼夜平分，阴阳相半",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=3,
+                day=21,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="清明",
                 description="祭祖扫墓，春光明媚",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=4,
+                day=5,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="谷雨",
                 description="雨生百谷，播种的好时节",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=4,
+                day=20,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="立夏",
                 description="夏季的开始，万物繁茂",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=5,
+                day=6,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="小满",
                 description="麦类等夏熟作物籽粒开始饱满",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=5,
+                day=21,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="芒种",
                 description="麦类等夏熟农作物成熟，适合播种",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=6,
+                day=6,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="夏至",
                 description="一年中白昼最长的一天",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=6,
+                day=21,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="小暑",
                 description="暑气开始，天气炎热",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=7,
+                day=7,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="大暑",
                 description="一年中最热的时期",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=7,
+                day=23,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="立秋",
                 description="秋季的开始，暑气渐消",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=8,
+                day=8,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="处暑",
                 description="暑气结束，天气开始转凉",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=8,
+                day=23,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="白露",
                 description="天气转凉，露水开始凝结",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=9,
+                day=8,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="秋分",
                 description="昼夜平分，阴阳相半",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=9,
+                day=23,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="寒露",
                 description="露水寒冷，将要结冰",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=10,
+                day=8,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="霜降",
                 description="天气渐冷，开始有霜",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=10,
+                day=24,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="立冬",
                 description="冬季的开始，万物收藏",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=11,
+                day=8,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="小雪",
                 description="开始下雪，但雪量较小",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=11,
+                day=22,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="大雪",
                 description="降雪量大，地面可能积雪",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=12,
+                day=7,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="冬至",
                 description="一年中白昼最短的一天，阳气开始回升",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=12,
+                day=22,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="小寒",
                 description="天气寒冷，但尚未到极点",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=1,
+                day=6,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
             FestivalConfig(
                 name="大寒",
                 description="一年中最冷的时期",
+<<<<<<< HEAD
                 festival_type=FestivalType.SPECIAL,
                 month=0,
                 special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+<<<<<<< HEAD
+                festival_type=FestivalType.SPECIAL,
+                month=0,
+                special_type="jieqi",
+=======
+                festival_type=FestivalType.SOLAR,
+                month=1,
+                day=20,
+                hour=9,
+                minute=0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ),
         ]
 
         # 合并所有节日配置
+<<<<<<< HEAD
         self._festival_configs = lunar_festivals + solar_festivals + special_festivals + jieqi_festivals
+=======
+<<<<<<< HEAD
+        self._festival_configs = lunar_festivals + solar_festivals + special_festivals + jieqi_festivals
+=======
+<<<<<<< HEAD
+        self._festival_configs = lunar_festivals + solar_festivals + special_festivals + jieqi_festivals
+=======
+        self._festival_configs = lunar_festivals + solar_festivals + special_festivals + solar_terms
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def _get_nth_weekday_of_month(self, year: int, month: int, weekday: int, nth: int) -> datetime:
         """获取某月第n个星期几的日期
@@ -604,6 +1119,13 @@ class FestivalService:
         now = datetime.now()
         current_year = now.year
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 精确计算节气（包含名称在二十四节气或特判“清明节”的公历项）
         if festival.festival_type in (FestivalType.SPECIAL, FestivalType.SOLAR) and (
             (festival.special_type == "jieqi") or (festival.name in Lunar.JIE_QI) or (festival.name == "清明节")
@@ -636,6 +1158,14 @@ class FestivalService:
                 return ts, str(current_year + 1), m, d
             return ts, str(current_year), m, d
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if festival.festival_type == FestivalType.LUNAR:
             # 农历固定日期节日
             lunar_date = Lunar.fromYmd(current_year, festival.month, festival.day)
@@ -756,7 +1286,19 @@ class FestivalService:
             "表达你的祝福，记得加入应景的表情。"
         )
 
+<<<<<<< HEAD
         # 获取所有活跃聊天频道并推送节日祝福
+=======
+<<<<<<< HEAD
+        # 获取所有活跃聊天频道并推送节日祝福
+=======
+<<<<<<< HEAD
+        # 获取所有活跃聊天频道并推送节日祝福
+=======
+        # 获取所有活跃会话并推送节日祝福
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         async def festival_callback():
             # 检查节日祝福是否开启
             if not config.ENABLE_FESTIVAL_REMINDER:
@@ -771,9 +1313,27 @@ class FestivalService:
                         agent_messages=event_desc,
                         trigger_agent=True,
                     )
+<<<<<<< HEAD
                     await asyncio.sleep(random.randint(1, 120))  # 每个聊天频道间隔随机时间，防止并发过高
 
             logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个聊天频道")
+=======
+<<<<<<< HEAD
+                    await asyncio.sleep(random.randint(1, 120))  # 每个聊天频道间隔随机时间，防止并发过高
+
+            logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个聊天频道")
+=======
+<<<<<<< HEAD
+                    await asyncio.sleep(random.randint(1, 120))  # 每个聊天频道间隔随机时间，防止并发过高
+
+            logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个聊天频道")
+=======
+                    await asyncio.sleep(random.randint(1, 120))  # 每个会话间隔随机时间，防止并发过高
+
+            logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {len(channels)} 个会话")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         # 设置定时器
         await timer_service.set_timer(
@@ -794,12 +1354,28 @@ class FestivalService:
             trigger_time, year, month, day = self._get_next_festival_date(festival)
 
             if trigger_time > 0:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 if festival.festival_type in (FestivalType.SPECIAL, FestivalType.SOLAR) and (
                     (festival.special_type == "jieqi") or (festival.name in Lunar.JIE_QI) or (festival.name == "清明节")
                 ):
                     calendar_type = "节气"
                 else:
                     calendar_type = "农历" if festival.festival_type == FestivalType.LUNAR else "公历"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                calendar_type = "农历" if festival.festival_type == FestivalType.LUNAR else "公历"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 await self._set_festival_timer(
                     trigger_time=trigger_time,
                     year=year,

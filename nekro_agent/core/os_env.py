@@ -26,7 +26,18 @@ class OsEnv:
     """Qdrant 数据库配置"""
     QDRANT_URL: str = OsEnvTypes.Str("QDRANT_URL", default="http://localhost:6333")
     QDRANT_API_KEY: str = OsEnvTypes.Str("QDRANT_API_KEY", default="")
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """JWT 配置"""
     JWT_SECRET_KEY: str = OsEnvTypes.Str("JWT_SECRET_KEY", default=f"secret:{secrets.token_urlsafe(32)}")
     JWT_REFRESH_SECRET_KEY: str = OsEnvTypes.Str("JWT_REFRESH_SECRET_KEY", default=f"refresh:{secrets.token_urlsafe(32)}")
@@ -56,6 +67,13 @@ class OsEnv:
     NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.ai")
     # NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="http://localhost:8787")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """OPENAPI 配置"""
     ENABLE_OPENAPI_DOCS: bool = OsEnvTypes.Bool("ENABLE_OPENAPI_DOCS")
 
@@ -74,6 +92,29 @@ PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"  # 云端插件目录
 NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"  # NapCat 临时文件目录
 NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"  # NapCat OneBot 适配器目录
 WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"  # 壁纸目录
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"
+SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"
+SANDBOX_PIP_CACHE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.pip_cache"
+SANDBOX_PACKAGE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.packages"
+PROMPT_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts"
+PROMPT_ERROR_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/prompts_error"
+APP_LOG_DIR: str = OsEnv.DATA_DIR + "/logs/app"
+BUILTIN_PLUGIN_DIR: str = "plugins/builtin"
+WORKDIR_PLUGIN_DIR: str = OsEnv.DATA_DIR + "/plugins/workdir"
+PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"
+NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"
+NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"
+EXT_WORKDIR: str = OsEnv.DATA_DIR + "/ext_workdir"
+WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
 

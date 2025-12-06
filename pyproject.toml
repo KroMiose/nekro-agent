@@ -1,6 +1,18 @@
 [tool.poetry]
 name = "nekro-agent"
+<<<<<<< HEAD
 version = "2.0.10"
+=======
+<<<<<<< HEAD
+version = "2.0.10"
+=======
+<<<<<<< HEAD
+version = "2.0.10"
+=======
+version = "2.0.0-beta.1"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 description = "更智能、更优雅的代理执行 AI"
 authors = ["KroMiose <li_xiangff@163.com>"]
 readme = "README.md"
@@ -50,9 +62,24 @@ pycryptodome = "^3.23.0"
 matplotlib = "^3.10.3"
 pandas = "^2.3.0"
 websockets = "^15.0.1"
+<<<<<<< HEAD
 discord-py = "^2.5.2"
 aiohttp = "^3.11.15"
 python-telegram-bot = "^22.4"
+=======
+<<<<<<< HEAD
+discord-py = "^2.5.2"
+aiohttp = "^3.11.15"
+python-telegram-bot = "^22.4"
+=======
+<<<<<<< HEAD
+discord-py = "^2.5.2"
+aiohttp = "^3.11.15"
+python-telegram-bot = "^22.4"
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 [tool.poetry.group.dev.dependencies]
 uvicorn = "^0.23.2"
@@ -96,7 +123,18 @@ ignore = [
     "RUF003",
     "RUF006",
     "RUF012",
+<<<<<<< HEAD
     "RUF059",
+=======
+<<<<<<< HEAD
+    "RUF059",
+=======
+<<<<<<< HEAD
+    "RUF059",
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     "RUF100",
     "PGH003",
     "N801",

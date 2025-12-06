@@ -5,7 +5,19 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+<<<<<<< HEAD
     "build": "vite build",
+=======
+<<<<<<< HEAD
+    "build": "vite build",
+=======
+<<<<<<< HEAD
+    "build": "vite build",
+=======
+    "build": "tsc -b && vite build",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     "lint": "eslint .",
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\""
@@ -40,8 +52,21 @@
     "react-virtualized-auto-sizer": "^1.0.26",
     "react-window": "^1.8.11",
     "recharts": "^2.15.1",
+<<<<<<< HEAD
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+=======
+<<<<<<< HEAD
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+=======
+<<<<<<< HEAD
+    "rehype-raw": "^7.0.0",
+    "remark-gfm": "^4.0.1",
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     "zustand": "^5.0.3"
   },
   "devDependencies": {

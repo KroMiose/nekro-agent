@@ -15,7 +15,18 @@ SSE 适配器
 但对外部客户端，只暴露platform和channel_id概念。
 """
 
+<<<<<<< HEAD
 import time
+=======
+<<<<<<< HEAD
+import time
+=======
+<<<<<<< HEAD
+import time
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from typing import List, Optional, Type, overload
 
 from fastapi import APIRouter
@@ -53,6 +64,13 @@ class SSEConfig(BaseAdapterConfig):
         title="允许的文件类型",
         description="允许的文件类型",
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     RESPONSE_TIMEOUT: float = Field(
         default=30.0,
         title="响应超时时间（秒）",
@@ -72,6 +90,14 @@ class SSEConfig(BaseAdapterConfig):
         ge=0,
         le=86400,
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 class SSEAdapter(BaseAdapter[SSEConfig]):
@@ -89,6 +115,13 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         # 核心组件
         self.client_manager = SseClientManager()
         self.message_converter = SseMessageConverter()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # service 不再在初始化时传递配置，改为动态获取
         self.service = SseApiService(self.client_manager, adapter=self)
 
@@ -98,6 +131,18 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         # 缓存 self_info，避免每次都请求客户端
         self._self_info_cache: Optional[PlatformUser] = None
         self._self_info_cache_time: float = 0.0  # 缓存时间戳
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        self.service = SseApiService(self.client_manager)
+
+        # 设置全局client_manager变量，确保commands.py中可以访问
+        set_client_manager(self.client_manager)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def get_adapter_router(self) -> APIRouter:
         from .routers import router, set_router_client_manager
@@ -175,7 +220,19 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
                 seg for seg in request.segments if seg.type in [PlatformSendSegmentType.FILE, PlatformSendSegmentType.IMAGE]
             ]
 
+<<<<<<< HEAD
             # 动态检查文件传输配置（支持热更新）
+=======
+<<<<<<< HEAD
+            # 动态检查文件传输配置（支持热更新）
+=======
+<<<<<<< HEAD
+            # 动态检查文件传输配置（支持热更新）
+=======
+            # 如果存在文件但不允许文件传输，则返回错误
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if file_segments and not self.config.ALLOW_FILE_TRANSFER:
                 logger.warning(f"禁止文件传输: {request.chat_key}")
                 return PlatformSendResponse(success=False, error_message="文件传输已禁用")
@@ -204,6 +261,13 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             return PlatformSendResponse(success=False, error_message=f"发送SSE消息失败: {e!s}")
 
     async def get_self_info(self) -> PlatformUser:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """获取自身信息（带缓存，支持热更新配置）"""
         current_time = time.time()
         # 动态获取缓存TTL配置，支持热更新
@@ -237,11 +301,33 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
 
         # 缓存并返回
         self._self_info_cache = PlatformUser(
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        """获取自身信息"""
+        response = await self.service.get_self_info()
+
+        if not response:
+            return PlatformUser(user_id="", user_name="", platform_name="sse")
+
+        return PlatformUser(
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             user_id=response.user_id,
             user_name=response.user_name,
             user_avatar=response.user_avatar or "",
             platform_name=response.platform_name,
         )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if cache_ttl > 0:
             self._self_info_cache_time = current_time
             logger.debug(f"self_info 已更新并缓存 (TTL: {cache_ttl}s)")
@@ -249,6 +335,14 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             logger.debug("self_info 缓存已禁用，每次都请求客户端")
         
         return self._self_info_cache
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
         """获取用户信息"""

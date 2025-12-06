@@ -5,14 +5,39 @@ from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot
 from pydantic import BaseModel, Field
 
 from nekro_agent.adapters.utils import adapter_utils
+<<<<<<< HEAD
 from nekro_agent.core.config import CoreConfig, config
 from nekro_agent.models.db_preset import DBPreset
+=======
+<<<<<<< HEAD
+from nekro_agent.core.config import CoreConfig, config
+from nekro_agent.models.db_preset import DBPreset
+=======
+<<<<<<< HEAD
+from nekro_agent.core.config import CoreConfig, config
+from nekro_agent.models.db_preset import DBPreset
+=======
+from nekro_agent.core.config import CoreConfig
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.tools.file_utils import FileSystem
 
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface import BaseAdapter
     from nekro_agent.models.db_chat_channel import DBChatChannel
+<<<<<<< HEAD
     from nekro_agent.models.db_user import DBUser
+=======
+<<<<<<< HEAD
+    from nekro_agent.models.db_user import DBUser
+=======
+<<<<<<< HEAD
+    from nekro_agent.models.db_user import DBUser
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 class WebhookRequest(BaseModel):
@@ -35,25 +60,75 @@ class AgentCtx(BaseModel):
     在插件实践中通常以 `_ctx` 作为变量名提供给插件扩展方法使用。
     """
 
+<<<<<<< HEAD
     container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。")
+=======
+<<<<<<< HEAD
+    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。")
+=======
+<<<<<<< HEAD
+    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。")
+=======
+    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同会话的运行环境。")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     from_chat_key: Optional[str] = Field(default=None, description="来源聊天的唯一标识，用于追溯消息来源。")
     webhook_request: Optional[WebhookRequest] = Field(
         default=None,
         description="当 Agent 由 Webhook 触发时，这里会包含 Webhook 的请求数据。",
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     channel_id: Optional[str] = Field(default=None, description="当前聊天频道的频道 ID，例如 QQ 群号或 用户 ID 等。")
     channel_name: Optional[str] = Field(default=None, description="当前聊天频道的频道名称，例如 QQ 群名或 用户名等。")
     channel_type: Optional[str] = Field(default=None, description="当前聊天频道的频道类型，例如 `group` 或 `private` 等。")
     adapter_key: Optional[str] = Field(default=None, description="当前聊天频道所使用的适配器标识，例如 `onebot_v11` 等。")
     _db_chat_channel: Optional["DBChatChannel"] = None  # 当前聊天频道的数据库聊天频道实例
     _trigger_db_user: Optional["DBUser"] = None  # 触发本次 Agent 的 DBUser 实例
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    channel_id: Optional[str] = Field(default=None, description="当前会话的频道 ID，例如 QQ 群号或 用户 ID 等。")
+    channel_name: Optional[str] = Field(default=None, description="当前会话的频道名称，例如 QQ 群名或 用户名等。")
+    channel_type: Optional[str] = Field(default=None, description="当前会话的频道类型，例如 `group` 或 `private` 等。")
+    adapter_key: Optional[str] = Field(default=None, description="当前会话所使用的适配器标识，例如 `onebot_v11` 等。")
+    _db_chat_channel: Optional["DBChatChannel"] = None
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     @property
     def chat_key(self) -> str:
         """
+<<<<<<< HEAD
         聊天频道唯一ID。
 
         这是当前聊天频道的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
+=======
+<<<<<<< HEAD
+        聊天频道唯一ID。
+
+        这是当前聊天频道的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
+=======
+<<<<<<< HEAD
+        聊天频道唯一ID。
+
+        这是当前聊天频道的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
+=======
+        聊天会话唯一ID。
+
+        这是当前会话的唯一标识符，通常由 `adapter_key` 和 `channel_id` 组成。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Example:
             >>> _ctx.chat_key
@@ -64,6 +139,13 @@ class AgentCtx(BaseModel):
         return self.from_chat_key
 
     @property
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def db_chat_channel(self) -> Optional["DBChatChannel"]:
         """
         当前聊天频道的数据库聊天频道实例。
@@ -78,6 +160,14 @@ class AgentCtx(BaseModel):
         return self._trigger_db_user
 
     @property
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def adapter(self) -> "BaseAdapter":
         """
         消息关联适配器实例。
@@ -106,7 +196,19 @@ class AgentCtx(BaseModel):
             >>> image_url = "https://nekro-agent-dev.oss-cn-beijing.aliyuncs.com/images/NA_logo.png"
             >>> # `mixed_forward_file` 将其转换为 AI 可用的沙盒路径
             >>> sandbox_path = await _ctx.fs.mixed_forward_file(image_url, file_name="logo.png")
+<<<<<<< HEAD
             >>> logger.info(sandbox_path)
+=======
+<<<<<<< HEAD
+            >>> logger.info(sandbox_path)
+=======
+<<<<<<< HEAD
+            >>> logger.info(sandbox_path)
+=======
+            >>> print(sandbox_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             /app/uploads/logo.png
             >>> # 插件函数可以直接 `return sandbox_path`，AI 就能接收到这个文件。
             ...
@@ -117,7 +219,19 @@ class AgentCtx(BaseModel):
             >>> ai_provided_path = "/app/shared/photo.jpg"
             >>> # 插件使用 `get_file` 将沙盒路径转换为宿主机可访问的真实路径
             >>> host_path = _ctx.fs.get_file(ai_provided_path)
+<<<<<<< HEAD
             >>> logger.info(host_path)  # doctest: +SKIP
+=======
+<<<<<<< HEAD
+            >>> logger.info(host_path)  # doctest: +SKIP
+=======
+<<<<<<< HEAD
+            >>> logger.info(host_path)  # doctest: +SKIP
+=======
+            >>> print(host_path)  # doctest: +SKIP
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             /path/to/project/data/sandbox_shared/sandbox_xxxx/photo.jpg
             >>> # 现在插件就可以读取这个文件了
             >>> # with open(host_path, "rb") as f:
@@ -132,16 +246,47 @@ class AgentCtx(BaseModel):
         """消息模块
 
         提供对底层 `nekro_agent.api.message` 模块的直接访问。
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         主要用于需要手动指定 `chat_key` 的高级场景，例如**向其他聊天频道发送消息**。
 
         当你需要向当前聊天频道以外的聊天频道发送通知或消息时，应使用此模块。
         便捷方法如 `_ctx.send_text()` 默认只能向当前聊天频道发送。
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        主要用于需要手动指定 `chat_key` 的高级场景，例如**向其他会话发送消息**。
+
+        当你需要向当前会话以外的会话发送通知或消息时，应使用此模块。
+        便捷方法如 `_ctx.send_text()` 默认只能向当前会话发送。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Example:
             >>> # 假设插件需要向一个监控频道发送状态更新
             >>> monitor_chat_key = "onebot_v11-group_987654321"
             >>>
+<<<<<<< HEAD
             >>> # 使用 `_ctx.ms` 来向指定聊天频道发送消息
+=======
+<<<<<<< HEAD
+            >>> # 使用 `_ctx.ms` 来向指定聊天频道发送消息
+=======
+<<<<<<< HEAD
+            >>> # 使用 `_ctx.ms` 来向指定聊天频道发送消息
+=======
+            >>> # 使用 `_ctx.ms` 来向指定会话发送消息
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             >>> await _ctx.ms.send_text(monitor_chat_key, "System status: OK", _ctx)
             >>>
             >>> # 注意：调用底层模块时，需要手动传入 `_ctx` 对象。
@@ -154,12 +299,33 @@ class AgentCtx(BaseModel):
         """
         获取当前生效的核心配置实例。
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         核心配置由 `系统基本设定 -> 适配器设定 -> 聊天频道设定` 三层配置混合生成，
         聊天频道设定优先级最高。插件可以通过此方法获取配置项。
 
         Example:
             >>> core_config = await ctx.get_core_config()
             >>> logger.info(core_config.ENABLE_NEKRO_CLOUD)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        核心配置由 `系统基本设定 -> 适配器设定 -> 会话设定` 三层配置混合生成，
+        会话设定优先级最高。插件可以通过此方法获取配置项。
+
+        Example:
+            >>> core_config = await ctx.get_core_config()
+            >>> print(core_config.ENABLE_NEKRO_CLOUD)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             True
         """
         if self._db_chat_channel is None:
@@ -184,9 +350,27 @@ class AgentCtx(BaseModel):
         return get_bot()
 
     async def send_text(self, content: str, *, record: bool = True):
+<<<<<<< HEAD
         """发送文本消息到当前聊天频道。
 
         这是一个便捷方法，封装了 `message.send_text`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送文本消息到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_text`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送文本消息到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_text`，自动填充聊天频道信息。
+=======
+        """发送文本消息到当前会话。
+
+        这是一个便捷方法，封装了 `message.send_text`，自动填充会话信息。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Args:
             content (str): 要发送的文本内容。
@@ -200,9 +384,27 @@ class AgentCtx(BaseModel):
         await self.ms.send_text(self.chat_key, content, self, record=record)
 
     async def send_image(self, file_path: str, *, record: bool = True):
+<<<<<<< HEAD
         """发送图片到当前聊天频道。
 
         这是一个便捷方法，封装了 `message.send_image`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送图片到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_image`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送图片到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_image`，自动填充聊天频道信息。
+=======
+        """发送图片到当前会话。
+
+        这是一个便捷方法，封装了 `message.send_image`，自动填充会话信息。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Args:
             file_path (str): 图片的沙盒路径。通常由 `_ctx.fs` 工具生成。
@@ -217,9 +419,27 @@ class AgentCtx(BaseModel):
         await self.ms.send_image(self.chat_key, file_path, self, record=record)
 
     async def send_file(self, file_path: str, *, record: bool = True):
+<<<<<<< HEAD
         """发送文件到当前聊天频道。
 
         这是一个便捷方法，封装了 `message.send_file`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送文件到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_file`，自动填充聊天频道信息。
+=======
+<<<<<<< HEAD
+        """发送文件到当前聊天频道。
+
+        这是一个便捷方法，封装了 `message.send_file`，自动填充聊天频道信息。
+=======
+        """发送文件到当前会话。
+
+        这是一个便捷方法，封装了 `message.send_file`，自动填充会话信息。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Args:
             file_path (str): 文件的沙盒路径。通常由 `_ctx.fs` 工具生成。
@@ -237,6 +457,13 @@ class AgentCtx(BaseModel):
         """
         await self.ms.send_file(self.chat_key, file_path, self, record=record)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def push_system(self, message: str, trigger_agent: bool = False):
         """推送系统消息
 
@@ -332,6 +559,14 @@ class AgentCtx(BaseModel):
         """当前生效的人设"""
         return await self.get_effective_preset_by_id()
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     @classmethod
     def create_by_db_chat_channel(
         cls,

@@ -72,12 +72,28 @@ def register_matcher(adapter: BaseAdapter):
         )
         content_text, is_tome = await gen_chat_text(event=event, bot=bot, db_chat_channel=db_chat_channel)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ignored_prefixes = (
             [config.AI_COMMAND_OUTPUT_PREFIX, *config.AI_IGNORED_PREFIXES]
             if config.AI_COMMAND_OUTPUT_PREFIX
             else config.AI_IGNORED_PREFIXES
         )
         if any(content_text.startswith(prefix) for prefix in ignored_prefixes):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        if any(content_text.startswith(prefix) for prefix in config.AI_IGNORED_PREFIXES):
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             logger.info(f"忽略前缀匹配的消息: {content_text[:32]}...")
             return
 

@@ -1,5 +1,16 @@
 import asyncio
+<<<<<<< HEAD
 import json
+=======
+<<<<<<< HEAD
+import json
+=======
+<<<<<<< HEAD
+import json
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import time
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
@@ -34,6 +45,13 @@ async def get_onebot_token(_current_user: DBUser = Depends(get_current_active_us
     return Ret.success(data=ONEBOT_ACCESS_TOKEN, msg="获取 OneBot 访问令牌成功")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.get("/napcat-token")
 @require_role(Role.Admin)
 async def get_napcat_token(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
@@ -88,6 +106,14 @@ async def get_napcat_token(_current_user: DBUser = Depends(get_current_active_us
         return Ret.fail(f"获取令牌失败: {e!s}")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def get_docker():
     """获取或创建 Docker 客户端"""
     return aiodocker.Docker()

@@ -22,7 +22,18 @@
 - `dice_lock <1-20>`: 锁定之后所有掷骰的结果。
 - `dice_unlock`: 解除锁定。
 """
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import random
 from typing import Dict, List, Tuple
 
@@ -46,7 +57,19 @@ plugin = NekroPlugin(
     version="0.2.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+<<<<<<< HEAD
     support_adapter=["onebot_v11", "discord"],
+=======
+<<<<<<< HEAD
+    support_adapter=["onebot_v11", "discord"],
+=======
+<<<<<<< HEAD
+    support_adapter=["onebot_v11", "discord"],
+=======
+    support_adapter=["onebot_v11"],
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 )
 
 _ASSERT_DICE_NUM: int = 0
@@ -236,8 +259,23 @@ async def dice_roll(_ctx: AgentCtx, event_name: str, description: str, difficult
     )
     return (
         f"[{event_name}] ({difficulty}/20) {fix_str_en} roll result: {roll_result}{fix_diff_show}【{result_str}】\n"
+<<<<<<< HEAD
         "Note: This is only an effect check for the action, not a substitute for the action itself. You still need to actually perform (and be able to perform) the corresponding reaction.\n"
         "Please continue to generate responses and reactions based on the results"
+=======
+<<<<<<< HEAD
+        "Note: This is only an effect check for the action, not a substitute for the action itself. You still need to actually perform (and be able to perform) the corresponding reaction.\n"
+        "Please continue to generate responses and reactions based on the results"
+=======
+<<<<<<< HEAD
+        "Note: This is only an effect check for the action, not a substitute for the action itself. You still need to actually perform (and be able to perform) the corresponding reaction.\n"
+        "Please continue to generate responses and reactions based on the results"
+=======
+        "Note: This is only an effect check for the action, not a substitute for the action itself. You still need to actually perform (and be able to perform) the corresponding action.\n"
+        "Please continue to generate responses based on the results"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
 
 
@@ -300,6 +338,13 @@ async def probability_wheel(
     # 执行概率选择
     selected_choice = _weighted_random_choice(final_probabilities)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 格式化概率显示 - 只显示概率大于0的事件
     probability_lines = []
     sorted_probs = sorted(final_probabilities.items(), key=lambda x: x[1], reverse=True)
@@ -316,6 +361,30 @@ async def probability_wheel(
     fallback_prob = final_probabilities.get(actual_fallback, 0)
     fallback_percentage = (fallback_prob / total_probability) * 100
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        # 格式化概率显示 - 只显示概率大于0的事件
+    probability_lines = []
+    sorted_probs = sorted(final_probabilities.items(), key=lambda x: x[1], reverse=True)
+    
+    for choice, probability in sorted_probs:
+        if probability > 0:  # 只显示概率大于0的事件
+            marker = "🎯" if choice == selected_choice else "  "
+            percentage = (probability / total_probability) * 100
+            probability_lines.append(f"{marker} {choice}: {percentage:.1f}%")
+    
+    probability_text = "\n".join(probability_lines)
+    
+    # 计算兜底事件概率用于返回信息
+    fallback_prob = final_probabilities.get(actual_fallback, 0)
+    fallback_percentage = (fallback_prob / total_probability) * 100
+    
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 发送结果到聊天
     await message.send_text(
         _ctx.chat_key,

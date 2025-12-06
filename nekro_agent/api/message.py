@@ -12,16 +12,43 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
 )
+<<<<<<< HEAD
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.chat.universal_chat_service import universal_chat_service
 from nekro_agent.services.message_service import message_service
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+from nekro_agent.services.message_service import message_service
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+from nekro_agent.services.message_service import message_service
+=======
+from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.tools.common_util import (
     download_file,
 )
 from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
 __all__ = [
+<<<<<<< HEAD
     "ChatMessage",
+=======
+<<<<<<< HEAD
+    "ChatMessage",
+=======
+<<<<<<< HEAD
+    "ChatMessage",
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     "download_from_url",
     "send_file",
     "send_image",
@@ -40,7 +67,19 @@ async def send_text(
     """发送文本消息
 
     Args:
+<<<<<<< HEAD
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         message (str): 要发送的文本消息
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True
@@ -62,7 +101,19 @@ async def send_text(
         await universal_chat_service.send_agent_message(chat_key, message_, adapter, ctx, record=record, ref_msg_id=ref_msg_id)
     except Exception as e:
         logger.exception(f"发送文本消息失败: {e}")
+<<<<<<< HEAD
         raise Exception("发送文本消息失败: 请确保聊天标识正确且内容不为空或过长") from e
+=======
+<<<<<<< HEAD
+        raise Exception("发送文本消息失败: 请确保聊天标识正确且内容不为空或过长") from e
+=======
+<<<<<<< HEAD
+        raise Exception("发送文本消息失败: 请确保聊天标识正确且内容不为空或过长") from e
+=======
+        raise Exception("发送文本消息失败: 请确保会话标识正确且内容不为空或过长") from e
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 async def send_file(
@@ -76,7 +127,19 @@ async def send_file(
     """发送文件消息
 
     Args:
+<<<<<<< HEAD
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         file_path (str): 文件路径或URL
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True
@@ -110,17 +173,45 @@ async def send_file(
 
 
 async def send_image(
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     chat_key: str,
     image_path: str,
     ctx: AgentCtx,
     *,
     record: bool = True,
     ref_msg_id: Optional[str] = None,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    chat_key: str, image_path: str, ctx: AgentCtx, *, record: bool = True, ref_msg_id: Optional[str] = None,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 ) -> None:
     """发送图片消息
 
     Args:
+<<<<<<< HEAD
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         image_path (str): 图片路径或URL
         ctx (AgentCtx): 上下文对象
         record (bool, optional): 是否记录到上下文。默认为 True
@@ -145,6 +236,13 @@ async def send_image(
         raise Exception(f"发送图片消息失败: {e}") from e
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def push_system(
     chat_key: str,
     message: str,
@@ -181,6 +279,14 @@ async def push_system(
         raise Exception(f"发送系统消息失败: {e}") from e
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def download_from_url(url: str, ctx: AgentCtx) -> str:
     """从URL下载文件
 

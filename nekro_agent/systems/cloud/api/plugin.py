@@ -10,7 +10,18 @@ from nekro_agent.systems.cloud.schemas.plugin import (
     PluginCreateResponse,
     PluginDetailResponse,
     PluginListResponse,
+<<<<<<< HEAD
     PluginRepoResponse,
+=======
+<<<<<<< HEAD
+    PluginRepoResponse,
+=======
+<<<<<<< HEAD
+    PluginRepoResponse,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     UserPluginListResponse,
 )
 
@@ -45,10 +56,28 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
                 },
             )
             response.raise_for_status()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             logger.debug(f"创建插件资源响应数据: {response.json()}")
             return PluginCreateResponse(**response.json())
     except Exception as e:
         logger.exception(f"创建插件资源发生错误: {e}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return PluginCreateResponse(**response.json())
+    except Exception as e:
+        logger.error(f"创建插件资源发生错误: {e}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return PluginCreateResponse.process_exception(e)
 
 
@@ -69,10 +98,28 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
                 json=updates,
             )
             response.raise_for_status()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             logger.debug(f"更新插件资源响应数据: {response.json()}")
             return BasicResponse(**response.json())
     except Exception as e:
         logger.exception(f"更新插件资源发生错误: {e}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return BasicResponse(**response.json())
+    except Exception as e:
+        logger.error(f"更新插件资源发生错误: {e}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return BasicResponse.process_exception(e)
 
 
@@ -91,10 +138,28 @@ async def delete_plugin(module_name: str) -> BasicResponse:
                 url=f"/api/plugin/{module_name}",
             )
             response.raise_for_status()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             logger.debug(f"删除插件资源响应数据: {response.json()}")
             return BasicResponse(**response.json())
     except Exception as e:
         logger.exception(f"删除插件资源发生错误: {e}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return BasicResponse(**response.json())
+    except Exception as e:
+        logger.error(f"删除插件资源发生错误: {e}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return BasicResponse.process_exception(e)
 
 
@@ -112,7 +177,18 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
             response = await client.get(url=f"/api/plugin/{module_name}")
             response.raise_for_status()
             data = response.json()
+<<<<<<< HEAD
             logger.debug(f"获取插件详情响应数据: {data}")
+=======
+<<<<<<< HEAD
+            logger.debug(f"获取插件详情响应数据: {data}")
+=======
+<<<<<<< HEAD
+            logger.debug(f"获取插件详情响应数据: {data}")
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return PluginDetailResponse(**data)
     except Exception as e:
         logger.error(f"获取插件详情发生错误: {e}")
@@ -176,6 +252,13 @@ async def list_user_plugins() -> UserPluginListResponse:
     except Exception as e:
         logger.error(f"获取用户上传插件列表发生错误: {e}")
         return UserPluginListResponse.process_exception(e)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
@@ -196,3 +279,11 @@ async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
     except Exception as e:
         logger.error(f"获取插件仓库信息发生错误: {e}")
         return PluginRepoResponse.process_exception(e)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

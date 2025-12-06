@@ -49,7 +49,19 @@ export default function ChatChannelList({
   if (channels.length === 0) {
     return (
       <Box className="h-full flex items-center justify-center">
+<<<<<<< HEAD
         <Typography color="textSecondary">暂无聊天频道</Typography>
+=======
+<<<<<<< HEAD
+        <Typography color="textSecondary">暂无聊天频道</Typography>
+=======
+<<<<<<< HEAD
+        <Typography color="textSecondary">暂无聊天频道</Typography>
+=======
+        <Typography color="textSecondary">暂无会话</Typography>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       </Box>
     )
   }

@@ -48,7 +48,19 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
 
+<<<<<<< HEAD
   // 获取当前聊天频道的人设信息
+=======
+<<<<<<< HEAD
+  // 获取当前聊天频道的人设信息
+=======
+<<<<<<< HEAD
+  // 获取当前聊天频道的人设信息
+=======
+  // 获取当前会话的人设信息
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   useEffect(() => {
     const fetchCurrentPreset = async () => {
       if (channel.preset_id) {
@@ -107,7 +119,19 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       })
       setPresetDialogOpen(false)
 
+<<<<<<< HEAD
       // 刷新聊天频道详情
+=======
+<<<<<<< HEAD
+      // 刷新聊天频道详情
+=======
+<<<<<<< HEAD
+      // 刷新聊天频道详情
+=======
+      // 刷新会话详情
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
     } catch (error) {
       console.error('设置人设失败', error)

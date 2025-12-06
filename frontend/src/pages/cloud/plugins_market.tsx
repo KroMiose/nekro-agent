@@ -19,20 +19,55 @@ import {
   DialogActions,
   useTheme,
   Divider,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  Switch,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   FormControlLabel,
   FormControl,
   MenuItem,
   Checkbox,
   Link,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  Snackbar,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   Menu,
   useMediaQuery,
   ListItemIcon,
   ListItemText,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   List,
   ListItem,
   ListItemButton,
   ListItemAvatar,
   Avatar,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/material'
 import {
   Search as SearchIcon,
@@ -49,25 +84,62 @@ import {
   Edit as EditIcon,
   MoreVert as MoreVertIcon,
   Flag as FlagIcon,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   Star as StarIcon,
   CallSplit as ForkIcon,
   Visibility as VisibilityIcon,
   BugReport as IssueIcon,
   ChatBubbleOutline as CommentIcon,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/icons-material'
 import {
   pluginsMarketApi,
   CloudPlugin,
   PluginCreateRequest,
   PluginUpdateRequest,
+<<<<<<< HEAD
   PluginRepoInfo,
+=======
+<<<<<<< HEAD
+  PluginRepoInfo,
+=======
+<<<<<<< HEAD
+  PluginRepoInfo,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '../../services/api/cloud/plugins_market'
 import { removePackage, updatePackage } from '../../services/api/plugins'
 import { formatLastActiveTime } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
+<<<<<<< HEAD
 import { useNotification } from '../../hooks/useNotification'
+=======
+<<<<<<< HEAD
+import { useNotification } from '../../hooks/useNotification'
+=======
+<<<<<<< HEAD
+import { useNotification } from '../../hooks/useNotification'
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -222,6 +294,28 @@ const PluginCard = ({
         </Typography>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+          {plugin.hasWebhook && (
+            <Chip
+              size="small"
+              label="Webhook"
+              sx={{
+                height: 24,
+                fontSize: '0.75rem',
+                mr: 0.75,
+                bgcolor: theme =>
+                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
+              }}
+            />
+          )}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <Chip
             label={plugin.moduleName}
             size="small"
@@ -391,8 +485,21 @@ const PluginDetailDialog = ({
   // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
+<<<<<<< HEAD
   const [repoInfo, setRepoInfo] = useState<PluginRepoInfo | null>(null)
   const [loadingRepo, setLoadingRepo] = useState(false)
+=======
+<<<<<<< HEAD
+  const [repoInfo, setRepoInfo] = useState<PluginRepoInfo | null>(null)
+  const [loadingRepo, setLoadingRepo] = useState(false)
+=======
+<<<<<<< HEAD
+  const [repoInfo, setRepoInfo] = useState<PluginRepoInfo | null>(null)
+  const [loadingRepo, setLoadingRepo] = useState(false)
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   // 更多菜单状态
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null)
@@ -414,6 +521,13 @@ const PluginDetailDialog = ({
     window.open(reportUrl, '_blank')
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 获取仓库信息
   useEffect(() => {
     if (open && plugin) {
@@ -432,6 +546,14 @@ const PluginDetailDialog = ({
     }
   }, [open, plugin])
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   if (!plugin) return null
 
   return (
@@ -545,6 +667,13 @@ const PluginDetailDialog = ({
               >
                 {plugin.description || '无描述'}
               </Typography>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               
               {/* 仓库统计信息 - 始终显示，使用占位符 */}
               <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
@@ -580,6 +709,14 @@ const PluginDetailDialog = ({
                 />
               </Box>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
@@ -660,6 +797,13 @@ const PluginDetailDialog = ({
                 )}
               </Grid>
             </Box>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           </Grid>
 
           {/* 仓库动态 - 平铺展示 */}
@@ -760,6 +904,20 @@ const PluginDetailDialog = ({
                 无法获取仓库信息
               </Typography>
             )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+            <Box sx={{ mt: 3 }}>
+              <Typography color="text.secondary" variant="body2">
+                {plugin.hasWebhook ? '✅ 此插件使用 Webhook 支持' : '❌ 此插件不使用 Webhook'}
+              </Typography>
+            </Box>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           </Grid>
         </Grid>
       </DialogContent>
@@ -1012,6 +1170,20 @@ const CreatePluginDialog = ({
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  // 处理切换变化
+  const handleSwitchChange = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [name]: e.target.checked }))
+  }
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 处理SFW确认变更
   const handleSfwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setConfirmSafeContent(e.target.checked)
@@ -1307,6 +1479,28 @@ const CreatePluginDialog = ({
               disabled={isSubmitting}
             />
           </Grid>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+          <Grid item xs={12} sm={6}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.hasWebhook}
+                  onChange={handleSwitchChange('hasWebhook')}
+                  color="primary"
+                  disabled={isSubmitting}
+                />
+              }
+              label="含有 Webhook 触发功能"
+            />
+          </Grid>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
           {/* 添加分割线和确认选项 */}
           <Grid item xs={12}>
@@ -1392,14 +1586,68 @@ export default function PluginsMarket() {
     plugin: null,
     action: 'download',
   })
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  const [filterWebhook, setFilterWebhook] = useState(false)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
   const pageSize = 12
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const notification = useNotification()
 
   const fetchPlugins = useCallback(
     async (page: number, keyword: string = '') => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  // 添加全局消息状态
+  const [messageInfo, setMessageInfo] = useState<{
+    type: 'success' | 'error' | 'info' | 'warning'
+    content: string
+  } | null>(null)
+
+  // 全局错误显示函数
+  const showError = useCallback((message: string) => {
+    console.error(message)
+    setMessageInfo({ type: 'error', content: message })
+    setTimeout(() => setMessageInfo(null), 5000) // 5秒后自动关闭
+  }, [])
+
+  // 全局成功显示函数
+  const showSuccess = useCallback((message: string) => {
+    console.log(message)
+    setMessageInfo({ type: 'success', content: message })
+    setTimeout(() => setMessageInfo(null), 2000) // 2秒后自动关闭
+  }, [])
+
+  // 全局警告显示函数
+  const showWarning = useCallback((message: string) => {
+    console.warn(message)
+    setMessageInfo({ type: 'warning', content: message })
+    setTimeout(() => setMessageInfo(null), 4000) // 4秒后自动关闭
+  }, [])
+
+  const fetchPlugins = useCallback(
+    async (page: number, keyword: string = '', hasWebhook: boolean | undefined = undefined) => {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       try {
         setLoading(true)
         setError(null)
@@ -1408,6 +1656,16 @@ export default function PluginsMarket() {
           page,
           page_size: pageSize,
           keyword: keyword || undefined,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+          has_webhook: hasWebhook,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         })
 
         setPlugins(data.items)
@@ -1416,7 +1674,19 @@ export default function PluginsMarket() {
         if (data.items.length === 0 && data.total > 0 && page > 1) {
           // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
           setCurrentPage(1)
+<<<<<<< HEAD
           fetchPlugins(1, keyword)
+=======
+<<<<<<< HEAD
+          fetchPlugins(1, keyword)
+=======
+<<<<<<< HEAD
+          fetchPlugins(1, keyword)
+=======
+          fetchPlugins(1, keyword, hasWebhook)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         }
       } catch (error) {
         console.error('获取云端插件列表失败', error)
@@ -1429,14 +1699,41 @@ export default function PluginsMarket() {
   )
 
   useEffect(() => {
+<<<<<<< HEAD
     fetchPlugins(currentPage, debouncedSearchKeyword)
   }, [fetchPlugins, currentPage, debouncedSearchKeyword])
+=======
+<<<<<<< HEAD
+    fetchPlugins(currentPage, debouncedSearchKeyword)
+  }, [fetchPlugins, currentPage, debouncedSearchKeyword])
+=======
+<<<<<<< HEAD
+    fetchPlugins(currentPage, debouncedSearchKeyword)
+  }, [fetchPlugins, currentPage, debouncedSearchKeyword])
+=======
+    fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+  }, [fetchPlugins, currentPage, debouncedSearchKeyword, filterWebhook])
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   // 监听防抖后的搜索关键词变化，重置到第一页
   useEffect(() => {
     // 当搜索关键词变化时重置页码到第一页
     setCurrentPage(1)
+<<<<<<< HEAD
   }, [debouncedSearchKeyword])
+=======
+<<<<<<< HEAD
+  }, [debouncedSearchKeyword])
+=======
+<<<<<<< HEAD
+  }, [debouncedSearchKeyword])
+=======
+  }, [debouncedSearchKeyword, filterWebhook])
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   const handlePageChange = (_event: React.ChangeEvent<unknown>, page: number) => {
     if (loading) return // 加载中禁止翻页
@@ -1447,14 +1744,38 @@ export default function PluginsMarket() {
     e.preventDefault()
     if (loading) return // 加载中禁止搜索
     setCurrentPage(1)
+<<<<<<< HEAD
     fetchPlugins(1, searchKeyword)
+=======
+<<<<<<< HEAD
+    fetchPlugins(1, searchKeyword)
+=======
+<<<<<<< HEAD
+    fetchPlugins(1, searchKeyword)
+=======
+    fetchPlugins(1, searchKeyword, filterWebhook || undefined)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   }
 
   const handleSearchInputClear = () => {
     if (loading) return // 加载中禁止清空
     setSearchKeyword('')
     setCurrentPage(1)
+<<<<<<< HEAD
     fetchPlugins(1, '')
+=======
+<<<<<<< HEAD
+    fetchPlugins(1, '')
+=======
+<<<<<<< HEAD
+    fetchPlugins(1, '')
+=======
+    fetchPlugins(1, '', filterWebhook || undefined)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   }
 
   const handleShowDetail = (plugin: CloudPlugin) => {
@@ -1542,6 +1863,13 @@ export default function PluginsMarket() {
           }
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         notification.success(successMessage)
         // 重新获取插件列表以更新状态
         fetchPlugins(currentPage, debouncedSearchKeyword)
@@ -1553,12 +1881,44 @@ export default function PluginsMarket() {
     } catch (error) {
       console.error('操作失败', error)
       notification.error('操作失败，请重试')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        showSuccess(successMessage)
+        // 重新获取插件列表以更新状态
+        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+      } else if (response) {
+        showError(`操作失败: ${response.msg}`)
+      } else {
+        showError('操作失败: 未知错误')
+      }
+    } catch (error) {
+      console.error('操作失败', error)
+      showError('操作失败，请重试')
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     } finally {
       setProcessingId(null)
       setConfirmDialog({ open: false, plugin: null, action: 'download' })
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  const handleToggleWebhookFilter = () => {
+    setFilterWebhook(!filterWebhook)
+  }
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 处理创建插件
   const handleCreatePlugin = async (data: PluginCreateRequest) => {
     try {
@@ -1567,6 +1927,13 @@ export default function PluginsMarket() {
 
       if (response.code === 200) {
         // 成功创建
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         notification.success('插件发布成功！')
         setCreateDialogOpen(false)
         // 刷新插件列表
@@ -1575,13 +1942,46 @@ export default function PluginsMarket() {
         // 处理不同的错误情况
         const errorMsg = response.msg || '未知错误'
         notification.error(errorMsg)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        showSuccess('插件发布成功！')
+        setCreateDialogOpen(false)
+        // 刷新插件列表
+        fetchPlugins(1, debouncedSearchKeyword, filterWebhook || undefined)
+      } else {
+        // 处理不同的错误情况
+        const errorMsg = response.msg || '未知错误'
+        showError(errorMsg)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       }
     } catch (error) {
       console.error('创建插件失败', error)
 
       // 网络错误或其他未处理的错误
       const errorMessage = error instanceof Error ? error.message : String(error)
+<<<<<<< HEAD
       notification.error(`发布失败: ${errorMessage}`)
+=======
+<<<<<<< HEAD
+      notification.error(`发布失败: ${errorMessage}`)
+=======
+<<<<<<< HEAD
+      notification.error(`发布失败: ${errorMessage}`)
+=======
+      showError(`发布失败: ${errorMessage}`)
+
+      // 显示重试建议
+      setTimeout(() => {
+        showWarning('请检查网络连接或稍后重试')
+      }, 1000)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     } finally {
       setIsSubmitting(false)
     }
@@ -1599,11 +1999,31 @@ export default function PluginsMarket() {
       const response = await pluginsMarketApi.updateUserPlugin(moduleName, data)
 
       if (response.code === 200) {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         notification.success('插件信息更新成功！')
         setEditingPlugin(null)
 
         // 刷新插件列表
         fetchPlugins(currentPage, debouncedSearchKeyword)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        showSuccess('插件信息更新成功！')
+        setEditingPlugin(null)
+
+        // 刷新插件列表
+        fetchPlugins(currentPage, debouncedSearchKeyword, filterWebhook || undefined)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         // 如果当前有选中的插件，更新选中插件的信息
         if (selectedPlugin && selectedPlugin.moduleName === moduleName) {
@@ -1615,11 +2035,31 @@ export default function PluginsMarket() {
           })
         }
       } else {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         notification.error(response.msg || '更新失败')
       }
     } catch (error) {
       console.error('更新插件信息失败', error)
       notification.error(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        showError(response.msg || '更新失败')
+      }
+    } catch (error) {
+      console.error('更新插件信息失败', error)
+      showError(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     } finally {
       setIsSubmitting(false)
     }
@@ -1723,6 +2163,20 @@ export default function PluginsMarket() {
       }
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+    // 处理切换变化
+    const handleSwitchChange = (name: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      setFormData(prev => ({ ...prev, [name]: e.target.checked }))
+    }
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     // 处理SFW确认变更
     const handleSfwChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       setConfirmSafeContent(e.target.checked)
@@ -2016,6 +2470,28 @@ export default function PluginsMarket() {
                 disabled={isSubmitting}
               />
             </Grid>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+            <Grid item xs={12} sm={6}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={formData.hasWebhook}
+                    onChange={handleSwitchChange('hasWebhook')}
+                    color="primary"
+                    disabled={isSubmitting}
+                  />
+                }
+                label="含有 Webhook 触发功能"
+              />
+            </Grid>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
             {/* 添加分割线和确认选项 */}
             <Grid item xs={12}>
@@ -2158,6 +2634,26 @@ export default function PluginsMarket() {
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+          <FormControlLabel
+            control={
+              <Switch
+                checked={filterWebhook}
+                onChange={handleToggleWebhookFilter}
+                color="primary"
+              />
+            }
+            label="仅支持 Webhook 插件"
+          />
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <Button
             variant="contained"
             color="primary"
@@ -2419,6 +2915,32 @@ export default function PluginsMarket() {
         onSubmit={handleUpdatePluginInfo}
         isSubmitting={isSubmitting}
       />
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+      {/* 全局消息提示 */}
+      <Snackbar
+        open={!!messageInfo}
+        autoHideDuration={messageInfo?.type === 'success' ? 2000 : 5000}
+        onClose={() => setMessageInfo(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setMessageInfo(null)}
+          severity={messageInfo?.type || 'error'}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {messageInfo?.content}
+        </Alert>
+      </Snackbar>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

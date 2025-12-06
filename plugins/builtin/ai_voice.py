@@ -66,7 +66,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if chat_type is ChatType.GROUP:
+<<<<<<< HEAD
         tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[2])
+=======
+<<<<<<< HEAD
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[2])
+=======
+<<<<<<< HEAD
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[2])
+=======
+        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[1])
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         formatted_characters = []
         for tag in tags:
             char_list = []

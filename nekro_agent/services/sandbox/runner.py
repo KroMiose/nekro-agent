@@ -84,6 +84,13 @@ else
 fi
 """
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 # 频道沙盒活跃时间记录表
 chat_key_sandbox_map: Dict[str, float] = {}
 
@@ -91,6 +98,21 @@ chat_key_sandbox_map: Dict[str, float] = {}
 chat_key_sandbox_container_map: Dict[str, DockerContainer] = {}
 
 # 频道清理任务记录表
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+# 会话沙盒活跃时间记录表
+chat_key_sandbox_map: Dict[str, float] = {}
+
+# 会话沙盒容器记录表
+chat_key_sandbox_container_map: Dict[str, DockerContainer] = {}
+
+# 会话清理任务记录表
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 chat_key_sandbox_cleanup_task_map: Dict[str, asyncio.Task] = {}
 
 # 沙盒并发限制
@@ -109,7 +131,19 @@ async def limited_run_code(
 
     Args:
         code_run_data: 代码执行数据
+<<<<<<< HEAD
         from_chat_key: 频道键
+=======
+<<<<<<< HEAD
+        from_chat_key: 频道键
+=======
+<<<<<<< HEAD
+        from_chat_key: 频道键
+=======
+        from_chat_key: 会话键
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         output_limit: 输出限制
         generation_time: 生成时间
         llm_response: LLM 响应
@@ -152,9 +186,24 @@ async def run_code_in_sandbox(
     host_shared_dir = Path(HOST_SHARED_DIR / container_key)
     host_shared_dir.mkdir(parents=True, exist_ok=True)
 
+<<<<<<< HEAD
     HOST_PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
     HOST_PIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+=======
+<<<<<<< HEAD
+    HOST_PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
+    HOST_PIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+=======
+<<<<<<< HEAD
+    HOST_PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
+    HOST_PIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
     api_caller_file_path.write_text(
@@ -278,12 +327,28 @@ async def run_code_in_sandbox(
         code_text=code_run_data.code_content,
         thought_chain=code_run_data.thought_chain or (llm_response.thought_chain if llm_response else ""),
         outputs=final_output,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         success=stop_type
         in [
             ExecStopType.NORMAL,
             ExecStopType.AGENT,
             ExecStopType.MULTIMODAL_AGENT,
         ],  # AGENT 状态也视为成功
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        success=stop_type in [ExecStopType.NORMAL, ExecStopType.AGENT, ExecStopType.MULTIMODAL_AGENT],  # AGENT 状态也视为成功
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         stop_type=stop_type,
         use_model=(llm_response and llm_response.use_model) or "",
         exec_time_ms=exec_time,

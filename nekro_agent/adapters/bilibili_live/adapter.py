@@ -45,11 +45,27 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     ENABLE: bool = Field(
         default=False,
         title="启用 Bilibili 直播适配器",
         description="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",
@@ -90,9 +106,27 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
 
     async def init(self) -> None:
         """初始化适配器"""
+<<<<<<< HEAD
         if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL or not self.config.ENABLE:
             logger.warning(
                 "取消加载 Bilibili 直播适配器",
+=======
+<<<<<<< HEAD
+        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL or not self.config.ENABLE:
+            logger.warning(
+                "取消加载 Bilibili 直播适配器",
+=======
+<<<<<<< HEAD
+        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL or not self.config.ENABLE:
+            logger.warning(
+                "取消加载 Bilibili 直播适配器",
+=======
+        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL:
+            logger.warning(
+                "未设置VTUBE_STUDIO_CONTROLLER_WS_URL 取消加载 Bilibili 直播适配器",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             )
             return
 

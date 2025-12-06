@@ -21,7 +21,18 @@
 - `emo_search <关键词>`: 语义搜索表情包。
 - `emo_stats`: 查看表情包统计信息。
 - `emo_list [页码]`: 分页列出所有表情包。
+<<<<<<< HEAD
 - `emo_migrate`: 迁移旧的绝对路径到相对路径格式（适用于数据目录迁移后）。
+=======
+<<<<<<< HEAD
+- `emo_migrate`: 迁移旧的绝对路径到相对路径格式（适用于数据目录迁移后）。
+=======
+<<<<<<< HEAD
+- `emo_migrate`: 迁移旧的绝对路径到相对路径格式（适用于数据目录迁移后）。
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 - `emo_reindex -y`: 重建索引（高级功能，一般无需使用）。
 
 ## 配置说明
@@ -53,12 +64,28 @@ from nekro_agent.adapters.onebot_v11.matchers.command import (
 from nekro_agent.api import schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.api.plugin import (
     ConfigBase,
     ExtraField,
     NekroPlugin,
     SandboxMethodType,
 )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
 from nekro_agent.services.message_service import message_service
@@ -75,7 +102,19 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+<<<<<<< HEAD
     support_adapter=["onebot_v11", "discord"],
+=======
+<<<<<<< HEAD
+    support_adapter=["onebot_v11", "discord"],
+=======
+<<<<<<< HEAD
+    support_adapter=["onebot_v11", "discord"],
+=======
+    support_adapter=["onebot_v11"],
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 )
 
 
@@ -93,7 +132,19 @@ class EmotionConfig(ConfigBase):
         default="text-embedding",
         title="嵌入模型组",
         description="在此填入向量嵌入模型组名称",
+<<<<<<< HEAD
         json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="embedding").model_dump(),
+=======
+<<<<<<< HEAD
+        json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="embedding").model_dump(),
+=======
+<<<<<<< HEAD
+        json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="embedding").model_dump(),
+=======
+        json_schema_extra={"ref_model_groups": True, "required": True, "model_type": "embedding"},
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
     EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
     STRICT_EMOTION_COLLECT: bool = Field(
@@ -115,12 +166,27 @@ store_dir.mkdir(parents=True, exist_ok=True)
 @plugin.mount_init_method()
 async def init_vector_db():
     """初始化表情包向量数据库"""
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 先执行路径迁移（如果需要）
     try:
         await migrate_emotion_paths()
     except Exception as e:
         logger.error(f"迁移表情包路径失败: {e}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 获取Qdrant客户端
     client = await get_qdrant_client()
     if client is None:
@@ -130,11 +196,27 @@ async def init_vector_db():
     collection_name = plugin.get_vector_collection_name()
 
     # 检查集合是否存在
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     try:
         collections = await client.get_collections()
     except Exception as e:
         raise ValueError(f"获取Qdrant集合失败: {e}") from e
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    collections = await client.get_collections()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     collection_names = [collection.name for collection in collections.collections]
 
     if collection_name not in collection_names:
@@ -221,6 +303,13 @@ class EmotionStore(BaseModel):
 
 
 # region: 表情包工具方法
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 def resolve_emotion_file_path(file_path: str) -> Path:
@@ -258,6 +347,14 @@ def resolve_emotion_file_path(file_path: str) -> Path:
     return store_dir / file_path
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def load_emotion_store() -> EmotionStore:
     """加载表情包存储"""
     data = await store.get(store_key="emotion_store")
@@ -269,6 +366,13 @@ async def save_emotion_store(emotion_store: EmotionStore):
     await store.set(store_key="emotion_store", value=json.dumps(emotion_store.model_dump(), ensure_ascii=False))
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def migrate_emotion_paths():
     """迁移旧的绝对路径到新的相对路径格式
 
@@ -311,6 +415,14 @@ async def migrate_emotion_paths():
     return migrated_count
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def generate_embedding(text: str) -> List[float]:
     """生成文本嵌入向量"""
     model_group: ModelConfigGroup = core_config.get_model_group_info(emotion_config.EMBEDDING_MODEL)
@@ -351,6 +463,13 @@ async def download_image(url: str, save_path: Path) -> bool:
         return False
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -> Tuple[bool, str]:
     """保存图片到表情包存储目录
 
@@ -362,13 +481,35 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
     Returns:
         Tuple[bool, str]: (是否成功, 相对路径文件名)
     """
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -> Tuple[bool, Path]:
+    """保存图片到表情包存储目录"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     target_path = store_dir / file_name
 
     # 如果是URL，则下载图片
     if source_path.startswith(("http://", "https://")):
         logger.info(f"从URL下载图片: {source_path} 到 {target_path}")
         success = await download_image(source_path, target_path)
+<<<<<<< HEAD
         return success, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+        return success, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+        return success, file_name  # 返回相对路径（文件名）
+=======
+        return success, target_path
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 如果是本地路径，则复制图片
     try:
@@ -377,7 +518,19 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
         if not source_path_obj.exists():
             logger.error(f"图片不存在: {source_path}")
+<<<<<<< HEAD
             return False, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+            return False, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+            return False, file_name  # 返回相对路径（文件名）
+=======
+            return False, target_path
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         async with aiofiles.open(source_path_obj, "rb") as src_file:
             content = await src_file.read()
@@ -387,9 +540,27 @@ async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -
 
     except Exception as e:
         logger.error(f"保存图片失败: {source_path}, 错误: {e}")
+<<<<<<< HEAD
         return False, file_name  # 返回相对路径（文件名）
     else:
         return True, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+        return False, file_name  # 返回相对路径（文件名）
+    else:
+        return True, file_name  # 返回相对路径（文件名）
+=======
+<<<<<<< HEAD
+        return False, file_name  # 返回相对路径（文件名）
+    else:
+        return True, file_name  # 返回相对路径（文件名）
+=======
+        return False, target_path
+    else:
+        return True, target_path
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 def generate_emotion_id(file_path: str, description: str) -> str:
@@ -425,7 +596,19 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 
     # 遍历查找匹配哈希值的表情包
     for emotion_id, metadata in emotion_store.emotions.items():
+<<<<<<< HEAD
         existing_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+        existing_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+        existing_path = resolve_emotion_file_path(metadata.file_path)
+=======
+        existing_path = Path(metadata.file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if existing_path.exists():
             existing_hash = calculate_file_hash(existing_path)
             if existing_hash == target_hash:
@@ -587,6 +770,13 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=_message)
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @on_command("emo_migrate", aliases={"emo-migrate"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -598,6 +788,14 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=f"喵~ 路径迁移完成！成功迁移 {migrated_count} 个表情包路径～")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @on_command("emo_reindex", aliases={"emo-reindex"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -668,7 +866,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     for emotion_id, metadata in emotion_store.emotions.items():
         try:
             # 检查文件是否存在
+<<<<<<< HEAD
             file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+            file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+            file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+            file_path = Path(metadata.file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if not file_path.exists():
                 logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
                 missing_file_count += 1
@@ -833,14 +1043,43 @@ async def collect_emotion(
     path_obj = Path(file_name)
     file_name = f"{path_obj.stem}_{hashlib.md5(description.encode()).hexdigest()[:6]}{path_obj.suffix}"
 
+<<<<<<< HEAD
     # 保存图片（返回相对路径文件名）
     success, relative_file_path = await save_image(source_path, file_name, _ctx)
+=======
+<<<<<<< HEAD
+    # 保存图片（返回相对路径文件名）
+    success, relative_file_path = await save_image(source_path, file_name, _ctx)
+=======
+<<<<<<< HEAD
+    # 保存图片（返回相对路径文件名）
+    success, relative_file_path = await save_image(source_path, file_name, _ctx)
+=======
+    # 保存图片
+    success, file_path = await save_image(source_path, file_name, _ctx)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if not success:
         raise ValueError(f"Error: Failed to save image from {source_path}")
 
     # 检查是否有重复图片
+<<<<<<< HEAD
     absolute_file_path = resolve_emotion_file_path(relative_file_path)
     duplicate_id = await find_duplicate_emotion(absolute_file_path)
+=======
+<<<<<<< HEAD
+    absolute_file_path = resolve_emotion_file_path(relative_file_path)
+    duplicate_id = await find_duplicate_emotion(absolute_file_path)
+=======
+<<<<<<< HEAD
+    absolute_file_path = resolve_emotion_file_path(relative_file_path)
+    duplicate_id = await find_duplicate_emotion(absolute_file_path)
+=======
+    duplicate_id = await find_duplicate_emotion(file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 加载表情包存储
     emotion_store = await load_emotion_store()
@@ -894,14 +1133,44 @@ async def collect_emotion(
             return duplicate_id
 
     # 生成唯一ID
+<<<<<<< HEAD
     emotion_id = generate_emotion_id(relative_file_path, description)
 
     # 创建元数据（使用相对路径）
+=======
+<<<<<<< HEAD
+    emotion_id = generate_emotion_id(relative_file_path, description)
+
+    # 创建元数据（使用相对路径）
+=======
+<<<<<<< HEAD
+    emotion_id = generate_emotion_id(relative_file_path, description)
+
+    # 创建元数据（使用相对路径）
+=======
+    emotion_id = generate_emotion_id(str(file_path), description)
+
+    # 创建元数据
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     metadata = EmotionMetadata.create(
         description=description,
         tags=tags,
         source_path=source_path,
+<<<<<<< HEAD
         file_path=relative_file_path,  # 保存相对路径
+=======
+<<<<<<< HEAD
+        file_path=relative_file_path,  # 保存相对路径
+=======
+<<<<<<< HEAD
+        file_path=relative_file_path,  # 保存相对路径
+=======
+        file_path=str(file_path),
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
 
     # 添加到存储
@@ -1076,7 +1345,19 @@ async def remove_emotion(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
 
     # 获取文件路径
+<<<<<<< HEAD
     file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+    file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+    file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+    file_path = Path(metadata.file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 从表情包存储中删除
     if emotion_id in emotion_store.emotions:
@@ -1153,14 +1434,38 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
         raise ValueError(f"Error: Emotion with ID '{emotion_id}' not found")
 
     # 获取文件路径
+<<<<<<< HEAD
     file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+    file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+    file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+    file_path = Path(metadata.file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if not file_path.exists():
         raise ValueError(f"Error: Emotion file not found: {file_path}")
 
     # 读取文件内容
     try:
         emo_file_path, _ = await copy_to_upload_dir(
+<<<<<<< HEAD
             str(file_path),  # 使用解析后的绝对路径
+=======
+<<<<<<< HEAD
+            str(file_path),  # 使用解析后的绝对路径
+=======
+<<<<<<< HEAD
+            str(file_path),  # 使用解析后的绝对路径
+=======
+            metadata.file_path,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             file_path.name,
             from_chat_key=_ctx.chat_key,
         )
@@ -1249,7 +1554,19 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         if not metadata:
             continue
 
+<<<<<<< HEAD
         file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+        file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+<<<<<<< HEAD
+        file_path = resolve_emotion_file_path(metadata.file_path)
+=======
+        file_path = Path(metadata.file_path)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if not file_path.exists():
             continue
 

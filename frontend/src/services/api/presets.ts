@@ -34,18 +34,44 @@ interface RefreshStatusResponse {
   total_cloud_presets: number
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 export interface TagInfo {
   tag: string
   count: number
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 export const presetsApi = {
   getList: async (params: {
     page: number
     page_size: number
     search?: string
     tag?: string
+<<<<<<< HEAD
     tags?: string
+=======
+<<<<<<< HEAD
+    tags?: string
+=======
+<<<<<<< HEAD
+    tags?: string
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     remote_only?: boolean
   }) => {
     const response = await axios.get<{
@@ -124,9 +150,29 @@ export const presetsApi = {
 
   shareToCloud: async (id: number | string, is_sfw: boolean = true) => {
     try {
+<<<<<<< HEAD
       const response = await axios.post<ApiResponse<ShareResponse>>(`/presets/${id}/share`, null, {
         params: { is_sfw },
       })
+=======
+<<<<<<< HEAD
+      const response = await axios.post<ApiResponse<ShareResponse>>(`/presets/${id}/share`, null, {
+        params: { is_sfw },
+      })
+=======
+<<<<<<< HEAD
+      const response = await axios.post<ApiResponse<ShareResponse>>(`/presets/${id}/share`, null, {
+        params: { is_sfw },
+      })
+=======
+      const response = await axios.post<ApiResponse<ShareResponse>>(
+        `/presets/${id}/share`, 
+        null, 
+        { params: { is_sfw } }
+      )
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return response.data
     } catch (error) {
       console.error('共享人设失败:', error)
@@ -146,27 +192,73 @@ export const presetsApi = {
 
   syncToCloud: async (id: number, is_sfw: boolean = true) => {
     try {
+<<<<<<< HEAD
       const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync-to-cloud`, null, {
         params: { is_sfw },
       })
+=======
+<<<<<<< HEAD
+      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync-to-cloud`, null, {
+        params: { is_sfw },
+      })
+=======
+<<<<<<< HEAD
+      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync-to-cloud`, null, {
+        params: { is_sfw },
+      })
+=======
+      const response = await axios.post<ApiResponse<null>>(
+        `/presets/${id}/sync-to-cloud`, 
+        null, 
+        { params: { is_sfw } }
+      )
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return response.data
     } catch (error) {
       console.error('同步到云端失败:', error)
       throw error
     }
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   refreshSharedStatus: async () => {
     try {
       const response = await axios.post<ApiResponse<RefreshStatusResponse>>(
         '/presets/refresh-shared-status'
       )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  
+  refreshSharedStatus: async () => {
+    try {
+      const response = await axios.post<ApiResponse<RefreshStatusResponse>>('/presets/refresh-shared-status')
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return response.data
     } catch (error) {
       console.error('刷新共享状态失败:', error)
       throw error
     }
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   getTags: async (): Promise<TagInfo[]> => {
     try {
@@ -177,4 +269,12 @@ export const presetsApi = {
       throw error
     }
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 }

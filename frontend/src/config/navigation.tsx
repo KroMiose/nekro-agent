@@ -43,7 +43,19 @@ export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
     ],
   },
   { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
+<<<<<<< HEAD
   { path: '/chat-channel', text: '聊天管理', icon: <ChatIcon /> },
+=======
+<<<<<<< HEAD
+  { path: '/chat-channel', text: '聊天管理', icon: <ChatIcon /> },
+=======
+<<<<<<< HEAD
+  { path: '/chat-channel', text: '聊天管理', icon: <ChatIcon /> },
+=======
+  { path: '/chat-channel', text: '会话管理', icon: <ChatIcon /> },
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
   { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
   {

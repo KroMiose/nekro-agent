@@ -15,15 +15,39 @@ from typing import (
 )
 
 import aiofiles
+<<<<<<< HEAD
 from fastapi import APIRouter
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.schemas.agent_ctx import AgentCtx
+<<<<<<< HEAD
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.signal import MsgSignal
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 from .schema import PromptInjectMethod, SandboxMethod, SandboxMethodType, WebhookMethod
 
@@ -52,6 +76,13 @@ class NekroPlugin:
         is_builtin: bool = False,
         is_package: bool = False,
     ):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """
         Args:
             name: 插件名称
@@ -75,13 +106,37 @@ class NekroPlugin:
         """
 
         # 回调方法
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.init_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.cleanup_method: Optional[Callable[..., Coroutine[Any, Any, Any]]] = None
         self.prompt_inject_method: Optional[PromptInjectMethod] = None
         self.on_reset_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
+<<<<<<< HEAD
         self.on_user_message_method: Optional[Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]] = None
         self.on_system_message_method: Optional[Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]] = None
 
+=======
+<<<<<<< HEAD
+        self.on_user_message_method: Optional[Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]] = None
+        self.on_system_message_method: Optional[Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]] = None
+
+=======
+<<<<<<< HEAD
+        self.on_user_message_method: Optional[Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]] = None
+        self.on_system_message_method: Optional[Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]] = None
+
+=======
+        self.on_message_method: Optional[Callable[[AgentCtx], Coroutine[Any, Any, Any]]] = None
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.sandbox_methods: List[SandboxMethod] = []
         self.webhook_methods: Dict[str, WebhookMethod] = {}
         self.name = name
@@ -98,10 +153,25 @@ class NekroPlugin:
         self._is_package: bool = is_package  # 标记是否为包
         self._module: Optional["ModuleType"] = None  # 模块对象
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 路由相关
         self._router_func: Optional[Callable[[], APIRouter]] = None
         self._router: Optional[APIRouter] = None
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
         self._store = PluginStore(self)
@@ -114,9 +184,24 @@ class NekroPlugin:
         self.sandbox_methods = []
         self.webhook_methods = {}
         self._collect_methods_func = None
+<<<<<<< HEAD
         # 重置路由相关
         self._router_func = None
         self._router = None
+=======
+<<<<<<< HEAD
+        # 重置路由相关
+        self._router_func = None
+        self._router = None
+=======
+<<<<<<< HEAD
+        # 重置路由相关
+        self._router_func = None
+        self._router = None
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def mount_init_method(self) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
         """挂载初始化方法
@@ -144,7 +229,18 @@ class NekroPlugin:
             if not issubclass(cls, ConfigBase):
                 raise TypeError("Config class must inherit from ConfigBase")
             self._Configs = cls
+<<<<<<< HEAD
             self.get_config()
+=======
+<<<<<<< HEAD
+            self.get_config()
+=======
+<<<<<<< HEAD
+            self.get_config()
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return cls
 
         return decorator
@@ -175,6 +271,13 @@ class NekroPlugin:
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def save_config(self, config: ConfigBase) -> None:
         """保存插件配置
 
@@ -200,10 +303,25 @@ class NekroPlugin:
             logger.exception(f"保存插件配置失败: {self.key} | 配置文件写入错误")
             raise
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def get_plugin_path(self) -> Path:
         self._plugin_path.mkdir(parents=True, exist_ok=True)
         return self._plugin_path
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def mount_router(self) -> Callable[[Callable[[], APIRouter]], Callable[[], APIRouter]]:
         """挂载路由生成方法
 
@@ -268,6 +386,14 @@ class NekroPlugin:
             logger.info(f"插件 {self.name} 路由生成成功，路由数量: {len(self._router.routes)}")
             return self._router
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def mount_sandbox_method(
         self,
         method_type: SandboxMethodType,
@@ -321,9 +447,27 @@ class NekroPlugin:
     def mount_on_channel_reset(
         self,
     ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
+<<<<<<< HEAD
         """挂载重置频道回调方法
 
         用于挂载重置频道时的回调方法，在频道重置时执行。
+=======
+<<<<<<< HEAD
+        """挂载重置频道回调方法
+
+        用于挂载重置频道时的回调方法，在频道重置时执行。
+=======
+<<<<<<< HEAD
+        """挂载重置频道回调方法
+
+        用于挂载重置频道时的回调方法，在频道重置时执行。
+=======
+        """挂载重置会话回调方法
+
+        用于挂载重置会话时的回调方法，在会话重置时执行。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Returns:
             装饰器函数
@@ -335,12 +479,30 @@ class NekroPlugin:
 
         return decorator
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def mount_on_user_message(
         self,
     ) -> Callable[
         [Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]],
         Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]],
     ]:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    def mount_on_message(
+        self,
+    ) -> Callable[[Callable[[AgentCtx], Coroutine[Any, Any, Any]]], Callable[[AgentCtx], Coroutine[Any, Any, Any]]]:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """挂载消息回调方法
 
         用于挂载消息回调方法，在收到消息时执行。
@@ -349,6 +511,13 @@ class NekroPlugin:
             装饰器函数
         """
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         def decorator(
             func: Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]],
         ) -> Callable[[AgentCtx, ChatMessage], Coroutine[Any, Any, MsgSignal | None]]:
@@ -369,6 +538,16 @@ class NekroPlugin:
             func: Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]],
         ) -> Callable[[AgentCtx, str], Coroutine[Any, Any, MsgSignal | None]]:
             self.on_system_message_method = func
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        def decorator(func: Callable[[AgentCtx], Coroutine[Any, Any, Any]]) -> Callable[[AgentCtx], Coroutine[Any, Any, Any]]:
+            self.on_message_method = func
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return func
 
         return decorator

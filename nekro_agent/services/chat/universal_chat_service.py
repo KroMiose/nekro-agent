@@ -41,14 +41,38 @@ class UniversalChatService:
         """发送操作消息（通用方法）
 
         Args:
+<<<<<<< HEAD
             chat_key (str): 聊天频道标识
+=======
+<<<<<<< HEAD
+            chat_key (str): 聊天频道标识
+=======
+<<<<<<< HEAD
+            chat_key (str): 聊天频道标识
+=======
+            chat_key (str): 会话标识
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             message (str): 操作消息内容
         """
 
         adapter = await adapter_utils.get_adapter_for_chat(chat_key)
         await self.send_agent_message(
             chat_key=chat_key,
+<<<<<<< HEAD
             messages=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
+=======
+<<<<<<< HEAD
+            messages=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
+=======
+<<<<<<< HEAD
+            messages=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip(),
+=======
+            messages="[Opt Output] " + message,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             adapter=adapter,
         )
 
@@ -140,7 +164,19 @@ class UniversalChatService:
 
         Args:
             messages: 原始的 Agent 消息段列表
+<<<<<<< HEAD
             chat_key: 聊天频道标识
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道标识
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道标识
+=======
+            chat_key: 会话标识
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ctx: 上下文
             file_mode: 是否为文件模式（用于决定 FILE 类型文件生成 FILE 还是 IMAGE 消息段）
 

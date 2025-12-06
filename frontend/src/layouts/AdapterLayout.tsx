@@ -67,10 +67,29 @@ export default function AdapterLayout() {
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // // 获取适配器图标
   // const getAdapterIcon = (key: string) => {
   //   return createAdapterIcon(key, theme, 48)
   // }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  // 获取适配器图标
+  const getAdapterIcon = (key: string) => {
+    return createAdapterIcon(key, theme, 48)
+  }
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   if (isLoading) {
     return (
@@ -124,18 +143,54 @@ export default function AdapterLayout() {
         overflow: 'hidden',
       }}
     >
+<<<<<<< HEAD
       {/* 适配器头部信息 - 紧凑版本 */}
+=======
+<<<<<<< HEAD
+      {/* 适配器头部信息 - 紧凑版本 */}
+=======
+<<<<<<< HEAD
+      {/* 适配器头部信息 - 紧凑版本 */}
+=======
+      {/* 适配器头部信息 - 简化版本 */}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       <Card
         sx={{
           ...CARD_VARIANTS.default.styles,
         }}
       >
+<<<<<<< HEAD
         <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+=======
+<<<<<<< HEAD
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+=======
+<<<<<<< HEAD
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+=======
+        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <Box
             sx={{
               display: 'flex',
               alignItems: 'center',
+<<<<<<< HEAD
               gap: 1.5,
+=======
+<<<<<<< HEAD
+              gap: 1.5,
+=======
+<<<<<<< HEAD
+              gap: 1.5,
+=======
+              gap: 2,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             }}
           >
             {/* 适配器图标和状态 */}
@@ -145,8 +200,23 @@ export default function AdapterLayout() {
               badgeContent={
                 <Box
                   sx={{
+<<<<<<< HEAD
                     width: 10,
                     height: 10,
+=======
+<<<<<<< HEAD
+                    width: 10,
+                    height: 10,
+=======
+<<<<<<< HEAD
+                    width: 10,
+                    height: 10,
+=======
+                    width: 12,
+                    height: 12,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     borderRadius: '50%',
                     backgroundColor: statusDisplay.getBgColor(theme),
                     border: `2px solid ${theme.palette.background.paper}`,
@@ -154,11 +224,30 @@ export default function AdapterLayout() {
                 />
               }
             >
+<<<<<<< HEAD
               {createAdapterIcon(adapterKey!, theme, 40)}
+=======
+<<<<<<< HEAD
+              {createAdapterIcon(adapterKey!, theme, 40)}
+=======
+<<<<<<< HEAD
+              {createAdapterIcon(adapterKey!, theme, 40)}
+=======
+              {getAdapterIcon(adapterKey!)}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             </Badge>
 
             {/* 适配器信息 */}
             <Box sx={{ flex: 1, minWidth: 0 }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
                 <Typography
                   variant="h6"
@@ -167,24 +256,75 @@ export default function AdapterLayout() {
                     fontWeight: 600,
                     fontSize: { xs: '1.125rem', md: '1.25rem' },
                     lineHeight: 1.2,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                <Typography
+                  variant="h5"
+                  component="h1"
+                  sx={{
+                    fontWeight: 600,
+                    fontSize: { xs: '1.25rem', md: '1.5rem' },
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                   }}
                 >
                   {adapterInfo.name}
                 </Typography>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+              </Box>
+
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 <Chip
                   icon={statusDisplay.icon}
                   label={statusDisplay.text}
                   color={statusDisplay.color}
                   variant="filled"
                   size="small"
+<<<<<<< HEAD
                   sx={{ height: 24, fontWeight: 500 }}
+=======
+<<<<<<< HEAD
+                  sx={{ height: 24, fontWeight: 500 }}
+=======
+<<<<<<< HEAD
+                  sx={{ height: 24, fontWeight: 500 }}
+=======
+                  sx={{ fontWeight: 500 }}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 />
                 <Chip
                   label={adapterInfo.config_class}
                   color="primary"
                   variant="outlined"
                   size="small"
+<<<<<<< HEAD
                   sx={{ height: 24, fontWeight: 400 }}
+=======
+<<<<<<< HEAD
+                  sx={{ height: 24, fontWeight: 400 }}
+=======
+<<<<<<< HEAD
+                  sx={{ height: 24, fontWeight: 400 }}
+=======
+                  sx={{ fontWeight: 400 }}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 />
               </Box>
             </Box>
@@ -192,7 +332,19 @@ export default function AdapterLayout() {
         </CardContent>
       </Card>
 
+<<<<<<< HEAD
       {/* 导航标签 - 紧凑版本 */}
+=======
+<<<<<<< HEAD
+      {/* 导航标签 - 紧凑版本 */}
+=======
+<<<<<<< HEAD
+      {/* 导航标签 - 紧凑版本 */}
+=======
+      {/* 导航标签 - 使用默认透明效果 */}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       <Card sx={CARD_VARIANTS.default.styles}>
         <Tabs
           value={getActiveTab()}
@@ -201,17 +353,47 @@ export default function AdapterLayout() {
           indicatorColor="primary"
           textColor="primary"
           sx={{
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             minHeight: { xs: 48, md: 52 },
             px: { xs: 0.5, md: 2 },
             '& .MuiTab-root': {
               minHeight: { xs: 48, md: 52 },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            minHeight: 56,
+            px: { xs: 1, md: 3 },
+            '& .MuiTab-root': {
+              minHeight: 56,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               fontSize: '0.875rem',
               fontWeight: 600,
               textTransform: 'none',
               transition: 'all 0.2s ease',
               borderRadius: '8px',
               mx: 0.5,
+<<<<<<< HEAD
               py: { xs: 1, md: 1.5 },
+=======
+<<<<<<< HEAD
+              py: { xs: 1, md: 1.5 },
+=======
+<<<<<<< HEAD
+              py: { xs: 1, md: 1.5 },
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               '&:hover': {
                 backgroundColor: theme.palette.action.hover,
               },

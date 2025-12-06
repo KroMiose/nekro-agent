@@ -12,18 +12,49 @@ from nonebot.adapters.onebot.v11 import (
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.tools.common_util import limited_text_output
 
 
 async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
     """生成合适的聊天消息内容(eg. 将cq at 解析为真实的名字)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+
+async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
+    """生成合适的会话消息内容(eg. 将cq at 解析为真实的名字)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     Args:
         event (MessageEvent): 事件对象
         bot (Bot): 机器人对象
 
     Returns:
+<<<<<<< HEAD
         Tuple[str, int]: 聊天消息内容, 是否与自身相关
+=======
+<<<<<<< HEAD
+        Tuple[str, int]: 聊天消息内容, 是否与自身相关
+=======
+<<<<<<< HEAD
+        Tuple[str, int]: 聊天消息内容, 是否与自身相关
+=======
+        Tuple[str, int]: 会话消息内容, 是否与自身相关
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """
     if not isinstance(event, GroupMessageEvent):
         return event.get_plaintext(), 0
@@ -153,9 +184,24 @@ async def get_chat_info_old(
         chat_type = ChatType.UNKNOWN
         raise ValueError("未知的消息类型")
 
+<<<<<<< HEAD
     if str(channel_id) == "0":
         raise ValueError(f"接收到频道ID为 0 的消息，源消息数据 -> {limited_text_output(event.model_dump_json(), 1024)}")
 
+=======
+<<<<<<< HEAD
+    if str(channel_id) == "0":
+        raise ValueError(f"接收到频道ID为 0 的消息，源消息数据 -> {limited_text_output(event.model_dump_json(), 1024)}")
+
+=======
+<<<<<<< HEAD
+    if str(channel_id) == "0":
+        raise ValueError(f"接收到频道ID为 0 的消息，源消息数据 -> {limited_text_output(event.model_dump_json(), 1024)}")
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     return f"onebot_v11-{channel_id}", chat_type
 
 

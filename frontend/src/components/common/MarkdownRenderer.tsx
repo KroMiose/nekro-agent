@@ -3,6 +3,13 @@ import { Box, useTheme, Link, SxProps, Theme } from '@mui/material'
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
 import { useColorMode } from '../../stores/theme'
@@ -12,6 +19,16 @@ const REMARK_PLUGINS = [remarkGfm]
 const REHYPE_PLUGINS = [rehypeRaw]
 
 // 样式函数，保持简洁
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+import { useColorMode } from '../../stores/theme'
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 const markdownStyles = (theme: Theme): SxProps<Theme> => ({
   '& h1': {
     fontSize: '1.75rem',
@@ -115,6 +132,13 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
       fontWeight: 600,
     },
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // HTML 元素样式
   '& img': {
     maxWidth: '100%',
@@ -190,11 +214,26 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
   '& u': {
     textDecoration: 'underline',
   },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 })
 
 interface MarkdownRendererProps {
   children: string
   sx?: SxProps<Theme>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   /**
    * 是否启用语法高亮（默认：true）
    * 在大文档中禁用可以提升性能
@@ -223,11 +262,39 @@ export default function MarkdownRenderer({
   
   const markdownComponents = {
     code({ inline, className, children, ...props }: {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+}
+
+export default function MarkdownRenderer({ children, sx }: MarkdownRendererProps) {
+  const theme = useTheme()
+  const { mode } = useColorMode()
+
+  const markdownComponents = {
+    code({
+      inline,
+      className,
+      children,
+      ...props
+    }: {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       inline?: boolean
       className?: string
       children?: React.ReactNode
     }) {
       const match = /language-(\w+)/.exec(className || '')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       
       if (!inline && match && enableSyntaxHighlight) {
         return (
@@ -243,11 +310,36 @@ export default function MarkdownRenderer({
       }
       
       return (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={mode === 'dark' ? vscDarkPlus : oneLight}
+          language={match[1]}
+          PreTag="div"
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         <code className={className} {...props}>
           {children}
         </code>
       )
     },
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     
     // 修复 Link 组件，转发所有 props
     a: ({ href, children, ...props }: {
@@ -262,11 +354,29 @@ export default function MarkdownRenderer({
         {...props}
       >
         {children}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    a: (props: { href?: string; children?: React.ReactNode }) => (
+      <Link href={props.href} target="_blank" rel="noopener noreferrer">
+        {props.children}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       </Link>
     ),
   }
 
   return (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     <Box 
       className={className}
       sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}
@@ -278,6 +388,16 @@ export default function MarkdownRenderer({
       >
         {children}
       </ReactMarkdown>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    <Box sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}>
+      <ReactMarkdown components={markdownComponents}>{children}</ReactMarkdown>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

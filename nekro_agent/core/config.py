@@ -58,7 +58,15 @@ class CoreConfig(ConfigBase):
         title="启用 NekroAI 云服务",
         description=(
             "是否启用 NekroAI 云服务，启用后可使用 NekroAI 提供的云服务共享能力，同时会收集并上报一些应用使用统计信息。"
+<<<<<<< HEAD
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
+=======
+<<<<<<< HEAD
+            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
+=======
+            "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/会话/代码执行等隐私信息！"
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ),
     )
     NEKRO_CLOUD_API_KEY: str = Field(
@@ -91,7 +99,15 @@ class CoreConfig(ConfigBase):
     DEBUG_IN_CHAT: bool = Field(default=False, title="聊天调试模式")
     ADMIN_CHAT_KEY: str = Field(
         default="",
+<<<<<<< HEAD
         title="管理频道",
+=======
+<<<<<<< HEAD
+        title="管理频道",
+=======
+        title="管理会话频道",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         json_schema_extra=ExtraField(
             is_secret=True,
             placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
@@ -110,7 +126,15 @@ class CoreConfig(ConfigBase):
     MODEL_GROUPS: Dict[str, ModelConfigGroup] = Field(
         default={
             "default": ModelConfigGroup(
+<<<<<<< HEAD
                 CHAT_MODEL="gemini-2.5-flash",
+=======
+<<<<<<< HEAD
+                CHAT_MODEL="gemini-2.5-flash",
+=======
+                CHAT_MODEL="gemini-1.5-pro-002",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
@@ -128,7 +152,15 @@ class CoreConfig(ConfigBase):
                 ENABLE_COT=False,
             ),
             "default-draw-chat": ModelConfigGroup(
+<<<<<<< HEAD
                 CHAT_MODEL="gemini-2.5-flash-image-preview",
+=======
+<<<<<<< HEAD
+                CHAT_MODEL="gemini-2.5-flash-image-preview",
+=======
+                CHAT_MODEL="gemini-2.0-flash-exp-image-generation",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 CHAT_PROXY="",
                 BASE_URL="https://api.nekro.ai/v1",
                 API_KEY="",
@@ -194,15 +226,35 @@ class CoreConfig(ConfigBase):
     )
     AI_CHAT_CONTEXT_EXPIRE_SECONDS: int = Field(
         default=60 * 30,
+<<<<<<< HEAD
         title="对话上下文过期时间 (秒)",
+=======
+<<<<<<< HEAD
+        title="对话上下文过期时间 (秒)",
+=======
+        title="聊天上下文过期时间 (秒)",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="超出该时间范围的消息不会被 AI 回复时参考",
     )
     AI_CHAT_CONTEXT_MAX_LENGTH: int = Field(
         default=32,
+<<<<<<< HEAD
         title="对话上下文最大条数",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="AI 对话上下文最大条数, 超出该条数会自动截断",
+=======
+<<<<<<< HEAD
+        title="对话上下文最大条数",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+        description="AI 对话上下文最大条数, 超出该条数会自动截断",
+=======
+        title="聊天上下文最大条数",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+        description="AI 会话上下文最大条数, 超出该条数会自动截断",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
     AI_SCRIPT_MAX_RETRY_TIMES: int = Field(
         default=3,
@@ -229,17 +281,34 @@ class CoreConfig(ConfigBase):
         description="AI 大模型生成响应结果的最大等待时间，超过该时间会自动停止生成并报错",
     )
     AI_IGNORED_PREFIXES: List[str] = Field(
+<<<<<<< HEAD
         default=["#", "＃", "[Debug]", "[Opt Output]", "≡NA≡"],
+=======
+<<<<<<< HEAD
+        default=["#", "＃", "[Debug]", "[Opt Output]", "≡NA≡"],
+=======
+        default=["#", "＃", "[Debug]", "[Opt Output]"],
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         title="忽略的消息前缀",
         description="带有这些前缀的消息不会被参考或者触发",
         json_schema_extra=ExtraField(sub_item_name="前缀").model_dump(),
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     AI_COMMAND_OUTPUT_PREFIX: str = Field(
         default="≡NA≡:",
         title="命令输出前缀",
         description="命令输出前缀，用于标识命令输出",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
         default=0.0,
         title="随机回复概率",
@@ -268,6 +337,10 @@ class CoreConfig(ConfigBase):
         default=768,
         title="单条消息最大长度 (字符)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         description="聊天上下文单条消息最大长度，超出该长度会自动截取并缩略显示",
     )
     AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
@@ -275,6 +348,18 @@ class CoreConfig(ConfigBase):
         title="聊天上下文最大长度 (字符)",
         json_schema_extra=ExtraField(overridable=True).model_dump(),
         description="聊天历史记录上下文最大长度，超出该长度会自动截断",
+<<<<<<< HEAD
+=======
+=======
+        description="会话上下文单条消息最大长度，超出该长度会自动截取并缩略显示",
+    )
+    AI_CONTEXT_LENGTH_PER_SESSION: int = Field(
+        default=5120,
+        title="会话上下文最大长度 (字符)",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+        description="会话历史记录上下文最大长度，超出该长度会自动截断",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
     AI_VISION_IMAGE_LIMIT: int = Field(default=5, title="视觉参考图片数量限制")
     AI_VISION_IMAGE_SIZE_LIMIT_KB: int = Field(
@@ -285,14 +370,34 @@ class CoreConfig(ConfigBase):
     )
     AI_SYSTEM_NOTIFY_WINDOW_SIZE: int = Field(
         default=10,
+<<<<<<< HEAD
         title="聊天上下文系统消息通知窗口大小",
         description="聊天上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
+=======
+<<<<<<< HEAD
+        title="聊天上下文系统消息通知窗口大小",
+        description="聊天上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
+=======
+        title="会话上下文系统消息通知窗口大小",
+        description="会话上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_SYSTEM_NOTIFY_LIMIT: int = Field(
         default=3,
+<<<<<<< HEAD
         title="聊天上下文系统消息通知条数限制",
         description="聊天上下文系统消息通知条数限制，超出该条数不会被参考",
+=======
+<<<<<<< HEAD
+        title="聊天上下文系统消息通知条数限制",
+        description="聊天上下文系统消息通知条数限制，超出该条数不会被参考",
+=======
+        title="会话上下文系统消息通知条数限制",
+        description="会话上下文系统消息通知条数限制，超出该条数不会被参考",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         json_schema_extra=ExtraField(overridable=True).model_dump(),
     )
     AI_ALWAYS_INCLUDE_MSG_ID: bool = Field(
@@ -308,7 +413,15 @@ class CoreConfig(ConfigBase):
         description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
     )
 
+<<<<<<< HEAD
     """聊天设置"""
+=======
+<<<<<<< HEAD
+    """聊天设置"""
+=======
+    """会话设置"""
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     SESSION_GROUP_ACTIVE_DEFAULT: bool = Field(default=True, title="新群聊默认启用聊天")
     SESSION_PRIVATE_ACTIVE_DEFAULT: bool = Field(default=True, title="新私聊默认启用聊天")
     SESSION_ENABLE_FAILED_LLM_FEEDBACK: bool = Field(
@@ -390,6 +503,38 @@ class CoreConfig(ConfigBase):
         description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
     )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+    """PyPI 配置"""
+    PYPI_INDEX_URL: str = Field(
+        default="https://pypi.tuna.tsinghua.edu.cn/simple",
+        title="PyPI 镜像源地址",
+        description="用于安装 Python 包的 PyPI 镜像源地址，默认为清华源",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+    PYPI_TRUSTED_HOST: str = Field(
+        default="pypi.tuna.tsinghua.edu.cn",
+        title="PyPI 可信主机",
+        description="PyPI 镜像源的可信主机名",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+    PYPI_INSTALL_TIMEOUT: int = Field(
+        default=300,
+        title="包安装超时时间 (秒)",
+        description="安装 Python 包时的超时时间",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+    PYPI_USE_SYSTEM_CONFIG: bool = Field(
+        default=True,
+        title="使用系统 PyPI 配置",
+        description="是否使用系统配置的 PyPI 源，如果禁用则使用默认 pip 配置",
+        json_schema_extra=ExtraField(overridable=True).model_dump(),
+    )
+
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(
         default="127.0.0.1",
@@ -437,6 +582,10 @@ class CoreConfig(ConfigBase):
     ENABLE_FESTIVAL_REMINDER: bool = Field(
         default=True,
         title="启用节日祝福提醒",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         description="启用后会在节日时自动向所有活跃聊天发送祝福",
     )
     ENABLE_ADVANCED_COMMAND: bool = Field(
@@ -449,6 +598,12 @@ class CoreConfig(ConfigBase):
         title="OpenAI Client User Agent",
         description="OpenAI Client User Agent",
         json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+<<<<<<< HEAD
+=======
+=======
+        description="启用后会在节日时自动向所有活跃会话发送祝福",
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
 
     """插件配置"""
@@ -465,11 +620,20 @@ class CoreConfig(ConfigBase):
         except KeyError as e:
             raise KeyError(f"模型组 '{model_name}' 不存在，请确认配置正确") from e
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def require_advanced_command(self) -> bool:
         if not self.ENABLE_ADVANCED_COMMAND:
             raise PermissionError("高级管理命令未启用，请在配置文件中启用")
         return True
 
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     @classmethod
     def load_config(cls, file_path: Optional[Path] = None, auto_register: bool = True):
         """加载配置文件"""
@@ -507,4 +671,16 @@ def reload_config():
     # 更新配置字段
     for field_name in CoreConfig.model_fields:
         value = getattr(new_config, field_name)
+<<<<<<< HEAD
         setattr(config, field_name, value)
+=======
+<<<<<<< HEAD
+        setattr(config, field_name, value)
+=======
+<<<<<<< HEAD
+        setattr(config, field_name, value)
+=======
+        setattr(config, field_name, value)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

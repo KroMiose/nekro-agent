@@ -20,7 +20,19 @@ from openai import AsyncOpenAI, AsyncStream
 from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from pydantic import BaseModel
 
+<<<<<<< HEAD
 from nekro_agent.core import config, logger
+=======
+<<<<<<< HEAD
+from nekro_agent.core import config, logger
+=======
+<<<<<<< HEAD
+from nekro_agent.core import config, logger
+=======
+from nekro_agent.core import logger
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 from .creator import OpenAIChatMessage
 
@@ -283,6 +295,13 @@ class OpenAIStreamChunk(BaseModel):
 _AsyncFunc = Callable[..., Coroutine[Any, Any, OpenAIStreamChunk]]
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 def _create_http_client(
     proxy_url: Optional[str] = None,
     read_timeout: int = 3600,
@@ -324,6 +343,14 @@ def _create_http_client(
     )
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def gen_openai_chat_response(
     model: str,
     messages: Any,
@@ -374,11 +401,29 @@ async def gen_openai_chat_response(
 
     # 使用async with语法创建和管理httpx客户端
     try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         wait_timeout = max_wait_time or 3600
         async with _create_http_client(
             proxy_url=proxy_url,
             read_timeout=wait_timeout,
             write_timeout=wait_timeout,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=max_wait_time or 3600, write=max_wait_time or 3600, pool=10),
+            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ) as http_client, AsyncOpenAI(
             api_key=api_key.strip() if api_key else None,
             base_url=base_url or _OPENAI_BASE_URL,
@@ -433,7 +478,19 @@ async def gen_openai_chat_response(
                     messages=messages,
                     **gen_kwargs,
                 )
+<<<<<<< HEAD
                 if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
+=======
+<<<<<<< HEAD
+                if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
+=======
+<<<<<<< HEAD
+                if not res.choices or len(res.choices) == 0 or not res.choices[0].message.content:
+=======
+                if not res.choices[0].message.content:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
 
                 output = res.choices[0].message.content
@@ -512,7 +569,22 @@ async def gen_openai_embeddings(
     endpoint: str = "/embeddings",
 ) -> List[float]:
     """生成文本的向量表示"""
+<<<<<<< HEAD
     async with _create_http_client(proxy_url=proxy_url) as client:
+=======
+<<<<<<< HEAD
+    async with _create_http_client(proxy_url=proxy_url) as client:
+=======
+<<<<<<< HEAD
+    async with _create_http_client(proxy_url=proxy_url) as client:
+=======
+    async with httpx.AsyncClient(
+        timeout=httpx.Timeout(connect=10, read=3600, write=3600, pool=10),
+        proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+    ) as client:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 手动序列化JSON，并设置ensure_ascii=False
         data = json.dumps(
             {"model": model, "input": input, "dimensions": dimensions},
@@ -588,10 +660,28 @@ async def gen_openai_chat_stream(
 
     # 创建OpenAI客户端
     try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         async with _create_http_client(
             proxy_url=proxy_url,
             read_timeout=300,
             write_timeout=300,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=300, write=300, pool=10),
+            proxies={"http://": proxy_url, "https://": proxy_url} if proxy_url else None,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ) as http_client:
             client = AsyncOpenAI(
                 api_key=api_key.strip() if api_key else None,

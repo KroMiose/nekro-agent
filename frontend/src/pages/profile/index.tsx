@@ -31,6 +31,13 @@ export default function ProfilePage() {
     queryFn: () => authApi.getUserInfo(),
   })
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const isAdminUser = userInfo?.username === 'admin'
 
   // 处理修改密码
@@ -39,6 +46,16 @@ export default function ProfilePage() {
       notification.info('管理员账号暂不支持修改密码')
       return
     }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  // 处理修改密码
+  const handleChangePassword = async () => {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if (!newPassword || !confirmPassword) {
       notification.error('请填写所有密码字段')
       return
@@ -109,18 +126,44 @@ export default function ProfilePage() {
           </Typography>
           <Divider sx={{ my: 2 }} />
           <Stack spacing={3}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             {isAdminUser && (
               <Typography variant="body2" color="text.secondary">
                 管理员账号暂不支持在此修改密码，请在系统环境变量中修改
               </Typography>
             )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             <TextField
               fullWidth
               type="password"
               label="新密码"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
+<<<<<<< HEAD
               disabled={isAdminUser}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser}
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               sx={INPUT_VARIANTS.default.styles}
             />
             <TextField
@@ -129,13 +172,36 @@ export default function ProfilePage() {
               label="确认新密码"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
+<<<<<<< HEAD
               disabled={isAdminUser}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser}
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               sx={INPUT_VARIANTS.default.styles}
             />
             <Button
               variant="contained"
               onClick={handleChangePassword}
+<<<<<<< HEAD
               disabled={isAdminUser || loading || !newPassword || !confirmPassword}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser || loading || !newPassword || !confirmPassword}
+=======
+<<<<<<< HEAD
+              disabled={isAdminUser || loading || !newPassword || !confirmPassword}
+=======
+              disabled={loading || !newPassword || !confirmPassword}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               sx={BUTTON_VARIANTS.primary.styles}
             >
               {loading ? '提交中...' : '修改密码'}

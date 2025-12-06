@@ -9,7 +9,19 @@ import asyncio
 from functools import wraps
 from typing import Any, Awaitable, Callable, TypeVar
 
+<<<<<<< HEAD
 import httpx
+=======
+<<<<<<< HEAD
+import httpx
+=======
+<<<<<<< HEAD
+import httpx
+=======
+import aiohttp
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from loguru import logger
 
 # 添加返回类型变量T用于泛型函数
@@ -25,8 +37,22 @@ async def with_retry(
     max_delay: float = 5.0,
     backoff_factor: float = 2.0,
     retry_exceptions: tuple = (
+<<<<<<< HEAD
         httpx.HTTPError,
         httpx.TimeoutException,
+=======
+<<<<<<< HEAD
+        httpx.HTTPError,
+        httpx.TimeoutException,
+=======
+<<<<<<< HEAD
+        httpx.HTTPError,
+        httpx.TimeoutException,
+=======
+        aiohttp.ClientError,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         asyncio.TimeoutError,
         ConnectionError,
     ),
@@ -77,8 +103,22 @@ def retry_decorator(
     max_delay: float = 5.0,
     backoff_factor: float = 2.0,
     retry_exceptions: tuple = (
+<<<<<<< HEAD
         httpx.HTTPError,
         httpx.TimeoutException,
+=======
+<<<<<<< HEAD
+        httpx.HTTPError,
+        httpx.TimeoutException,
+=======
+<<<<<<< HEAD
+        httpx.HTTPError,
+        httpx.TimeoutException,
+=======
+        aiohttp.ClientError,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         asyncio.TimeoutError,
         ConnectionError,
     ),

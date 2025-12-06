@@ -4,9 +4,25 @@
 """
 
 import json
+<<<<<<< HEAD
 import os
 import shutil
 import stat
+=======
+<<<<<<< HEAD
+import os
+import shutil
+import stat
+=======
+<<<<<<< HEAD
+import os
+import shutil
+import stat
+=======
+import shutil
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import sys
 from datetime import datetime
 from importlib import import_module, reload
@@ -14,15 +30,39 @@ from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Set, Tuple
 
 import git
+<<<<<<< HEAD
 from fastapi import APIRouter
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from pydantic import BaseModel
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, PACKAGES_DIR, WORKDIR_PLUGIN_DIR
 from nekro_agent.schemas.agent_ctx import AgentCtx
+<<<<<<< HEAD
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.signal import MsgSignal
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.signal import MsgSignal
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 from .base import NekroPlugin
 from .schema import SandboxMethod
@@ -77,6 +117,13 @@ class PackageData(BaseModel):
 PACKAGE_DATA_PATH = Path(PACKAGES_DIR) / "package_data.json"
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 def _remove_readonly(func, path, _):
     """错误处理函数，用于删除只读文件"""
     try:
@@ -86,6 +133,14 @@ def _remove_readonly(func, path, _):
         logger.warning(f"无法删除文件 {path}: {e}")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 class PluginCollector:
     """插件收集器，用于管理所有已加载的插件"""
 
@@ -126,6 +181,13 @@ class PluginCollector:
 
         # 加载内置插件
         for item in self.builtin_plugin_dir.iterdir():
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             try:
                 await self._try_load_plugin(item, is_builtin=True)
             except Exception as e:
@@ -144,6 +206,23 @@ class PluginCollector:
                 await self._try_load_plugin(item, is_package=True)
             except Exception as e:
                 logger.exception(f"加载云端插件失败: {item}: {e}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            await self._try_load_plugin(item, is_builtin=True)
+
+        # 加载工作目录插件
+        for item in self.workdir_plugin_dir.iterdir():
+            await self._try_load_plugin(item, is_builtin=False)
+
+        # 加载packages插件
+        for item in self.packages_dir.iterdir():
+            await self._try_load_plugin(item, is_package=True)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def unload_plugin_by_module_name(self, module_name: str, scope: Literal["all", "package", "local"] = "all") -> None:
         """卸载指定插件
@@ -253,6 +332,13 @@ class PluginCollector:
         # logger.debug(f"尝试加载插件: {real_path} 从 {fixed_module_name}")
         await self._try_load_plugin(real_path, is_builtin=is_builtin, is_package=is_package)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 重载完成后，如果插件有路由，进行热重载
         try:
             reloaded_plugin = self.get_plugin_by_module_name(fixed_module_name)
@@ -266,6 +352,14 @@ class PluginCollector:
         except Exception as router_error:
             logger.exception(f"插件路由热重载失败: {router_error}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def clone_package(
         self,
         module_name: str,
@@ -326,17 +420,47 @@ class PluginCollector:
         if auto_reload:
             await self.reload_plugin_by_module_name(module_name, is_package=True)
 
+<<<<<<< HEAD
     async def remove_package(self, module_name: str, clear_config: bool = False) -> None:
+=======
+<<<<<<< HEAD
+    async def remove_package(self, module_name: str, clear_config: bool = False) -> None:
+=======
+<<<<<<< HEAD
+    async def remove_package(self, module_name: str, clear_config: bool = False) -> None:
+=======
+    async def remove_package(self, module_name: str) -> None:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """删除云端插件
 
         Args:
             module_name: 云端插件模块名
+<<<<<<< HEAD
             clear_config: 是否删除插件配置文件和数据目录，默认为False
+=======
+<<<<<<< HEAD
+            clear_config: 是否删除插件配置文件和数据目录，默认为False
+=======
+<<<<<<< HEAD
+            clear_config: 是否删除插件配置文件和数据目录，默认为False
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """
         package_dir = self.packages_dir / module_name
         if not package_dir.exists():
             raise ValueError(f"云端插件 `{module_name}` 不存在")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 获取插件实例以便删除配置文件
         plugin = self.get_plugin_by_module_name(module_name)
 
@@ -359,6 +483,19 @@ class PluginCollector:
         except Exception as e:
             logger.error(f"删除云端插件目录失败: {package_dir}: {e}")
             raise
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        # 先卸载插件，从插件收集器中移除，限制只卸载云端插件
+        await self.unload_plugin_by_module_name(module_name, scope="package")
+
+        # 然后删除文件和包信息
+        shutil.rmtree(package_dir)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.package_data.remove_package(module_name)
 
     async def _try_load_plugin(self, item_path: Path, is_builtin: bool = False, is_package: bool = False) -> bool:
@@ -531,6 +668,13 @@ class PluginCollector:
         logger.debug(f"获取到 {len(methods)} 个沙盒方法")
         return methods
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def handle_on_user_message(self, ctx: AgentCtx, message: ChatMessage) -> MsgSignal:
         """处理用户消息
 
@@ -571,6 +715,14 @@ class PluginCollector:
             return min_signal
         return max_signal
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def get_webhook_method(self, plugin_key: str, endpoint: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
         """获取指定插件的webhook方法
 
@@ -622,6 +774,13 @@ class PluginCollector:
         logger.debug(f"获取到 {sum(len(methods) for methods in webhook_methods.values())} 个webhook方法")
         return webhook_methods
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def load_plugins_api(self) -> APIRouter:
         """加载所有插件的路由API
 
@@ -700,12 +859,27 @@ class PluginCollector:
 
         return router_info
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def chat_channel_on_reset(self, ctx: AgentCtx) -> None:
         """聊天频道重置时执行"""
         for plugin in self.loaded_plugins.values():
             if plugin.is_enabled and plugin.on_reset_method:
                 await plugin.on_reset_method(ctx.model_copy())
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def cleanup_all_plugins(self) -> None:
         """清理所有插件资源
 
@@ -787,6 +961,14 @@ class PluginCollector:
             logger.info(f"成功清除所有插件的存储数据，共删除 {deleted_count} 条记录")
             return deleted_count
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 # 全局插件收集器实例
 plugin_collector = PluginCollector()

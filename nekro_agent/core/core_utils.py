@@ -3,6 +3,13 @@ import os
 import re
 import sys
 from pathlib import Path
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from typing import (
     Any,
     Callable,
@@ -14,6 +21,15 @@ from typing import (
     TypeVar,
     Union,
 )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+from typing import Any, Callable, ClassVar, Dict, Optional, Type, TypeVar, Union
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from urllib.parse import quote_plus
 
 import nonebot
@@ -94,8 +110,23 @@ class ExtraField(BaseModel):
         title="模型组引用标识",
         description="设置为True时，表示该字段需要从系统中已配置的模型组中选择",
     )
+<<<<<<< HEAD
     model_type: Literal["chat", "embedding", "draw"] = Field(
         default="chat",
+=======
+<<<<<<< HEAD
+    model_type: Literal["chat", "embedding", "draw"] = Field(
+        default="chat",
+=======
+<<<<<<< HEAD
+    model_type: Literal["chat", "embedding", "draw"] = Field(
+        default="chat",
+=======
+    model_type: str = Field(
+        default="",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         title="模型类型规范",
         description="指定引用的模型类型标识符，仅在ref_model_groups为True时生效",
     )
@@ -107,7 +138,19 @@ class ExtraField(BaseModel):
     overridable: bool = Field(
         default=False,
         title="可覆盖字段标识",
+<<<<<<< HEAD
         description="设置为True时，该配置项将可以在适配器或频道级进行独立覆盖",
+=======
+<<<<<<< HEAD
+        description="设置为True时，该配置项将可以在适配器或频道级进行独立覆盖",
+=======
+<<<<<<< HEAD
+        description="设置为True时，该配置项将可以在适配器或频道级进行独立覆盖",
+=======
+        description="设置为True时，该配置项将可以在适配器或会话级进行独立覆盖",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
     sub_item_name: str = Field(
         default="项目",
@@ -134,6 +177,13 @@ class ExtraField(BaseModel):
         title="nonebot环境变量名称定义",
         description="指定将配置项加载到nonebot的环境变量时使用的变量名，仅在load_to_nbenv_as为True时生效",
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     is_need_restart: bool = Field(
         default=False,
         title="重启需求标识",
@@ -149,6 +199,14 @@ class ExtraField(BaseModel):
         title="多人设引用标识",
         description="设置为True时，表示该字段支持选择多个人设，值为人设ID列表",
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 class ConfigManager:

@@ -7,6 +7,16 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 import weave
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+from jinja2 import Environment
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
@@ -44,6 +54,13 @@ RECENT_ERR_LOGS = deque(maxlen=100)
 async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     ctx: Optional[AgentCtx] = None,
 ):
     # 获取当前聊天频道的有效配置
@@ -60,6 +77,21 @@ async def run_agent(
 
     config = await db_chat_channel.get_effective_config()
     preset = await db_chat_channel.get_preset()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+):
+    # 获取当前会话的有效配置
+    one_time_code = os.urandom(4).hex()
+    db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+    config = await db_chat_channel.get_effective_config()
+    preset = await db_chat_channel.get_preset()
+    ctx: AgentCtx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
     self_info = await ctx.adapter.get_self_info()
@@ -197,6 +229,13 @@ async def run_agent(
             ExecStopType.AGENT: "Sandbox exited due to agent method",
             ExecStopType.MULTIMODAL_AGENT: "Sandbox exited due to multimodal agent method",
         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         # 异常处理建议
         exception_suggestion_map: Dict[str, str] = {
@@ -216,6 +255,19 @@ async def run_agent(
                 OpenAIChatMessage.from_text(
                     "user",
                     f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}\n{suggestion_text}. {new_message_notification}",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        if stop_type in exception_reason_map:
+            msg = msg.extend(
+                OpenAIChatMessage.from_text(
+                    "user",
+                    f"[Sandbox Output] {sandbox_output}\n---\n{exception_reason_map[stop_type]}. During the generation and execution, the following messages were sent (You **CANT NOT** send any messages which you have sent before!):\n",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 ),
             )
 
@@ -224,7 +276,19 @@ async def run_agent(
             msg = msg.extend(
                 OpenAIChatMessage.from_text(
                     "user",
+<<<<<<< HEAD
                     f"\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry. {new_message_notification}",
+=======
+<<<<<<< HEAD
+                    f"\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry. {new_message_notification}",
+=======
+<<<<<<< HEAD
+                    f"\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry. {new_message_notification}",
+=======
+                    "\n\n[System Automatic Detection] Invalid response detected. You should not reveal the one-time code in your reply. This is just a tag to help you mark trustworthy information. please DO NOT give any extra explanation or apology and keep the response format for retry.",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 ),
             )
 
@@ -239,7 +303,18 @@ async def run_agent(
                 config=config,
             ),
         )
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         msg = msg.extend(
             OpenAIChatMessage.from_text(
                 "user",

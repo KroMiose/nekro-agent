@@ -51,7 +51,19 @@ config = plugin.get_config(TimerConfig)
 @plugin.mount_prompt_inject_method("timer_prompt")
 async def timer_prompt(_ctx: AgentCtx) -> str:
     """定时器提示词注入"""
+<<<<<<< HEAD
     # 获取当前频道未触发的定时器
+=======
+<<<<<<< HEAD
+    # 获取当前频道未触发的定时器
+=======
+<<<<<<< HEAD
+    # 获取当前频道未触发的定时器
+=======
+    # 获取当前会话未触发的定时器
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     chat_key = _ctx.chat_key
     timers = await timer.get_timers(chat_key)
 
@@ -115,10 +127,29 @@ async def set_timer(
     !!!始终记住：定时器的本质功能是允许你自行唤醒你自己作为 LLM 的回复流程, 非必要不得反复自我唤醒!!!
 
     Args:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         chat_key (str): 频道标识
         trigger_time (int): 触发时间戳。若 trigger_time == 0 则立即触发频道；若 trigger_time < 0 则清空当前频道指定类型的定时器
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
         temporary (bool): 是否临时定时器。用于设置短期自我唤醒检查新消息，同一频道只会保留最后一个临时定时器。
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        chat_key (str): 会话标识
+        trigger_time (int): 触发时间戳。若 trigger_time == 0 则立即触发会话；若 trigger_time < 0 则清空当前会话指定类型的定时器
+        event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
+        temporary (bool): 是否临时定时器。用于设置短期自我唤醒检查新消息，同一会话只会保留最后一个临时定时器。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                          当 trigger_time < 0 时，此参数用于指定要清除的定时器类型。
 
     Returns:

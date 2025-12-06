@@ -1,7 +1,20 @@
 # Nekro Agent - 更智能、更优雅的代理执行 AI
 
+<<<<<<< HEAD
 Switch to [English](./README_en.md)
 
+=======
+<<<<<<< HEAD
+Switch to [English](./README_en.md)
+
+=======
+<<<<<<< HEAD
+Switch to [English](./README_en.md)
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 <!-- markdownlint-disable MD033 MD041 -->
 
 <div align="center">
@@ -11,13 +24,32 @@ Switch to [English](./README_en.md)
 
 <div align="center">
   ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天 & 代理执行 Bot! ✨<br/>
+<<<<<<< HEAD
     <img src="https://img.shields.io/badge/python-3.10+-6a9.svg" alt="python">
+=======
+<<<<<<< HEAD
+    <img src="https://img.shields.io/badge/python-3.10+-6a9.svg" alt="python">
+=======
+<<<<<<< HEAD
+    <img src="https://img.shields.io/badge/python-3.10+-6a9.svg" alt="python">
+=======
+    <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
   </a>
   <a href="https://hub.docker.com/u/kromiose" target="_blank">
     <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/kromiose/nekro-agent?color=%20%23EA5252">
   </a>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   <a href="https://wakatime.com/badge/github/KroMiose/nekro-agent" target="_blank">
     <img src="https://wakatime.com/badge/github/KroMiose/nekro-agent.svg" alt="wakatime">
   </a>
@@ -45,6 +77,24 @@ Switch to [English](./README_en.md)
 
 - **加入我们的 Discord:** [NekroAI Official](https://discord.gg/eMsgwFnxUB)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  <a href="https://qm.qq.com/q/eT30LxDcSA" target="_blank">
+    <img src="https://img.shields.io/badge/加入交流群-636925153-c42.svg" alt="python">
+  </a>
+  <br/>
+  🚅 源自首批大模型应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
+  📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
+  💬 技术交流/答疑/讨论：<a href="https://qm.qq.com/q/eT30LxDcSA">加入社区交流群: 636925153</a> 🗨️ <br/>
+  🚀 <a href="https://community.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
+</div>
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 ## 🚀 核心能力
 
 NekroAgent 通过强大灵活的提示词构建系统，引导 AI 生成准确的代码并在沙盒中执行，通过 RPC 通信来与真实环境交互。主要特点包括：
@@ -70,7 +120,19 @@ NekroAgent 通过强大灵活的提示词构建系统，引导 AI 生成准确�
 
 ## 🏛️ 架构概览
 
+<<<<<<< HEAD
 Nekro Agent 的核心是面向 **输入/输出流** 设计的。适配器（Adapter）作为连接外部平台的桥梁，仅需实现对具体平台消息的接收（输入流）和发送（输出流）。所有复杂的业务逻辑，如频道管理、插件执行、沙盒调用等，都由 Nekro Agent 的核心引擎自动接管和处理。这种设计确保了极高的扩展性和维护性，让开发者可以专注于实现适配器本身的功能，而无需关心核心的复杂实现。
+=======
+<<<<<<< HEAD
+Nekro Agent 的核心是面向 **输入/输出流** 设计的。适配器（Adapter）作为连接外部平台的桥梁，仅需实现对具体平台消息的接收（输入流）和发送（输出流）。所有复杂的业务逻辑，如频道管理、插件执行、沙盒调用等，都由 Nekro Agent 的核心引擎自动接管和处理。这种设计确保了极高的扩展性和维护性，让开发者可以专注于实现适配器本身的功能，而无需关心核心的复杂实现。
+=======
+<<<<<<< HEAD
+Nekro Agent 的核心是面向 **输入/输出流** 设计的。适配器（Adapter）作为连接外部平台的桥梁，仅需实现对具体平台消息的接收（输入流）和发送（输出流）。所有复杂的业务逻辑，如频道管理、插件执行、沙盒调用等，都由 Nekro Agent 的核心引擎自动接管和处理。这种设计确保了极高的扩展性和维护性，让开发者可以专注于实现适配器本身的功能，而无需关心核心的复杂实现。
+=======
+Nekro Agent 的核心是面向 **输入/输出流** 设计的。适配器（Adapter）作为连接外部平台的桥梁，仅需实现对具体平台消息的接收（输入流）和发送（输出流）。所有复杂的业务逻辑，如会话管理、插件执行、沙盒调用等，都由 Nekro Agent 的核心引擎自动接管和处理。这种设计确保了极高的扩展性和维护性，让开发者可以专注于实现适配器本身的功能，而无需关心核心的复杂实现。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 ```mermaid
 graph TD
@@ -89,7 +151,19 @@ graph TD
 
         subgraph 核心引擎
             Input["输入流 (collect_message)"] --> Dispatcher
+<<<<<<< HEAD
             Dispatcher{"消息<br>分发器"} --> Services["核心共享服务<br>(频道, 插件, 沙盒等)"]
+=======
+<<<<<<< HEAD
+            Dispatcher{"消息<br>分发器"} --> Services["核心共享服务<br>(频道, 插件, 沙盒等)"]
+=======
+<<<<<<< HEAD
+            Dispatcher{"消息<br>分发器"} --> Services["核心共享服务<br>(频道, 插件, 沙盒等)"]
+=======
+            Dispatcher{"消息<br>分发器"} --> Services["核心共享服务<br>(会话, 插件, 沙盒等)"]
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             Services --> Output["输出流 (forward_message)"]
         end
     end
@@ -130,7 +204,18 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 
 - ✅ **多平台适配**：
   - ✅ OneBot v11 (QQ)
+<<<<<<< HEAD
   - ✅ Discord
+=======
+<<<<<<< HEAD
+  - ✅ Discord
+=======
+<<<<<<< HEAD
+  - ✅ Discord
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   - ✅ Minecraft
   - ✅ Bilibili Live (B 站直播)
   - ✅ SSE+SDK (Server-Sent Events + SDK)
@@ -158,6 +243,13 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 
 ### 一键部署脚本 (推荐)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 #### 从 Github (推荐)
 
 ```bash
@@ -177,6 +269,18 @@ sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/do
 上述命令中的 --with-napcat 参数会启动全自动标准部署。
 如果不加此参数，脚本会以交互模式启动，届时请选择 Y 以安装 Napcat。
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+```bash
+sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/quick_start_x_napcat.sh)"
+```
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 ## 🖥️ 开发者资源
 
 我们欢迎所有开发者为 Nekro Agent 社区贡献代码或想法！

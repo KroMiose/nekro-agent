@@ -4,12 +4,35 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
+<<<<<<< HEAD
 from fastapi.responses import JSONResponse, RedirectResponse
+=======
+<<<<<<< HEAD
+from fastapi.responses import JSONResponse, RedirectResponse
+=======
+<<<<<<< HEAD
+from fastapi.responses import JSONResponse, RedirectResponse
+=======
+from fastapi.responses import JSONResponse
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
+<<<<<<< HEAD
 from nekro_agent.core.args import Args
+=======
+<<<<<<< HEAD
+from nekro_agent.core.args import Args
+=======
+<<<<<<< HEAD
+from nekro_agent.core.args import Args
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
@@ -30,19 +53,48 @@ from .logs import router as logs_router
 from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
 from .presets import router as presets_router
+<<<<<<< HEAD
 from .restart import router as restart_router
+=======
+<<<<<<< HEAD
+from .restart import router as restart_router
+=======
+<<<<<<< HEAD
+from .restart import router as restart_router
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
 from .user import router as user_router
 from .user_manager import router as user_manager_router
 from .webhook import router as webhook_router
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 # 注意：插件路由现在通过插件路由管理器动态挂载，支持热重载
 # 不再使用静态路由挂载方式
 
 
 def mount_middlewares(app: FastAPI):
     """挂载中间件和全局处理器"""
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+def mount_routers(app: FastAPI):
+    """挂载 API 路由"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -60,9 +112,24 @@ def mount_middlewares(app: FastAPI):
             content=Ret.error(msg=str(exc)).model_dump(),
         )
 
+<<<<<<< HEAD
 
 def mount_api_routes(app: FastAPI):
     """挂载 API 路由"""
+=======
+<<<<<<< HEAD
+
+def mount_api_routes(app: FastAPI):
+    """挂载 API 路由"""
+=======
+<<<<<<< HEAD
+
+def mount_api_routes(app: FastAPI):
+    """挂载 API 路由"""
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     api = APIRouter(prefix="/api")
 
     api.include_router(user_router)
@@ -77,7 +144,18 @@ def mount_api_routes(app: FastAPI):
     api.include_router(chat_channel_router)
     api.include_router(webhook_router)
     api.include_router(presets_router)
+<<<<<<< HEAD
     api.include_router(restart_router)
+=======
+<<<<<<< HEAD
+    api.include_router(restart_router)
+=======
+<<<<<<< HEAD
+    api.include_router(restart_router)
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     api.include_router(telemetry_router)
     api.include_router(presets_market_router)
     api.include_router(plugins_market_router)
@@ -99,6 +177,13 @@ def mount_api_routes(app: FastAPI):
             UserLogin(username=form_data.username, password=form_data.password),
         )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if Args.DOCS or OsEnv.ENABLE_OPENAPI_DOCS:
         # 挂载 API 文档
         @api.get("/docs", include_in_schema=False)
@@ -169,3 +254,45 @@ def mount_api_routes(app: FastAPI):
 
     # 将 OpenAPI 文档生成和 URL 设置移到 app 上，确保全局生效
     app.openapi_url = "/api/openapi.json"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    # 生成 OpenAPI 文档
+    @api.get("/openapi.json", include_in_schema=False)
+    async def openapi():
+        openapi_schema = get_openapi(
+            title="Nekro Agent API",
+            version=get_app_version(),
+            routes=api.routes,
+            description="Nekro Agent API 文档",
+        )
+        return JSONResponse(openapi_schema)
+
+    # 挂载 API 文档
+    @api.get("/docs", include_in_schema=False)
+    async def custom_swagger_ui_html():
+        return get_swagger_ui_html(
+            openapi_url="/api/openapi.json",
+            title="Nekro Agent API",
+            oauth2_redirect_url="/api/token",
+        )
+
+    # redoc
+    @api.get("/redoc", include_in_schema=False)
+    async def redoc_html():
+        return get_redoc_html(
+            openapi_url="/api/openapi.json",
+            title="Nekro Agent API",
+        )
+
+    app.include_router(api)
+
+    # 挂载静态文件
+    static_dir = Path(OsEnv.STATIC_DIR)
+    if static_dir.exists():
+        app.mount("/", StaticFiles(directory=str(static_dir), html=True), name="static")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

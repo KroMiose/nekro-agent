@@ -98,11 +98,29 @@ def fix_raw_response(raw_response: str) -> str:
     # 修正 [@id:123456] -> [@id:123456@]
     raw_response = re.sub(r"\[@id:(\d+)\]", r"[@id:\1@]", raw_response)
     # 修正 [@id:123456;nickname:Abc] -> [@id:123456@]
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     raw_response = re.sub(r"\[@id:(\d+);nickname[\=\:](.+);?\]", r"[@id:\1@]", raw_response)
     # 修正 (@id:123456;) -> [@id:123456@]
     raw_response = re.sub(r"\(@id:(\d+);\)", r"[@id:\1@]", raw_response)
     # 修正 (@id:123456;nickname:Abc) -> [@id:123456@]
     raw_response = re.sub(r"\(@id:(\d+);nickname[\=\:](.+);?\)", r"[@id:\1@]", raw_response)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    raw_response = re.sub(r"\[@id:(\d+);nickname[\=\:](.+)\]", r"[@id:\1@]", raw_response)
+    # 修正 (@id:123456;nickname:Abc) -> [@id:123456@]
+    raw_response = re.sub(r"\(@id:(\d+);nickname[\=\:](.+)\)", r"[@id:\1@]", raw_response)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 修正 [@123456] -> [@id:123456@]
     raw_response = re.sub(r"\[@(\d+)\]", r"[@id:\1@]", raw_response)
     # 修正 (@id:123456@) -> [@id:123456@]

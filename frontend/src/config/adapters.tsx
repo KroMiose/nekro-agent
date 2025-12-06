@@ -13,9 +13,24 @@ import {
   Warning as WarningIcon,
   RadioButtonUnchecked as RadioButtonUncheckedIcon,
   Style as StyleIcon,
+<<<<<<< HEAD
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
   Send as SendIcon,
+=======
+<<<<<<< HEAD
+  QuestionAnswer as QuestionAnswerIcon,
+  Chat as ChatIcon,
+  Send as SendIcon,
+=======
+<<<<<<< HEAD
+  QuestionAnswer as QuestionAnswerIcon,
+  Chat as ChatIcon,
+  Send as SendIcon,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/icons-material'
 import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
@@ -203,6 +218,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // Discord 适配器配置
   discord: {
     key: 'discord',
@@ -245,6 +267,14 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // SSE 适配器配置
   sse: {
     key: 'sse',
@@ -287,6 +317,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // WeChatPad 适配器配置
   wechatpad: {
     key: 'wechatpad',
@@ -415,6 +452,14 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   //   ],
   // },
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 默认适配器配置（用于其他适配器）
   default: {
     key: 'default',

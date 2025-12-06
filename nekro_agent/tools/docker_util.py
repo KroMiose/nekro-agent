@@ -1,5 +1,16 @@
 import asyncio
+<<<<<<< HEAD
 import os
+=======
+<<<<<<< HEAD
+import os
+=======
+<<<<<<< HEAD
+import os
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 import aiodocker
 from aiodocker.docker import DockerContainer
@@ -34,6 +45,13 @@ async def get_container(container_name: str) -> DockerContainer:
 
 
 async def get_self_container() -> DockerContainer:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """通过 HOSTNAME 直接获取当前容器实例。
 
     说明:
@@ -48,6 +66,33 @@ async def get_self_container() -> DockerContainer:
         return await docker.containers.get(hostname)
     except Exception as e:
         logger.error(f"获取自身容器失败: {e!s} (HOSTNAME={hostname})")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """获取当前应用所在的容器实例
+
+    Returns:
+        DockerContainer: 当前应用容器实例
+
+    Raises:
+        Exception: 获取容器失败时抛出异常
+    """
+    # 从环境变量中获取实例名称前缀
+    instance_name = OsEnv.INSTANCE_NAME
+    # 构建完整的容器名称
+    container_name = f"{instance_name}nekro_agent"
+    if not instance_name:
+        raise RuntimeError("未设置实例名称")
+    try:
+        docker = await get_docker_client()
+        return await docker.containers.get(container_name)
+    except Exception as e:
+        logger.error(f"获取自身容器失败: {e!s}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         raise
 
 

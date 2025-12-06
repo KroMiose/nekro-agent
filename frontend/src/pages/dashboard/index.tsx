@@ -1,4 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { 
   Box, 
   Tabs, 
@@ -16,17 +23,43 @@ import {
   Typography,
   Alert
 } from '@mui/material'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+import { Box, Tabs, Tab, Grid, Stack, useMediaQuery, useTheme, Card } from '@mui/material'
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   Message as MessageIcon,
   Group as GroupIcon,
   Code as CodeIcon,
   CheckCircle as CheckCircleIcon,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   RestartAlt as RestartIcon,
 } from '@mui/icons-material'
 import { dashboardApi, RealTimeDataPoint } from '../../services/api/dashboard'
 import { restartApi } from '../../services/api/restart'
 import { useNotification } from '../../hooks/useNotification'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+} from '@mui/icons-material'
+import { dashboardApi, RealTimeDataPoint } from '../../services/api/dashboard'
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { StatCard } from './components/StatCard'
 import { TrendsChart } from './components/TrendsChart'
 import { DistributionsCard } from './components/DistributionsCard'
@@ -44,13 +77,37 @@ const DashboardContent: React.FC = () => {
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
   const [streamCancel, setStreamCancel] = useState<(() => void) | null>(null)
+<<<<<<< HEAD
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
+=======
+<<<<<<< HEAD
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false)
+  const [isRestarting, setIsRestarting] = useState(false)
+=======
+<<<<<<< HEAD
+  const [restartDialogOpen, setRestartDialogOpen] = useState(false)
+  const [isRestarting, setIsRestarting] = useState(false)
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'))
+<<<<<<< HEAD
   const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   // 处理实时数据
   const handleRealTimeData = useCallback((data: string) => {
@@ -151,6 +208,13 @@ const DashboardContent: React.FC = () => {
     setTimeRange(newValue)
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 处理重启系统
   const handleRestartSystem = async () => {
     setIsRestarting(true)
@@ -170,10 +234,25 @@ const DashboardContent: React.FC = () => {
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   return (
     <Box className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4">
       {/* 时间范围选择器 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         <Box sx={{ 
           display: 'flex', 
           alignItems: 'center', 
@@ -240,6 +319,50 @@ const DashboardContent: React.FC = () => {
             {isSmallMobile ? '' : '重启系统'}
           </Button>
         </Box>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+      <Tabs 
+        value={timeRange} 
+        onChange={handleTimeRangeChange} 
+          variant={isSmallMobile ? 'fullWidth' : 'standard'}
+          indicatorColor="primary"
+          textColor="primary"
+        sx={{
+            minHeight: 56,
+            px: { xs: 1, md: 3 },
+            '& .MuiTab-root': {
+              minHeight: 56,
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              textTransform: 'none',
+              transition: 'all 0.2s ease',
+              borderRadius: '8px',
+              mx: 0.5,
+              '&:hover': {
+                backgroundColor: theme.palette.action.hover,
+          },
+            '&.Mui-selected': {
+              color: theme.palette.primary.main,
+                backgroundColor: theme.palette.primary.main + '10',
+              },
+            },
+            '& .MuiTabs-indicator': {
+              height: 3,
+              borderRadius: '2px',
+              boxShadow: `0 0 8px ${theme.palette.primary.main}`,
+          },
+        }}
+      >
+        <Tab value="day" label="今天" />
+        <Tab value="week" label="本周" />
+        <Tab value="month" label="本月" />
+      </Tabs>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       </Card>
 
       {/* 统计卡片 - 移动端改为两行显示 */}
@@ -255,7 +378,19 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={6} sm={6}>
             <StatCard
+<<<<<<< HEAD
               title="活跃频道"
+=======
+<<<<<<< HEAD
+              title="活跃频道"
+=======
+<<<<<<< HEAD
+              title="活跃频道"
+=======
+              title="活跃会话"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               value={overview?.active_sessions || 0}
               loading={overviewLoading}
               icon={<GroupIcon />}
@@ -312,7 +447,19 @@ const DashboardContent: React.FC = () => {
             icon={<MessageIcon />}
           />
           <StatCard
+<<<<<<< HEAD
             title="活跃频道"
+=======
+<<<<<<< HEAD
+            title="活跃频道"
+=======
+<<<<<<< HEAD
+            title="活跃频道"
+=======
+            title="活跃会话"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             value={overview?.active_sessions || 0}
             loading={overviewLoading}
             icon={<GroupIcon />}
@@ -396,6 +543,13 @@ const DashboardContent: React.FC = () => {
           <RankingList title="活跃排名" data={activeUsers} loading={usersLoading} type="users" />
         </Grid>
       </Grid>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
       {/* 重启系统确认对话框 */}
       <Dialog
@@ -443,6 +597,14 @@ const DashboardContent: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

@@ -17,6 +17,13 @@ SSE 服务层
 import asyncio
 import math
 import uuid
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -24,6 +31,18 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from nekro_agent.adapters.sse.adapter import SSEAdapter
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+from typing import Any, Dict, List, Optional
+
+from pydantic import BaseModel
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.adapters.sse.sdk.models import (
     ChannelInfo,
     ChunkComplete,
@@ -54,15 +73,38 @@ class SseApiService:
     封装与客户端的交互逻辑
     """
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def __init__(
         self,
         client_manager: SseClientManager,
         adapter: Optional["SSEAdapter"] = None,
     ):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    def __init__(self, client_manager: SseClientManager):
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """初始化服务
 
         Args:
             client_manager: 客户端管理器
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             adapter: SSE适配器实例，用于动态获取配置（支持热更新）
         """
         self.client_manager = client_manager
@@ -81,6 +123,16 @@ class SseApiService:
         if self.adapter:
             return self.adapter.config.IGNORE_RESPONSE
         return False  # 默认值
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        """
+        self.client_manager = client_manager
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def _should_use_chunked_transfer(self, data: str) -> bool:
         """判断是否应该使用分块传输
@@ -202,6 +254,13 @@ class SseApiService:
         Returns:
             bool: 是否成功发送
         """
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 如果启用了忽略回执模式，直接发送消息并返回成功
         if self.ignore_response:
             logger.warning("⚠️ 已启用忽略回执模式，将不等待客户端确认直接返回成功")
@@ -258,6 +317,28 @@ class SseApiService:
                     return False
                 else:
                     return True
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        # 构建请求
+        request_id = str(uuid.uuid4())
+
+        for client in clients:
+            # 创建请求和响应等待对象
+            response_future = asyncio.Future()
+
+            # 注册响应处理器
+            async def handle_response(response_data: BaseModel, future=response_future) -> bool:
+                # 使用字典转换访问属性，避免类型检查问题
+                data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
+                success = data_dict.get("success", False)
+                future.set_result(success)
+                return True
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
             client.register_handler(request_id, handle_response)
 
@@ -278,6 +359,13 @@ class SseApiService:
 
                 # 等待响应，设置超时
                 try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     result = await asyncio.wait_for(response_future, timeout=self.response_timeout)
                     if result:
                         return True
@@ -293,13 +381,41 @@ class SseApiService:
                     # 为了保险起见，显式清理
                     handler_name = f"_request_{request_id}"
                     client.handlers.pop(handler_name, None)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                    result = await asyncio.wait_for(response_future, timeout=15)
+                    if result:
+                        return True
+                except asyncio.TimeoutError:
+                    logger.warning(f"等待客户端 {client.client_id} 响应超时")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     continue
 
             except Exception as e:
                 logger.error(f"向客户端 {client.client_id} 发送消息异常: {e}")
+<<<<<<< HEAD
                 # 清理 handler
                 handler_name = f"_request_{request_id}"
                 client.handlers.pop(handler_name, None)
+=======
+<<<<<<< HEAD
+                # 清理 handler
+                handler_name = f"_request_{request_id}"
+                client.handlers.pop(handler_name, None)
+=======
+<<<<<<< HEAD
+                # 清理 handler
+                handler_name = f"_request_{request_id}"
+                client.handlers.pop(handler_name, None)
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 continue
 
         # 所有客户端均发送失败
@@ -359,21 +475,60 @@ class SseApiService:
         self,
         request_type: RequestType,
         request_data: BaseModel,
+<<<<<<< HEAD
         timeout: Optional[float] = None,
+=======
+<<<<<<< HEAD
+        timeout: Optional[float] = None,
+=======
+<<<<<<< HEAD
+        timeout: Optional[float] = None,
+=======
+        timeout: float = 10.0,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     ) -> Optional[BaseModel]:
         """向任一可用客户端发送请求
 
         Args:
             request_type: 请求类型
             request_data: 请求数据（BaseModel对象）
+<<<<<<< HEAD
             timeout: 超时时间（秒），None则使用默认配置
+=======
+<<<<<<< HEAD
+            timeout: 超时时间（秒），None则使用默认配置
+=======
+<<<<<<< HEAD
+            timeout: 超时时间（秒），None则使用默认配置
+=======
+            timeout: 超时时间（秒）
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         Returns:
             Optional[BaseModel]: 响应数据，失败则返回None
         """
+<<<<<<< HEAD
         # 使用配置的超时时间或传入的超时时间
         actual_timeout = timeout if timeout is not None else self.response_timeout
         
+=======
+<<<<<<< HEAD
+        # 使用配置的超时时间或传入的超时时间
+        actual_timeout = timeout if timeout is not None else self.response_timeout
+        
+=======
+<<<<<<< HEAD
+        # 使用配置的超时时间或传入的超时时间
+        actual_timeout = timeout if timeout is not None else self.response_timeout
+        
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 获取任一可用客户端
         clients = list(self.client_manager.clients.values())
         if not clients:
@@ -384,6 +539,13 @@ class SseApiService:
         request_id = str(uuid.uuid4())
 
         # 创建请求和响应等待对象
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         response_future: asyncio.Future[Optional[BaseModel]] = asyncio.Future()
 
         # 注册响应处理器（捕获 request_id 到局部变量）
@@ -398,10 +560,29 @@ class SseApiService:
                 logger.warning(f"响应处理器被调用，但 Future 已完成/取消 (request_id={req_id_for_handler}, type={request_type})")
                 return False
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        response_future = asyncio.Future()
+
+        # 注册响应处理器
+        async def handle_response(response_data: BaseModel, future=response_future) -> bool:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             # 使用字典转换访问属性，避免类型检查问题
             data_dict = response_data.dict() if hasattr(response_data, "dict") else {}
             success = data_dict.get("success", False)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             try:
                 if success:
                     # 直接返回原始响应数据，让调用方进行类型转换
@@ -413,6 +594,20 @@ class SseApiService:
                 return False
             else:
                 return True
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            if success:
+                # 直接返回原始响应数据，让调用方进行类型转换
+                future.set_result(response_data)
+            else:
+                future.set_result(None)
+            return True
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         client.register_handler(request_id, handle_response)
 
@@ -429,6 +624,13 @@ class SseApiService:
             )
 
             # 等待响应，设置超时
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return await asyncio.wait_for(response_future, timeout=actual_timeout)
         except asyncio.TimeoutError:
             logger.warning(
@@ -446,6 +648,20 @@ class SseApiService:
             # 清理 handler
             handler_name = f"_request_{request_id}"
             client.handlers.pop(handler_name, None)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return await asyncio.wait_for(response_future, timeout=timeout)
+        except asyncio.TimeoutError:
+            logger.warning(f"等待客户端 {client.client_id} 响应超时: {request_type}")
+            return None
+        except Exception as e:
+            logger.error(f"向客户端 {client.client_id} 发送请求异常: {request_type}, {e}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return None
 
     async def get_self_info(self) -> Optional[UserInfo]:

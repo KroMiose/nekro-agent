@@ -66,10 +66,29 @@ await message.send_file(chat_key, "文件路径", _ctx)
 
 ```python
 # 保存数据
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 await store.set(chat_key="聊天ID", store_key="键", value="值")
 
 # 读取数据
 data = await store.get(chat_key="聊天ID", store_key="键")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+await store.set(chat_key="会话ID", store_key="键", value="值")
+
+# 读取数据
+data = await store.get(chat_key="会话ID", store_key="键")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 # 全局存储（不指定chat_key）
 await store.set(store_key="全局键", value="值")

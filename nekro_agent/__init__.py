@@ -12,13 +12,36 @@ from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
 from nekro_agent.core.logger import logger
+<<<<<<< HEAD
 from nekro_agent.routers import mount_api_routes, mount_middlewares
+=======
+<<<<<<< HEAD
+from nekro_agent.routers import mount_api_routes, mount_middlewares
+=======
+<<<<<<< HEAD
+from nekro_agent.routers import mount_api_routes, mount_middlewares
+=======
+from nekro_agent.routers import mount_routers
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.services.festival_service import festival_service
 from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.timer_service import timer_service
 from nekro_agent.systems.cloud.scheduler import start_telemetry_task
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+from .app import start
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 logging.getLogger("passlib").setLevel(logging.ERROR)
 
 
@@ -34,15 +57,38 @@ if config.WEAVE_ENABLED:
     except Exception as e:
         logger.error(f"Weave 服务连接失败: {e}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 # 在应用启动前挂载中间件和主路由
 # 这是确保应用生命周期正确的唯一方法
 app = get_app()
 mount_middlewares(app)
 mount_api_routes(app)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+mount_routers(get_app())
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 @get_driver().on_startup
 async def on_startup():
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 启动时不再挂载主路由，它们已在启动前挂载完毕
     app = get_app()
 
@@ -71,6 +117,17 @@ async def on_startup():
     except Exception as e:
         logger.exception(f"初始化插件路由管理器失败: {e}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    await init_db()
+    await init_adapters(get_app())
+    await init_plugins()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     await timer_service.start()
     logger.info("Timer service initialized")
 
@@ -86,6 +143,13 @@ async def on_startup():
 async def on_shutdown():
     await timer_service.stop()
     await cleanup_adapters(get_app())
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     try:
         from nekro_agent.services.plugin.collector import plugin_collector
@@ -94,6 +158,14 @@ async def on_shutdown():
     except Exception as e:
         logger.exception(f"清理插件时发生错误: {e}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     logger.info("Timer service stopped")
 
 

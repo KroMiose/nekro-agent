@@ -23,12 +23,31 @@ from pydantic import BaseModel
 
 from nekro_agent.core import logger
 from nekro_agent.core.config import CHANNEL_CONFIG_DIR
+<<<<<<< HEAD
 from nekro_agent.core.core_utils import ConfigBase, ConfigManager, ExtraField
+=======
+<<<<<<< HEAD
+from nekro_agent.core.core_utils import ConfigBase, ConfigManager, ExtraField
+=======
+<<<<<<< HEAD
+from nekro_agent.core.core_utils import ConfigBase, ConfigManager, ExtraField
+=======
+from nekro_agent.core.core_utils import ConfigBase, ConfigManager
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.core.os_env import OsEnv
 
 T = TypeVar("T", bound=ConfigBase)
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
     """从字段的 json_schema_extra 中提取 ExtraField 定义的字段
 
@@ -50,6 +69,14 @@ def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
     return extra_data
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 class ConfigType(str, Enum):
     """配置类型"""
 
@@ -220,7 +247,22 @@ def _get_model_schema(model_class: Any) -> Dict[str, Any]:
 
         # 添加特殊字段标记
         if hasattr(field, "json_schema_extra") and isinstance(field.json_schema_extra, dict):
+<<<<<<< HEAD
             field_info.update(_extract_extra_fields(field.json_schema_extra))
+=======
+<<<<<<< HEAD
+            field_info.update(_extract_extra_fields(field.json_schema_extra))
+=======
+<<<<<<< HEAD
+            field_info.update(_extract_extra_fields(field.json_schema_extra))
+=======
+            extra_fields = ["is_secret", "is_textarea", "placeholder"]
+            for extra_field in extra_fields:
+                if field.json_schema_extra.get(extra_field):
+                    field_info[extra_field] = field.json_schema_extra.get(extra_field)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         schema[field_name] = field_info
 
@@ -460,7 +502,36 @@ class ConfigService:
 
             # 添加特殊字段标记
             if hasattr(field, "json_schema_extra") and isinstance(field.json_schema_extra, dict):
+<<<<<<< HEAD
                 config_item.update(_extract_extra_fields(field.json_schema_extra))
+=======
+<<<<<<< HEAD
+                config_item.update(_extract_extra_fields(field.json_schema_extra))
+=======
+<<<<<<< HEAD
+                config_item.update(_extract_extra_fields(field.json_schema_extra))
+=======
+                extra_fields = [
+                    "is_secret",
+                    "is_textarea",
+                    "required",
+                    "is_hidden",
+                    "ref_model_groups",
+                    "model_type",
+                    "sub_item_name",
+                    "enable_toggle",
+                    "overridable",
+                    "load_to_sysenv",
+                    "load_sysenv_as",
+                    "load_to_nonebot_env",
+                    "load_nbenv_as",
+                ]
+                for extra_field in extra_fields:
+                    if field.json_schema_extra.get(extra_field):
+                        config_item[extra_field] = field.json_schema_extra.get(extra_field)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
             # 添加枚举选项
             enum_values = _get_field_enum(field.annotation)
@@ -523,7 +594,18 @@ class ConfigService:
                 "load_sysenv_as",
                 "load_to_nonebot_env",
                 "load_nbenv_as",
+<<<<<<< HEAD
                 "is_need_restart",
+=======
+<<<<<<< HEAD
+                "is_need_restart",
+=======
+<<<<<<< HEAD
+                "is_need_restart",
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             ]
             for extra_field in extra_fields:
                 if field.json_schema_extra.get(extra_field):

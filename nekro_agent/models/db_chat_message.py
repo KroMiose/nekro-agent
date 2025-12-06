@@ -22,7 +22,19 @@ class DBChatMessage(Model):
     """数据库聊天消息模型"""
 
     id = fields.IntField(pk=True, generated=True, description="ID")
+<<<<<<< HEAD
     sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID") # -1 表示 Bot 发送的消息
+=======
+<<<<<<< HEAD
+    sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID") # -1 表示 Bot 发送的消息
+=======
+<<<<<<< HEAD
+    sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID") # -1 表示 Bot 发送的消息
+=======
+    sender_id = fields.CharField(max_length=128, index=True, description="发送者 ID")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     sender_name = fields.CharField(max_length=128, index=True, description="发送者真实昵称")
     sender_nickname = fields.CharField(max_length=128, index=True, description="发送者显示昵称")
     is_tome = fields.IntField(description="是否与 Bot 相关")
@@ -30,8 +42,23 @@ class DBChatMessage(Model):
 
     adapter_key = fields.CharField(max_length=64, index=True, description="适配器标识")
     message_id = fields.CharField(max_length=64, index=True, description="消息平台 ID")
+<<<<<<< HEAD
     chat_key = fields.CharField(max_length=64, index=True, description="聊天频道唯一标识")
     chat_type = fields.CharField(max_length=32, index=True, description="聊天频道类型")
+=======
+<<<<<<< HEAD
+    chat_key = fields.CharField(max_length=64, index=True, description="聊天频道唯一标识")
+    chat_type = fields.CharField(max_length=32, index=True, description="聊天频道类型")
+=======
+<<<<<<< HEAD
+    chat_key = fields.CharField(max_length=64, index=True, description="聊天频道唯一标识")
+    chat_type = fields.CharField(max_length=32, index=True, description="聊天频道类型")
+=======
+    chat_key = fields.CharField(max_length=64, index=True, description="会话唯一标识")
+    chat_type = fields.CharField(max_length=32, index=True, description="会话类型")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     platform_userid = fields.CharField(max_length=128, index=True, description="平台用户 ID")
 
     content_text = fields.TextField(description="消息内容文本")
@@ -74,10 +101,26 @@ class DBChatMessage(Model):
         """扩展数据"""
         if not self.ext_data or self.ext_data == "{}":
             return PlatformMessageExt()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         try:
             return PlatformMessageExt.model_validate(json5.loads(self.ext_data))
         except Exception:
             return PlatformMessageExt()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        return PlatformMessageExt.model_validate(json5.loads(self.ext_data))
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:

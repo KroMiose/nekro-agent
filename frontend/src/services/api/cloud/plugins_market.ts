@@ -20,6 +20,13 @@ export interface CloudPlugin {
   isOwner?: boolean // 标记是否为当前用户上传的插件
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 export interface RepoUser {
   login: string
   avatarUrl: string
@@ -75,6 +82,14 @@ export interface PluginRepoInfo {
   stargazersUrl: string
 }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 export interface CloudPluginListResponse {
   total: number
   items: CloudPlugin[]
@@ -181,6 +196,13 @@ export const pluginsMarketApi = {
   },
 
   /**
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
    * 获取插件仓库信息
    */
   getPluginRepoInfo: async (moduleName: string): Promise<PluginRepoInfo> => {
@@ -203,6 +225,14 @@ export const pluginsMarketApi = {
   },
 
   /**
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
    * 下载云端插件到本地
    */
   downloadPlugin: async (pluginId: string): Promise<ApiResponse<null>> => {
@@ -278,4 +308,16 @@ export const pluginsMarketApi = {
       throw error
     }
   }
+<<<<<<< HEAD
 } 
+=======
+<<<<<<< HEAD
+} 
+=======
+<<<<<<< HEAD
+} 
+=======
+} 
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

@@ -189,7 +189,19 @@ def convert_filename_to_access_path(filename: str | Path, chat_key: str) -> Path
 
     Args:
         filename (Union[str, Path]): 文件名
+<<<<<<< HEAD
         chat_key (str): 聊天频道键名
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天频道键名
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天频道键名
+=======
+        chat_key (str): 聊天会话键名
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     Returns:
         Path: 访问路径
@@ -201,7 +213,19 @@ def get_upload_file_path(from_chat_key: str, file_name: str = "", use_suffix: st
     """生成一个可用的上传文件路径
 
     Args:
+<<<<<<< HEAD
         from_chat_key (str): 聊天频道ID
+=======
+<<<<<<< HEAD
+        from_chat_key (str): 聊天频道ID
+=======
+<<<<<<< HEAD
+        from_chat_key (str): 聊天频道ID
+=======
+        from_chat_key (str): 聊天会话ID
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         file_name (str): 文件名
         use_suffix (str): 文件后缀
     """

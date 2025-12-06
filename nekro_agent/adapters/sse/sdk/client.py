@@ -19,7 +19,19 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, TypeVar, Union, cast
 
+<<<<<<< HEAD
 import httpx
+=======
+<<<<<<< HEAD
+import httpx
+=======
+<<<<<<< HEAD
+import httpx
+=======
+import aiohttp
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from loguru import logger
 from pydantic import BaseModel, Field
 
@@ -100,13 +112,32 @@ class SSEClient:
         self.logger = set_logger or logger
 
         self.client_id: Optional[str] = None
+<<<<<<< HEAD
         self.session: Optional[httpx.AsyncClient] = None
+=======
+<<<<<<< HEAD
+        self.session: Optional[httpx.AsyncClient] = None
+=======
+<<<<<<< HEAD
+        self.session: Optional[httpx.AsyncClient] = None
+=======
+        self.session: Optional[aiohttp.ClientSession] = None
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.sse_task: Optional[asyncio.Task] = None
         self.subscribed_channels: set[str] = set()
         self.running = False
         self.event_handlers: Dict[str, EventHandler] = {}
 
         # 分块接收相关（仅用于接收服务端推送的大文件）
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.chunk_buffers: Dict[str, Any] = (
             {}
         )  # chunk_id -> {chunks: [], total_chunks: int, ...}
@@ -128,11 +159,30 @@ class SSEClient:
             "total_responses_abandoned": 0,
         }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        self.chunk_buffers: Dict[str, Any] = {}  # chunk_id -> {chunks: [], total_chunks: int, ...}
+        self.chunk_timeouts: Dict[str, float] = {}  # chunk_id -> timeout_timestamp
+        self.chunk_timeout_duration = 300  # 5分钟超时
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 实例化分块接收器
         self._chunk_receiver = ChunkReceiver(self._on_file_received)
 
         # 注册默认事件处理器
         self.register_handler(RequestType.SEND_MESSAGE.value, self._handle_send_message)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.register_handler(
             RequestType.GET_USER_INFO.value, self._handle_get_user_info,
         )
@@ -145,12 +195,31 @@ class SSEClient:
         self.register_handler(
             RequestType.SET_MESSAGE_REACTION.value, self._handle_set_message_reaction,
         )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        self.register_handler(RequestType.GET_USER_INFO.value, self._handle_get_user_info)
+        self.register_handler(RequestType.GET_CHANNEL_INFO.value, self._handle_get_channel_info)
+        self.register_handler(RequestType.GET_SELF_INFO.value, self._handle_get_self_info)
+        self.register_handler(RequestType.SET_MESSAGE_REACTION.value, self._handle_set_message_reaction)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.register_handler(
             RequestType.FILE_CHUNK.value,
             lambda _, data: self._chunk_receiver.handle_file_chunk(data),
         )
         self.register_handler(
             RequestType.FILE_CHUNK_COMPLETE.value,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             lambda _, data: self._async_wrapper(
                 self._chunk_receiver.handle_file_chunk_complete(data),
             ),
@@ -178,6 +247,36 @@ class SSEClient:
             limits=limits,
             follow_redirects=True,
             http2=True,  # 启用HTTP/2支持,提升性能
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            lambda _, data: self._async_wrapper(self._chunk_receiver.handle_file_chunk_complete(data)),
+        )
+
+    def _create_session(self) -> aiohttp.ClientSession:
+        """创建并配置aiohttp.ClientSession"""
+        connector = aiohttp.TCPConnector(
+            limit=100,
+            limit_per_host=30,
+            ttl_dns_cache=300,
+            use_dns_cache=True,
+        )
+        timeout = aiohttp.ClientTimeout(
+            total=None,
+            connect=30,
+            sock_read=300,
+        )
+        return aiohttp.ClientSession(
+            connector=connector,
+            timeout=timeout,
+            read_bufsize=2 * 1024 * 1024,
+            max_line_size=8 * 1024 * 1024,
+            max_field_size=16 * 1024 * 1024,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         )
 
     def _convert_dict_to_segment(self, seg_dict: Dict[str, Any]) -> MessageSegmentUnion:
@@ -237,10 +336,25 @@ class SSEClient:
 
         self.sse_task = asyncio.create_task(self._connect_sse())
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 启动响应重试后台任务
         if self.response_retry_task is None or self.response_retry_task.done():
             self.response_retry_task = asyncio.create_task(self._response_retry_loop())
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def stop(self) -> None:
         """停止客户端"""
         if not self.running:
@@ -254,6 +368,13 @@ class SSEClient:
                 await self.sse_task
             self.sse_task = None
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 停止响应重试任务
         if self.response_retry_task:
             self.response_retry_task.cancel()
@@ -274,6 +395,22 @@ class SSEClient:
 
         自动重试3次，使用指数退避策略
         """
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        if self.session:
+            await self.session.close()
+            self.session = None
+        self.logger.info("客户端已停止")
+
+    @retry_decorator()
+    async def _post_command(self, command: "ClientCommand", data: Optional[Dict[str, Any]] = None) -> aiohttp.ClientResponse:
+        """向服务端发送POST命令的辅助方法"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if not self.session:
             raise RuntimeError("客户端会话未启动")
 
@@ -287,6 +424,13 @@ class SSEClient:
         if self.access_key:
             headers["X-Access-Key"] = self.access_key
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         try:
             # 使用json.dumps进行序列化，以正确显示枚举等特殊类型
             # 使用default=str来处理一些无法直接序列化的类型
@@ -312,6 +456,15 @@ class SSEClient:
                 f"发送命令: {command.value}, URL: {url}, Payload: {payload}",
             )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        self.logger.debug(f"发送命令: {command.value}, URL: {url}, Payload: {payload}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return await self.session.post(url, json=payload, headers=headers)
 
     async def register(self) -> bool:
@@ -327,14 +480,44 @@ class SSEClient:
             self.logger.exception("注册过程中发生异常")
             return False
         else:
+<<<<<<< HEAD
             if response.status_code == 200:
                 result = response.json()
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+                result = response.json()
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+                result = response.json()
+=======
+            if response.status == 200:
+                result = await response.json()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 self.client_id = result.get("client_id")
                 self.logger.success(f"客户端注册成功: {self.client_id}")
                 return True
 
+<<<<<<< HEAD
             error_text = response.text
             self.logger.error(f"客户端注册失败 ({response.status_code}): {error_text}")
+=======
+<<<<<<< HEAD
+            error_text = response.text
+            self.logger.error(f"客户端注册失败 ({response.status_code}): {error_text}")
+=======
+<<<<<<< HEAD
+            error_text = response.text
+            self.logger.error(f"客户端注册失败 ({response.status_code}): {error_text}")
+=======
+            error_text = await response.text()
+            self.logger.error(f"客户端注册失败 ({response.status}): {error_text}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return False
 
     async def _connect_sse(self) -> None:
@@ -355,6 +538,13 @@ class SSEClient:
 
                 self.logger.info(f"连接SSE URL: {url}")
                 assert self.session is not None
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 
                 # httpx使用stream方式处理SSE
                 async with self.session.stream("GET", url) as response:
@@ -363,6 +553,18 @@ class SSEClient:
                         self.logger.error(
                             f"SSE连接失败 ({response.status_code}): {error_text.decode('utf-8')}",
                         )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                async with self.session.get(url) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        self.logger.error(f"SSE连接失败 ({response.status}): {error_text}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                         if not self.auto_reconnect:
                             break
                         await asyncio.sleep(self.reconnect_interval)
@@ -387,6 +589,13 @@ class SSEClient:
                 self.logger.info(f"{self.reconnect_interval}秒后尝试重连...")
                 await asyncio.sleep(self.reconnect_interval)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def _process_sse_stream(self, response: httpx.Response) -> None:
         """从响应中处理SSE事件流"""
         event_type, event_data = None, ""
@@ -397,6 +606,21 @@ class SSEClient:
                 break
             
             line = line.strip()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    async def _process_sse_stream(self, response: aiohttp.ClientResponse) -> None:
+        """从响应中处理SSE事件流"""
+        event_type, event_data = None, ""
+        async for line in response.content:
+            if not self.running:
+                break
+            line = line.decode("utf-8").strip()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if not line:
                 if event_type and event_data:
                     await self._dispatch_event(event_type, event_data)
@@ -427,12 +651,29 @@ class SSEClient:
         else:
             self.logger.warning(f"收到未知事件类型: {event_type}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def _handle_registered_event(
         self, event_type: str, data: Dict[str, Any],
     ) -> None:
         """处理已注册的事件"""
         self.stats["total_events_received"] += 1
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    async def _handle_registered_event(self, event_type: str, data: Dict[str, Any]) -> None:
+        """处理已注册的事件"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         request_id = data.get("request_id")
         request_data = data.get("data", {})
         handler = self.event_handlers[event_type]
@@ -446,6 +687,13 @@ class SSEClient:
         }
         model = model_map.get(event_type)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 无论如何都要确保发送响应
         response_sent = False
 
@@ -490,47 +738,152 @@ class SSEClient:
                 {"error": "响应发送失败"},
                 retry_count=0,
             )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        try:
+            pydantic_data = model(**request_data) if model else request_data
+            result = await handler(event_type, pydantic_data)
+            if request_id and result:
+                await self._send_response(request_id, True, result.model_dump())
+        except Exception as e:
+            self.logger.exception(f"处理事件 '{event_type}' 时发生异常")
+            if request_id:
+                await self._send_response(request_id, False, {"error": str(e)})
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def subscribe_channel(self, channel_ids: Union[str, List[str]]) -> bool:
         """订阅频道"""
         channels = [channel_ids] if isinstance(channel_ids, str) else channel_ids
         try:
+<<<<<<< HEAD
             response = await self._post_command(
                 ClientCommand.SUBSCRIBE, {"channel_ids": channels},
             )
+=======
+<<<<<<< HEAD
+            response = await self._post_command(
+                ClientCommand.SUBSCRIBE, {"channel_ids": channels},
+            )
+=======
+<<<<<<< HEAD
+            response = await self._post_command(
+                ClientCommand.SUBSCRIBE, {"channel_ids": channels},
+            )
+=======
+            response = await self._post_command(ClientCommand.SUBSCRIBE, {"channel_ids": channels})
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         except Exception:
             self.logger.exception(f"订阅频道 {channels} 异常")
             return False
         else:
+<<<<<<< HEAD
             if response.status_code == 200:
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+=======
+            if response.status == 200:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 for channel_id in channels:
                     self.subscribed_channels.add(channel_id)
                 self.logger.success(f"订阅频道成功: {channels}")
                 return True
+<<<<<<< HEAD
             self.logger.error(
                 f"订阅频道失败 ({response.status_code}): {response.text}",
             )
+=======
+<<<<<<< HEAD
+            self.logger.error(
+                f"订阅频道失败 ({response.status_code}): {response.text}",
+            )
+=======
+<<<<<<< HEAD
+            self.logger.error(
+                f"订阅频道失败 ({response.status_code}): {response.text}",
+            )
+=======
+            self.logger.error(f"订阅频道失败 ({response.status}): {await response.text()}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return False
 
     async def unsubscribe_channel(self, channel_ids: Union[str, List[str]]) -> bool:
         """取消订阅频道"""
         channels = [channel_ids] if isinstance(channel_ids, str) else channel_ids
         try:
+<<<<<<< HEAD
             response = await self._post_command(
                 ClientCommand.UNSUBSCRIBE, {"channel_ids": channels},
             )
+=======
+<<<<<<< HEAD
+            response = await self._post_command(
+                ClientCommand.UNSUBSCRIBE, {"channel_ids": channels},
+            )
+=======
+<<<<<<< HEAD
+            response = await self._post_command(
+                ClientCommand.UNSUBSCRIBE, {"channel_ids": channels},
+            )
+=======
+            response = await self._post_command(ClientCommand.UNSUBSCRIBE, {"channel_ids": channels})
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         except Exception:
             self.logger.exception(f"取消订阅频道 {channels} 异常")
             return False
         else:
+<<<<<<< HEAD
             if response.status_code == 200:
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+=======
+<<<<<<< HEAD
+            if response.status_code == 200:
+=======
+            if response.status == 200:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 for channel_id in channels:
                     self.subscribed_channels.discard(channel_id)
                 self.logger.success(f"取消订阅频道成功: {channels}")
                 return True
+<<<<<<< HEAD
             self.logger.error(
                 f"取消订阅失败 ({response.status_code}): {response.text}",
             )
+=======
+<<<<<<< HEAD
+            self.logger.error(
+                f"取消订阅失败 ({response.status_code}): {response.text}",
+            )
+=======
+<<<<<<< HEAD
+            self.logger.error(
+                f"取消订阅失败 ({response.status_code}): {response.text}",
+            )
+=======
+            self.logger.error(f"取消订阅失败 ({response.status}): {await response.text()}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return False
 
     async def send_message(self, channel_id: str, message: ReceiveMessage) -> bool:
@@ -542,6 +895,13 @@ class SSEClient:
             self.logger.exception(f"发送消息到 {channel_id} 异常")
             return False
         else:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if response.status_code == 200:
                 self.logger.success(f"消息发送成功: {channel_id}")
                 return True
@@ -698,15 +1058,58 @@ class SSEClient:
     async def _handle_send_message(
         self, _event_type: str, data: SendMessageRequest,
     ) -> SendMessageResponse:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            if response.status == 200:
+                self.logger.success(f"消息发送成功: {channel_id}")
+                return True
+            self.logger.error(f"消息发送失败 ({response.status}): {await response.text()}")
+            return False
+
+    async def _send_response(self, request_id: str, success: bool, data: Dict[str, Any]) -> bool:
+        """向服务器发送响应"""
+        response_data = {"request_id": request_id, "success": success, "data": data}
+        try:
+            response = await self._post_command(ClientCommand.RESPONSE, response_data)
+        except Exception:
+            self.logger.exception(f"发送响应 (req_id: {request_id}) 异常")
+            return False
+        else:
+            return response.status == 200
+
+    # 以下方法为默认事件处理器，需要被子类重写
+    async def _handle_send_message(self, _event_type: str, data: SendMessageRequest) -> SendMessageResponse:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """处理发送消息请求（可重写）"""
         self.logger.info(f"收到发送消息请求: {data.model_dump_json(indent=2)}")
         # 默认实现：打印日志并模拟成功
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
         return SendMessageResponse(message_id=message_id, success=True)
 
+<<<<<<< HEAD
     async def _handle_get_user_info(
         self, _event_type: str, data: GetUserInfoRequest,
     ) -> UserInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_user_info(
+        self, _event_type: str, data: GetUserInfoRequest,
+    ) -> UserInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_user_info(
+        self, _event_type: str, data: GetUserInfoRequest,
+    ) -> UserInfo:
+=======
+    async def _handle_get_user_info(self, _event_type: str, data: GetUserInfoRequest) -> UserInfo:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """处理获取用户信息请求（可重写）"""
         self.logger.info(f"收到获取用户信息请求: {data.user_id}")
         # 默认实现：返回模拟数据
@@ -718,9 +1121,25 @@ class SSEClient:
             user_nickname=None,
         )
 
+<<<<<<< HEAD
     async def _handle_get_channel_info(
         self, _event_type: str, data: GetChannelInfoRequest,
     ) -> ChannelInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_channel_info(
+        self, _event_type: str, data: GetChannelInfoRequest,
+    ) -> ChannelInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_channel_info(
+        self, _event_type: str, data: GetChannelInfoRequest,
+    ) -> ChannelInfo:
+=======
+    async def _handle_get_channel_info(self, _event_type: str, data: GetChannelInfoRequest) -> ChannelInfo:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """处理获取频道信息请求（可重写）"""
         self.logger.info(f"收到获取频道信息请求: {data.channel_id}")
         # 默认实现：返回模拟数据
@@ -733,9 +1152,25 @@ class SSEClient:
             is_admin=False,
         )
 
+<<<<<<< HEAD
     async def _handle_get_self_info(
         self, _event_type: str, _data: GetSelfInfoRequest,
     ) -> UserInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_self_info(
+        self, _event_type: str, _data: GetSelfInfoRequest,
+    ) -> UserInfo:
+=======
+<<<<<<< HEAD
+    async def _handle_get_self_info(
+        self, _event_type: str, _data: GetSelfInfoRequest,
+    ) -> UserInfo:
+=======
+    async def _handle_get_self_info(self, _event_type: str, _data: GetSelfInfoRequest) -> UserInfo:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """处理获取自身信息请求（可重写）"""
         self.logger.info("收到获取自身信息请求")
         # 默认实现：返回模拟数据
@@ -755,6 +1190,13 @@ class SSEClient:
         """处理设置消息反应请求（可重写）"""
         self.logger.info(f"收到设置消息反应请求: {data.message_id} -> {data.status}")
         # 默认实现：简单返回成功
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return SetMessageReactionResponse(
             success=True, message=f"消息反应设置{'成功' if data.status else '取消'}",
         )
@@ -762,14 +1204,41 @@ class SSEClient:
     async def _on_file_received(
         self, filename: str, file_bytes: bytes, mime_type: str, _file_type: str,
     ) -> None:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        return SetMessageReactionResponse(success=True, message=f"消息反应设置{'成功' if data.status else '取消'}")
+
+    async def _on_file_received(self, filename: str, file_bytes: bytes, mime_type: str, _file_type: str) -> None:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """文件接收完成回调（可重写）"""
         self.logger.info(f"收到文件: {filename} ({len(file_bytes)} bytes, {mime_type})")
         # 默认实现：保存文件到当前目录
         try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             safe_filename = (
                 "".join(c for c in filename if c.isalnum() or c in "._-")
                 or f"file_{int(time.time())}"
             )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            safe_filename = "".join(c for c in filename if c.isalnum() or c in "._-") or f"file_{int(time.time())}"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             file_path = Path(safe_filename)
             file_path.write_bytes(file_bytes)
             self.logger.success(f"文件已保存: {file_path}")
@@ -779,6 +1248,13 @@ class SSEClient:
     async def _async_wrapper(self, result: Any) -> Any:
         """简单的异步包装器"""
         return result
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def get_stats(self) -> Dict[str, Any]:
         """获取客户端统计信息
@@ -793,3 +1269,11 @@ class SSEClient:
             "client_id": self.client_id,
             "subscribed_channels_count": len(self.subscribed_channels),
         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

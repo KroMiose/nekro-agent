@@ -19,7 +19,19 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
     """设置一个定时器
 
     Args:
+<<<<<<< HEAD
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+<<<<<<< HEAD
+        chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+=======
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         trigger_time (int): 触发时间戳
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
         ctx (AgentCtx): 上下文对象
@@ -45,10 +57,29 @@ async def set_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
 
 
 async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> bool:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """设置一个临时定时器（用于短期自我唤醒检查新消息，同一聊天只会保留最后一个临时定时器）
 
     Args:
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """设置一个临时定时器（用于短期自我唤醒检查新消息，同一会话只会保留最后一个临时定时器）
+
+    Args:
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         trigger_time (int): 触发时间戳
         event_desc (str): 事件描述（详细描述事件的 context 信息，触发时提供参考）
         ctx (AgentCtx): 上下文对象
@@ -74,10 +105,29 @@ async def set_temp_timer(chat_key: str, trigger_time: int, event_desc: str) -> b
 
 
 async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """清空指定聊天的定时器
 
     Args:
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """清空指定会话的定时器
+
+    Args:
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         temporary (Optional[bool], optional): 定时器类型筛选。None表示清除所有定时器，True只清除临时定时器，False只清除非临时定时器。
 
     Returns:
@@ -101,10 +151,29 @@ async def clear_timers(chat_key: str, temporary: Optional[bool] = None) -> bool:
 
 
 async def get_timers(chat_key: str) -> List[TimerTask]:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """获取指定聊天的所有未触发定时器
 
     Args:
         chat_key (str): 聊天标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """获取指定会话的所有未触发定时器
+
+    Args:
+        chat_key (str): 会话标识，格式为 "{adapter_key}-{type}_{id}"，例如 "platform-group_123456"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     Returns:
         List[TimerTask]: 定时器任务列表

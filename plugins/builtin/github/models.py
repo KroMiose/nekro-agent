@@ -49,7 +49,19 @@ class RepoSubscription(BaseModel):
 
 
 class ChatSubscriptions(BaseModel):
+<<<<<<< HEAD
     """频道订阅数据"""
+=======
+<<<<<<< HEAD
+    """频道订阅数据"""
+=======
+<<<<<<< HEAD
+    """频道订阅数据"""
+=======
+    """会话订阅数据"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     subscriptions: Dict[str, RepoSubscription] = Field(default_factory=dict)
 

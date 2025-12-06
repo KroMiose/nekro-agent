@@ -117,9 +117,24 @@ ENV/
 env.bak/
 venv.bak/
 
+<<<<<<< HEAD
 # Frontend environments
 frontend/.env.development
 
+=======
+<<<<<<< HEAD
+# Frontend environments
+frontend/.env.development
+
+=======
+<<<<<<< HEAD
+# Frontend environments
+frontend/.env.development
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 # Spyder project settings
 .spyderproject
 .spyproject
@@ -173,6 +188,13 @@ ext_workdir
 plugins/workdir
 
 # webui build files
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 static
 
 # macos files
@@ -183,3 +205,12 @@ static
 
 # local
 **.local.md
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+static
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

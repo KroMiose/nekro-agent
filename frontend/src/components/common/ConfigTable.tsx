@@ -17,7 +17,18 @@ import {
   Typography,
   Chip,
   Button,
+<<<<<<< HEAD
   Avatar,
+=======
+<<<<<<< HEAD
+  Avatar,
+=======
+<<<<<<< HEAD
+  Avatar,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   List,
   ListItem,
   Dialog,
@@ -45,14 +56,41 @@ import {
   Add as AddIcon,
   Delete as DeleteIcon,
   HelpOutline as HelpOutlineIcon,
+<<<<<<< HEAD
   RestartAlt as RestartIcon,
+=======
+<<<<<<< HEAD
+  RestartAlt as RestartIcon,
+=======
+<<<<<<< HEAD
+  RestartAlt as RestartIcon,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+<<<<<<< HEAD
 import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
 import { presetsApi, Preset } from '../../services/api/presets'
+=======
+<<<<<<< HEAD
+import { restartApi } from '../../services/api/restart'
+import { ThemedTooltip } from './ThemedTooltip'
+import { presetsApi, Preset } from '../../services/api/presets'
+=======
+<<<<<<< HEAD
+import { restartApi } from '../../services/api/restart'
+import { ThemedTooltip } from './ThemedTooltip'
+import { presetsApi, Preset } from '../../services/api/presets'
+=======
+import { ThemedTooltip } from './ThemedTooltip'
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 const HtmlTooltip = ThemedTooltip
 
@@ -82,22 +120,57 @@ export interface ConfigItem {
       element_type?: string
       key_type?: string
       value_type?: string
+<<<<<<< HEAD
       is_need_restart?: boolean
+=======
+<<<<<<< HEAD
+      is_need_restart?: boolean
+=======
+<<<<<<< HEAD
+      is_need_restart?: boolean
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     }
   >
   enum?: string[]
   is_secret?: boolean
   is_textarea?: boolean
   ref_model_groups?: boolean
+<<<<<<< HEAD
   ref_presets?: boolean
   ref_presets_multiple?: boolean
+=======
+<<<<<<< HEAD
+  ref_presets?: boolean
+  ref_presets_multiple?: boolean
+=======
+<<<<<<< HEAD
+  ref_presets?: boolean
+  ref_presets_multiple?: boolean
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   is_hidden?: boolean
   required?: boolean
   model_type?: string
   sub_item_name?: string
   enable_toggle?: string
   overridable?: boolean
+<<<<<<< HEAD
   is_need_restart?: boolean
+=======
+<<<<<<< HEAD
+  is_need_restart?: boolean
+=======
+<<<<<<< HEAD
+  is_need_restart?: boolean
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 }
 
 export interface ModelGroupConfig {
@@ -164,10 +237,25 @@ const getTypeColor = (type: string, isComplex: boolean = false) => {
       return 'primary'
     case 'dict':
       return 'primary'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     case 'preset':
       return 'secondary'
     case 'presets':
       return 'secondary'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     default:
       return 'default'
   }
@@ -795,6 +883,16 @@ export interface ConfigTableProps {
   emptyMessage?: string
   infoBox?: ReactNode
   isOverridePage?: boolean
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  disabled?: boolean
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 }
 
 interface ConfirmDialogProps {
@@ -832,6 +930,16 @@ export default function ConfigTable({
   emptyMessage = '暂无配置项',
   infoBox,
   isOverridePage = false,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  disabled = false,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 }: ConfigTableProps) {
   const navigate = useNavigate()
   const notification = useNotification()
@@ -846,10 +954,26 @@ export default function ConfigTable({
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const [presets, setPresets] = useState<Preset[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   useEffect(() => {
     const loadData = async () => {
@@ -862,6 +986,13 @@ export default function ConfigTable({
           const types = await configService.getModelTypes()
           setModelTypes(types)
         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         
         // 加载人设数据
         const presetsResponse = await presetsApi.getList({
@@ -869,6 +1000,14 @@ export default function ConfigTable({
           page_size: 1000, // 加载所有人设
         })
         setPresets(presetsResponse.items)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       } catch (error) {
         console.error('加载模型数据失败:', error)
       }
@@ -881,11 +1020,26 @@ export default function ConfigTable({
     [modelTypes]
   )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const presetMap = useMemo(
     () => Object.fromEntries(presets.map(preset => [preset.id.toString(), preset])),
     [presets]
   )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const enableStateMap = useMemo(() => {
     const map = new Map<string, boolean>()
     if (!configs) {
@@ -941,6 +1095,13 @@ export default function ConfigTable({
         setDirtyKeys(new Set())
         setSaveWarningOpen(false)
         onRefresh?.()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         // 检查是否有需要重启的配置项
         const needRestartConfigs = configs.filter(config => {
@@ -963,12 +1124,32 @@ export default function ConfigTable({
         if (needRestartConfigs.length > 0) {
           setRestartDialogOpen(true)
         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : '保存失败'
         notification.error(errorMessage)
       }
     },
+<<<<<<< HEAD
     [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh, configs]
+=======
+<<<<<<< HEAD
+    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh, configs]
+=======
+<<<<<<< HEAD
+    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh, configs]
+=======
+    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh]
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   )
 
   useEffect(() => {
@@ -996,6 +1177,13 @@ export default function ConfigTable({
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 处理重启系统
   const handleRestartSystem = async () => {
     setIsRestarting(true)
@@ -1015,6 +1203,14 @@ export default function ConfigTable({
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const toggleSecretVisibility = (key: string) => {
     setVisibleSecrets(prev => ({ ...prev, [key]: !prev[key] }))
   }
@@ -1138,6 +1334,13 @@ export default function ConfigTable({
       )
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if (config.ref_presets_multiple) {
       // 多人设选择器，rawValue 应该是 JSON 数组字符串
       let selectedIds: number[] = []
@@ -1340,6 +1543,14 @@ export default function ConfigTable({
       )
     }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if (config.enum) {
       return (
         <TextField
@@ -1531,7 +1742,19 @@ export default function ConfigTable({
                 size="small"
                 onClick={() => handleSaveAllChanges(false)}
                 startIcon={<SaveIcon />}
+<<<<<<< HEAD
                 disabled={dirtyKeys.size === 0}
+=======
+<<<<<<< HEAD
+                disabled={dirtyKeys.size === 0}
+=======
+<<<<<<< HEAD
+                disabled={dirtyKeys.size === 0}
+=======
+                disabled={dirtyKeys.size === 0 || disabled}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               >
                 保存更改
               </Button>
@@ -1541,8 +1764,24 @@ export default function ConfigTable({
                 size="small"
                 onClick={() => setReloadConfirmOpen(true)}
                 startIcon={<RefreshIcon />}
+<<<<<<< HEAD
               >
                 重置配置
+=======
+<<<<<<< HEAD
+              >
+                重置配置
+=======
+<<<<<<< HEAD
+              >
+                重置配置
+=======
+                disabled={disabled}
+              >
+                重载配置
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               </Button>
             </Stack>
           </Stack>
@@ -1679,6 +1918,13 @@ export default function ConfigTable({
                     </TableCell>
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
                       <Chip
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                         label={
                           config.ref_presets_multiple ? 'presets' :
                           config.ref_presets ? 'preset' : 
@@ -1691,6 +1937,17 @@ export default function ConfigTable({
                           config.type, 
                           config.is_complex
                         )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                        label={config.type}
+                        size="small"
+                        color={getTypeColor(config.type, config.is_complex)}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                         variant="outlined"
                         sx={CHIP_VARIANTS.base(isSmall)}
                       />
@@ -1740,8 +1997,23 @@ export default function ConfigTable({
       <ConfirmDialog
         open={reloadConfirmOpen}
         onClose={() => setReloadConfirmOpen(false)}
+<<<<<<< HEAD
         title="确认重置配置"
         content="重置配置将丢失所有未保存的修改，是否继续？"
+=======
+<<<<<<< HEAD
+        title="确认重置配置"
+        content="重置配置将丢失所有未保存的修改，是否继续？"
+=======
+<<<<<<< HEAD
+        title="确认重置配置"
+        content="重置配置将丢失所有未保存的修改，是否继续？"
+=======
+        title="确认重载配置"
+        content="重载配置将丢失所有未保存的修改，是否继续？"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         onConfirm={handleReloadConfig}
       />
       <ConfirmDialog
@@ -1768,6 +2040,13 @@ export default function ConfigTable({
         }
         onConfirm={() => handleSaveAllChanges(true)}
       />
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       
       {/* 重启系统确认对话框 */}
       <Dialog
@@ -1816,6 +2095,14 @@ export default function ConfigTable({
           </Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

@@ -98,7 +98,19 @@ class PlatformSendRequest(BaseModel):
     - TEXT/AT: 普通文本消息
     """
 
+<<<<<<< HEAD
     chat_key: str = Field(..., description="聊天标识")
+=======
+<<<<<<< HEAD
+    chat_key: str = Field(..., description="聊天标识")
+=======
+<<<<<<< HEAD
+    chat_key: str = Field(..., description="聊天标识")
+=======
+    chat_key: str = Field(..., description="会话标识")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     segments: List[PlatformSendSegment] = Field(default=[], description="消息段列表")
     ref_msg_id: Optional[str] = Field(default=None, description="引用消息ID")
 

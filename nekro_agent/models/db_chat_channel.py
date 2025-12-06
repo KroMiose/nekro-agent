@@ -39,7 +39,19 @@ class DBChatChannel(Model):
     channel_name = fields.CharField(max_length=64, null=True, description="频道名称")
     channel_type = fields.CharField(max_length=32, null=True, description="频道类型")
 
+<<<<<<< HEAD
     chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
+=======
+<<<<<<< HEAD
+    chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
+=======
+<<<<<<< HEAD
+    chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
+=======
+    chat_key = fields.CharField(max_length=64, index=True, description="全局会话唯一标识")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
@@ -148,6 +160,13 @@ class DBChatChannel(Model):
         if self._effective_config is None:
             self._effective_config = await config_resolver.get_effective_config(self.chat_key)
         return self._effective_config
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def set_preset(self, preset_id: Optional[int] = None) -> str:
         """设置聊天频道人设
@@ -170,3 +189,11 @@ class DBChatChannel(Model):
         preset_name = preset.name if hasattr(preset, "name") else "默认人设"
 
         return f"设置成功，当前人设: {preset_name}"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

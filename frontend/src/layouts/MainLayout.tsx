@@ -27,7 +27,18 @@ import {
   GitHub as GitHubIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
+<<<<<<< HEAD
   MenuBook as MenuBookIcon,
+=======
+<<<<<<< HEAD
+  MenuBook as MenuBookIcon,
+=======
+<<<<<<< HEAD
+  MenuBook as MenuBookIcon,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/icons-material'
 import { useAuthStore } from '../stores/auth'
 import { configApi } from '../services/api/config'
@@ -372,7 +383,19 @@ export default function MainLayout() {
           <ListItemButton
             onClick={handleLogout}
             sx={{
+<<<<<<< HEAD
               py: isSmall ? 0.75 : 1,
+=======
+<<<<<<< HEAD
+              py: isSmall ? 0.75 : 1,
+=======
+<<<<<<< HEAD
+              py: isSmall ? 0.75 : 1,
+=======
+              py: isSmall ? 1 : 1.5, // 在移动端调整垂直内边距
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               '&:hover': {
                 backgroundColor: UI_STYLES.HOVER,
               },
@@ -540,6 +563,13 @@ export default function MainLayout() {
 
           <ThemeToggleButton sx={{ color: 'white' }} />
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <IconButton
             color="inherit"
             size={isSmall ? 'small' : 'medium'}
@@ -558,6 +588,14 @@ export default function MainLayout() {
             <MenuBookIcon />
           </IconButton>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <Button
             variant="text"
             color="inherit"
@@ -567,7 +605,19 @@ export default function MainLayout() {
             className="normal-case transition-colors"
             sx={{
               mr: { xs: 0, sm: 1 },
+<<<<<<< HEAD
               ml: { xs: 1, sm: 1 },
+=======
+<<<<<<< HEAD
+              ml: { xs: 1, sm: 1 },
+=======
+<<<<<<< HEAD
+              ml: { xs: 1, sm: 1 },
+=======
+              ml: { xs: 1, sm: 2 },
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
               minWidth: { xs: 'auto', sm: '100px' },
               '& .MuiButton-startIcon': {
                 mr: { xs: 0, sm: 1 },

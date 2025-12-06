@@ -20,6 +20,16 @@ import {
   useMediaQuery,
   useTheme,
   Grid,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+  Snackbar,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   Alert,
   SxProps,
   Theme,
@@ -55,7 +65,18 @@ import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES, CARD_VARIANTS } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { useDevModeStore } from '../../stores/devMode'
+<<<<<<< HEAD
 import { useNotification } from '../../hooks/useNotification'
+=======
+<<<<<<< HEAD
+import { useNotification } from '../../hooks/useNotification'
+=======
+<<<<<<< HEAD
+import { useNotification } from '../../hooks/useNotification'
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -261,7 +282,19 @@ export default function SandboxPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+<<<<<<< HEAD
   const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+  const [copyMessage, setCopyMessage] = useState<string | null>(null)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const { devMode } = useDevModeStore()
   const [logViewerOpen, setLogViewerOpen] = useState(false)
   const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
@@ -330,17 +363,51 @@ export default function SandboxPage() {
   // 复制内容到剪贴板函数
   const copyToClipboard = (text: string | null, contentType: string) => {
     if (!text) {
+<<<<<<< HEAD
       notification.warning('无内容可复制')
+=======
+<<<<<<< HEAD
+      notification.warning('无内容可复制')
+=======
+<<<<<<< HEAD
+      notification.warning('无内容可复制')
+=======
+      setCopyMessage('无内容可复制')
+      setTimeout(() => setCopyMessage(null), 3000)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return
     }
 
     navigator.clipboard
       .writeText(text)
       .then(() => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         notification.success(`${contentType}已复制到剪贴板`)
       })
       .catch(() => {
         notification.error('复制失败，请重试')
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        setCopyMessage(`${contentType}已复制到剪贴板`)
+        setTimeout(() => setCopyMessage(null), 3000)
+      })
+      .catch(() => {
+        setCopyMessage('复制失败，请重试')
+        setTimeout(() => setCopyMessage(null), 3000)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       })
   }
 
@@ -537,7 +604,19 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
+<<<<<<< HEAD
                   聊天标识
+=======
+<<<<<<< HEAD
+                  聊天标识
+=======
+<<<<<<< HEAD
+                  聊天标识
+=======
+                  会话标识
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 </TableCell>
                 <TableCell
                   sx={{
@@ -1403,6 +1482,32 @@ export default function SandboxPage() {
           logPath={selectedLogPath}
         />
       )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+      {/* 复制成功提示 */}
+      <Snackbar
+        open={!!copyMessage}
+        autoHideDuration={3000}
+        onClose={() => setCopyMessage(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setCopyMessage(null)}
+          severity="success"
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          {copyMessage}
+        </Alert>
+      </Snackbar>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

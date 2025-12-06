@@ -1,7 +1,19 @@
 import json
 from typing import AsyncGenerator, Dict, List, Optional
 
+<<<<<<< HEAD
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+=======
+<<<<<<< HEAD
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query
+=======
+from fastapi import APIRouter, Body, Depends, HTTPException, Path
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -14,7 +26,18 @@ from nekro_agent.services.plugin.manager import (
     disable_plugin,
     enable_plugin,
     get_all_ext_meta_data,
+<<<<<<< HEAD
     get_all_plugin_router_info,
+=======
+<<<<<<< HEAD
+    get_all_plugin_router_info,
+=======
+<<<<<<< HEAD
+    get_all_plugin_router_info,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     get_plugin_detail,
 )
 from nekro_agent.services.plugin.schema import SandboxMethodType
@@ -53,6 +76,13 @@ class PluginDataResponse(BaseModel):
     update_time: str
 
     @classmethod
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     def from_orm(cls, obj: DBPluginData) -> "PluginDataResponse":
         return cls(
             id=obj.id,
@@ -63,6 +93,24 @@ class PluginDataResponse(BaseModel):
             data_value=obj.data_value,
             create_time=obj.create_time.isoformat(),
             update_time=obj.update_time.isoformat(),
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    def from_orm(cls, db_data: DBPluginData) -> "PluginDataResponse":
+        return cls(
+            id=db_data.id,
+            plugin_key=db_data.plugin_key,
+            target_chat_key=db_data.target_chat_key,
+            target_user_id=db_data.target_user_id,
+            data_key=db_data.data_key,
+            data_value=db_data.data_value,
+            create_time=db_data.create_time.isoformat(),
+            update_time=db_data.update_time.isoformat(),
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         )
 
 
@@ -200,11 +248,29 @@ async def reset_plugin_data(
 @require_role(Role.Admin)
 async def remove_package(
     module_name: str,
+<<<<<<< HEAD
     clear_data: bool = Query(False, description="是否删除插件在数据库中的存储数据"),
+=======
+<<<<<<< HEAD
+    clear_data: bool = Query(False, description="是否删除插件在数据库中的存储数据"),
+=======
+<<<<<<< HEAD
+    clear_data: bool = Query(False, description="是否删除插件在数据库中的存储数据"),
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """删除云端插件"""
     try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # remove_package方法现在包含了卸载步骤和配置文件删除
         
         if clear_data:
@@ -212,6 +278,16 @@ async def remove_package(
             await plugin_collector.clear_plugin_store_data_by_module_name(module_name)
         else:
             await plugin_collector.remove_package(module_name, clear_config=False)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        # remove_package方法现在包含了卸载步骤
+        await plugin_collector.remove_package(module_name)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return Ret.success(msg=f"云端插件 {module_name} 删除成功")
     except Exception as e:
         logger.exception(f"删除云端插件失败: {e}")
@@ -231,6 +307,13 @@ async def update_package(
     except Exception as e:
         logger.error(f"更新云端插件失败: {e}")
         return Ret.error(msg=f"更新失败: {e!s}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 @router.get("/router-info", summary="获取所有插件路由信息")
@@ -304,3 +387,11 @@ async def verify_plugin_routes_endpoint(plugin_key: str, _current_user: DBUser =
     except Exception as e:
         logger.exception(f"验证插件路由失败: {e}")
         return Ret.error(msg=f"验证插件路由失败: {e!s}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

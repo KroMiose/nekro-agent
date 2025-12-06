@@ -80,9 +80,24 @@ class MinecraftConfig(BaseAdapterConfig):
         default_factory=list,
         title="服务器列表",
         description="在这里配置你的 Minecraft 服务器",
+<<<<<<< HEAD
         json_schema_extra=ExtraField(
             is_need_restart= True,
         ).model_dump(),
+=======
+<<<<<<< HEAD
+        json_schema_extra=ExtraField(
+            is_need_restart= True,
+        ).model_dump(),
+=======
+<<<<<<< HEAD
+        json_schema_extra=ExtraField(
+            is_need_restart= True,
+        ).model_dump(),
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
     MINECRAFT_WS_URLS: str = Field(
         default="{}",

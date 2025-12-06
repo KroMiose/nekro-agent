@@ -50,13 +50,37 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
+<<<<<<< HEAD
   // 查询聊天详情
+=======
+<<<<<<< HEAD
+  // 查询聊天详情
+=======
+<<<<<<< HEAD
+  // 查询聊天详情
+=======
+  // 查询会话详情
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const { data: channel, isLoading } = useQuery({
     queryKey: ['chat-channel-detail', chatKey],
     queryFn: () => chatChannelApi.getDetail(chatKey),
   })
 
+<<<<<<< HEAD
   // 激活/停用聊天
+=======
+<<<<<<< HEAD
+  // 激活/停用聊天
+=======
+<<<<<<< HEAD
+  // 激活/停用聊天
+=======
+  // 激活/停用会话
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const { mutate: toggleActive, isPending: isToggling } = useMutation({
     mutationFn: (isActive: boolean) => chatChannelApi.setActive(chatKey, isActive),
     onSuccess: () => {
@@ -65,7 +89,19 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
     },
   })
 
+<<<<<<< HEAD
   // 重置聊天
+=======
+<<<<<<< HEAD
+  // 重置聊天
+=======
+<<<<<<< HEAD
+  // 重置聊天
+=======
+  // 重置会话
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const { mutate: resetChannel, isPending: isResetting } = useMutation({
     mutationFn: () => chatChannelApi.reset(chatKey),
     onSuccess: () => {
@@ -74,7 +110,19 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
     },
   })
 
+<<<<<<< HEAD
   // 刷新聊天信息
+=======
+<<<<<<< HEAD
+  // 刷新聊天信息
+=======
+<<<<<<< HEAD
+  // 刷新聊天信息
+=======
+  // 刷新会话信息
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
@@ -119,9 +167,27 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
             <Box className="flex-1 overflow-hidden">
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="h6" className="font-medium truncate">
+<<<<<<< HEAD
                   {channel.channel_name || '未命名聊天'}
                 </Typography>
                 <Tooltip title="刷新聊天信息">
+=======
+<<<<<<< HEAD
+                  {channel.channel_name || '未命名聊天'}
+                </Typography>
+                <Tooltip title="刷新聊天信息">
+=======
+<<<<<<< HEAD
+                  {channel.channel_name || '未命名聊天'}
+                </Typography>
+                <Tooltip title="刷新聊天信息">
+=======
+                  {channel.channel_name || '未命名会话'}
+                </Typography>
+                <Tooltip title="刷新会话信息">
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                   <IconButton
                     size="small"
                     onClick={handleRefresh}
@@ -225,9 +291,27 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
 
       {/* 重置确认对话框 */}
       <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
+<<<<<<< HEAD
         <DialogTitle>确认重置聊天？</DialogTitle>
         <DialogContent>
           <Typography>重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+=======
+<<<<<<< HEAD
+        <DialogTitle>确认重置聊天？</DialogTitle>
+        <DialogContent>
+          <Typography>重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+=======
+<<<<<<< HEAD
+        <DialogTitle>确认重置聊天？</DialogTitle>
+        <DialogContent>
+          <Typography>重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+=======
+        <DialogTitle>确认重置会话？</DialogTitle>
+        <DialogContent>
+          <Typography>重置会话将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setResetDialogOpen(false)}>取消</Button>

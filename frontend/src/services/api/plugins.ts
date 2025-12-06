@@ -325,11 +325,29 @@ export const pluginsApi = {
   },
 
   // 删除云端插件
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   removePackage: async (moduleName: string, clearData: boolean = false): Promise<boolean> => {
     try {
       await axios.delete(`/plugins/package/${moduleName}`, {
         params: { clear_data: clearData }
       })
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  removePackage: async (moduleName: string): Promise<boolean> => {
+    try {
+      await axios.delete(`/plugins/package/${moduleName}`)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return true
     } catch (error) {
       console.error(`删除云端插件 ${moduleName} 失败:`, error)

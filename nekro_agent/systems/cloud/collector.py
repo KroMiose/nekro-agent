@@ -77,7 +77,19 @@ async def collect_hourly_stats(hour_start: datetime, hour_end: datetime) -> Tele
     Returns:
         TelemetryStats: 小时统计数据
     """
+<<<<<<< HEAD
     # 获取活跃用户和聊天频道数
+=======
+<<<<<<< HEAD
+    # 获取活跃用户和聊天频道数
+=======
+<<<<<<< HEAD
+    # 获取活跃用户和聊天频道数
+=======
+    # 获取活跃用户和会话数
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     active_users = len(
         await DBChatMessage.filter(
             create_time__gte=hour_start,
@@ -141,7 +153,19 @@ async def collect_hourly_stats(hour_start: datetime, hour_end: datetime) -> Tele
     return TelemetryStats(
         stats_type=TelemetryStatsType.HOURLY,
         total_users=0,  # 这里不关注总用户数
+<<<<<<< HEAD
         total_sessions=0,  # 这里不关注总聊天频道数
+=======
+<<<<<<< HEAD
+        total_sessions=0,  # 这里不关注总聊天频道数
+=======
+<<<<<<< HEAD
+        total_sessions=0,  # 这里不关注总聊天频道数
+=======
+        total_sessions=0,  # 这里不关注总会话数
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         total_messages=hourly_messages,
         total_sandbox_calls=hourly_sandbox_calls,
         stop_type_stats=stop_type_stats,

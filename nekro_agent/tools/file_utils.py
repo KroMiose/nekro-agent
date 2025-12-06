@@ -7,7 +7,18 @@ from nekro_agent.tools.common_util import (
     download_file,
     download_file_from_base64,
     download_file_from_bytes,
+<<<<<<< HEAD
     limited_text_output,
+=======
+<<<<<<< HEAD
+    limited_text_output,
+=======
+<<<<<<< HEAD
+    limited_text_output,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 )
 
 from .path_convertor import (
@@ -28,7 +39,19 @@ class FileUtils:
 
         Args:
             sandbox_path: 沙盒内互通路径
+<<<<<<< HEAD
             chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道ID
+=======
+            chat_key: 聊天会话ID
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             container_key: 容器ID
 
         Returns:
@@ -58,7 +81,19 @@ class FileUtils:
         """获取沙盒共享目录的宿主机路径
 
         Args:
+<<<<<<< HEAD
             chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            chat_key: 聊天频道ID
+=======
+            chat_key: 聊天会话ID
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             container_key: 容器ID
         """
         path = cls.to_absolute_path(SANDBOX_SHARED_HOST_DIR) / container_key
@@ -70,7 +105,19 @@ class FileUtils:
         """获取或生成一个可用的上传文件路径
 
         Args:
+<<<<<<< HEAD
             from_chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            from_chat_key: 聊天频道ID
+=======
+<<<<<<< HEAD
+            from_chat_key: 聊天频道ID
+=======
+            from_chat_key: 聊天会话ID
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             file_name: 文件名
             use_suffix: 指定文件后缀
             seed: 种子
@@ -108,12 +155,36 @@ class FileSystem:
 
     @property
     def shared_path(self) -> Path:
+<<<<<<< HEAD
         """获取当前频道的文件共享目录"""
+=======
+<<<<<<< HEAD
+        """获取当前频道的文件共享目录"""
+=======
+<<<<<<< HEAD
+        """获取当前频道的文件共享目录"""
+=======
+        """获取当前会话的文件共享目录"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return FileUtils.get_sandbox_shared_host_path(self.container_key)
 
     @property
     def upload_path(self) -> Path:
+<<<<<<< HEAD
         """获取当前频道的文件上传目录"""
+=======
+<<<<<<< HEAD
+        """获取当前频道的文件上传目录"""
+=======
+<<<<<<< HEAD
+        """获取当前频道的文件上传目录"""
+=======
+        """获取当前会话的文件上传目录"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return Path(USER_UPLOAD_DIR) / self.chat_key
 
     def get_file(self, file_path: Path | str) -> Path:
@@ -167,6 +238,13 @@ class FileSystem:
                 file_path, file_name = await download_file(file, from_chat_key=self.chat_key, file_name=file_name)
             elif file.startswith("data:"):
                 file_path, file_name = await download_file_from_base64(file, from_chat_key=self.chat_key, file_name=file_name)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             else:
                 try:  # 普通字符串路径，验证并转换为 Path 对象处理
                     path_obj = Path(file)
@@ -177,6 +255,15 @@ class FileSystem:
                     raise ValueError(f"无效的文件路径: {limited_text_output(file)}") from e
 
         if isinstance(file, bytes):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        elif isinstance(file, bytes):
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             file_path, file_name = await download_file_from_bytes(file, from_chat_key=self.chat_key, file_name=file_name)
         elif isinstance(file, Path):
             if file.is_relative_to(self.shared_path):
@@ -187,7 +274,23 @@ class FileSystem:
                 shutil.copy(file, self.shared_path / file.name)
                 file_path = self.shared_path / file.name
         else:
+<<<<<<< HEAD
             if not isinstance(file, str):
                 raise TypeError(f"不支持的文件类型: {type(file)}")
 
+=======
+<<<<<<< HEAD
+            if not isinstance(file, str):
+                raise TypeError(f"不支持的文件类型: {type(file)}")
+
+=======
+<<<<<<< HEAD
+            if not isinstance(file, str):
+                raise TypeError(f"不支持的文件类型: {type(file)}")
+
+=======
+            raise TypeError(f"不支持的文件类型: {type(file)}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return self.forward_file(file_path)

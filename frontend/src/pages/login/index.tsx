@@ -33,7 +33,18 @@ import { useNotification } from '../../hooks/useNotification'
 import { useWallpaperStore } from '../../stores/wallpaper'
 import WallpaperBackground from '../../components/common/WallpaperBackground'
 import { useGitHubStarStore } from '../../stores/githubStar'
+<<<<<<< HEAD
 import logoImage from '../../assets/logo.png'
+=======
+<<<<<<< HEAD
+import logoImage from '../../assets/logo.png'
+=======
+<<<<<<< HEAD
+import logoImage from '../../assets/logo.png'
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -311,7 +322,19 @@ export default function LoginPage() {
                 >
                   <Box
                     component="img"
+<<<<<<< HEAD
                     src={logoImage}
+=======
+<<<<<<< HEAD
+                    src={logoImage}
+=======
+<<<<<<< HEAD
+                    src={logoImage}
+=======
+                    src="/logo.png"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     alt="Nekro Agent Logo"
                     sx={{
                       width: { sm: 180, md: 240 },
@@ -446,7 +469,19 @@ export default function LoginPage() {
                   >
                     <Box
                       component="img"
+<<<<<<< HEAD
                       src={logoImage}
+=======
+<<<<<<< HEAD
+                      src={logoImage}
+=======
+<<<<<<< HEAD
+                      src={logoImage}
+=======
+                      src="/logo.png"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                       alt="Nekro Agent Logo"
                       sx={{
                         width: 120,

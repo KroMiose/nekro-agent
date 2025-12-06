@@ -67,9 +67,21 @@ def __extension_method_proxy(method: Callable):
 def dynamic_importer(
     package_spec: str,
     import_name: Optional[str] = None,
+<<<<<<< HEAD
     mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
     trusted_host: bool = True,
     timeout: int = 300,
+=======
+<<<<<<< HEAD
+    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    trusted_host: bool = True,
+    timeout: int = 300,
+=======
+    mirror: Optional[str] = None,
+    trusted_host: Optional[bool] = None,
+    timeout: Optional[int] = None,
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     repo_dir: Optional[str] = "/app/packages",
 ) -> Any:
     """动态安装并导入Python包
@@ -77,9 +89,21 @@ def dynamic_importer(
     Args:
         package_spec: 包名称和版本规范 (如 "requests" 或 "numpy==1.21.0")
         import_name: 导入名称（如果与包名不同）
+<<<<<<< HEAD
         mirror: PyPI镜像源URL
         trusted_host: 是否信任镜像源主机
         timeout: 安装超时时间（秒）
+=======
+<<<<<<< HEAD
+        mirror: PyPI镜像源URL
+        trusted_host: 是否信任镜像源主机
+        timeout: 安装超时时间（秒）
+=======
+        mirror: PyPI镜像源URL，如果为None则使用系统配置
+        trusted_host: 是否信任镜像源主机，如果为None则使用系统配置
+        timeout: 安装超时时间（秒），如果为None则使用系统配置
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         repo_dir: 持久化存储目录 (默认使用系统路径)
 
     Returns:
@@ -89,6 +113,63 @@ def dynamic_importer(
         RuntimeError: 安装失败时抛出
         ImportError: 导入失败时抛出
     """
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+    # 获取系统配置（如果可用）
+    try:
+        # 尝试从系统配置获取设置
+        from nekro_agent.core.config import config as system_config
+        
+        # 如果参数未提供，使用系统配置
+        if mirror is None:
+            # 检查是否使用系统PyPI配置
+            if getattr(system_config, 'PYPI_USE_SYSTEM_CONFIG', False):
+                # 使用系统pip配置，不指定镜像
+                mirror = None
+            else:
+                mirror = system_config.PYPI_INDEX_URL or "https://pypi.tuna.tsinghua.edu.cn/simple"
+        
+        if trusted_host is None:
+            if getattr(system_config, 'PYPI_USE_SYSTEM_CONFIG', False):
+                # 使用系统pip配置，不指定信任主机
+                trusted_host = None
+            else:
+                trusted_host = system_config.PYPI_TRUSTED_HOST or "pypi.tuna.tsinghua.edu.cn"
+                if trusted_host and trusted_host.lower() in ('true', '1', 'yes'):
+                    trusted_host = True
+                elif trusted_host and trusted_host.lower() in ('false', '0', 'no'):
+                    trusted_host = False
+                else:
+                    # 从镜像URL提取主机名
+                    import urllib.parse
+                    host = urllib.parse.urlparse(mirror).hostname if mirror else None
+                    trusted_host = bool(host)
+        
+        if timeout is None:
+            timeout = system_config.PYPI_INSTALL_TIMEOUT or 300
+            
+    except Exception:
+        # 如果获取系统配置失败，使用环境变量或默认值
+        import os
+        if mirror is None:
+            mirror = os.environ.get("NEKRO_PYPI_INDEX_URL", "https://pypi.tuna.tsinghua.edu.cn/simple")
+        if trusted_host is None:
+            trusted_host = os.environ.get("NEKRO_PYPI_TRUSTED_HOST", "pypi.tuna.tsinghua.edu.cn")
+            if trusted_host and trusted_host.lower() in ('true', '1', 'yes'):
+                trusted_host = True
+            elif trusted_host and trusted_host.lower() in ('false', '0', 'no'):
+                trusted_host = False
+            else:
+                # 从镜像URL提取主机名
+                import urllib.parse
+                host = urllib.parse.urlparse(mirror).hostname if mirror else None
+                trusted_host = bool(host)
+        if timeout is None:
+            timeout = int(os.environ.get("NEKRO_PYPI_INSTALL_TIMEOUT", "300"))
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 提取基础包名和版本约束
     package_name = package_spec.strip()
     version_spec = ""
@@ -209,4 +290,16 @@ def _parse_pip_error(output: str) -> str:
     for pattern, message in patterns.items():
         if pattern in output:
             return message
+<<<<<<< HEAD
     return f"未知错误：{output[:200]}..." if len(output) > 200 else output
+=======
+<<<<<<< HEAD
+    return f"未知错误：{output[:200]}..." if len(output) > 200 else output
+=======
+<<<<<<< HEAD
+    return f"未知错误：{output[:200]}..." if len(output) > 200 else output
+=======
+    return f"未知错误：{output[:200]}..." if len(output) > 200 else output
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

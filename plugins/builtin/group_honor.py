@@ -13,18 +13,47 @@
 此插件主要由 AI 在后台根据特定情况自动调用，例如，当用户在与 AI 的互动中表现出色时，AI 可能会决定授予其一个头衔作为奖励。
 """
 
+<<<<<<< HEAD
 from typing import List
 
+=======
+<<<<<<< HEAD
+from typing import List
+
+=======
+<<<<<<< HEAD
+from typing import List
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.api import core
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.api.plugin import (
     ConfigBase,
     ExtraField,
     NekroPlugin,
     SandboxMethodType,
 )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
@@ -32,8 +61,23 @@ from nekro_agent.schemas.chat_message import ChatType
 plugin = NekroPlugin(
     name="群荣誉插件",
     module_name="group_honor",
+<<<<<<< HEAD
     description="提供群荣誉功能，支持设置用户群组头衔",
     version="0.2.0",
+=======
+<<<<<<< HEAD
+    description="提供群荣誉功能，支持设置用户群组头衔",
+    version="0.2.0",
+=======
+<<<<<<< HEAD
+    description="提供群荣誉功能，支持设置用户群组头衔",
+    version="0.2.0",
+=======
+    description="提供群荣誉功能，支持设置用户特殊头衔",
+    version="0.1.0",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
@@ -45,6 +89,13 @@ class GroupHonorConfig(ConfigBase):
     """群荣誉配置"""
 
     MAX_TITLE_LENGTH: int = Field(default=6, title="最大头衔长度")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     ALLOW_GROUPS: List[str] = Field(
         default=[],
         title="允许使用头衔管理功能的群组列表",
@@ -62,12 +113,27 @@ class GroupHonorConfig(ConfigBase):
         title="禁止使用的关键词",
         json_schema_extra=ExtraField(sub_item_name="关键词").model_dump(),
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 # 获取配置
 config = plugin.get_config(GroupHonorConfig)
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @plugin.mount_prompt_inject_method(name="group_honor_prompt_inject")
 async def group_honor_prompt_inject(_ctx: AgentCtx):
     """群荣誉提示注入"""
@@ -82,6 +148,14 @@ async def group_honor_prompt_inject(_ctx: AgentCtx):
     return "状态: 群头衔管理功能在当前聊天不可用"
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "赋予用户头衔称号")
 async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, special_title: str, days: int) -> bool:
     """赋予用户头衔称号
@@ -99,6 +173,13 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
     chat_type = db_chat_channel.chat_type
     chat_id = db_chat_channel.channel_id
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if user_qq in config.PROTECTED_USER_IDS:
         raise ValueError("用户头衔受保护，无法变更")
 
@@ -106,6 +187,14 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
         if keyword in special_title:
             raise ValueError(f"头衔中包含禁止使用的关键词: {keyword}")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if chat_type != ChatType.GROUP:
         core.logger.error(f"不支持 {chat_type} 类型")
         return False
@@ -132,6 +221,13 @@ async def set_user_special_title(_ctx: AgentCtx, chat_key: str, user_qq: str, sp
         return True
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @plugin.mount_collect_methods()
 async def collect_available_methods(_ctx: AgentCtx):
     """根据适配器收集可用方法"""
@@ -146,6 +242,14 @@ async def collect_available_methods(_ctx: AgentCtx):
     return []
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @plugin.mount_cleanup_method()
 async def clean_up():
     """清理插件"""

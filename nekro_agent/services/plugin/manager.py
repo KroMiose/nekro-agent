@@ -64,6 +64,13 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         for endpoint, method in plugin.webhook_methods.items()
     ]
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 获取路由信息
     router_info = None
     if plugin.get_plugin_router():
@@ -75,6 +82,14 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
                 "routes": router_data["routes"],
             }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 构建插件详情
     return {
         "name": plugin.name,
@@ -88,12 +103,30 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "hasConfig": hasattr(plugin, "_Configs") and plugin._Configs != ConfigBase,  # noqa: SLF001
         "methods": methods,
         "webhooks": webhooks,
+<<<<<<< HEAD
         "router": router_info,  # 新增路由信息
+=======
+<<<<<<< HEAD
+        "router": router_info,  # 新增路由信息
+=======
+<<<<<<< HEAD
+        "router": router_info,  # 新增路由信息
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         "isBuiltin": plugin.is_builtin,
         "isPackage": plugin.is_package,
     }
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def get_all_plugin_router_info() -> Dict[str, Any]:
     """获取所有插件的路由信息
 
@@ -119,6 +152,16 @@ async def get_all_plugin_router_info() -> Dict[str, Any]:
 
 async def enable_plugin(plugin_id: str) -> bool:
     """启用插件（支持热重载）"""
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+async def enable_plugin(plugin_id: str) -> bool:
+    """启用插件"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -127,11 +170,29 @@ async def enable_plugin(plugin_id: str) -> bool:
         return True  # 已经启用，直接返回成功
 
     try:
+<<<<<<< HEAD
         # 启用插件
+=======
+<<<<<<< HEAD
+        # 启用插件
+=======
+<<<<<<< HEAD
+        # 启用插件
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         plugin.enable()
         if plugin.key not in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         # 热挂载插件路由
         try:
@@ -145,6 +206,14 @@ async def enable_plugin(plugin_id: str) -> bool:
             logger.exception(f"插件 {plugin.name} 启用成功，但路由挂载失败: {router_error}")
             # 路由挂载失败不影响插件启用
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     except Exception as e:
         logger.error(f"启用插件失败: {plugin_id}, 错误: {e}")
         return False
@@ -153,7 +222,19 @@ async def enable_plugin(plugin_id: str) -> bool:
 
 
 async def disable_plugin(plugin_id: str) -> bool:
+<<<<<<< HEAD
     """禁用插件（支持热重载）"""
+=======
+<<<<<<< HEAD
+    """禁用插件（支持热重载）"""
+=======
+<<<<<<< HEAD
+    """禁用插件（支持热重载）"""
+=======
+    """禁用插件"""
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     plugin = plugin_collector.get_plugin(plugin_id)
     if not plugin:
         return False
@@ -162,6 +243,13 @@ async def disable_plugin(plugin_id: str) -> bool:
         return True  # 已经禁用，直接返回成功
 
     try:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 热卸载插件路由
         try:
             from nekro_agent.services.plugin.router_manager import plugin_router_manager
@@ -175,11 +263,30 @@ async def disable_plugin(plugin_id: str) -> bool:
             # 路由卸载失败不影响插件禁用
 
         # 禁用插件
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         plugin.disable()
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
+<<<<<<< HEAD
 
+=======
+<<<<<<< HEAD
+
+=======
+<<<<<<< HEAD
+
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     except Exception as e:
         logger.error(f"禁用插件失败: {plugin_id}, 错误: {e}")
         return False

@@ -1,6 +1,17 @@
 import base64
 import io
+<<<<<<< HEAD
 from collections import Counter
+=======
+<<<<<<< HEAD
+from collections import Counter
+=======
+<<<<<<< HEAD
+from collections import Counter
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -27,6 +38,13 @@ from nekro_agent.tools.telemetry_util import generate_instance_id
 router = APIRouter(prefix="/presets", tags=["Presets"])
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.get("/tags", summary="获取所有可用的人设标签")
 @require_role(Role.Admin)
 async def get_all_preset_tags(
@@ -53,6 +71,14 @@ async def get_all_preset_tags(
     )
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.get("/list", summary="获取人设列表")
 @require_role(Role.Admin)
 async def get_preset_list(
@@ -60,7 +86,18 @@ async def get_preset_list(
     page_size: int = 20,
     search: Optional[str] = None,
     tag: Optional[str] = None,
+<<<<<<< HEAD
     tags: Optional[str] = None,
+=======
+<<<<<<< HEAD
+    tags: Optional[str] = None,
+=======
+<<<<<<< HEAD
+    tags: Optional[str] = None,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     remote_only: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
@@ -70,6 +107,13 @@ async def get_preset_list(
     # 搜索条件
     if search:
         query = query.filter(Q(name__contains=search) | Q(title__contains=search) | Q(description__contains=search))
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 标签过滤（支持单标签 tag 与多标签 tags，逗号分隔，采用 AND 逻辑）
     selected_tags: List[str] = []
     if tags:
@@ -82,6 +126,16 @@ async def get_preset_list(
         # AND 逻辑：每个标签都必须匹配
         for t in selected_tags:
             query = query.filter(tags__contains=t)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    if tag:
+        query = query.filter(tags__contains=tag)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if remote_only is not None:
         if remote_only:
             query = query.filter(remote_id__not_isnull=True)

@@ -161,12 +161,31 @@ async def save_config_api(
         return Ret.error(msg=f"保存失败: {e!s}")
 
 
+<<<<<<< HEAD
 @router.post("/reload/{config_key}", summary="重置配置")
+=======
+<<<<<<< HEAD
+@router.post("/reload/{config_key}", summary="重置配置")
+=======
+<<<<<<< HEAD
+@router.post("/reload/{config_key}", summary="重置配置")
+=======
+@router.post("/reload/{config_key}", summary="重载配置")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def reload_config_api(
     config_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """重置指定配置"""
     try:
         success, error_msg = UnifiedConfigService.reload_config(config_key)
@@ -175,6 +194,22 @@ async def reload_config_api(
         return Ret.success(msg="重置成功")
     except Exception as e:
         logger.error(f"重置配置失败: {config_key}, 错误: {e}")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """重新加载指定配置"""
+    try:
+        success, error_msg = UnifiedConfigService.reload_config(config_key)
+        if not success:
+            return Ret.fail(msg=f"重载失败: {error_msg or '未知错误'}")
+        return Ret.success(msg="重载成功")
+    except Exception as e:
+        logger.error(f"重载配置失败: {config_key}, 错误: {e}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         return Ret.error(msg=f"重载失败: {e!s}")
 
 

@@ -37,8 +37,21 @@ import {
   Drawer,
   Fab,
   ListItemButton,
+<<<<<<< HEAD
   Menu,
   MenuItem,
+=======
+<<<<<<< HEAD
+  Menu,
+  MenuItem,
+=======
+<<<<<<< HEAD
+  Menu,
+  MenuItem,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/material'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
 import {
@@ -61,7 +74,18 @@ import {
   Link as LinkIcon,
   Category as CategoryIcon,
   Bookmark as BookmarkIcon,
+<<<<<<< HEAD
   MoreVert as MoreVertIcon,
+=======
+<<<<<<< HEAD
+  MoreVert as MoreVertIcon,
+=======
+<<<<<<< HEAD
+  MoreVert as MoreVertIcon,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
@@ -99,8 +123,21 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteDataConfirmOpen, setDeleteDataConfirmOpen] = useState(false)
   const [deleteDataId, setDeleteDataId] = useState<number | null>(null)
+<<<<<<< HEAD
   const [clearDataOnDelete, setClearDataOnDelete] = useState(false) // 新增：删除时是否清除数据的状态
   const [moreMenuAnchorEl, setMoreMenuAnchorEl] = useState<null | HTMLElement>(null) // 更多操作菜单锚点
+=======
+<<<<<<< HEAD
+  const [clearDataOnDelete, setClearDataOnDelete] = useState(false) // 新增：删除时是否清除数据的状态
+  const [moreMenuAnchorEl, setMoreMenuAnchorEl] = useState<null | HTMLElement>(null) // 更多操作菜单锚点
+=======
+<<<<<<< HEAD
+  const [clearDataOnDelete, setClearDataOnDelete] = useState(false) // 新增：删除时是否清除数据的状态
+  const [moreMenuAnchorEl, setMoreMenuAnchorEl] = useState<null | HTMLElement>(null) // 更多操作菜单锚点
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const theme = useTheme()
@@ -181,9 +218,27 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
   // 删除云端插件
   const removePackageMutation = useMutation({
+<<<<<<< HEAD
     mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
     onSuccess: () => {
       notification.success(`云端插件 ${plugin.name} 已删除${clearDataOnDelete ? '（包括数据）' : ''}～`)
+=======
+<<<<<<< HEAD
+    mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
+    onSuccess: () => {
+      notification.success(`云端插件 ${plugin.name} 已删除${clearDataOnDelete ? '（包括数据）' : ''}～`)
+=======
+<<<<<<< HEAD
+    mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
+    onSuccess: () => {
+      notification.success(`云端插件 ${plugin.name} 已删除${clearDataOnDelete ? '（包括数据）' : ''}～`)
+=======
+    mutationFn: () => pluginsApi.removePackage(plugin.moduleName),
+    onSuccess: () => {
+      notification.success(`云端插件 ${plugin.name} 已删除～`)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       onBack() // 返回插件列表
     },
@@ -366,6 +421,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
           {/* 操作按钮组 */}
           <Stack direction="row" spacing={1} sx={{ pl: 2, flexShrink: 0 }}>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             {isMobile ? (
               // 移动端：只显示更多操作按钮
               <>
@@ -489,6 +551,55 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 </Button>
               </>
             )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            {!plugin.isBuiltin && (
+              <Button
+                variant="outlined"
+                startIcon={plugin.isPackage ? <DeleteIcon /> : <EditIcon />}
+                onClick={() =>
+                  plugin.isPackage ? setDeleteConfirmOpen(true) : handleNavigateToEditor()
+                }
+                color={plugin.isPackage ? 'error' : 'warning'}
+                size="small"
+              >
+                {plugin.isPackage ? '删除' : '编辑'}
+              </Button>
+            )}
+            {plugin.isPackage && (
+              <Button
+                variant="outlined"
+                startIcon={<RefreshIcon />}
+                onClick={() => setUpdateConfirmOpen(true)}
+                color="success"
+                size="small"
+              >
+                更新
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<DeleteIcon />}
+              onClick={() => setResetDataConfirmOpen(true)}
+              color="warning"
+              size="small"
+            >
+              重置
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<RefreshIcon />}
+              onClick={() => setReloadConfirmOpen(true)}
+              size="small"
+            >
+              重载
+            </Button>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           </Stack>
         </Box>
       </Card>
@@ -843,7 +954,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Table size={isSmall ? 'small' : 'medium'}>
                     <TableHead>
                       <TableRow>
+<<<<<<< HEAD
                         <TableCell width={isMobile ? 80 : 150}>频道</TableCell>
+=======
+<<<<<<< HEAD
+                        <TableCell width={isMobile ? 80 : 150}>频道</TableCell>
+=======
+<<<<<<< HEAD
+                        <TableCell width={isMobile ? 80 : 150}>频道</TableCell>
+=======
+                        <TableCell width={isMobile ? 80 : 150}>会话</TableCell>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                         <TableCell width={isMobile ? 80 : 150}>用户</TableCell>
                         <TableCell>存储键</TableCell>
                         <TableCell width={isMobile ? 100 : 132} align="center">
@@ -1026,7 +1149,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
         <DialogTitle>确认重置数据？</DialogTitle>
         <DialogContent>
           <DialogContentText>
+<<<<<<< HEAD
             此操作将删除该插件的所有存储数据，包括全局数据、频道数据和用户数据。此操作不可恢复，是否继续？
+=======
+<<<<<<< HEAD
+            此操作将删除该插件的所有存储数据，包括全局数据、频道数据和用户数据。此操作不可恢复，是否继续？
+=======
+<<<<<<< HEAD
+            此操作将删除该插件的所有存储数据，包括全局数据、频道数据和用户数据。此操作不可恢复，是否继续？
+=======
+            此操作将删除该插件的所有存储数据，包括全局数据、会话数据和用户数据。此操作不可恢复，是否继续？
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1086,6 +1221,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           <DialogContentText>
             此操作将删除云端插件 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
           </DialogContentText>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <FormControlLabel
             control={
               <Switch
@@ -1109,6 +1251,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               setDeleteConfirmOpen(false)
               setClearDataOnDelete(false) // 重置勾选状态
             }}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setDeleteConfirmOpen(false)}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             取消
@@ -1117,7 +1271,18 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             onClick={() => {
               removePackageMutation.mutate()
               setDeleteConfirmOpen(false)
+<<<<<<< HEAD
               setClearDataOnDelete(false) // 重置勾选状态
+=======
+<<<<<<< HEAD
+              setClearDataOnDelete(false) // 重置勾选状态
+=======
+<<<<<<< HEAD
+              setClearDataOnDelete(false) // 重置勾选状态
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             }}
             color="error"
             variant="contained"

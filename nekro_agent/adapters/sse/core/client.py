@@ -60,8 +60,22 @@ class SseClient:
         self.connected_at = datetime.now()
         self.last_heartbeat = datetime.now()
         self.subscribed_channels: Set[str] = set()  # 已订阅的频道(channel_id)
+<<<<<<< HEAD
         # 使用有界队列防止内存溢出，maxsize=100 意味着最多缓存100个待发送事件
         self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+=======
+<<<<<<< HEAD
+        # 使用有界队列防止内存溢出，maxsize=100 意味着最多缓存100个待发送事件
+        self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+=======
+<<<<<<< HEAD
+        # 使用有界队列防止内存溢出，maxsize=100 意味着最多缓存100个待发送事件
+        self.event_queue: asyncio.Queue = asyncio.Queue(maxsize=100)
+=======
+        self.event_queue: asyncio.Queue = asyncio.Queue()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         self.is_alive = True
         self.handlers: Dict[str, Callable[[BaseModel], Awaitable[bool]]] = {}
 
@@ -81,11 +95,30 @@ class SseClient:
         return (datetime.now() - self.last_heartbeat).total_seconds() > timeout_seconds
 
     async def send_event(self, event: Event) -> None:
+<<<<<<< HEAD
         """发送事件到客户端的事件队列（非阻塞，超时丢弃）
+=======
+<<<<<<< HEAD
+        """发送事件到客户端的事件队列（非阻塞，超时丢弃）
+=======
+<<<<<<< HEAD
+        """发送事件到客户端的事件队列（非阻塞，超时丢弃）
+=======
+        """发送事件到客户端的事件队列
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         Args:
             event: Event[Pydantic模型]
         """
         if not self.is_alive:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             logger.warning(f"客户端 {self.client_id} 已断开，忽略事件")
             return
         
@@ -98,6 +131,16 @@ class SseClient:
                 f"客户端 {self.client_id} 事件队列已满({self.event_queue.qsize()}/{self.event_queue.maxsize})，"
                 f"丢弃事件 {event.event}",
             )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return
+        await self.event_queue.put(event)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     def has_events(self) -> bool:
         """检查是否有待处理的事件"""
@@ -345,10 +388,27 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
                 client.event_queue.task_done()
             except asyncio.TimeoutError:
                 pass
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             
             # 减少 is_disconnected 检查频率，每5秒检查一次即可
             # 频繁检查会导致性能下降
             if time.time() - heartbeat_timer >= 5 and await request.is_disconnected():
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+
+            if await request.is_disconnected():
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 logger.info(f"SSE客户端 {client.client_id} 连接已断开")
                 break
 

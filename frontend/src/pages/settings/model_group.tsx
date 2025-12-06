@@ -4,10 +4,29 @@ import {
   Paper,
   Typography,
   TextField,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   Autocomplete,
   Button,
   Stack,
   Alert,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  Button,
+  Stack,
+  Alert,
+  Snackbar,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   Table,
   TableBody,
   TableCell,
@@ -31,7 +50,18 @@ import {
   useMediaQuery,
   SxProps,
   Theme,
+<<<<<<< HEAD
   CircularProgress,
+=======
+<<<<<<< HEAD
+  CircularProgress,
+=======
+<<<<<<< HEAD
+  CircularProgress,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -52,6 +82,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ModelGroupConfig } from '../../services/api/config'
 import { unifiedConfigApi } from '../../services/api/unified-config'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { useNotification } from '../../hooks/useNotification'
 
 // 常用的 OpenAI 兼容供应商地址（可扩展）
@@ -68,6 +105,14 @@ const OPENAI_COMPAT_PROVIDERS: Array<{ name: string; url: string }> = [
   { name: '腾讯混元', url: 'https://api.hunyuan.cloud.tencent.com/v1' },
   { name: '商汤日日新', url: 'https://api.sensenova.cn/compatible-mode/v1' },
 ]
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 interface EditDialogProps {
   open: boolean
@@ -112,6 +157,13 @@ function EditDialog({
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const notification = useNotification()
 
   const [modelOptions, setModelOptions] = useState<string[]>([])
@@ -179,6 +231,14 @@ function EditDialog({
       setFetchingModels(false)
     }
   }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   // 获取模型类型列表
   const { data: modelTypes = [] } = useQuery({
@@ -230,7 +290,19 @@ function EditDialog({
         ENABLE_COT: false,
       })
     }
+<<<<<<< HEAD
   }, [initialConfig, open, isCopy])
+=======
+<<<<<<< HEAD
+  }, [initialConfig, open, isCopy])
+=======
+<<<<<<< HEAD
+  }, [initialConfig, open, isCopy])
+=======
+  }, [initialConfig])
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
@@ -264,6 +336,13 @@ function EditDialog({
 
   // 在提交前验证表单
   const handleSubmit = async () => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     // 去除首尾空白，防止误提交
     const trimmedGroupName = groupName.trim()
     const sanitizedConfig: ModelGroupConfig = {
@@ -278,24 +357,70 @@ function EditDialog({
 
     // 验证组名
     if (trimmedGroupName && !validateGroupName(trimmedGroupName)) {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    // 验证组名
+    if (groupName && !validateGroupName(groupName)) {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)')
       return
     }
 
     // 检查空组名
+<<<<<<< HEAD
     if (!trimmedGroupName) {
+=======
+<<<<<<< HEAD
+    if (!trimmedGroupName) {
+=======
+<<<<<<< HEAD
+    if (!trimmedGroupName) {
+=======
+    if (!groupName) {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       setGroupNameError('组名不能为空')
       return
     }
 
     // 检查名称是否已存在（对于新建或复制的情况）
+<<<<<<< HEAD
     if (existingGroups[trimmedGroupName] && (isCopy || !initialConfig)) {
+=======
+<<<<<<< HEAD
+    if (existingGroups[trimmedGroupName] && (isCopy || !initialConfig)) {
+=======
+<<<<<<< HEAD
+    if (existingGroups[trimmedGroupName] && (isCopy || !initialConfig)) {
+=======
+    if (existingGroups[groupName] && (isCopy || !initialConfig)) {
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       setGroupNameError(`模型组名称 "${groupName}" 已存在，请使用其他名称`)
       return
     }
 
     try {
+<<<<<<< HEAD
       await onSubmit(trimmedGroupName, sanitizedConfig)
+=======
+<<<<<<< HEAD
+      await onSubmit(trimmedGroupName, sanitizedConfig)
+=======
+<<<<<<< HEAD
+      await onSubmit(trimmedGroupName, sanitizedConfig)
+=======
+      await onSubmit(groupName, config)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       onClose()
     } catch (error) {
       if (error instanceof Error) {
@@ -337,6 +462,13 @@ function EditDialog({
               },
             }}
           />
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <Autocomplete
             freeSolo
             options={providerOptions}
@@ -378,6 +510,84 @@ function EditDialog({
                 helperText="从列表中选择常用供应商，或输入任意 OpenAI 接口基准地址"
               />
             )}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+          <TextField
+            label="模型名称"
+            value={config.CHAT_MODEL}
+            onChange={e => setConfig({ ...config, CHAT_MODEL: e.target.value })}
+            fullWidth
+            autoComplete="off"
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
+          />
+          <TextField
+            select
+            label="模型类型"
+            value={config.MODEL_TYPE || 'chat'}
+            onChange={e => setConfig({ ...config, MODEL_TYPE: e.target.value })}
+            fullWidth
+            size={isSmall ? 'small' : 'medium'}
+          >
+            {modelTypes.map(type => (
+              <MenuItem key={type.value} value={type.value}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  {getModelTypeIcon(type.value)}
+                  <Box sx={{ ml: 1 }}>
+                    <Typography variant="body2" sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
+                      {type.label}
+                    </Typography>
+                    {type.description && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontSize: isSmall ? '0.7rem' : 'inherit' }}
+                      >
+                        {type.description}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              </MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            label="代理地址"
+            value={config.CHAT_PROXY}
+            onChange={e => setConfig({ ...config, CHAT_PROXY: e.target.value })}
+            fullWidth
+            autoComplete="off"
+            size={isSmall ? 'small' : 'medium'}
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
+          />
+          <TextField
+            label="API地址"
+            value={config.BASE_URL}
+            onChange={e => setConfig({ ...config, BASE_URL: e.target.value })}
+            fullWidth
+            autoComplete="off"
+            size={isSmall ? 'small' : 'medium'}
+            inputProps={{
+              autoComplete: 'new-password',
+              form: {
+                autoComplete: 'off',
+              },
+            }}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           />
           <TextField
             label="API密钥"
@@ -414,6 +624,13 @@ function EditDialog({
               ),
             }}
           />
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           <TextField
             label="代理地址"
             value={config.CHAT_PROXY}
@@ -510,6 +727,14 @@ function EditDialog({
               </MenuItem>
             ))}
           </TextField>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
           {/* 模型功能选项 */}
           <Box className="border-t pt-2 mt-2">
@@ -682,7 +907,19 @@ const BlurredText = styled('div')`
 
 export default function ModelGroupsPage() {
   const queryClient = useQueryClient()
+<<<<<<< HEAD
   const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+<<<<<<< HEAD
+  const notification = useNotification()
+=======
+  const [message, setMessage] = useState('')
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<{
     name: string
@@ -691,7 +928,18 @@ export default function ModelGroupsPage() {
   }>({
     name: '',
   })
+<<<<<<< HEAD
   const [dialogKey, setDialogKey] = useState(0) // 用于控制对话框重建
+=======
+<<<<<<< HEAD
+  const [dialogKey, setDialogKey] = useState(0) // 用于控制对话框重建
+=======
+<<<<<<< HEAD
+  const [dialogKey, setDialogKey] = useState(0) // 用于控制对话框重建
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingGroupName, setDeletingGroupName] = useState('')
   const theme = useTheme()
@@ -771,11 +1019,29 @@ export default function ModelGroupsPage() {
 
   const handleAdd = () => {
     setEditingGroup({ name: '' })
+<<<<<<< HEAD
     setDialogKey(prev => prev + 1)
+=======
+<<<<<<< HEAD
+    setDialogKey(prev => prev + 1)
+=======
+<<<<<<< HEAD
+    setDialogKey(prev => prev + 1)
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     setEditDialogOpen(true)
   }
 
   const handleEdit = (name: string) => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     // 确保每次打开都基于当前 name 和最新配置，避免状态复用
     setEditingGroup({ name: '', config: undefined, isCopy: false })
     setDialogKey(prev => prev + 1)
@@ -784,10 +1050,27 @@ export default function ModelGroupsPage() {
       setEditingGroup({ name, config: modelGroups[name] })
       setEditDialogOpen(true)
     })
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    setEditingGroup({ name, config: modelGroups[name] })
+    setEditDialogOpen(true)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   }
 
   // 添加复制模型组功能
   const handleCopy = (name: string) => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     setEditingGroup({ name: '', config: undefined, isCopy: false })
     setDialogKey(prev => prev + 1)
     Promise.resolve().then(() => {
@@ -798,19 +1081,63 @@ export default function ModelGroupsPage() {
       })
       setEditDialogOpen(true)
     })
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    setEditingGroup({
+      name: name,
+      config: { ...modelGroups[name] },
+      isCopy: true,
+    })
+    setEditDialogOpen(true)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   }
 
   const handleDelete = async (name: string) => {
     try {
       await unifiedConfigApi.deleteModelGroup(name)
+<<<<<<< HEAD
       notification.success(`模型组 "${name}" 已删除！`)
+=======
+<<<<<<< HEAD
+      notification.success(`模型组 "${name}" 已删除！`)
+=======
+<<<<<<< HEAD
+      notification.success(`模型组 "${name}" 已删除！`)
+=======
+      setMessage(`模型组 "${name}" 已删除！`)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
       setDeleteDialogOpen(false)
     } catch (error) {
       if (error instanceof Error) {
+<<<<<<< HEAD
         notification.error(error.message)
       } else {
         notification.error('删除失败')
+=======
+<<<<<<< HEAD
+        notification.error(error.message)
+      } else {
+        notification.error('删除失败')
+=======
+<<<<<<< HEAD
+        notification.error(error.message)
+      } else {
+        notification.error('删除失败')
+=======
+        setMessage(error.message)
+      } else {
+        setMessage('删除失败')
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       }
     }
   }
@@ -822,6 +1149,13 @@ export default function ModelGroupsPage() {
   }
 
   const handleSubmit = async (groupName: string, config: ModelGroupConfig) => {
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     // 统一裁剪，防止误输入空白
     const trimmedName = groupName.trim()
     const sanitizedConfig: ModelGroupConfig = {
@@ -847,6 +1181,28 @@ export default function ModelGroupsPage() {
     } else {
       // 如果是已有名称
       notification.error(`模型组名称 "${trimmedName}" 已存在，请换一个名称～ (>﹏<)`) 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    // 检查新模型组名称是否已存在
+    if (modelGroups[groupName] && !editingGroup.isCopy && editingGroup.name === groupName) {
+      // 如果是编辑已有模型组，允许相同名称
+      await unifiedConfigApi.updateModelGroup(groupName, config)
+      setMessage('保存成功～ (=^･ω･^=)')
+    } else if (!modelGroups[groupName]) {
+      // 如果是新建或复制模型组，名称必须不存在
+      await unifiedConfigApi.updateModelGroup(groupName, config)
+      setMessage(
+        editingGroup.isCopy ? `模型组 "${groupName}" 复制成功～ (≧ω≦)ノ` : '保存成功～ (=^･ω･^=)'
+      )
+    } else {
+      // 如果是已有名称
+      setMessage(`模型组名称 "${groupName}" 已存在，请换一个名称～ (>﹏<)`)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       return
     }
 
@@ -885,9 +1241,27 @@ export default function ModelGroupsPage() {
         }}
       >
         <Alert severity="info">
+<<<<<<< HEAD
           支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问{' '}
           <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
             NekroAI 中转
+=======
+<<<<<<< HEAD
+          支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问{' '}
+          <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
+            NekroAI 中转
+=======
+<<<<<<< HEAD
+          支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问{' '}
+          <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
+            NekroAI 中转
+=======
+          需要 API 密钥？可访问{' '}
+          <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
+            Nekro 合作中转
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           </Link>{' '}
           获取专属密钥哦～
         </Alert>
@@ -1204,9 +1578,25 @@ export default function ModelGroupsPage() {
         </TableContainer>
       </Paper>
 
+<<<<<<< HEAD
       {/* EditDialog 使用稳定的 key，避免输入时重置 */}
       <EditDialog
         key={dialogKey}
+=======
+<<<<<<< HEAD
+      {/* EditDialog 使用稳定的 key，避免输入时重置 */}
+      <EditDialog
+        key={dialogKey}
+=======
+<<<<<<< HEAD
+      {/* EditDialog 使用稳定的 key，避免输入时重置 */}
+      <EditDialog
+        key={dialogKey}
+=======
+      <EditDialog
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         open={editDialogOpen}
         onClose={() => setEditDialogOpen(false)}
         groupName={editingGroup.name}
@@ -1246,6 +1636,26 @@ export default function ModelGroupsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+
+      <Snackbar
+        open={!!message}
+        autoHideDuration={3000}
+        onClose={() => setMessage('')}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={() => setMessage('')} severity="info" variant="filled" className="w-full">
+          {message}
+        </Alert>
+      </Snackbar>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     </Box>
   )
 }

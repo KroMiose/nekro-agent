@@ -16,7 +16,19 @@ from nekro_agent.services.user.perm import Role, require_role
 router = APIRouter(prefix="/chat-channel", tags=["ChatChannel"])
 
 
+<<<<<<< HEAD
 @router.get("/list", summary="获取聊天频道列表")
+=======
+<<<<<<< HEAD
+@router.get("/list", summary="获取聊天频道列表")
+=======
+<<<<<<< HEAD
+@router.get("/list", summary="获取聊天频道列表")
+=======
+@router.get("/list", summary="获取会话列表")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def get_chat_channel_list(
     page: int = 1,
@@ -26,6 +38,13 @@ async def get_chat_channel_list(
     is_active: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """获取聊天频道列表
 
     排序逻辑：
@@ -37,6 +56,16 @@ async def get_chat_channel_list(
     - 最后消息时间：从整个消息表中查询，不受重置影响
     """
     query = DBChatChannel
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """获取会话列表"""
+    query = DBChatChannel.all()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 搜索条件
     if search:
@@ -44,13 +73,32 @@ async def get_chat_channel_list(
             Q(chat_key__contains=search) | Q(channel_name__contains=search),
         )
     if chat_type:
+<<<<<<< HEAD
         query = query.filter(chat_key__contains=f"{chat_type}_")
+=======
+<<<<<<< HEAD
+        query = query.filter(chat_key__contains=f"{chat_type}_")
+=======
+<<<<<<< HEAD
+        query = query.filter(chat_key__contains=f"{chat_type}_")
+=======
+        query = query.filter(chat_key__startswith=f"{chat_type}_")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if is_active is not None:
         query = query.filter(is_active=is_active)
 
     # 获取所有符合条件的频道
     channels = await query.all()
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     # 获取每个频道的统计信息
     channel_info_list = []
     for channel in channels:
@@ -77,11 +125,33 @@ async def get_chat_channel_list(
         else:
             # 如果没有消息，使用conversation_start_time作为活跃时间
             last_active_time = conversation_start_time
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    # 获取每个频道的最后消息时间和其他信息
+    channel_info_list = []
+    for channel in channels:
+        message_count = await DBChatMessage.filter(chat_key=channel.chat_key).count()
+        last_message = await DBChatMessage.filter(chat_key=channel.chat_key).order_by("-create_time").first()
+        # 确保时间是 naive 的
+        last_message_time = last_message.create_time.replace(tzinfo=None) if last_message else datetime.min
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
         channel_info_list.append(
             {
                 "channel": channel,
                 "message_count": message_count,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 "last_active_time": last_active_time,
                 "last_message_time": last_message_time if last_message else None,
             },
@@ -89,6 +159,20 @@ async def get_chat_channel_list(
 
     # 按最后活跃时间排序（最近活跃的在前）
     channel_info_list.sort(key=lambda x: x["last_active_time"], reverse=True)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                "last_message_time": last_message_time,
+            },
+        )
+
+    # 按最后消息时间排序
+    channel_info_list.sort(key=lambda x: x["last_message_time"], reverse=True)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 分页
     start_idx = (page - 1) * page_size
@@ -109,9 +193,28 @@ async def get_chat_channel_list(
                 "message_count": info["message_count"],
                 "create_time": channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 "update_time": channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
+<<<<<<< HEAD
                 # 保持前端接口兼容：last_message_time显示实际的最后消息时间
                 "last_message_time": (
                     info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S") if info["last_message_time"] is not None else None
+=======
+<<<<<<< HEAD
+                # 保持前端接口兼容：last_message_time显示实际的最后消息时间
+                "last_message_time": (
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S") if info["last_message_time"] is not None else None
+=======
+<<<<<<< HEAD
+                # 保持前端接口兼容：last_message_time显示实际的最后消息时间
+                "last_message_time": (
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S") if info["last_message_time"] is not None else None
+=======
+                "last_message_time": (
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S")
+                    if info["last_message_time"] != datetime.min
+                    else None
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 ),
             },
         )
@@ -119,12 +222,31 @@ async def get_chat_channel_list(
     return Ret.success(
         msg="获取成功",
         data={
+<<<<<<< HEAD
             "total": len(channels),
+=======
+<<<<<<< HEAD
+            "total": len(channels),
+=======
+<<<<<<< HEAD
+            "total": len(channels),
+=======
+            "total": len(result),
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             "items": result,
         },
     )
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.get("/detail/{chat_key}", summary="获取聊天频道详情")
 @require_role(Role.Admin)
 async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
@@ -135,6 +257,24 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
 
     # 获取聊天频道数据
     message_count = await DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time).count()
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+@router.get("/detail/{chat_key}", summary="获取会话详情")
+@require_role(Role.Admin)
+async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+    """获取会话详情"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+
+    # 获取会话数据
+    message_count = await DBChatMessage.filter(chat_key=chat_key).count()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 获取最近一条消息的时间
     last_message = await DBChatMessage.filter(chat_key=chat_key).order_by("-create_time").first()
@@ -162,38 +302,112 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
     )
 
 
+<<<<<<< HEAD
 @router.post("/{chat_key}/active", summary="设置聊天频道激活状态")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/active", summary="设置聊天频道激活状态")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/active", summary="设置聊天频道激活状态")
+=======
+@router.post("/{chat_key}/active", summary="设置会话激活状态")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def set_chat_channel_active(
     chat_key: str,
     is_active: bool,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """设置聊天频道激活状态"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
         return Ret.fail(msg="聊天频道不存在")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """设置会话激活状态"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     await channel.set_active(is_active)
     return Ret.success(msg="设置成功")
 
 
+<<<<<<< HEAD
 @router.post("/{chat_key}/reset", summary="重置聊天频道状态")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/reset", summary="重置聊天频道状态")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/reset", summary="重置聊天频道状态")
+=======
+@router.post("/{chat_key}/reset", summary="重置会话状态")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def reset_chat_channel(
     chat_key: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """重置聊天频道状态"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
         return Ret.fail(msg="聊天频道不存在")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """重置会话状态"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     await channel.reset_channel()
     return Ret.success(msg="重置成功")
 
 
+<<<<<<< HEAD
 @router.get("/{chat_key}/messages", summary="获取聊天频道消息列表")
+=======
+<<<<<<< HEAD
+@router.get("/{chat_key}/messages", summary="获取聊天频道消息列表")
+=======
+<<<<<<< HEAD
+@router.get("/{chat_key}/messages", summary="获取聊天频道消息列表")
+=======
+@router.get("/{chat_key}/messages", summary="获取会话消息列表")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def get_chat_channel_messages(
     chat_key: str,
@@ -201,10 +415,29 @@ async def get_chat_channel_messages(
     page_size: int = 32,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """获取聊天频道消息列表"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
         return Ret.fail(msg="聊天频道不存在")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """获取会话消息列表"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 查询消息，只返回conversation_start_time之后的消息
     query = DBChatMessage.filter(chat_key=chat_key, create_time__gte=channel.conversation_start_time)
@@ -235,13 +468,32 @@ async def get_chat_channel_messages(
     )
 
 
+<<<<<<< HEAD
 @router.post("/{chat_key}/preset", summary="设置聊天频道人设")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/preset", summary="设置聊天频道人设")
+=======
+<<<<<<< HEAD
+@router.post("/{chat_key}/preset", summary="设置聊天频道人设")
+=======
+@router.post("/{chat_key}/preset", summary="设置会话人设")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @require_role(Role.Admin)
 async def set_chat_channel_preset(
     chat_key: str,
     preset_id: Optional[int] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """设置聊天频道人设，传入 preset_id=None 则使用默认人设"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
@@ -250,3 +502,28 @@ async def set_chat_channel_preset(
     # 使用模型的 set_preset 方法
     result_msg = await channel.set_preset(preset_id)
     return Ret.success(msg=result_msg)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    """设置会话人设，传入 preset_id=None 则使用默认人设"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        return Ret.fail(msg="会话不存在")
+
+    # 设置人设ID，None需要作为null处理
+    if preset_id is None:
+        channel.preset_id = None  # type: ignore  # 在数据库模型中允许为null
+    else:
+        channel.preset_id = preset_id
+    await channel.save()
+
+    # 获取人设信息
+    preset = await channel.get_preset()
+    preset_name = preset.name if hasattr(preset, "name") else "默认人设"
+
+    return Ret.success(msg=f"设置成功，当前人设: {preset_name}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)

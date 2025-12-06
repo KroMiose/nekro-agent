@@ -46,13 +46,38 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     target_chat_key = cmd_content if cmd_content and event.get_user_id() in config.SUPER_USERS else chat_key
 
     if not target_chat_key:
+<<<<<<< HEAD
         logger.warning("聊天标识获取失败")
         if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
             await finish_with(matcher, message="聊天标识获取失败")
+=======
+<<<<<<< HEAD
+        logger.warning("聊天标识获取失败")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, message="聊天标识获取失败")
+=======
+<<<<<<< HEAD
+        logger.warning("聊天标识获取失败")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, message="聊天标识获取失败")
+=======
+        logger.warning("会话标识获取失败")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, message="会话标识获取失败")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         else:
             await matcher.finish()
 
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 获取重置前的消息统计
     msg_cnt = await DBChatMessage.filter(
@@ -64,6 +89,20 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await db_chat_channel.reset_channel()
 
     await finish_with(matcher, message=f"已重置 {target_chat_key} 的对话上下文（当前会话 {msg_cnt} 条消息已归档）")
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    await db_chat_channel.reset_channel()
+    query = DBChatMessage.filter(chat_key=target_chat_key)
+    msg_cnt = await query.count()
+    await query.delete()
+
+    await finish_with(matcher, message=f"已清空 {msg_cnt} 条 {target_chat_key} 的聊天记录")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 @on_command("inspect", priority=5, block=True).handle()
@@ -72,7 +111,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
+<<<<<<< HEAD
         await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+        await finish_with(matcher, message="请指定要查询的会话")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=target_chat_key)
     preset = await db_chat_channel.get_preset()
     info = f"基本人设: {preset.name}\n"
@@ -81,7 +132,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("exec", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     result, _, _ = await limited_run_code(
         ParsedCodeRunData(raw_content=cmd_content, code_content=cmd_content, thought_chain=""),
@@ -167,7 +230,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
+<<<<<<< HEAD
         await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+        await finish_with(matcher, message="请指定要查询的会话")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if target_chat_key == "*":
         for channel in await DBChatChannel.all():
             await channel.set_active(True)
@@ -193,7 +268,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     target_chat_key: str = cmd_content or chat_key
     if not target_chat_key:
+<<<<<<< HEAD
         await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+<<<<<<< HEAD
+        await finish_with(matcher, message="请指定要查询的聊天")
+=======
+        await finish_with(matcher, message="请指定要查询的会话")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if target_chat_key == "*":
         for channel in await DBChatChannel.all():
             await channel.set_active(False)
@@ -221,7 +308,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_show", aliases={"conf-show"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     if not cmd_content:
         modifiable_config_key: List[str] = []
@@ -242,7 +341,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_set", aliases={"conf-set"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     try:
         key, value = cmd_content.strip().split("=", 1)
@@ -274,7 +385,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_reload", aliases={"conf-reload"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     try:
         reload_config()
@@ -286,7 +409,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("conf_save", aliases={"conf-save"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     try:
         save_config()
@@ -307,13 +442,37 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(
         matcher,
         message=(
+<<<<<<< HEAD
             f"[Nekro-Agent 信息]\n"
+=======
+<<<<<<< HEAD
+            f"[Nekro-Agent 信息]\n"
+=======
+<<<<<<< HEAD
+            f"[Nekro-Agent 信息]\n"
+=======
+            f"=> [Nekro-Agent 信息]\n"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             f"> 更智能、更优雅的代理执行 AI\n"
             f"Author: KroMiose\n"
             f"Github: https://github.com/KroMiose/nekro-agent\n"
             f"Version: {version}\n"
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
+<<<<<<< HEAD
             "========聊天设定========\n"
+=======
+<<<<<<< HEAD
+            "========聊天设定========\n"
+=======
+<<<<<<< HEAD
+            "========聊天设定========\n"
+=======
+            "========会话设定========\n"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             f"人设: {preset.name}\n"
             f"当前模型组: {config.USE_MODEL_GROUP}\n"
         ).strip(),
@@ -443,7 +602,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     # 基本信息
     info = [
+<<<<<<< HEAD
         f"[{target_plugin.name}] 插件详情",
+=======
+<<<<<<< HEAD
+        f"[{target_plugin.name}] 插件详情",
+=======
+<<<<<<< HEAD
+        f"[{target_plugin.name}] 插件详情",
+=======
+        f"=> [{target_plugin.name}] 插件详情",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         f"版本: v{target_plugin.version} ({'已启用' if target_plugin.is_enabled else '已禁用'})",
         f"键名: {target_plugin.key}",
         f"作者: {target_plugin.author}",
@@ -543,12 +714,33 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(
         matcher,
         (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             "[Nekro-Agent 帮助]\n"
             "na_info: 查看系统信息\n"
             "====== [聊天管理] ======\n"
             "reset <chat_key?>: 清空指定聊天的聊天记录\n"
             "na_on <chat_key?>/<*>: 开启指定聊天的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定聊天的聊天功能\n"
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            "=> [Nekro-Agent 帮助]\n"
+            "na_info: 查看系统信息\n"
+            "====== [聊天管理] ======\n"
+            "reset <chat_key?>: 清空指定会话的聊天记录\n"
+            "na_on <chat_key?>/<*>: 开启指定会话的聊天功能\n"
+            "na_off <chat_key?>/<*>: 关闭指定会话的聊天功能\n"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             "\n====== [插件系统] ======\n"
             "na_plugins: 查看当前已加载的插件及其详细信息\n"
             "plugin_info <name/key>: 查看指定插件的详细信息\n"
@@ -562,7 +754,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "log_err_list [-p <页码>] [-s <每页数量>]: 查看最近错误日志\n"
             "log_err_list -a/--all: 查看全部日志目录文件\n"
             "log_chat_test <日志索引/文件名> [-g <模型组名>]: 测试错误日志\n"
+<<<<<<< HEAD
             "\n注: 未指定聊天时，默认操作对象为当前聊天, 星号(*)表示所有聊天\n"
+=======
+<<<<<<< HEAD
+            "\n注: 未指定聊天时，默认操作对象为当前聊天, 星号(*)表示所有聊天\n"
+=======
+<<<<<<< HEAD
+            "\n注: 未指定聊天时，默认操作对象为当前聊天, 星号(*)表示所有聊天\n"
+=======
+            "\n注: 未指定会话时，默认操作对象为当前会话, 星号(*)表示所有会话\n"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             "====== [更多信息] ======\n"
             f"Version: {get_app_version()}\n"
             "Github: https://github.com/KroMiose/nekro-agent\n"
@@ -570,6 +774,32 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+@on_command("telemetry_report", aliases={"telemetry-report"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """手动触发遥测数据提交（用于调试）"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+    # 获取当前时间和上一个整点时间
+    now = datetime.now()
+    current_hour = now.replace(minute=0, second=0, microsecond=0)
+    prev_hour = current_hour - timedelta(hours=1)
+
+    # 上报上一个小时的数据
+    response = await send_telemetry_report(prev_hour, current_hour)
+    if response.success:
+        await finish_with(matcher, message=f"遥测数据上报成功: {prev_hour} - {current_hour}")
+    else:
+        await finish_with(matcher, message=f"遥测数据上报失败: {response.message}")
+
+
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @on_command("model_test", aliases={"model-test"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
@@ -668,7 +898,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             model_test_fail_result_map[model_group.CHAT_MODEL] += 1
 
     # 构建测试结果输出
+<<<<<<< HEAD
     result_lines = ["[模型测试结果]"]
+=======
+<<<<<<< HEAD
+    result_lines = ["[模型测试结果]"]
+=======
+<<<<<<< HEAD
+    result_lines = ["[模型测试结果]"]
+=======
+    result_lines = ["=> [模型测试结果]"]
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     for model_name in set(list(model_test_success_result_map.keys()) + list(model_test_fail_result_map.keys())):
         success = model_test_success_result_map.get(model_name, 0)
         fail = model_test_fail_result_map.get(model_name, 0)
@@ -775,7 +1017,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         unstarred = ", ".join(result.data.unstarred_repositories) if result.data.unstarred_repositories else "无"
         status = "已Star所有官方仓库" if result.data.all_starred else "还有未Star的官方仓库"
 
+<<<<<<< HEAD
         message = f"[GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+=======
+<<<<<<< HEAD
+        message = f"[GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+=======
+<<<<<<< HEAD
+        message = f"[GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+=======
+        message = f"=> [GitHub Star 状态]\n状态: {status}\n已Star: {starred}\n未Star: {unstarred}"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     except Exception as e:
         logger.error(f"检查GitHub Star状态时发生错误: {e}")
@@ -1027,7 +1281,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 # ! 高风险命令
 @on_command("docker_restart", aliases={"docker-restart"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     if not OsEnv.RUN_IN_DOCKER:
         await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
@@ -1038,7 +1304,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("docker_logs", aliases={"docker-logs"}, priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     if not OsEnv.RUN_IN_DOCKER:
         await finish_with(matcher, message="当前环境不在 Docker 容器中，无法执行此操作")
@@ -1051,7 +1329,19 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 @on_command("sh", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     outputs = os.popen(cmd_content).read()
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
@@ -1064,7 +1354,19 @@ DB_RESET_LATEST_TRIGGER_TIME: float = 0
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     global DB_RESET_LATEST_TRIGGER_TIME
 
+<<<<<<< HEAD
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+<<<<<<< HEAD
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
+=======
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     args = cmd_content.split(" ")
 
     if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:

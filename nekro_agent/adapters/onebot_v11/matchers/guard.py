@@ -15,7 +15,19 @@ from nekro_agent.schemas.chat_message import ChatType
 
 
 async def finish_with(matcher: Matcher, message: str) -> NoReturn:
+<<<<<<< HEAD
     await matcher.finish(message=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip())
+=======
+<<<<<<< HEAD
+    await matcher.finish(message=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip())
+=======
+<<<<<<< HEAD
+    await matcher.finish(message=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip())
+=======
+    await matcher.finish(message=f"[Opt Output] {message}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 async def command_guard(
@@ -24,7 +36,18 @@ async def command_guard(
     arg: Message,
     matcher: Matcher,
     trigger_on_off: bool = False,
+<<<<<<< HEAD
     require_advanced_command: bool = False,
+=======
+<<<<<<< HEAD
+    require_advanced_command: bool = False,
+=======
+<<<<<<< HEAD
+    require_advanced_command: bool = False,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 ) -> Tuple[str, str, str, ChatType]:
     """指令执行前处理
 
@@ -35,7 +58,19 @@ async def command_guard(
         matcher (Matcher): Matcher 对象
 
     Returns:
+<<<<<<< HEAD
         Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 聊天标识, 聊天类型
+=======
+<<<<<<< HEAD
+        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 聊天标识, 聊天类型
+=======
+<<<<<<< HEAD
+        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 聊天标识, 聊天类型
+=======
+        Tuple[str, str, str, ChatType]: 用户名, 命令内容(不含命令名), 会话标识, 会话类型
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """
     chat_key, chat_type = await get_chat_info_old(event=event)
     db_chat_channel: DBChatChannel = await DBChatChannel.get_channel(chat_key=chat_key)
@@ -50,12 +85,27 @@ async def command_guard(
         else:
             await matcher.finish()
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     if require_advanced_command:
         try:
             config.require_advanced_command()
         except PermissionError:
             await finish_with(matcher, "当前未启用高级管理命令，无法执行此命令")
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     cmd_content: str = arg.extract_plain_text().strip()
     return username, cmd_content, chat_key, chat_type
 
@@ -77,9 +127,27 @@ async def reset_command_guard(
 
     # 非超级用户
     if cmd_content and chat_key != cmd_content:
+<<<<<<< HEAD
         logger.warning(f"用户 {username} 尝试越权操作其他聊天")
         if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
             await finish_with(matcher, "您只能操作当前聊天")
+=======
+<<<<<<< HEAD
+        logger.warning(f"用户 {username} 尝试越权操作其他聊天")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, "您只能操作当前聊天")
+=======
+<<<<<<< HEAD
+        logger.warning(f"用户 {username} 尝试越权操作其他聊天")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, "您只能操作当前聊天")
+=======
+        logger.warning(f"用户 {username} 尝试越权操作其他会话")
+        if config.ENABLE_COMMAND_UNAUTHORIZED_OUTPUT:
+            await finish_with(matcher, "您只能操作当前会话")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         else:
             await matcher.finish()
 

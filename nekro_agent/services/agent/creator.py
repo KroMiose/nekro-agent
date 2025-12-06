@@ -6,7 +6,18 @@ import magic
 from jinja2 import Environment
 
 from .templates.base import PromptTemplate
+<<<<<<< HEAD
 from .templates.base import env as default_env
+=======
+<<<<<<< HEAD
+from .templates.base import env as default_env
+=======
+<<<<<<< HEAD
+from .templates.base import env as default_env
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 mime = magic.Magic(mime=True)
 
@@ -54,7 +65,19 @@ class OpenAIChatMessage:
         cls,
         role: Literal["user", "assistant", "system"],
         template: PromptTemplate,
+<<<<<<< HEAD
         env: Environment = default_env,
+=======
+<<<<<<< HEAD
+        env: Environment = default_env,
+=======
+<<<<<<< HEAD
+        env: Environment = default_env,
+=======
+        env: Environment,
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     ) -> "OpenAIChatMessage":
         """添加 Jinja2 模板渲染片段"""
         return cls(role, [ContentSegment.text_content(template.render(env))])

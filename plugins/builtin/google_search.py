@@ -97,16 +97,45 @@ async def google_search(_ctx: AgentCtx, keyword: str) -> str:
     if not api_key or not cx_key:
         return "[Google] 未配置 API Key 或 CX Key"
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     proxy = (
         proxy if proxy and proxy.startswith(("http://", "https://"))
         else f"http://{proxy}" if proxy
         else None
     )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    if proxy and not proxy.startswith("http"):
+        proxy = f"http://{proxy}"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 
     try:
+<<<<<<< HEAD
         async with AsyncClient(proxy=proxy) as cli:
+=======
+<<<<<<< HEAD
+        async with AsyncClient(proxy=proxy) as cli:
+=======
+<<<<<<< HEAD
+        async with AsyncClient(proxy=proxy) as cli:
+=======
+        async with AsyncClient(proxies=proxy) as cli:
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             response = (
                 await cli.get(
                     "https://www.googleapis.com/customsearch/v1",

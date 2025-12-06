@@ -1282,6 +1282,13 @@ export default function PluginsEditorPage() {
                 theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
                 value={code}
                 onChange={handleCodeChange}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 loading={
                   <Box 
                     sx={{ 
@@ -1299,6 +1306,15 @@ export default function PluginsEditorPage() {
                     </Typography>
                   </Box>
                 }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                loading={<CircularProgress />}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 options={{
                   minimap: { enabled: false },
                   fontSize: 14,
@@ -1308,6 +1324,13 @@ export default function PluginsEditorPage() {
                   formatOnPaste: true,
                   formatOnType: true,
                   scrollBeyondLastLine: false,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                   automaticLayout: true,  // 自动布局
                 }}
                 onMount={editor => {
@@ -1347,6 +1370,38 @@ export default function PluginsEditorPage() {
                     if (errors.length > 0) {
                       console.warn('Monaco Editor validation errors:', errors)
                     }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                }}
+                onMount={editor => {
+                  if (isMobile) {
+                    // 获取Monaco编辑器的DOM元素
+                    const editorElement = editor.getDomNode()
+                    if (editorElement) {
+                      // 阻止编辑器内的触摸事件冒泡到外层容器
+                      editorElement.addEventListener(
+                        'touchmove',
+                        e => {
+                          e.stopPropagation()
+                        },
+                        { passive: true }
+                      )
+
+                      // 找到实际的滚动容器并设置样式
+                      const scrollElement = editorElement.querySelector(
+                        '.monaco-scrollable-element'
+                      )
+                      if (scrollElement instanceof HTMLElement) {
+                        scrollElement.style.overflowY = 'auto'
+                        scrollElement.style.touchAction = 'pan-y'
+                      }
+                    }
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                   }
                 }}
               />
@@ -1822,6 +1877,13 @@ export default function PluginsEditorPage() {
                     theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'light'}
                     value={code}
                     onChange={handleCodeChange}
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     loading={
                       <Box 
                         sx={{ 
@@ -1839,6 +1901,15 @@ export default function PluginsEditorPage() {
                         </Typography>
                       </Box>
                     }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                    loading={<CircularProgress />}
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                     options={{
                       minimap: { enabled: false },
                       fontSize: 14,
@@ -1848,6 +1919,13 @@ export default function PluginsEditorPage() {
                       formatOnPaste: true,
                       formatOnType: true,
                       scrollBeyondLastLine: false,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                       automaticLayout: true,  // 自动布局
                     }}
                     onMount={editor => {
@@ -1887,6 +1965,38 @@ export default function PluginsEditorPage() {
                         if (errors.length > 0) {
                           console.warn('Monaco Editor validation errors:', errors)
                         }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+                    }}
+                    onMount={editor => {
+                      if (isMobile) {
+                        // 获取Monaco编辑器的DOM元素
+                        const editorElement = editor.getDomNode()
+                        if (editorElement) {
+                          // 阻止编辑器内的触摸事件冒泡到外层容器
+                          editorElement.addEventListener(
+                            'touchmove',
+                            e => {
+                              e.stopPropagation()
+                            },
+                            { passive: true }
+                          )
+
+                          // 找到实际的滚动容器并设置样式
+                          const scrollElement = editorElement.querySelector(
+                            '.monaco-scrollable-element'
+                          )
+                          if (scrollElement instanceof HTMLElement) {
+                            scrollElement.style.overflowY = 'auto'
+                            scrollElement.style.touchAction = 'pan-y'
+                          }
+                        }
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                       }
                     }}
                   />

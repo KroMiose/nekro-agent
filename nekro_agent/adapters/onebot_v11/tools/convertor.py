@@ -23,6 +23,19 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     ChatType,
 )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+from nekro_agent.tools.common_util import (
+    copy_to_upload_dir,
+    download_file,
+)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 async def convert_chat_message(
@@ -53,9 +66,25 @@ async def convert_chat_message(
         if ob_event.file.model_extra and ob_event.file.model_extra.get("url"):
             suffix = "." + ob_event.file.name.rsplit(".", 1)[-1]
             if not ob_event.file.model_extra["url"].startswith("http"):
+<<<<<<< HEAD
                 logger.warning(
                     f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}"
                 )
+=======
+<<<<<<< HEAD
+                logger.warning(
+                    f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}"
+                )
+=======
+<<<<<<< HEAD
+                logger.warning(
+                    f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}"
+                )
+=======
+                logger.warning(f"上传文件无法获取到直链: {ob_event.file.model_extra['url']}")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 return ret_list, False, ""
             ret_list.append(
                 await ChatMessageSegmentFile.create_from_url(
@@ -167,6 +196,13 @@ async def convert_chat_message(
                 )
 
         elif seg.type == "file":
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if (
                 "size" in seg.data
                 and seg.data["size"] > config.MAX_UPLOAD_SIZE_MB * 1024 * 1024
@@ -195,6 +231,15 @@ async def convert_chat_message(
             else:
                 logger.warning(f"OneBot file message without url or file: {seg}")
                 continue
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            ...  # TODO: llob 传递过来的文件没有直链，待补充实现
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     if msg_to_me and not is_tome:
         is_tome = True

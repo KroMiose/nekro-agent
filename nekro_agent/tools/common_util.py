@@ -76,6 +76,13 @@ async def download_file(
             Path(file_path).chmod(0o755)
     except Exception:
         if retry_count > 0:
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             return await download_file(
                 url,
                 file_path,
@@ -84,6 +91,15 @@ async def download_file(
                 retry_count=retry_count - 1,
                 from_chat_key=from_chat_key,
             )
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            return await download_file(url, file_path, file_name, use_suffix, retry_count=retry_count - 1)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         raise
     else:
         return file_path, file_name

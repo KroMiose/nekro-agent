@@ -21,7 +21,19 @@ done
 # Define base URLs
 BASE_URLS=(
     "https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker"
+<<<<<<< HEAD
     "https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker"
+=======
+<<<<<<< HEAD
+    "https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker"
+=======
+<<<<<<< HEAD
+    "https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker"
+=======
+    "https://raw.gitcode.com/gh_mirrors/ne/nekro-agent/raw/main/docker"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 )
 
 # Docker 镜像

@@ -19,7 +19,19 @@ AI 可以将任何需要长期记住的信息，以"标题-内容"的形式记�
 ## 使用方法
 
 此插件主要由 AI 在后台自动使用。例如：
+<<<<<<< HEAD
 - 当用户告诉 AI 自己的邮箱时，AI 可能会用笔记记下："用户的邮箱是XX"。
+=======
+<<<<<<< HEAD
+- 当用户告诉 AI 自己的邮箱时，AI 可能会用笔记记下："用户的邮箱是XX"。
+=======
+<<<<<<< HEAD
+- 当用户告诉 AI 自己的邮箱时，AI 可能会用笔记记下："用户的邮箱是XX"。
+=======
+- 当用户告诉 AI 自己的昵称时，AI 可能会用笔记记下："用户的昵称是XX"。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 - 在角色扮演中，当角色获得一个"受伤"状态时，AI 会用笔记记下："手臂受伤了，行动不便"，直到这个状态被解除。
 - 它可以作为一个简单的键值数据库来存储和跟踪变量。
 """
@@ -167,7 +179,19 @@ async def note_prompt(_ctx: schemas.AgentCtx) -> str:
     return "Current Notes:\n" + channel_data.render_prompts()
 
 
+<<<<<<< HEAD
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取笔记")
+=======
+<<<<<<< HEAD
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取笔记")
+=======
+<<<<<<< HEAD
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取笔记")
+=======
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "获取状态笔记")
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 async def get_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
     """Get Note
 
@@ -200,7 +224,19 @@ async def get_note(_ctx: schemas.AgentCtx, chat_key: str, title: str) -> str:
 
 @plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "设置状态笔记")
 async def set_note(_ctx: schemas.AgentCtx, chat_key: str, title: str, description: str, duration: int = 0) -> bool:
+<<<<<<< HEAD
     """Set Note (适用于 "外观外貌"、"身体"、"心理"、"物品" 等效果)
+=======
+<<<<<<< HEAD
+    """Set Note (适用于 "外观外貌"、"身体"、"心理"、"物品" 等效果)
+=======
+<<<<<<< HEAD
+    """Set Note (适用于 "外观外貌"、"身体"、"心理"、"物品" 等效果)
+=======
+    """Set Note (适用于 "外观外貌"、"身体部位"、"心理状态" 等效果)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     **Attention**: ALL the chat records you see are **SCROLLING WINDOW** with a length limit, so make sure to remember the important information, otherwise it will be lost!
     This is the ** MOST RECOMMENDED ** way to manage persistent information.

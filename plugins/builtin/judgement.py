@@ -7,7 +7,19 @@
 
 - **禁言用户**: AI 可以根据对话内容，判断是否需要对某个用户进行禁言，并执行操作。
 - **操作审查**: 所有的禁言操作都需要 AI 提供详细的理由和证据。
+<<<<<<< HEAD
 - **管理反馈**: (可选功能) 当 AI 执行禁言时，可以将操作报告自动发送给预设的管理员频道，方便人工审查。
+=======
+<<<<<<< HEAD
+- **管理反馈**: (可选功能) 当 AI 执行禁言时，可以将操作报告自动发送给预设的管理员频道，方便人工审查。
+=======
+<<<<<<< HEAD
+- **管理反馈**: (可选功能) 当 AI 执行禁言时，可以将操作报告自动发送给预设的管理员频道，方便人工审查。
+=======
+- **管理反馈**: (可选功能) 当 AI 执行禁言时，可以将操作报告自动发送给预设的管理员会话，方便人工审查。
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 ## 使用方法
 
@@ -47,8 +59,23 @@ class JudgementConfig(ConfigBase):
     )
     ENABLE_ADMIN_REPORT: bool = Field(
         default=True,
+<<<<<<< HEAD
         title="启用管理频道反馈",
         description="启用后，禁言操作将发送报告给管理频道 (需要先配置管理频道)",
+=======
+<<<<<<< HEAD
+        title="启用管理频道反馈",
+        description="启用后，禁言操作将发送报告给管理频道 (需要先配置管理频道)",
+=======
+<<<<<<< HEAD
+        title="启用管理频道反馈",
+        description="启用后，禁言操作将发送报告给管理频道 (需要先配置管理频道)",
+=======
+        title="启用管理会话反馈",
+        description="启用后，禁言操作将发送报告给管理会话 (需要先配置管理会话)",
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     )
 
 
@@ -78,7 +105,19 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         chat_key (str): 聊天的唯一标识符，必须是群聊
         user_qq (str): 被禁言的用户的QQ号
         duration (int): 禁言时长，单位为秒，设置为 0 则解除禁言
+<<<<<<< HEAD
         report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理频道 (lang: zh-CN)
+=======
+<<<<<<< HEAD
+        report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理频道 (lang: zh-CN)
+=======
+<<<<<<< HEAD
+        report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理频道 (lang: zh-CN)
+=======
+        report (str): 禁言完整理由，附上充分证据说明，将被记录并自动转发至管理会话 (lang: zh-CN)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     """
     if _ctx.channel_id:
         chat_type, chat_id = _ctx.channel_id.split("_")
@@ -86,8 +125,23 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         chat_type, chat_id = _ctx.chat_key.split("_")
 
     if chat_type != ChatType.GROUP.value:
+<<<<<<< HEAD
         core.logger.error(f"禁言功能不支持 {chat_type} 的频道类型")
         return f"禁言功能不支持 {chat_type} 的频道类型"
+=======
+<<<<<<< HEAD
+        core.logger.error(f"禁言功能不支持 {chat_type} 的频道类型")
+        return f"禁言功能不支持 {chat_type} 的频道类型"
+=======
+<<<<<<< HEAD
+        core.logger.error(f"禁言功能不支持 {chat_type} 的频道类型")
+        return f"禁言功能不支持 {chat_type} 的频道类型"
+=======
+        core.logger.error(f"禁言功能不支持 {chat_type} 的会话类型")
+        return f"禁言功能不支持 {chat_type} 的会话类型"
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     # 发送禁言报告给管理员
     if config_judgement.ENABLE_ADMIN_REPORT and config.ADMIN_CHAT_KEY:

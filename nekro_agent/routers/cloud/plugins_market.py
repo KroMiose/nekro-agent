@@ -12,7 +12,18 @@ from nekro_agent.systems.cloud.api.plugin import (
     create_plugin,
     delete_plugin,
     get_plugin,
+<<<<<<< HEAD
     get_plugin_repo_info,
+=======
+<<<<<<< HEAD
+    get_plugin_repo_info,
+=======
+<<<<<<< HEAD
+    get_plugin_repo_info,
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     list_plugins,
     list_user_plugins,
 )
@@ -180,6 +191,13 @@ async def get_plugin_detail(
         return Ret.fail(msg=f"获取失败: {e}")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.get("/repo/{module_name}", summary="获取插件仓库信息")
 @require_role(Role.Admin)
 async def get_plugin_repo(
@@ -199,6 +217,14 @@ async def get_plugin_repo(
         return Ret.fail(msg=f"获取失败: {e}")
 
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 @router.post("/download/{module_name}", summary="下载云端插件到本地")
 @require_role(Role.Admin)
 async def download_plugin(

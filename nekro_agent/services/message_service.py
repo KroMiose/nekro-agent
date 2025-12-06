@@ -14,15 +14,39 @@ from nekro_agent.core import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
+<<<<<<< HEAD
 from nekro_agent.schemas.agent_ctx import AgentCtx
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.agent_ctx import AgentCtx
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.agent_ctx import AgentCtx
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+<<<<<<< HEAD
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.plugin.collector import plugin_collector
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.plugin.collector import plugin_collector
+=======
+<<<<<<< HEAD
+from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.plugin.collector import plugin_collector
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_forbidden_message,
@@ -36,9 +60,27 @@ class MessageService:
 
     def __init__(self):
         # 全局状态追踪
+<<<<<<< HEAD
         self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
         self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
         self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
+=======
+<<<<<<< HEAD
+        self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
+        self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
+        self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
+=======
+<<<<<<< HEAD
+        self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
+        self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
+        self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
+=======
+        self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个会话正在执行的agent任务
+        self.debounce_timers: Dict[str, float] = {}  # 记录每个会话的防抖计时器
+        self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个会话待处理的最新消息
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def _message_validation_check(self, message: ChatMessage) -> bool:
         """消息校验"""
@@ -62,12 +104,28 @@ class MessageService:
 
         return True
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     async def schedule_agent_task(
         self,
         chat_key: Optional[str] = None,
         message: Optional[ChatMessage] = None,
         ctx: Optional[AgentCtx] = None,
     ):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+    async def schedule_agent_task(self, chat_key: Optional[str] = None, message: Optional[ChatMessage] = None):
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """调度 agent 任务，实现防抖和任务控制"""
         if not message:
             if not chat_key:
@@ -87,6 +145,13 @@ class MessageService:
             return
 
         # 创建防抖任务
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         asyncio.create_task(self._debounce_task(chat_key, current_time, ctx))
 
     async def _debounce_task(self, chat_key: str, start_time: float, ctx: Optional[AgentCtx] = None):
@@ -94,6 +159,21 @@ class MessageService:
 
         Args:
             chat_key (str): 频道标识
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        asyncio.create_task(self._debounce_task(chat_key, current_time))
+
+    async def _debounce_task(self, chat_key: str, start_time: float):
+        """防抖任务处理
+
+        Args:
+            chat_key (str): 会话标识
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             start_time (float): 任务开始时间
         """
         db_chat_channel = await DBChatChannel.get(chat_key=chat_key)
@@ -112,6 +192,13 @@ class MessageService:
 
         # 创建新的agent任务
         task = asyncio.create_task(
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             self._run_chat_agent_task(
                 chat_key=chat_key,
                 message=final_message if not final_message.is_empty() else None,
@@ -121,6 +208,19 @@ class MessageService:
         self.running_tasks[chat_key] = task
 
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            self._run_chat_agent_task(chat_key=chat_key, message=final_message if not final_message.is_empty() else None),
+        )
+        self.running_tasks[chat_key] = task
+
+    async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None):
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import run_agent
 
@@ -135,7 +235,19 @@ class MessageService:
         try:
             for _i in range(3):
                 try:
+<<<<<<< HEAD
                     await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+=======
+<<<<<<< HEAD
+                    await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+=======
+<<<<<<< HEAD
+                    await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+=======
+                    await run_agent(chat_key=chat_key, chat_message=message)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 except Exception as e:
                     logger.exception(f"执行失败: {e}")
                 else:
@@ -156,7 +268,19 @@ class MessageService:
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
+<<<<<<< HEAD
                 new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
+=======
+<<<<<<< HEAD
+                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
+=======
+<<<<<<< HEAD
+                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
+=======
+                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message))
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
                 self.running_tasks[chat_key] = new_task
 
     async def push_human_message(
@@ -181,6 +305,13 @@ class MessageService:
             logger.info(f"消息 {message.content_text} 被禁止，跳过本次处理...")
             return
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ctx: AgentCtx = await AgentCtx.create_by_chat_key(chat_key=message.chat_key)
         ctx._trigger_db_user = user  # noqa: SLF001
 
@@ -189,6 +320,14 @@ class MessageService:
             logger.info(f"用户消息 {message.content_text} 被插件阻止响应，跳过本次处理...")
             return
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         # 添加聊天记录
         await DBChatMessage.create(
             message_id=message.message_id,
@@ -213,7 +352,18 @@ class MessageService:
         # 检查是否需要触发回复
         should_trigger = (
             trigger_agent
+<<<<<<< HEAD
             or signal == MsgSignal.FORCE_TRIGGER
+=======
+<<<<<<< HEAD
+            or signal == MsgSignal.FORCE_TRIGGER
+=======
+<<<<<<< HEAD
+            or signal == MsgSignal.FORCE_TRIGGER
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             or preset.name in message.content_text
             or message.is_tome
             or random_chat_check(config)
@@ -225,11 +375,27 @@ class MessageService:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
 
             await self.schedule_agent_task(message=message, ctx=ctx)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+            await self.schedule_agent_task(message=message)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
     async def push_bot_message(
         self,
@@ -316,6 +482,13 @@ class MessageService:
 
         content_text = convert_agent_message_to_prompt(agent_messages)
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         ctx: AgentCtx = await AgentCtx.create_by_chat_key(chat_key=chat_key)
 
         signal = await plugin_collector.handle_on_system_message(ctx, content_text)
@@ -323,6 +496,14 @@ class MessageService:
             logger.info(f"系统消息 {content_text} 被插件阻止响应，跳过本次处理...")
             return
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         await DBChatMessage.create(
             message_id="",
             sender_id=-1,
@@ -341,6 +522,13 @@ class MessageService:
             send_timestamp=int(time.time()),
         )
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
@@ -349,6 +537,19 @@ class MessageService:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")
                 return
             await self.schedule_agent_task(chat_key=chat_key, ctx=ctx)
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        if trigger_agent:
+            if not db_chat_channel.is_active:
+                logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
+                return
+            await self.schedule_agent_task(chat_key=chat_key)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 
 # 全局消息服务实例

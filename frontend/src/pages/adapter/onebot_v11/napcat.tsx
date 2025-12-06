@@ -1,9 +1,29 @@
 import { useState } from 'react'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { Box, Alert, CircularProgress, Typography, Stack, Button } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
 import { useQuery } from '@tanstack/react-query'
 import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
 import { ContentCopy as ContentCopyIcon, OpenInNew as OpenInNewIcon } from '@mui/icons-material'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+import { Box, Alert, CircularProgress, Typography } from '@mui/material'
+import { LoadingButton } from '@mui/lab'
+import { useQuery } from '@tanstack/react-query'
+import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
+import { ContentCopy as ContentCopyIcon } from '@mui/icons-material'
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 import { unifiedConfigApi } from '../../../services/api/unified-config'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
@@ -32,12 +52,27 @@ export default function OneBotV11NapCatPage() {
     queryFn: () => oneBotV11Api.getOneBotToken(),
   })
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const { data: napcatToken } = useQuery({
     queryKey: ['onebot-v11-napcat-token'],
     queryFn: () => oneBotV11Api.getNapcatToken(),
     refetchInterval: 10000, // 每10秒刷新一次
   })
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const handleCopyOnebotToken = async () => {
     if (onebotToken) {
       try {
@@ -50,6 +85,13 @@ export default function OneBotV11NapCatPage() {
     }
   }
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const handleCopyNapcatToken = async () => {
     if (napcatToken) {
       try {
@@ -136,12 +178,52 @@ export default function OneBotV11NapCatPage() {
             </Button>
           )}
         </Stack>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  return (
+    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {onebotToken && (
+        <Alert
+          severity="info"
+          sx={{ mb: 2, ...CARD_VARIANTS.default.styles }}
+          action={
+            <LoadingButton
+              size="small"
+              startIcon={<ContentCopyIcon />}
+              onClick={handleCopyOnebotToken}
+            >
+              复制
+            </LoadingButton>
+          }
+        >
+          OneBot 服务访问密钥: <strong>{onebotToken}</strong>
+        </Alert>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       )}
       <Box
         sx={{
           position: 'relative',
+<<<<<<< HEAD
           height:
             onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+=======
+<<<<<<< HEAD
+          height:
+            onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+=======
+<<<<<<< HEAD
+          height:
+            onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+=======
+          height: onebotToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
           flex: 1,
           '& iframe': {
             width: '100%',

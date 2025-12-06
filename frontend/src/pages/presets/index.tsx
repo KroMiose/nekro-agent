@@ -40,6 +40,13 @@ import {
   CloudSync as CloudSyncIcon,
   Close as CloseIcon,
   InfoOutlined as InfoIcon,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   FilterList as FilterListIcon,
   Clear as ClearIcon,
 } from '@mui/icons-material'
@@ -51,6 +58,22 @@ import { CHIP_VARIANTS, CARD_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/va
 import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
 import PaginationStyled from '../../components/common/PaginationStyled'
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+} from '@mui/icons-material'
+import { Preset, PresetDetail, presetsApi } from '../../services/api/presets'
+import { useSnackbar } from 'notistack'
+import { formatLastActiveTime } from '../../utils/time'
+
+import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
+import { UI_STYLES } from '../../theme/themeConfig'
+import { Fade } from '@mui/material'
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -1445,9 +1468,24 @@ export default function PresetsPage() {
   const [page, setPage] = useState(1)
   const pageSize = 25
   const [search, setSearch] = useState('')
+<<<<<<< HEAD
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [totalPages, setTotalPages] = useState(1)
   const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
+=======
+<<<<<<< HEAD
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [totalPages, setTotalPages] = useState(1)
+  const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
+=======
+<<<<<<< HEAD
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [totalPages, setTotalPages] = useState(1)
+  const [availableTags, setAvailableTags] = useState<TagInfo[]>([])
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [editDialog, setEditDialog] = useState(false)
   const [editingPreset, setEditingPreset] = useState<PresetDetail | undefined>(undefined)
@@ -1486,6 +1524,13 @@ export default function PresetsPage() {
         page,
         page_size: pageSize,
         search: search || undefined,
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         tags: selectedTags.length ? selectedTags.join(',') : undefined,
       })
       setPresets(data.items)
@@ -1495,18 +1540,47 @@ export default function PresetsPage() {
       if (data.items.length === 0 && data.total > 0 && page > 1) {
         setPage(1)
       }
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+      })
+      setPresets(data.items)
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     } catch (error) {
       console.error('获取人设列表失败', error)
       showError('获取人设列表失败')
     } finally {
       setLoading(false)
     }
+<<<<<<< HEAD
   }, [page, pageSize, search, selectedTags, showError])
+=======
+<<<<<<< HEAD
+  }, [page, pageSize, search, selectedTags, showError])
+=======
+<<<<<<< HEAD
+  }, [page, pageSize, search, selectedTags, showError])
+=======
+  }, [page, pageSize, search, showError])
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
 
   useEffect(() => {
     fetchData()
   }, [fetchData])
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   // 获取所有可用标签
   const fetchAvailableTags = useCallback(async () => {
     try {
@@ -1540,6 +1614,18 @@ export default function PresetsPage() {
     setPage(newPage)
     // 页面变化时滚动到顶部
     window.scrollTo({ top: 0, behavior: 'smooth' })
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPage(1)
+    fetchData()
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
   }
 
   const handleExpandClick = (id: number) => {
@@ -1575,7 +1661,18 @@ export default function PresetsPage() {
         showSuccess('创建成功')
       }
       fetchData()
+<<<<<<< HEAD
       fetchAvailableTags() // 刷新标签列表
+=======
+<<<<<<< HEAD
+      fetchAvailableTags() // 刷新标签列表
+=======
+<<<<<<< HEAD
+      fetchAvailableTags() // 刷新标签列表
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
     } catch (error) {
       console.error('保存失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
@@ -1596,7 +1693,18 @@ export default function PresetsPage() {
       await presetsApi.delete(confirmDelete)
       showSuccess('删除成功')
       fetchData()
+<<<<<<< HEAD
       fetchAvailableTags() // 刷新标签列表
+=======
+<<<<<<< HEAD
+      fetchAvailableTags() // 刷新标签列表
+=======
+<<<<<<< HEAD
+      fetchAvailableTags() // 刷新标签列表
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       if (expandedId === confirmDelete) {
         setExpandedId(null)
       }
@@ -1739,6 +1847,13 @@ export default function PresetsPage() {
         </Box>
       </Box>
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       {/* 标签过滤栏 */}
       {availableTags.length > 0 && (
         <Box
@@ -1825,11 +1940,26 @@ export default function PresetsPage() {
         </Box>
       )}
 
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       {loading && presets.length === 0 ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
           <CircularProgress />
         </Box>
       ) : presets.length > 0 ? (
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
         <>
           <Grid container spacing={isSmall ? 1.5 : 2}>
             {presets.map(preset => (
@@ -1861,6 +1991,27 @@ export default function PresetsPage() {
             />
           </Box>
         </>
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+=======
+        <Grid container spacing={isSmall ? 1.5 : 2}>
+          {presets.map(preset => (
+            <Grid
+              item
+              xs={12}
+              md={getGridColumns() === 2 ? 6 : 12}
+              lg={getGridColumns() === 3 ? 4 : 6}
+              key={preset.id}
+            >
+              {renderPresetCard(preset)}
+            </Grid>
+          ))}
+        </Grid>
+>>>>>>> 6cf9d37 (增加PYPI源自定义和代理功能)
+>>>>>>> a776096 (增加PYPI源自定义和代理功能)
+>>>>>>> e26199f (增加PYPI源自定义和代理功能)
       ) : (
         <Box
           sx={{
