@@ -35,6 +35,7 @@ from nekro_agent.services.sandbox.runner import limited_run_code
 from nekro_agent.systems.cloud.api.auth import check_official_repos_starred
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 from nekro_agent.tools.common_util import get_app_version
+from nekro_agent.tools.telemetry_util import generate_instance_id, is_running_in_docker
 
 from .guard import command_guard, finish_with, reset_command_guard
 
@@ -1022,6 +1023,24 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         )
     else:
         await finish_with(matcher, message=result_message)
+
+
+@on_command("instance_id", aliases={"instance-id", "na_instance_id", "na-instance-id"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """获取实例唯一ID"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    instance_id = generate_instance_id()
+
+    await finish_with(
+        matcher,
+        message=(
+            f"[实例ID信息]\n"
+            f"实例ID: {instance_id}\n"
+            f"运行环境: {'Docker容器' if is_running_in_docker() else '本地环境'}\n"
+            f"NekroCloud: {'已启用' if config.ENABLE_NEKRO_CLOUD else '未启用'}\n"
+        ),
+    )
 
 
 # ! 高风险命令
