@@ -60,6 +60,7 @@ class OsEnv:
     ENABLE_OPENAPI_DOCS: bool = OsEnvTypes.Bool("ENABLE_OPENAPI_DOCS")
 
 
+APP_SYSTEM_DIR: str = OsEnv.DATA_DIR + "/system"  # 系统目录
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"  # 用户资源上传目录
 SANDBOX_SHARED_HOST_DIR: str = OsEnv.DATA_DIR + "/sandboxes"  # 沙盒共享目录
 SANDBOX_PIP_CACHE_DIR: str = OsEnv.DATA_DIR + "/sandboxes/.pip_cache"  # 沙盒动态 PIP 缓存目录

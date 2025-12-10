@@ -33,6 +33,7 @@ from .presets import router as presets_router
 from .restart import router as restart_router
 from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
+from .space_cleanup import router as space_cleanup_router
 from .user import router as user_router
 from .user_manager import router as user_manager_router
 from .webhook import router as webhook_router
@@ -84,6 +85,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(cloud_auth_router)
     api.include_router(adapters_router)
     api.include_router(common_router)
+    api.include_router(space_cleanup_router)
 
     api.include_router(load_adapters_api())
 

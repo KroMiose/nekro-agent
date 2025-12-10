@@ -112,20 +112,41 @@ async def receive_message(
         return Response(content="", status_code=200)
 
     try:
-        # 1. 读取 JSON 请求体
+        # 1. 读取请求体
         body = await request.body()
         body_text = body.decode("utf-8")
 
         logger.debug(f"收到企业微信消息，签名: {msg_signature}, 时间戳: {timestamp}, nonce: {nonce}")
+        logger.debug(f"请求体长度: {len(body_text)}, 前200字符: {body_text[:200]}")
 
-        # 2. 解析 JSON 提取 encrypt 字段
+        # 2. 解析请求体提取 encrypt 字段（兼容 JSON 和 XML 两种格式）
         import json
+        import xml.etree.ElementTree as ET
 
-        request_data = json.loads(body_text)
-        encrypt_msg = request_data.get("encrypt")
+        encrypt_msg = None
+
+        # 尝试解析 JSON 格式
+        if body_text.strip().startswith("{"):
+            try:
+                request_data = json.loads(body_text)
+                encrypt_msg = request_data.get("encrypt")
+                logger.debug("成功解析 JSON 格式消息体")
+            except json.JSONDecodeError:
+                logger.warning("JSON 格式解析失败，尝试 XML 格式")
+
+        # 尝试解析 XML 格式
+        if not encrypt_msg and body_text.strip().startswith("<"):
+            try:
+                root = ET.fromstring(body_text)
+                encrypt_element = root.find("Encrypt")
+                if encrypt_element is not None and encrypt_element.text:
+                    encrypt_msg = encrypt_element.text
+                    logger.debug("成功解析 XML 格式消息体")
+            except ET.ParseError as e:
+                logger.error(f"XML 格式解析失败: {e}")
 
         if not encrypt_msg:
-            logger.error("消息体中缺少 encrypt 字段")
+            logger.error(f"无法从请求体中提取 encrypt 字段，请求体: {body_text[:500]}")
             return Response(content="", status_code=200)
 
         # 3. 解密消息
@@ -147,7 +168,7 @@ async def receive_message(
         return Response(content="", status_code=200)
 
     except ValueError as e:
-        logger.error(f"企业微信消息验证失败: {e}")
+        logger.exception(f"企业微信消息验证失败: {e}")
         return Response(content="", status_code=200)  # 返回空包避免重复推送
     except Exception as e:
         logger.exception(f"处理企业微信消息异常: {e}")

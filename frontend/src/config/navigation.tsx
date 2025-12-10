@@ -13,6 +13,7 @@ import {
   CloudDownload as CloudDownloadIcon,
   Palette as PaletteIcon,
   Hub as HubIcon,
+  CleaningServices as CleaningServicesIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
 
@@ -76,6 +77,7 @@ export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
       { path: '/settings/system', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
       { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
       { path: '/settings/theme', text: '调色盘', icon: <PaletteIcon />, parent: 'settings' },
+      { path: '/settings/space-cleanup', text: '空间回收', icon: <CleaningServicesIcon />, parent: 'settings' },
     ],
   },
   { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
