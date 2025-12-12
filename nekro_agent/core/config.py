@@ -389,6 +389,23 @@ class CoreConfig(ConfigBase):
         title="更新/克隆插件时使用代理",
         description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
     )
+    PLUGIN_INSTALL_USE_PROXY: bool = Field(
+        default=False,
+        title="安装插件包时使用代理",
+        description="是否在安装插件依赖包时使用 `DEFAULT_PROXY` 配置的代理",
+    )
+    PLUGIN_PYPI_MIRROR: str = Field(
+        default="https://pypi.tuna.tsinghua.edu.cn/simple",
+        title="PyPI 镜像源",
+        description="插件安装时使用的 PyPI 镜像源地址",
+        json_schema_extra=ExtraField(placeholder="例: https://pypi.tuna.tsinghua.edu.cn/simple").model_dump(),
+ )
+    PLUGIN_PYPI_TRUSTED_HOST: str = Field(
+        default="pypi.tuna.tsinghua.edu.cn",
+        title="PyPI 镜像源信任主机",
+        description="PyPI 镜像源的主机名，用于 --trusted-host 参数",
+        json_schema_extra=ExtraField(placeholder="例: pypi.tuna.tsinghua.edu.cn").model_dump(),
+    )
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(
