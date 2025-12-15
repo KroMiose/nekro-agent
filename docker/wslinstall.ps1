@@ -493,7 +493,7 @@ $replaceSourceCommand = @'
 #!/bin/bash
 cp /etc/apt/sources.list /etc/apt/sources.list.bak
 sed -i 's#deb.debian.org#mirrors.tuna.tsinghua.edu.cn#g' /etc/apt/sources.list
-sed -i '/bullseye-backports/ { /^[^#]/ s/^/#/ }' /etc/apt/sources.list
+sed -i '/bullseye-backports/s/^/#/' /etc/apt/sources.list
 '@
 Invoke-WslCommand -DistributionName $DistroName -Command $replaceSourceCommand
 if ($LASTEXITCODE -eq 0) {
