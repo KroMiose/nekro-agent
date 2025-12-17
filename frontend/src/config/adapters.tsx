@@ -16,6 +16,7 @@ import {
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
   Send as SendIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material'
 import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
@@ -338,6 +339,48 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
       navIcon: <SendIcon />,
       description: 'Telegram 适配器，支持 Telegram 机器人通信',
       tags: ['Telegram', '聊天', 'IM'],
+    },
+    tabs: [
+      {
+        label: '主页',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: '适配器配置',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: '覆盖配置',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: '高级',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // Email 适配器配置
+  email: {
+    key: 'email',
+    visual: {
+      displayName: 'Email',
+      iconText: 'Mail',
+      navIcon: <EmailIcon />,
+      description: '邮箱适配器，支持通过IMAP/SMTP协议收发邮件，将同一邮箱账户的邮件归属到同一聊天中',
+      tags: ['Email', '邮件', 'IMAP', 'SMTP', '聊天'],
     },
     tabs: [
       {
