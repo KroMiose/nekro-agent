@@ -400,9 +400,8 @@ async def gen_openai_chat_response(
                     if chunk_text:
                         output += f"{chunk_text}"
                     if hasattr(chunk.choices[0].delta, thought_chain_field_name):
-                        _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
-                        if _thought_chain:
-                            thought_chain += _thought_chain
+                        _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name) or ""
+                        thought_chain += _thought_chain
                     else:
                         _thought_chain = ""
 
@@ -438,7 +437,7 @@ async def gen_openai_chat_response(
 
                 output = res.choices[0].message.content
                 if hasattr(res.choices[0].message, thought_chain_field_name):
-                    thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
+                    thought_chain = getattr(res.choices[0].message, thought_chain_field_name) or ""
                 token_consumption: int = res.usage.total_tokens if res.usage else 0
                 token_input: int = res.usage.prompt_tokens if res.usage else 0
                 token_output: int = res.usage.completion_tokens if res.usage else 0
