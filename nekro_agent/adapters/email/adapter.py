@@ -14,6 +14,7 @@ from email.mime.text import MIMEText
 from email.utils import formataddr, mktime_tz, parseaddr, parsedate_to_datetime, parsedate_tz
 from html.parser import HTMLParser
 from typing import Dict, List, Optional, Type
+from dataclasses import dataclass
 
 import aiofiles
 from fastapi import APIRouter
@@ -98,6 +99,19 @@ class _HTMLTextExtractor(HTMLParser):
         return text.strip()
 
 
+@dataclass
+class ParsedEmail:
+    """解析后的邮件数据"""
+    subject: str
+    sender_name: str
+    sender_addr: str
+    date_str: str
+    html_content: str
+    text_content: str
+    attachments: List[str]
+    raw_bytes: bytes
+
+
 class EmailAdapter(BaseAdapter[EmailConfig]):
     """邮箱适配器"""
     
@@ -126,6 +140,154 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         except Exception as exc:  # 防御解析异常
             logger.debug(f"解析HTML为文本时出错: {exc}")
         return extractor.get_text()
+
+    def _parse_email(self, raw_email: bytes) -> ParsedEmail:
+        """解析邮件内容
+
+        Args:
+            raw_email: 原始邮件字节数据
+
+        Returns:
+            ParsedEmail: 解析后的邮件数据
+        """
+        email_message = email.message_from_bytes(raw_email)
+
+        subject = decode_mime_words(email_message.get("Subject", "")) or "无主题"
+        from_header = email_message.get("From", "")
+        sender_name, sender_addr = parseaddr(from_header)
+        sender_name = decode_mime_words(sender_name) or sender_name
+        date_str = email_message.get("Date", "")
+
+        html_content = ""
+        text_content = ""
+        attachments: List[str] = []
+
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                content_type = part.get_content_type()
+                disposition = str(part.get("Content-Disposition", "")) or ""
+                cdisp = part.get_content_disposition()
+
+                # 处理附件（attachment 和 inline）
+                if cdisp in {"attachment", "inline"}:
+                    decoded_filename = decode_mime_words(part.get_filename() or "unnamed_attachment")
+                    attachments.append(decoded_filename)
+                    # 附件下载由调用者处理（保持纯函数）
+                    continue
+
+                charset = part.get_content_charset()
+                try:
+                    payload = part.get_payload(decode=True)
+                    if isinstance(payload, bytes):
+                        text = payload.decode(charset or "utf-8", errors="ignore")
+                    else:
+                        text = str(payload)
+                except Exception:
+                    try:
+                        payload = part.get_payload()
+                        text = payload.decode("utf-8", errors="ignore") if isinstance(payload, bytes) else str(payload)
+                    except Exception:
+                        text = ""
+
+                if content_type == "text/html":
+                    html_content = text
+                elif content_type == "text/plain":
+                    text_content = text
+        else:
+            content_type = email_message.get_content_type()
+            charset = email_message.get_content_charset()
+            try:
+                payload = email_message.get_payload(decode=True)
+                if isinstance(payload, bytes):
+                    text = payload.decode(charset or "utf-8", errors="ignore")
+                else:
+                    text = str(payload)
+            except Exception:
+                try:
+                    payload = email_message.get_payload()
+                    text = payload.decode("utf-8", errors="ignore") if isinstance(payload, bytes) else str(payload)
+                except Exception:
+                    text = ""
+
+            if content_type == "text/html":
+                html_content = text
+            elif content_type == "text/plain":
+                text_content = text
+
+        return ParsedEmail(
+            subject=subject,
+            sender_name=sender_name,
+            sender_addr=sender_addr,
+            date_str=date_str,
+            html_content=html_content,
+            text_content=text_content,
+            attachments=attachments,
+            raw_bytes=raw_email,
+        )
+
+    def _connect_imap(self, account: EmailAccount) -> imaplib.IMAP4_SSL:
+        """连接到IMAP服务器
+
+        Args:
+            account: 邮箱账户配置
+
+        Returns:
+            imaplib.IMAP4_SSL: IMAP连接对象
+        """
+        provider_config = EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
+        if not provider_config:
+            raise ValueError(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
+
+        imap_host = provider_config.get("imap_host")
+        imap_port = int(provider_config.get("imap_port", 993))
+
+        conn = imaplib.IMAP4_SSL(imap_host, imap_port)
+        conn.login(account.USERNAME, account.PASSWORD)
+        # 执行登录后的特殊处理（如163邮箱的ID命令）
+        self._post_login_imap(conn, account.USERNAME, imap_host)
+        logger.info(f"IMAP连接建立成功: {account.USERNAME}@{imap_host}")
+        return conn
+
+    async def _notify_new_email(
+        self,
+        account_username: str,
+        chat_id: str,
+        email_id: bytes,
+        parsed: ParsedEmail,
+    ) -> None:
+        """发送新邮件通知
+
+        Args:
+            account_username: 邮箱账户用户名
+            chat_id: 聊天ID
+            email_id: 邮件ID
+            parsed: 解析后的邮件数据
+        """
+        if not (self.config.EMAIL_NOTIFICATIONS_ENABLED and self.config.EMAIL_NOTIFICATIONS_CHAT_KEY):
+            return
+
+        notify_chat_key = self.config.EMAIL_NOTIFICATIONS_CHAT_KEY
+        attachment_info = (
+            f"\n附件: 有 {len(parsed.attachments)} 个附件\n附件名称: {', '.join(parsed.attachments)}"
+            if parsed.attachments
+            else "\n附件: 无附件"
+        )
+
+        notify_text = (
+            f"[邮箱新邮件通知]\n"
+            f"收件账户: {account_username}\n"
+            f"邮件UID: {email_id.decode()}\n"
+            f"发件人: {parsed.sender_name} <{parsed.sender_addr}>\n"
+            f"主题: {parsed.subject}\n"
+            f"日期: {parsed.date_str}"
+            f"{attachment_info}\n\n"
+            f"邮件内容已同步到聊天 {chat_id}，你可以使用 get_email_content 方法获取完整内容。"
+        )
+        await message_service.push_system_message(
+            chat_key=notify_chat_key,
+            agent_messages=notify_text,
+            trigger_agent=True,
+        )
         
     @property
     def key(self) -> str:
@@ -337,222 +499,109 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         try:
             # 获取邮件内容
             status, msg_data = conn.fetch(email_id, "(RFC822)")
-            if status == "OK":
-                # 解析邮件
-                email_message = email.message_from_bytes(msg_data[0][1])
-                
-                # 解码邮件主题
-                subject = decode_mime_words(email_message.get("Subject", ""))
-                decoded_subject = subject if subject else "无主题"
-                
-                # 解析发件人信息
-                from_header = email_message.get("From", "")
-                sender_name, sender_addr = parseaddr(from_header)
-                
-                # 解码发件人昵称（处理MIME编码）
-                if sender_name:
-                    # 尝试解码MIME编码的发件人昵称
-                    decoded_sender_name = decode_mime_words(sender_name)
-                    sender_name = decoded_sender_name if decoded_sender_name else sender_name
-                
-                # 获取邮件日期
-                date_str = email_message.get("Date", "")
-                
-                # 解析邮件正文
-                html_content = ""
-                text_content = ""
-                html_text_content = ""
-                attachments = []
-                
-                if email_message.is_multipart():
-                    for part in email_message.walk():
-                        content_type = part.get_content_type()
-                        content_disposition = str(part.get("Content-Disposition", ""))
-                        
-                        # 处理附件
-                        if part.get_content_disposition() == "attachment":
-                            decoded_filename = decode_mime_words(part.get_filename() or "unnamed_attachment")
-                            attachments.append(decoded_filename)
-                            
-                            # 异步下载附件，不阻塞主线程
-                            asyncio.create_task(self._download_attachment(part, decoded_filename, account_username, decoded_subject, email_id.decode()))
-                        # 处理内联附件（如嵌入的图片）
-                        elif part.get_content_disposition() == "inline":
-                            decoded_filename = decode_mime_words(part.get_filename() or "unnamed_inline")
-                            attachments.append(decoded_filename)
-                            
-                            # 异步下载附件，不阻塞主线程
-                            asyncio.create_task(self._download_attachment(part, decoded_filename, account_username, decoded_subject, email_id.decode()))
-                        # 处理邮件正文
-                        elif content_type == "text/html":
-                            charset = part.get_content_charset()
-                            try:
-                                # 获取负载数据
-                                payload = part.get_payload(decode=True)
-                                if isinstance(payload, bytes):
-                                    html_content = payload.decode(charset or "utf-8", errors="ignore")
-                                else:
-                                    html_content = str(payload)
-                            except Exception as e:
-                                logger.warning(f"解码HTML内容时出错: {e}")
-                                try:
-                                    payload = part.get_payload()
-                                    if isinstance(payload, bytes):
-                                        html_content = payload.decode("utf-8", errors="ignore")
-                                    else:
-                                        html_content = str(payload)
-                                except Exception:
-                                    html_content = "[无法解析HTML内容]"
-                        elif content_type == "text/plain":
-                            charset = part.get_content_charset()
-                            try:
-                                # 获取负载数据
-                                payload = part.get_payload(decode=True)
-                                if isinstance(payload, bytes):
-                                    text_content = payload.decode(charset or "utf-8", errors="ignore")
-                                else:
-                                    text_content = str(payload)
-                            except Exception as e:
-                                logger.warning(f"解码文本内容时出错: {e}")
-                                try:
-                                    payload = part.get_payload()
-                                    if isinstance(payload, bytes):
-                                        text_content = payload.decode("utf-8", errors="ignore")
-                                    else:
-                                        text_content = str(payload)
-                                except Exception:
-                                    text_content = "[无法解析文本内容]"
-                else:
-                    # 非多部分邮件
-                    content_type = email_message.get_content_type()
-                    charset = email_message.get_content_charset()
-                    try:
-                        # 获取负载数据
-                        payload = email_message.get_payload(decode=True)
-                        if isinstance(payload, bytes):
-                            content = payload.decode(charset or "utf-8", errors="ignore")
-                        else:
-                            content = str(payload)
-                    except Exception as e:
-                        logger.warning(f"解码非多部分邮件内容时出错: {e}")
-                        try:
-                            payload = email_message.get_payload()
-                            if isinstance(payload, bytes):
-                                content = payload.decode("utf-8", errors="ignore")
-                            else:
-                                content = str(payload)
-                        except Exception:
-                            content = "[无法解析邮件内容]"
-                        
-                    if content_type == "text/html":
-                        html_content = content
-                    elif content_type == "text/plain":
-                        text_content = content
-
-                # 将HTML转换为纯文本，避免在聊天中出现冗长HTML
-                if html_content and not text_content:
-                    html_text_content = self._html_to_text(html_content)
-                elif html_content and text_content:
-                    # 同时存在时也准备一份转换文本，后续可替换正文
-                    html_text_content = self._html_to_text(html_content)
-                
-                # 构建消息内容
-                content = f"主题: {decoded_subject}\n发件人: {sender_name} <{sender_addr}>\n日期: {date_str}\n\n"
-                
-                # 添加正文内容
-                if text_content:
-                    # 优先使用纯文本内容
-                    content += text_content
-                elif html_content:
-                    # 使用转换后的HTML纯文本，避免直接暴露HTML源码
-                    content += html_text_content or self._html_to_text(html_content)
-                else:
-                    # 如果都没有内容，添加占位符
-                    content += "[无邮件正文内容]"
-                
-                # 添加附件信息到邮件内容
-                if attachments:
-                    content += f"\n\n附件 ({len(attachments)} 个):\n"
-                    for attachment in attachments:
-                        content += f"- {attachment}\n"
-                # 生成时间戳
-                try:
-                    date_tuple = parsedate_tz(date_str)
-                    if date_tuple:
-                        timestamp = mktime_tz(date_tuple)
-                    else:
-                        timestamp = int(time.time())
-                except Exception:
-                    timestamp = int(time.time())
-                
-                # 获取聊天ID
-                chat_id = self.account_chat_mapping.get(account_username, f"email_{account_username}")
-                
-                # 创建平台消息对象
-                platform_message = PlatformMessage(
-                    message_id=email_id.decode(),
-                    sender_id=sender_addr,  # 使用解码后的邮箱地址
-                    sender_name=sender_name,  # 使用解码后的发件人昵称
-                    content_text=content,
-                    is_self=False,
-                    timestamp=timestamp,
-                    ext_data=PlatformMessageExt(
-                        raw_data=msg_data[0][1]  # 原始邮件数据
-                    )
-                )
-                
-                # 创建平台频道对象
-                platform_channel = PlatformChannel(
-                    channel_id=chat_id,
-                    channel_name=f"邮箱账户: {account_username}",
-                    channel_type="private"
-                )
-                
-                # 创建平台用户对象
-                platform_user = PlatformUser(
-                    platform_name="email",
-                    user_id=sender_addr,  # 使用解码后的邮箱地址
-                    user_name=sender_name,  # 使用解码后的发件人昵称
-                    user_avatar=""
-                )
-                
-                # 将消息发送到核心引擎
-                await collect_message(self, platform_channel, platform_user, platform_message)
-                logger.info(f"成功处理账户 {account_username} 的邮件: {decoded_subject}")
-
-                # 如果在适配器配置中启用了新邮件通知，则在指定聊天频道触发 AI 处理
-                try:
-                    if self.config.EMAIL_NOTIFICATIONS_ENABLED and self.config.EMAIL_NOTIFICATIONS_CHAT_KEY:
-                        notify_chat_key = self.config.EMAIL_NOTIFICATIONS_CHAT_KEY
-                        # 构造一条系统提示消息，简要描述新邮件，用于作为 AI 的输入
-                        attachment_info = ""
-                        if attachments:
-                            attachment_info = f"\n附件: 有 {len(attachments)} 个附件\n附件名称: {', '.join(attachments)}"
-                        else:
-                            attachment_info = "\n附件: 无附件"
-
-                        notify_text = (
-                            f"[邮箱新邮件通知]\n"
-                            f"收件账户: {account_username}\n"
-                            f"邮件UID: {email_id.decode()}\n"
-                            f"发件人: {sender_name} <{sender_addr}>\n"
-                            f"主题: {decoded_subject}\n"
-                            f"日期: {date_str}"
-                            f"{attachment_info}\n\n"
-                            f"邮件内容已同步到聊天 {chat_id}，你可以使用 get_email_content 方法获取完整内容。"
-                        )
-                        await message_service.push_system_message(
-                            chat_key=notify_chat_key,
-                            agent_messages=notify_text,
-                            trigger_agent=True,
-                        )
-                        logger.info(
-                            f"已根据配置在频道 {notify_chat_key} 触发 AI 处理邮箱新邮件，账户={account_username}, 主题={decoded_subject}",
-                        )
-                except Exception as notify_exc:
-                    logger.error(f"触发邮箱新邮件通知失败: {notify_exc}")
-            else:
+            if status != "OK":
                 logger.warning(f"获取邮件 {email_id.decode()} 失败: {status}")
+                return
+
+            raw_email = msg_data[0][1]
+            parsed = self._parse_email(raw_email)
+
+            # 处理附件下载（基于解析结果）
+            if email.message_from_bytes(raw_email).is_multipart():
+                for part in email.message_from_bytes(raw_email).walk():
+                    cdisp = part.get_content_disposition()
+                    if cdisp in {"attachment", "inline"}:
+                        decoded_filename = decode_mime_words(part.get_filename() or "unnamed_attachment")
+                        asyncio.create_task(
+                            self._download_attachment(
+                                part,
+                                decoded_filename,
+                                account_username,
+                                parsed.subject,
+                                email_id.decode(),
+                            )
+                        )
+
+            # HTML → 文本规范化
+            html_text_content = ""
+            if parsed.html_content:
+                html_text_content = self._html_to_text(parsed.html_content)
+
+            # 构建消息内容
+            content = (
+                f"主题: {parsed.subject}\n"
+                f"发件人: {parsed.sender_name} <{parsed.sender_addr}>\n"
+                f"日期: {parsed.date_str}\n\n"
+            )
+
+            if parsed.text_content:
+                content += parsed.text_content
+            elif parsed.html_content:
+                content += html_text_content or self._html_to_text(parsed.html_content)
+            else:
+                content += "[无邮件正文内容]"
+
+            # 添加附件信息
+            if parsed.attachments:
+                content += f"\n\n附件 ({len(parsed.attachments)} 个):\n"
+                for attachment in parsed.attachments:
+                    content += f"- {attachment}\n"
+
+            # 生成时间戳
+            try:
+                date_tuple = parsedate_tz(parsed.date_str)
+                if date_tuple:
+                    timestamp = mktime_tz(date_tuple)
+                else:
+                    timestamp = int(time.time())
+            except Exception:
+                timestamp = int(time.time())
+
+            # 获取聊天ID
+            chat_id = self.account_chat_mapping.get(account_username, f"email_{account_username}")
+
+            # 创建平台消息对象
+            platform_message = PlatformMessage(
+                message_id=email_id.decode(),
+                sender_id=parsed.sender_addr,
+                sender_name=parsed.sender_name,
+                content_text=content,
+                is_self=False,
+                timestamp=timestamp,
+                ext_data=PlatformMessageExt(
+                    raw_data=raw_email
+                )
+            )
+
+            # 创建平台频道对象
+            platform_channel = PlatformChannel(
+                channel_id=chat_id,
+                channel_name=f"邮箱账户: {account_username}",
+                channel_type="private"
+            )
+
+            # 创建平台用户对象
+            platform_user = PlatformUser(
+                platform_name="email",
+                user_id=parsed.sender_addr,
+                user_name=parsed.sender_name,
+                user_avatar=""
+            )
+
+            # 将消息发送到核心引擎
+            await collect_message(self, platform_channel, platform_user, platform_message)
+            logger.info(f"成功处理账户 {account_username} 的邮件: {parsed.subject}")
+
+            # 发送新邮件通知
+            try:
+                await self._notify_new_email(account_username, chat_id, email_id, parsed)
+                if self.config.EMAIL_NOTIFICATIONS_ENABLED and self.config.EMAIL_NOTIFICATIONS_CHAT_KEY:
+                    logger.info(
+                        f"已根据配置在频道 {self.config.EMAIL_NOTIFICATIONS_CHAT_KEY} 触发 AI 处理邮箱新邮件，账户={account_username}, 主题={parsed.subject}",
+                    )
+            except Exception as notify_exc:
+                logger.error(f"触发邮箱新邮件通知失败: {notify_exc}")
+
         except Exception as e:
             logger.error(f"处理邮件 {email_id.decode()} 时发生错误: {e}")
     
@@ -570,45 +619,18 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         for account in self.config.RECEIVE_ACCOUNTS:
             if not account.ENABLED:
                 continue
-                
+
             try:
-                # 获取邮箱提供商配置
-                provider_config = EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
-                if not provider_config:
-                    logger.warning(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
-                    continue
-                    
-                imap_host = provider_config.get("imap_host")
-                imap_port = int(provider_config.get("imap_port", 993))
-                
-                # 创建IMAP连接
-                conn = imaplib.IMAP4_SSL(imap_host, imap_port)
-                
-                # 登录
-                conn.login(account.USERNAME, account.PASSWORD)
-                
-                # 执行特定的登录后处理
-                self._post_login_imap(conn, account.USERNAME, imap_host)
-                
-                # 保存连接
+                conn = self._connect_imap(account)
                 self.imap_connections[account.USERNAME] = conn
                 logger.info(f"IMAP连接建立成功: {account.USERNAME}")
-                
+
             except Exception as e:
                 logger.error(f"IMAP连接建立失败 ({account.USERNAME}): {e}")
     
     async def _reconnect_imap(self, account: EmailAccount) -> bool:
         """重新连接IMAP"""
         try:
-            # 获取邮箱提供商配置
-            provider_config = EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
-            if not provider_config:
-                logger.warning(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
-                return False
-                
-            imap_host = provider_config.get("imap_host")
-            imap_port = int(provider_config.get("imap_port", 993))
-            
             # 关闭旧连接（如果存在）
             if account.USERNAME in self.imap_connections:
                 try:
@@ -617,21 +639,12 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                     old_conn.logout()
                 except Exception:
                     pass
-            
-            # 创建新IMAP连接
-            conn = imaplib.IMAP4_SSL(imap_host, imap_port)
-            
-            # 登录
-            conn.login(account.USERNAME, account.PASSWORD)
-            
-            # 执行特定的登录后处理
-            self._post_login_imap(conn, account.USERNAME, imap_host)
-            
-            # 保存连接
+
+            conn = self._connect_imap(account)
             self.imap_connections[account.USERNAME] = conn
             logger.info(f"IMAP连接重新建立成功: {account.USERNAME}")
             return True
-            
+
         except Exception as e:
             logger.error(f"IMAP连接重新建立失败 ({account.USERNAME}): {e}")
             return False
@@ -828,10 +841,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         )
     
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
-        """获取频道信息"""    
+        """获取频道信息"""
         return PlatformChannel(
             channel_id=channel_id,
-            channel_name=f"邮箱账户: {email_address}",
+            channel_name=f"邮箱账户: {channel_id}",
             channel_type="private"  # 邮箱适配器默认是私聊
         )
     
@@ -874,6 +887,12 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             # 获取邮件内容
             # email_id是字符串，需要转换为bytes
             email_id_bytes = email_id.encode() if isinstance(email_id, str) else email_id
+
+            # 确保在调用 fetch 之前选择了已知的邮箱（例如 INBOX）
+            select_status, _ = conn.select("INBOX")
+            if select_status != "OK":
+                raise Exception(f"Failed to select mailbox INBOX for account {account_username}")
+
             status, msg_data = conn.fetch(email_id_bytes, '(RFC822)')
             
             if status == 'OK':

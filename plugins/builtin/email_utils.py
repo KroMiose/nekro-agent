@@ -161,6 +161,44 @@ def _trim_text(text: Optional[str], limit: int = _SUMMARY_CONTENT_LIMIT) -> str:
     return text[:limit] + "..."
 
 
+def _decode_header_value(value: str) -> str:
+    """解码邮件头部值（处理MIME编码）
+
+    Args:
+        value: 邮件头部值
+
+    Returns:
+        str: 解码后的字符串
+    """
+    if not value:
+        return ""
+    parts = email.header.decode_header(value)
+    return "".join(
+        p.decode(enc or "utf-8", errors="ignore") if isinstance(p, bytes) else str(p)
+        for p, enc in parts
+    )
+
+
+def _build_onebot_path(host_path: Path) -> Optional[str]:
+    """构建OneBot服务器挂载路径
+
+    Args:
+        host_path: 宿主机路径
+
+    Returns:
+        Optional[str]: OneBot路径，如果无法构建则返回None
+    """
+    if not core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
+        return None
+    try:
+        # 确保两个路径都是绝对路径
+        data_dir = Path(OsEnv.DATA_DIR).resolve()
+        rel = os.path.relpath(str(host_path), str(data_dir))
+        return os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
+    except Exception:
+        return None
+
+
 def _ensure_attachment_path(account_username: str, email_id: str, attachment_filename: str) -> Path:
     """构造并校验附件在宿主机的路径，防止路径穿越"""
     if not attachment_filename:
@@ -235,9 +273,8 @@ async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id:
             is_image = mime_type.startswith("image/")
 
         # 构造发送请求
-        # 需要传入相对于项目根目录的相对路径，因为 OneBot 适配器需要计算相对于 DATA_DIR 的路径
-        # target_path 是绝对路径，需要转换为相对路径
-        relative_path = target_path.relative_to(os.getcwd())
+        relative_path = Path("data") / target_path.relative_to(Path(OsEnv.DATA_DIR).resolve())
+
 
         segment_type = PlatformSendSegmentType.IMAGE if is_image else PlatformSendSegmentType.FILE
         request = PlatformSendRequest(
@@ -681,7 +718,8 @@ async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id,
                                         onebot_server_path = None
                                         if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
                                             try:
-                                                rel = os.path.relpath(str(host_path), OsEnv.DATA_DIR)
+                                                data_dir = Path(OsEnv.DATA_DIR).resolve()
+                                                rel = os.path.relpath(str(host_path), str(data_dir))
                                                 onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
                                             except Exception:
                                                 onebot_server_path = None
@@ -897,7 +935,8 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                         onebot_server_path = None
                         if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
                             try:
-                                rel = os.path.relpath(str(host_path), OsEnv.DATA_DIR)
+                                data_dir = Path(OsEnv.DATA_DIR).resolve()
+                                rel = os.path.relpath(str(host_path), str(data_dir))
                                 onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
                             except Exception:
                                 onebot_server_path = None
