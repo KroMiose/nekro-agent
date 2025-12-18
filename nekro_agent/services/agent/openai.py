@@ -370,6 +370,9 @@ async def gen_openai_chat_response(
 
     _start_time: float = time.time()
 
+    # messages 处理
+    messages = [msg.to_dict() if isinstance(msg, OpenAIChatMessage) else msg for msg in messages]
+
     gen_kwargs = {
         "temperature": temperature,
         "frequency_penalty": frequency_penalty,
@@ -377,10 +380,12 @@ async def gen_openai_chat_response(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
-        "extra_body": dict(extra_body) if extra_body else {},
+        "extra_body": dict(extra_body) if extra_body else None,
     }
 
     if top_k is not None:
+        if gen_kwargs["extra_body"] is None:
+            gen_kwargs["extra_body"] = {}
         gen_kwargs["extra_body"]["top_k"] = top_k
 
     # 去掉所有值为None的键
@@ -589,6 +594,7 @@ async def gen_openai_chat_stream(
     logger.info(f"启动简化的流式生成，使用模型: {model}")
 
     # 创建参数字典，移除None值
+    # 创建参数字典，移除None值
     gen_kwargs = {
         "temperature": temperature,
         "frequency_penalty": frequency_penalty,
@@ -596,11 +602,15 @@ async def gen_openai_chat_stream(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
-        "extra_body": dict(extra_body) if extra_body else {},
+        "extra_body": dict(extra_body) if extra_body else None,
     }
 
     if top_k is not None:
+        if gen_kwargs["extra_body"] is None:
+            gen_kwargs["extra_body"] = {}
         gen_kwargs["extra_body"]["top_k"] = top_k
+
+
 
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
 

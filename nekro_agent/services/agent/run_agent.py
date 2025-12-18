@@ -21,7 +21,7 @@ from nekro_agent.services.sandbox.runner import limited_run_code
 
 from ..config_resolver import config_resolver
 from .creator import OpenAIChatMessage
-from .openai import OpenAIResponse, gen_openai_chat_response
+from .openai import OpenAIResponse, gen_openai_chat_response, parse_extra_body
 from .resolver import ParsedCodeRunData, parse_chat_response
 from .templates.base import env as default_env
 from .templates.history import HistoryFirstStart, render_history_data
@@ -295,13 +295,10 @@ async def send_agent_request(
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
 
         try:
-            # 解析 EXTRA_BODY
-            extra_body_dict = None
-            if use_model_group.EXTRA_BODY:
-                try:
-                    extra_body_dict = json.loads(use_model_group.EXTRA_BODY)
-                except Exception as e:
-                    logger.error(f"解析 EXTRA_BODY 失败: {e}")
+            extra_body_dict = parse_extra_body(
+                use_model_group.EXTRA_BODY,
+                source_hint=f"ModelGroup: {use_model_group.CHAT_MODEL}",
+            )
 
             llm_response: OpenAIResponse = await gen_openai_chat_response(
                 model=use_model_group.CHAT_MODEL,
