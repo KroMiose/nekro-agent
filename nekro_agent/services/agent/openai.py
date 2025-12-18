@@ -27,6 +27,26 @@ from .creator import OpenAIChatMessage
 _OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
+def parse_extra_body(extra_body_json: Optional[str], source_hint: str = "") -> Optional[Dict[str, Any]]:
+    """解析 extra_body JSON 字符串
+
+    Args:
+        extra_body_json: JSON 字符串
+        source_hint: 来源提示，用于日志记录
+
+    Returns:
+        解析后的字典，如果解析失败或输入为空则返回 None
+    """
+    if not extra_body_json:
+        return None
+    try:
+        return json.loads(extra_body_json)
+    except Exception as e:
+        truncated_body = extra_body_json[:100] + "..." if len(extra_body_json) > 100 else extra_body_json
+        logger.error(f"解析 EXTRA_BODY 失败 ({source_hint}): {e} | Original: {truncated_body}")
+        return None
+
+
 class OpenAIResponse(BaseModel):
     response_content: str  # 最终的回复内容
     thought_chain: str  # 思考链
@@ -357,7 +377,7 @@ async def gen_openai_chat_response(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
-        "extra_body": extra_body or {},
+        "extra_body": dict(extra_body) if extra_body else {},
     }
 
     if top_k is not None:
@@ -576,7 +596,7 @@ async def gen_openai_chat_stream(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
-        "extra_body": extra_body or {},
+        "extra_body": dict(extra_body) if extra_body else {},
     }
 
     if top_k is not None:

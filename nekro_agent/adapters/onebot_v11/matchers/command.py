@@ -26,7 +26,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
+from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response, parse_extra_body
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
@@ -38,6 +38,24 @@ from nekro_agent.tools.common_util import get_app_version
 from nekro_agent.tools.telemetry_util import generate_instance_id, is_running_in_docker
 
 from .guard import command_guard, finish_with, reset_command_guard
+
+
+def _build_chat_params(model_group: ModelConfigGroup, stream_mode: bool, max_wait_time: int | None = None) -> Dict[str, Any]:
+    """构建聊天参数"""
+    return {
+        "model": model_group.CHAT_MODEL,
+        "temperature": model_group.TEMPERATURE,
+        "top_p": model_group.TOP_P,
+        "top_k": model_group.TOP_K,
+        "frequency_penalty": model_group.FREQUENCY_PENALTY,
+        "presence_penalty": model_group.PRESENCE_PENALTY,
+        "extra_body": parse_extra_body(model_group.EXTRA_BODY, source_hint=f"ModelGroup: {model_group.CHAT_MODEL}"),
+        "base_url": model_group.BASE_URL,
+        "api_key": model_group.API_KEY,
+        "stream_mode": stream_mode,
+        "proxy_url": model_group.CHAT_PROXY,
+        **({"max_wait_time": max_wait_time} if max_wait_time is not None else {}),
+    }
 
 
 @on_command("reset", priority=5, block=True).handle()
@@ -652,27 +670,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
                     0,
                     {"role": "system", "content": "You are a helpful assistant that follows instructions precisely."},
                 )
-            # 解析 EXTRA_BODY
-            extra_body_dict = None
-            if model_group.EXTRA_BODY:
-                try:
-                    extra_body_dict = json.loads(model_group.EXTRA_BODY)
-                except Exception as e:
-                    logger.error(f"解析 EXTRA_BODY 失败: {e}")
-
             llm_response: OpenAIResponse = await gen_openai_chat_response(
-                model=model_group.CHAT_MODEL,
                 messages=messages,
-                temperature=model_group.TEMPERATURE,
-                top_p=model_group.TOP_P,
-                top_k=model_group.TOP_K,
-                frequency_penalty=model_group.FREQUENCY_PENALTY,
-                presence_penalty=model_group.PRESENCE_PENALTY,
-                extra_body=extra_body_dict,
-                base_url=model_group.BASE_URL,
-                api_key=model_group.API_KEY,
-                stream_mode=stream_mode,
-                proxy_url=model_group.CHAT_PROXY,
+                **_build_chat_params(model_group, stream_mode),
             )
             end_time = time.time()
             assert llm_response.response_content
@@ -979,28 +979,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     # 发起测试请求
     start_time = time.time()
     try:
-        # 解析 EXTRA_BODY
-        extra_body_dict = None
-        if model_group.EXTRA_BODY:
-            try:
-                extra_body_dict = json.loads(model_group.EXTRA_BODY)
-            except Exception as e:
-                logger.error(f"解析 EXTRA_BODY 失败: {e}")
-
         llm_response: OpenAIResponse = await gen_openai_chat_response(
-            model=model_group.CHAT_MODEL,
             messages=messages,
-            temperature=model_group.TEMPERATURE,
-            top_p=model_group.TOP_P,
-            top_k=model_group.TOP_K,
-            frequency_penalty=model_group.FREQUENCY_PENALTY,
-            presence_penalty=model_group.PRESENCE_PENALTY,
-            extra_body=extra_body_dict,
-            base_url=model_group.BASE_URL,
-            api_key=model_group.API_KEY,
-            stream_mode=use_stream_mode,
-            proxy_url=model_group.CHAT_PROXY,
-            max_wait_time=config.AI_GENERATE_TIMEOUT,
+            **_build_chat_params(model_group, use_stream_mode, config.AI_GENERATE_TIMEOUT),
         )
         end_time = time.time()
 
