@@ -295,9 +295,23 @@ async def send_agent_request(
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
 
         try:
+            # 解析 EXTRA_BODY
+            extra_body_dict = None
+            if use_model_group.EXTRA_BODY:
+                try:
+                    extra_body_dict = json.loads(use_model_group.EXTRA_BODY)
+                except Exception as e:
+                    logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
             llm_response: OpenAIResponse = await gen_openai_chat_response(
                 model=use_model_group.CHAT_MODEL,
                 messages=messages,
+                temperature=use_model_group.TEMPERATURE,
+                top_p=use_model_group.TOP_P,
+                top_k=use_model_group.TOP_K,
+                frequency_penalty=use_model_group.FREQUENCY_PENALTY,
+                presence_penalty=use_model_group.PRESENCE_PENALTY,
+                extra_body=extra_body_dict,
                 base_url=use_model_group.BASE_URL,
                 api_key=use_model_group.API_KEY,
                 stream_mode=config.AI_REQUEST_STREAM_MODE,

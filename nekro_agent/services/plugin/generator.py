@@ -109,12 +109,29 @@ async def generate_plugin_code(file_path: str, prompt: str, current_code: Option
         OpenAIChatMessage.from_template("user", GeneratorUserPrompt(prompt=prompt, current_code=current_code)),
     ]
 
+    # 获取模型配置
+    model_config = config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP]
+
+    # 解析 EXTRA_BODY
+    extra_body_dict = None
+    if model_config.EXTRA_BODY:
+        try:
+            extra_body_dict = json.loads(model_config.EXTRA_BODY)
+        except Exception as e:
+            logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
     # 调用 LLM 生成代码
     response = await gen_openai_chat_response(
-        model=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].CHAT_MODEL,
+        model=model_config.CHAT_MODEL,
         messages=messages,
-        base_url=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].BASE_URL,
-        api_key=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].API_KEY,
+        temperature=model_config.TEMPERATURE,
+        top_p=model_config.TOP_P,
+        top_k=model_config.TOP_K,
+        frequency_penalty=model_config.FREQUENCY_PENALTY,
+        presence_penalty=model_config.PRESENCE_PENALTY,
+        extra_body=extra_body_dict,
+        base_url=model_config.BASE_URL,
+        api_key=model_config.API_KEY,
         stream_mode=False,
     )
 
@@ -144,15 +161,32 @@ async def generate_plugin_code_stream(
 
     logger.info(f"开始为 {file_path} 流式生成代码，提示词: {prompt[:100]}...")
 
+    # 获取模型配置
+    model_config = config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP]
+
+    # 解析 EXTRA_BODY
+    extra_body_dict = None
+    if model_config.EXTRA_BODY:
+        try:
+            extra_body_dict = json.loads(model_config.EXTRA_BODY)
+        except Exception as e:
+            logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
     # 使用OpenAI模块中的流式生成器
     try:
         # 传递list[OpenAIChatMessage]作为Union[OpenAIChatMessage, Dict]类型的参数是安全的
         # mypy不能正确识别这种兼容性，但实际上这是有效的
         async for chunk in gen_openai_chat_stream(
-            model=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].CHAT_MODEL,
+            model=model_config.CHAT_MODEL,
             messages=messages,  # type: ignore
-            base_url=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].BASE_URL,
-            api_key=config.MODEL_GROUPS[config.PLUGIN_GENERATE_MODEL_GROUP].API_KEY,
+            temperature=model_config.TEMPERATURE,
+            top_p=model_config.TOP_P,
+            top_k=model_config.TOP_K,
+            frequency_penalty=model_config.FREQUENCY_PENALTY,
+            presence_penalty=model_config.PRESENCE_PENALTY,
+            extra_body=extra_body_dict,
+            base_url=model_config.BASE_URL,
+            api_key=model_config.API_KEY,
         ):
             yield chunk
     except Exception as e:
@@ -177,11 +211,28 @@ async def apply_plugin_code(file_path: str, prompt: str, current_code: str) -> s
         OpenAIChatMessage.from_template("user", ApplyUserPrompt(current_code=current_code, prompt=prompt)),
     ]
 
+    # 获取模型配置
+    model_config = config.MODEL_GROUPS[config.PLUGIN_APPLY_MODEL_GROUP]
+
+    # 解析 EXTRA_BODY
+    extra_body_dict = None
+    if model_config.EXTRA_BODY:
+        try:
+            extra_body_dict = json.loads(model_config.EXTRA_BODY)
+        except Exception as e:
+            logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
     response = await gen_openai_chat_response(
-        model=config.MODEL_GROUPS[config.PLUGIN_APPLY_MODEL_GROUP].CHAT_MODEL,
+        model=model_config.CHAT_MODEL,
         messages=messages,
-        base_url=config.MODEL_GROUPS[config.PLUGIN_APPLY_MODEL_GROUP].BASE_URL,
-        api_key=config.MODEL_GROUPS[config.PLUGIN_APPLY_MODEL_GROUP].API_KEY,
+        temperature=model_config.TEMPERATURE,
+        top_p=model_config.TOP_P,
+        top_k=model_config.TOP_K,
+        frequency_penalty=model_config.FREQUENCY_PENALTY,
+        presence_penalty=model_config.PRESENCE_PENALTY,
+        extra_body=extra_body_dict,
+        base_url=model_config.BASE_URL,
+        api_key=model_config.API_KEY,
         stream_mode=False,
     )
 

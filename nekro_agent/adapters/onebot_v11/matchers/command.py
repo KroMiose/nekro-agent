@@ -652,9 +652,23 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
                     0,
                     {"role": "system", "content": "You are a helpful assistant that follows instructions precisely."},
                 )
+            # 解析 EXTRA_BODY
+            extra_body_dict = None
+            if model_group.EXTRA_BODY:
+                try:
+                    extra_body_dict = json.loads(model_group.EXTRA_BODY)
+                except Exception as e:
+                    logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
             llm_response: OpenAIResponse = await gen_openai_chat_response(
                 model=model_group.CHAT_MODEL,
                 messages=messages,
+                temperature=model_group.TEMPERATURE,
+                top_p=model_group.TOP_P,
+                top_k=model_group.TOP_K,
+                frequency_penalty=model_group.FREQUENCY_PENALTY,
+                presence_penalty=model_group.PRESENCE_PENALTY,
+                extra_body=extra_body_dict,
                 base_url=model_group.BASE_URL,
                 api_key=model_group.API_KEY,
                 stream_mode=stream_mode,
@@ -965,9 +979,23 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     # 发起测试请求
     start_time = time.time()
     try:
+        # 解析 EXTRA_BODY
+        extra_body_dict = None
+        if model_group.EXTRA_BODY:
+            try:
+                extra_body_dict = json.loads(model_group.EXTRA_BODY)
+            except Exception as e:
+                logger.error(f"解析 EXTRA_BODY 失败: {e}")
+
         llm_response: OpenAIResponse = await gen_openai_chat_response(
             model=model_group.CHAT_MODEL,
             messages=messages,
+            temperature=model_group.TEMPERATURE,
+            top_p=model_group.TOP_P,
+            top_k=model_group.TOP_K,
+            frequency_penalty=model_group.FREQUENCY_PENALTY,
+            presence_penalty=model_group.PRESENCE_PENALTY,
+            extra_body=extra_body_dict,
             base_url=model_group.BASE_URL,
             api_key=model_group.API_KEY,
             stream_mode=use_stream_mode,
