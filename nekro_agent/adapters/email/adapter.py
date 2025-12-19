@@ -392,23 +392,6 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 # 发生错误时仍然继续轮询
                 await asyncio.sleep(self.config.POLL_INTERVAL)
 
-    def _get_imap_lock(self, account_username: str) -> asyncio.Lock:
-        """获取指定账户的IMAP锁
-
-        Args:
-            account_username: 邮箱账户用户名
-
-        Returns:
-            asyncio.Lock: 账户对应的锁
-
-        Raises:
-            Exception: 如果账户锁不存在
-        """
-        try:
-            return self.imap_locks[account_username]
-        except KeyError:
-            raise Exception(f"Lock for account {account_username} not found")
-
     @asynccontextmanager
     async def _account_lock(self, account_username: str):
         """账户锁上下文管理器
@@ -418,10 +401,42 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         Yields:
             None
+
+        Raises:
+            RuntimeError: 如果账户锁不存在
         """
-        lock = self._get_imap_lock(account_username)
+        lock = self.imap_locks.get(account_username)
+        if lock is None:
+            raise RuntimeError(f"Lock for account {account_username} not found")
         async with lock:
             yield
+
+    def _pick_mailbox(
+        self,
+        folders: List[str],
+        preferred: str = "INBOX",
+        override: str | None = None,
+    ) -> str:
+        """选择邮箱文件夹（纯函数，不涉及I/O）
+
+        Args:
+            folders: 可用的文件夹列表
+            preferred: 首选文件夹名称
+            override: 强制使用的文件夹名称
+
+        Returns:
+            str: 选择的文件夹名称
+
+        Raises:
+            RuntimeError: 如果没有可用文件夹
+        """
+        if override:
+            return override
+        if preferred in folders:
+            return preferred
+        if not folders:
+            raise RuntimeError("no folders available")
+        return folders[0]
 
     async def _select_mailbox(
         self,
@@ -444,25 +459,82 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         Raises:
             Exception: 如果文件夹选择失败
         """
-        if override_folder:
-            target = override_folder
-        else:
-            folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
-            if not folders:
-                raise Exception(f"No mailbox folders available for account {account_username}")
-            target = preferred if preferred in folders else folders[0]
+        folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
+        target = self._pick_mailbox(folders, preferred=preferred, override=override_folder)
 
         status, _ = await asyncio.to_thread(conn.select, target)
         if status != "OK":
             raise Exception(f"Failed to select mailbox {target} for account {account_username}")
         return target
 
+    def _parse_imap_list_line(self, line: str) -> str | None:
+        """解析 IMAP LIST 命令返回的单行数据
+
+        Args:
+            line: IMAP LIST 返回的一行数据
+
+        Returns:
+            Optional[str]: 解析出的文件夹名称，解析失败返回 None
+        """
+        # IMAP LIST: (<flags>) "<delimiter>" "<name>"
+        if '"/"' in line or '" "' in line:
+            parts = line.split('"')
+            if len(parts) >= 3:
+                name = parts[-2]
+                return name if name else None
+        # fallback: take last token, strip quotes
+        tokens = line.split()
+        if not tokens:
+            return None
+        return tokens[-1].strip('"')
+
+    def _extract_body(self, email_message: email.message.Message) -> tuple[str, str]:
+        """提取邮件正文内容（HTML 和纯文本）
+
+        Args:
+            email_message: 邮件消息对象
+
+        Returns:
+            tuple[str, str]: (html_content, text_content)
+        """
+        html_content = ""
+        text_content = ""
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                ctype = part.get_content_type()
+                # 跳过附件
+                if part.get_content_disposition() in ("attachment", "inline"):
+                    continue
+                if ctype in ("text/html", "text/plain"):
+                    charset = part.get_content_charset() or "utf-8"
+                    try:
+                        payload = part.get_payload(decode=True)
+                        content = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else str(payload)
+                    except Exception:
+                        content = ""
+                    if ctype == "text/html":
+                        html_content = content
+                    else:
+                        text_content = content
+        else:
+            ctype = email_message.get_content_type()
+            charset = email_message.get_content_charset() or "utf-8"
+            try:
+                payload = email_message.get_payload(decode=True)
+                content = payload.decode(charset, errors="ignore") if isinstance(payload, bytes) else str(payload)
+            except Exception:
+                content = ""
+            if ctype == "text/html":
+                html_content = content
+            elif ctype == "text/plain":
+                text_content = content
+        return html_content, text_content
+
     def get_mailbox_folders(self, conn: imaplib.IMAP4_SSL) -> List[str]:
         """获取邮箱文件夹列表（同步版本，供asyncio.to_thread调用）
 
         优先返回INBOX，其次返回其他文件夹
         """
-        # 获取文件夹列表
         status, folders = conn.list()
         if status != 'OK':
             return []
@@ -470,42 +542,64 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         folder_names: List[str] = []
 
         # 解析 IMAP LIST 返回的文件夹名
-        # 一般形式类似：b'(\\HasNoChildren) "/" "INBOX"'
         for folder in folders or []:
             # IMAP 库通常返回 bytes，需要先解码
-            if isinstance(folder, bytes):
-                try:
-                    line = folder.decode(errors='ignore')
-                except Exception:
-                    continue
-            else:
-                line = str(folder)
-
-            # 尝试按分隔符解析：(<flags>) "<delimiter>" "<name>"
-            # 如果格式不标准，则回退到取最后一个 token
-            name: str
-            if '"/"' in line or '" "' in line:
-                # 兼容不同服务器分隔符输出
-                # 找到最后一个双引号包裹的部分作为名称
-                quote_parts = line.split('"')
-                if len(quote_parts) >= 3:
-                    # 名称通常在倒数第二个双引号对之间
-                    name = quote_parts[-2]
-                else:
-                    name = line.split()[-1].strip('"')
-            else:
-                name = line.split()[-1].strip('"')
-
+            line = folder.decode(errors='ignore') if isinstance(folder, bytes) else str(folder)
+            name = self._parse_imap_list_line(line)
             if name:
                 folder_names.append(name)
 
         # 优先返回 INBOX，将其移动到列表开头（如果存在）
-        inbox_upper = "INBOX"
-
-        if inbox_upper in folder_names:
-            folder_names = [inbox_upper] + [f for f in folder_names if f != inbox_upper]
+        inbox = "INBOX"
+        if inbox in folder_names:
+            folder_names = [inbox] + [f for f in folder_names if f != inbox]
 
         return folder_names
+
+    async def select_default_mailbox(self, account_username: str, preferred: str = "INBOX"):
+        """选择默认邮箱文件夹（带锁保护的辅助方法）
+
+        Args:
+            account_username: 邮箱账户用户名
+            preferred: 首选文件夹名称，默认为 "INBOX"
+
+        Returns:
+            imaplib.IMAP4_SSL: 已选择文件夹的IMAP连接对象
+
+        Raises:
+            RuntimeError: 如果账户不存在或没有可用文件夹
+        """
+        if account_username not in self.imap_connections:
+            raise RuntimeError(f"账户 {account_username} 未连接或不存在")
+
+        conn = self.imap_connections[account_username]
+        await self._select_mailbox(account_username, conn, preferred=preferred)
+        return conn
+
+    async def imap_search(self, conn: imaplib.IMAP4_SSL, criteria: str):
+        """异步执行 IMAP SEARCH 命令
+
+        Args:
+            conn: IMAP连接对象
+            criteria: 搜索条件
+
+        Returns:
+            搜索结果
+        """
+        return await asyncio.to_thread(conn.search, None, criteria)
+
+    async def imap_fetch(self, conn: imaplib.IMAP4_SSL, msg_id, query='(RFC822)'):
+        """异步执行 IMAP FETCH 命令
+
+        Args:
+            conn: IMAP连接对象
+            msg_id: 邮件ID
+            query: 查询字符串，默认为 '(RFC822)'
+
+        Returns:
+            fetch 结果
+        """
+        return await asyncio.to_thread(conn.fetch, msg_id, query)
     
     async def _check_new_emails(self, account_username: str, conn: imaplib.IMAP4_SSL) -> None:
         """检查指定账户的新邮件"""
@@ -970,9 +1064,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 email_id_bytes = email_id.encode() if isinstance(email_id, str) else email_id
 
                 # 使用辅助函数选择邮箱文件夹
-                mailbox_to_select = await self._select_mailbox(
-                    account_username, conn, override_folder=folder
-                )
+                await self._select_mailbox(account_username, conn, override_folder=folder)
 
                 # 在线程中执行 fetch 操作
                 status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, '(RFC822)')
@@ -989,22 +1081,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                     text_content = ""
                     if raw_email_data:
                         email_message = email.message_from_bytes(raw_email_data)
-
-                        # 提取邮件正文
-                        if email_message.is_multipart():
-                            for part in email_message.walk():
-                                if part.get_content_type() == "text/html":
-                                    charset = part.get_content_charset()
-                                    html_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
-                                elif part.get_content_type() == "text/plain":
-                                    charset = part.get_content_charset()
-                                    text_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
-                        else:
-                            charset = email_message.get_content_charset()
-                            if email_message.get_content_type() == "text/html":
-                                html_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
-                            elif email_message.get_content_type() == "text/plain":
-                                text_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                        html_content, text_content = self._extract_body(email_message)
 
                     return {
                         "account": account_username,

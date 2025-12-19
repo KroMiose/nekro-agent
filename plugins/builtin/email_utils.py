@@ -83,6 +83,7 @@ import time
 from datetime import datetime, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.utils import parseaddr
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -90,6 +91,7 @@ import aiofiles
 import magic
 from pydantic import Field
 
+from nekro_agent.adapters.email.adapter import decode_mime_words
 from nekro_agent.adapters.email.base import EMAIL_PROVIDER_CONFIGS
 from nekro_agent.adapters.email.config import EmailAccount
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -558,49 +560,35 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
         for account in accounts_to_check:
             account_username = account.USERNAME
             if account_username in email_adapter.imap_connections:
-                conn = email_adapter.imap_connections[account_username]
                 # 获取该账户的锁，确保IMAP操作的线程安全
                 lock = email_adapter.imap_locks.get(account_username)
                 if not lock:
-                    logger.warning(f"账户 {account_username} 的锁不存在，跳过该账户")
-                    continue
+                    # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
+                    logger.error(f"账户 {account_username} 的锁不存在，将为该账户创建新的锁（可能存在初始化/重连不一致）")
+                    lock = asyncio.Lock()
+                    email_adapter.imap_locks[account_username] = lock
 
                 async with lock:
                     try:
-                        # 使用adapter的get_mailbox_folders方法获取文件夹列表
-                        folders = await asyncio.to_thread(email_adapter.get_mailbox_folders, conn)
-                        target_folder = "INBOX"
-                        # 优先选择INBOX，否则使用第一个可用文件夹
-                        if folders:
-                            if "INBOX" not in folders:
-                                target_folder = folders[0]
-                        else:
-                            logger.warning(f"账户 {account_username} 没有可用的邮箱文件夹")
-                            continue
-
-                        # 在线程中执行 select 操作
-                        await asyncio.to_thread(conn.select, target_folder)
+                        # 使用适配器的辅助方法选择文件夹
+                        conn = await email_adapter.select_default_mailbox(account_username)
 
                         search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
-                        # 在线程中执行 search 操作
-                        status, messages = await asyncio.to_thread(conn.search, None, search_criteria)
+                        # 使用适配器的 imap_search 辅助方法
+                        status, messages = await email_adapter.imap_search(conn, search_criteria)
 
                         if status == 'OK':
                             email_ids = messages[0].split()
                             email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
 
-                            tasks = []
+                            # 顺序获取邮件内容，避免并发访问同一个 IMAP 连接导致状态混乱
                             for email_id in email_ids:
-                                task = asyncio.create_task(_fetch_email_content(_ctx, conn, account_username, email_id, timestamp_one_day_ago))
-                                tasks.append(task)
-
-                            results = await asyncio.gather(*tasks, return_exceptions=True)
-
-                            for result in results:
-                                if isinstance(result, Exception):
-                                    logger.warning(f"获取邮件内容时出错: {result}")
-                                elif result is not None:
-                                    recent_emails.append(result)
+                                try:
+                                    result = await _fetch_email_content(_ctx, conn, account_username, email_id, timestamp_one_day_ago)
+                                    if result is not None:
+                                        recent_emails.append(result)
+                                except Exception as e:
+                                    logger.warning(f"获取邮件内容时出错: {e}")
 
                     except Exception as e:
                         logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
@@ -666,90 +654,110 @@ def _sanitize_filename(filename: str) -> str:
     return filename
 
 async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id, timestamp_one_day_ago):
-    """异步获取单封邮件内容"""
+    """异步获取单封邮件内容
+
+    注意：不需要在这里过滤时间，因为 IMAP SINCE 命令已经过滤过了
+    """
     try:
-        # 获取邮件（在线程中执行，避免阻塞事件循环）
-        status, msg_data = await asyncio.to_thread(conn.fetch, email_id, '(RFC822)')
+        # 获取邮箱适配器
+        email_adapter = adapter_utils.get_adapter("email")
+
+        # 使用适配器的 imap_fetch 辅助方法
+        status, msg_data = await email_adapter.imap_fetch(conn, email_id, '(RFC822)')
         if status == 'OK':
             # 解析邮件
             raw_email = msg_data[0][1]
             email_message = email.message_from_bytes(raw_email)
-            
-            # 获取邮件时间
-            date_str = email_message.get('Date')
+
+            # 提取邮件基本信息
+            subject = email_message.get('Subject', '')
+            from_header = email_message.get('From', '')
+            date_str = email_message.get('Date', '')
+
+            # 解析并解码发件人
+            sender_name, sender_addr = parseaddr(from_header)
+            sender_name = decode_mime_words(sender_name) or sender_name
+            # 返回格式：名称 <地址>
+            sender = f"{sender_name} <{sender_addr}>" if sender_name else sender_addr
+
+            # 解析邮件时间用于返回
+            email_date = None
             if date_str:
                 try:
                     email_date = email.utils.parsedate_to_datetime(date_str)
-                    if email_date.timestamp() >= timestamp_one_day_ago:
-                        # 提取邮件基本信息
-                        subject = email_message.get('Subject', '')
-                        sender = email_message.get('From', '')
-                        
-                        # 解码主题
-                        if subject:
-                            decoded_parts = email.header.decode_header(subject)
-                            subject = ''.join([
+                except Exception as e:
+                    logger.warning(f"解析邮件日期时出错: {e}")
+                    # 如果解析失败，使用当前时间
+                    email_date = datetime.now()
+
+            # 如果没有日期，使用当前时间
+            if not email_date:
+                email_date = datetime.now()
+
+            # 解码主题
+            if subject:
+                decoded_parts = email.header.decode_header(subject)
+                subject = ''.join([
+                    part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
+                    for part, encoding in decoded_parts
+                ])
+
+            # 提取邮件正文
+            content = ""
+            if email_message.is_multipart():
+                for part in email_message.walk():
+                    if part.get_content_type() == "text/plain":
+                        payload = part.get_payload(decode=True)
+                        if payload:
+                            charset = part.get_content_charset() or 'utf-8'
+                            content = payload.decode(charset, errors='ignore')
+                            break
+            else:
+                payload = email_message.get_payload(decode=True)
+                if payload:
+                    charset = email_message.get_content_charset() or 'utf-8'
+                    content = payload.decode(charset, errors='ignore')
+
+            # 提取附件
+            attachments = []
+            if email_message.is_multipart():
+                for part in email_message.walk():
+                    if part.get_content_disposition() == "attachment":
+                        filename = part.get_filename()
+                        if filename:
+                            decoded_parts = email.header.decode_header(filename)
+                            filename = ''.join([
                                 part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
                                 for part, encoding in decoded_parts
                             ])
-                        
-                        # 提取邮件正文
-                        content = ""
-                        if email_message.is_multipart():
-                            for part in email_message.walk():
-                                if part.get_content_type() == "text/plain":
-                                    payload = part.get_payload(decode=True)
-                                    if payload:
-                                        charset = part.get_content_charset() or 'utf-8'
-                                        content = payload.decode(charset, errors='ignore')
-                                        break
-                        else:
-                            payload = email_message.get_payload(decode=True)
-                            if payload:
-                                charset = email_message.get_content_charset() or 'utf-8'
-                                content = payload.decode(charset, errors='ignore')
-                        
-                        attachments = []
-                        if email_message.is_multipart():
-                            for part in email_message.walk():
-                                if part.get_content_disposition() == "attachment":
-                                    filename = part.get_filename()
-                                    if filename:
-                                        decoded_parts = email.header.decode_header(filename)
-                                        filename = ''.join([
-                                            part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
-                                            for part, encoding in decoded_parts
-                                        ])
-                                        host_path = _ensure_attachment_path(account_username, email_id.decode(), filename)
-                                        onebot_server_path = None
-                                        if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
-                                            try:
-                                                data_dir = Path(OsEnv.DATA_DIR).resolve()
-                                                rel = os.path.relpath(str(host_path), str(data_dir))
-                                                onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
-                                            except Exception:
-                                                onebot_server_path = None
+                            host_path = _ensure_attachment_path(account_username, email_id.decode(), filename)
+                            onebot_server_path = None
+                            if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
+                                try:
+                                    data_dir = Path(OsEnv.DATA_DIR).resolve()
+                                    rel = os.path.relpath(str(host_path), str(data_dir))
+                                    onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
+                                except Exception:
+                                    onebot_server_path = None
 
-                                        attachments.append({
-                                            "filename": filename,
-                                            "host_path": str(host_path),
-                                            "onebot_server_path": onebot_server_path
-                                        })
-                        
-                        return {
-                            "account": account_username,
-                            "subject": subject,
-                            "sender": sender,
-                            "date": email_date.isoformat(),
-                            "content": _trim_text(content, _SUMMARY_CONTENT_LIMIT),
-                            "attachments": attachments,
-                            "uid": email_id.decode()
-                        }
-                except Exception as e:
-                    logger.warning(f"解析邮件日期时出错: {e}")
+                            attachments.append({
+                                "filename": filename,
+                                "host_path": str(host_path),
+                                "onebot_server_path": onebot_server_path
+                            })
+
+            return {
+                "account": account_username,
+                "subject": subject,
+                "sender": sender,
+                "date": email_date.isoformat(),
+                "content": _trim_text(content, _SUMMARY_CONTENT_LIMIT),
+                "attachments": attachments,
+                "uid": email_id.decode()
+            }
     except Exception as e:
         logger.warning(f"获取邮件 {email_id.decode()} 时出错: {e}")
-    
+
     return None
 
 
@@ -798,46 +806,37 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         email_adapter = adapter_utils.get_adapter("email")
         if not email_adapter:
             raise Exception("邮箱适配器未启用或未找到")
-        
+
         # 检查账户是否存在且已连接
         if account_username not in email_adapter.imap_connections:
             raise Exception(f"账户 {account_username} 未连接或不存在")
 
-        conn = email_adapter.imap_connections[account_username]
-
         # 获取该账户的锁，确保IMAP操作的线程安全
         lock = email_adapter.imap_locks.get(account_username)
         if not lock:
-            raise Exception(f"账户 {account_username} 的锁不存在")
+            # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
+            logger.error(f"账户 {account_username} 的锁不存在，将为该账户创建新的锁（可能存在初始化/重连不一致）")
+            lock = asyncio.Lock()
+            email_adapter.imap_locks[account_username] = lock
 
         async with lock:
-            # 使用adapter的get_mailbox_folders方法获取文件夹列表
-            folders = await asyncio.to_thread(email_adapter.get_mailbox_folders, conn)
-            target_folder = "INBOX"
-            # 优先选择INBOX，否则使用第一个可用文件夹
-            if folders:
-                if "INBOX" not in folders:
-                    target_folder = folders[0]
-            else:
-                raise Exception(f"账户 {account_username} 没有可用的邮箱文件夹")
+            # 使用适配器的辅助方法选择文件夹
+            conn = await email_adapter.select_default_mailbox(account_username)
 
-            # 在线程中执行 select 操作
-            await asyncio.to_thread(conn.select, target_folder)
-
-            # 在线程中执行 fetch 操作
-            status, msg_data = await asyncio.to_thread(conn.fetch, email_id.encode(), '(RFC822)')
+            # 使用适配器的 imap_fetch 辅助方法
+            status, msg_data = await email_adapter.imap_fetch(conn, email_id.encode(), '(RFC822)')
             if status != 'OK':
                 raise Exception(f"获取邮件 {email_id} 失败")
-        
+
         # 解析邮件
         raw_email = msg_data[0][1]
         email_message = email.message_from_bytes(raw_email)
-        
+
         # 提取邮件基本信息
         subject = email_message.get('Subject', '')
-        sender = email_message.get('From', '')
+        from_header = email_message.get('From', '')
         date_str = email_message.get('Date', '')
-        
+
         # 解码主题
         if subject:
             decoded_parts = email.header.decode_header(subject)
@@ -845,24 +844,22 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                 part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
                 for part, encoding in decoded_parts
             ])
-        
-        # 解码发件人
-        if sender:
-            decoded_parts = email.header.decode_header(sender)
-            sender = ''.join([
-                part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
-                for part, encoding in decoded_parts
-            ])
-        
+
+        # 解析并解码发件人
+        sender_name, sender_addr = parseaddr(from_header)
+        sender_name = decode_mime_words(sender_name) or sender_name
+        # 返回格式：名称 <地址>
+        sender = f"{sender_name} <{sender_addr}>" if sender_name else sender_addr
+
         # 提取邮件正文
         html_content = ""
         text_content = ""
-        
+
         if email_message.is_multipart():
             for part in email_message.walk():
                 content_type = part.get_content_type()
                 content_disposition = str(part.get("Content-Disposition", ""))
-                
+
                 # 处理邮件正文
                 if content_type == "text/html" and "attachment" not in content_disposition:
                     charset = part.get_content_charset()
@@ -920,12 +917,12 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                         content = str(payload)
                 except Exception:
                     content = "[无法解析邮件内容]"
-                
+
             if content_type == "text/html":
                 html_content = content
             elif content_type == "text/plain":
                 text_content = content
-        
+
         # 提取附件信息（包含保存位置）
         attachments = []
         attachment_names = []
