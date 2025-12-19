@@ -41,6 +41,7 @@ import { format } from 'date-fns'
 import RcSlider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 // 定义视觉隐藏样式，替代 visuallyHidden
 const srOnlyStyle = {
@@ -100,6 +101,7 @@ const UserTable: React.FC<UserTableProps> = ({
   showEditButton = false,
   tableProps,
 }) => {
+  const { t } = useTranslation('user-manager')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [banDialogOpen, setBanDialogOpen] = useState(false)
   const [preventTriggerDialogOpen, setPreventTriggerDialogOpen] = useState(false)
@@ -236,27 +238,27 @@ const UserTable: React.FC<UserTableProps> = ({
   }
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return '无'
+    if (!dateString) return t('common.none', { ns: 'common' })
     try {
       // 在移动设备上使用更简洁的日期格式
       return format(new Date(dateString), isMobile ? 'MM-dd HH:mm' : 'yyyy-MM-dd HH:mm:ss')
     } catch {
-      return '无效日期'
+      return t('common.invalidDate', { ns: 'common' })
     }
   }
 
   const getRoleLabel = (permLevel: number) => {
     switch (permLevel) {
       case 0:
-        return '访客'
+        return t('roles.guest', { ns: 'common' })
       case 1:
-        return '用户'
+        return t('roles.user', { ns: 'common' })
       case 2:
-        return '管理员'
+        return t('roles.admin', { ns: 'common' })
       case 3:
-        return '超级管理员'
+        return t('roles.superAdmin', { ns: 'common' })
       default:
-        return `未知(${permLevel})`
+        return `${t('roles.unknown', { ns: 'common' })}(${permLevel})`
     }
   }
 
@@ -274,6 +276,7 @@ const UserTable: React.FC<UserTableProps> = ({
     title: string
   }) => {
     const theme = useTheme()
+    const { t } = useTranslation('user-manager')
 
     const handleSliderChange =
       (field: 'days' | 'hours' | 'minutes') => (value: number | number[]) => {
@@ -407,7 +410,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 size="small"
               />
             }
-            label={<Typography variant="body2">永久</Typography>}
+            label={<Typography variant="body2">{t('duration.permanent')}</Typography>}
           />
         </Box>
 
@@ -425,7 +428,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 disabled={isPermanent}
               />
             </Box>
-            <Typography variant="caption">天</Typography>
+            <Typography variant="caption">{t('duration.days')}</Typography>
           </Box>
 
           {/* 小时滑块 */}
@@ -441,7 +444,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 disabled={isPermanent}
               />
             </Box>
-            <Typography variant="caption">时</Typography>
+            <Typography variant="caption">{t('duration.hours')}</Typography>
           </Box>
 
           {/* 分钟滑块 */}
@@ -457,13 +460,13 @@ const UserTable: React.FC<UserTableProps> = ({
                 disabled={isPermanent}
               />
             </Box>
-            <Typography variant="caption">分</Typography>
+            <Typography variant="caption">{t('duration.minutes')}</Typography>
           </Box>
         </Box>
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           <TextField
-            label="天"
+            label={t('duration.days')}
             type="number"
             size="small"
             value={duration.days}
@@ -474,7 +477,7 @@ const UserTable: React.FC<UserTableProps> = ({
             }}
           />
           <TextField
-            label="时"
+            label={t('duration.hours')}
             type="number"
             size="small"
             value={duration.hours}
@@ -485,7 +488,7 @@ const UserTable: React.FC<UserTableProps> = ({
             }}
           />
           <TextField
-            label="分"
+            label={t('duration.minutes')}
             type="number"
             size="small"
             value={duration.minutes}
@@ -526,7 +529,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ID
                 {sorting.field === 'id' ? (
                   <Box component="span" sx={srOnlyStyle}>
-                    {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                    {sorting.order === 'desc' ? t('sort.desc') : t('sort.asc')}
                   </Box>
                 ) : null}
               </TableSortLabel>
@@ -543,10 +546,10 @@ const UserTable: React.FC<UserTableProps> = ({
                 direction={sorting.field === 'username' ? sorting.order : 'asc'}
                 onClick={() => handleRequestSort('username')}
               >
-                用户名
+                {t('table.username')}
                 {sorting.field === 'username' ? (
                   <Box component="span" sx={srOnlyStyle}>
-                    {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                    {sorting.order === 'desc' ? t('sort.desc') : t('sort.asc')}
                   </Box>
                 ) : null}
               </TableSortLabel>
@@ -558,7 +561,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              适配平台
+              {t('table.adapterPlatform')}
             </TableCell>
             <TableCell
               sx={{
@@ -567,7 +570,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              平台用户ID
+              {t('table.platformUserId')}
             </TableCell>
             <TableCell
               sx={{
@@ -576,7 +579,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              权限
+              {t('table.permission')}
             </TableCell>
             <TableCell
               sx={{
@@ -585,7 +588,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              状态
+              {t('table.status')}
             </TableCell>
             {!isMobile && (
               <TableCell
@@ -600,10 +603,10 @@ const UserTable: React.FC<UserTableProps> = ({
                   direction={sorting.field === 'create_time' ? sorting.order : 'asc'}
                   onClick={() => handleRequestSort('create_time')}
                 >
-                  创建时间
+                  {t('table.createdAt')}
                   {sorting.field === 'create_time' ? (
                     <Box component="span" sx={srOnlyStyle}>
-                      {sorting.order === 'desc' ? '降序排列' : '升序排列'}
+                      {sorting.order === 'desc' ? t('sort.desc') : t('sort.asc')}
                     </Box>
                   ) : null}
                 </TableSortLabel>
@@ -617,7 +620,7 @@ const UserTable: React.FC<UserTableProps> = ({
                 ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
               }}
             >
-              操作
+              {t('table.actions')}
             </TableCell>
           </TableRow>
         </TableHead>
@@ -631,7 +634,7 @@ const UserTable: React.FC<UserTableProps> = ({
           ) : users.length === 0 ? (
             <TableRow>
               <TableCell colSpan={isMobile ? 7 : 8} align="center" sx={{ py: 4 }}>
-                暂无数据
+                {t('list.noData')}
               </TableCell>
             </TableRow>
           ) : (
@@ -662,7 +665,7 @@ const UserTable: React.FC<UserTableProps> = ({
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Chip
-                      label={status}
+                      label={t(`status.${status}`)}
                       size="small"
                       sx={CHIP_VARIANTS.getUserStatusChip(status, isSmall)}
                     />
@@ -674,7 +677,7 @@ const UserTable: React.FC<UserTableProps> = ({
                   )}
                   <TableCell align="center" sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                      <Tooltip title="查看详情">
+                      <Tooltip title={t('tooltips.view')}>
                         <IconButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => onViewDetail(user.id)}
@@ -683,7 +686,7 @@ const UserTable: React.FC<UserTableProps> = ({
                         </IconButton>
                       </Tooltip>
                       {showEditButton && !isSmall && (
-                        <Tooltip title="编辑用户">
+                        <Tooltip title={t('tooltips.edit')}>
                           <IconButton
                             size={isSmall ? 'small' : 'medium'}
                             onClick={() => handleEditClick(user)}
@@ -692,7 +695,7 @@ const UserTable: React.FC<UserTableProps> = ({
                           </IconButton>
                         </Tooltip>
                       )}
-                      <Tooltip title={user.is_active ? '封禁用户' : '解除封禁'}>
+                      <Tooltip title={user.is_active ? t('tooltips.ban') : t('tooltips.unban')}>
                         <IconButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleBanClick(user)}
@@ -700,7 +703,13 @@ const UserTable: React.FC<UserTableProps> = ({
                           <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title={!user.is_prevent_trigger ? '禁止触发' : '恢复触发'}>
+                      <Tooltip
+                        title={
+                          !user.is_prevent_trigger
+                            ? t('tooltips.preventTrigger')
+                            : t('tooltips.restoreTrigger')
+                        }
+                      >
                         <IconButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handlePreventTriggerClick(user)}
@@ -708,7 +717,7 @@ const UserTable: React.FC<UserTableProps> = ({
                           <LockIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="重置密码">
+                      <Tooltip title={t('tooltips.resetPassword')}>
                         <IconButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleResetPasswordClick(user)}
@@ -716,7 +725,7 @@ const UserTable: React.FC<UserTableProps> = ({
                           <KeyIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="删除用户">
+                      <Tooltip title={t('tooltips.delete')}>
                         <IconButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleDeleteClick(user)}
@@ -740,25 +749,27 @@ const UserTable: React.FC<UserTableProps> = ({
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>确认删除</DialogTitle>
+        <DialogTitle>{t('dialogs.deleteTitle')}</DialogTitle>
         <DialogContent>
           <Typography variant={isSmall ? 'body2' : 'body1'}>
-            确定要删除用户 "{selectedUser?.username}" 吗？此操作不可撤销。
+            {t('dialogs.deleteConfirm', { username: selectedUser?.username })}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
           <Button onClick={() => setDeleteDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
-            取消
+            {t('actions.cancel', { ns: 'common' })}
           </Button>
           <Button onClick={handleDeleteConfirm} color="error" size={isSmall ? 'small' : 'medium'}>
-            删除
+            {t('actions.delete', { ns: 'common' })}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 封禁/解封对话框 */}
       <Dialog open={banDialogOpen} onClose={() => setBanDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{selectedUser?.is_active ? '封禁用户' : '解除封禁'}</DialogTitle>
+        <DialogTitle>
+          {selectedUser?.is_active ? t('tooltips.ban') : t('dialogs.unbanTitle')}
+        </DialogTitle>
         <DialogContent sx={{ px: isSmall ? 2 : 3, pt: isSmall ? 1 : 2 }}>
           {selectedUser?.is_active ? (
             <DurationSelector
@@ -766,27 +777,31 @@ const UserTable: React.FC<UserTableProps> = ({
               setDuration={setBanDuration}
               isPermanent={isPermanentBan}
               setIsPermanent={setIsPermanentBan}
-              title="请设置封禁时长："
+              title={t('duration.banTitle')}
             />
           ) : (
             <Typography sx={{ pt: isSmall ? 0.5 : 1 }} variant={isSmall ? 'body2' : 'body1'}>
-              确定要解除对用户 "{selectedUser?.username}" 的封禁吗？
+              {t('dialogs.unbanConfirm', { username: selectedUser?.username })}
             </Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
           <Button onClick={() => setBanDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
-            取消
+            {t('actions.cancel', { ns: 'common' })}
           </Button>
           <Button onClick={handleBanConfirm} color="primary" size={isSmall ? 'small' : 'medium'}>
-            确定
+            {t('actions.confirm', { ns: 'common' })}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 触发权限对话框 */}
       <Dialog open={preventTriggerDialogOpen} onClose={() => setPreventTriggerDialogOpen(false)}>
-        <DialogTitle>{!selectedUser?.is_prevent_trigger ? '禁止触发' : '恢复触发权限'}</DialogTitle>
+        <DialogTitle>
+          {!selectedUser?.is_prevent_trigger
+            ? t('tooltips.preventTrigger')
+            : t('dialogs.restoreTriggerTitle')}
+        </DialogTitle>
         <DialogContent>
           {!selectedUser?.is_prevent_trigger ? (
             <DurationSelector
@@ -794,91 +809,97 @@ const UserTable: React.FC<UserTableProps> = ({
               setDuration={setPreventTriggerDuration}
               isPermanent={isPermanentPreventTrigger}
               setIsPermanent={setIsPermanentPreventTrigger}
-              title="请设置禁止触发时长："
+              title={t('duration.preventTriggerTitle')}
             />
           ) : (
             <Typography sx={{ pt: 1 }}>
-              确定要恢复用户 "{selectedUser?.username}" 的触发权限吗？
+              {t('dialogs.restoreTriggerConfirm', { username: selectedUser?.username })}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreventTriggerDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setPreventTriggerDialogOpen(false)}>
+            {t('actions.cancel', { ns: 'common' })}
+          </Button>
           <Button onClick={handlePreventTriggerConfirm} color="primary">
-            确定
+            {t('actions.confirm', { ns: 'common' })}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 重置密码对话框 */}
       <Dialog open={resetPasswordDialogOpen} onClose={() => setResetPasswordDialogOpen(false)}>
-        <DialogTitle>重置密码</DialogTitle>
+        <DialogTitle>{t('dialogs.resetPasswordTitle')}</DialogTitle>
         <DialogContent>
-          <p>为用户 "{selectedUser?.username}" 设置新密码：</p>
+          <p>{t('form.resetPasswordPrompt', { username: selectedUser?.username })}</p>
           <TextField
             type="password"
             fullWidth
             value={newPassword}
             onChange={e => setNewPassword(e.target.value)}
             margin="normal"
-            label="新密码"
+            label={t('form.newPassword')}
             required
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetPasswordDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setResetPasswordDialogOpen(false)}>
+            {t('actions.cancel', { ns: 'common' })}
+          </Button>
           <Button onClick={handleResetPasswordConfirm} color="primary" disabled={!newPassword}>
-            确定
+            {t('actions.confirm', { ns: 'common' })}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 编辑用户对话框 */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)}>
-        <DialogTitle>编辑用户</DialogTitle>
+        <DialogTitle>{t('dialogs.editUserTitle')}</DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
-            label="用户名"
+            label={t('form.username')}
             value={editFormData.username}
             onChange={e => setEditFormData({ ...editFormData, username: e.target.value })}
             margin="normal"
             required
           />
           <FormControl fullWidth margin="normal">
-            <InputLabel>权限等级</InputLabel>
+            <InputLabel>{t('form.permLevel')}</InputLabel>
             <Select
               value={editFormData.perm_level}
               onChange={e =>
                 setEditFormData({ ...editFormData, perm_level: Number(e.target.value) })
               }
-              label="权限等级"
+              label={t('form.permLevel')}
             >
-              <MenuItem value={0}>访客</MenuItem>
-              <MenuItem value={1}>用户</MenuItem>
-              <MenuItem value={2}>管理员</MenuItem>
-              <MenuItem value={3}>超级管理员</MenuItem>
+              <MenuItem value={0}>{t('roles.guest')}</MenuItem>
+              <MenuItem value={1}>{t('roles.user')}</MenuItem>
+              <MenuItem value={2}>{t('roles.admin')}</MenuItem>
+              <MenuItem value={3}>{t('roles.superAdmin')}</MenuItem>
             </Select>
           </FormControl>
           <TextField
             fullWidth
-            label="访问密钥"
+            label={t('form.accessKey')}
             type="password"
             value={editFormData.access_key}
             onChange={e => setEditFormData({ ...editFormData, access_key: e.target.value })}
             margin="normal"
             required
-            helperText="请输入超级访问密钥以确认修改"
+            helperText={t('form.accessKeyHelper')}
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setEditDialogOpen(false)}>
+            {t('actions.cancel', { ns: 'common' })}
+          </Button>
           <Button
             onClick={handleEditConfirm}
             color="primary"
             disabled={!editFormData.username || !editFormData.access_key}
           >
-            保存
+            {t('actions.save', { ns: 'common' })}
           </Button>
         </DialogActions>
       </Dialog>

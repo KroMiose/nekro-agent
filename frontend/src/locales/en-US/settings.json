@@ -1,0 +1,372 @@
+{
+  "title": "System Settings",
+  "tabs": {
+    "system": "System Config",
+    "modelGroups": "Model Groups",
+    "theme": "Theme",
+    "spaceCleanup": "Space Cleanup"
+  },
+  "system": {
+    "emptyMessage": "No system configurations available"
+  },
+  "modelGroup": {
+    "title": "Model Group Management",
+    "addGroup": "Add Model Group",
+    "editGroup": "Edit Model Group",
+    "deleteGroup": "Delete Model Group",
+    "name": "Model Group Name",
+    "description": "Description",
+    "emptyMessage": "No model groups available",
+    "deleteConfirm": "Are you sure you want to delete this model group?",
+    "deleteSuccess": "Model group deleted successfully",
+    "saveSuccess": "Model group saved successfully",
+    "form": {
+      "groupName": "Group Name",
+      "apiAddress": "API Address",
+      "apiKey": "API Key",
+      "proxyAddress": "Proxy Address",
+      "modelName": "Model Name",
+      "modelType": "Model Type",
+      "vision": "Vision",
+      "cot": "External CoT",
+      "temperature": "Temperature",
+      "topP": "Top P",
+      "presencePenalty": "Presence Penalty",
+      "frequencyPenalty": "Frequency Penalty",
+      "extraBody": "Extra Body (JSON)"
+    },
+    "placeholders": {
+      "apiAddress": "https://api.nekro.ai/v1",
+      "modelName": "gpt-4o"
+    },
+    "providers": {
+      "nekroAI": "NekroAI Relay",
+      "googleGemini": "Google Gemini",
+      "tongyiQianwen": "Tongyi Qianwen",
+      "doubao": "Doubao",
+      "kimi": "Kimi",
+      "zhipuQingyan": "Zhipu Qingyan",
+      "baiduQianfan": "Baidu Qianfan",
+      "iflytekSpark": "iFlytek Spark",
+      "baichuan": "Baichuan",
+      "tencentHunyuan": "Tencent Hunyuan",
+      "sensetimeRixin": "SenseTime Rixin"
+    },
+    "helpers": {
+      "apiAddress": "Select from common providers or enter any OpenAl-compatible base URL",
+      "modelName": "If list fetch fails, enter model name manually",
+      "vision": "Enable model vision capability (requires multimodal model)",
+      "cot": "Enable NA-provided Chain of Thought. Disable if model supports native CoT.",
+      "advanced": "Advanced Options",
+      "expandAdvanced": "Expand Advanced Options ▶",
+      "collapseAdvanced": "Collapse Advanced Options ▼",
+      "nameCopy": "Set a new name for the copied group",
+      "nameChar": "Name cannot contain URL special chars (/ ? & # = %). Cannot change after creation.",
+      "fetchPrecondition": "Fill API Address and Key first",
+      "modelCapabilities": "Model Capabilities",
+      "temperature": "Controls randomness of output (0-2)",
+      "topP": "Controls diversity of output (0-1)",
+      "presencePenalty": "Penalty for new tokens based on their presence in the text so far (-2 to 2)",
+      "frequencyPenalty": "Penalty for new tokens based on their frequency in the text so far (-2 to 2)",
+      "extraBody": "Additional request parameters (JSON format)"
+    },
+    "actions": {
+      "fetchModels": "Fetch Models",
+      "fetching": "Fetching...",
+      "createCopy": "Create Copy",
+      "saveFailed": "Save failed"
+    },
+    "validation": {
+      "nameRequired": "Group name is required",
+      "nameInvalid": "Name contains invalid characters (/ ? & # = %)",
+      "nameExists": "Group name \"{{name}}\" already exists",
+      "fetchSuccess": "Fetched {{count}} models",
+      "fetchEmpty": "No models found, please enter manually",
+      "fetchError": "Fetch failed: {{error}}. Please enter manually"
+    },
+    "dialog": {
+      "createTitle": "New Model Group",
+      "editTitle": "Edit Model Group",
+      "copyTitle": "Copy Model Group"
+    },
+    "table": {
+      "groupName": "Group Name",
+      "modelName": "Model Name",
+      "modelType": "Model Type",
+      "apiAddress": "API Address",
+      "proxyAddress": "Proxy Address",
+      "features": "Features",
+      "actions": "Actions"
+    },
+    "alert": {
+      "providerSupport": "Supports any OpenAI compatible provider. If you need one or want to support us, visit <link>NekroAI Relay</link> to get a key!"
+    },
+    "chips": {
+      "visionSupported": "Vision Supported",
+      "visionUnsupported": "Vision Unsupported",
+      "vision": "Vision",
+      "cotEnabled": "CoT Enabled",
+      "cotDisabled": "CoT Disabled",
+      "cot": "CoT"
+    },
+    "tooltips": {
+      "visitProvider": "Visit Provider",
+      "edit": "Edit Group",
+      "copy": "Copy Group",
+      "delete": "Delete Group",
+      "defaultDelete": "Default group cannot be deleted"
+    },
+    "notifications": {
+      "deleteSuccess": "Model group \"{{name}}\" deleted!",
+      "deleteFailed": "Delete failed",
+      "saveSuccess": "Model config saved successfully",
+      "copySuccess": "Model group \"{{name}}\" copied successfully",
+      "nameExists": "Group name \"{{name}}\" already exists (>﹏<)"
+    },
+    "deleteDialog": {
+      "title": "Confirm Delete",
+      "content": "Are you sure you want to delete group \"{{name}}\"? Irreversible!",
+      "confirm": "Delete"
+    }
+  },
+  "theme": {
+    "mode": {
+      "title": "Theme Mode",
+      "light": "Light Mode",
+      "dark": "Dark Mode",
+      "current": "Current Mode: {{mode}}",
+      "switchMessage": "Switched to {{mode}} mode"
+    },
+    "performance": {
+      "title": "Performance Mode",
+      "modes": {
+        "performance": "Performance",
+        "balanced": "Balanced",
+        "quality": "Quality"
+      },
+      "descriptions": {
+        "performance": "Performance - Reduce visual effects for better performance",
+        "balanced": "Balanced - Balance visual effects and performance",
+        "quality": "Quality - Full visual effects"
+      },
+      "current": "Current Mode: {{desc}}",
+      "switchMessage": "Switched to {{mode}}"
+    },
+    "colors": {
+      "title": "Theme Colors",
+      "presetTitle": "Preset Themes",
+      "customTitle": "Custom Theme Editor",
+      "brand": "Primary",
+      "accent": "Accent",
+      "lightMode": "Light Mode Colors",
+      "darkMode": "Dark Mode Colors",
+      "reset": "Reset",
+      "preview": "Derived Colors Preview",
+      "label": "Primary Color",
+      "accentLabel": "Accent Color",
+      "colorPicker": {
+        "label": "Hex Color",
+        "helper": "Please enter a valid hex color code",
+        "cancel": "Cancel",
+        "apply": "Apply",
+        "title": "Select {{mode}} {{type}}"
+      },
+      "messages": {
+        "starRequired": "Advanced themes require starring the repository",
+        "starRequiredCustom": "Please star the repository to unlock custom themes",
+        "applied": "Applied \"{{name}}\" theme",
+        "customApplied": "Applied custom theme",
+        "customReset": "Custom theme reset",
+        "presetNotFound": "Preset theme not found",
+        "applyFailed": "Failed to apply theme, please try again"
+      },
+      "presets": {
+        "kolo": {
+          "name": "Kolo Red",
+          "desc": "Passionate and energetic red theme"
+        },
+        "sakura": {
+          "name": "Sakura Pink",
+          "desc": "Soft and sweet pink like cherry blossoms"
+        },
+        "aqua": {
+          "name": "Clear Blue",
+          "desc": "Bright blue like clear sky"
+        },
+        "matcha": {
+          "name": "Matcha Green",
+          "desc": "Fresh green like matcha"
+        },
+        "lilac": {
+          "name": "Magic Purple",
+          "desc": "Mysterious purple like a magical girl"
+        }
+      },
+      "custom": {
+        "name": "Custom Theme",
+        "desc": "Custom color scheme"
+      }
+    },
+    "wallpaper": {
+      "title": "Wallpaper Settings",
+      "tabs": {
+        "login": "Login Page",
+        "main": "Main Layout"
+      },
+      "modes": {
+        "cover": "Cover",
+        "contain": "Contain",
+        "center": "Center",
+        "repeat": "Repeat"
+      },
+      "actions": {
+        "settings": "Settings",
+        "remove": "Remove",
+        "refresh": "Refresh",
+        "upload": "Upload",
+        "uploading": "Uploading...",
+        "delete": "Delete",
+        "apply": "Apply",
+        "preview": "Preview Wallpaper",
+        "applyTo": "Apply to {{target}}",
+        "close": "Close",
+        "applyCurrent": "Apply as current"
+      },
+      "status": {
+        "noWallpaper": "No wallpaper set",
+        "emptyList": "No wallpapers",
+        "dragDrop": "Drag and drop images here to upload"
+      },
+      "messages": {
+        "removed": "Removed {{type}} wallpaper",
+        "uploadSuccess": "Wallpaper uploaded successfully",
+        "uploadInfo": "Uploading wallpaper \"{{name}}\"... please wait",
+        "applyInfo": "Applying wallpaper...",
+        "uploadFail": "Wallpaper upload failed",
+        "applied": "Successfully set as {{type}} wallpaper",
+        "deleteSuccess": "Wallpaper deleted successfully",
+        "deleteFail": "Wallpaper deletion failed",
+        "settingsApplied": "Wallpaper settings applied",
+        "fetchFailed": "Failed to fetch wallpapers",
+        "invalidType": "Unsupported file type. Please upload JPG, PNG, GIF or WebP",
+        "sizeLimit": "File size cannot exceed 24MB",
+        "timeout": "Upload timeout, please check connection or try smaller image",
+        "networkError": "Network error, please check your connection",
+        "applyFailed": "Failed to apply wallpaper",
+        "loadFailed": "Failed to apply wallpaper, could not load image: {{url}}",
+        "resetDefault": "Wallpaper settings reset to default"
+      },
+      "dialog": {
+        "title": "Wallpaper Settings",
+        "mode": "Display Mode",
+        "blur": "Blur: {{value}}px",
+        "dim": "Dim: {{value}}%",
+        "reset": "Reset",
+        "cancel": "Cancel",
+        "apply": "Apply Settings",
+        "previewTitle": "Wallpaper Preview"
+      }
+    },
+    "star": {
+      "title": "Unlock Personalization",
+      "message": "Star our repository to unlock custom themes and wallpapers!",
+      "checkFailed": "Authorization check failed, please try again later"
+    }
+  },
+  "spaceCleanup": {
+    "title": "Space Cleanup",
+    "description": "Clean up disk space",
+    "cleanup": "Run Cleanup",
+    "cleanupSuccess": "Cleanup successful",
+    "cleanupFailed": "Cleanup Failed",
+    "actions": {
+      "scan": "Start Scan",
+      "rescan": "Rescan",
+      "scanning": "Scanning...",
+      "cleanup": "Start Cleanup",
+      "cleaning": "Cleaning...",
+      "cancel": "Cancel",
+      "confirmCleanup": "Confirm Cleanup",
+      "clearSelection": "Clear Selection",
+      "expand": "Click to expand for details"
+    },
+    "status": {
+      "scanNotStarted": "Space scan not started",
+      "scanNotStartedDesc": "Click the \"Start Scan\" button above to analyze resource usage",
+      "loadScanResult": "Loading scan results...",
+      "wait": "Please wait",
+      "scanningDesc": "Scanning resources...",
+      "scanSuccess": "Scan completed",
+      "scanFailed": "Scan failed",
+      "scanStartInfo": "Scan started",
+      "loadScanResultFailed": "Failed to load scan results",
+      "cleanupStartInfo": "Cleanup started",
+      "cleanupSuccess": "Cleanup completed",
+      "cleanupFailed": "Cleanup failed",
+      "cleanStartFailed": "Failed to start cleanup"
+    },
+    "analysis": {
+      "title": "Space Analysis",
+      "warning": "Space recovery is experimental. Please backup critical data and use with caution.",
+      "lastScan": "Last Scan",
+      "unknown": "Unknown",
+      "duration": "Duration",
+      "filesFound": "Found {{count}} files",
+      "waitingScan": "Waiting for scan...",
+      "overviewTitle": "Space Distribution Overview",
+      "systemTotal": "System Total",
+      "agentUsage": "NekroAgent Usage",
+      "systemFree": "System Free",
+      "otherUsage": "Other Data",
+      "cleanable": "Cleanable Space",
+      "fileCount": "Total Files",
+      "systemDist": "System Space Distribution",
+      "resourceDist": "NekroAgent Resource Distribution",
+      "pieChart": "Pie",
+      "barChart": "Rank",
+      "resourceDetail": "Resource Classification Details"
+    },
+    "list": {
+      "filesWrapper": "{{count}} files",
+      "pluginResources": "Plugin Resources ({{count}})",
+      "chatResources": "Chat Resources ({{count}})",
+      "onlyView": "View Only",
+      "noTimeFilter": "This resource type does not support time filtering (e.g. Python packages, caches). It will be fully cleaned when time filter is enabled."
+    },
+    "settings": {
+      "title": "Cleanup Settings",
+      "enableTimeFilter": "Enable Time Filter",
+      "daysLabel": "Clean files older than X days",
+      "daysHelper": "Only clean files modified before specified days",
+      "daysHelperDisabled": "Time filter disabled",
+      "selectTypeWarn": "Please select resource types to clean",
+      "estimatedSpace": "Estimated Freed Space",
+      "estimatedUncertainty": "⚠️ Some resources cannot be precisely time-filtered, showing range",
+      "selectedSummary": "Selected {{typeCount}} resource types",
+      "selectedSummaryChat": " · {{chatCount}} chats"
+    },
+    "cleanupResult": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "deleted": "Deleted {{deleted}}/{{total}} files",
+      "freed": "Freed {{size}}",
+      "freedLabel": "Freed: {{size}}",
+      "progressMessage": "Cleaning..."
+    },
+    "dialog": {
+      "title": "Confirm Cleanup",
+      "warning": "⚠️ Cleanup is irreversible. Please confirm your choice!",
+      "uncertaintyWarning": "⚠️ Some resources (e.g., caches, logs) cannot be precisely time-filtered. Actual freed space will be within this range.",
+      "summaryType": "Selected {{count}} resource types",
+      "summaryDays": "📅 Only clean files older than {{days}} days",
+      "summaryChat": "💬 Only clean selected {{count}} chats",
+      "highRiskTitle": "⚠️ High Risk Warning",
+      "mediumRiskTitle": "⚠️ Medium Risk Notice"
+    },
+    "chart": {
+      "systemFree": "System Free",
+      "otherData": "Other Data",
+      "agentData": "NekroAgent Data"
+    }
+  }
+}

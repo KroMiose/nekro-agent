@@ -24,10 +24,15 @@ class BasicResponse(BaseModel):
                 error="Nekro AI 社区服务遥测未启用，当前实例暂无权限使用",
             )
         if isinstance(e, HTTPStatusError) and e.response.status_code in [401, 403]:
-            print(f"111 {e.response.text} {e.response.status_code}")
             return cls(
                 success=False,
                 message="Nekro AI 社区 API Key 无效，请前往 Nekro AI 社区获取并配置",
+                error=e.response.text,
+            )
+        if isinstance(e, HTTPStatusError) and e.response.status_code == 400:
+            return cls(
+                success=False,
+                message="请求参数错误",
                 error=e.response.text,
             )
         raise e

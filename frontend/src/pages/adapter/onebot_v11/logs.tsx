@@ -12,6 +12,7 @@ import {
 import { LoadingButton } from '@mui/lab'
 import { useQuery } from '@tanstack/react-query'
 import { oneBotV11Api } from '../../../services/api/adapters/onebot_v11'
+import { useTranslation } from 'react-i18next'
 import {
   RestartAlt,
   Delete as DeleteIcon,
@@ -20,10 +21,10 @@ import {
 import { useNotification } from '../../../hooks/useNotification'
 
 // 格式化时间
-const formatTime = (isoTime: string) => {
+const formatTime = (isoTime: string, locale?: string) => {
   try {
     const date = new Date(isoTime)
-    return date.toLocaleString('zh-CN', {
+    return date.toLocaleString(locale || 'zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
@@ -56,6 +57,7 @@ export default function OneBotV11LogsPage() {
   const [webuiToken, setWebuiToken] = useState<string>()
   const tableContainerRef = useRef<HTMLDivElement>(null)
   const notification = useNotification()
+  const { t, i18n } = useTranslation('adapter')
 
   // 查询状态
   const { data: status } = useQuery({
@@ -91,7 +93,7 @@ export default function OneBotV11LogsPage() {
         )
       } catch (error) {
         console.error('Failed to create EventSource:', error)
-        notification.error(error instanceof Error ? error.message : '连接日志流失败')
+        notification.error(error instanceof Error ? error.message : t('logs.connectFailed'))
         setIsReconnecting(true)
       }
     }
@@ -127,7 +129,7 @@ export default function OneBotV11LogsPage() {
   const handleRestart = async () => {
     try {
       setIsRestarting(true)
-      notification.info('正在重启容器...')
+      notification.info(t('logs.restarting'))
       setLogs([])
       setWebuiToken(undefined)
 
@@ -142,7 +144,7 @@ export default function OneBotV11LogsPage() {
           if (status.running && (!lastStartTime || status.started_at > lastStartTime)) {
             clearInterval(checkInterval)
             setIsRestarting(false)
-            notification.success('容器已成功重启！')
+            notification.success(t('logs.restartSuccess'))
             // 等待容器日志系统就绪
             setTimeout(async () => {
               try {
@@ -165,13 +167,13 @@ export default function OneBotV11LogsPage() {
         clearInterval(checkInterval)
         if (isRestarting) {
           setIsRestarting(false)
-          notification.error('容器重启超时，请检查状态')
+          notification.error(t('logs.restartTimeout'))
         }
       }, 30000)
     } catch (error) {
       console.error('Failed to restart:', error)
       setIsRestarting(false)
-      notification.error('重启失败，请重试')
+      notification.error(t('logs.restartFailed'))
     }
   }
 
@@ -181,17 +183,17 @@ export default function OneBotV11LogsPage() {
 
   const handleClearLogs = () => {
     setLogs([])
-    notification.success('日志已清空')
+    notification.success(t('logs.cleared'))
   }
 
   const handleCopyToken = async () => {
     if (webuiToken) {
       try {
         await navigator.clipboard.writeText(webuiToken)
-        notification.success('Token 已复制到剪贴板')
+        notification.success(t('logs.tokenCopied'))
       } catch (error) {
         console.error('复制失败:', error)
-        notification.error('复制失败，请手动复制')
+        notification.error(t('logs.copyFailed'))
       }
     }
   }
@@ -212,12 +214,12 @@ export default function OneBotV11LogsPage() {
               startIcon={<RestartAlt />}
               disabled={!status?.running}
             >
-              重启容器
+              {t('logs.restartContainer')}
             </LoadingButton>
           }
         >
-          状态: {status?.running ? 'running' : 'stopped'} | 启动时间:{' '}
-          {status?.started_at ? formatTime(status.started_at) : '未知'}
+          {t('logs.status')}: {status?.running ? 'running' : 'stopped'} | {t('logs.startTime')}:{' '}
+          {status?.started_at ? formatTime(status.started_at, i18n.language) : t('logs.unknown')}
         </Alert>
 
         <Stack direction="row" spacing={2} alignItems="center">
@@ -236,19 +238,19 @@ export default function OneBotV11LogsPage() {
                 !isReconnecting &&
                 webuiToken && (
                   <Button size="small" startIcon={<ContentCopyIcon />} onClick={handleCopyToken}>
-                    复制
+                    {t('logs.copy')}
                   </Button>
                 )
               }
             >
               {isReconnecting ? (
-                '日志流连接已断开，正在尝试重新连接...'
+                t('logs.disconnected')
               ) : webuiToken ? (
                 <>
                   WebUI Token: <strong>{webuiToken}</strong>
                 </>
               ) : (
-                '未找到 WebUI Token，如需获取请重启容器'
+                t('logs.tokenNotFound')
               )}
             </Alert>
           </Box>
@@ -256,7 +258,7 @@ export default function OneBotV11LogsPage() {
             <Stack direction="row" spacing={2} alignItems="center">
               <FormControlLabel
                 control={<Switch checked={autoScroll} onChange={handleAutoScrollChange} />}
-                label="自动滚动"
+                label={t('logs.autoScroll')}
               />
               <IconButton onClick={handleClearLogs} size="small">
                 <DeleteIcon />

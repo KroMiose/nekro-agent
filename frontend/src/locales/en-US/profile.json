@@ -1,0 +1,24 @@
+{
+  "title": "Profile",
+  "personalInfo": {
+    "title": "Personal Information",
+    "username": "Username",
+    "userId": "User ID",
+    "permissionLevel": "Permission Level"
+  },
+  "changePassword": {
+    "title": "Change Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "submit": "Change Password",
+    "submitting": "Submitting...",
+    "adminNotice": "Admin account password cannot be changed here. Please modify it in system environment variables."
+  },
+  "notifications": {
+    "adminCannotChangePassword": "Admin account password change is not supported",
+    "fillAllFields": "Please fill in all password fields",
+    "passwordMismatch": "New password and confirmation do not match",
+    "passwordChangeSuccess": "Password changed successfully",
+    "passwordChangeFailed": "Failed to change password"
+  }
+}

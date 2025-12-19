@@ -35,6 +35,7 @@ import {
 import { FixedSizeList as List } from 'react-window'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import NekroDialog from '../../components/common/NekroDialog'
+import { useTranslation } from 'react-i18next'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
@@ -47,10 +48,12 @@ const TableHeader = memo(
     isMobile,
     isSmall,
     isAdvanced,
+    t,
   }: {
     isMobile: boolean
     isSmall: boolean
     isAdvanced: boolean
+    t: (key: string) => string
   }) => {
     const theme = useTheme()
     return (
@@ -69,7 +72,7 @@ const TableHeader = memo(
             fontSize: isSmall ? '0.75rem' : '0.8rem',
           }}
         >
-          时间
+          {t('header.time')}
         </Box>
         <Box
           sx={{
@@ -78,7 +81,7 @@ const TableHeader = memo(
             textAlign: 'center',
           }}
         >
-          级别
+          {t('header.level')}
         </Box>
         <Box
           sx={{
@@ -87,7 +90,7 @@ const TableHeader = memo(
             ml: 1,
           }}
         >
-          消息
+          {t('header.message')}
         </Box>
         {isAdvanced && !isMobile && (
           <Box
@@ -99,7 +102,7 @@ const TableHeader = memo(
               pr: 2,
             }}
           >
-            来源
+            {t('header.source')}
           </Box>
         )}
       </Box>
@@ -243,6 +246,7 @@ export default function LogsPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('logs')
 
   const { data: sources = [] } = useQuery({
     queryKey: ['log-sources'],
@@ -360,13 +364,13 @@ export default function LogsPage() {
   const FilterContent = () => (
     <Stack spacing={2} sx={{ p: 2, width: isMobile ? '100%' : 'auto' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="subtitle1">日志过滤器</Typography>
+        <Typography variant="subtitle1">{t('filters.title')}</Typography>
         {isMobile && (
           <IconButton
             edge="end"
             color="inherit"
             onClick={() => setFilterDrawerOpen(false)}
-            aria-label="关闭过滤器"
+            aria-label={t('filters.close')}
           >
             <CloseIcon />
           </IconButton>
@@ -375,13 +379,13 @@ export default function LogsPage() {
 
       <TextField
         select
-        label="日志级别"
+        label={t('filters.level')}
         value={filters.level}
         onChange={e => setFilters(prev => ({ ...prev, level: e.target.value }))}
         size="small"
         fullWidth
       >
-        <MenuItem value="">全部</MenuItem>
+        <MenuItem value="">{t('filters.all')}</MenuItem>
         {Object.keys(LOG_TABLE_STYLES.SEVERITY).map(level => (
           <MenuItem key={level} value={level}>
             {level}
@@ -401,11 +405,11 @@ export default function LogsPage() {
           }))
         }}
         fullWidth
-        renderInput={params => <TextField {...params} label="来源" size="small" />}
+        renderInput={params => <TextField {...params} label={t('filters.source')} size="small" />}
       />
 
       <TextField
-        label="消息内容"
+        label={t('filters.messageContent')}
         value={filters.message}
         onChange={e => setFilters(prev => ({ ...prev, message: e.target.value }))}
         size="small"
@@ -420,7 +424,7 @@ export default function LogsPage() {
             color="primary"
           />
         }
-        label="高级模式"
+        label={t('filters.advancedMode')}
       />
 
       <FormControlLabel
@@ -431,15 +435,15 @@ export default function LogsPage() {
             color="primary"
           />
         }
-        label="自动滚动"
+        label={t('filters.autoScroll')}
       />
 
       <Typography variant="subtitle2" sx={{ mt: 1 }}>
-        日志下载
+        {t('download.title')}
       </Typography>
       <Stack direction="row" spacing={1}>
         <TextField
-          label="最近日志行数"
+          label={t('download.lines')}
           type="number"
           value={downloadLines}
           onChange={e => setDownloadLines(e.target.value)}
@@ -459,7 +463,7 @@ export default function LogsPage() {
             width: '100px',
           }}
         >
-          下载
+          {t('download.button')}
         </Button>
       </Stack>
 
@@ -470,7 +474,7 @@ export default function LogsPage() {
           onClick={() => setFilterDrawerOpen(false)}
           sx={{ mt: 2 }}
         >
-          应用过滤器
+          {t('filters.apply')}
         </Button>
       )}
     </Stack>
@@ -505,7 +509,7 @@ export default function LogsPage() {
     >
       {isDisconnected && (
         <Alert severity="warning" sx={{ mb: 1 }}>
-          日志流连接已断开，正在尝试重新连接...
+          {t('status.disconnected')}
         </Alert>
       )}
 
@@ -528,7 +532,7 @@ export default function LogsPage() {
                 color="primary"
               />
             }
-            label="高级模式"
+            label={t('filters.advancedMode')}
           />
           <FormControlLabel
             control={
@@ -538,17 +542,17 @@ export default function LogsPage() {
                 color="primary"
               />
             }
-            label="自动滚动"
+            label={t('filters.autoScroll')}
           />
           <TextField
             select
-            label="日志级别"
+            label={t('filters.level')}
             value={filters.level}
             onChange={e => setFilters(prev => ({ ...prev, level: e.target.value }))}
             size="small"
             sx={{ width: 120 }}
           >
-            <MenuItem value="">全部</MenuItem>
+            <MenuItem value="">{t('filters.all')}</MenuItem>
             {Object.keys(LOG_TABLE_STYLES.SEVERITY).map(level => (
               <MenuItem key={level} value={level}>
                 {level}
@@ -567,10 +571,12 @@ export default function LogsPage() {
               }))
             }}
             sx={{ width: 200 }}
-            renderInput={params => <TextField {...params} label="来源" size="small" />}
+            renderInput={params => (
+              <TextField {...params} label={t('filters.source')} size="small" />
+            )}
           />
           <TextField
-            label="消息内容"
+            label={t('filters.messageContent')}
             value={filters.message}
             onChange={e => setFilters(prev => ({ ...prev, message: e.target.value }))}
             size="small"
@@ -578,9 +584,9 @@ export default function LogsPage() {
           />
 
           <Box sx={{ display: 'flex', gap: 1 }}>
-            <Tooltip title="输入要下载的日志行数">
+            <Tooltip title={t('download.linesTooltip')}>
               <TextField
-                label="最近日志行数"
+                label={t('download.lines')}
                 type="number"
                 value={downloadLines}
                 onChange={e => setDownloadLines(e.target.value)}
@@ -591,7 +597,7 @@ export default function LogsPage() {
                 }}
               />
             </Tooltip>
-            <Tooltip title="下载日志文件">
+            <Tooltip title={t('download.tooltip')}>
               <Button
                 variant="contained"
                 color="primary"
@@ -599,7 +605,7 @@ export default function LogsPage() {
                 startIcon={<DownloadIcon />}
                 size="small"
               >
-                下载最近日志
+                {t('download.buttonFull')}
               </Button>
             </Tooltip>
           </Box>
@@ -617,7 +623,7 @@ export default function LogsPage() {
         }}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-          <TableHeader isMobile={isMobile} isSmall={isSmall} isAdvanced={isAdvanced} />
+          <TableHeader isMobile={isMobile} isSmall={isSmall} isAdvanced={isAdvanced} t={t} />
           <Box
             sx={{
               flexGrow: 1,
@@ -664,7 +670,7 @@ export default function LogsPage() {
 
           <Fab
             color="primary"
-            aria-label="过滤器"
+            aria-label={t('filters.title')}
             onClick={() => setFilterDrawerOpen(true)}
             sx={{
               position: 'fixed',
@@ -692,7 +698,7 @@ export default function LogsPage() {
               size="small"
               sx={selectedLog ? CHIP_VARIANTS.getLogLevelChip(selectedLog.level, false) : {}}
             />
-            <Typography variant="h6">日志详情</Typography>
+            <Typography variant="h6">{t('dialog.details')}</Typography>
           </Box>
         }
         titleActions={
@@ -700,7 +706,7 @@ export default function LogsPage() {
             <IconButton
               onClick={() => copyLogContent(selectedLog)}
               size="small"
-              title="复制日志内容"
+              title={t('dialog.copyLog')}
               sx={{ mr: 1 }}
             >
               <ContentCopyIcon fontSize="small" />
@@ -714,7 +720,7 @@ export default function LogsPage() {
             color="primary"
             size="small"
           >
-            关闭
+            {t('dialog.close')}
           </Button>
         }
       >
@@ -722,14 +728,14 @@ export default function LogsPage() {
           <Stack spacing={2}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
-                时间:
+                {t('dialog.time')}
               </Typography>
               <Typography variant="body2">{selectedLog.timestamp}</Typography>
             </Box>
 
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
-                来源:
+                {t('dialog.source')}
               </Typography>
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {selectedLog.source}
@@ -740,7 +746,7 @@ export default function LogsPage() {
               <>
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
-                    模块:
+                    {t('dialog.module')}
                   </Typography>
                   <Typography variant="body2" sx={{ flex: 1 }}>
                     {selectedLog.function}
@@ -749,10 +755,10 @@ export default function LogsPage() {
 
                 <Box sx={{ display: 'flex', gap: 1 }}>
                   <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
-                    位置:
+                    {t('dialog.line')}
                   </Typography>
                   <Typography variant="body2" sx={{ flex: 1 }}>
-                    行 {selectedLog.line}
+                    {t('dialog.lineNumber', { line: selectedLog.line })}
                   </Typography>
                 </Box>
               </>
@@ -762,7 +768,7 @@ export default function LogsPage() {
 
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                消息内容:
+                {t('dialog.messageContent')}
               </Typography>
               <Paper
                 variant="outlined"
@@ -794,28 +800,25 @@ export default function LogsPage() {
       <NekroDialog
         open={downloadConfirmOpen}
         onClose={() => setDownloadConfirmOpen(false)}
-        title="确认下载日志"
+        title={t('download.confirmTitle')}
         maxWidth="sm"
         dividers
         actions={
           <>
-            <Button onClick={() => setDownloadConfirmOpen(false)}>再想想</Button>
+            <Button onClick={() => setDownloadConfirmOpen(false)}>{t('download.cancel')}</Button>
             <Button onClick={confirmDownloadLogs} variant="contained" color="warning">
-              我已知晓风险，继续下载
+              {t('download.confirm')}
             </Button>
           </>
         }
       >
         <Alert severity="warning" sx={{ mb: 2 }}>
-          <strong>请注意！日志文件可能包含敏感信息！</strong>
+          <strong>{t('download.securityWarning')}</strong>
         </Alert>
         <Typography variant="body1" gutterBottom>
-          日志中可能包含您的 API 密钥、用户信息、聊天信息或其他隐私数据。
+          {t('download.securityInfo1')}
         </Typography>
-        <Typography variant="body1">
-          为了您的信息安全，请<b>不要</b>
-          将未经处理的日志文件直接发送给未受信任的对象或上传到公开平台。
-        </Typography>
+        <Typography variant="body1">{t('download.securityInfo2')}</Typography>
       </NekroDialog>
     </Box>
   )

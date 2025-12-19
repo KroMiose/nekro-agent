@@ -1,0 +1,29 @@
+{
+  "menu": {
+    "cloud": "Nekro 云",
+    "telemetry": "社区观测",
+    "presetsMarket": "人设市场",
+    "pluginsMarket": "插件市场",
+    "dashboard": "仪表盘",
+    "chatChannel": "聊天管理",
+    "userManager": "用户管理",
+    "presets": "人设管理",
+    "plugins": "插件管理",
+    "pluginManagement": "插件管理",
+    "pluginEditor": "插件编辑器",
+    "logs": "系统日志",
+    "sandboxLogs": "沙盒日志",
+    "adapters": "适配器",
+    "settings": "系统配置",
+    "systemSettings": "基本配置",
+    "modelGroups": "模型组",
+    "theme": "调色盘",
+    "spaceCleanup": "空间回收",
+    "profile": "个人中心",
+    "defaultTitle": "管理面板"
+  },
+  "footer": {
+    "copyright": "版权所有",
+    "logout": "退出登录"
+  }
+}

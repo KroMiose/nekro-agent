@@ -2,9 +2,9 @@ import axios from './axios'
 
 // 用户状态枚举
 export enum UserStatus {
-  Normal = '正常',
-  Passive = '消极',
-  Banned = '封禁'
+  Normal = 'normal',
+  Passive = 'passive',
+  Banned = 'banned',
 }
 
 // 用户类型定义

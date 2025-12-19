@@ -1,0 +1,29 @@
+{
+  "menu": {
+    "cloud": "Nekro Cloud",
+    "telemetry": "Community Insights",
+    "presetsMarket": "Preset Market",
+    "pluginsMarket": "Plugin Market",
+    "dashboard": "Dashboard",
+    "chatChannel": "Chat Management",
+    "userManager": "User Management",
+    "presets": "Preset Management",
+    "plugins": "Plugin Management",
+    "pluginManagement": "Plugin Management",
+    "pluginEditor": "Plugin Editor",
+    "logs": "System Logs",
+    "sandboxLogs": "Sandbox Logs",
+    "adapters": "Adapters",
+    "settings": "System Settings",
+    "systemSettings": "System Settings",
+    "modelGroups": "Model Groups",
+    "theme": "Theme",
+    "spaceCleanup": "Space Cleanup",
+    "profile": "Profile",
+    "defaultTitle": "Admin Panel"
+  },
+  "footer": {
+    "copyright": "All rights reserved",
+    "logout": "Logout"
+  }
+}

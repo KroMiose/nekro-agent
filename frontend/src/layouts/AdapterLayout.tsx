@@ -24,6 +24,7 @@ import {
   getAdapterStatusDisplay,
 } from '../config/adapters'
 import { Suspense } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function AdapterLayout() {
   const navigate = useNavigate()
@@ -31,6 +32,7 @@ export default function AdapterLayout() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const { t } = useTranslation('adapter')
 
   // 获取当前适配器的选项卡配置
   const adapterConfig = getAdapterConfig(adapterKey || '')
@@ -86,7 +88,7 @@ export default function AdapterLayout() {
       >
         <CircularProgress size={48} thickness={3.6} />
         <Typography variant="body2" color="text.secondary">
-          加载适配器信息中...
+          {t('loading')}
         </Typography>
       </Box>
     )
@@ -103,9 +105,9 @@ export default function AdapterLayout() {
           }}
         >
           <Typography variant="h6" gutterBottom>
-            加载失败
+            {t('loadFailed')}
           </Typography>
-          {error instanceof Error ? error.message : '加载适配器信息失败'}
+          {error instanceof Error ? error.message : t('loadAdapterFailed')}
         </Alert>
       </Box>
     )
@@ -173,7 +175,7 @@ export default function AdapterLayout() {
                 </Typography>
                 <Chip
                   icon={statusDisplay.icon}
-                  label={statusDisplay.text}
+                  label={t(statusDisplay.text)}
                   color={statusDisplay.color}
                   variant="filled"
                   size="small"
@@ -230,7 +232,7 @@ export default function AdapterLayout() {
           {tabs.map(tab => (
             <Tab
               key={tab.value}
-              label={tab.label}
+              label={t(tab.label)}
               value={tab.value}
               icon={tab.icon}
               iconPosition="start"

@@ -1,0 +1,107 @@
+{
+  "loading": "加载适配器信息中...",
+  "loadFailed": "加载失败",
+  "loadAdapterFailed": "加载适配器信息失败",
+  "home": {
+    "version": "版本",
+    "author": "作者",
+    "loadingDocs": "加载文档中...",
+    "loadDocsFailed": "加载文档失败",
+    "adapterDocs": "适配器文档",
+    "noDocs": "该适配器暂无文档说明。"
+  },
+  "tab": {
+    "adapterNotExist": "适配器不存在",
+    "pageNotExist": "页面不存在"
+  },
+  "tabs": {
+    "home": "主页",
+    "config": "适配器配置",
+    "overrides": "覆盖配置",
+    "advanced": "高级",
+    "logs": "容器日志",
+    "napcat": "NapCat"
+  },
+  "names": {
+    "default": "通用适配器",
+    "onebot_v11": "OneBot V11",
+    "minecraft": "Minecraft",
+    "bilibili_live": "Bilibili Live",
+    "discord": "Discord",
+    "sse": "SSE",
+    "wechatpad": "WeChatPad",
+    "telegram": "Telegram",
+    "email": "Email",
+    "wxwork": "WeWork Bot"
+  },
+  "status": {
+    "loaded": "已加载",
+    "failed": "加载失败",
+    "disabled": "已禁用",
+    "unknown": "未知"
+  },
+  "override": {
+    "missingKey": "缺少适配器 KEY",
+    "info": "此处的配置将覆盖指定适配器的系统默认配置。如果启用了某个配置项的覆盖，该适配器下的所有聊天都将默认使用此处设置的值，除非聊天自身再次覆盖了该配置。",
+    "emptyMessage": "该适配器暂无可覆盖的配置项"
+  },
+  "napcat": {
+    "copy": "复制",
+    "accessKeyCopied": "访问密钥已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "tokenCopied": "NapCat WebUI Token 已复制到剪贴板",
+    "onebotAccessKey": "OneBot 服务访问密钥",
+    "napcatToken": "NapCat 登录 Token",
+    "goToNapcat": "前往 NapCat",
+    "cannotGetAddress": "无法获取 NapCat 访问地址",
+    "serviceNotRunning": "NapCat 服务未运行"
+  },
+  "logs": {
+    "restarting": "正在重启容器...",
+    "restartSuccess": "容器已成功重启！",
+    "connectFailed": "连接日志流失败",
+    "restartTimeout": "容器重启超时，请检查状态",
+    "restartFailed": "重启失败，请重试",
+    "cleared": "日志已清空",
+    "tokenCopied": "Token 已复制到剪贴板",
+    "copyFailed": "复制失败，请手动复制",
+    "restartContainer": "重启容器",
+    "status": "状态",
+    "startTime": "启动时间",
+    "unknown": "未知",
+    "disconnected": "日志流连接已断开，正在尝试重新连接...",
+    "tokenNotFound": "未找到 WebUI Token，如需获取请重启容器",
+    "copy": "复制",
+    "autoScroll": "自动滚动"
+  },
+  "config": {
+    "notSupportedTitle": "该适配器不支持配置",
+    "notSupportedMessage": "该适配器没有可配置的参数，无需进行配置。",
+    "emptyMessage": "暂无 {{name}} 配置项"
+  },
+  "advanced": {
+    "status": "运行状态",
+    "statusRunning": "正常运行",
+    "statusFailed": "加载失败",
+    "statusDisabled": "已禁用",
+    "statusUnknown": "未知状态",
+    "unknown": "未知",
+    "loaded": "已加载",
+    "initialized": "已初始化",
+    "supportConfig": "支持配置",
+    "configFile": "配置文件",
+    "specs": "技术规格",
+    "adapterId": "适配器 ID",
+    "implClass": "实现类",
+    "version": "版本信息",
+    "tags": "标签",
+    "noTags": "无标签",
+    "paths": "路径配置",
+    "apiRouter": "API 路由",
+    "adapterDir": "适配器目录",
+    "docPath": "文档路径",
+    "chatRules": "聊天标识规则",
+    "chatRulesDesc": "该适配器使用以下格式来标识不同的聊天频道：",
+    "errorMsg": "错误信息"
+  }
+}

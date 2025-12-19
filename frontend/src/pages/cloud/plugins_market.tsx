@@ -68,6 +68,7 @@ import PaginationStyled from '../../components/common/PaginationStyled'
 import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { useTranslation } from 'react-i18next'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -94,6 +95,7 @@ const PluginCard = ({
   onRemove,
   onUnpublish,
   onShowDetail,
+  t,
 }: {
   plugin: CloudPlugin
   onDownload: () => void
@@ -101,6 +103,7 @@ const PluginCard = ({
   onRemove: () => void
   onUnpublish?: () => void
   onShowDetail: () => void
+  t: (key: string, options?: Record<string, unknown>) => string
 }) => {
   const theme = useTheme()
   // 移除 isDark 判断
@@ -199,7 +202,7 @@ const PluginCard = ({
                   whiteSpace: 'nowrap',
                 }}
               >
-                作者: {plugin.author}
+                {t('pluginsMarket.author')}: {plugin.author}
               </Typography>
             </Box>
           </Box>
@@ -246,7 +249,7 @@ const PluginCard = ({
       >
         <Box sx={{ display: 'flex', gap: 0.5 }}>
           <Button size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
-            详情
+            {t('pluginsMarket.details')}
           </Button>
 
           {isMobile ? (
@@ -275,7 +278,7 @@ const PluginCard = ({
                     <ListItemIcon sx={{ color: 'error.main' }}>
                       <RemoveCircleIcon fontSize="small" />
                     </ListItemIcon>
-                    <ListItemText primary="下架" />
+                    <ListItemText primary={t('pluginsMarket.delist')} />
                   </MenuItem>
                 )}
 
@@ -289,7 +292,7 @@ const PluginCard = ({
                   <ListItemIcon sx={{ color: 'warning.main' }}>
                     <FlagIcon fontSize="small" />
                   </ListItemIcon>
-                  <ListItemText primary="举报" />
+                  <ListItemText primary={t('pluginsMarket.report')} />
                 </MenuItem>
               </Menu>
             </>
@@ -303,7 +306,7 @@ const PluginCard = ({
                   onClick={onUnpublish}
                   color="error"
                 >
-                  下架
+                  {t('pluginsMarket.delist')}
                 </Button>
               )}
 
@@ -312,9 +315,9 @@ const PluginCard = ({
                 variant="text"
                 color="warning"
                 onClick={handleReport}
-                title="举报不当内容"
+                title={t('pluginsMarket.reportTitle')}
               >
-                举报
+                {t('pluginsMarket.report')}
               </Button>
             </>
           )}
@@ -331,7 +334,7 @@ const PluginCard = ({
                 color="primary"
                 sx={{ mr: 1 }}
               >
-                更新
+                {t('pluginsMarket.update')}
               </Button>
             ) : (
               <Button
@@ -341,13 +344,13 @@ const PluginCard = ({
                 onClick={onUpdate}
                 color="primary"
               >
-                更新
+                {t('pluginsMarket.update')}
               </Button>
             )}
 
             {!isMobile && (
               <Button size="small" variant="outlined" color="error" onClick={onRemove}>
-                移除
+                {t('pluginsMarket.remove')}
               </Button>
             )}
           </Box>
@@ -359,7 +362,7 @@ const PluginCard = ({
             onClick={onDownload}
             color="primary"
           >
-            获取
+            {t('pluginsMarket.obtain')}
           </Button>
         )}
       </CardActions>
@@ -377,6 +380,7 @@ const PluginDetailDialog = ({
   onUpdate,
   onRemove,
   onEdit,
+  t,
 }: {
   open: boolean
   onClose: () => void
@@ -386,6 +390,7 @@ const PluginDetailDialog = ({
   onUpdate?: () => void
   onRemove?: () => void
   onEdit?: () => void
+  t: (key: string, options?: Record<string, unknown>) => string
 }) => {
   const theme = useTheme()
   // 移除 isDark 判断
@@ -419,7 +424,8 @@ const PluginDetailDialog = ({
     if (open && plugin) {
       setRepoInfo(null)
       setLoadingRepo(true)
-      pluginsMarketApi.getPluginRepoInfo(plugin.moduleName)
+      pluginsMarketApi
+        .getPluginRepoInfo(plugin.moduleName)
         .then(info => {
           setRepoInfo(info)
         })
@@ -460,7 +466,9 @@ const PluginDetailDialog = ({
           alignItems: 'center',
         }}
       >
-        <Typography variant="h6">插件详情：{plugin.name}</Typography>
+        <Typography variant="h6">
+          {t('pluginsMarket.pluginDetail')}: {plugin.name}
+        </Typography>
         <IconButton
           color="default"
           onClick={onClose}
@@ -524,10 +532,10 @@ const PluginDetailDialog = ({
 
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                作者: {plugin.author || '未知'}
+                {t('pluginsMarket.author')}: {plugin.author || t('pluginsMarket.unknownAuthor')}
                 {plugin.version && (
                   <Typography component="span" ml={2} color="primary.main">
-                    版本: {plugin.version}
+                    {t('pluginsMarket.version')}: {plugin.version}
                   </Typography>
                 )}
               </Typography>
@@ -543,37 +551,43 @@ const PluginDetailDialog = ({
                   mt: 1,
                 }}
               >
-                {plugin.description || '无描述'}
+                {plugin.description || t('pluginsMarket.noDescription')}
               </Typography>
-              
+
               {/* 仓库统计信息 - 始终显示，使用占位符 */}
               <Box sx={{ display: 'flex', gap: 2, mb: 2, flexWrap: 'wrap' }}>
-                <Chip 
-                  icon={<StarIcon sx={{ color: '#e3b341 !important' }} />} 
-                  label={repoInfo ? `${repoInfo.stargazersCount} Stars` : '- Stars'} 
-                  size="small" 
-                  variant="outlined" 
-                  onClick={repoInfo ? () => window.open(repoInfo.stargazersUrl, '_blank') : undefined}
+                <Chip
+                  icon={<StarIcon sx={{ color: '#e3b341 !important' }} />}
+                  label={repoInfo ? `${repoInfo.stargazersCount} Stars` : '- Stars'}
+                  size="small"
+                  variant="outlined"
+                  onClick={
+                    repoInfo ? () => window.open(repoInfo.stargazersUrl, '_blank') : undefined
+                  }
                   sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
                 />
-                <Chip 
-                  icon={<ForkIcon />} 
-                  label={repoInfo ? `${repoInfo.forksCount} Forks` : '- Forks'} 
-                  size="small" 
+                <Chip
+                  icon={<ForkIcon />}
+                  label={repoInfo ? `${repoInfo.forksCount} Forks` : '- Forks'}
+                  size="small"
                   variant="outlined"
                   onClick={repoInfo ? () => window.open(repoInfo.forksUrl, '_blank') : undefined}
                   sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
                 />
-                <Chip 
-                  icon={<VisibilityIcon />} 
-                  label={repoInfo ? `${repoInfo.watchersCount} Watchers` : '- Watchers'} 
-                  size="small" 
+                <Chip
+                  icon={<VisibilityIcon />}
+                  label={repoInfo ? `${repoInfo.watchersCount} Watchers` : '- Watchers'}
+                  size="small"
                   variant="outlined"
                 />
-                <Chip 
-                  icon={<IssueIcon color={repoInfo && repoInfo.openIssuesCount > 0 ? "warning" : "success"} />} 
-                  label={repoInfo ? `${repoInfo.openIssuesCount} Issues` : '- Issues'} 
-                  size="small" 
+                <Chip
+                  icon={
+                    <IssueIcon
+                      color={repoInfo && repoInfo.openIssuesCount > 0 ? 'warning' : 'success'}
+                    />
+                  }
+                  label={repoInfo ? `${repoInfo.openIssuesCount} Issues` : '- Issues'}
+                  size="small"
                   variant="outlined"
                   onClick={repoInfo ? () => window.open(repoInfo.issuesUrl, '_blank') : undefined}
                   sx={{ cursor: repoInfo ? 'pointer' : 'default' }}
@@ -583,7 +597,7 @@ const PluginDetailDialog = ({
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    创建时间:
+                    {t('presetsMarket.createdAt')}:
                   </Typography>
                   <Typography variant="body2">
                     {formatLastActiveTime(new Date(plugin.createdAt).getTime() / 1000)}
@@ -591,7 +605,7 @@ const PluginDetailDialog = ({
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    更新时间:
+                    {t('presetsMarket.updatedAt')}:
                   </Typography>
                   <Typography variant="body2">
                     {formatLastActiveTime(new Date(plugin.updatedAt).getTime() / 1000)}
@@ -604,7 +618,7 @@ const PluginDetailDialog = ({
 
             <Box sx={{ mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                链接与信息
+                {t('pluginsMarket.linksAndInfo')}
               </Typography>
               <Grid container spacing={2}>
                 {plugin.homepageUrl && (
@@ -616,7 +630,7 @@ const PluginDetailDialog = ({
                       onClick={() => window.open(plugin.homepageUrl, '_blank')}
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
-                      插件主页
+                      {t('pluginsMarket.pluginHomepage')}
                     </Button>
                   </Grid>
                 )}
@@ -629,7 +643,7 @@ const PluginDetailDialog = ({
                       onClick={() => window.open(plugin.githubUrl, '_blank')}
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
-                      GitHub 仓库
+                      {t('pluginsMarket.githubRepo')}
                     </Button>
                   </Grid>
                 )}
@@ -642,7 +656,7 @@ const PluginDetailDialog = ({
                       onClick={() => navigator.clipboard.writeText(plugin.cloneUrl)}
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
-                      复制克隆链接
+                      {t('pluginsMarket.copyCloneLink')}
                     </Button>
                   </Grid>
                 )}
@@ -654,7 +668,7 @@ const PluginDetailDialog = ({
                       disabled
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
-                      许可证: {plugin.licenseType}
+                      {t('pluginsMarket.licenseType')}: {plugin.licenseType}
                     </Button>
                   </Grid>
                 )}
@@ -665,18 +679,20 @@ const PluginDetailDialog = ({
           {/* 仓库动态 - 平铺展示 */}
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
-            <Typography variant="h6" gutterBottom>仓库动态</Typography>
+            <Typography variant="h6" gutterBottom>
+              仓库动态
+            </Typography>
             {loadingRepo ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
                 <CircularProgress size={24} />
               </Box>
             ) : repoInfo && repoInfo.recentIssues && repoInfo.recentIssues.length > 0 ? (
               <List>
-                {repoInfo.recentIssues.map((issue) => (
-                  <ListItem 
-                    key={issue.number} 
+                {repoInfo.recentIssues.map(issue => (
+                  <ListItem
+                    key={issue.number}
                     disablePadding
-                    sx={{ 
+                    sx={{
                       border: '1px solid',
                       borderColor: 'divider',
                       borderRadius: 1,
@@ -692,31 +708,36 @@ const PluginDetailDialog = ({
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                          <Box
+                            sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}
+                          >
                             <Typography variant="subtitle1" component="span">
                               #{issue.number} {issue.title}
                             </Typography>
-                            <Chip 
-                              label={issue.state === 'open' ? '进行中' : '已关闭'} 
-                              size="small" 
-                              color={issue.state === 'open' ? 'success' : 'default'} 
+                            <Chip
+                              label={issue.state === 'open' ? '进行中' : '已关闭'}
+                              size="small"
+                              color={issue.state === 'open' ? 'success' : 'default'}
                               variant="outlined"
                               sx={{ height: 20, fontSize: '0.7rem' }}
                             />
                           </Box>
                         }
                         secondary={
-                          <Box component="span" sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}>
-                            <Typography
-                              component="span"
-                              variant="body2"
-                              color="text.primary"
-                            >
+                          <Box
+                            component="span"
+                            sx={{ display: 'flex', flexDirection: 'column', mt: 0.5 }}
+                          >
+                            <Typography component="span" variant="body2" color="text.primary">
                               {issue.user.login}
                             </Typography>
-                            <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                            <Box
+                              component="span"
+                              sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
+                            >
                               <Typography variant="caption" color="text.secondary">
-                                更新于 {formatLastActiveTime(new Date(issue.updatedAt).getTime() / 1000)}
+                                更新于{' '}
+                                {formatLastActiveTime(new Date(issue.updatedAt).getTime() / 1000)}
                               </Typography>
                               {issue.comments > 0 && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -734,11 +755,12 @@ const PluginDetailDialog = ({
                                     key={label.name}
                                     label={label.name}
                                     size="small"
-                                    sx={{ 
-                                      height: 20, 
+                                    sx={{
+                                      height: 20,
                                       fontSize: '0.7rem',
                                       backgroundColor: `#${label.color}`,
-                                      color: parseInt(label.color, 16) > 0xffffff / 2 ? '#000' : '#fff'
+                                      color:
+                                        parseInt(label.color, 16) > 0xffffff / 2 ? '#000' : '#fff',
                                     }}
                                   />
                                 ))}
@@ -1397,6 +1419,7 @@ export default function PluginsMarket() {
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
   const pageSize = 12
   const notification = useNotification()
+  const { t } = useTranslation('cloud')
 
   const fetchPlugins = useCallback(
     async (page: number, keyword: string = '') => {
@@ -1419,13 +1442,13 @@ export default function PluginsMarket() {
           fetchPlugins(1, keyword)
         }
       } catch (error) {
-        console.error('获取云端插件列表失败', error)
-        setError('获取插件列表失败，请检查网络连接或联系管理员')
+        console.error('Failed to fetch plugins', error)
+        setError(t('pluginsMarket.fetchFailed'))
       } finally {
         setLoading(false)
       }
     },
-    [pageSize, setCurrentPage, setLoading, setError, setPlugins, setTotalPages]
+    [pageSize, setCurrentPage, setLoading, setError, setPlugins, setTotalPages, t]
   )
 
   useEffect(() => {
@@ -1546,13 +1569,13 @@ export default function PluginsMarket() {
         // 重新获取插件列表以更新状态
         fetchPlugins(currentPage, debouncedSearchKeyword)
       } else if (response) {
-        notification.error(`操作失败: ${response.msg}`)
+        notification.error(`${t('pluginsMarket.operationFailed')}: ${response.msg}`)
       } else {
-        notification.error('操作失败: 未知错误')
+        notification.error(t('pluginsMarket.operationFailedUnknown'))
       }
     } catch (error) {
       console.error('操作失败', error)
-      notification.error('操作失败，请重试')
+      notification.error(t('pluginsMarket.operationFailedRetry'))
     } finally {
       setProcessingId(null)
       setConfirmDialog({ open: false, plugin: null, action: 'download' })
@@ -1567,7 +1590,7 @@ export default function PluginsMarket() {
 
       if (response.code === 200) {
         // 成功创建
-        notification.success('插件发布成功！')
+        notification.success(t('pluginsMarket.publishSuccess'))
         setCreateDialogOpen(false)
         // 刷新插件列表
         fetchPlugins(1, debouncedSearchKeyword)
@@ -1599,7 +1622,7 @@ export default function PluginsMarket() {
       const response = await pluginsMarketApi.updateUserPlugin(moduleName, data)
 
       if (response.code === 200) {
-        notification.success('插件信息更新成功！')
+        notification.success(t('pluginsMarket.updateInfoSuccess'))
         setEditingPlugin(null)
 
         // 刷新插件列表
@@ -2228,6 +2251,7 @@ export default function PluginsMarket() {
                     onRemove={() => handleRemoveClick(plugin)}
                     onUnpublish={plugin.isOwner ? () => handleUnpublishClick(plugin) : undefined}
                     onShowDetail={() => handleShowDetail(plugin)}
+                    t={t}
                   />
                 </Grid>
               ))}
@@ -2288,6 +2312,7 @@ export default function PluginsMarket() {
         onUpdate={selectedPlugin?.is_local ? () => handleUpdateClick(selectedPlugin) : undefined}
         onRemove={selectedPlugin?.is_local ? () => handleRemoveClick(selectedPlugin) : undefined}
         onEdit={selectedPlugin?.isOwner ? () => handleEditPlugin(selectedPlugin) : undefined}
+        t={t}
       />
 
       {/* 确认下载/更新/下架/移除对话框 */}

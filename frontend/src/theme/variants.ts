@@ -5,7 +5,7 @@
 import { SxProps, Theme, alpha } from '@mui/material'
 import { UI_STYLES } from './themeConfig'
 import { getCurrentExtendedPalette, getCurrentThemeMode } from './themeConfig'
-import { stopTypeColorValues } from './utils'
+import { getStopTypeColorValue } from './utils'
 import { getShadow, getBackdropFilter, getBackground, getTransition } from './themeApi'
 
 // 圆角常量
@@ -275,7 +275,7 @@ export const CHIP_VARIANTS = {
 
   // 停止类型Chip样式
   getStopTypeChip: (stopType: number, isSmall: boolean = false): SxProps<Theme> => {
-    const color = stopTypeColorValues[stopType as keyof typeof stopTypeColorValues] || '#9e9e9e'
+    const color = getStopTypeColorValue(stopType)
 
     return {
       ...CHIP_VARIANTS.base(isSmall),

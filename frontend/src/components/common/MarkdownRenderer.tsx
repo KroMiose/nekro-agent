@@ -135,7 +135,8 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
     fontStyle: 'italic',
   },
   '& mark': {
-    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 235, 59, 0.5)',
+    backgroundColor:
+      theme.palette.mode === 'dark' ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 235, 59, 0.5)',
     color: theme.palette.text.primary,
     padding: '2px 4px',
     borderRadius: '2px',
@@ -216,19 +217,24 @@ export default function MarkdownRenderer({
   sx,
   enableSyntaxHighlight = true,
   enableHtml = true,
-  className
+  className,
 }: MarkdownRendererProps) {
   const theme = useTheme()
   const { mode } = useColorMode()
-  
+
   const markdownComponents = {
-    code({ inline, className, children, ...props }: {
+    code({
+      inline,
+      className,
+      children,
+      ...props
+    }: {
       inline?: boolean
       className?: string
       children?: React.ReactNode
     }) {
       const match = /language-(\w+)/.exec(className || '')
-      
+
       if (!inline && match && enableSyntaxHighlight) {
         return (
           <SyntaxHighlighter
@@ -241,37 +247,25 @@ export default function MarkdownRenderer({
           </SyntaxHighlighter>
         )
       }
-      
+
       return (
         <code className={className} {...props}>
           {children}
         </code>
       )
     },
-    
+
     // 修复 Link 组件，转发所有 props
-    a: ({ href, children, ...props }: {
-      href?: string
-      children?: React.ReactNode
-      [key: string]: any
-    }) => (
-      <Link 
-        href={href} 
-        target="_blank" 
-        rel="noopener noreferrer"
-        {...props}
-      >
+    a: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
+      <Link href={href} target="_blank" rel="noopener noreferrer" {...props}>
         {children}
       </Link>
     ),
   }
 
   return (
-    <Box 
-      className={className}
-      sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}
-    >
-      <ReactMarkdown 
+    <Box className={className} sx={[markdownStyles(theme), ...(Array.isArray(sx) ? sx : [sx])]}>
+      <ReactMarkdown
         components={markdownComponents}
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={enableHtml ? REHYPE_PLUGINS : undefined}

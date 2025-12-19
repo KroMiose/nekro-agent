@@ -1,0 +1,57 @@
+{
+  "title": "系统日志",
+  "header": {
+    "time": "时间",
+    "level": "级别",
+    "message": "消息",
+    "source": "来源"
+  },
+  "filters": {
+    "title": "日志过滤器",
+    "close": "关闭过滤器",
+    "level": "日志级别",
+    "all": "全部",
+    "source": "来源",
+    "messageContent": "消息内容",
+    "advancedMode": "高级模式",
+    "autoScroll": "自动滚动",
+    "apply": "应用过滤器"
+  },
+  "download": {
+    "title": "日志下载",
+    "lines": "最近日志行数",
+    "linesTooltip": "输入要下载的日志行数",
+    "button": "下载",
+    "tooltip": "下载日志文件",
+    "buttonFull": "下载最近日志",
+    "confirmTitle": "确认下载日志",
+    "confirmMessage": "即将下载最近 {{lines}} 行日志",
+    "sourceFilter": "来源筛选",
+    "confirm": "我已知晓风险，继续下载",
+    "cancel": "再想想",
+    "securityWarning": "请注意！日志文件可能包含敏感信息！",
+    "securityInfo1": "日志中可能包含您的 API 密钥、用户信息、聊天信息或其他隐私数据。",
+    "securityInfo2": "为了您的信息安全，请不要将未经处理的日志文件直接发送给未受信任的对象或上传到公开平台。"
+  },
+  "dialog": {
+    "details": "日志详情",
+    "copyLog": "复制日志内容",
+    "close": "关闭",
+    "time": "时间:",
+    "source": "来源:",
+    "module": "模块:",
+    "line": "位置:",
+    "lineNumber": "行 {{line}}",
+    "messageContent": "消息内容:"
+  },
+  "status": {
+    "disconnected": "日志流连接已断开，正在尝试重新连接..."
+  },
+  "levels": {
+    "DEBUG": "调试",
+    "INFO": "信息",
+    "WARNING": "警告",
+    "ERROR": "错误",
+    "SUCCESS": "成功"
+  }
+}

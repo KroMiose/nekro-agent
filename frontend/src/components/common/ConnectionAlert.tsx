@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Alert, Snackbar } from '@mui/material'
 import { useAppStore } from '../../stores/app'
 import { healthApi } from '../../services/api/health'
@@ -10,6 +11,7 @@ let checkInterval: number | null = null
 
 export default function ConnectionAlert() {
   const { isConnected, setConnected } = useAppStore()
+  const { t } = useTranslation('common')
 
   useEffect(() => {
     // 如果已经存在定时器，不重复创建
@@ -44,7 +46,7 @@ export default function ConnectionAlert() {
   return (
     <Snackbar open={!isConnected} anchorOrigin={{ vertical: 'top', horizontal: 'center' }}>
       <Alert severity="error" variant="filled">
-        与服务器的连接已断开，请检查网络连接
+        {t('messages.connectionLost')}
       </Alert>
     </Snackbar>
   )

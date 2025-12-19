@@ -1,0 +1,70 @@
+{
+  "title": "Dashboard",
+  "tabs": {
+    "day": "Today",
+    "week": "This Week",
+    "month": "This Month"
+  },
+  "cards": {
+    "totalMessages": "Total Messages",
+    "activeChannels": "Active Channels",
+    "uniqueUsers": "Unique Users",
+    "sandboxCalls": "Sandbox Calls",
+    "successRate": "Success Rate"
+  },
+  "charts": {
+    "realTimeData": "Real-time Data",
+    "overview": "Overview",
+    "executionStatus": "Execution Status",
+    "successRate": "Response Success Rate",
+    "activeRanking": "Active Ranking",
+    "distributionStats": "Distribution Statistics",
+    "stopTypeDistribution": "Execution Type Distribution",
+    "messageTypeDistribution": "Message Type Distribution",
+    "noData": "No data available",
+    "noRealtimeData": "No real-time data, waiting for collection"
+  },
+  "tooltip": {
+    "count": "Count",
+    "ratio": "Ratio"
+  },
+  "granularity": {
+    "label": "Granularity",
+    "1min": "1 minute",
+    "5min": "5 minutes",
+    "10min": "10 minutes",
+    "30min": "30 minutes",
+    "1hour": "1 hour"
+  },
+  "metrics": {
+    "messages": "Messages",
+    "sandboxCalls": "Sandbox Calls",
+    "successCalls": "Success Calls",
+    "failedCalls": "Failed Calls",
+    "successRate": "Success Rate"
+  },
+  "ranking": {
+    "title": "Active Ranking",
+    "messageCount": "Messages",
+    "messages": "messages"
+  },
+  "restart": {
+    "button": "Restart System",
+    "dialogTitle": "Confirm Restart",
+    "warning": "WebUI will be unavailable during restart. Check NekroAgent container logs if it doesn't recover.",
+    "confirmMessage": "Are you sure you want to restart? This may take about a minute.",
+    "cancel": "Cancel",
+    "confirm": "Confirm Restart",
+    "restarting": "Restarting...",
+    "requestSent": "Restart request sent, please wait...",
+    "failed": "Restart failed",
+    "networkError": "Failed to restart system, please check network connection"
+  },
+  "errors": {
+    "parseRealTimeData": "Failed to parse real-time data",
+    "streamError": "Dashboard data stream error"
+  },
+  "time": {
+    "now": "Now"
+  }
+}

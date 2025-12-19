@@ -16,6 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close'
 import { BORDER_RADIUS } from '../../theme/variants'
 import { UI_STYLES } from '../../theme/themeApi'
+import { useTranslation } from 'react-i18next'
 
 export interface NekroDialogProps extends Omit<MuiDialogProps, 'title'> {
   open: boolean
@@ -45,6 +46,7 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
   ...props
 }) => {
   const theme = useTheme()
+  const { t } = useTranslation('common')
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
 
   return (
@@ -95,7 +97,7 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
                   onClick={onClose}
                   size="small"
                   edge="end"
-                  aria-label="关闭"
+                  aria-label={t('actions.close')}
                 >
                   <CloseIcon fontSize="small" />
                 </IconButton>

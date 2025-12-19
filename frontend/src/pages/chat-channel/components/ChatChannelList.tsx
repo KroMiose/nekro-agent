@@ -12,6 +12,7 @@ import {
 import { Group as GroupIcon, Person as PersonIcon, Circle as CircleIcon } from '@mui/icons-material'
 import { ChatChannel } from '../../../services/api/chat-channel'
 import { formatLastActiveTime } from '../../../utils/time'
+import { useTranslation } from 'react-i18next'
 
 interface ChatChannelListProps {
   channels: ChatChannel[]
@@ -26,6 +27,7 @@ export default function ChatChannelList({
   onSelectChannel,
   isLoading,
 }: ChatChannelListProps) {
+  const { t } = useTranslation('chat-channel')
   if (isLoading) {
     return (
       <List>
@@ -49,7 +51,7 @@ export default function ChatChannelList({
   if (channels.length === 0) {
     return (
       <Box className="h-full flex items-center justify-center">
-        <Typography color="textSecondary">暂无聊天频道</Typography>
+        <Typography color="textSecondary">{t('list.empty')}</Typography>
       </Box>
     )
   }
@@ -95,14 +97,14 @@ export default function ChatChannelList({
                   justifyContent="space-between"
                 >
                   <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
-                    {channel.message_count}条消息
+                    {t('list.messageCount', { count: channel.message_count })}
                   </Typography>
                   <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1.2 }}>
                     {channel.last_message_time
                       ? formatLastActiveTime(
                           Math.floor(new Date(channel.last_message_time).getTime() / 1000)
                         )
-                      : '暂无活跃记录'}
+                      : t('list.noActiveRecord')}
                   </Typography>
                 </Stack>
               </Stack>

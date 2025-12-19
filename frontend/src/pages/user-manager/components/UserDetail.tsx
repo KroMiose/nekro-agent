@@ -11,7 +11,7 @@ import {
   Paper,
   useTheme,
   useMediaQuery,
-  Button
+  Button,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getUserDetail } from '../../../services/api/user-manager'
 import { format } from 'date-fns'
 import { CHIP_VARIANTS } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 interface UserDetailProps {
   userId: number
@@ -27,6 +28,7 @@ interface UserDetailProps {
 }
 
 const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
+  const { t } = useTranslation('user-manager')
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
@@ -40,26 +42,26 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
   const user = data?.data
 
   const formatDate = (dateString: string | null) => {
-    if (!dateString) return '无'
+    if (!dateString) return t('common.none', { ns: 'common' })
     try {
       return format(new Date(dateString), isMobile ? 'MM-dd HH:mm' : 'yyyy-MM-dd HH:mm:ss')
     } catch {
-      return '无效日期'
+      return t('common.invalidDate', { ns: 'common' })
     }
   }
 
   const getRoleLabel = (permLevel: number) => {
     switch (permLevel) {
       case 0:
-        return '访客'
+        return t('roles.guest', { ns: 'common' })
       case 1:
-        return '用户'
+        return t('roles.user', { ns: 'common' })
       case 2:
-        return '管理员'
+        return t('roles.admin', { ns: 'common' })
       case 3:
-        return '超级管理员'
+        return t('roles.superAdmin', { ns: 'common' })
       default:
-        return `未知(${permLevel})`
+        return `${t('roles.unknown', { ns: 'common' })}(${permLevel})`
     }
   }
 
@@ -69,44 +71,42 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
       open={open}
       onClose={onClose}
       PaperProps={{
-        sx: { 
+        sx: {
           width: { xs: '100%', sm: 400, md: 450 },
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
         },
       }}
     >
-      <Box sx={{ 
-        p: isSmall ? 1.5 : 2, 
-        flexGrow: 1,
-        overflow: 'auto'
-      }}>
-        <Box 
-          sx={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+      <Box
+        sx={{
+          p: isSmall ? 1.5 : 2,
+          flexGrow: 1,
+          overflow: 'auto',
+        }}
+      >
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
             mb: isSmall ? 1 : 2,
             position: 'sticky',
             top: 0,
             backgroundColor: 'background.paper',
             zIndex: 10,
-            pb: 1
+            pb: 1,
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {isMobile && (
-              <IconButton 
-                onClick={onClose} 
-                size={isSmall ? "small" : "medium"}
-                sx={{ mr: 1 }}
-              >
+              <IconButton onClick={onClose} size={isSmall ? 'small' : 'medium'} sx={{ mr: 1 }}>
                 <ArrowBackIcon />
               </IconButton>
             )}
-            <Typography variant={isSmall ? "h6" : "h5"}>用户详情</Typography>
+            <Typography variant={isSmall ? 'h6' : 'h5'}>{t('detail.title')}</Typography>
           </Box>
-          <IconButton onClick={onClose} size={isSmall ? "small" : "medium"}>
+          <IconButton onClick={onClose} size={isSmall ? 'small' : 'medium'}>
             <CloseIcon />
           </IconButton>
         </Box>
@@ -118,73 +118,81 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
             <CircularProgress />
           </Box>
         ) : error ? (
-          <Typography color="error">加载失败: {String(error)}</Typography>
+          <Typography color="error">
+            {t('detail.loadingError', { error: String(error) })}
+          </Typography>
         ) : user ? (
-          <Box sx={{ 
-            '& .MuiPaper-root': { 
-              p: isSmall ? 1.5 : 2,
-              mb: isSmall ? 1.5 : 2 
-            }
-          }}>
+          <Box
+            sx={{
+              '& .MuiPaper-root': {
+                p: isSmall ? 1.5 : 2,
+                mb: isSmall ? 1.5 : 2,
+              },
+            }}
+          >
             <Paper>
-              <Typography 
-                variant={isSmall ? "subtitle2" : "subtitle1"} 
-                gutterBottom 
+              <Typography
+                variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                gutterBottom
                 fontWeight="bold"
                 sx={{ mb: isSmall ? 1 : 1.5 }}
               >
-                基本信息
+                {t('detail.basicInfo')}
               </Typography>
 
               <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    用户ID
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.userId')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.id}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>{user.id}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    用户名
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.username')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.username}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>{user.username}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    适配端
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.adapterPlatform')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.adapter_key}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>
+                    {user.adapter_key}
+                  </Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    平台用户ID
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.platformUserId')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.platform_userid}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>
+                    {user.platform_userid}
+                  </Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    唯一标识
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('detail.uniqueId')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{user.unique_id}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>{user.unique_id}</Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    权限等级
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.permission')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
@@ -198,33 +206,33 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
             </Paper>
 
             <Paper>
-              <Typography 
-                variant={isSmall ? "subtitle2" : "subtitle1"} 
-                gutterBottom 
+              <Typography
+                variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                gutterBottom
                 fontWeight="bold"
                 sx={{ mb: isSmall ? 1 : 1.5 }}
               >
-                状态信息
+                {t('detail.statusInfo')}
               </Typography>
 
               <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    账户状态
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('detail.accountStatus')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
                   {!user.is_active ? (
-                    <Chip 
-                      label="已封禁" 
-                      size="small" 
-                      sx={CHIP_VARIANTS.getUserStatusChip('已封禁', isSmall)}
+                    <Chip
+                      label={t('status.banned')}
+                      size="small"
+                      sx={CHIP_VARIANTS.getUserStatusChip('banned', isSmall)}
                     />
                   ) : (
-                    <Chip 
-                      label="正常" 
-                      size="small" 
-                      sx={CHIP_VARIANTS.getUserStatusChip('正常', isSmall)}
+                    <Chip
+                      label={t('status.normal')}
+                      size="small"
+                      sx={CHIP_VARIANTS.getUserStatusChip('normal', isSmall)}
                     />
                   )}
                 </Grid>
@@ -232,33 +240,35 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                 {!user.is_active && (
                   <>
                     <Grid item xs={4}>
-                      <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                        封禁截止
+                      <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                        {t('detail.banUntil')}
                       </Typography>
                     </Grid>
                     <Grid item xs={8}>
-                      <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.ban_until)}</Typography>
+                      <Typography variant={isSmall ? 'caption' : 'body2'}>
+                        {formatDate(user.ban_until)}
+                      </Typography>
                     </Grid>
                   </>
                 )}
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    触发权限
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('detail.triggerPermission')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
                   {user.is_prevent_trigger ? (
-                    <Chip 
-                      label="禁止触发" 
-                      size="small" 
-                      sx={CHIP_VARIANTS.getUserStatusChip('禁止触发', isSmall)}
+                    <Chip
+                      label={t('detail.preventTrigger')}
+                      size="small"
+                      sx={CHIP_VARIANTS.getUserStatusChip('passive', isSmall)}
                     />
                   ) : (
-                    <Chip 
-                      label="允许触发" 
-                      size="small" 
-                      sx={CHIP_VARIANTS.getUserStatusChip('允许触发', isSmall)}
+                    <Chip
+                      label={t('detail.allowTrigger')}
+                      size="small"
+                      sx={CHIP_VARIANTS.getUserStatusChip('normal', isSmall)}
                     />
                   )}
                 </Grid>
@@ -266,12 +276,12 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
                 {!user.is_prevent_trigger && (
                   <>
                     <Grid item xs={4}>
-                      <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                        禁止触发截止
+                      <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                        {t('detail.preventTriggerUntil')}
                       </Typography>
                     </Grid>
                     <Grid item xs={8}>
-                      <Typography variant={isSmall ? "caption" : "body2"}>
+                      <Typography variant={isSmall ? 'caption' : 'body2'}>
                         {formatDate(user.prevent_trigger_until)}
                       </Typography>
                     </Grid>
@@ -281,45 +291,49 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
             </Paper>
 
             <Paper>
-              <Typography 
-                variant={isSmall ? "subtitle2" : "subtitle1"} 
-                gutterBottom 
+              <Typography
+                variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                gutterBottom
                 fontWeight="bold"
                 sx={{ mb: isSmall ? 1 : 1.5 }}
               >
-                其他信息
+                {t('detail.otherInfo')}
               </Typography>
 
               <Grid container spacing={isSmall ? 0.5 : 1}>
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    创建时间
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('table.createdAt')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.create_time)}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>
+                    {formatDate(user.create_time)}
+                  </Typography>
                 </Grid>
 
                 <Grid item xs={4}>
-                  <Typography variant={isSmall ? "caption" : "body2"} color="text.secondary">
-                    更新时间
+                  <Typography variant={isSmall ? 'caption' : 'body2'} color="text.secondary">
+                    {t('detail.updateTime')}
                   </Typography>
                 </Grid>
                 <Grid item xs={8}>
-                  <Typography variant={isSmall ? "caption" : "body2"}>{formatDate(user.update_time)}</Typography>
+                  <Typography variant={isSmall ? 'caption' : 'body2'}>
+                    {formatDate(user.update_time)}
+                  </Typography>
                 </Grid>
               </Grid>
             </Paper>
 
             {user.ext_data && Object.keys(user.ext_data).length > 0 && (
               <Paper>
-                <Typography 
-                  variant={isSmall ? "subtitle2" : "subtitle1"} 
-                  gutterBottom 
+                <Typography
+                  variant={isSmall ? 'subtitle2' : 'subtitle1'}
+                  gutterBottom
                   fontWeight="bold"
                   sx={{ mb: isSmall ? 1 : 1.5 }}
                 >
-                  扩展数据
+                  {t('detail.extData')}
                 </Typography>
 
                 <Box
@@ -339,24 +353,21 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
             )}
           </Box>
         ) : (
-          <Typography>未找到用户数据</Typography>
+          <Typography>{t('detail.notFound')}</Typography>
         )}
       </Box>
-      
+
       {isMobile && (
-        <Box sx={{ 
-          p: 2, 
-          borderTop: '1px solid', 
-          borderColor: 'divider',
-          mt: 'auto'
-        }}>
-          <Button 
-            variant="contained" 
-            fullWidth 
-            onClick={onClose}
-            startIcon={<ArrowBackIcon />}
-          >
-            返回
+        <Box
+          sx={{
+            p: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            mt: 'auto',
+          }}
+        >
+          <Button variant="contained" fullWidth onClick={onClose} startIcon={<ArrowBackIcon />}>
+            {t('actions.back', { ns: 'common' })}
           </Button>
         </Box>
       )}

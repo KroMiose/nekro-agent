@@ -1,0 +1,97 @@
+{
+  "title": "Chat Management",
+  "search": {
+    "placeholder": "Search chats...",
+    "noResults": "No matching channels found"
+  },
+  "filters": {
+    "type": "Type",
+    "status": "Status",
+    "all": "All",
+    "group": "Group",
+    "private": "Private",
+    "active": "Active",
+    "inactive": "Inactive"
+  },
+  "list": {
+    "empty": "No chat channels available",
+    "total": "{{count}} channels total",
+    "messageCount": "{{count}} messages",
+    "noActiveRecord": "No active record"
+  },
+  "table": {
+    "channelId": "Channel ID",
+    "channelName": "Channel Name",
+    "channelType": "Channel Type",
+    "messageCount": "Messages",
+    "lastMessage": "Last Message",
+    "status": "Status"
+  },
+  "actions": {
+    "viewMessages": "View Messages",
+    "viewSettings": "View Settings",
+    "clearHistory": "Clear History",
+    "viewList": "View Chat List"
+  },
+  "detail": {
+    "selectChat": "Please select a chat to view details",
+    "basicInfo": "Basic Info",
+    "messageHistory": "Message History",
+    "overrideSettings": "Override Settings"
+  },
+  "messages": {
+    "clearConfirm": "Are you sure you want to clear this channel's message history?",
+    "clearSuccess": "Message history cleared"
+  },
+  "basicInfo": {
+    "currentPreset": "Current Preset",
+    "cloud": "Cloud",
+    "defaultPreset": "Default Preset",
+    "selectPreset": "Select Preset",
+    "messageCount": "Message Count",
+    "messagesCount": "{{count}} messages",
+    "uniqueUsers": "Unique Users",
+    "usersCount": "{{count}} users",
+    "startTime": "Start Time",
+    "lastActiveTime": "Last Active Time",
+    "noMessages": "No messages",
+    "searchPreset": "Search presets...",
+    "search": "Search",
+    "useDefault": "Use Default Preset",
+    "cancel": "Cancel",
+    "fetchPresetsFailed": "Failed to fetch presets",
+    "setPresetSuccess": "Preset {{action}}: {{name}}",
+    "setPresetFailed": "Failed to set preset",
+    "set": "set",
+    "clear": "cleared"
+  },
+  "overrideSettings": {
+    "info": "Settings here will only apply to this chat channel. They have the highest priority and will override settings from adapters and system with the same name.",
+    "emptyMessage": "No overridable settings available for this chat channel"
+  },
+  "channelDetail": {
+    "unnamedChat": "Unnamed Chat",
+    "refreshInfo": "Refresh chat info",
+    "group": "Group",
+    "private": "Private",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "reset": "Reset",
+    "tabs": {
+      "basicInfo": "Basic Info",
+      "overrideSettings": "Override Settings",
+      "messageHistory": "Message History"
+    },
+    "resetDialog": {
+      "title": "Confirm Reset Chat?",
+      "content": "Resetting the chat will clear all preset states and effects. This action cannot be undone. Continue?",
+      "cancel": "Cancel",
+      "confirm": "Confirm Reset"
+    }
+  },
+  "messageHistory": {
+    "noMessages": "No message history",
+    "noContent": "[No text content]",
+    "scrollToBottom": "Scroll to bottom"
+  }
+}

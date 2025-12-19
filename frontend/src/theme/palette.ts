@@ -39,8 +39,8 @@ export interface ThemePreset {
 export const themePresets: ThemePreset[] = [
   {
     id: 'kolo',
-    name: '可洛红',
-    description: '热情活力的红色主题',
+    name: 'theme.colors.presets.kolo.name',
+    description: 'theme.colors.presets.kolo.desc',
     light: {
       brand: '#EA5252',
       accent: '#9C6ADE',
@@ -52,8 +52,8 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: 'sakura',
-    name: '樱花粉',
-    description: '如樱花般柔和甜美的粉色系',
+    name: 'theme.colors.presets.sakura.name',
+    description: 'theme.colors.presets.sakura.desc',
     light: {
       brand: '#FF9BB3',
       accent: '#7986CB',
@@ -65,8 +65,8 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: 'aqua',
-    name: '晴空蓝',
-    description: '如晴空般明朗的蓝色系',
+    name: 'theme.colors.presets.aqua.name',
+    description: 'theme.colors.presets.aqua.desc',
     light: {
       brand: '#5D9CEC',
       accent: '#EC87C0',
@@ -78,8 +78,8 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: 'matcha',
-    name: '抹茶绿',
-    description: '如抹茶般清新的绿色系',
+    name: 'theme.colors.presets.matcha.name',
+    description: 'theme.colors.presets.matcha.desc',
     light: {
       brand: '#66BB6A',
       accent: '#FFB74D',
@@ -91,8 +91,8 @@ export const themePresets: ThemePreset[] = [
   },
   {
     id: 'lilac',
-    name: '魔法紫',
-    description: '如魔法少女般神秘的紫色系',
+    name: 'theme.colors.presets.lilac.name',
+    description: 'theme.colors.presets.lilac.desc',
     light: {
       brand: '#9575CD',
       accent: '#4DB6AC',

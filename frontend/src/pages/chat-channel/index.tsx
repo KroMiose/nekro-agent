@@ -31,6 +31,7 @@ import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 export default function ChatChannelPage() {
   const [search, setSearch] = useState('')
@@ -44,6 +45,7 @@ export default function ChatChannelPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('chat-channel')
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
@@ -104,7 +106,7 @@ export default function ChatChannelPage() {
           <TextField
             fullWidth
             size={isSmall ? 'small' : 'medium'}
-            placeholder="搜索聊天..."
+            placeholder={t('search.placeholder')}
             value={search}
             onChange={handleSearch}
             InputProps={{
@@ -126,19 +128,19 @@ export default function ChatChannelPage() {
           {/* 筛选选项 */}
           <Stack direction={isSmall ? 'column' : 'row'} spacing={1}>
             <FormControl size="small" fullWidth>
-              <InputLabel>类型</InputLabel>
-              <Select value={chatType} label="类型" onChange={handleChatTypeChange}>
-                <MenuItem value="">全部</MenuItem>
-                <MenuItem value="group">群聊</MenuItem>
-                <MenuItem value="private">私聊</MenuItem>
+              <InputLabel>{t('filters.type')}</InputLabel>
+              <Select value={chatType} label={t('filters.type')} onChange={handleChatTypeChange}>
+                <MenuItem value="">{t('filters.all')}</MenuItem>
+                <MenuItem value="group">{t('filters.group')}</MenuItem>
+                <MenuItem value="private">{t('filters.private')}</MenuItem>
               </Select>
             </FormControl>
             <FormControl size="small" fullWidth>
-              <InputLabel>状态</InputLabel>
-              <Select value={isActive} label="状态" onChange={handleActiveChange}>
-                <MenuItem value="">全部</MenuItem>
-                <MenuItem value="true">已激活</MenuItem>
-                <MenuItem value="false">未激活</MenuItem>
+              <InputLabel>{t('filters.status')}</InputLabel>
+              <Select value={isActive} label={t('filters.status')} onChange={handleActiveChange}>
+                <MenuItem value="">{t('filters.all')}</MenuItem>
+                <MenuItem value="true">{t('filters.active')}</MenuItem>
+                <MenuItem value="false">{t('filters.inactive')}</MenuItem>
               </Select>
             </FormControl>
           </Stack>
@@ -198,7 +200,7 @@ export default function ChatChannelPage() {
           }}
         >
           <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
-          <Typography color="textSecondary">请选择一个聊天查看详情</Typography>
+          <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
           {isMobile && (
             <Button
               onClick={() => setDrawerOpen(true)}
@@ -206,7 +208,7 @@ export default function ChatChannelPage() {
               startIcon={<ListIcon />}
               sx={{ mt: 2 }}
             >
-              查看聊天列表
+              {t('actions.viewList')}
             </Button>
           )}
         </Card>
@@ -235,14 +237,14 @@ export default function ChatChannelPage() {
                 }}
               >
                 <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
-                <Typography color="textSecondary">请选择一个聊天查看详情</Typography>
+                <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
                 <Button
                   onClick={() => setDrawerOpen(true)}
                   variant="outlined"
                   startIcon={<ListIcon />}
                   sx={{ mt: 2 }}
                 >
-                  查看聊天列表
+                  {t('actions.viewList')}
                 </Button>
               </Card>
             )}

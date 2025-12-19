@@ -26,25 +26,30 @@ import { useQuery } from '@tanstack/react-query'
 import { useOutletContext, useParams } from 'react-router-dom'
 import { adaptersApi, AdapterDetailInfo, AdapterStatus } from '../../services/api/adapters'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 interface AdapterContextType {
   adapterInfo: AdapterDetailInfo
 }
 
 // 信息行组件
-const InfoRow = ({ label, value, monospace = false }: { 
+const InfoRow = ({
+  label,
+  value,
+  monospace = false,
+}: {
   label: string
   value: string | React.ReactNode
-  monospace?: boolean 
+  monospace?: boolean
 }) => (
   <Box sx={{ py: 1.5 }}>
     <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
       {label}
     </Typography>
     {typeof value === 'string' ? (
-      <Typography 
-        variant="body1" 
-        sx={{ 
+      <Typography
+        variant="body1"
+        sx={{
           fontFamily: monospace ? 'monospace' : 'inherit',
           fontSize: monospace ? '0.875rem' : 'inherit',
           wordBreak: 'break-all',
@@ -63,6 +68,7 @@ export default function AdapterAdvancedPage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const { adapterInfo } = useOutletContext<AdapterContextType>()
   const theme = useTheme()
+  const { t } = useTranslation('adapter')
 
   // 获取适配器状态
   const { data: status } = useQuery<AdapterStatus>({
@@ -76,13 +82,29 @@ export default function AdapterAdvancedPage() {
   const getStatusInfo = (statusValue: string) => {
     switch (statusValue) {
       case 'loaded':
-        return { icon: <CheckCircleIcon />, text: '正常运行', color: theme.palette.success.main }
+        return {
+          icon: <CheckCircleIcon />,
+          text: t('advanced.statusRunning'),
+          color: theme.palette.success.main,
+        }
       case 'failed':
-        return { icon: <ErrorIcon />, text: '加载失败', color: theme.palette.error.main }
+        return {
+          icon: <ErrorIcon />,
+          text: t('advanced.statusFailed'),
+          color: theme.palette.error.main,
+        }
       case 'disabled':
-        return { icon: <WarningIcon />, text: '已禁用', color: theme.palette.warning.main }
+        return {
+          icon: <WarningIcon />,
+          text: t('advanced.statusDisabled'),
+          color: theme.palette.warning.main,
+        }
       default:
-        return { icon: <InfoIcon />, text: '未知状态', color: theme.palette.info.main }
+        return {
+          icon: <InfoIcon />,
+          text: t('advanced.statusUnknown'),
+          color: theme.palette.info.main,
+        }
     }
   }
 
@@ -108,10 +130,10 @@ export default function AdapterAdvancedPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
               <ArchitectureIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                运行状态
+                {t('advanced.status')}
               </Typography>
             </Box>
-            
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               {statusInfo.icon}
               <Box>
@@ -119,7 +141,7 @@ export default function AdapterAdvancedPage() {
                   {statusInfo.text}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  适配器: {adapterInfo.name} v{adapterInfo.version || '未知'}
+                  {adapterInfo.name} v{adapterInfo.version || t('advanced.unknown')}
                 </Typography>
               </Box>
             </Box>
@@ -132,37 +154,46 @@ export default function AdapterAdvancedPage() {
                       {status.loaded ? '✓' : '✗'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      已加载
+                      {t('advanced.loaded')}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" color={status.initialized ? 'success.main' : 'warning.main'}>
+                    <Typography
+                      variant="h6"
+                      color={status.initialized ? 'success.main' : 'warning.main'}
+                    >
                       {status.initialized ? '✓' : '◯'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      已初始化
+                      {t('advanced.initialized')}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" color={adapterInfo.has_config ? 'info.main' : 'text.disabled'}>
+                    <Typography
+                      variant="h6"
+                      color={adapterInfo.has_config ? 'info.main' : 'text.disabled'}
+                    >
                       {adapterInfo.has_config ? '⚙' : '—'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      支持配置
+                      {t('advanced.supportConfig')}
                     </Typography>
                   </Box>
                 </Grid>
                 <Grid item xs={6} sm={3}>
                   <Box sx={{ textAlign: 'center' }}>
-                    <Typography variant="h6" color={status.config_file_exists ? 'success.main' : 'warning.main'}>
+                    <Typography
+                      variant="h6"
+                      color={status.config_file_exists ? 'success.main' : 'warning.main'}
+                    >
                       {status.config_file_exists ? '✓' : '!'}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
-                      配置文件
+                      {t('advanced.configFile')}
                     </Typography>
                   </Box>
                 </Grid>
@@ -179,63 +210,57 @@ export default function AdapterAdvancedPage() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                   <CodeIcon color="primary" />
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    技术规格
+                    {t('advanced.specs')}
                   </Typography>
                 </Box>
 
                 <Stack divider={<Divider />}>
-                  <InfoRow 
-                    label="适配器 ID" 
-                    value={adapterInfo.key} 
-                    monospace 
+                  <InfoRow label={t('advanced.adapterId')} value={adapterInfo.key} monospace />
+                  <InfoRow
+                    label={t('advanced.implClass')}
+                    value={adapterInfo.config_class}
+                    monospace
                   />
-                  <InfoRow 
-                    label="实现类" 
-                    value={adapterInfo.config_class} 
-                    monospace 
-                  />
-                  <InfoRow 
-                    label="版本信息" 
+                  <InfoRow
+                    label={t('advanced.version')}
                     value={
                       <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                        <Chip 
-                          label={`v${adapterInfo.version || '未知'}`} 
-                          size="small" 
-                          color="primary" 
+                        <Chip
+                          label={`v${adapterInfo.version || t('advanced.unknown')}`}
+                          size="small"
+                          color="primary"
                           variant="outlined"
                         />
                         {adapterInfo.author && (
-                          <Chip 
-                            label={adapterInfo.author} 
-                            size="small" 
-                            variant="outlined"
-                          />
+                          <Chip label={adapterInfo.author} size="small" variant="outlined" />
                         )}
                       </Box>
-                    } 
+                    }
                   />
-                  <InfoRow 
-                    label="标签" 
+                  <InfoRow
+                    label={t('advanced.tags')}
                     value={
                       <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                        {adapterInfo.tags.length > 0 ? adapterInfo.tags.map((tag, index) => (
-                          <Chip
-                            key={index}
-                            label={tag}
-                            size="small"
-                            sx={{
-                              backgroundColor: theme.palette.primary.main + '15',
-                              color: theme.palette.primary.main,
-                              fontSize: '0.75rem',
-                            }}
-                          />
-                        )) : (
+                        {adapterInfo.tags.length > 0 ? (
+                          adapterInfo.tags.map((tag, index) => (
+                            <Chip
+                              key={index}
+                              label={tag}
+                              size="small"
+                              sx={{
+                                backgroundColor: theme.palette.primary.main + '15',
+                                color: theme.palette.primary.main,
+                                fontSize: '0.75rem',
+                              }}
+                            />
+                          ))
+                        ) : (
                           <Typography variant="body2" color="text.disabled">
-                            无标签
+                            {t('advanced.noTags')}
                           </Typography>
                         )}
                       </Box>
-                    } 
+                    }
                   />
                 </Stack>
               </CardContent>
@@ -249,32 +274,32 @@ export default function AdapterAdvancedPage() {
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                   <BugReportIcon color="primary" />
                   <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    路径配置
+                    {t('advanced.paths')}
                   </Typography>
                 </Box>
 
                 <Stack divider={<Divider />}>
-                  <InfoRow 
-                    label="配置文件" 
-                    value={adapterInfo.config_path} 
-                    monospace 
+                  <InfoRow
+                    label={t('advanced.configFile')}
+                    value={adapterInfo.config_path}
+                    monospace
                   />
                   {adapterInfo.has_router && (
-                    <InfoRow 
-                      label="API 路由" 
-                      value={adapterInfo.router_prefix} 
-                      monospace 
+                    <InfoRow
+                      label={t('advanced.apiRouter')}
+                      value={adapterInfo.router_prefix}
+                      monospace
                     />
                   )}
-                  <InfoRow 
-                    label="适配器目录" 
-                    value={`/nekro_agent/adapters/${adapterInfo.key}/`} 
-                    monospace 
+                  <InfoRow
+                    label={t('advanced.adapterDir')}
+                    value={`/nekro_agent/adapters/${adapterInfo.key}/`}
+                    monospace
                   />
-                  <InfoRow 
-                    label="文档路径" 
-                    value={`/nekro_agent/adapters/${adapterInfo.key}/README.md`} 
-                    monospace 
+                  <InfoRow
+                    label={t('advanced.docPath')}
+                    value={`/nekro_agent/adapters/${adapterInfo.key}/README.md`}
+                    monospace
                   />
                 </Stack>
               </CardContent>
@@ -289,17 +314,18 @@ export default function AdapterAdvancedPage() {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                 <SecurityIcon color="primary" />
                 <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  聊天标识规则
+                  {t('advanced.chatRules')}
                 </Typography>
               </Box>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                该适配器使用以下格式来标识不同的聊天频道：
+                {t('advanced.chatRulesDesc')}
               </Typography>
               <Paper
                 variant="outlined"
                 sx={{
                   p: 2,
-                  backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+                  backgroundColor:
+                    theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
                   border: `1px solid ${theme.palette.divider}`,
                   borderRadius: 2,
                 }}
@@ -336,7 +362,7 @@ export default function AdapterAdvancedPage() {
             }}
           >
             <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
-              错误信息
+              {t('advanced.errorMsg')}
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.875rem' }}>
               {status.error_message}

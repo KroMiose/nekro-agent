@@ -20,6 +20,7 @@ import { useGitHubStarStore, StarCheckCallbacks, NotifyOptions } from '../../sto
 import { BUTTON_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 // 模糊容器
 const BlurredContent = styled(Box)(() => ({
@@ -48,8 +49,8 @@ interface GitHubStarWarningProps {
  */
 const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
   children,
-  title = '欢迎支持开源项目',
-  message = '通过Star开源仓库来支持我们，即可解锁高级自定义功能。您的支持是我们持续改进的动力！',
+  title,
+  message,
   onStarred,
   onNotStarred,
   onError,
@@ -62,12 +63,23 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
   const notification = useNotification()
   const navigate = useNavigate()
   const [activeStep, setActiveStep] = useState(0)
+  const { t } = useTranslation('common')
+  
+  // 使用翻译键作为默认值
+  const displayTitle = title || t('githubStar.title')
+  const displayMessage = message || t('githubStar.message')
 
   // 验证步骤
   const steps = [
-    { label: 'Star项目', description: '前往GitHub给项目点Star' },
-    { label: '获取API Key', description: '在NekroAI社区获取API Key' },
-    { label: '配置验证', description: '填写API Key并验证Star状态' },
+    {
+      label: t('githubStar.steps.starProject'),
+      description: t('githubStar.steps.starProjectDesc'),
+    },
+    { label: t('githubStar.steps.getApiKey'), description: t('githubStar.steps.getApiKeyDesc') },
+    {
+      label: t('githubStar.steps.configVerify'),
+      description: t('githubStar.steps.configVerifyDesc'),
+    },
   ]
 
   // 创建通知回调对象
@@ -138,13 +150,13 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
       >
         <FavoriteIcon color="primary" sx={{ mb: 1, fontSize: 28 }} />
         <Typography variant="h6" gutterBottom>
-          {title}
+          {displayTitle}
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          {message}
+          {displayMessage}
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.85rem' }}>
-            Star是一种鼓励开发者的方式，它让我们知道这个项目对您有价值
+            {t('githubStar.encouragement')}
           </Typography>
         </Typography>
 
@@ -179,14 +191,14 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                 }}
                 sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1 }}
               >
-                前往GitHub支持项目
+                {t('githubStar.buttons.goToGithub')}
               </Button>
             )}
 
             {activeStep === 1 && (
               <>
                 <Typography variant="body2" paragraph sx={{ mt: 1 }}>
-                  请使用GitHub账号登录NekroAI社区，在个人中心获取API Key
+                  {t('githubStar.buttons.loginCommunity')}
                 </Typography>
                 <Button
                   variant="contained"
@@ -198,7 +210,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   }}
                   sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1 }}
                 >
-                  前往NekroAI社区获取API Key
+                  {t('githubStar.buttons.goToCommunity')}
                 </Button>
               </>
             )}
@@ -206,8 +218,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
             {activeStep === 2 && (
               <>
                 <Typography variant="body2" paragraph sx={{ mt: 1 }}>
-                  将获取的 API Key 填入系统设置中的 "NekroAI 云服务 API Key"
-                  字段并启用云服务，然后刷新验证状态 Key"字段并启用云服务，然后刷新验证状态
+                  {t('githubStar.buttons.apiKeyHint')}
                 </Typography>
                 <Button
                   variant="contained"
@@ -216,7 +227,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   onClick={goToSettings}
                   sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1, mr: 1 }}
                 >
-                  前往系统设置填写API Key
+                  {t('githubStar.buttons.goToSettings')}
                 </Button>
                 <Button
                   variant="outlined"
@@ -226,7 +237,9 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   disabled={checking}
                   sx={{ mt: 1 }}
                 >
-                  {checking ? '检查中...' : '刷新验证状态'}
+                  {checking
+                    ? t('githubStar.buttons.checking')
+                    : t('githubStar.buttons.refreshStatus')}
                 </Button>
               </>
             )}
@@ -238,19 +251,19 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
             disabled={activeStep === 0}
             onClick={() => setActiveStep(prev => Math.max(0, prev - 1))}
           >
-            上一步
+            {t('actions.previous')}
           </Button>
           <Button
             disabled={activeStep === 2}
             onClick={() => setActiveStep(prev => Math.min(2, prev + 1))}
           >
-            下一步
+            {t('actions.next')}
           </Button>
         </Box>
 
         {checking && (
           <Typography variant="caption" sx={{ display: 'block', mt: 2, color: 'text.secondary' }}>
-            正在检查验证状态，请稍候...
+            {t('githubStar.status.checkingStatus')}
           </Typography>
         )}
       </Paper>

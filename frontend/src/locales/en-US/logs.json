@@ -1,0 +1,57 @@
+{
+  "title": "System Logs",
+  "header": {
+    "time": "Time",
+    "level": "Level",
+    "message": "Message",
+    "source": "Source"
+  },
+  "filters": {
+    "title": "Log Filters",
+    "close": "Close Filters",
+    "level": "Log Level",
+    "all": "All",
+    "source": "Source",
+    "messageContent": "Message Content",
+    "advancedMode": "Advanced Mode",
+    "autoScroll": "Auto Scroll",
+    "apply": "Apply Filters"
+  },
+  "download": {
+    "title": "Download Logs",
+    "lines": "Recent Log Lines",
+    "linesTooltip": "Enter number of lines to download",
+    "button": "Download",
+    "tooltip": "Download log file",
+    "buttonFull": "Download Recent Logs",
+    "confirmTitle": "Confirm Download",
+    "confirmMessage": "Downloading last {{lines}} lines of logs",
+    "sourceFilter": "Source Filter",
+    "confirm": "I understand the risks, proceed",
+    "cancel": "Cancel",
+    "securityWarning": "Warning! Log files may contain sensitive information!",
+    "securityInfo1": "Logs may contain your API keys, user information, chat history, or other private data.",
+    "securityInfo2": "For your security, please do not send unprocessed log files to untrusted parties or upload to public platforms."
+  },
+  "dialog": {
+    "details": "Log Details",
+    "copyLog": "Copy Log Content",
+    "close": "Close",
+    "time": "Time:",
+    "source": "Source:",
+    "module": "Module:",
+    "line": "Position:",
+    "lineNumber": "Line {{line}}",
+    "messageContent": "Message Content:"
+  },
+  "status": {
+    "disconnected": "Log stream disconnected, attempting to reconnect..."
+  },
+  "levels": {
+    "DEBUG": "Debug",
+    "INFO": "Info",
+    "WARNING": "Warning",
+    "ERROR": "Error",
+    "SUCCESS": "Success"
+  }
+}

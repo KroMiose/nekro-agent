@@ -1,0 +1,28 @@
+{
+  "title": "欢迎回来",
+  "slogan": "开启优雅智能交互之旅",
+  "form": {
+    "username": "用户名",
+    "usernameLabel": "用户名",
+    "password": "密码",
+    "passwordLabel": "密码",
+    "submit": "登录",
+    "rememberMe": "记住我"
+  },
+  "errors": {
+    "emptyFields": "请输入用户名和密码",
+    "invalidCredentials": "登录失败，请检查用户名和密码"
+  },
+  "agreement": {
+    "text": "我已阅读并同意",
+    "license": "项目开源协议",
+    "community": "NekroAI 社区共享协议",
+    "and": "和"
+  },
+  "footer": {
+    "copyright": "版权所有"
+  },
+  "messages": {
+    "loginSuccess": "登录成功"
+  }
+}

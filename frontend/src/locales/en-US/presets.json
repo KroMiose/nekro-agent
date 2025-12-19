@@ -1,0 +1,113 @@
+{
+  "title": "Preset Management",
+  "search": {
+    "placeholder": "Search presets..."
+  },
+  "list": {
+    "empty": "No presets available",
+    "noResults": "No matching presets found",
+    "fetchFailed": "Failed to fetch preset list",
+    "fetchTagsFailed": "Failed to fetch tags, please check network connection",
+    "loadingDetails": "Loading preset details...",
+    "updating": "Updating preset...",
+    "creating": "Creating preset...",
+    "deleting": "Deleting preset..."
+  },
+  "dialog": {
+    "createTitle": "Create New Preset",
+    "editTitle": "Edit Preset",
+    "cancel": "Cancel",
+    "save": "Save",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "confirmDeleteTitle": "Confirm Delete",
+    "confirmDeleteMessage": "Are you sure you want to delete this preset? This action cannot be undone."
+  },
+  "form": {
+    "name": "Preset Name",
+    "nameRequired": "Please enter preset name",
+    "title": "Title",
+    "titleHelper": "Defaults to preset name",
+    "avatar": "Avatar",
+    "noAvatar": "No avatar",
+    "uploadAvatar": "Upload Avatar",
+    "uploadSuccess": "Avatar uploaded successfully",
+    "uploadFailed": "Upload failed",
+    "retryUpload": "Upload failed, please retry",
+    "avatarTip": "Recommended: Square image, will be compressed to under 500KB",
+    "tags": "Tags",
+    "tagsPlaceholder": "Press Enter or comma to add tags",
+    "tagsHelper": "Separate with comma or Enter, max 8 tags",
+    "maxTags": "Maximum 8 tags allowed",
+    "duplicateTag": "Duplicate tag not allowed",
+    "author": "Author",
+    "description": "Description",
+    "descriptionHelper": "Enter a brief description of the preset",
+    "content": "Preset Content",
+    "contentRequired": "Please enter preset content"
+  },
+  "cloud": {
+    "sharedInfo": "This preset is shared to cloud. Use \"Sync to Cloud\" button to sync your changes after saving.",
+    "unlinkTitle": "Confirm Unlink from Cloud",
+    "unlinkWarning": "This preset was downloaded from cloud. Editing will unlink it and you won't be able to sync updates.",
+    "unlinkConfirm": "Are you sure you want to continue editing and unlink from cloud?",
+    "unlinkButton": "Confirm Unlink & Continue",
+    "shareToCloud": "Share to cloud",
+    "revokeShare": "Revoke share",
+    "syncToCloud": "Sync updates to cloud",
+    "syncFromCloud": "Sync latest version from cloud",
+    "shareSuccess": "Shared successfully",
+    "shareFailed": "Share failed",
+    "revokeSuccess": "Share revoked successfully",
+    "revokeFailed": "Failed to revoke share",
+    "syncSuccess": "Sync successful",
+    "syncFailed": "Sync failed",
+    "addDescriptionFirst": "Please add a description before sharing",
+    "shareConfirmTitle": "Share to Cloud",
+    "shareConfirmMessage": "Are you sure you want to share this preset to the cloud? Once shared, it can be downloaded by other instances.",
+    "shareInfo": "After sharing, others can download and use your preset.",
+    "sfwConfirm": "I confirm this is Safe For Work (SFW) content compliant with community rules",
+    "termsConfirm": "I have read and agree to",
+    "termsLink": "NekroAI Community Resource Sharing Agreement",
+    "revokeConfirmTitle": "Revoke Share",
+    "revokeWarning": "Revoking share will remove this preset from cloud. Other instances may no longer be able to download it.",
+    "revokeConfirmMessage": "Are you sure you want to revoke sharing?",
+    "syncConfirmTitle": "Sync Updates to Cloud",
+    "syncConfirmMessage": "Are you sure you want to sync local changes to cloud? This will overwrite the version in the cloud.",
+    "syncWarning": "Syncing will overwrite the cloud version with your local version.",
+    "refreshingStatus": "Refreshing shared status...",
+    "refreshStatusSuccess": "Shared status refreshed successfully",
+    "refreshStatusDetails": "Updated shared status for {{updated}} presets, total {{total}} presets in cloud"
+  },
+  "card": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "sync": "Sync",
+    "moreActions": "More actions",
+    "loadDetails": "Failed to load preset details",
+    "updatedAt": "Updated",
+    "global": "Global",
+    "noDescription": "No description",
+    "noContent": "No content"
+  },
+  "actions": {
+    "create": "Create Preset",
+    "refresh": "Refresh Shared Status",
+    "refreshShort": "Refresh",
+    "share": "Share",
+    "close": "Close"
+  },
+  "filter": {
+    "all": "All",
+    "local": "Local",
+    "cloud": "Cloud",
+    "shared": "Shared",
+    "clearFilters": "Clear Filters",
+    "byTag": "Filter by tags ({{count}} tags)",
+    "noTags": "No tags"
+  },
+  "status": {
+    "enabled": "Enabled",
+    "disabled": "Disabled"
+  }
+}

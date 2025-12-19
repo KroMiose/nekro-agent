@@ -11,19 +11,16 @@ import {
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '../../services/api/auth'
-import {
-  CARD_VARIANTS,
-  INPUT_VARIANTS,
-  BUTTON_VARIANTS,
-  BORDER_RADIUS,
-} from '../../theme/variants'
+import { CARD_VARIANTS, INPUT_VARIANTS, BUTTON_VARIANTS, BORDER_RADIUS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { useTranslation } from 'react-i18next'
 
 export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const notification = useNotification()
+  const { t } = useTranslation('profile')
 
   // 获取用户信息
   const { data: userInfo } = useQuery({
@@ -36,16 +33,16 @@ export default function ProfilePage() {
   // 处理修改密码
   const handleChangePassword = async () => {
     if (isAdminUser) {
-      notification.info('管理员账号暂不支持修改密码')
+      notification.info(t('notifications.adminCannotChangePassword'))
       return
     }
     if (!newPassword || !confirmPassword) {
-      notification.error('请填写所有密码字段')
+      notification.error(t('notifications.fillAllFields'))
       return
     }
 
     if (newPassword !== confirmPassword) {
-      notification.error('新密码和确认密码不匹配')
+      notification.error(t('notifications.passwordMismatch'))
       return
     }
 
@@ -54,7 +51,7 @@ export default function ProfilePage() {
       await authApi.updatePassword({
         password: newPassword,
       })
-      notification.success('密码修改成功')
+      notification.success(t('notifications.passwordChangeSuccess'))
       // 清空输入框
       setNewPassword('')
       setConfirmPassword('')
@@ -62,7 +59,7 @@ export default function ProfilePage() {
       if (error instanceof Error) {
         notification.error(error.message)
       } else {
-        notification.error('密码修改失败')
+        notification.error(t('notifications.passwordChangeFailed'))
       }
     } finally {
       setLoading(false)
@@ -75,25 +72,25 @@ export default function ProfilePage() {
       <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE, mb: 4 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            个人信息
+            {t('personalInfo.title')}
           </Typography>
           <Divider sx={{ my: 2 }} />
           <Stack spacing={2}>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                用户名
+                {t('personalInfo.username')}
               </Typography>
               <Typography variant="body1">{userInfo?.username}</Typography>
             </Box>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                用户ID
+                {t('personalInfo.userId')}
               </Typography>
               <Typography variant="body1">{userInfo?.userId}</Typography>
             </Box>
             <Box>
               <Typography variant="subtitle2" color="text.secondary">
-                权限等级
+                {t('personalInfo.permissionLevel')}
               </Typography>
               <Typography variant="body1">{userInfo?.perm_role}</Typography>
             </Box>
@@ -105,19 +102,19 @@ export default function ProfilePage() {
       <Card sx={{ ...CARD_VARIANTS.default.styles, borderRadius: BORDER_RADIUS.LARGE }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            修改密码
+            {t('changePassword.title')}
           </Typography>
           <Divider sx={{ my: 2 }} />
           <Stack spacing={3}>
             {isAdminUser && (
               <Typography variant="body2" color="text.secondary">
-                管理员账号暂不支持在此修改密码，请在系统环境变量中修改
+                {t('changePassword.adminNotice')}
               </Typography>
             )}
             <TextField
               fullWidth
               type="password"
-              label="新密码"
+              label={t('changePassword.newPassword')}
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               disabled={isAdminUser}
@@ -126,7 +123,7 @@ export default function ProfilePage() {
             <TextField
               fullWidth
               type="password"
-              label="确认新密码"
+              label={t('changePassword.confirmPassword')}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               disabled={isAdminUser}
@@ -138,7 +135,7 @@ export default function ProfilePage() {
               disabled={isAdminUser || loading || !newPassword || !confirmPassword}
               sx={BUTTON_VARIANTS.primary.styles}
             >
-              {loading ? '提交中...' : '修改密码'}
+              {loading ? t('changePassword.submitting') : t('changePassword.submit')}
             </Button>
           </Stack>
         </CardContent>

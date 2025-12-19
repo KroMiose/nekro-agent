@@ -16,10 +16,12 @@ import {
   CleaningServices as CleaningServicesIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
+import i18next from './i18n'
 
 export interface PageConfig {
   path: string
   text: string
+  translationKey?: string // 翻译键（可选，适配器配置可能没有）
   icon: JSX.Element
   parent?: string // 父菜单的 key
 }
@@ -27,65 +29,160 @@ export interface PageConfig {
 export interface MenuGroup {
   key: string
   text: string
+  translationKey?: string // 翻译键（可选，适配器配置可能没有）
   icon: JSX.Element
   children: PageConfig[]
 }
 
-// 集中的页面配置
-export const PAGE_CONFIGS: (PageConfig | MenuGroup)[] = [
+// 获取翻译的辅助函数
+const t = (key: string) => i18next.t(key, { ns: 'navigation' })
+
+// 获取页面配置（动态生成以支持语言切换）
+export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
   {
     key: 'cloud',
-    text: 'Nekro 云',
+    text: t('menu.cloud'),
+    translationKey: 'menu.cloud',
     icon: <CloudDownloadIcon />,
     children: [
-      { path: '/cloud/telemetry', text: '社区观测', icon: <DashboardIcon />, parent: 'cloud' },
-      { path: '/cloud/presets-market', text: '人设市场', icon: <FaceIcon />, parent: 'cloud' },
-      { path: '/cloud/plugins-market', text: '插件市场', icon: <ExtensionIcon />, parent: 'cloud' },
+      {
+        path: '/cloud/telemetry',
+        text: t('menu.telemetry'),
+        translationKey: 'menu.telemetry',
+        icon: <DashboardIcon />,
+        parent: 'cloud',
+      },
+      {
+        path: '/cloud/presets-market',
+        text: t('menu.presetsMarket'),
+        translationKey: 'menu.presetsMarket',
+        icon: <FaceIcon />,
+        parent: 'cloud',
+      },
+      {
+        path: '/cloud/plugins-market',
+        text: t('menu.pluginsMarket'),
+        translationKey: 'menu.pluginsMarket',
+        icon: <ExtensionIcon />,
+        parent: 'cloud',
+      },
     ],
   },
-  { path: '/dashboard', text: '仪表盘', icon: <DashboardIcon /> },
-  { path: '/chat-channel', text: '聊天管理', icon: <ChatIcon /> },
-  { path: '/user-manager', text: '用户管理', icon: <GroupIcon /> },
-  { path: '/presets', text: '人设管理', icon: <FaceIcon /> },
+  {
+    path: '/dashboard',
+    text: t('menu.dashboard'),
+    translationKey: 'menu.dashboard',
+    icon: <DashboardIcon />,
+  },
+  {
+    path: '/chat-channel',
+    text: t('menu.chatChannel'),
+    translationKey: 'menu.chatChannel',
+    icon: <ChatIcon />,
+  },
+  {
+    path: '/user-manager',
+    text: t('menu.userManager'),
+    translationKey: 'menu.userManager',
+    icon: <GroupIcon />,
+  },
+  {
+    path: '/presets',
+    text: t('menu.presets'),
+    translationKey: 'menu.presets',
+    icon: <FaceIcon />,
+  },
   {
     key: 'plugins',
-    text: '插件管理',
+    text: t('menu.plugins'),
+    translationKey: 'menu.plugins',
     icon: <ExtensionIcon />,
     children: [
       {
         path: '/plugins/management',
-        text: '插件管理',
+        text: t('menu.pluginManagement'),
+        translationKey: 'menu.pluginManagement',
         icon: <ExtensionIcon />,
         parent: 'plugins',
       },
-      { path: '/plugins/editor', text: '插件编辑器', icon: <CodeIcon />, parent: 'plugins' },
+      {
+        path: '/plugins/editor',
+        text: t('menu.pluginEditor'),
+        translationKey: 'menu.pluginEditor',
+        icon: <CodeIcon />,
+        parent: 'plugins',
+      },
     ],
   },
-  { path: '/logs', text: '系统日志', icon: <TerminalIcon /> },
-  { path: '/sandbox-logs', text: '沙盒日志', icon: <CodeIcon /> },
+  {
+    path: '/logs',
+    text: t('menu.logs'),
+    translationKey: 'menu.logs',
+    icon: <TerminalIcon />,
+  },
+  {
+    path: '/sandbox-logs',
+    text: t('menu.sandboxLogs'),
+    translationKey: 'menu.sandboxLogs',
+    icon: <CodeIcon />,
+  },
   {
     key: 'adapters',
-    text: '适配器',
+    text: t('menu.adapters'),
+    translationKey: 'menu.adapters',
     icon: <HubIcon />,
     children: getAdapterNavigationConfigs(),
   },
   {
     key: 'settings',
-    text: '系统配置',
+    text: t('menu.settings'),
+    translationKey: 'menu.settings',
     icon: <SettingsIcon />,
     children: [
-      { path: '/settings/system', text: '基本配置', icon: <TuneIcon />, parent: 'settings' },
-      { path: '/settings/model-groups', text: '模型组', icon: <StorageIcon />, parent: 'settings' },
-      { path: '/settings/theme', text: '调色盘', icon: <PaletteIcon />, parent: 'settings' },
-      { path: '/settings/space-cleanup', text: '空间回收', icon: <CleaningServicesIcon />, parent: 'settings' },
+      {
+        path: '/settings/system',
+        text: t('menu.systemSettings'),
+        translationKey: 'menu.systemSettings',
+        icon: <TuneIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/model-groups',
+        text: t('menu.modelGroups'),
+        translationKey: 'menu.modelGroups',
+        icon: <StorageIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/theme',
+        text: t('menu.theme'),
+        translationKey: 'menu.theme',
+        icon: <PaletteIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/space-cleanup',
+        text: t('menu.spaceCleanup'),
+        translationKey: 'menu.spaceCleanup',
+        icon: <CleaningServicesIcon />,
+        parent: 'settings',
+      },
     ],
   },
-  { path: '/profile', text: '个人中心', icon: <AccountCircleIcon /> },
+  {
+    path: '/profile',
+    text: t('menu.profile'),
+    translationKey: 'menu.profile',
+    icon: <AccountCircleIcon />,
+  },
 ]
+
+// 为了向后兼容，保留 PAGE_CONFIGS（但建议使用 getPageConfigs）
+export const PAGE_CONFIGS = getPageConfigs()
 
 // 转换配置为菜单项的工具函数
 export const createMenuItems = () => {
-  return PAGE_CONFIGS.map(config => {
+  return getPageConfigs().map(config => {
     if ('children' in config) {
       return {
         text: config.text,
@@ -110,7 +207,7 @@ export const createMenuItems = () => {
 // 获取当前页面信息的工具函数
 export const getCurrentPageFromConfigs = (pathname: string) => {
   // 扁平化所有页面配置
-  const allPages = PAGE_CONFIGS.flatMap(config =>
+  const allPages = getPageConfigs().flatMap(config =>
     'children' in config ? config.children : [config]
   )
   // 查找匹配的页面
@@ -123,5 +220,9 @@ export const getCurrentPageFromConfigs = (pathname: string) => {
 
 // 获取当前页面标题的工具函数
 export const getCurrentTitleFromConfigs = (pathname: string) => {
-  return getCurrentPageFromConfigs(pathname)?.text || '管理面板'
+  const page = getCurrentPageFromConfigs(pathname)
+  if (page && 'translationKey' in page && page.translationKey) {
+    return t(page.translationKey)
+  }
+  return t('menu.defaultTitle')
 }

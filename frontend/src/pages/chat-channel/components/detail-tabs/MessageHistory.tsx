@@ -14,9 +14,13 @@ import {
 } from '@mui/material'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { chatChannelApi, ChatMessage } from '../../../../services/api/chat-channel'
+import { useTranslation } from 'react-i18next'
 
 // 防抖函数
-const debounce = <T extends (...args: unknown[]) => unknown>(fn: T, delay: number): (...args: Parameters<T>) => void => {
+const debounce = <T extends (...args: unknown[]) => unknown>(
+  fn: T,
+  delay: number
+): ((...args: Parameters<T>) => void) => {
   let timeoutId: number
   return (...args: Parameters<T>) => {
     window.clearTimeout(timeoutId)
@@ -34,6 +38,7 @@ interface MessageResponse {
 }
 
 export default function MessageHistory({ chatKey }: MessageHistoryProps) {
+  const { t } = useTranslation('chat-channel')
   const theme = useTheme()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
@@ -87,7 +92,7 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
     if (!container) return
 
     const { scrollHeight, scrollTop, clientHeight } = container
-    
+
     // 更新自动滚动状态
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
     setAutoScroll(isNearBottom)
@@ -136,23 +141,18 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
   }
 
   // 按时间正序排列消息
-  const allMessages = data?.pages
-    .flatMap(page => page.items)
-    .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || []
+  const allMessages =
+    data?.pages
+      .flatMap(page => page.items)
+      .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || []
 
   return (
     <Box className="h-full flex flex-col overflow-hidden relative">
       {/* 消息列表容器 */}
-      <Box 
-        ref={containerRef} 
-        className="flex-1 overflow-y-auto"
-      >
+      <Box ref={containerRef} className="flex-1 overflow-y-auto">
         {/* 加载更多提示 */}
         {(hasNextPage || isFetchingNextPage) && allMessages.length >= 32 && (
-          <Box 
-            ref={loadMoreRef} 
-            className="p-2 flex justify-center"
-          >
+          <Box ref={loadMoreRef} className="p-2 flex justify-center">
             <CircularProgress size={24} />
           </Box>
         )}
@@ -160,7 +160,7 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
         {/* 消息列表 */}
         {allMessages.length === 0 ? (
           <Box className="p-4 flex items-center justify-center">
-            <Typography color="textSecondary">暂无消息记录</Typography>
+            <Typography color="textSecondary">{t('messageHistory.noMessages')}</Typography>
           </Box>
         ) : (
           <List>
@@ -177,7 +177,7 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
                   },
                   alignItems: 'flex-start',
                   paddingTop: 2,
-                  paddingBottom: 2
+                  paddingBottom: 2,
                 }}
               >
                 <ListItemAvatar sx={{ mt: 0 }}>
@@ -199,11 +199,7 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
                       <Typography variant="body1" className="font-medium">
                         {message.sender_name}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="textSecondary"
-                        className="flex-shrink-0"
-                      >
+                      <Typography variant="caption" color="textSecondary" className="flex-shrink-0">
                         {message.create_time}
                       </Typography>
                     </Stack>
@@ -211,18 +207,18 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
                   secondary={
                     <Typography
                       variant="body2"
-                      style={{ 
+                      style={{
                         whiteSpace: 'pre-wrap',
                         wordBreak: 'break-word',
-                        overflowWrap: 'break-word'
+                        overflowWrap: 'break-word',
                       }}
                       color="textSecondary"
                       sx={{
                         opacity: message.content ? 1 : 0.5,
-                        fontStyle: message.content ? 'normal' : 'italic'
+                        fontStyle: message.content ? 'normal' : 'italic',
                       }}
                     >
-                      {message.content || '[无文本内容]'}
+                      {message.content || t('messageHistory.noContent')}
                     </Typography>
                   }
                 />
@@ -240,7 +236,7 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
             position: 'absolute',
             bottom: 16,
             right: 16,
-            zIndex: theme.zIndex.fab
+            zIndex: theme.zIndex.fab,
           }}
         >
           <Button
@@ -251,10 +247,10 @@ export default function MessageHistory({ chatKey }: MessageHistoryProps) {
             sx={{
               minWidth: 'auto',
               borderRadius: 20,
-              boxShadow: theme.shadows[6]
+              boxShadow: theme.shadows[6],
             }}
           >
-            回到底部
+            {t('messageHistory.scrollToBottom')}
           </Button>
         </Box>
       )}

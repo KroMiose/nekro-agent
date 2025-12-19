@@ -146,6 +146,7 @@ dmypy.json
 # vscode
 .vscode/*
 !.vscode/launch.json
+!.vscode/.i18n-ally.yml
 
 # configs
 configs

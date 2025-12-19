@@ -36,6 +36,7 @@ import PaginationStyled from '../../components/common/PaginationStyled'
 import { useNavigate } from 'react-router-dom'
 import { UI_STYLES } from '../../theme/themeConfig'
 import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -59,14 +60,14 @@ const PresetCard = ({
   preset,
   onDownload,
   onShowDetail,
+  t,
 }: {
   preset: CloudPreset
   onDownload: () => void
   onShowDetail: () => void
+  t: (key: string, options?: Record<string, unknown>) => string
 }) => {
   const tagsArray = preset.tags.split(',').filter(tag => tag.trim())
-
-
 
   return (
     <Card
@@ -123,11 +124,11 @@ const PresetCard = ({
                 mb: 1,
               }}
             >
-              {preset.description || '无描述'}
+              {preset.description || t('presetsMarket.noDescription')}
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
               <Typography variant="caption" color="text.secondary">
-                作者: {preset.author || '未知'}
+                {t('presetsMarket.author')}: {preset.author || t('presetsMarket.unknownAuthor')}
               </Typography>
             </Box>
           </Box>
@@ -151,7 +152,7 @@ const PresetCard = ({
             ))
           ) : (
             <Typography variant="caption" color="text.disabled">
-              无标签
+              {t('presetsMarket.noTags')}
             </Typography>
           )}
         </Box>
@@ -167,7 +168,7 @@ const PresetCard = ({
         }}
       >
         <Button size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
-          详情
+          {t('presetsMarket.details')}
         </Button>
         <Button
           size="small"
@@ -177,7 +178,7 @@ const PresetCard = ({
           disabled={preset.is_local}
           color="primary"
         >
-          {preset.is_local ? '已获取' : '获取'}
+          {preset.is_local ? t('presetsMarket.obtained') : t('presetsMarket.obtain')}
         </Button>
       </CardActions>
     </Card>
@@ -189,10 +190,12 @@ const PresetDetailDialog = ({
   open,
   onClose,
   preset,
+  t,
 }: {
   open: boolean
   onClose: () => void
   preset: CloudPreset | null
+  t: (key: string, options?: Record<string, unknown>) => string
 }) => {
   const theme = useTheme()
 
@@ -235,7 +238,9 @@ const PresetDetailDialog = ({
           borderColor: 'divider',
         }}
       >
-        <Typography variant="h6">人设详情：{preset.title || preset.name}</Typography>
+        <Typography variant="h6">
+          {t('presetsMarket.presetDetail')}: {preset.title || preset.name}
+        </Typography>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
@@ -255,7 +260,7 @@ const PresetDetailDialog = ({
               />
               <Box sx={{ width: '100%' }}>
                 <Typography variant="subtitle2" gutterBottom fontWeight={600}>
-                  标签:
+                  {t('presetsMarket.tags')}:
                 </Typography>
                 <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap' }}>
                   {tagsArray.length > 0 ? (
@@ -276,7 +281,7 @@ const PresetDetailDialog = ({
                     ))
                   ) : (
                     <Typography variant="caption" color="text.disabled">
-                      无标签
+                      {t('presetsMarket.noTags')}
                     </Typography>
                   )}
                 </Box>
@@ -291,7 +296,7 @@ const PresetDetailDialog = ({
 
             <Box sx={{ mb: 3 }}>
               <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                作者: {preset.author || '未知'}
+                {t('presetsMarket.author')}: {preset.author || t('presetsMarket.unknownAuthor')}
               </Typography>
               <Typography
                 variant="body1"
@@ -305,12 +310,12 @@ const PresetDetailDialog = ({
                   mt: 1,
                 }}
               >
-                {preset.description || '无描述'}
+                {preset.description || t('presetsMarket.noDescription')}
               </Typography>
               <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    创建时间:
+                    {t('presetsMarket.createdAt')}:
                   </Typography>
                   <Typography variant="body2">
                     {formatLastActiveTime(new Date(preset.create_time).getTime() / 1000)}
@@ -318,7 +323,7 @@ const PresetDetailDialog = ({
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                    更新时间:
+                    {t('presetsMarket.updatedAt')}:
                   </Typography>
                   <Typography variant="body2">
                     {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
@@ -330,7 +335,7 @@ const PresetDetailDialog = ({
             <Divider sx={{ mb: 2.5 }} />
 
             <Typography variant="h6" gutterBottom fontWeight={600}>
-              人设内容:
+              {t('presetsMarket.presetContent')}:
             </Typography>
             <Typography
               variant="body2"
@@ -348,14 +353,14 @@ const PresetDetailDialog = ({
                 lineHeight: 1.6,
               }}
             >
-              {preset.content || '无内容'}
+              {preset.content || t('presetsMarket.noContent')}
             </Typography>
           </Grid>
         </Grid>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
         <Button variant="contained" onClick={onClose} color="primary">
-          关闭
+          {t('presetsMarket.close')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -380,6 +385,7 @@ export default function PresetsMarket() {
   )
   const { enqueueSnackbar } = useSnackbar()
   const navigate = useNavigate()
+  const { t } = useTranslation('cloud')
   const pageSize = 12
 
   const fetchPresets = useCallback(
@@ -403,13 +409,13 @@ export default function PresetsMarket() {
           fetchPresets(1, keyword)
         }
       } catch (error) {
-        console.error('获取云端人设列表失败', error)
-        setError('获取人设列表失败，请检查网络连接或联系管理员')
+        console.error('Failed to fetch presets', error)
+        setError(t('presetsMarket.fetchFailed'))
       } finally {
         setLoading(false)
       }
     },
-    [pageSize, setCurrentPage, setLoading, setError, setPresets, setTotalPages]
+    [pageSize, setCurrentPage, setLoading, setError, setPresets, setTotalPages, t]
   )
 
   useEffect(() => {
@@ -457,7 +463,7 @@ export default function PresetsMarket() {
       const response = await presetsMarketApi.downloadPreset(confirmDialog.preset.remote_id)
 
       if (response.code === 200) {
-        enqueueSnackbar('人设获取成功', { variant: 'success' })
+        enqueueSnackbar(t('presetsMarket.obtainSuccess'), { variant: 'success' })
         // 更新本地状态
         setPresets(prev =>
           prev.map(p =>
@@ -465,11 +471,13 @@ export default function PresetsMarket() {
           )
         )
       } else {
-        enqueueSnackbar(`获取失败: ${response.msg}`, { variant: 'error' })
+        enqueueSnackbar(t('presetsMarket.obtainFailedWithReason', { reason: response.msg }), {
+          variant: 'error',
+        })
       }
     } catch (error) {
-      console.error('获取失败', error)
-      enqueueSnackbar('获取失败，请重试', { variant: 'error' })
+      console.error('Obtain failed', error)
+      enqueueSnackbar(t('presetsMarket.obtainRetry'), { variant: 'error' })
     } finally {
       setDownloadingId(null)
       setConfirmDialog({ open: false, preset: null })
@@ -510,7 +518,7 @@ export default function PresetsMarket() {
         >
           <TextField
             size="small"
-            placeholder="搜索人设"
+            placeholder={t('presetsMarket.searchPlaceholder')}
             value={searchKeyword}
             onChange={e => setSearchKeyword(e.target.value)}
             sx={{
@@ -547,7 +555,7 @@ export default function PresetsMarket() {
             }}
             variant="contained"
           >
-            {loading ? '搜索中...' : '搜索'}
+            {loading ? t('presetsMarket.searching') : t('presetsMarket.search')}
           </Button>
         </Box>
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
@@ -557,7 +565,7 @@ export default function PresetsMarket() {
             startIcon={<AddIcon />}
             onClick={() => navigate('/presets')}
           >
-            发布人设
+            {t('presetsMarket.publishPreset')}
           </Button>
         </Box>
       </Box>
@@ -603,7 +611,7 @@ export default function PresetsMarket() {
             >
               <CircularProgress size={28} thickness={4} />
               <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                加载中...
+                {t('presetsMarket.loading')}
               </Typography>
             </Box>
           </Box>
@@ -618,6 +626,7 @@ export default function PresetsMarket() {
                     preset={preset}
                     onDownload={() => handleDownloadClick(preset)}
                     onShowDetail={() => handleShowDetail(preset)}
+                    t={t}
                   />
                 </Grid>
               ))}
@@ -650,12 +659,12 @@ export default function PresetsMarket() {
               }}
             >
               <Typography variant="h6" color="text.secondary" sx={{ mb: 1, fontWeight: 'normal' }}>
-                没有找到符合条件的人设
+                {t('presetsMarket.noResults.title')}
               </Typography>
               <Typography variant="body2" color="text.disabled" sx={{ maxWidth: 400 }}>
-                尝试使用其他关键词搜索，或等待一段时间后再次尝试。
+                {t('presetsMarket.noResults.hint1')}
                 <br />
-                新上传的人设可能需要一些时间才能被检索到。
+                {t('presetsMarket.noResults.hint2')}
               </Typography>
             </Box>
           )
@@ -667,6 +676,7 @@ export default function PresetsMarket() {
         open={!!selectedPreset}
         onClose={() => setSelectedPreset(null)}
         preset={selectedPreset}
+        t={t}
       />
 
       {/* 确认获取对话框 */}
@@ -674,11 +684,12 @@ export default function PresetsMarket() {
         open={confirmDialog.open}
         onClose={() => setConfirmDialog({ open: false, preset: null })}
       >
-        <DialogTitle>确认获取</DialogTitle>
+        <DialogTitle>{t('presetsMarket.confirmObtain')}</DialogTitle>
         <DialogContent>
           <Typography>
-            确定要获取人设 "{confirmDialog.preset?.title || confirmDialog.preset?.name}"
-            到本地库吗？
+            {t('presetsMarket.confirmObtainMessage', {
+              name: confirmDialog.preset?.title || confirmDialog.preset?.name,
+            })}
           </Typography>
         </DialogContent>
         <DialogActions>
@@ -686,10 +697,10 @@ export default function PresetsMarket() {
             onClick={() => setConfirmDialog({ open: false, preset: null })}
             disabled={!!downloadingId}
           >
-            取消
+            {t('presetsMarket.cancel')}
           </Button>
           <Button onClick={handleDownloadConfirm} color="primary" disabled={!!downloadingId}>
-            {downloadingId ? <CircularProgress size={24} /> : '确认获取'}
+            {downloadingId ? <CircularProgress size={24} /> : t('presetsMarket.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

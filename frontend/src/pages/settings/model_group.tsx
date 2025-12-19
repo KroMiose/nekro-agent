@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Box,
   Paper,
@@ -49,24 +50,26 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Trans } from 'react-i18next'
 import { ModelGroupConfig } from '../../services/api/config'
 import { unifiedConfigApi } from '../../services/api/unified-config'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 
 // 常用的 OpenAI 兼容供应商地址（可扩展）
-const OPENAI_COMPAT_PROVIDERS: Array<{ name: string; url: string }> = [
-  { name: 'NekroAI中转', url: 'https://api.nekro.ai/v1' },
-  { name: '谷歌Gemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-  { name: '通义千问', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  { name: '豆包', url: 'https://ark.cn-beijing.volces.com/api/v3' },
-  { name: 'Kimi', url: 'https://api.moonshot.cn/v1' },
-  { name: '智谱清言', url: 'https://open.bigmodel.cn/api/paas/v4' },
-  { name: '百度千帆', url: 'https://qianfan.baidubce.com/v2' },
-  { name: '科大讯飞', url: 'https://spark-api-open.xf-yun.com/v1' },
-  { name: '百川', url: 'https://api.baichuan-ai.com/v1' },
-  { name: '腾讯混元', url: 'https://api.hunyuan.cloud.tencent.com/v1' },
-  { name: '商汤日日新', url: 'https://api.sensenova.cn/compatible-mode/v1' },
+// 注意：供应商名称通过翻译键动态获取，见 EditDialog 组件内部
+const OPENAI_COMPAT_PROVIDERS: Array<{ key: string; url: string }> = [
+  { key: 'nekroAI', url: 'https://api.nekro.ai/v1' },
+  { key: 'googleGemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
+  { key: 'tongyiQianwen', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
+  { key: 'doubao', url: 'https://ark.cn-beijing.volces.com/api/v3' },
+  { key: 'kimi', url: 'https://api.moonshot.cn/v1' },
+  { key: 'zhipuQingyan', url: 'https://open.bigmodel.cn/api/paas/v4' },
+  { key: 'baiduQianfan', url: 'https://qianfan.baidubce.com/v2' },
+  { key: 'iflytekSpark', url: 'https://spark-api-open.xf-yun.com/v1' },
+  { key: 'baichuan', url: 'https://api.baichuan-ai.com/v1' },
+  { key: 'tencentHunyuan', url: 'https://api.hunyuan.cloud.tencent.com/v1' },
+  { key: 'sensetimeRixin', url: 'https://api.sensenova.cn/compatible-mode/v1' },
 ]
 
 interface EditDialogProps {
@@ -113,6 +116,7 @@ function EditDialog({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { t } = useTranslation('settings')
 
   const [modelOptions, setModelOptions] = useState<string[]>([])
   const [fetchingModels, setFetchingModels] = useState(false)
@@ -122,11 +126,16 @@ function EditDialog({
   const inputHeight = isSmall ? 40 : 56
 
   const canFetchModels = Boolean(config.BASE_URL && config.API_KEY && !fetchingModels)
-  const fetchTooltipTitle = canFetchModels ? '' : '请先填写 API 地址与密钥后再获取可用模型'
+  const fetchTooltipTitle = canFetchModels ? '' : t('modelGroup.helpers.fetchPrecondition')
 
-  // 供应商快捷选项
+  // 供应商快捷选项 - 使用翻译获取名称
   const providerOptions = OPENAI_COMPAT_PROVIDERS.map(p => p.url)
-  const providerMetaByUrl = new Map(OPENAI_COMPAT_PROVIDERS.map(p => [p.url, p.name]))
+  const providerMetaByUrl = new Map(
+    OPENAI_COMPAT_PROVIDERS.map(p => [
+      p.url,
+      t(`modelGroup.providers.${p.key}`) || p.key,
+    ])
+  )
 
   interface OpenAIModelListResponse {
     data?: Array<string | { id?: string }>
@@ -167,14 +176,16 @@ function EditDialog({
       const data: OpenAIModelListResponse = await resp.json()
       const models = parseModelIds(data)
       setModelOptions(models)
+      setModelOptions(models)
       if (models.length > 0) {
-        notification.success(`已获取到 ${models.length} 个可用模型`)
+        notification.success(t('modelGroup.validation.fetchSuccess', { count: models.length }))
       } else {
-        notification.info('未获取到模型列表，请手动输入模型名称')
+        notification.info(t('modelGroup.validation.fetchEmpty'))
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : '获取模型失败'
-      notification.error(`获取模型列表失败：${message}。请手动输入模型名称`)
+      const message =
+        err instanceof Error ? err.message : t('common.unknownError', { ns: 'common' })
+      notification.error(t('modelGroup.validation.fetchError', { error: message }))
     } finally {
       setFetchingModels(false)
     }
@@ -250,12 +261,12 @@ function EditDialog({
 
     // 验证组名格式
     if (!validateGroupName(name)) {
-      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)')
+      setGroupNameError(t('modelGroup.validation.nameInvalid'))
     }
     // 验证组名是否已存在
     else if (existingGroups[name] && (isCopy || !initialConfig)) {
       // 当创建新组或复制时，检查名称是否已存在
-      setGroupNameError(`模型组名称 "${name}" 已存在，请使用其他名称`)
+      setGroupNameError(t('modelGroup.validation.nameExists', { name }))
     } else {
       setGroupNameError('')
     }
@@ -273,24 +284,24 @@ function EditDialog({
       BASE_URL: (config.BASE_URL || '').trim(),
       API_KEY: (config.API_KEY || '').trim(),
       MODEL_TYPE: (config.MODEL_TYPE || 'chat').trim(),
-      EXTRA_BODY: config.EXTRA_BODY ? (config.EXTRA_BODY.trim() || null) : null,
+      EXTRA_BODY: config.EXTRA_BODY ? config.EXTRA_BODY.trim() || null : null,
     }
 
     // 验证组名
     if (trimmedGroupName && !validateGroupName(trimmedGroupName)) {
-      setGroupNameError('组名不能包含URL特殊字符 (如 / ? & # = %)')
+      setGroupNameError(t('modelGroup.validation.nameInvalid'))
       return
     }
 
     // 检查空组名
     if (!trimmedGroupName) {
-      setGroupNameError('组名不能为空')
+      setGroupNameError(t('modelGroup.validation.nameRequired'))
       return
     }
 
     // 检查名称是否已存在（对于新建或复制的情况）
     if (existingGroups[trimmedGroupName] && (isCopy || !initialConfig)) {
-      setGroupNameError(`模型组名称 "${groupName}" 已存在，请使用其他名称`)
+      setGroupNameError(t('modelGroup.validation.nameExists', { name: groupName }))
       return
     }
 
@@ -301,7 +312,7 @@ function EditDialog({
       if (error instanceof Error) {
         setError(error.message)
       } else {
-        setError('保存失败')
+        setError(t('modelGroup.actions.saveFailed'))
       }
     }
   }
@@ -309,12 +320,16 @@ function EditDialog({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        {isCopy ? '复制模型组' : initialConfig && !isCopy ? '编辑模型组' : '新建模型组'}
+        {isCopy
+          ? t('modelGroup.dialog.copyTitle')
+          : initialConfig && !isCopy
+            ? t('modelGroup.dialog.editTitle')
+            : t('modelGroup.dialog.createTitle')}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} className="mt-4">
           <TextField
-            label="组名"
+            label={t('modelGroup.form.groupName')}
             value={groupName}
             onChange={e => handleGroupNameChange(e.target.value)}
             disabled={!!initialConfig && !isCopy}
@@ -327,8 +342,8 @@ function EditDialog({
               (groupName
                 ? ''
                 : isCopy
-                  ? '请为复制的模型组设置一个新名称'
-                  : '组名不能包含URL特殊字符 (如 / ? & # = %)，创建后不可修改')
+                  ? t('modelGroup.helpers.nameCopy')
+                  : t('modelGroup.helpers.nameChar'))
             }
             inputProps={{
               autoComplete: 'new-password',
@@ -353,7 +368,7 @@ function EditDialog({
               <li {...props} key={option}>
                 <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                   <Typography variant="body2">
-                    {providerMetaByUrl.get(option) || '自定义地址'}
+                    {providerMetaByUrl.get(option) || t('common.custom', { ns: 'common' })}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {option}
@@ -364,8 +379,8 @@ function EditDialog({
             renderInput={params => (
               <TextField
                 {...params}
-                label="API地址"
-                placeholder="https://api.nekro.ai/v1"
+                label={t('modelGroup.form.apiAddress')}
+                placeholder={t('modelGroup.placeholders.apiAddress')}
                 autoComplete="off"
                 size={inputSize}
                 inputProps={{
@@ -375,12 +390,12 @@ function EditDialog({
                     autoComplete: 'off',
                   },
                 }}
-                helperText="从列表中选择常用供应商，或输入任意 OpenAI 接口基准地址"
+                helperText={t('modelGroup.helpers.apiAddress')}
               />
             )}
           />
           <TextField
-            label="API密钥"
+            label={t('modelGroup.form.apiKey')}
             value={config.API_KEY}
             onChange={e => setConfig({ ...config, API_KEY: e.target.value })}
             type="text"
@@ -415,7 +430,7 @@ function EditDialog({
             }}
           />
           <TextField
-            label="代理地址"
+            label={t('modelGroup.form.proxyAddress')}
             value={config.CHAT_PROXY}
             onChange={e => setConfig({ ...config, CHAT_PROXY: e.target.value })}
             fullWidth
@@ -445,9 +460,9 @@ function EditDialog({
                 renderInput={params => (
                   <TextField
                     {...params}
-                    label="模型名称"
+                    label={t('modelGroup.form.modelName')}
                     autoComplete="off"
-                    helperText="若无法获取列表，请直接手动输入模型名称"
+                    helperText={t('modelGroup.helpers.modelName')}
                     inputProps={{
                       ...params.inputProps,
                       autoComplete: 'new-password',
@@ -471,10 +486,11 @@ function EditDialog({
                 >
                   {fetchingModels ? (
                     <>
-                      <CircularProgress size={16} sx={{ mr: 1 }} /> 正在获取
+                      <CircularProgress size={16} sx={{ mr: 1 }} />{' '}
+                      {t('modelGroup.actions.fetching')}
                     </>
                   ) : (
-                    '获取可用模型'
+                    t('modelGroup.actions.fetchModels')
                   )}
                 </Button>
               </span>
@@ -482,7 +498,7 @@ function EditDialog({
           </Stack>
           <TextField
             select
-            label="模型类型"
+            label={t('modelGroup.form.modelType')}
             value={config.MODEL_TYPE || 'chat'}
             onChange={e => setConfig({ ...config, MODEL_TYPE: e.target.value })}
             fullWidth
@@ -518,10 +534,10 @@ function EditDialog({
               className="mb-2"
               sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}
             >
-              模型功能
+              {t('modelGroup.helpers.modelCapabilities') || 'Model Capabilities'}
             </Typography>
             <Stack direction={isMobile ? 'column' : 'row'} spacing={isMobile ? 1 : 4}>
-              <Tooltip title="启用模型视觉能力，需要模型支持多模态输入">
+              <Tooltip title={t('modelGroup.helpers.vision')}>
                 <div>
                   <FormControlLabel
                     control={
@@ -534,14 +550,14 @@ function EditDialog({
                     }
                     label={
                       <Typography sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
-                        视觉能力
+                        {t('modelGroup.form.vision')}
                       </Typography>
                     }
                   />
                 </div>
               </Tooltip>
 
-              <Tooltip title="启用NA提供的思维链进行分析，如果模型原生支持请关闭">
+              <Tooltip title={t('modelGroup.helpers.cot')}>
                 <div>
                   <FormControlLabel
                     control={
@@ -554,7 +570,7 @@ function EditDialog({
                     }
                     label={
                       <Typography sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
-                        外置思维链
+                        {t('modelGroup.form.cot')}
                       </Typography>
                     }
                   />
@@ -570,13 +586,15 @@ function EditDialog({
             className="self-start"
             size={isSmall ? 'small' : 'medium'}
           >
-            {showAdvanced ? '收起高级选项 ▼' : '展开高级选项 ▶'}
+            {showAdvanced
+              ? t('modelGroup.helpers.collapseAdvanced')
+              : t('modelGroup.helpers.expandAdvanced')}
           </Button>
 
           {showAdvanced && (
             <Stack spacing={2} className="pl-4 border-l-2 border-gray-200">
               <TextField
-                label="Temperature"
+                label={t('modelGroup.form.temperature')}
                 type="number"
                 value={config.TEMPERATURE ?? ''}
                 onChange={e =>
@@ -588,10 +606,10 @@ function EditDialog({
                 fullWidth
                 size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: 0, max: 2 }}
-                helperText="控制输出的随机性 (0-2)"
+                helperText={t('modelGroup.helpers.temperature') || '控制输出的随机性 (0-2)'}
               />
               <TextField
-                label="Top P"
+                label={t('modelGroup.form.topP')}
                 type="number"
                 value={config.TOP_P ?? ''}
                 onChange={e =>
@@ -603,10 +621,10 @@ function EditDialog({
                 fullWidth
                 size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: 0, max: 1 }}
-                helperText="控制输出的多样性 (0-1)"
+                helperText={t('modelGroup.helpers.topP') || '控制输出的多样性 (0-1)'}
               />
               <TextField
-                label="Presence Penalty"
+                label={t('modelGroup.form.presencePenalty')}
                 type="number"
                 value={config.PRESENCE_PENALTY ?? ''}
                 onChange={e =>
@@ -618,10 +636,13 @@ function EditDialog({
                 fullWidth
                 size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: -2, max: 2 }}
-                helperText="基于生成文本中已出现的内容对新内容的惩罚，越大越倾向产生新话题 (-2 到 2)"
+                helperText={
+                  t('modelGroup.helpers.presencePenalty') ||
+                  '基于生成文本中已出现的内容对新内容的惩罚 (-2 到 2)'
+                }
               />
               <TextField
-                label="Frequency Penalty"
+                label={t('modelGroup.form.frequencyPenalty')}
                 type="number"
                 value={config.FREQUENCY_PENALTY ?? ''}
                 onChange={e =>
@@ -633,17 +654,20 @@ function EditDialog({
                 fullWidth
                 size={isSmall ? 'small' : 'medium'}
                 inputProps={{ step: 0.1, min: -2, max: 2 }}
-                helperText="基于生成文本中出现的内容频率对新内容的惩罚，越大越倾向产生多样回复 (-2 到 2)"
+                helperText={
+                  t('modelGroup.helpers.frequencyPenalty') ||
+                  '基于生成文本中出现的内容频率对新内容的惩罚 (-2 到 2)'
+                }
               />
               <TextField
-                label="Extra Body (JSON)"
+                label={t('modelGroup.form.extraBody')}
                 value={config.EXTRA_BODY ?? ''}
                 onChange={e => setConfig({ ...config, EXTRA_BODY: e.target.value || null })}
                 fullWidth
                 size={isSmall ? 'small' : 'medium'}
                 multiline
                 rows={3}
-                helperText="额外的请求参数 (JSON 格式)"
+                helperText={t('modelGroup.helpers.extraBody') || '额外的请求参数 (JSON 格式)'}
               />
             </Stack>
           )}
@@ -656,7 +680,7 @@ function EditDialog({
           onClick={onClose}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
-          取消
+          {t('actions.cancel', { ns: 'common' })}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -664,7 +688,7 @@ function EditDialog({
           disabled={!!groupNameError || !groupName}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
-          {isCopy ? '创建副本' : '保存'}
+          {isCopy ? t('modelGroup.actions.createCopy') : t('actions.save', { ns: 'common' })}
         </Button>
       </DialogActions>
     </Dialog>
@@ -697,6 +721,7 @@ export default function ModelGroupsPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('settings')
 
   const { data: modelGroups = {} } = useQuery({
     queryKey: ['model-groups'],
@@ -803,14 +828,14 @@ export default function ModelGroupsPage() {
   const handleDelete = async (name: string) => {
     try {
       await unifiedConfigApi.deleteModelGroup(name)
-      notification.success(`模型组 "${name}" 已删除！`)
+      notification.success(t('modelGroup.notifications.deleteSuccess', { name }))
       queryClient.invalidateQueries({ queryKey: ['model-groups'] })
       setDeleteDialogOpen(false)
     } catch (error) {
       if (error instanceof Error) {
         notification.error(error.message)
       } else {
-        notification.error('删除失败')
+        notification.error(t('modelGroup.notifications.deleteFailed'))
       }
     }
   }
@@ -831,22 +856,24 @@ export default function ModelGroupsPage() {
       BASE_URL: (config.BASE_URL || '').trim(),
       API_KEY: (config.API_KEY || '').trim(),
       MODEL_TYPE: (config.MODEL_TYPE || 'chat').trim(),
-      EXTRA_BODY: config.EXTRA_BODY ? (config.EXTRA_BODY.trim() || null) : null,
+      EXTRA_BODY: config.EXTRA_BODY ? config.EXTRA_BODY.trim() || null : null,
     }
     // 检查新模型组名称是否已存在
     if (modelGroups[trimmedName] && !editingGroup.isCopy && editingGroup.name === trimmedName) {
       // 如果是编辑已有模型组，允许相同名称
       await unifiedConfigApi.updateModelGroup(trimmedName, sanitizedConfig)
-      notification.success('保存模型配置成功')
+      notification.success(t('modelGroup.notifications.saveSuccess'))
     } else if (!modelGroups[trimmedName]) {
       // 如果是新建或复制模型组，名称必须不存在
       await unifiedConfigApi.updateModelGroup(trimmedName, sanitizedConfig)
       notification.success(
-        editingGroup.isCopy ? `模型组 "${trimmedName}" 复制模型配置成功` : '保存模型配置成功'
+        editingGroup.isCopy
+          ? t('modelGroup.notifications.copySuccess', { name: trimmedName })
+          : t('modelGroup.notifications.saveSuccess')
       )
     } else {
       // 如果是已有名称
-      notification.error(`模型组名称 "${trimmedName}" 已存在，请换一个名称～ (>﹏<)`) 
+      notification.error(t('modelGroup.notifications.nameExists', { name: trimmedName }))
       return
     }
 
@@ -885,11 +912,20 @@ export default function ModelGroupsPage() {
         }}
       >
         <Alert severity="info">
-          支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问{' '}
-          <Link href="https://api.nekro.ai" target="_blank" rel="noopener">
-            NekroAI 中转
-          </Link>{' '}
-          获取专属密钥哦～
+          <Trans
+            i18nKey="modelGroup.alert.providerSupport"
+            t={t}
+            components={{
+              link: (
+                <Link
+                  href="https://api.nekro.ai"
+                  target="_blank"
+                  rel="noopener"
+                  style={{ cursor: 'pointer' }}
+                />
+              ),
+            }}
+          />
         </Alert>
         <Button
           variant="contained"
@@ -902,7 +938,7 @@ export default function ModelGroupsPage() {
             minHeight: { xs: 36, sm: 40 },
           }}
         >
-          新建模型组
+          {t('modelGroup.dialog.createTitle')}
         </Button>
       </Box>
 
@@ -939,7 +975,7 @@ export default function ModelGroupsPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  组名
+                  {t('modelGroup.table.groupName')}
                 </TableCell>
                 <TableCell
                   width={isMobile ? '18%' : '15%'}
@@ -948,7 +984,7 @@ export default function ModelGroupsPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  模型名称
+                  {t('modelGroup.table.modelName')}
                 </TableCell>
                 <TableCell
                   width={isMobile ? '15%' : '10%'}
@@ -957,7 +993,7 @@ export default function ModelGroupsPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  模型类型
+                  {t('modelGroup.table.modelType')}
                 </TableCell>
                 {!isSmall && (
                   <TableCell
@@ -967,7 +1003,7 @@ export default function ModelGroupsPage() {
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
                   >
-                    API地址
+                    {t('modelGroup.table.apiAddress')}
                   </TableCell>
                 )}
                 {!isMobile && (
@@ -978,7 +1014,7 @@ export default function ModelGroupsPage() {
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
                   >
-                    代理地址
+                    {t('modelGroup.table.proxyAddress')}
                   </TableCell>
                 )}
                 <TableCell
@@ -988,7 +1024,7 @@ export default function ModelGroupsPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  功能
+                  {t('modelGroup.table.features')}
                 </TableCell>
                 <TableCell
                   width={isMobile ? '30%' : '15%'}
@@ -997,7 +1033,7 @@ export default function ModelGroupsPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  操作
+                  {t('modelGroup.table.actions')}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -1094,10 +1130,16 @@ export default function ModelGroupsPage() {
                     }}
                   >
                     <Stack direction="row" spacing={0.5} flexWrap={isSmall ? 'wrap' : 'nowrap'}>
-                      <Tooltip title={config.ENABLE_VISION ? '支持视觉功能' : '不支持视觉功能'}>
+                      <Tooltip
+                        title={
+                          config.ENABLE_VISION
+                            ? t('modelGroup.chips.visionSupported')
+                            : t('modelGroup.chips.visionUnsupported')
+                        }
+                      >
                         <Chip
                           icon={<ImageIcon fontSize="small" />}
-                          label="视觉"
+                          label={t('modelGroup.chips.vision')}
                           size="small"
                           color={config.ENABLE_VISION ? 'primary' : 'default'}
                           variant={config.ENABLE_VISION ? 'filled' : 'outlined'}
@@ -1114,10 +1156,16 @@ export default function ModelGroupsPage() {
                           }}
                         />
                       </Tooltip>
-                      <Tooltip title={config.ENABLE_COT ? '启用思维链' : '未启用思维链'}>
+                      <Tooltip
+                        title={
+                          config.ENABLE_COT
+                            ? t('modelGroup.chips.cotEnabled')
+                            : t('modelGroup.chips.cotDisabled')
+                        }
+                      >
                         <Chip
                           icon={<PsychologyIcon fontSize="small" />}
-                          label="思维链"
+                          label={t('modelGroup.chips.cot')}
                           size="small"
                           color={config.ENABLE_COT ? 'secondary' : 'default'}
                           variant={config.ENABLE_COT ? 'filled' : 'outlined'}
@@ -1148,7 +1196,7 @@ export default function ModelGroupsPage() {
                       justifyContent="flex-start"
                       flexWrap={isSmall ? 'wrap' : 'nowrap'}
                     >
-                      <Tooltip title="访问API提供商" arrow>
+                      <Tooltip title={t('modelGroup.tooltips.visitProvider')} arrow>
                         <IconButton
                           onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
                           size="small"
@@ -1159,7 +1207,7 @@ export default function ModelGroupsPage() {
                           <LaunchIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="编辑模型组" arrow>
+                      <Tooltip title={t('modelGroup.tooltips.edit')} arrow>
                         <IconButton
                           onClick={() => handleEdit(name)}
                           size="small"
@@ -1169,7 +1217,7 @@ export default function ModelGroupsPage() {
                           <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="复制模型组" arrow>
+                      <Tooltip title={t('modelGroup.tooltips.copy')} arrow>
                         <IconButton
                           onClick={() => handleCopy(name)}
                           size="small"
@@ -1180,7 +1228,11 @@ export default function ModelGroupsPage() {
                         </IconButton>
                       </Tooltip>
                       <Tooltip
-                        title={name === 'default' ? '默认模型组不可删除' : '删除模型组'}
+                        title={
+                          name === 'default'
+                            ? t('modelGroup.tooltips.defaultDelete')
+                            : t('modelGroup.tooltips.delete')
+                        }
                         arrow
                       >
                         <span>
@@ -1224,10 +1276,10 @@ export default function ModelGroupsPage() {
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>确认删除模型组</DialogTitle>
+        <DialogTitle>{t('modelGroup.deleteDialog.title')}</DialogTitle>
         <DialogContent>
           <Typography sx={{ fontSize: isSmall ? '0.9rem' : 'inherit' }}>
-            确定要删除模型组 "{deletingGroupName}" 吗？此操作不可恢复！
+            {t('modelGroup.deleteDialog.content', { name: deletingGroupName })}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1235,14 +1287,14 @@ export default function ModelGroupsPage() {
             onClick={() => setDeleteDialogOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel', { ns: 'common' })}
           </Button>
           <Button
             onClick={() => handleDelete(deletingGroupName)}
             color="error"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认删除
+            {t('modelGroup.deleteDialog.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

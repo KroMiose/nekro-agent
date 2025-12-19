@@ -34,6 +34,7 @@ import { ChatChannelDetail, chatChannelApi } from '../../../../services/api/chat
 import { Preset, presetsApi } from '../../../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 
 interface BasicInfoProps {
   channel: ChatChannelDetail
@@ -47,6 +48,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
   const [currentPreset, setCurrentPreset] = useState<Preset | null>(null)
   const { enqueueSnackbar } = useSnackbar()
   const queryClient = useQueryClient()
+  const { t } = useTranslation('chat-channel')
 
   // 获取当前聊天频道的人设信息
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       setPresets(response.items)
     } catch (error) {
       console.error('获取人设列表失败', error)
-      enqueueSnackbar('获取人设列表失败', { variant: 'error' })
+      enqueueSnackbar(t('basicInfo.fetchPresetsFailed'), { variant: 'error' })
     } finally {
       setLoading(false)
     }
@@ -102,16 +104,22 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
     try {
       setLoading(true)
       await chatChannelApi.setPreset(channel.chat_key, preset?.id || null)
-      enqueueSnackbar(`已${preset ? '设置' : '清除'}人设: ${preset?.title || '默认人设'}`, {
-        variant: 'success',
-      })
+      enqueueSnackbar(
+        t('basicInfo.setPresetSuccess', {
+          action: preset ? t('basicInfo.set') : t('basicInfo.clear'),
+          name: preset?.title || t('basicInfo.defaultPreset'),
+        }),
+        {
+          variant: 'success',
+        }
+      )
       setPresetDialogOpen(false)
 
       // 刷新聊天频道详情
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
     } catch (error) {
       console.error('设置人设失败', error)
-      enqueueSnackbar('设置人设失败', { variant: 'error' })
+      enqueueSnackbar(t('basicInfo.setPresetFailed'), { variant: 'error' })
     } finally {
       setLoading(false)
     }
@@ -149,7 +157,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       <Stack spacing={2}>
         <InfoItem
           icon={<FaceIcon color="secondary" />}
-          label="当前人设"
+          label={t('basicInfo.currentPreset')}
           value={
             loading ? (
               <CircularProgress size={16} />
@@ -165,7 +173,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                   {currentPreset.is_remote && (
                     <Chip
                       icon={<CloudDownloadIcon sx={{ fontSize: '0.7rem !important' }} />}
-                      label="云端"
+                      label={t('basicInfo.cloud')}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -175,7 +183,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                 </Typography>
               </Stack>
             ) : (
-              '默认人设'
+              t('basicInfo.defaultPreset')
             )
           }
           action={
@@ -185,29 +193,29 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
               onClick={handleOpenPresetDialog}
               disabled={loading}
             >
-              选择人设
+              {t('basicInfo.selectPreset')}
             </Button>
           }
         />
         <InfoItem
           icon={<MessageIcon color="primary" />}
-          label="消息数量"
-          value={`${channel.message_count} 条消息`}
+          label={t('basicInfo.messageCount')}
+          value={t('basicInfo.messagesCount', { count: channel.message_count })}
         />
         <InfoItem
           icon={<PersonIcon color="info" />}
-          label="参与用户数"
-          value={`${channel.unique_users} 位用户`}
+          label={t('basicInfo.uniqueUsers')}
+          value={t('basicInfo.usersCount', { count: channel.unique_users })}
         />
         <InfoItem
           icon={<AccessTimeIcon color="success" />}
-          label="对话开始时间"
+          label={t('basicInfo.startTime')}
           value={channel.conversation_start_time}
         />
         <InfoItem
           icon={<UpdateIcon color="warning" />}
-          label="最后活跃时间"
-          value={channel.last_message_time || '暂无消息'}
+          label={t('basicInfo.lastActiveTime')}
+          value={channel.last_message_time || t('basicInfo.noMessages')}
         />
       </Stack>
 
@@ -218,13 +226,13 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>选择人设</DialogTitle>
+        <DialogTitle>{t('basicInfo.selectPreset')}</DialogTitle>
         <DialogContent>
           <Box className="mb-3 mt-2">
             <TextField
               fullWidth
               size="small"
-              placeholder="搜索人设..."
+              placeholder={t('basicInfo.searchPreset')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -237,7 +245,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                 endAdornment: (
                   <InputAdornment position="end">
                     <Button size="small" onClick={handleSearch} disabled={loading}>
-                      搜索
+                      {t('basicInfo.search')}
                     </Button>
                   </InputAdornment>
                 ),
@@ -252,7 +260,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
               onClick={() => handleSelectPreset(null)}
               disabled={loading}
             >
-              使用默认人设(清除当前人设)
+              {t('basicInfo.useDefault')}
             </Button>
           </Box>
 
@@ -277,7 +285,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
                           {preset.is_remote && (
                             <Chip
                               icon={<CloudDownloadIcon sx={{ fontSize: '0.7rem !important' }} />}
-                              label="云端"
+                              label={t('basicInfo.cloud')}
                               size="small"
                               color="primary"
                               variant="outlined"
@@ -294,12 +302,12 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
             </List>
           ) : (
             <Typography className="p-4 text-center" color="textSecondary">
-              未找到人设
+              {t('search.noResults')}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPresetDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setPresetDialogOpen(false)}>{t('basicInfo.cancel')}</Button>
         </DialogActions>
       </Dialog>
     </Box>

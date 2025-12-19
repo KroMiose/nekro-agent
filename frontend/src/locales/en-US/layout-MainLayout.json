@@ -1,0 +1,23 @@
+{
+  "sidebar": {
+    "logout": "Logout",
+    "copyright": "All rights reserved",
+    "toggleSidebar": "Toggle sidebar",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar"
+  },
+  "aria": {
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "openDocumentation": "Open documentation"
+  },
+  "topbar": {
+    "openDocumentation": "Open Documentation",
+    "stars": "Stars",
+    "refreshPage": "Page refreshed"
+  },
+  "devMode": {
+    "enabled": "Developer mode enabled!",
+    "disabled": "Developer mode disabled"
+  }
+}
