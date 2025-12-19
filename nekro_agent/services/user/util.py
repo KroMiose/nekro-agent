@@ -59,7 +59,7 @@ async def user_login(data: UserLogin) -> UserToken:
             refresh_token=create_refresh_token(data.username),
             token_type="bearer",
         )
-    user: Optional[DBUser] = await DBUser.get_or_none(unique_id=data.username)
+    user: Optional[DBUser] = await DBUser.get_or_none(username=data.username)
     if not user:
         raise credentials_exception
     if user.unique_id not in config.SUPER_USERS and not config.ALLOW_SUPER_USERS_LOGIN:
