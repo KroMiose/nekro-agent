@@ -5,7 +5,7 @@ import shutil
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
