@@ -27,6 +27,26 @@ from .creator import OpenAIChatMessage
 _OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 
+def parse_extra_body(extra_body_json: Optional[str], source_hint: str = "") -> Optional[Dict[str, Any]]:
+    """解析 extra_body JSON 字符串
+
+    Args:
+        extra_body_json: JSON 字符串
+        source_hint: 来源提示，用于日志记录
+
+    Returns:
+        解析后的字典，如果解析失败或输入为空则返回 None
+    """
+    if not extra_body_json:
+        return None
+    try:
+        return json.loads(extra_body_json)
+    except Exception as e:
+        truncated_body = extra_body_json[:100] + "..." if len(extra_body_json) > 100 else extra_body_json
+        logger.error(f"解析 EXTRA_BODY 失败 ({source_hint}): {e} | Original: {truncated_body}")
+        return None
+
+
 class OpenAIResponse(BaseModel):
     response_content: str  # 最终的回复内容
     thought_chain: str  # 思考链
@@ -333,7 +353,8 @@ async def gen_openai_chat_response(
     top_p: Optional[float] = None,
     stop_words: Optional[List[str]] = None,
     max_tokens: Optional[int] = None,
-    extra_body: Optional[Dict[str, Any]] = None,
+    extra_body: Optional[Union[Dict[str, Any], str]] = None,
+    top_k: Optional[int] = None,
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
     proxy_url: Optional[str] = None,
@@ -349,6 +370,13 @@ async def gen_openai_chat_response(
 
     _start_time: float = time.time()
 
+    # messages 处理
+    messages = [msg.to_dict() if isinstance(msg, OpenAIChatMessage) else msg for msg in messages]
+
+    # Parse extra_body if it is a string
+    if isinstance(extra_body, str):
+        extra_body = parse_extra_body(extra_body, source_hint=f"Model: {model}")
+
     gen_kwargs = {
         "temperature": temperature,
         "frequency_penalty": frequency_penalty,
@@ -356,8 +384,13 @@ async def gen_openai_chat_response(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
-        "extra_body": extra_body,
+        "extra_body": dict(extra_body) if extra_body else None,
     }
+
+    if top_k is not None:
+        if gen_kwargs["extra_body"] is None:
+            gen_kwargs["extra_body"] = {}
+        gen_kwargs["extra_body"]["top_k"] = top_k
 
     # 去掉所有值为None的键
     gen_kwargs = {key: value for key, value in gen_kwargs.items() if value is not None}
@@ -399,12 +432,8 @@ async def gen_openai_chat_response(
                     chunk_text: Optional[str] = chunk.choices[0].delta.content
                     if chunk_text:
                         output += f"{chunk_text}"
-                    if hasattr(chunk.choices[0].delta, thought_chain_field_name):
-                        _thought_chain: Optional[str] = getattr(chunk.choices[0].delta, thought_chain_field_name)
-                        if _thought_chain:
-                            thought_chain += _thought_chain
-                    else:
-                        _thought_chain = ""
+                    _thought_chain = getattr(chunk.choices[0].delta, thought_chain_field_name, "") or ""
+                    thought_chain += _thought_chain
 
                     if chunk.usage and chunk.usage.total_tokens is not None:
                         token_consumption += chunk.usage.total_tokens
@@ -437,8 +466,7 @@ async def gen_openai_chat_response(
                     raise ValueError("Chat response is empty! Response: %s", res)  # noqa: TRY301
 
                 output = res.choices[0].message.content
-                if hasattr(res.choices[0].message, thought_chain_field_name):
-                    thought_chain = getattr(res.choices[0].message, thought_chain_field_name)
+                thought_chain = getattr(res.choices[0].message, thought_chain_field_name, "") or ""
                 token_consumption: int = res.usage.total_tokens if res.usage else 0
                 token_input: int = res.usage.prompt_tokens if res.usage else 0
                 token_output: int = res.usage.completion_tokens if res.usage else 0
@@ -544,6 +572,8 @@ async def gen_openai_chat_stream(
     top_p: Optional[float] = None,
     stop_words: Optional[List[str]] = None,
     max_tokens: Optional[int] = None,
+    extra_body: Optional[Union[Dict[str, Any], str]] = None,
+    top_k: Optional[int] = None,
 ) -> AsyncGenerator[str, None]:
     """简化的OpenAI流式生成器，直接产生文本片段
 
@@ -567,6 +597,11 @@ async def gen_openai_chat_stream(
     """
     logger.info(f"启动简化的流式生成，使用模型: {model}")
 
+    # Parse extra_body if it is a string
+    if isinstance(extra_body, str):
+        extra_body = parse_extra_body(extra_body, source_hint=f"Model: {model}")
+
+    # 创建参数字典，移除None值
     # 创建参数字典，移除None值
     gen_kwargs = {
         "temperature": temperature,
@@ -575,7 +610,16 @@ async def gen_openai_chat_stream(
         "top_p": top_p,
         "max_tokens": max_tokens,
         "stop": stop_words,
+        "extra_body": dict(extra_body) if extra_body else None,
     }
+
+    if top_k is not None:
+        if gen_kwargs["extra_body"] is None:
+            gen_kwargs["extra_body"] = {}
+        gen_kwargs["extra_body"]["top_k"] = top_k
+
+
+
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
 
     # 处理消息格式

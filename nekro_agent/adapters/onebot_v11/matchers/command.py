@@ -40,6 +40,24 @@ from nekro_agent.tools.telemetry_util import generate_instance_id, is_running_in
 from .guard import command_guard, finish_with, reset_command_guard
 
 
+def _build_chat_params(model_group: ModelConfigGroup, stream_mode: bool, max_wait_time: int | None = None) -> Dict[str, Any]:
+    """构建聊天参数"""
+    return {
+        "model": model_group.CHAT_MODEL,
+        "temperature": model_group.TEMPERATURE,
+        "top_p": model_group.TOP_P,
+        "top_k": model_group.TOP_K,
+        "frequency_penalty": model_group.FREQUENCY_PENALTY,
+        "presence_penalty": model_group.PRESENCE_PENALTY,
+        "extra_body": model_group.EXTRA_BODY,
+        "base_url": model_group.BASE_URL,
+        "api_key": model_group.API_KEY,
+        "stream_mode": stream_mode,
+        "proxy_url": model_group.CHAT_PROXY,
+        **({"max_wait_time": max_wait_time} if max_wait_time is not None else {}),
+    }
+
+
 @on_command("reset", priority=5, block=True).handle()
 async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
     username, cmd_content, chat_key, chat_type = await reset_command_guard(event, bot, arg, matcher)
@@ -653,12 +671,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
                     {"role": "system", "content": "You are a helpful assistant that follows instructions precisely."},
                 )
             llm_response: OpenAIResponse = await gen_openai_chat_response(
-                model=model_group.CHAT_MODEL,
                 messages=messages,
-                base_url=model_group.BASE_URL,
-                api_key=model_group.API_KEY,
-                stream_mode=stream_mode,
-                proxy_url=model_group.CHAT_PROXY,
+                **_build_chat_params(model_group, stream_mode),
             )
             end_time = time.time()
             assert llm_response.response_content
@@ -966,13 +980,8 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     start_time = time.time()
     try:
         llm_response: OpenAIResponse = await gen_openai_chat_response(
-            model=model_group.CHAT_MODEL,
             messages=messages,
-            base_url=model_group.BASE_URL,
-            api_key=model_group.API_KEY,
-            stream_mode=use_stream_mode,
-            proxy_url=model_group.CHAT_PROXY,
-            max_wait_time=config.AI_GENERATE_TIMEOUT,
+            **_build_chat_params(model_group, use_stream_mode, config.AI_GENERATE_TIMEOUT),
         )
         end_time = time.time()
 

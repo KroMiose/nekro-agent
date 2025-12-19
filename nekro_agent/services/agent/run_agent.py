@@ -298,6 +298,12 @@ async def send_agent_request(
             llm_response: OpenAIResponse = await gen_openai_chat_response(
                 model=use_model_group.CHAT_MODEL,
                 messages=messages,
+                temperature=use_model_group.TEMPERATURE,
+                top_p=use_model_group.TOP_P,
+                top_k=use_model_group.TOP_K,
+                frequency_penalty=use_model_group.FREQUENCY_PENALTY,
+                presence_penalty=use_model_group.PRESENCE_PENALTY,
+                extra_body=use_model_group.EXTRA_BODY,
                 base_url=use_model_group.BASE_URL,
                 api_key=use_model_group.API_KEY,
                 stream_mode=config.AI_REQUEST_STREAM_MODE,
