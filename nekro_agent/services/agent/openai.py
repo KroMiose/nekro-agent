@@ -353,7 +353,7 @@ async def gen_openai_chat_response(
     top_p: Optional[float] = None,
     stop_words: Optional[List[str]] = None,
     max_tokens: Optional[int] = None,
-    extra_body: Optional[Dict[str, Any]] = None,
+    extra_body: Optional[Union[Dict[str, Any], str]] = None,
     top_k: Optional[int] = None,
     api_key: Optional[str] = None,
     base_url: Optional[str] = None,
@@ -372,6 +372,10 @@ async def gen_openai_chat_response(
 
     # messages 处理
     messages = [msg.to_dict() if isinstance(msg, OpenAIChatMessage) else msg for msg in messages]
+
+    # Parse extra_body if it is a string
+    if isinstance(extra_body, str):
+        extra_body = parse_extra_body(extra_body, source_hint=f"Model: {model}")
 
     gen_kwargs = {
         "temperature": temperature,
@@ -568,7 +572,7 @@ async def gen_openai_chat_stream(
     top_p: Optional[float] = None,
     stop_words: Optional[List[str]] = None,
     max_tokens: Optional[int] = None,
-    extra_body: Optional[Dict[str, Any]] = None,
+    extra_body: Optional[Union[Dict[str, Any], str]] = None,
     top_k: Optional[int] = None,
 ) -> AsyncGenerator[str, None]:
     """简化的OpenAI流式生成器，直接产生文本片段
@@ -592,6 +596,10 @@ async def gen_openai_chat_stream(
         生成的文本片段
     """
     logger.info(f"启动简化的流式生成，使用模型: {model}")
+
+    # Parse extra_body if it is a string
+    if isinstance(extra_body, str):
+        extra_body = parse_extra_body(extra_body, source_hint=f"Model: {model}")
 
     # 创建参数字典，移除None值
     # 创建参数字典，移除None值

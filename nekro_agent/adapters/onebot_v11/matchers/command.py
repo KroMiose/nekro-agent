@@ -26,7 +26,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response, parse_extra_body
+from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
 from nekro_agent.services.agent.resolver import ParsedCodeRunData
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.collector import plugin_collector
@@ -49,7 +49,7 @@ def _build_chat_params(model_group: ModelConfigGroup, stream_mode: bool, max_wai
         "top_k": model_group.TOP_K,
         "frequency_penalty": model_group.FREQUENCY_PENALTY,
         "presence_penalty": model_group.PRESENCE_PENALTY,
-        "extra_body": parse_extra_body(model_group.EXTRA_BODY, source_hint=f"ModelGroup: {model_group.CHAT_MODEL}"),
+        "extra_body": model_group.EXTRA_BODY,
         "base_url": model_group.BASE_URL,
         "api_key": model_group.API_KEY,
         "stream_mode": stream_mode,

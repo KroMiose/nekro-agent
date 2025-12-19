@@ -14,7 +14,6 @@ from nekro_agent.services.agent.openai import (
     OpenAIStreamChunk,
     gen_openai_chat_response,
     gen_openai_chat_stream,
-    parse_extra_body,
 )
 from nekro_agent.services.agent.templates.generator import (
     ApplySystemPrompt,
@@ -41,7 +40,7 @@ def _build_model_params(model_group: str) -> dict:
         "top_k": model_config.TOP_K,
         "frequency_penalty": model_config.FREQUENCY_PENALTY,
         "presence_penalty": model_config.PRESENCE_PENALTY,
-        "extra_body": parse_extra_body(model_config.EXTRA_BODY, source_hint=f"ModelGroup: {model_group}"),
+        "extra_body": model_config.EXTRA_BODY,
         "base_url": model_config.BASE_URL,
         "api_key": model_config.API_KEY,
     }
