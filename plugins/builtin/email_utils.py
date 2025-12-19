@@ -273,7 +273,8 @@ async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id:
             is_image = mime_type.startswith("image/")
 
         # 构造发送请求
-        relative_path = Path("data") / target_path.relative_to(Path(OsEnv.DATA_DIR).resolve())
+        data_dir = Path(OsEnv.DATA_DIR).resolve()
+        relative_path = Path(data_dir.name) / target_path.relative_to(data_dir)
 
 
         segment_type = PlatformSendSegmentType.IMAGE if is_image else PlatformSendSegmentType.FILE
@@ -559,7 +560,8 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
             if account_username in email_adapter.imap_connections:
                 conn = email_adapter.imap_connections[account_username]
                 try:
-                    status, folders = conn.list()
+                    # 在线程中执行 IMAP list 操作，避免阻塞事件循环
+                    status, folders = await asyncio.to_thread(conn.list)
                     target_folder = "INBOX"
                     if status == 'OK' and folders:
                         folder_names = []
@@ -574,10 +576,13 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
                                     folder_names.append(parts[-1].strip('"\''))
                         if folder_names and target_folder not in folder_names:
                             target_folder = folder_names[0]
-                    conn.select(target_folder)
+
+                    # 在线程中执行 select 操作
+                    await asyncio.to_thread(conn.select, target_folder)
 
                     search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
-                    status, messages = conn.search(None, search_criteria)
+                    # 在线程中执行 search 操作
+                    status, messages = await asyncio.to_thread(conn.search, None, search_criteria)
 
                     if status == 'OK':
                         email_ids = messages[0].split()
@@ -662,8 +667,8 @@ def _sanitize_filename(filename: str) -> str:
 async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id, timestamp_one_day_ago):
     """异步获取单封邮件内容"""
     try:
-        # 获取邮件
-        status, msg_data = conn.fetch(email_id, '(RFC822)')
+        # 获取邮件（在线程中执行，避免阻塞事件循环）
+        status, msg_data = await asyncio.to_thread(conn.fetch, email_id, '(RFC822)')
         if status == 'OK':
             # 解析邮件
             raw_email = msg_data[0][1]
@@ -799,7 +804,8 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         
         conn = email_adapter.imap_connections[account_username]
 
-        status, folders = conn.list()
+        # 在线程中执行 IMAP list 操作，避免阻塞事件循环
+        status, folders = await asyncio.to_thread(conn.list)
         target_folder = "INBOX"
         if status == 'OK' and folders:
             folder_names = []
@@ -814,9 +820,12 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                         folder_names.append(parts[-1].strip('"\''))
             if folder_names and target_folder not in folder_names:
                 target_folder = folder_names[0]
-        conn.select(target_folder)
 
-        status, msg_data = conn.fetch(email_id.encode(), '(RFC822)')
+        # 在线程中执行 select 操作
+        await asyncio.to_thread(conn.select, target_folder)
+
+        # 在线程中执行 fetch 操作
+        status, msg_data = await asyncio.to_thread(conn.fetch, email_id.encode(), '(RFC822)')
         if status != 'OK':
             raise Exception(f"获取邮件 {email_id} 失败")
         
