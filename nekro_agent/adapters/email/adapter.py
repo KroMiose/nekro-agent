@@ -6,6 +6,7 @@ import os
 import re
 import smtplib
 import time
+from contextlib import asynccontextmanager
 from email import encoders
 from email.header import decode_header
 from email.mime.base import MIMEBase
@@ -390,7 +391,72 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 logger.error(f"邮箱适配器轮询过程中发生错误: {e}")
                 # 发生错误时仍然继续轮询
                 await asyncio.sleep(self.config.POLL_INTERVAL)
-    
+
+    def _get_imap_lock(self, account_username: str) -> asyncio.Lock:
+        """获取指定账户的IMAP锁
+
+        Args:
+            account_username: 邮箱账户用户名
+
+        Returns:
+            asyncio.Lock: 账户对应的锁
+
+        Raises:
+            Exception: 如果账户锁不存在
+        """
+        try:
+            return self.imap_locks[account_username]
+        except KeyError:
+            raise Exception(f"Lock for account {account_username} not found")
+
+    @asynccontextmanager
+    async def _account_lock(self, account_username: str):
+        """账户锁上下文管理器
+
+        Args:
+            account_username: 邮箱账户用户名
+
+        Yields:
+            None
+        """
+        lock = self._get_imap_lock(account_username)
+        async with lock:
+            yield
+
+    async def _select_mailbox(
+        self,
+        account_username: str,
+        conn: imaplib.IMAP4_SSL,
+        preferred: str = "INBOX",
+        override_folder: str | None = None,
+    ) -> str:
+        """选择邮箱文件夹
+
+        Args:
+            account_username: 邮箱账户用户名
+            conn: IMAP连接对象
+            preferred: 首选文件夹名称，默认为 "INBOX"
+            override_folder: 强制使用的文件夹名称，如果指定则忽略 preferred
+
+        Returns:
+            str: 实际选择的文件夹名称
+
+        Raises:
+            Exception: 如果文件夹选择失败
+        """
+        if override_folder:
+            target = override_folder
+        else:
+            folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
+            if not folders:
+                raise Exception(f"No mailbox folders available for account {account_username}")
+            target = preferred if preferred in folders else folders[0]
+
+        status, _ = await asyncio.to_thread(conn.select, target)
+        if status != "OK":
+            raise Exception(f"Failed to select mailbox {target} for account {account_username}")
+        return target
+
     def get_mailbox_folders(self, conn: imaplib.IMAP4_SSL) -> List[str]:
         """获取邮箱文件夹列表（同步版本，供asyncio.to_thread调用）
 
@@ -401,58 +467,53 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         if status != 'OK':
             return []
 
-        folder_names = []
-        for folder in folders:
-            try:
-                # 文件夹信息格式类似于: b'(\\HasNoChildren) "/" "INBOX"'
-                # 或者: b'(\\HasChildren) "/" "[Gmail]"'
-                folder_info = folder.decode()
+        folder_names: List[str] = []
 
-                # 使用正则表达式提取文件夹名称
-                # 匹配引号内的内容
-                match = re.search(r'"([^"]+)"$', folder_info)
-                if match:
-                    folder_name = match.group(1)
-                    folder_names.append(folder_name)
+        # 解析 IMAP LIST 返回的文件夹名
+        # 一般形式类似：b'(\\HasNoChildren) "/" "INBOX"'
+        for folder in folders or []:
+            # IMAP 库通常返回 bytes，需要先解码
+            if isinstance(folder, bytes):
+                try:
+                    line = folder.decode(errors='ignore')
+                except Exception:
+                    continue
+            else:
+                line = str(folder)
+
+            # 尝试按分隔符解析：(<flags>) "<delimiter>" "<name>"
+            # 如果格式不标准，则回退到取最后一个 token
+            name: str
+            if '"/"' in line or '" "' in line:
+                # 兼容不同服务器分隔符输出
+                # 找到最后一个双引号包裹的部分作为名称
+                quote_parts = line.split('"')
+                if len(quote_parts) >= 3:
+                    # 名称通常在倒数第二个双引号对之间
+                    name = quote_parts[-2]
                 else:
-                    # 如果没有引号，尝试按空格分割
-                    parts = folder_info.split()
-                    if parts:
-                        folder_name = parts[-1]
-                        # 移除可能的引号
-                        folder_name = folder_name.strip('"\'')
-                        folder_names.append(folder_name)
-            except Exception as e:
-                logger.warning(f"解析文件夹信息时出错: {e}")
-                continue
+                    name = line.split()[-1].strip('"')
+            else:
+                name = line.split()[-1].strip('"')
+
+            if name:
+                folder_names.append(name)
+
+        # 优先返回 INBOX，将其移动到列表开头（如果存在）
+        inbox_upper = "INBOX"
+
+        if inbox_upper in folder_names:
+            folder_names = [inbox_upper] + [f for f in folder_names if f != inbox_upper]
 
         return folder_names
     
     async def _check_new_emails(self, account_username: str, conn: imaplib.IMAP4_SSL) -> None:
         """检查指定账户的新邮件"""
-        # 获取该账户的锁，确保IMAP操作的线程安全
-        lock = self.imap_locks.get(account_username)
-        if not lock:
-            logger.error(f"账户 {account_username} 的锁不存在")
-            return
-
-        async with lock:
+        async with self._account_lock(account_username):
             try:
-                # 获取文件夹列表（在线程中执行）
-                folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
-                logger.debug(f"账户 {account_username} 的文件夹列表: {folders}")
-
-                # 确定要检查的文件夹
-                # 默认使用INBOX文件夹
-                target_folder = "INBOX"
-
-                # 如果INBOX文件夹不可用，使用第一个可用的文件夹
-                if folders and target_folder not in folders and folders:
-                    target_folder = folders[0]
-                    logger.info(f"账户 {account_username} 使用第一个可用文件夹: {target_folder}")
-
-                # 选择邮箱文件夹（在线程中执行）
-                await asyncio.to_thread(conn.select, target_folder)
+                # 选择邮箱文件夹（使用辅助函数）
+                target_folder = await self._select_mailbox(account_username, conn)
+                logger.debug(f"账户 {account_username} 使用文件夹: {target_folder}")
 
                 # 根据配置决定是否只检查未读邮件
                 if self.config.FETCH_UNSEEN_ONLY:
@@ -513,27 +574,25 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 return
 
             raw_email = msg_data[0][1]
+            # 只解析一次邮件，避免重复解析
+            email_message = email.message_from_bytes(raw_email)
             parsed = self._parse_email(raw_email)
 
             # 处理附件下载（基于解析结果）
-            # 注意：parsed 中已经包含了附件列表信息
-            if parsed.attachments:
-                # 重新解析一次以获取邮件对象来提取附件部分
-                email_message = email.message_from_bytes(raw_email)
-                if email_message.is_multipart():
-                    for part in email_message.walk():
-                        cdisp = part.get_content_disposition()
-                        if cdisp in {"attachment", "inline"}:
-                            decoded_filename = decode_mime_words(part.get_filename() or "unnamed_attachment")
-                            asyncio.create_task(
-                                self._download_attachment(
-                                    part,
-                                    decoded_filename,
-                                    account_username,
-                                    parsed.subject,
-                                    email_id.decode(),
-                                )
+            if parsed.attachments and email_message.is_multipart():
+                for part in email_message.walk():
+                    cdisp = part.get_content_disposition()
+                    if cdisp in {"attachment", "inline"}:
+                        decoded_filename = decode_mime_words(part.get_filename() or "unnamed_attachment")
+                        asyncio.create_task(
+                            self._download_attachment(
+                                part,
+                                decoded_filename,
+                                account_username,
+                                parsed.subject,
+                                email_id.decode(),
                             )
+                        )
 
             # HTML → 文本规范化
             html_text_content = ""
@@ -904,37 +963,16 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         conn = self.imap_connections[account_username]
 
-        # 获取该账户的锁，确保IMAP操作的线程安全
-        lock = self.imap_locks.get(account_username)
-        if not lock:
-            raise Exception(f"Lock for account {account_username} not found")
-
-        async with lock:
+        async with self._account_lock(account_username):
             try:
                 # 获取邮件内容
                 # email_id是字符串，需要转换为bytes
                 email_id_bytes = email_id.encode() if isinstance(email_id, str) else email_id
 
-                # 选择要使用的邮箱文件夹：
-                # - 如果调用方传入了 folder，则优先使用传入的 folder
-                # - 否则复用 get_mailbox_folders 的通用策略（优先 INBOX，否则退回第一个可用文件夹）
-                mailbox_to_select = folder
-                if mailbox_to_select is None:
-                    available_folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
-                    if not available_folders:
-                        raise Exception(f"No mailbox folders available for account {account_username}")
-                    # 优先选择 INBOX，如果不存在则使用第一个可用文件夹
-                    if "INBOX" in available_folders:
-                        mailbox_to_select = "INBOX"
-                    else:
-                        mailbox_to_select = available_folders[0]
-
-                # 在线程中执行 select 操作
-                select_status, _ = await asyncio.to_thread(conn.select, mailbox_to_select)
-                if select_status != "OK":
-                    raise Exception(
-                        f"Failed to select mailbox {mailbox_to_select} for account {account_username}"
-                    )
+                # 使用辅助函数选择邮箱文件夹
+                mailbox_to_select = await self._select_mailbox(
+                    account_username, conn, override_folder=folder
+                )
 
                 # 在线程中执行 fetch 操作
                 status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, '(RFC822)')
