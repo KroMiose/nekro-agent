@@ -1,0 +1,28 @@
+{
+  "title": "Welcome Back",
+  "slogan": "Embark on an Elegant AI Journey",
+  "form": {
+    "username": "Username",
+    "usernameLabel": "Username",
+    "password": "Password",
+    "passwordLabel": "Password",
+    "submit": "Login",
+    "rememberMe": "Remember me"
+  },
+  "errors": {
+    "emptyFields": "Please enter username and password",
+    "invalidCredentials": "Login failed, please check your username and password"
+  },
+  "agreement": {
+    "text": "I have read and agree to the",
+    "license": "Open Source License",
+    "community": "NekroAI Community Agreement",
+    "and": "and"
+  },
+  "footer": {
+    "copyright": "All rights reserved"
+  },
+  "messages": {
+    "loginSuccess": "Login successful"
+  }
+}

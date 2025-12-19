@@ -34,6 +34,8 @@ import { useWallpaperStore } from '../../stores/wallpaper'
 import WallpaperBackground from '../../components/common/WallpaperBackground'
 import { useGitHubStarStore } from '../../stores/githubStar'
 import logoImage from '../../assets/logo.png'
+import { useTranslation } from 'react-i18next'
+import LocaleToggleButton from '../../components/common/LocaleToggleButton'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -49,6 +51,7 @@ export default function LoginPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const isTablet = useMediaQuery(theme.breakpoints.down('md'))
   const notification = useNotification()
+  const { t } = useTranslation('login')
 
   // 使用壁纸store
   const { loginWallpaper, loginWallpaperMode, loginWallpaperBlur, loginWallpaperDim } =
@@ -77,7 +80,7 @@ export default function LoginPage() {
 
   const handleLogin = async () => {
     if (!username || !password) {
-      notification.warning('请输入用户名和密码')
+      notification.warning(t('errors.emptyFields'))
       return
     }
 
@@ -103,7 +106,7 @@ export default function LoginPage() {
       console.log('User info set, preparing to navigate...')
 
       // 提示登录成功
-      notification.success('登录成功')
+      notification.success(t('messages.loginSuccess'))
 
       // 异步检查GitHub Star状态，不阻塞登录流程
       const checkGitHubStar = async () => {
@@ -134,9 +137,9 @@ export default function LoginPage() {
     } catch (error) {
       console.error('Login error:', error)
       if (error instanceof Error) {
-        notification.error(error.message || '登录失败，请检查用户名和密码')
+        notification.error(error.message || t('errors.invalidCredentials'))
       } else {
-        notification.error('登录失败，请检查用户名和密码')
+        notification.error(t('errors.invalidCredentials'))
       }
     } finally {
       setLoading(false)
@@ -266,13 +269,15 @@ export default function LoginPage() {
         </Box>
       )}
 
-      {/* 主题切换按钮 - 顶部右侧 */}
+      {/* 主题切换按钮 - 顶部右侧 (语言切换移到登录框内) */}
       <Box
         sx={{
           position: 'absolute',
           top: { xs: 12, md: 20 },
           right: { xs: 12, md: 20 },
           zIndex: 10,
+          display: 'flex',
+          gap: 1,
         }}
       >
         <ThemeToggleButton />
@@ -376,7 +381,7 @@ export default function LoginPage() {
                       lineHeight: 1.5,
                     }}
                   >
-                    开启优雅智能交互之旅
+                    {t('slogan')}
                   </Typography>
                 </motion.div>
               </Box>
@@ -433,6 +438,17 @@ export default function LoginPage() {
                 },
               }}
             >
+              {/* 语言切换按钮 - 登录框内右上角 */}
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: { xs: 8, sm: 12 },
+                  right: { xs: 8, sm: 12 },
+                  zIndex: 10,
+                }}
+              >
+                <LocaleToggleButton mode="icon" />
+              </Box>
               {/* 移动端专用标题区域 */}
               {isMobile && (
                 <Box sx={{ textAlign: 'center', mb: 3 }}>
@@ -490,13 +506,13 @@ export default function LoginPage() {
                   textAlign: 'center',
                 }}
               >
-                欢迎回来
+                {t('title')}
               </Typography>
 
               <Box component="form" sx={{ mt: 1 }}>
                 <TextField
                   fullWidth
-                  label="用户名"
+                  label={t('form.username')}
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   onKeyPress={handleKeyPress}
@@ -521,7 +537,7 @@ export default function LoginPage() {
                 />
                 <TextField
                   fullWidth
-                  label="密码"
+                  label={t('form.password')}
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
@@ -569,23 +585,23 @@ export default function LoginPage() {
                   }
                   label={
                     <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.5 }}>
-                      我已阅读并同意{' '}
+                      {t('agreement.text')}{' '}
                       <Link
                         href="https://github.com/KroMiose/nekro-agent/blob/main/LICENSE"
                         target="_blank"
                         rel="noopener noreferrer"
                         sx={{ color: theme.palette.primary.main }}
                       >
-                        项目开源协议
+                        {t('agreement.license')}
                       </Link>{' '}
-                      和{' '}
+                      {t('agreement.and')}{' '}
                       <Link
                         href="https://community.nekro.ai/terms"
                         target="_blank"
                         rel="noopener noreferrer"
                         sx={{ color: theme.palette.primary.main }}
                       >
-                        NekroAI 社区共享协议
+                        {t('agreement.community')}
                       </Link>
                     </Typography>
                   }
@@ -635,7 +651,7 @@ export default function LoginPage() {
                       }}
                     />
                   ) : (
-                    '登录'
+                    t('form.submit')
                   )}
                 </Button>
 
@@ -672,7 +688,7 @@ export default function LoginPage() {
                     >
                       Nekro Agent
                     </Link>
-                    . 版权所有.
+                    . {t('footer.copyright')}.
                   </Typography>
                 </Box>
               </Box>

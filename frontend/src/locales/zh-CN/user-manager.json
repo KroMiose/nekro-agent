@@ -1,0 +1,126 @@
+{
+  "title": "用户管理",
+  "search": {
+    "placeholder": "搜索用户名或QQ号",
+    "noResults": "未找到匹配的用户"
+  },
+  "actions": {
+    "search": "搜索",
+    "create": "创建用户",
+    "edit": "编辑用户",
+    "delete": "删除用户",
+    "viewDetails": "查看详情",
+    "ban": "封禁用户",
+    "unban": "解封用户",
+    "resetPassword": "重置密码",
+    "restoreTrigger": "恢复触发权限",
+    "confirm": "确定",
+    "cancel": "取消"
+  },
+  "list": {
+    "empty": "暂无用户",
+    "total": "共 {{count}} 个用户",
+    "noData": "暂无数据"
+  },
+  "table": {
+    "userId": "用户ID",
+    "username": "用户名",
+    "nickname": "昵称",
+    "status": "状态",
+    "lastActive": "最后活跃",
+    "createdAt": "创建时间",
+    "adapterPlatform": "适配平台",
+    "platformUserId": "平台用户ID",
+    "permission": "权限",
+    "actions": "操作"
+  },
+  "status": {
+    "active": "活跃",
+    "inactive": "未活跃",
+    "banned": "已封禁",
+    "normal": "正常",
+    "passive": "消极"
+  },
+  "duration": {
+    "permanent": "永久",
+    "days": "天",
+    "hours": "时",
+    "minutes": "分",
+    "banTitle": "请设置封禁时长：",
+    "preventTriggerTitle": "请设置禁止触发时长："
+  },
+  "tooltips": {
+    "view": "查看详情",
+    "edit": "编辑用户",
+    "ban": "封禁用户",
+    "unban": "解除封禁",
+    "preventTrigger": "禁止触发",
+    "restoreTrigger": "恢复触发",
+    "resetPassword": "重置密码",
+    "delete": "删除用户"
+  },
+  "sort": {
+    "asc": "升序排列",
+    "desc": "降序排列"
+  },
+  "dialogs": {
+    "deleteTitle": "删除用户",
+    "deleteConfirm": "确定要删除用户 \"{{username}}\" 吗？此操作不可撤销。",
+    "unbanTitle": "解除封禁",
+    "unbanConfirm": "确定要解除对用户 \"{{username}}\" 的封禁吗？",
+    "restoreTriggerTitle": "恢复触发权限",
+    "restoreTriggerConfirm": "确定要恢复用户 \"{{username}}\" 的触发权限吗？",
+    "resetPasswordTitle": "重置密码",
+    "passwordLabel": "新密码",
+    "editUserTitle": "编辑用户"
+  },
+  "messages": {
+    "createSuccess": "用户创建成功",
+    "updateSuccess": "用户更新成功",
+    "deleteSuccess": "用户删除成功",
+    "banSuccess": "用户已封禁",
+    "unbanSuccess": "用户已解封",
+    "resetPasswordSuccess": "密码重置成功",
+    "restoreTriggerSuccess": "触发权限已恢复",
+    "createFailed": "创建失败: {{error}}"
+  },
+  "form": {
+    "username": "用户名",
+    "permLevel": "权限等级",
+    "accessKey": "访问密钥",
+    "accessKeyHelper": "请输入超级访问密钥以确认修改",
+    "password": "密码",
+    "confirmPassword": "确认密码",
+    "newPassword": "新密码",
+    "resetPasswordPrompt": "为用户 \"{{username}}\" 设置新密码：",
+    "adapterKey": "适配器",
+    "platformUserId": "平台用户ID",
+    "createAccessKeyHelper": "请输入超级访问密钥以确认创建"
+  },
+  "validation": {
+    "usernameRequired": "用户名不能为空",
+    "passwordRequired": "密码不能为空",
+    "passwordLength": "密码长度至少为6位",
+    "passwordMismatch": "两次输入的密码不一致",
+    "adapterKeyRequired": "适配器不能为空",
+    "platformUserIdRequired": "平台用户ID不能为空",
+    "accessKeyRequired": "访问密钥不能为空"
+  },
+  "detail": {
+    "title": "用户详情",
+    "basicInfo": "基本信息",
+    "statusInfo": "状态信息",
+    "otherInfo": "其他信息",
+    "extData": "扩展数据",
+    "updateTime": "更新时间",
+    "uniqueId": "唯一标识",
+    "accountStatus": "账户状态",
+    "banUntil": "封禁截止",
+    "triggerPermission": "触发权限",
+    "preventTriggerUntil": "禁止触发截止",
+    "loadingError": "加载失败: {{error}}",
+    "notFound": "未找到用户数据",
+    "allowTrigger": "允许触发",
+    "preventTrigger": "禁止触发"
+  }
+}

@@ -1,0 +1,107 @@
+{
+  "loading": "Loading adapter information...",
+  "loadFailed": "Loading Failed",
+  "loadAdapterFailed": "Failed to load adapter information",
+  "home": {
+    "version": "Version",
+    "author": "Author",
+    "loadingDocs": "Loading documentation...",
+    "loadDocsFailed": "Failed to load documentation",
+    "adapterDocs": "Adapter Documentation",
+    "noDocs": "No documentation available for this adapter."
+  },
+  "tab": {
+    "adapterNotExist": "Adapter does not exist",
+    "pageNotExist": "Page does not exist"
+  },
+  "tabs": {
+    "home": "Home",
+    "config": "Config",
+    "overrides": "Overrides",
+    "advanced": "Advanced",
+    "logs": "Container Logs",
+    "napcat": "NapCat"
+  },
+  "names": {
+    "default": "Default Adapter",
+    "onebot_v11": "OneBot V11",
+    "minecraft": "Minecraft",
+    "bilibili_live": "Bilibili Live",
+    "discord": "Discord",
+    "sse": "SSE",
+    "wechatpad": "WeChatPad",
+    "telegram": "Telegram",
+    "email": "Email",
+    "wxwork": "WeWork Bot"
+  },
+  "status": {
+    "loaded": "Loaded",
+    "failed": "Failed",
+    "disabled": "Disabled",
+    "unknown": "Unknown"
+  },
+  "override": {
+    "missingKey": "Missing adapter KEY",
+    "info": "Settings here will override the system defaults for this adapter. If an override is enabled, all chats under this adapter will use these values by default, unless the chat itself overrides them again.",
+    "emptyMessage": "No overridable settings available for this adapter"
+  },
+  "napcat": {
+    "copy": "Copy",
+    "accessKeyCopied": "Access key copied to clipboard",
+    "copyFailed": "Copy failed, please copy manually",
+    "tokenCopied": "NapCat WebUI Token copied to clipboard",
+    "onebotAccessKey": "OneBot Service Access Key",
+    "napcatToken": "NapCat Login Token",
+    "goToNapcat": "Go to NapCat",
+    "cannotGetAddress": "Cannot get NapCat access address",
+    "serviceNotRunning": "NapCat service is not running"
+  },
+  "logs": {
+    "restarting": "Restarting container...",
+    "restartSuccess": "Container restarted successfully!",
+    "connectFailed": "Failed to connect to log stream",
+    "restartTimeout": "Container restart timed out, please check status",
+    "restartFailed": "Restart failed, please retry",
+    "cleared": "Logs cleared",
+    "tokenCopied": "Token copied to clipboard",
+    "copyFailed": "Copy failed, please copy manually",
+    "restartContainer": "Restart Container",
+    "status": "Status",
+    "startTime": "Start Time",
+    "unknown": "Unknown",
+    "disconnected": "Log stream disconnected, reconnecting...",
+    "tokenNotFound": "WebUI Token not found, restart container to generate",
+    "copy": "Copy",
+    "autoScroll": "Auto Scroll"
+  },
+  "config": {
+    "notSupportedTitle": "Adapter does not support configuration",
+    "notSupportedMessage": "This adapter has no configurable parameters.",
+    "emptyMessage": "No {{name}} configuration items available"
+  },
+  "advanced": {
+    "status": "Execution Status",
+    "statusRunning": "Running",
+    "statusFailed": "Load Failed",
+    "statusDisabled": "Disabled",
+    "statusUnknown": "Unknown Status",
+    "unknown": "Unknown",
+    "loaded": "Loaded",
+    "initialized": "Initialized",
+    "supportConfig": "Config Supported",
+    "configFile": "Config File",
+    "specs": "Technical Specs",
+    "adapterId": "Adapter ID",
+    "implClass": "Implementation Class",
+    "version": "Version Info",
+    "tags": "Tags",
+    "noTags": "No Tags",
+    "paths": "Path Config",
+    "apiRouter": "API Router",
+    "adapterDir": "Adapter Dir",
+    "docPath": "Doc Path",
+    "chatRules": "Chat Key Rules",
+    "chatRulesDesc": "This adapter uses the following format to identify chat channels:",
+    "errorMsg": "Error Message"
+  }
+}

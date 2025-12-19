@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { 
-  Box, 
-  Tabs, 
-  Tab, 
-  Grid, 
-  Stack, 
-  useMediaQuery, 
-  useTheme, 
+import { useTranslation } from 'react-i18next'
+import {
+  Box,
+  Tabs,
+  Tab,
+  Grid,
+  Stack,
+  useMediaQuery,
+  useTheme,
   Card,
   Button,
   Dialog,
@@ -14,7 +15,7 @@ import {
   DialogContent,
   DialogActions,
   Typography,
-  Alert
+  Alert,
 } from '@mui/material'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
@@ -51,6 +52,7 @@ const DashboardContent: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { t } = useTranslation('dashboard')
 
   // 处理实时数据
   const handleRealTimeData = useCallback((data: string) => {
@@ -79,7 +81,7 @@ const DashboardContent: React.FC = () => {
         }
       })
     } catch (error) {
-      console.error('解析实时数据失败:', error)
+      console.error('Failed to parse real-time data:', error)
     }
   }, [])
 
@@ -97,7 +99,7 @@ const DashboardContent: React.FC = () => {
     const cancelStream = createEventStream({
       endpoint: `/dashboard/stats/stream?granularity=${granularity}`,
       onMessage: handleRealTimeData,
-      onError: error => console.error('仪表盘数据流错误:', error),
+      onError: error => console.error('Dashboard data stream error:', error),
     })
 
     // 保存取消函数
@@ -157,14 +159,14 @@ const DashboardContent: React.FC = () => {
     try {
       const response = await restartApi.restartSystem()
       if (response.code === 200) {
-        notification.success('系统重启请求已发送，请稍候...')
+        notification.success(t('restart.requestSent'))
         setRestartDialogOpen(false)
       } else {
-        notification.error(response.msg || '重启失败')
+        notification.error(response.msg || t('restart.failed'))
       }
     } catch (error) {
       console.error('重启系统失败:', error)
-      notification.error('重启系统失败，请检查网络连接')
+      notification.error(t('restart.networkError'))
     } finally {
       setIsRestarting(false)
     }
@@ -174,15 +176,17 @@ const DashboardContent: React.FC = () => {
     <Box className="h-[calc(100vh-64px)] flex flex-col gap-3 overflow-auto p-4">
       {/* 时间范围选择器 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          px: { xs: 1, md: 3 }
-        }}>
-          <Tabs 
-            value={timeRange} 
-            onChange={handleTimeRangeChange} 
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            px: { xs: 1, md: 3 },
+          }}
+        >
+          <Tabs
+            value={timeRange}
+            onChange={handleTimeRangeChange}
             variant={isSmallMobile ? 'fullWidth' : 'standard'}
             indicatorColor="primary"
             textColor="primary"
@@ -212,11 +216,11 @@ const DashboardContent: React.FC = () => {
               },
             }}
           >
-            <Tab value="day" label="今天" />
-            <Tab value="week" label="本周" />
-            <Tab value="month" label="本月" />
+            <Tab value="day" label={t('tabs.day')} />
+            <Tab value="week" label={t('tabs.week')} />
+            <Tab value="month" label={t('tabs.month')} />
           </Tabs>
-          
+
           <Button
             variant="outlined"
             color="error"
@@ -237,7 +241,7 @@ const DashboardContent: React.FC = () => {
               },
             }}
           >
-            {isSmallMobile ? '' : '重启系统'}
+            {isSmallMobile ? '' : t('restart.button')}
           </Button>
         </Box>
       </Card>
@@ -247,7 +251,7 @@ const DashboardContent: React.FC = () => {
         <Grid container spacing={2} className="flex-shrink-0">
           <Grid item xs={6} sm={6}>
             <StatCard
-              title="总消息数"
+              title={t('cards.totalMessages')}
               value={overview?.total_messages || 0}
               loading={overviewLoading}
               icon={<MessageIcon />}
@@ -255,7 +259,7 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={6} sm={6}>
             <StatCard
-              title="活跃频道"
+              title={t('cards.activeChannels')}
               value={overview?.active_sessions || 0}
               loading={overviewLoading}
               icon={<GroupIcon />}
@@ -263,7 +267,7 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={6} sm={6}>
             <StatCard
-              title="独立用户"
+              title={t('cards.uniqueUsers')}
               value={overview?.unique_users || 0}
               loading={overviewLoading}
               icon={<MessageIcon />}
@@ -271,7 +275,7 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={6} sm={6}>
             <StatCard
-              title="沙盒执行"
+              title={t('cards.sandboxCalls')}
               value={overview?.total_sandbox_calls || 0}
               loading={overviewLoading}
               icon={<CodeIcon />}
@@ -279,7 +283,7 @@ const DashboardContent: React.FC = () => {
           </Grid>
           <Grid item xs={12}>
             <StatCard
-              title="执行成功率"
+              title={t('cards.successRate')}
               value={`${overview?.success_rate || 0}%`}
               loading={overviewLoading}
               icon={<CheckCircleIcon />}
@@ -288,11 +292,11 @@ const DashboardContent: React.FC = () => {
           </Grid>
         </Grid>
       ) : (
-        <Stack 
-          direction="row" 
-          spacing={2} 
+        <Stack
+          direction="row"
+          spacing={2}
           className="flex-shrink-0"
-          sx={{ 
+          sx={{
             overflowX: 'auto',
             pb: 1,
             '&::-webkit-scrollbar': {
@@ -306,31 +310,31 @@ const DashboardContent: React.FC = () => {
           }}
         >
           <StatCard
-            title="总消息数"
+            title={t('cards.totalMessages')}
             value={overview?.total_messages || 0}
             loading={overviewLoading}
             icon={<MessageIcon />}
           />
           <StatCard
-            title="活跃频道"
+            title={t('cards.activeChannels')}
             value={overview?.active_sessions || 0}
             loading={overviewLoading}
             icon={<GroupIcon />}
           />
           <StatCard
-            title="独立用户"
+            title={t('cards.uniqueUsers')}
             value={overview?.unique_users || 0}
             loading={overviewLoading}
             icon={<MessageIcon />}
           />
           <StatCard
-            title="沙盒执行"
+            title={t('cards.sandboxCalls')}
             value={overview?.total_sandbox_calls || 0}
             loading={overviewLoading}
             icon={<CodeIcon />}
           />
           <StatCard
-            title="执行成功率"
+            title={t('cards.successRate')}
             value={`${overview?.success_rate || 0}%`}
             loading={overviewLoading}
             icon={<CheckCircleIcon />}
@@ -344,7 +348,7 @@ const DashboardContent: React.FC = () => {
         {/* 在移动端上，RealTimeStats 和 TrendsChart 各占一行 */}
         <Grid item xs={12} lg={8}>
           <RealTimeStats
-            title="实时数据"
+            title={t('charts.realTimeData')}
             data={realTimeData}
             granularity={granularity}
             onGranularityChange={handleGranularityChange}
@@ -352,7 +356,7 @@ const DashboardContent: React.FC = () => {
         </Grid>
         <Grid item xs={12} lg={4}>
           <TrendsChart
-            title="概览"
+            title={t('charts.overview')}
             data={trends}
             loading={trendsLoading}
             metrics={['messages', 'sandbox_calls']}
@@ -365,7 +369,7 @@ const DashboardContent: React.FC = () => {
       <Grid container spacing={2}>
         <Grid item xs={12} md={6}>
           <TrendsChart
-            title="执行状态"
+            title={t('charts.executionStatus')}
             data={trends}
             loading={trendsLoading}
             metrics={['success_calls', 'failed_calls']}
@@ -374,7 +378,7 @@ const DashboardContent: React.FC = () => {
         </Grid>
         <Grid item xs={12} md={6}>
           <TrendsChart
-            title="响应成功率"
+            title={t('charts.successRate')}
             data={trends}
             loading={trendsLoading}
             metrics={['success_rate']}
@@ -393,7 +397,12 @@ const DashboardContent: React.FC = () => {
           />
         </Grid>
         <Grid item xs={12} lg={4}>
-          <RankingList title="活跃排名" data={activeUsers} loading={usersLoading} type="users" />
+          <RankingList
+            title={t('charts.activeRanking')}
+            data={activeUsers}
+            loading={usersLoading}
+            type="users"
+          />
         </Grid>
       </Grid>
 
@@ -415,31 +424,26 @@ const DashboardContent: React.FC = () => {
               theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           }}
         >
-          重启系统确认
+          {t('restart.dialogTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            重启期间 WebUI 功能将无法正常使用，如果长时间未恢复请检查 NekroAgent 容器日志是否出现异常
+            {t('restart.warning')}
           </Alert>
-          <Typography sx={{ mt: 1, mb: 2 }}>
-            确定要重启系统吗？重启过程可能需要大概一分钟，请耐心等待。
-          </Typography>
+          <Typography sx={{ mt: 1, mb: 2 }}>{t('restart.confirmMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button 
-            onClick={() => setRestartDialogOpen(false)}
-            disabled={isRestarting}
-          >
-            取消
+          <Button onClick={() => setRestartDialogOpen(false)} disabled={isRestarting}>
+            {t('restart.cancel')}
           </Button>
-          <Button 
+          <Button
             onClick={handleRestartSystem}
-            color="error" 
+            color="error"
             variant="contained"
             disabled={isRestarting}
             startIcon={<RestartIcon />}
           >
-            {isRestarting ? '重启中...' : '确认重启'}
+            {isRestarting ? t('restart.restarting') : t('restart.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

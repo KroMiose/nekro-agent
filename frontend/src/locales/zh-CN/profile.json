@@ -1,0 +1,24 @@
+{
+  "title": "个人资料",
+  "personalInfo": {
+    "title": "个人信息",
+    "username": "用户名",
+    "userId": "用户ID",
+    "permissionLevel": "权限等级"
+  },
+  "changePassword": {
+    "title": "修改密码",
+    "newPassword": "新密码",
+    "confirmPassword": "确认新密码",
+    "submit": "修改密码",
+    "submitting": "提交中...",
+    "adminNotice": "管理员账号暂不支持在此修改密码，请在系统环境变量中修改"
+  },
+  "notifications": {
+    "adminCannotChangePassword": "管理员账号暂不支持修改密码",
+    "fillAllFields": "请填写所有密码字段",
+    "passwordMismatch": "新密码和确认密码不匹配",
+    "passwordChangeSuccess": "密码修改成功",
+    "passwordChangeFailed": "密码修改失败"
+  }
+}

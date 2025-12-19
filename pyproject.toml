@@ -79,6 +79,9 @@ builtin_plugins = []
 [tool.black]
 line-length = 128
 
+[tool.basedpyright]
+typeCheckingMode = "standard"
+
 [tool.ruff]
 extend-exclude = []
 ignore = [

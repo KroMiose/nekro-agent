@@ -7,10 +7,12 @@ import { ContentCopy as ContentCopyIcon, OpenInNew as OpenInNewIcon } from '@mui
 import { unifiedConfigApi } from '../../../services/api/unified-config'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 export default function OneBotV11NapCatPage() {
   const [iframeLoaded, setIframeLoaded] = useState(false)
   const notification = useNotification()
+  const { t } = useTranslation('adapter')
 
   // 查询
   const { data: status } = useQuery({
@@ -22,7 +24,10 @@ export default function OneBotV11NapCatPage() {
   const { data: napCatConfig } = useQuery({
     queryKey: ['config', 'NAPCAT_ACCESS_URL'],
     queryFn: async () => {
-      const response = await unifiedConfigApi.getConfigItem('adapter_onebot_v11', 'NAPCAT_ACCESS_URL')
+      const response = await unifiedConfigApi.getConfigItem(
+        'adapter_onebot_v11',
+        'NAPCAT_ACCESS_URL'
+      )
       return response.value as string
     },
   })
@@ -42,10 +47,10 @@ export default function OneBotV11NapCatPage() {
     if (onebotToken) {
       try {
         await navigator.clipboard.writeText(onebotToken)
-        notification.success('访问密钥已复制到剪贴板')
+        notification.success(t('napcat.accessKeyCopied'))
       } catch (error) {
-        console.error('复制失败:', error)
-        notification.error('复制失败，请手动复制')
+        console.error('Copy failed:', error)
+        notification.error(t('napcat.copyFailed'))
       }
     }
   }
@@ -54,10 +59,10 @@ export default function OneBotV11NapCatPage() {
     if (napcatToken) {
       try {
         await navigator.clipboard.writeText(napcatToken)
-        notification.success('NapCat WebUI Token 已复制到剪贴板')
+        notification.success(t('napcat.tokenCopied'))
       } catch (error) {
-        console.error('复制失败:', error)
-        notification.error('复制失败，请手动复制')
+        console.error('Copy failed:', error)
+        notification.error(t('napcat.copyFailed'))
       }
     }
   }
@@ -92,11 +97,11 @@ export default function OneBotV11NapCatPage() {
                   startIcon={<ContentCopyIcon />}
                   onClick={handleCopyOnebotToken}
                 >
-                  复制
+                  {t('napcat.copy')}
                 </LoadingButton>
               }
             >
-              OneBot 服务访问密钥: <strong>{onebotToken}</strong>
+              {t('napcat.onebotAccessKey')}: <strong>{onebotToken}</strong>
             </Alert>
           )}
           {napcatToken && (
@@ -114,11 +119,11 @@ export default function OneBotV11NapCatPage() {
                   startIcon={<ContentCopyIcon />}
                   onClick={handleCopyNapcatToken}
                 >
-                  复制
+                  {t('napcat.copy')}
                 </LoadingButton>
               }
             >
-              NapCat 登录 Token: <strong>{napcatToken}</strong>
+              {t('napcat.napcatToken')}: <strong>{napcatToken}</strong>
             </Alert>
           )}
           {napCatConfig && (
@@ -132,7 +137,7 @@ export default function OneBotV11NapCatPage() {
                 height: 'fit-content',
               }}
             >
-              前往 NapCat
+              {t('napcat.goToNapcat')}
             </Button>
           )}
         </Stack>
@@ -140,8 +145,7 @@ export default function OneBotV11NapCatPage() {
       <Box
         sx={{
           position: 'relative',
-          height:
-            onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
+          height: onebotToken || napcatToken ? 'calc(100vh - 300px)' : 'calc(100vh - 240px)',
           flex: 1,
           '& iframe': {
             width: '100%',
@@ -170,9 +174,9 @@ export default function OneBotV11NapCatPage() {
           }}
         >
           {!napCatConfig ? (
-            <Typography color="error">无法获取 NapCat 访问地址</Typography>
+            <Typography color="error">{t('napcat.cannotGetAddress')}</Typography>
           ) : !status?.running ? (
-            <Typography color="error">NapCat 服务未运行</Typography>
+            <Typography color="error">{t('napcat.serviceNotRunning')}</Typography>
           ) : (
             <CircularProgress />
           )}

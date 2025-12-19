@@ -1,0 +1,70 @@
+{
+  "title": "仪表盘",
+  "tabs": {
+    "day": "今天",
+    "week": "本周",
+    "month": "本月"
+  },
+  "cards": {
+    "totalMessages": "总消息数",
+    "activeChannels": "活跃频道",
+    "uniqueUsers": "独立用户",
+    "sandboxCalls": "沙盒执行",
+    "successRate": "执行成功率"
+  },
+  "charts": {
+    "realTimeData": "实时数据",
+    "overview": "概览",
+    "executionStatus": "执行状态",
+    "successRate": "响应成功率",
+    "activeRanking": "活跃排名",
+    "distributionStats": "分布统计",
+    "stopTypeDistribution": "执行类型分布",
+    "messageTypeDistribution": "消息类型分布",
+    "noData": "暂无数据",
+    "noRealtimeData": "暂无实时数据，请等待数据收集"
+  },
+  "tooltip": {
+    "count": "数量",
+    "ratio": "占比"
+  },
+  "granularity": {
+    "label": "数据粒度",
+    "1min": "1分钟",
+    "5min": "5分钟",
+    "10min": "10分钟",
+    "30min": "30分钟",
+    "1hour": "1小时"
+  },
+  "metrics": {
+    "messages": "消息数",
+    "sandboxCalls": "沙盒调用",
+    "successCalls": "成功调用",
+    "failedCalls": "失败调用",
+    "successRate": "成功率"
+  },
+  "ranking": {
+    "title": "活跃排名",
+    "messageCount": "消息数",
+    "messages": "条"
+  },
+  "restart": {
+    "button": "重启系统",
+    "dialogTitle": "重启系统确认",
+    "warning": "重启期间 WebUI 功能将无法正常使用，如果长时间未恢复请检查 NekroAgent 容器日志是否出现异常",
+    "confirmMessage": "确定要重启系统吗？重启过程可能需要大概一分钟，请耐心等待。",
+    "cancel": "取消",
+    "confirm": "确认重启",
+    "restarting": "重启中...",
+    "requestSent": "系统重启请求已发送，请稍候...",
+    "failed": "重启失败",
+    "networkError": "重启系统失败，请检查网络连接"
+  },
+  "errors": {
+    "parseRealTimeData": "解析实时数据失败",
+    "streamError": "仪表盘数据流错误"
+  },
+  "time": {
+    "now": "现在"
+  }
+}

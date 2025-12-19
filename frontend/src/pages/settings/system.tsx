@@ -4,10 +4,12 @@ import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
+import { useTranslation } from 'react-i18next'
 
 export default function SettingsPage() {
   const location = useLocation()
   const [searchText, setSearchText] = useState<string>('')
+  const { t } = useTranslation('settings')
 
   // 从URL中获取搜索参数
   useEffect(() => {
@@ -59,7 +61,7 @@ export default function SettingsPage() {
         onRefresh={handleRefresh}
         showSearchBar={true}
         showToolbar={true}
-        emptyMessage="暂无系统配置项"
+        emptyMessage={t('system.emptyMessage')}
       />
     </Box>
   )

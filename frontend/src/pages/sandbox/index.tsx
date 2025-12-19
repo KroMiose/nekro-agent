@@ -28,6 +28,7 @@ import {
   DialogContent,
   DialogActions,
   Button,
+  alpha,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -51,11 +52,13 @@ import { sandboxApi, SandboxCodeExtData } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
-import { getStopTypeColor, getStopTypeText } from '../../theme/utils'
+import { getStopTypeTranslatedText, getStopTypeColorValue } from '../../theme/utils'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES, CARD_VARIANTS } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { useDevModeStore } from '../../stores/devMode'
 import { useNotification } from '../../hooks/useNotification'
+import { useTranslation } from 'react-i18next'
+import { useLocaleStore } from '../../stores/locale'
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -263,11 +266,14 @@ export default function SandboxPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
   const { devMode } = useDevModeStore()
+  const { t } = useTranslation('sandbox')
+  const { currentLocale } = useLocaleStore()
+  const isEnglish = currentLocale === 'en-US'
   const [logViewerOpen, setLogViewerOpen] = useState(false)
   const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
 
   const formatNumber = (num: number | undefined | null) => {
-    if (num === undefined || num === null || isNaN(num)) return 'N/A'
+    if (num === undefined || num === null || isNaN(num)) return t('performance.notSupported')
     return num.toLocaleString()
   }
 
@@ -330,17 +336,17 @@ export default function SandboxPage() {
   // 复制内容到剪贴板函数
   const copyToClipboard = (text: string | null, contentType: string) => {
     if (!text) {
-      notification.warning('无内容可复制')
+      notification.warning(t('actions.noContent'))
       return
     }
 
     navigator.clipboard
       .writeText(text)
       .then(() => {
-        notification.success(`${contentType}已复制到剪贴板`)
+        notification.success(t('actions.copied', { content: contentType }))
       })
       .catch(() => {
-        notification.error('复制失败，请重试')
+        notification.error(t('actions.copyFailed'))
       })
   }
 
@@ -356,7 +362,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                总执行次数
+                {t('stats.total')}
               </Typography>
               <Typography variant={isSmall ? 'h5' : 'h4'}>{stats?.total || 0}</Typography>
             </CardContent>
@@ -370,7 +376,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                成功次数
+                {t('stats.success')}
               </Typography>
               <Typography variant={isSmall ? 'h5' : 'h4'} color="success.main">
                 {stats?.success || 0}
@@ -386,7 +392,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                代理执行次数
+                {t('stats.agentCount')}
               </Typography>
               <Typography variant={isSmall ? 'h6' : 'h5'} color="info.main">
                 {stats?.agent_count || 0}
@@ -402,7 +408,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                失败次数
+                {t('stats.failed')}
               </Typography>
               <Typography variant={isSmall ? 'h6' : 'h5'} color="error.main">
                 {stats?.failed || 0}
@@ -418,7 +424,7 @@ export default function SandboxPage() {
                 variant={isSmall ? 'caption' : 'body2'}
                 className="mb-1"
               >
-                沙盒执行成功率
+                {t('stats.successRate')}
               </Typography>
               <Typography variant={isSmall ? 'h6' : 'h5'}>{stats?.success_rate || 0}%</Typography>
             </CardContent>
@@ -430,7 +436,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              总执行次数
+              {t('stats.total')}
             </Typography>
             <Typography variant="h4">{stats?.total || 0}</Typography>
           </CardContent>
@@ -438,7 +444,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              成功次数
+              {t('stats.success')}
             </Typography>
             <Typography variant="h4" color="success.main">
               {stats?.success || 0}
@@ -448,7 +454,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              代理执行次数
+              {t('stats.agentCount')}
             </Typography>
             <Typography variant="h4" color="info.main">
               {stats?.agent_count || 0}
@@ -458,7 +464,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              失败次数
+              {t('stats.failed')}
             </Typography>
             <Typography variant="h4" color="error.main">
               {stats?.failed || 0}
@@ -468,7 +474,7 @@ export default function SandboxPage() {
         <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
           <CardContent>
             <Typography color="textSecondary" className="mb-1">
-              沙盒执行成功率
+              {t('stats.successRate')}
             </Typography>
             <Typography variant="h4">{stats?.success_rate || 0}%</Typography>
           </CardContent>
@@ -505,17 +511,17 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  状态
+                  {t('table.status')}
                 </TableCell>
                 <TableCell
                   sx={{
-                    width: '8%',
-                    minWidth: '60px',
+                    width: isEnglish ? '10%' : '8%',
+                    minWidth: isEnglish ? '80px' : '60px',
                     py: isSmall ? 1 : 1.5,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  停止类型
+                  {t('table.stopType')}
                 </TableCell>
                 {!isMobile && (
                   <TableCell
@@ -526,7 +532,7 @@ export default function SandboxPage() {
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
                   >
-                    触发用户
+                    {t('table.triggerUser')}
                   </TableCell>
                 )}
                 <TableCell
@@ -537,7 +543,7 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  聊天标识
+                  {t('table.chatKey')}
                 </TableCell>
                 <TableCell
                   sx={{
@@ -547,18 +553,18 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  使用模型
+                  {t('table.model')}
                 </TableCell>
                 <TableCell
                   sx={{
-                    width: isMobile ? '23%' : '150px',
+                    width: isMobile ? '23%' : isEnglish ? '220px' : '150px',
                     textAlign: 'left',
                     py: isSmall ? 1 : 1.5,
-                    minWidth: isMobile ? '110px' : '150px',
+                    minWidth: isMobile ? '110px' : isEnglish ? '210px' : '150px',
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  {isMobile ? '耗时(生成|执行)' : '生成耗时 | 执行耗时'}
+                  {isMobile ? t('table.durationMobile') : t('table.duration')}
                 </TableCell>
                 <TableCell
                   sx={{
@@ -568,7 +574,7 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  模式
+                  {t('table.mode')}
                 </TableCell>
                 <TableCell
                   sx={{
@@ -578,7 +584,7 @@ export default function SandboxPage() {
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
-                  执行时间
+                  {t('table.execTime')}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -626,40 +632,40 @@ export default function SandboxPage() {
                       </Typography>
                       <Grid container spacing={1}>
                         <Grid item xs={6}>
-                          <Typography variant="body2">首 Token 耗时:</Typography>
+                          <Typography variant="body2">{t('performance.firstToken')}</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color={firstTokenColor}>
                             {isStream
                               ? extraData
                                 ? `${extraData.first_token_cost_ms}ms`
-                                : 'N/A'
-                              : '不支持'}
+                                : t('performance.notSupported')
+                              : t('performance.notSupported')}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">速度 (Token/s):</Typography>
+                          <Typography variant="body2">{t('performance.tokensPerSec')}</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color={tokensPerSecondColor}>
                             {extraData && extraData.speed_tokens_per_second > 0
                               ? extraData.speed_tokens_per_second.toFixed(2)
-                              : 'N/A'}
+                              : t('performance.notSupported')}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">速度 (字符/s):</Typography>
+                          <Typography variant="body2">{t('performance.charsPerSec')}</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color={charsPerSecondColor}>
                             {extraData?.speed_chars_per_second &&
                             extraData.speed_chars_per_second > 0
                               ? extraData.speed_chars_per_second
-                              : 'N/A'}
+                              : t('performance.notSupported')}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">Token 数 (输入/输出/总和):</Typography>
+                          <Typography variant="body2">{t('performance.tokenCount')}</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color="text.secondary">
@@ -677,12 +683,12 @@ export default function SandboxPage() {
                                 </Typography>
                               </>
                             ) : (
-                              'N/A'
+                              t('performance.notSupported')
                             )}
                           </Typography>
                         </Grid>
                         <Grid item xs={6}>
-                          <Typography variant="body2">字符数 (输入/输出/总和):</Typography>
+                          <Typography variant="body2">{t('performance.charCount')}</Typography>
                         </Grid>
                         <Grid item xs={6}>
                           <Typography variant="body2" color="text.secondary">
@@ -700,7 +706,7 @@ export default function SandboxPage() {
                                 </Typography>
                               </>
                             ) : (
-                              'N/A'
+                              t('performance.notSupported')
                             )}
                           </Typography>
                         </Grid>
@@ -755,7 +761,7 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <Tooltip title={log.success ? '执行成功' : '执行失败'}>
+                          <Tooltip title={log.success ? t('status.successTooltip') : t('status.failedTooltip')}>
                             <Chip
                               icon={
                                 log.success ? (
@@ -764,7 +770,7 @@ export default function SandboxPage() {
                                   <ErrorIcon fontSize={isSmall ? 'small' : 'medium'} />
                                 )
                               }
-                              label={log.success ? '成功' : '失败'}
+                              label={log.success ? t('status.success') : t('status.failed')}
                               color={log.success ? 'success' : 'error'}
                               size="small"
                               sx={CHIP_VARIANTS.base(isSmall)}
@@ -778,10 +784,14 @@ export default function SandboxPage() {
                           }}
                         >
                           <Chip
-                            label={getStopTypeText(log.stop_type)}
-                            color={getStopTypeColor(log.stop_type)}
+                            label={getStopTypeTranslatedText(log.stop_type, t)}
                             size="small"
-                            sx={CHIP_VARIANTS.getStopTypeChip(log.stop_type, isSmall)}
+                            sx={{
+                              ...CHIP_VARIANTS.getStopTypeChip(log.stop_type, isSmall),
+                              backgroundColor: alpha(getStopTypeColorValue(log.stop_type), 0.12),
+                              color: getStopTypeColorValue(log.stop_type),
+                              borderColor: alpha(getStopTypeColorValue(log.stop_type), 0.2),
+                            }}
                           />
                         </TableCell>
                         {!isMobile && (
@@ -838,7 +848,7 @@ export default function SandboxPage() {
                               pr: isMobile ? 0.5 : 0,
                             }}
                           >
-                            {log.use_model || '未知'}
+                            {log.use_model || t('table.unknown')}
                           </Typography>
                         </TableCell>
                         <TableCell
@@ -863,7 +873,7 @@ export default function SandboxPage() {
                               },
                             }}
                           >
-                            <Tooltip title="生成耗时">
+                            <Tooltip title={t('tooltips.generateTime')}>
                               <Typography
                                 variant="body2"
                                 sx={{
@@ -885,7 +895,7 @@ export default function SandboxPage() {
                             >
                               |
                             </Typography>
-                            <Tooltip title="执行耗时">
+                            <Tooltip title={t('tooltips.executeTime')}>
                               <Typography
                                 variant="body2"
                                 sx={{
@@ -909,14 +919,14 @@ export default function SandboxPage() {
                           {extraData ? (
                             <Tooltip title={performanceTooltip}>
                               <Chip
-                                label={isStream ? '流式' : '非流式'}
+                                label={isStream ? t('mode.stream') : t('mode.normal')}
                                 size="small"
                                 sx={CHIP_VARIANTS.getStreamModeChip(isStream, isSmall)}
                               />
                             </Tooltip>
                           ) : (
                             <Chip
-                              label="未知"
+                              label={t('table.unknown')}
                               size="small"
                               sx={CHIP_VARIANTS.getStopTypeChip(-1, isSmall)}
                             />
@@ -966,13 +976,13 @@ export default function SandboxPage() {
                                         fontSize={isSmall ? 'small' : 'medium'}
                                       />
                                       <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                        思维链信息：
+                                        {t('detail.thoughtChain')}:
                                       </Typography>
                                     </Box>
-                                    <Tooltip title="复制思维链">
+                                    <Tooltip title={t('detail.copyThoughtChain')}>
                                       <IconButton
                                         size="small"
-                                        onClick={() => copyToClipboard(log.thought_chain, '思维链')}
+                                        onClick={() => copyToClipboard(log.thought_chain, t('detail.thoughtChain'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
                                       </IconButton>
@@ -1029,13 +1039,13 @@ export default function SandboxPage() {
                                       fontSize={isSmall ? 'small' : 'medium'}
                                     />
                                     <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                      执行代码：
+                                      {t('detail.executionCode')}:
                                     </Typography>
                                   </Box>
-                                  <Tooltip title="复制代码">
+                                  <Tooltip title={t('detail.copyCode')}>
                                     <IconButton
                                       size="small"
-                                      onClick={() => copyToClipboard(log.code_text, '代码')}
+                                      onClick={() => copyToClipboard(log.code_text, t('detail.code'))}
                                     >
                                       <ContentCopyIcon fontSize="small" />
                                     </IconButton>
@@ -1126,13 +1136,13 @@ export default function SandboxPage() {
                                         fontSize={isSmall ? 'small' : 'medium'}
                                       />
                                       <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                        执行输出：
+                                        {t('detail.result')}:
                                       </Typography>
                                     </Box>
-                                    <Tooltip title="复制输出">
+                                    <Tooltip title={t('detail.copyOutput')}>
                                       <IconButton
                                         size="small"
-                                        onClick={() => copyToClipboard(log.outputs, '执行输出')}
+                                        onClick={() => copyToClipboard(log.outputs, t('detail.result'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
                                       </IconButton>
@@ -1219,7 +1229,7 @@ export default function SandboxPage() {
                                       fontSize={isSmall ? 'small' : 'medium'}
                                     />
                                     <Typography variant={isSmall ? 'subtitle2' : 'subtitle1'}>
-                                      性能信息：
+                                      {t('detail.performanceInfo')}:
                                     </Typography>
                                   </Stack>
                                   <Paper variant="outlined" className="overflow-hidden w-full">
@@ -1229,7 +1239,7 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <AccessTimeIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              首 Token 耗时:
+                                              {t('performance.firstToken')}
                                               <Typography
                                                 component="span"
                                                 color={firstTokenColor}
@@ -1237,7 +1247,7 @@ export default function SandboxPage() {
                                               >
                                                 {extraData?.stream_mode
                                                   ? `${extraData.first_token_cost_ms}ms`
-                                                  : '不支持'}
+                                                  : t('performance.notSupported')}
                                               </Typography>
                                             </Typography>
                                           </Stack>
@@ -1246,7 +1256,7 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <BoltIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              速度 (Token/s):
+                                              {t('performance.tokensPerSec')}
                                               <Typography
                                                 component="span"
                                                 color={tokensPerSecondColor}
@@ -1254,7 +1264,7 @@ export default function SandboxPage() {
                                               >
                                                 {extraData && extraData.speed_tokens_per_second > 0
                                                   ? extraData.speed_tokens_per_second.toFixed(2)
-                                                  : 'N/A'}
+                                                  : t('performance.notSupported')}
                                               </Typography>
                                             </Typography>
                                           </Stack>
@@ -1266,7 +1276,7 @@ export default function SandboxPage() {
                                               color="secondary"
                                             />
                                             <Typography variant="body2">
-                                              速度 (字符/s):
+                                              {t('performance.charsPerSec')}
                                               <Typography
                                                 component="span"
                                                 color={charsPerSecondColor}
@@ -1275,7 +1285,7 @@ export default function SandboxPage() {
                                                 {extraData?.speed_chars_per_second &&
                                                 extraData.speed_chars_per_second > 0
                                                   ? extraData.speed_chars_per_second
-                                                  : 'N/A'}
+                                                  : t('performance.notSupported')}
                                               </Typography>
                                             </Typography>
                                           </Stack>
@@ -1284,7 +1294,7 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <FunctionsIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              Token 数 (输入/输出/总和):
+                                              {t('performance.tokenCount')}
                                               <Typography
                                                 component="span"
                                                 color="text.secondary"
@@ -1306,7 +1316,7 @@ export default function SandboxPage() {
                                                     </Typography>
                                                   </>
                                                 ) : (
-                                                  'N/A'
+                                                  t('performance.notSupported')
                                                 )}
                                               </Typography>
                                             </Typography>
@@ -1316,7 +1326,7 @@ export default function SandboxPage() {
                                           <Stack direction="row" alignItems="center" spacing={1}>
                                             <AbcIcon fontSize="small" color="secondary" />
                                             <Typography variant="body2">
-                                              字符数 (输入/输出/总和):
+                                              {t('performance.charCount')}
                                               <Typography
                                                 component="span"
                                                 color="text.secondary"
@@ -1338,7 +1348,7 @@ export default function SandboxPage() {
                                                     </Typography>
                                                   </>
                                                 ) : (
-                                                  'N/A'
+                                                  t('performance.notSupported')
                                                 )}
                                               </Typography>
                                             </Typography>

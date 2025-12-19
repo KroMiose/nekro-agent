@@ -1,0 +1,97 @@
+{
+  "title": "聊天管理",
+  "search": {
+    "placeholder": "搜索聊天...",
+    "noResults": "未找到匹配的频道"
+  },
+  "filters": {
+    "type": "类型",
+    "status": "状态",
+    "all": "全部",
+    "group": "群聊",
+    "private": "私聊",
+    "active": "已激活",
+    "inactive": "未激活"
+  },
+  "list": {
+    "empty": "暂无聊天频道",
+    "total": "共 {{count}} 个频道",
+    "messageCount": "{{count}}条消息",
+    "noActiveRecord": "暂无活跃记录"
+  },
+  "table": {
+    "channelId": "频道ID",
+    "channelName": "频道名称",
+    "channelType": "频道类型",
+    "messageCount": "消息数",
+    "lastMessage": "最后消息",
+    "status": "状态"
+  },
+  "actions": {
+    "viewMessages": "查看消息",
+    "viewSettings": "查看设置",
+    "clearHistory": "清空历史",
+    "viewList": "查看聊天列表"
+  },
+  "detail": {
+    "selectChat": "请选择一个聊天查看详情",
+    "basicInfo": "基本信息",
+    "messageHistory": "消息历史",
+    "overrideSettings": "覆盖设置"
+  },
+  "messages": {
+    "clearConfirm": "确定要清空此频道的历史消息吗？",
+    "clearSuccess": "历史消息已清空"
+  },
+  "basicInfo": {
+    "currentPreset": "当前人设",
+    "cloud": "云端",
+    "defaultPreset": "默认人设",
+    "selectPreset": "选择人设",
+    "messageCount": "消息数量",
+    "messagesCount": "{{count}} 条消息",
+    "uniqueUsers": "参与用户数",
+    "usersCount": "{{count}} 位用户",
+    "startTime": "对话开始时间",
+    "lastActiveTime": "最后活跃时间",
+    "noMessages": "暂无消息",
+    "searchPreset": "搜索人设...",
+    "search": "搜索",
+    "useDefault": "使用默认人设",
+    "cancel": "取消",
+    "fetchPresetsFailed": "获取人设列表失败",
+    "setPresetSuccess": "已{{action}}人设: {{name}}",
+    "setPresetFailed": "设置人设失败",
+    "set": "设置",
+    "clear": "清除"
+  },
+  "overrideSettings": {
+    "info": "此处的配置将仅对当前聊天频道生效。它的优先级最高，将覆盖所有来自适配器和系统的同名配置。",
+    "emptyMessage": "该聊天频道暂无可覆盖的配置项"
+  },
+  "channelDetail": {
+    "unnamedChat": "未命名聊天",
+    "refreshInfo": "刷新聊天信息",
+    "group": "群聊",
+    "private": "私聊",
+    "activate": "激活",
+    "deactivate": "停用",
+    "reset": "重置",
+    "tabs": {
+      "basicInfo": "基础信息",
+      "overrideSettings": "覆盖配置",
+      "messageHistory": "消息记录"
+    },
+    "resetDialog": {
+      "title": "确认重置聊天？",
+      "content": "重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？",
+      "cancel": "取消",
+      "confirm": "确认重置"
+    }
+  },
+  "messageHistory": {
+    "noMessages": "暂无消息记录",
+    "noContent": "[无文本内容]",
+    "scrollToBottom": "回到底部"
+  }
+}

@@ -71,13 +71,12 @@ import ConfigTable from '../../components/common/ConfigTable'
 import { useNavigate } from 'react-router-dom'
 import {
   pluginTypeColors,
-  pluginTypeTexts,
   methodTypeColors,
-  methodTypeTexts,
-  methodTypeDescriptions,
+  CHIP_VARIANTS,
+  CARD_VARIANTS,
 } from '../../theme/variants'
-import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { useTranslation } from 'react-i18next'
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
@@ -107,6 +106,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { t } = useTranslation('plugins')
 
   // 获取插件配置
   const { data: pluginConfig, isLoading: configLoading } = useQuery({
@@ -137,16 +137,16 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const reloadMutation = useMutation({
     mutationFn: async () => {
       if (!plugin.moduleName) {
-        throw new Error('无法获取有效的模块名')
+        throw new Error(t('messages.invalidModuleName'))
       }
       const result = await pluginsApi.reloadPlugins(plugin.moduleName)
       if (!result.success) {
-        throw new Error(result.errorMsg || '重载失败，请检查后端日志')
+        throw new Error(result.errorMsg || t('messages.reloadFailed'))
       }
       return true
     },
     onSuccess: () => {
-      notification.success(`插件 ${plugin.name} 已重载～ (*￣▽￣)b`)
+      notification.success(t('messages.reloadSuccess', { name: plugin.name }))
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
     },
@@ -159,11 +159,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const deleteDataMutation = useMutation({
     mutationFn: (dataId: number) => pluginsApi.deletePluginData(plugin.id, dataId),
     onSuccess: () => {
-      notification.success('数据已删除')
+      notification.success(t('messages.dataDeleted'))
       queryClient.invalidateQueries({ queryKey: ['plugin-data', plugin.id] })
     },
     onError: (error: Error) => {
-      notification.error(`删除失败: ${error.message}`)
+      notification.error(`${t('messages.deleteFailed')}: ${error.message}`)
     },
   })
 
@@ -171,11 +171,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const resetDataMutation = useMutation({
     mutationFn: () => pluginsApi.resetPluginData(plugin.id),
     onSuccess: () => {
-      notification.success('所有数据已重置')
+      notification.success(t('messages.dataResetSuccess'))
       queryClient.invalidateQueries({ queryKey: ['plugin-data', plugin.id] })
     },
     onError: (error: Error) => {
-      notification.error(`重置失败: ${error.message}`)
+      notification.error(`${t('messages.resetFailed')}: ${error.message}`)
     },
   })
 
@@ -183,12 +183,16 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const removePackageMutation = useMutation({
     mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
     onSuccess: () => {
-      notification.success(`云端插件 ${plugin.name} 已删除${clearDataOnDelete ? '（包括数据）' : ''}～`)
+      notification.success(
+        clearDataOnDelete
+          ? t('messages.deleteWithDataSuccess', { name: plugin.name })
+          : t('messages.deleteSuccess', { name: plugin.name })
+      )
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       onBack() // 返回插件列表
     },
     onError: (error: Error) => {
-      notification.error(`删除失败: ${error.message}`)
+      notification.error(`${t('messages.deleteFailed')}: ${error.message}`)
     },
   })
 
@@ -196,16 +200,16 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const updatePackageMutation = useMutation({
     mutationFn: async () => {
       if (!plugin.moduleName) {
-        throw new Error('无法获取有效的模块名')
+        throw new Error(t('messages.invalidModuleName'))
       }
       const result = await pluginsApi.updatePackage(plugin.moduleName)
       if (!result.success) {
-        throw new Error(result.errorMsg || '更新失败，请检查后端日志')
+        throw new Error(result.errorMsg || t('messages.updateFailed'))
       }
       return true
     },
     onSuccess: () => {
-      notification.success(`云端插件 ${plugin.name} 已更新至最新版本～`)
+      notification.success(t('messages.updateSuccess', { name: plugin.name }))
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
       queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
     },
@@ -224,7 +228,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   // 获取插件类型中文名
   const getPluginTypeText = () => {
     const type = getPluginType()
-    return pluginTypeTexts[type] || '未知'
+    return t(`types.${type}`)
   }
 
   // 按钮点击处理函数
@@ -243,11 +247,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   if (!plugin) return null
 
   const pluginTabs = [
-    { label: '基本信息', icon: <InfoIcon />, isVisible: true },
-    { label: '配置', icon: <SettingsIcon />, isVisible: plugin.hasConfig },
-    { label: '方法', icon: <CodeIcon />, isVisible: true },
-    { label: 'Webhook', icon: <WebhookIcon />, isVisible: true },
-    { label: '数据管理', icon: <StorageIcon />, isVisible: true },
+    { label: t('tabs.info'), icon: <InfoIcon />, isVisible: true },
+    { label: t('tabs.config'), icon: <SettingsIcon />, isVisible: plugin.hasConfig },
+    { label: t('tabs.methods'), icon: <CodeIcon />, isVisible: true },
+    { label: t('tabs.webhook'), icon: <WebhookIcon />, isVisible: true },
+    { label: t('tabs.data'), icon: <StorageIcon />, isVisible: true },
   ].filter(tab => tab.isVisible)
 
   return (
@@ -310,7 +314,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 color="primary"
               />
             }
-            label={plugin.enabled ? '已启用' : '已禁用'}
+            label={plugin.enabled ? t('status.enabled') : t('status.disabled')}
             sx={{ mr: 0, ml: 'auto' }}
           />
         </Box>
@@ -371,7 +375,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               <>
                 <IconButton
                   size="small"
-                  onClick={(event) => setMoreMenuAnchorEl(event.currentTarget)}
+                  onClick={event => setMoreMenuAnchorEl(event.currentTarget)}
                   sx={{ border: 1, borderColor: 'divider' }}
                 >
                   <MoreVertIcon />
@@ -396,8 +400,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       sx={{ color: plugin.isPackage ? 'error.main' : 'warning.main' }}
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        {plugin.isPackage ? <DeleteIcon fontSize="small" /> : <EditIcon fontSize="small" />}
-                        {plugin.isPackage ? '删除' : '编辑'}
+                        {plugin.isPackage ? (
+                          <DeleteIcon fontSize="small" />
+                        ) : (
+                          <EditIcon fontSize="small" />
+                        )}
+                        {plugin.isPackage ? t('actions.delete') : t('actions.edit')}
                       </Box>
                     </MenuItem>
                   )}
@@ -411,7 +419,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     >
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <RefreshIcon fontSize="small" />
-                        更新
+                        {t('actions.update')}
                       </Box>
                     </MenuItem>
                   )}
@@ -424,7 +432,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <DeleteIcon fontSize="small" />
-                      重置
+                      {t('actions.reset')}
                     </Box>
                   </MenuItem>
                   <MenuItem
@@ -437,7 +445,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <RefreshIcon fontSize="small" />
-                      重载
+                      {t('actions.reload')}
                     </Box>
                   </MenuItem>
                 </Menu>
@@ -455,7 +463,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     color={plugin.isPackage ? 'error' : 'warning'}
                     size="small"
                   >
-                    {plugin.isPackage ? '删除' : '编辑'}
+                    {plugin.isPackage ? t('actions.delete') : t('actions.edit')}
                   </Button>
                 )}
                 {plugin.isPackage && (
@@ -466,7 +474,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     color="success"
                     size="small"
                   >
-                    更新
+                    {t('actions.update')}
                   </Button>
                 )}
                 <Button
@@ -476,7 +484,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   color="warning"
                   size="small"
                 >
-                  重置
+                  {t('actions.reset')}
                 </Button>
                 <Button
                   variant="outlined"
@@ -485,7 +493,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   disabled={plugin.isBuiltin}
                   size="small"
                 >
-                  重载
+                  {t('actions.reload')}
                 </Button>
               </>
             )}
@@ -515,38 +523,38 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <PersonIcon color="action" />
                     <Typography variant="body2">
-                      <strong>作者：</strong> {plugin.author}
+                      <strong>{t('info.author')}：</strong> {plugin.author}
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <VpnKeyIcon color="action" />
                     <Typography variant="body2">
-                      <strong>模块名：</strong> {plugin.moduleName}
+                      <strong>{t('info.moduleName')}：</strong> {plugin.moduleName}
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <BookmarkIcon color="action" />
                     <Typography variant="body2">
-                      <strong>版本：</strong> {plugin.version}
+                      <strong>{t('info.version')}：</strong> {plugin.version}
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <CategoryIcon color="action" />
                     <Typography variant="body2">
-                      <strong>类型：</strong> {getPluginTypeText()}插件
+                      <strong>{t('info.type')}：</strong> {getPluginTypeText()}
                     </Typography>
                   </Stack>
                   <Stack direction="row" spacing={1.5} alignItems="center">
                     <LinkIcon color="action" />
                     <Typography variant="body2">
-                      <strong>链接：</strong>{' '}
+                      <strong>{t('info.link')}：</strong>{' '}
                       <Link
                         href={plugin.url}
                         target="_blank"
                         rel="noreferrer"
                         sx={{ verticalAlign: 'middle' }}
                       >
-                        {plugin.url || '无'}
+                        {plugin.url || t('info.none')}
                       </Link>
                     </Typography>
                   </Stack>
@@ -560,13 +568,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 <CardContent sx={{ textAlign: 'center', p: 3 }}>
                   <CircularProgress size={32} />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                    加载文档中...
+                    {t('info.loadingDocs')}
                   </Typography>
                 </CardContent>
               </Card>
             ) : docsError ? (
               <Alert severity="error" sx={{ m: 2 }}>
-                加载文档失败：{(docsError as Error).message}
+                {t('info.loadDocsFailed')}：{(docsError as Error).message}
               </Alert>
             ) : pluginDocs?.exists ? (
               <Card sx={CARD_VARIANTS.default.styles}>
@@ -574,7 +582,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                     <DescriptionIcon color="primary" />
                     <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                      插件文档
+                      {t('info.pluginDocs')}
                     </Typography>
                   </Box>
                   <MarkdownRenderer>{pluginDocs.docs || ''}</MarkdownRenderer>
@@ -582,7 +590,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               </Card>
             ) : (
               <Alert severity="info" icon={<InfoIcon />}>
-                该插件暂无文档说明。
+                {t('info.noDocs')}
               </Alert>
             )}
           </Stack>
@@ -600,12 +608,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 onRefresh={() =>
                   queryClient.invalidateQueries({ queryKey: ['plugin-config', plugin.id] })
                 }
-                emptyMessage="此插件没有可配置项"
+                emptyMessage={t('config.noConfig')}
               />
             ) : (
               <Card sx={CARD_VARIANTS.default.styles}>
                 <CardContent>
-                  <Alert severity="info">此插件没有可配置项</Alert>
+                  <Alert severity="info">{t('config.noConfig')}</Alert>
                 </CardContent>
               </Card>
             )}
@@ -622,12 +630,14 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     <TableHead>
                       <TableRow>
                         <TableCell width={isMobile ? '30%' : '20%'} sx={{ py: isSmall ? 1 : 1.5 }}>
-                          方法名
+                          {t('methods.name')}
                         </TableCell>
                         <TableCell width={isMobile ? '25%' : '15%'} sx={{ py: isSmall ? 1 : 1.5 }}>
-                          类型
+                          {t('methods.type')}
                         </TableCell>
-                        <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>描述</TableCell>
+                        <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>
+                          {t('methods.description')}
+                        </TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
@@ -649,12 +659,12 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                           </TableCell>
                           <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
                             <Tooltip
-                              title={methodTypeDescriptions[method.type] || ''}
+                              title={t(`methodDescriptions.${method.type}`)}
                               arrow
                               placement="top"
                             >
                               <Chip
-                                label={methodTypeTexts[method.type] || method.type}
+                                label={t(`methodTypes.${method.type}`)}
                                 color={methodTypeColors[method.type]}
                                 size="small"
                                 sx={CHIP_VARIANTS.base(isSmall)}
@@ -676,7 +686,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 </TableContainer>
               ) : (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  此插件没有定义方法
+                  {t('methods.noMethods')}
                 </Alert>
               )}
             </CardContent>
@@ -693,15 +703,15 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                     <TableHead>
                       <TableRow>
                         <TableCell width={isSmall ? 100 : 150} sx={{ py: isSmall ? 1 : 1.5 }}>
-                          接入点
+                          {t('webhook.endpoint')}
                         </TableCell>
-                        <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>名称</TableCell>
+                        <TableCell sx={{ py: isSmall ? 1 : 1.5 }}>{t('webhook.name')}</TableCell>
                         <TableCell
                           width={isSmall ? 80 : 132}
                           align="center"
                           sx={{ py: isSmall ? 1 : 1.5 }}
                         >
-                          操作
+                          {t('webhook.actions')}
                         </TableCell>
                         <TableCell width={36} padding="none" />
                       </TableRow>
@@ -739,7 +749,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 onClick={() => {
                                   const url = `${server_addr}/api/webhook/${webhook.endpoint}`
                                   navigator.clipboard.writeText(url)
-                                  notification.success('已复制 Webhook 地址～')
+                                  notification.success(t('webhook.copied'))
                                 }}
                                 sx={{
                                   textTransform: 'none',
@@ -759,7 +769,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   },
                                 }}
                               >
-                                复制
+                                {t('webhook.copy')}
                               </Button>
                             </TableCell>
                             <TableCell padding="none">
@@ -800,7 +810,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               >
                                 <Box sx={{ py: 2 }}>
                                   <Typography variant="subtitle2" gutterBottom>
-                                    描述
+                                    {t('webhook.description')}
                                   </Typography>
                                   <Typography
                                     variant="body2"
@@ -810,7 +820,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                       fontSize: isSmall ? '0.75rem' : '0.875rem',
                                     }}
                                   >
-                                    {webhook.description || '暂无描述'}
+                                    {webhook.description || t('data.noData')}
                                   </Typography>
                                 </Box>
                               </Collapse>
@@ -823,7 +833,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 </TableContainer>
               ) : (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  此插件没有定义 Webhook 接入点～
+                  {t('webhook.noEndpoints') || 'No webhook endpoints defined for this plugin.'}
                 </Alert>
               )}
             </CardContent>
@@ -843,11 +853,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   <Table size={isSmall ? 'small' : 'medium'}>
                     <TableHead>
                       <TableRow>
-                        <TableCell width={isMobile ? 80 : 150}>频道</TableCell>
-                        <TableCell width={isMobile ? 80 : 150}>用户</TableCell>
-                        <TableCell>存储键</TableCell>
+                        <TableCell width={isMobile ? 80 : 150}>{t('data.channel')}</TableCell>
+                        <TableCell width={isMobile ? 80 : 150}>{t('data.user')}</TableCell>
+                        <TableCell>{t('data.storageKey')}</TableCell>
                         <TableCell width={isMobile ? 100 : 132} align="center">
-                          操作
+                          {t('data.actions')}
                         </TableCell>
                         <TableCell width={36} padding="none" />
                       </TableRow>
@@ -861,7 +871,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 variant="body2"
                                 sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
                               >
-                                {data.target_chat_key || '全局'}
+                                {data.target_chat_key || t('data.global')}
                               </Typography>
                             </TableCell>
                             <TableCell>
@@ -869,7 +879,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 variant="body2"
                                 sx={{ fontSize: isSmall ? '0.7rem' : '0.875rem' }}
                               >
-                                {data.target_user_id || '全局'}
+                                {data.target_user_id || t('data.global')}
                               </Typography>
                             </TableCell>
                             <TableCell>
@@ -897,7 +907,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                   startIcon={<ContentCopyIcon fontSize="small" />}
                                   onClick={() => {
                                     navigator.clipboard.writeText(data.data_value)
-                                    notification.success('已复制数据值～')
+                                    notification.success(t('messages.dataCopied'))
                                   }}
                                   sx={{
                                     textTransform: 'none',
@@ -917,7 +927,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     },
                                   }}
                                 >
-                                  复制
+                                  {t('actions.copy')}
                                 </Button>
                                 <Button
                                   size="small"
@@ -944,7 +954,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                     },
                                   }}
                                 >
-                                  删除
+                                  {t('data.delete')}
                                 </Button>
                               </Stack>
                             </TableCell>
@@ -984,7 +994,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               >
                                 <Box sx={{ py: 2 }}>
                                   <Typography variant="subtitle2" gutterBottom>
-                                    数据值
+                                    {t('data.value')}
                                   </Typography>
                                   <Typography
                                     variant="body2"
@@ -1013,7 +1023,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 </TableContainer>
               ) : (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  此插件暂无存储数据
+                  {t('data.noData')}
                 </Alert>
               )}
             </CardContent>
@@ -1023,18 +1033,16 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 
       {/* 重置数据确认对话框 */}
       <Dialog open={resetDataConfirmOpen} onClose={() => setResetDataConfirmOpen(false)}>
-        <DialogTitle>确认重置数据？</DialogTitle>
+        <DialogTitle>{t('dialogs.resetTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            此操作将删除该插件的所有存储数据，包括全局数据、频道数据和用户数据。此操作不可恢复，是否继续？
-          </DialogContentText>
+          <DialogContentText>{t('dialogs.resetMessage', { name: plugin.name })}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setResetDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -1045,25 +1053,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认重置
+            {t('actions.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 重载确认对话框 */}
       <Dialog open={reloadConfirmOpen} onClose={() => setReloadConfirmOpen(false)}>
-        <DialogTitle>确认重载插件？</DialogTitle>
+        <DialogTitle>{t('dialogs.reloadTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            重载插件将重新加载此插件的代码，可能会导致正在进行的操作中断。是否继续？
-          </DialogContentText>
+          <DialogContentText>{t('dialogs.reloadMessage', { name: plugin.name })}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setReloadConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -1074,32 +1080,30 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认
+            {t('actions.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 删除云端插件确认对话框 */}
       <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
-        <DialogTitle>确认删除云端插件？</DialogTitle>
+        <DialogTitle>{t('dialogs.deleteTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            此操作将删除云端插件 "{plugin.name}"，包括其所有文件和配置。此操作不可恢复，是否继续？
-          </DialogContentText>
+          <DialogContentText>{t('dialogs.deleteMessage', { name: plugin.name })}</DialogContentText>
           <FormControlLabel
             control={
               <Switch
                 checked={clearDataOnDelete}
-                onChange={(e) => setClearDataOnDelete(e.target.checked)}
+                onChange={e => setClearDataOnDelete(e.target.checked)}
                 color="error"
               />
             }
-            label="同时清除插件数据"
+            label={t('dialogs.deleteDataOption')}
             sx={{ mt: 2, mb: 1 }}
           />
           {clearDataOnDelete && (
             <Alert severity="warning" sx={{ mt: 1 }}>
-              勾选此选项将删除该插件的所有存储数据
+              {t('dialogs.deleteDataWarning')}
             </Alert>
           )}
         </DialogContent>
@@ -1111,7 +1115,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             }}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -1123,27 +1127,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认删除
+            {t('actions.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 更新云端插件确认对话框 */}
       <Dialog open={updateConfirmOpen} onClose={() => setUpdateConfirmOpen(false)} maxWidth="md">
-        <DialogTitle>确认更新云端插件？</DialogTitle>
+        <DialogTitle>{t('dialogs.updateTitle')}</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" component="div">
-              <strong>安全提示：</strong>{' '}
-              插件更新可能包含原作者未经审核的代码变更，包括潜在的恶意代码或不安全内容。
-              NekroAI社区仅作为插件分享平台，不具备对第三方平台托管的插件内容负责的能力。
-              使用任何第三方插件都存在潜在风险，请自行评估插件的安全性。
+              {t('dialogs.updateSecurityWarning')}
             </Typography>
           </Alert>
 
           <DialogContentText sx={{ mt: 2 }}>
-            此操作将从远程仓库更新云端插件 "{plugin.name}"
-            至最新版本。更新过程可能会导致当前配置变更，是否继续？
+            {t('dialogs.updateConfirmMessage', { name: plugin.name })}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1151,7 +1151,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             onClick={() => setUpdateConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -1162,25 +1162,23 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认更新
+            {t('actions.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 删除数据确认对话框 */}
       <Dialog open={deleteDataConfirmOpen} onClose={() => setDeleteDataConfirmOpen(false)}>
-        <DialogTitle>确认删除数据？</DialogTitle>
+        <DialogTitle>{t('dialogs.deleteDataTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            此操作将删除该条存储数据，此操作不可恢复，是否继续？
-          </DialogContentText>
+          <DialogContentText>{t('dialogs.deleteDataMessage')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button
             onClick={() => setDeleteDataConfirmOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={() => {
@@ -1194,7 +1192,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             variant="contained"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
-            确认删除
+            {t('data.confirm')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1210,6 +1208,7 @@ export default function PluginsManagementPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const notification = useNotification()
+  const { t } = useTranslation('plugins')
 
   // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
@@ -1237,7 +1236,7 @@ export default function PluginsManagementPage() {
       pluginsApi.togglePluginEnabled(id, enabled),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
-      notification.success(`插件已${variables.enabled ? '启用' : '禁用'}`)
+      notification.success(t(variables.enabled ? 'status.enabled' : 'status.disabled'))
 
       // 如果是当前选中的插件，更新其状态
       if (selectedPlugin && selectedPlugin.id === variables.id) {
@@ -1245,7 +1244,7 @@ export default function PluginsManagementPage() {
       }
     },
     onError: (error: Error) => {
-      notification.error(`更新失败: ${error.message}`)
+      notification.error(t('messages.updateFailedWithMessage', { message: error.message }))
     },
   })
 
@@ -1308,7 +1307,7 @@ export default function PluginsManagementPage() {
     <>
       <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
         <TextField
-          placeholder="搜索插件..."
+          placeholder={t('list.search')}
           size="small"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
@@ -1367,7 +1366,7 @@ export default function PluginsManagementPage() {
                         }}
                       >
                         <Chip
-                          label={pluginTypeTexts[getPluginType(plugin)]}
+                          label={t(`types.${getPluginType(plugin)}`)}
                           size="small"
                           color={pluginTypeColors[getPluginType(plugin)]}
                           sx={CHIP_VARIANTS.base(isSmall)}
@@ -1383,7 +1382,7 @@ export default function PluginsManagementPage() {
                           {plugin.name}
                         </Typography>
                         {plugin.hasConfig && (
-                          <Tooltip title="有配置项">
+                          <Tooltip title={t('list.hasConfig')}>
                             <SettingsIcon
                               fontSize="small"
                               sx={{ ml: 0.5, opacity: 0.6, fontSize: 16 }}
@@ -1425,7 +1424,7 @@ export default function PluginsManagementPage() {
             }}
           >
             <Typography variant="body2" color="text.secondary">
-              没有找到匹配的插件
+              {t('list.noMatch')}
             </Typography>
           </Box>
         )}
@@ -1487,10 +1486,10 @@ export default function PluginsManagementPage() {
               >
                 <ExtensionIcon sx={{ fontSize: 60, mb: 2, opacity: 0.7 }} />
                 <Typography variant="h6" gutterBottom>
-                  欢迎使用插件管理
+                  {t('welcome.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" paragraph>
-                  请点击右下角按钮选择一个插件来查看详情
+                  {t('welcome.hintMobile')}
                 </Typography>
               </Card>
             )}
@@ -1536,10 +1535,10 @@ export default function PluginsManagementPage() {
               >
                 <ExtensionIcon sx={{ fontSize: 60, mb: 2, opacity: 0.7 }} />
                 <Typography variant="h6" gutterBottom>
-                  欢迎使用插件管理
+                  {t('welcome.title')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  请从左侧选择一个插件查看详情
+                  {t('welcome.hintDesktop')}
                 </Typography>
               </Card>
             )}

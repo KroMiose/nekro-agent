@@ -15,6 +15,7 @@ import {
   KeyboardArrowLeft as KeyboardArrowLeftIcon,
   KeyboardArrowRight as KeyboardArrowRightIcon,
 } from '@mui/icons-material'
+import { useTranslation } from 'react-i18next'
 
 interface TablePaginationStyledProps {
   count: number
@@ -51,6 +52,7 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
 }) => {
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('common')
 
   // 自定义分页导航按钮
   function TablePaginationActions(props: {
@@ -80,12 +82,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
     return (
       <Box sx={{ display: 'flex' }}>
         {showFirstLastPageButtons && (
-          <Tooltip title="首页">
+          <Tooltip title={t('pagination.firstPage')}>
             <span>
               <IconButton
                 onClick={handleFirstPageButtonClick}
                 disabled={page === 0 || loading}
-                aria-label="首页"
+                aria-label={t('pagination.firstPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <LastPageIcon /> : <FirstPageIcon />}
@@ -94,12 +96,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
           </Tooltip>
         )}
         
-        <Tooltip title="上一页">
+        <Tooltip title={t('pagination.previousPage')}>
           <span>
             <IconButton
               onClick={handleBackButtonClick}
               disabled={page === 0 || loading}
-              aria-label="上一页"
+              aria-label={t('pagination.previousPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowRightIcon /> : <KeyboardArrowLeftIcon />}
@@ -107,12 +109,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
           </span>
         </Tooltip>
         
-        <Tooltip title="下一页">
+        <Tooltip title={t('pagination.nextPage')}>
           <span>
             <IconButton
               onClick={handleNextButtonClick}
               disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
-              aria-label="下一页"
+              aria-label={t('pagination.nextPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowLeftIcon /> : <KeyboardArrowRightIcon />}
@@ -121,12 +123,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
         </Tooltip>
         
         {showFirstLastPageButtons && (
-          <Tooltip title="末页">
+          <Tooltip title={t('pagination.lastPage')}>
             <span>
               <IconButton
                 onClick={handleLastPageButtonClick}
                 disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
-                aria-label="末页"
+                aria-label={t('pagination.lastPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <FirstPageIcon /> : <LastPageIcon />}
@@ -147,11 +149,18 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
       onPageChange={onPageChange}
       onRowsPerPageChange={onRowsPerPageChange}
       rowsPerPageOptions={rowsPerPageOptions}
-      labelRowsPerPage={labelRowsPerPage || (isSmall ? '每页:' : '每页行数:')}
+      labelRowsPerPage={
+        labelRowsPerPage ||
+        (isSmall ? t('common.pagination.labelRowsPerPageShort') : t('common.pagination.labelRowsPerPage'))
+      }
       labelDisplayedRows={
         labelDisplayedRows ||
-        (({ from, to, count }) =>
-          isSmall ? `${from}-${to}/${count}` : `${from}-${to} / 共${count}项`)
+        (({ from, to, count }) => {
+          const key = isSmall
+            ? 'common.pagination.displayedRowsShort'
+            : 'common.pagination.displayedRows'
+          return t(key, { from, to, count })
+        })
       }
       ActionsComponent={TablePaginationActions}
       disabled={loading}

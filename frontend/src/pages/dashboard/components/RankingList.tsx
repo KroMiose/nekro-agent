@@ -15,12 +15,9 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import { RankingItem } from '../../../services/api/dashboard'
-import { 
-  UI_STYLES,
-  BORDER_RADIUS,
-  getCurrentThemeMode
-} from '../../../theme/themeConfig'
+import { UI_STYLES, BORDER_RADIUS, getCurrentThemeMode } from '../../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 interface RankingListProps {
   title: string
@@ -38,6 +35,7 @@ export const RankingList: React.FC<RankingListProps> = ({
   const theme = useTheme()
   const themeMode = getCurrentThemeMode()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('dashboard')
 
   // 生成头像背景颜色
   const getAvatarBg = (index: number) => {
@@ -64,20 +62,20 @@ export const RankingList: React.FC<RankingListProps> = ({
   const rankingStyles = {
     AVATAR_OPACITY: {
       light: 0.1,
-      dark: 0.2
+      dark: 0.2,
     },
     HOVER_BG: {
       light: (color: string) => alpha(color, 0.05),
-      dark: (color: string) => alpha(color, 0.12)
+      dark: (color: string) => alpha(color, 0.12),
     },
     NORMAL_BG: {
       light: alpha(theme.palette.grey[500], 0.1),
-      dark: alpha(theme.palette.grey[700], 0.2)
+      dark: alpha(theme.palette.grey[700], 0.2),
     },
     TEXT_COLOR: {
       light: theme.palette.primary.main,
-      dark: theme.palette.primary.light
-    }
+      dark: theme.palette.primary.light,
+    },
   }
 
   // 滚动条样式定义
@@ -85,33 +83,38 @@ export const RankingList: React.FC<RankingListProps> = ({
     WIDTH: '6px',
     TRACK: alpha(theme.palette.divider, 0.1),
     THUMB: alpha(theme.palette.primary.main, 0.2),
-    THUMB_HOVER: alpha(theme.palette.primary.main, 0.3)
+    THUMB_HOVER: alpha(theme.palette.primary.main, 0.3),
   }
 
   return (
-    <Card 
-      className="w-full h-full"
-      sx={CARD_VARIANTS.default.styles}
-    >
+    <Card className="w-full h-full" sx={CARD_VARIANTS.default.styles}>
       <CardContent>
         <Typography variant="h6" gutterBottom color="text.primary">
           {title}
         </Typography>
 
         {loading ? (
-          <Box className="flex justify-center items-center" sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box
+            className="flex justify-center items-center"
+            sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}
+          >
             <CircularProgress />
           </Box>
         ) : data.length === 0 ? (
-          <Box className="flex justify-center items-center" sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}>
+          <Box
+            className="flex justify-center items-center"
+            sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}
+          >
             <Typography variant="body2" color="text.secondary">
-              暂无数据
+              {t('charts.noData')}
             </Typography>
           </Box>
         ) : (
-          <Box 
-            sx={{ 
-              height: isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP,
+          <Box
+            sx={{
+              height: isMobile
+                ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE
+                : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP,
               overflow: 'auto',
               '&::-webkit-scrollbar': {
                 width: scrollbar.WIDTH,
@@ -139,7 +142,9 @@ export const RankingList: React.FC<RankingListProps> = ({
                     borderRadius: 1,
                     mb: 1,
                     bgcolor:
-                      index < 3 ? alpha(getAvatarBg(index), rankingStyles.AVATAR_OPACITY[themeMode]) : 'transparent',
+                      index < 3
+                        ? alpha(getAvatarBg(index), rankingStyles.AVATAR_OPACITY[themeMode])
+                        : 'transparent',
                     transition: 'all 0.2s ease',
                     '&:hover': {
                       bgcolor: rankingStyles.HOVER_BG[themeMode](theme.palette.primary.main),
@@ -150,10 +155,7 @@ export const RankingList: React.FC<RankingListProps> = ({
                   <Box
                     className="flex items-center justify-center w-8 h-8 rounded-full mr-3"
                     sx={{
-                      bgcolor:
-                        index < 3
-                          ? getAvatarBg(index)
-                          : rankingStyles.NORMAL_BG[themeMode],
+                      bgcolor: index < 3 ? getAvatarBg(index) : rankingStyles.NORMAL_BG[themeMode],
                       color: index < 3 ? '#fff' : rankingStyles.TEXT_COLOR[themeMode],
                       fontWeight: 'bold',
                       fontSize: index < 3 ? '1.2rem' : '0.9rem',
@@ -181,7 +183,9 @@ export const RankingList: React.FC<RankingListProps> = ({
                     }
                     secondary={
                       <Typography variant="body2" color="text.secondary">
-                        {type === 'users' ? `消息数: ${item.value}` : `${item.value} 条`}
+                        {type === 'users'
+                          ? `${t('ranking.messageCount')}: ${item.value}`
+                          : `${item.value} ${t('ranking.messages')}`}
                       </Typography>
                     }
                   />

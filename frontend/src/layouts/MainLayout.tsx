@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense, useCallback } from 'react'
+import { useState, useEffect, Suspense, useCallback, useMemo } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -46,9 +46,9 @@ import {
 } from '../config/navigation'
 import { useDevModeStore } from '../stores/devMode'
 import { useSecretCode } from '../hooks/useSecretCode'
-
-// 获取菜单项配置
-const menuItems = createMenuItems()
+import LocaleToggleButton from '../components/common/LocaleToggleButton'
+import { useTranslation } from 'react-i18next'
+import { useLocaleStore } from '../stores/locale'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 
@@ -66,6 +66,15 @@ export default function MainLayout() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
   const { devMode, toggleDevMode } = useDevModeStore()
+  const { t } = useTranslation()
+  const { currentLocale } = useLocaleStore()
+
+  // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
+  const drawerWidth = currentLocale === 'en-US' ? 260 : 240
+
+  // 动态生成菜单项（响应语言变化）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const menuItems = useMemo(() => createMenuItems(), [currentLocale])
 
   // 使用壁纸store
   const { mainWallpaper, mainWallpaperMode, mainWallpaperBlur, mainWallpaperDim } =
@@ -80,9 +89,9 @@ export default function MainLayout() {
   const enableDevMode = useCallback(() => {
     if (!devMode) {
       toggleDevMode()
-      notification.success('开发者模式已开启！')
+      notification.success(t('devMode.enabled', { ns: 'layout-MainLayout' }))
     }
-  }, [devMode, toggleDevMode, notification])
+  }, [devMode, toggleDevMode, notification, t])
 
   const recordClick = useSecretCode(DEV_MODE_SEQUENCE, enableDevMode)
 
@@ -90,12 +99,12 @@ export default function MainLayout() {
     (part: 'nekro' | 'agent') => {
       if (devMode) {
         toggleDevMode()
-        notification.info('开发者模式已关闭')
+        notification.info(t('devMode.disabled', { ns: 'layout-MainLayout' }))
       } else {
         recordClick(part)
       }
     },
-    [devMode, toggleDevMode, notification, recordClick]
+    [devMode, toggleDevMode, notification, t, recordClick]
   )
 
   // 自动展开包含当前路由的菜单项
@@ -114,7 +123,7 @@ export default function MainLayout() {
         }
       }
     })
-  }, [location.pathname])
+  }, [location.pathname, menuItems])
 
   const getCurrentPage = () => {
     return getCurrentPageFromConfigs(location.pathname)
@@ -126,13 +135,13 @@ export default function MainLayout() {
 
   const handleComponentRefresh = () => {
     setRefreshKey(prev => prev + 1)
-    notification.success('页面已刷新', { autoHideDuration: 1500 })
+    notification.success(t('topbar.refreshPage', { ns: 'layout-MainLayout' }), { autoHideDuration: 1500 })
   }
 
   const handleLogout = () => {
     logout()
     navigate('/login')
-    notification.info('已退出登录')
+    notification.info(t('footer.logout', { ns: 'navigation' }))
   }
 
   const handleMenuItemClick = (path?: string, key?: string) => {
@@ -163,15 +172,34 @@ export default function MainLayout() {
 
   const drawer = (
     <Box className="h-full flex flex-col">
-      <Toolbar sx={{ overflow: 'visible' }}>
+      <Toolbar
+        disableGutters
+        sx={{
+          overflow: 'visible',
+          minHeight: '64px !important',
+          width: '100%',
+          px: '0 !important',
+          py: 0,
+          margin: 0,
+        }}
+      >
         <Box
-          className="flex items-center w-full justify-between relative pt-4"
-          sx={{ overflow: 'visible' }}
+          className="flex items-center justify-center relative"
+          sx={{
+            overflow: 'visible',
+            position: 'relative',
+            width: '100%',
+            minHeight: '64px',
+            pt: 2,
+            px: 2,
+            margin: 0,
+          }}
         >
+          {/* Logo - 居中 */}
           <Typography
             variant="h6"
             noWrap
-            className="relative font-sans font-black tracking-[0.2rem] select-none cursor-default text-[1.3rem] transition-transform duration-300 hover:scale-105 mx-auto"
+            className="font-sans font-black tracking-[0.2rem] select-none cursor-default text-[1.3rem] transition-transform duration-300 hover:scale-105"
             sx={{
               overflow: 'visible',
               '@keyframes bounce': {
@@ -218,9 +246,6 @@ export default function MainLayout() {
                 '& .text': {
                   animation: 'wave 1s ease infinite',
                 },
-                '& .version-tag': {
-                  transform: 'scale(1.05) translateY(-1px)',
-                },
               },
             }}
           >
@@ -232,20 +257,52 @@ export default function MainLayout() {
               <span className="highlight">A</span>
               <span className="text">gent</span>
             </Box>
+          </Typography>
+
+          {/* 版本号 - 相对于外层 Box 右上角 */}
+          <Chip
+            label={`v ${version}`}
+            size="small"
+            variant="outlined"
+            className="version-tag"
+            sx={{
+              ...CHIP_VARIANTS.base(true),
+              position: 'absolute',
+              top: '8px',
+              right: '8px',
+              fontSize: '0.65rem',
+              letterSpacing: '-0.02em',
+              backgroundColor: theme.palette.background.paper,
+              borderColor: 'rgba(255,255,255,0.2)',
+              color: theme.palette.primary.light,
+              transition: 'transform 0.3s ease',
+              transform: 'scale(1)',
+              height: '18px',
+              minWidth: 'auto',
+              '.MuiChip-label': {
+                px: 0.5,
+                py: 0,
+                lineHeight: 1,
+              },
+              '&:hover': {
+                transform: 'scale(1.05) translateY(-1px)',
+              },
+            }}
+          />
+
+          {/* 开发标志 - 相对于外层 Box 左上角 */}
+          {devMode && (
             <Chip
-              label={`v ${version}`}
+              label="DEV"
               size="small"
-              variant="outlined"
-              className="version-tag absolute -top-3.5 -right-9 h-4"
+              color="secondary"
               sx={{
-                ...CHIP_VARIANTS.base(true),
-                fontSize: '0.65rem',
-                letterSpacing: '-0.02em',
-                backgroundColor: theme.palette.background.paper,
-                borderColor: 'rgba(255,255,255,0.2)',
-                color: theme.palette.primary.light,
-                transition: 'transform 0.3s ease',
-                transform: 'scale(1)',
+                ...CHIP_VARIANTS.baseWithColor(true, theme.palette.secondary.main),
+                position: 'absolute',
+                top: '8px',
+                left: '8px',
+                fontSize: '0.6rem',
+                letterSpacing: '0.05em',
                 height: '18px',
                 minWidth: 'auto',
                 '.MuiChip-label': {
@@ -255,27 +312,7 @@ export default function MainLayout() {
                 },
               }}
             />
-            {devMode && (
-              <Chip
-                label="DEV"
-                size="small"
-                color="secondary"
-                className="absolute -top-3.5 -left-5 h-4"
-                sx={{
-                  ...CHIP_VARIANTS.baseWithColor(true, theme.palette.secondary.main),
-                  fontSize: '0.6rem',
-                  letterSpacing: '0.05em',
-                  height: '18px',
-                  minWidth: 'auto',
-                  '.MuiChip-label': {
-                    px: 0.5,
-                    py: 0,
-                    lineHeight: 1,
-                  },
-                }}
-              />
-            )}
-          </Typography>
+          )}
         </Box>
       </Toolbar>
       <List className="flex-grow overflow-y-auto">
@@ -383,7 +420,7 @@ export default function MainLayout() {
               <LogoutIcon />
             </ListItemIcon>
             <ListItemText
-              primary="退出登录"
+              primary={t('footer.logout', { ns: 'navigation' })}
               secondary={userInfo?.username}
               primaryTypographyProps={{
                 fontSize: isSmall ? '0.9rem' : 'inherit',
@@ -408,7 +445,7 @@ export default function MainLayout() {
           >
             NekroAgent
           </Link>
-          . 版权所有.
+          . {t('footer.copyright', { ns: 'navigation' })}.
         </Typography>
       </Box>
     </Box>
@@ -479,11 +516,11 @@ export default function MainLayout() {
         sx={{
           width: {
             xs: '100%',
-            md: drawerOpen ? `calc(100% - 240px)` : '100%',
+            md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
           },
           ml: {
             xs: 0,
-            md: drawerOpen ? '240px' : 0,
+            md: drawerOpen ? `${drawerWidth}px` : 0,
           },
           transition: theme =>
             theme.transitions.create(['width', 'margin-left'], {
@@ -507,7 +544,7 @@ export default function MainLayout() {
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
             sx={{ mr: 2, color: 'white' }}
-            aria-label={drawerOpen ? '收起侧边栏' : '展开侧边栏'}
+            aria-label={drawerOpen ? t('aria.collapseSidebar', { ns: 'layout-MainLayout' }) : t('aria.expandSidebar', { ns: 'layout-MainLayout' })}
           >
             {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
           </IconButton>
@@ -540,22 +577,26 @@ export default function MainLayout() {
 
           <ThemeToggleButton sx={{ color: 'white' }} />
 
+          {/* 语言切换按钮 */}
+          <LocaleToggleButton mode="compact" sx={{ color: 'white' }} />
+
           <IconButton
             color="inherit"
             size={isSmall ? 'small' : 'medium'}
             onClick={() => window.open('https://doc.nekro.ai', '_blank')}
-            className="transition-colors"
             sx={{
-              mr: { xs: 1, sm: 1 },
-              ml: { xs: 1, sm: 1 },
               color: 'white',
+              transition: 'transform 0.3s ease, opacity 0.2s ease',
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                transform: 'rotate(12deg) scale(1.05)',
+              },
+              '&:active': {
+                transform: 'scale(0.95)',
               },
             }}
-            aria-label="打开文档"
+            aria-label={t('aria.openDocumentation', { ns: 'layout-MainLayout' })}
           >
-            <MenuBookIcon />
+            <MenuBookIcon sx={{ transition: 'all 0.3s ease' }} />
           </IconButton>
 
           <Button
@@ -586,7 +627,7 @@ export default function MainLayout() {
       <Box
         component="nav"
         sx={{
-          width: { sm: drawerOpen ? 240 : 0 },
+          width: { sm: drawerOpen ? drawerWidth : 0 },
           flexShrink: { sm: 0 },
           transition: theme =>
             theme.transitions.create('width', {
@@ -602,7 +643,7 @@ export default function MainLayout() {
           sx={{
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
-              width: 240,
+              width: drawerWidth,
               backgroundColor: theme =>
                 theme.palette.mode === 'dark'
                   ? alpha(theme.palette.background.paper, 0.68)
@@ -612,6 +653,10 @@ export default function MainLayout() {
                   easing: theme.transitions.easing.sharp,
                   duration: theme.transitions.duration.enteringScreen,
                 }),
+              '& > *': {
+                paddingLeft: '0 !important',
+                paddingRight: '0 !important',
+              },
             },
             display: { xs: 'block', sm: drawerOpen ? 'block' : 'none' },
           }}
@@ -624,17 +669,17 @@ export default function MainLayout() {
         className="flex-grow h-screen overflow-hidden flex flex-col"
         sx={{
           position: 'relative',
-          zIndex: 1, // 确保主内容在壁纸上层
+          flexGrow: 1,
           width: {
             xs: '100%',
-            md: drawerOpen ? 'calc(100% - 240px)' : '100%',
+            md: drawerOpen ? `calc(100% - ${drawerWidth}px)` : '100%',
           },
-          padding: 0,
           transition: theme =>
             theme.transitions.create('width', {
               easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.enteringScreen,
+              duration: theme.transitions.duration.leavingScreen,
             }),
+          zIndex: 1,
         }}
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />

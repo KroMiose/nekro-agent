@@ -4,10 +4,12 @@ import { Box, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
+import { useTranslation } from 'react-i18next'
 
 export default function AdapterOverrideConfigPage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const [searchText, setSearchText] = useState<string>('')
+  const { t } = useTranslation('adapter')
 
   // 创建适配器覆盖配置服务
   const configService = createConfigService(`adapter_override_${adapterKey}`)
@@ -24,7 +26,7 @@ export default function AdapterOverrideConfigPage() {
   })
 
   if (!adapterKey) {
-    return <Box>缺少适配器 KEY</Box>
+    return <Box>{t('override.missingKey')}</Box>
   }
 
   const handleSearchChange = (text: string) => {
@@ -57,12 +59,10 @@ export default function AdapterOverrideConfigPage() {
         showToolbar={true}
         infoBox={
           <Typography variant="body2" color="text.secondary">
-            此处的配置将覆盖指定适配器的系统默认配置。
-            <br />
-            如果启用了某个配置项的覆盖，该适配器下的所有聊天都将默认使用此处设置的值，除非聊天自身再次覆盖了该配置。
+            {t('override.info')}
           </Typography>
         }
-        emptyMessage="该适配器暂无可覆盖的配置项"
+        emptyMessage={t('override.emptyMessage')}
         isOverridePage={true}
       />
     </Box>

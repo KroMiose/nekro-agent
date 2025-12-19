@@ -53,6 +53,8 @@ import { useNotification } from '../../hooks/useNotification'
 import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
 import { presetsApi, Preset } from '../../services/api/presets'
+import { useTranslation } from 'react-i18next'
+import type { TFunction } from 'i18next'
 
 const HtmlTooltip = ThemedTooltip
 
@@ -176,7 +178,8 @@ const getTypeColor = (type: string, isComplex: boolean = false) => {
 function renderSimpleListInput(
   value: unknown,
   elementType: string,
-  onChange: (value: unknown) => void
+  onChange: (value: unknown) => void,
+  t: TFunction
 ): React.ReactNode {
   switch (elementType) {
     case 'bool':
@@ -190,7 +193,7 @@ function renderSimpleListInput(
               color="primary"
             />
           }
-          label={value ? '是' : '否'}
+          label={value ? t('common.yes') : t('common.no')}
         />
       )
     case 'int':
@@ -235,6 +238,7 @@ function renderFieldInput(
     element_type?: string
   },
   onChange: (value: unknown) => void,
+  t: TFunction,
   fieldKey?: string,
   expandedRows?: ExpandedRowsState,
   setExpandedRows?: React.Dispatch<React.SetStateAction<ExpandedRowsState>>
@@ -252,7 +256,7 @@ function renderFieldInput(
               color="primary"
             />
           }
-          label={value ? '是' : '否'}
+          label={value ? t('common.yes') : t('common.no')}
         />
       )
     case 'int':
@@ -283,7 +287,7 @@ function renderFieldInput(
         return (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
             <TextField
-              value={`列表 (${listValue.length} 项)`}
+              value={t('configTable.listCount', { count: listValue.length })}
               size="small"
               fullWidth
               InputProps={{
@@ -327,7 +331,7 @@ function renderFieldInput(
       const listValue = Array.isArray(value) ? value : []
       return (
         <TextField
-          value={`列表 (${listValue.length} 项)`}
+          value={t('configTable.listCount', { count: listValue.length })}
           size="small"
           fullWidth
           InputProps={{ readOnly: true }}
@@ -387,6 +391,7 @@ function renderNestedConfigRows(
   isSmall: boolean,
   expandedRows: ExpandedRowsState,
   setExpandedRows: React.Dispatch<React.SetStateAction<ExpandedRowsState>>,
+  t: TFunction,
   level: number = 0,
   parentKey: string = ''
 ): React.ReactNode[] {
@@ -394,9 +399,7 @@ function renderNestedConfigRows(
   let currentValue
   try {
     currentValue =
-      editingValues[config.key] !== undefined
-        ? JSON.parse(editingValues[config.key])
-        : config.value
+      editingValues[config.key] !== undefined ? JSON.parse(editingValues[config.key]) : config.value
   } catch {
     currentValue = config.value
   }
@@ -445,11 +448,16 @@ function renderNestedConfigRows(
             />
           </TableCell>
           <TableCell>
-            {renderSimpleListInput(item, elementType, newValue => {
-              const newList = [...listValue]
-              newList[index] = newValue
-              handleConfigChange(config.key, JSON.stringify(newList))
-            })}
+            {renderSimpleListInput(
+              item,
+              elementType,
+              newValue => {
+                const newList = [...listValue]
+                newList[index] = newValue
+                handleConfigChange(config.key, JSON.stringify(newList))
+              },
+              t
+            )}
           </TableCell>
         </TableRow>
       )
@@ -468,7 +476,9 @@ function renderNestedConfigRows(
             }}
             sx={{ color: 'primary.main' }}
           >
-            添加{config.sub_item_name || '项目'}
+            {t('configTable.addItem', {
+              name: config.sub_item_name || t('common.item', { defaultValue: '项目' }),
+            })}
           </Button>
         </TableCell>
       </TableRow>
@@ -493,7 +503,7 @@ function renderNestedConfigRows(
                     fontSize: isSmall ? '0.75rem' : 'inherit',
                   }}
                 >
-                  {config.sub_item_name || '项目'} [{index}]
+                  {config.sub_item_name || t('common.item')} [{index}]
                 </Typography>
                 <IconButton
                   size="small"
@@ -585,6 +595,7 @@ function renderNestedConfigRows(
                       newList[index] = newItem
                       handleConfigChange(config.key, JSON.stringify(newList))
                     },
+                    t,
                     subKey,
                     expandedRows,
                     setExpandedRows
@@ -635,15 +646,20 @@ function renderNestedConfigRows(
                       />
                     </TableCell>
                     <TableCell>
-                      {renderSimpleListInput(listItem, fieldElementType, newValue => {
-                        const newFieldList = [...fieldListValue]
-                        newFieldList[listIndex] = newValue
-                        const newList = [...listValue]
-                        const newItem = { ...(newList[index] as Record<string, unknown>) }
-                        newItem[fieldName] = newFieldList
-                        newList[index] = newItem
-                        handleConfigChange(config.key, JSON.stringify(newList))
-                      })}
+                      {renderSimpleListInput(
+                        listItem,
+                        fieldElementType,
+                        newValue => {
+                          const newFieldList = [...fieldListValue]
+                          newFieldList[listIndex] = newValue
+                          const newList = [...listValue]
+                          const newItem = { ...(newList[index] as Record<string, unknown>) }
+                          newItem[fieldName] = newFieldList
+                          newList[index] = newItem
+                          handleConfigChange(config.key, JSON.stringify(newList))
+                        },
+                        t
+                      )}
                     </TableCell>
                   </TableRow>
                 )
@@ -669,7 +685,7 @@ function renderNestedConfigRows(
                       }}
                       sx={{ color: 'primary.main' }}
                     >
-                      添加{fieldSchema.title || fieldName}项目
+                      {t('configTable.addItem', { name: fieldSchema.title || fieldName })}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -698,7 +714,9 @@ function renderNestedConfigRows(
               }}
               sx={{ color: 'primary.main' }}
             >
-              添加新{config.sub_item_name || '项目'}
+              {t('configTable.addNewItem', {
+                name: config.sub_item_name || t('common.item', { defaultValue: '项目' }),
+              })}
             </Button>
           </TableCell>
         </TableRow>
@@ -745,10 +763,15 @@ function renderNestedConfigRows(
             />
           </TableCell>
           <TableCell>
-            {renderSimpleListInput(value, valueType, newValue => {
-              const newDict = { ...dictValue, [key]: newValue }
-              handleConfigChange(config.key, JSON.stringify(newDict))
-            })}
+            {renderSimpleListInput(
+              value,
+              valueType,
+              newValue => {
+                const newDict = { ...dictValue, [key]: newValue }
+                handleConfigChange(config.key, JSON.stringify(newDict))
+              },
+              t
+            )}
           </TableCell>
         </TableRow>
       )
@@ -758,7 +781,7 @@ function renderNestedConfigRows(
         <TableCell sx={tableCellStyle} colSpan={isOverridePage ? 5 : 4}>
           <TextField
             size="small"
-            placeholder="输入新键名，按回车添加"
+            placeholder={t('configTable.newItemPlaceholder')}
             variant="outlined"
             onKeyPress={e => {
               if (e.key === 'Enter') {
@@ -805,18 +828,21 @@ interface ConfirmDialogProps {
   content: ReactNode
 }
 
-const ConfirmDialog = ({ open, onClose, onConfirm, title, content }: ConfirmDialogProps) => (
-  <Dialog open={open} onClose={onClose}>
-    <DialogTitle>{title}</DialogTitle>
-    <DialogContent>{content}</DialogContent>
-    <DialogActions>
-      <Button onClick={onClose}>取消</Button>
-      <Button onClick={onConfirm} color="primary" autoFocus>
-        确认
-      </Button>
-    </DialogActions>
-  </Dialog>
-)
+const ConfirmDialog = ({ open, onClose, onConfirm, title, content }: ConfirmDialogProps) => {
+  const { t } = useTranslation('common')
+  return (
+    <Dialog open={open} onClose={onClose}>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>{content}</DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{t('actions.cancel')}</Button>
+        <Button onClick={onConfirm} color="primary" autoFocus>
+          {t('actions.confirm')}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  )
+}
 
 export default function ConfigTable({
   configKey,
@@ -829,13 +855,16 @@ export default function ConfigTable({
   showSearchBar = true,
   showToolbar = true,
   title,
-  emptyMessage = '暂无配置项',
+  emptyMessage, // Will handle default in component body
   infoBox,
   isOverridePage = false,
 }: ConfigTableProps) {
   const navigate = useNavigate()
   const notification = useNotification()
   const theme = useTheme()
+  const { t } = useTranslation('common')
+  const defaultEmptyMessage = t('messages.noData')
+  const actualEmptyMessage = emptyMessage || defaultEmptyMessage
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
 
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
@@ -846,6 +875,7 @@ export default function ConfigTable({
   const [emptyRequiredFields, setEmptyRequiredFields] = useState<string[]>([])
   const [modelGroups, setModelGroups] = useState<Record<string, ModelGroupConfig>>({})
   const [modelTypes, setModelTypes] = useState<ModelTypeOption[]>([])
+
   const [presets, setPresets] = useState<Preset[]>([])
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
@@ -862,7 +892,7 @@ export default function ConfigTable({
           const types = await configService.getModelTypes()
           setModelTypes(types)
         }
-        
+
         // 加载人设数据
         const presetsResponse = await presetsApi.getList({
           page: 1,
@@ -870,7 +900,7 @@ export default function ConfigTable({
         })
         setPresets(presetsResponse.items)
       } catch (error) {
-        console.error('加载模型数据失败:', error)
+        console.error('Failed to load model data:', error)
       }
     }
     loadData()
@@ -937,7 +967,7 @@ export default function ConfigTable({
         )
         await configService.batchUpdateConfig(configKey, changedConfigs)
         await configService.saveConfig(configKey)
-        notification.success('所有修改已保存并导出到配置文件')
+        notification.success(t('configTable.saveSuccess'))
         setDirtyKeys(new Set())
         setSaveWarningOpen(false)
         onRefresh?.()
@@ -945,18 +975,18 @@ export default function ConfigTable({
         // 检查是否有需要重启的配置项
         const needRestartConfigs = configs.filter(config => {
           if (!dirtyKeys.has(config.key)) return false
-          
+
           // 首先检查配置项本身的 is_need_restart 属性
           if (config.is_need_restart === true) {
             return true
           }
-          
+
           // 然后检查字段模式中的 is_need_restart 属性
           const fieldInfo = config.field_schema?.[config.key]
           if (fieldInfo && fieldInfo.is_need_restart === true) {
             return true
           }
-          
+
           return false
         })
 
@@ -964,11 +994,21 @@ export default function ConfigTable({
           setRestartDialogOpen(true)
         }
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : '保存失败'
+        const errorMessage = error instanceof Error ? error.message : t('messages.saveFailed')
         notification.error(errorMessage)
       }
     },
-    [checkRequiredFields, editingValues, dirtyKeys, configService, configKey, notification, onRefresh, configs]
+    [
+      checkRequiredFields,
+      editingValues,
+      dirtyKeys,
+      configService,
+      configKey,
+      notification,
+      onRefresh,
+      configs,
+      t,
+    ]
   )
 
   useEffect(() => {
@@ -985,13 +1025,13 @@ export default function ConfigTable({
   const handleReloadConfig = async () => {
     try {
       await configService.reloadConfig(configKey)
-      notification.success('配置已重载')
+      notification.success(t('configTable.reloadSuccess'))
       setReloadConfirmOpen(false)
       setEditingValues({})
       setDirtyKeys(new Set())
       onRefresh?.()
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : '重载失败'
+      const errorMessage = error instanceof Error ? error.message : t('messages.operationFailed')
       notification.error(errorMessage)
     }
   }
@@ -1002,14 +1042,14 @@ export default function ConfigTable({
     try {
       const response = await restartApi.restartSystem()
       if (response.code === 200) {
-        notification.success('系统重启请求已发送，请稍候...')
+        notification.success(t('configTable.restartSent'))
         setRestartDialogOpen(false)
       } else {
-        notification.error(response.msg || '重启失败')
+        notification.error(response.msg || t('messages.operationFailed'))
       }
     } catch (error) {
-      console.error('重启系统失败:', error)
-      notification.error('重启系统失败，请检查网络连接')
+      console.error('Failed to restart system:', error)
+      notification.error(t('configTable.restartFailed'))
     } finally {
       setIsRestarting(false)
     }
@@ -1095,7 +1135,7 @@ export default function ConfigTable({
             size="small"
             sx={{ flex: 1 }}
             error={isInvalidValue}
-            helperText={isInvalidValue ? '当前选择的模型组已不存在' : undefined}
+            helperText={isInvalidValue ? t('configTable.currentModelGroupMissing') : undefined}
             placeholder={config.placeholder}
             disabled={disabled}
           >
@@ -1128,10 +1168,10 @@ export default function ConfigTable({
                 height: isSmall ? 24 : 28,
                 fontSize: isSmall ? '0.68rem' : '0.8rem',
               }}
-              aria-label="跳转到模型组配置页面"
+              aria-label={t('configTable.goToModelGroup')}
               disabled={disabled}
             >
-              {`${typeOption.label}模型组`}
+              {t('configTable.ModelGroup', { label: typeOption.label })}
             </Button>
           )}
         </Box>
@@ -1159,15 +1199,15 @@ export default function ConfigTable({
             }}
             size="small"
             sx={{ flex: 1 }}
-            placeholder={config.placeholder || '选择多个人设'}
+            placeholder={config.placeholder || t('configTable.selectMultiple')}
             disabled={disabled}
             SelectProps={{
               multiple: true,
               displayEmpty: true,
-              renderValue: (selected) => {
+              renderValue: selected => {
                 const selectedArray = selected as number[]
                 if (selectedArray.length === 0) {
-                  return <em>未选择人设</em>
+                  return <em>{t('configTable.noPresetSelected')}</em>
                 }
                 return (
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
@@ -1193,28 +1233,18 @@ export default function ConfigTable({
                     })}
                   </Box>
                 )
-              }
+              },
             }}
           >
             {presets.map(preset => (
               <MenuItem key={preset.id} value={preset.id}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-                  <Avatar
-                    src={preset.avatar}
-                    alt={preset.name}
-                    sx={{ width: 20, height: 20 }}
-                  />
+                  <Avatar src={preset.avatar} alt={preset.name} sx={{ width: 20, height: 20 }} />
                   <Typography variant="body2" sx={{ flex: 1 }}>
                     {preset.title}
                   </Typography>
                   {preset.is_remote && (
-                    <Chip
-                      label="云端"
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ height: 16, fontSize: '0.6rem' }}
-                    />
+                    <Chip label="Cloud" sx={{ height: 16, fontSize: '0.6rem' }} />
                   )}
                 </Box>
               </MenuItem>
@@ -1237,9 +1267,9 @@ export default function ConfigTable({
               fontSize: isSmall ? '0.68rem' : '0.8rem',
               mr: 1,
             }}
-            aria-label="清空所有选择"
+            aria-label={t('configTable.clearSelection')}
           >
-            清空
+            {t('actions.clear')}
           </Button>
           <Button
             variant="outlined"
@@ -1257,10 +1287,10 @@ export default function ConfigTable({
               height: isSmall ? 24 : 28,
               fontSize: isSmall ? '0.68rem' : '0.8rem',
             }}
-            aria-label="跳转到人设管理页面"
+            aria-label={t('configTable.jumpToPresetManager')}
             disabled={disabled}
           >
-            管理人设
+            {t('configTable.managePresets')}
           </Button>
         </Box>
       )
@@ -1281,30 +1311,24 @@ export default function ConfigTable({
             size="small"
             sx={{ flex: 1 }}
             error={isInvalidValue}
-            helperText={isInvalidValue ? '当前选择的人设已不存在' : undefined}
-            placeholder={config.placeholder || '选择人设'}
+            helperText={isInvalidValue ? t('configTable.presetMissing') : undefined}
+            placeholder={config.placeholder || t('configTable.selectPreset')}
             disabled={disabled}
             SelectProps={{
-              displayEmpty: true
+              displayEmpty: true,
             }}
           >
             <MenuItem value="-1">
-              <em>默认人设</em>
+              <em>{t('configTable.defaultPreset')}</em>
             </MenuItem>
             {presets.map(preset => (
               <MenuItem key={preset.id} value={preset.id.toString()}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Avatar
-                    src={preset.avatar}
-                    alt={preset.name}
-                    sx={{ width: 20, height: 20 }}
-                  />
-                  <Typography variant="body2">
-                    {preset.title}
-                  </Typography>
+                  <Avatar src={preset.avatar} alt={preset.name} sx={{ width: 20, height: 20 }} />
+                  <Typography variant="body2">{preset.title}</Typography>
                   {preset.is_remote && (
                     <Chip
-                      label="云端"
+                      label={t('common.custom', { defaultValue: 'Cloud' })}
                       size="small"
                       color="primary"
                       variant="outlined"
@@ -1331,10 +1355,10 @@ export default function ConfigTable({
               height: isSmall ? 24 : 28,
               fontSize: isSmall ? '0.68rem' : '0.8rem',
             }}
-            aria-label="跳转到人设管理页面"
+            aria-label={t('configTable.managePresets')}
             disabled={disabled}
           >
-            管理人设
+            {t('configTable.managePresets')}
           </Button>
         </Box>
       )
@@ -1370,14 +1394,17 @@ export default function ConfigTable({
       try {
         const parsedValue = isEditing ? JSON.parse(rawValue) : config.value
         if (config.type === 'list') {
-          displayValue = `列表 (${(Array.isArray(parsedValue) ? parsedValue : []).length} 项)`
+          displayValue = t('configTable.listCount', {
+            count: (Array.isArray(parsedValue) ? parsedValue : []).length,
+          })
         } else {
-          displayValue = `对象 (${
-            Object.keys(typeof parsedValue === 'object' && parsedValue ? parsedValue : {}).length
-          } 项)`
+          displayValue = t('configTable.dictCount', {
+            count: Object.keys(typeof parsedValue === 'object' && parsedValue ? parsedValue : {})
+              .length,
+          })
         }
       } catch {
-        displayValue = '无效的JSON'
+        displayValue = t('configTable.invalidJson')
       }
 
       const canBeNested = config.type === 'list' || config.is_complex
@@ -1412,7 +1439,9 @@ export default function ConfigTable({
             />
             <IconButton
               size="small"
-              onClick={() => setExpandedRows(prev => ({ ...prev, [config.key]: !prev[config.key] }))}
+              onClick={() =>
+                setExpandedRows(prev => ({ ...prev, [config.key]: !prev[config.key] }))
+              }
               disabled={disabled}
             >
               {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
@@ -1434,7 +1463,7 @@ export default function ConfigTable({
                 disabled={disabled}
               />
             }
-            label={rawValue === 'true' ? '是' : '否'}
+            label={rawValue === 'true' ? t('common.yes') : t('common.no')}
             disabled={disabled}
           />
         )
@@ -1512,7 +1541,7 @@ export default function ConfigTable({
               <TextField
                 size="small"
                 sx={{ flexGrow: 1 }}
-                placeholder="搜索配置项 (名称/关键字/描述)"
+                placeholder={t('configTable.searchPlaceholder')}
                 value={searchText}
                 onChange={e => onSearchChange?.(e.target.value)}
                 InputProps={{
@@ -1533,7 +1562,7 @@ export default function ConfigTable({
                 startIcon={<SaveIcon />}
                 disabled={dirtyKeys.size === 0}
               >
-                保存更改
+                {t('configTable.saveChanges')}
               </Button>
               <Button
                 variant="outlined"
@@ -1542,7 +1571,7 @@ export default function ConfigTable({
                 onClick={() => setReloadConfirmOpen(true)}
                 startIcon={<RefreshIcon />}
               >
-                重置配置
+                {t('configTable.resetConfig')}
               </Button>
             </Stack>
           </Stack>
@@ -1565,13 +1594,21 @@ export default function ConfigTable({
             <TableHead>
               <TableRow sx={UNIFIED_TABLE_STYLES.header}>
                 {isOverridePage && (
-                  <TableCell sx={{ width: '10%', minWidth: 80 }}>启用覆盖</TableCell>
+                  <TableCell sx={{ width: '10%', minWidth: 80 }}>
+                    {t('configTable.headerEnableOverride')}
+                  </TableCell>
                 )}
-                <TableCell sx={{ width: '20%', minWidth: 200 }}>配置项</TableCell>
-                <TableCell sx={{ width: '5%', minWidth: 80 }}>属性</TableCell>
-                <TableCell sx={{ width: '5%', minWidth: 80 }}>类型</TableCell>
+                <TableCell sx={{ width: '20%', minWidth: 200 }}>
+                  {t('configTable.headerConfigItem')}
+                </TableCell>
+                <TableCell sx={{ width: '5%', minWidth: 80 }}>
+                  {t('configTable.headerAttribute')}
+                </TableCell>
+                <TableCell sx={{ width: '5%', minWidth: 80 }}>
+                  {t('configTable.headerType')}
+                </TableCell>
                 <TableCell sx={{ width: isOverridePage ? '45%' : '50%', minWidth: 300 }}>
-                  值
+                  {t('configTable.headerValue')}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -1579,7 +1616,7 @@ export default function ConfigTable({
               {filteredConfigs.flatMap(config => {
                 const isEnabled =
                   isOverridePage && config.enable_toggle
-                    ? enableStateMap.get(config.enable_toggle) ?? false
+                    ? (enableStateMap.get(config.enable_toggle) ?? false)
                     : true
 
                 const mainRow = (
@@ -1612,7 +1649,7 @@ export default function ConfigTable({
                             size="small"
                           />
                         ) : (
-                          <Tooltip title="此配置项不支持单独禁用" arrow>
+                          <Tooltip title={t('configTable.cannotDisable')} arrow>
                             <Box sx={{ textAlign: 'center' }}>-</Box>
                           </Tooltip>
                         )}
@@ -1668,7 +1705,7 @@ export default function ConfigTable({
                       <Stack spacing={1} direction="row" alignItems="center">
                         {config.overridable && configKey === 'system' && (
                           <Chip
-                            label="可覆盖"
+                            label={t('configTable.overridable')}
                             size="small"
                             color="info"
                             variant="outlined"
@@ -1680,15 +1717,19 @@ export default function ConfigTable({
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
                       <Chip
                         label={
-                          config.ref_presets_multiple ? 'presets' :
-                          config.ref_presets ? 'preset' : 
-                          config.type
+                          config.ref_presets_multiple
+                            ? 'presets'
+                            : config.ref_presets
+                              ? 'preset'
+                              : config.type
                         }
                         size="small"
                         color={getTypeColor(
-                          config.ref_presets_multiple ? 'presets' :
-                          config.ref_presets ? 'preset' : 
-                          config.type, 
+                          config.ref_presets_multiple
+                            ? 'presets'
+                            : config.ref_presets
+                              ? 'preset'
+                              : config.type,
                           config.is_complex
                         )}
                         variant="outlined"
@@ -1712,6 +1753,7 @@ export default function ConfigTable({
                         isSmall,
                         expandedRows,
                         setExpandedRows,
+                        t,
                         1
                       )
                     : []
@@ -1732,7 +1774,7 @@ export default function ConfigTable({
             }}
           >
             <Typography variant="body1" color="textSecondary">
-              {emptyMessage}
+              {actualEmptyMessage}
             </Typography>
           </Box>
         )}
@@ -1740,20 +1782,20 @@ export default function ConfigTable({
       <ConfirmDialog
         open={reloadConfirmOpen}
         onClose={() => setReloadConfirmOpen(false)}
-        title="确认重置配置"
-        content="重置配置将丢失所有未保存的修改，是否继续？"
+        title={t('configTable.resetConfirmTitle')}
+        content={t('configTable.resetConfirmContent')}
         onConfirm={handleReloadConfig}
       />
       <ConfirmDialog
         open={saveWarningOpen}
         onClose={() => setSaveWarningOpen(false)}
-        title="保存警告"
+        title={t('configTable.saveWarningTitle')}
         content={
           <Box>
             <Typography sx={{ mb: 1 }}>
               {emptyRequiredFields.length > 0
-                ? '以下必填项未填写，是否仍要继续保存？'
-                : '是否仍要继续保存？'}
+                ? t('configTable.saveWarningContent')
+                : t('configTable.saveWarningContentSimple')}
             </Typography>
             {emptyRequiredFields.length > 0 && (
               <List dense>
@@ -1768,7 +1810,7 @@ export default function ConfigTable({
         }
         onConfirm={() => handleSaveAllChanges(true)}
       />
-      
+
       {/* 重启系统确认对话框 */}
       <Dialog
         open={restartDialogOpen}
@@ -1788,31 +1830,26 @@ export default function ConfigTable({
               theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
           }}
         >
-          重启系统确认
+          {t('configTable.restartConfirmTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            重启期间 WebUI 功能将无法正常使用，如果长时间未恢复请检查 NekroAgent 容器日志是否出现异常
+            {t('messages.connectionLost')}
           </Alert>
-          <Typography sx={{ mt: 1, mb: 2 }}>
-            检测到您修改了需要重启才能生效的配置项，确定要重启系统吗？重启过程可能需要大概一分钟，请耐心等待。
-          </Typography>
+          <Typography sx={{ mt: 1, mb: 2 }}>{t('configTable.restartConfirm')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button 
-            onClick={() => setRestartDialogOpen(false)}
-            disabled={isRestarting}
-          >
-            取消
+          <Button onClick={() => setRestartDialogOpen(false)} disabled={isRestarting}>
+            {t('actions.cancel')}
           </Button>
-          <Button 
+          <Button
             onClick={handleRestartSystem}
-            color="error" 
+            color="error"
             variant="contained"
             disabled={isRestarting}
             startIcon={<RestartIcon />}
           >
-            {isRestarting ? '重启中...' : '确认重启'}
+            {isRestarting ? t('configTable.restarting') : t('configTable.restartBtn')}
           </Button>
         </DialogActions>
       </Dialog>

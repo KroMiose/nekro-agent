@@ -36,6 +36,7 @@ import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface ChatChannelDetailProps {
   chatKey: string
@@ -49,6 +50,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
   const queryClient = useQueryClient()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const { t } = useTranslation('chat-channel')
 
   // 查询聊天详情
   const { data: channel, isLoading } = useQuery({
@@ -119,9 +121,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
             <Box className="flex-1 overflow-hidden">
               <Stack direction="row" spacing={1} alignItems="center">
                 <Typography variant="h6" className="font-medium truncate">
-                  {channel.channel_name || '未命名聊天'}
+                  {channel.channel_name || t('channelDetail.unnamedChat')}
                 </Typography>
-                <Tooltip title="刷新聊天信息">
+                <Tooltip title={t('channelDetail.refreshInfo')}>
                   <IconButton
                     size="small"
                     onClick={handleRefresh}
@@ -150,7 +152,11 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
               <Chip
                 size="small"
                 icon={channel.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
-                label={channel.chat_type === 'group' ? '群聊' : '私聊'}
+                label={
+                  channel.chat_type === 'group'
+                    ? t('channelDetail.group')
+                    : t('channelDetail.private')
+                }
                 color={channel.chat_type === 'group' ? 'primary' : 'info'}
                 variant="outlined"
               />
@@ -164,9 +170,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
                   {isToggling ? (
                     <CircularProgress size={16} />
                   ) : channel.is_active ? (
-                    '停用'
+                    t('channelDetail.deactivate')
                   ) : (
-                    '激活'
+                    t('channelDetail.activate')
                   )}
                 </Button>
                 <Button
@@ -174,7 +180,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
                   onClick={() => setResetDialogOpen(true)}
                   startIcon={<RefreshIcon />}
                 >
-                  重置
+                  {t('channelDetail.reset')}
                 </Button>
               </ButtonGroup>
             </Stack>
@@ -198,9 +204,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
             },
           }}
         >
-          <Tab label="基础信息" />
-          <Tab label="覆盖配置" />
-          <Tab label="消息记录" />
+          <Tab label={t('channelDetail.tabs.basicInfo')} />
+          <Tab label={t('channelDetail.tabs.overrideSettings')} />
+          <Tab label={t('channelDetail.tabs.messageHistory')} />
         </Tabs>
       </Card>
 
@@ -225,14 +231,16 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
 
       {/* 重置确认对话框 */}
       <Dialog open={resetDialogOpen} onClose={() => setResetDialogOpen(false)}>
-        <DialogTitle>确认重置聊天？</DialogTitle>
+        <DialogTitle>{t('channelDetail.resetDialog.title')}</DialogTitle>
         <DialogContent>
-          <Typography>重置聊天将清空所有预设状态和效果，此操作不可撤销，是否继续？</Typography>
+          <Typography>{t('channelDetail.resetDialog.content')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setResetDialogOpen(false)}>
+            {t('channelDetail.resetDialog.cancel')}
+          </Button>
           <Button onClick={() => resetChannel()} color="warning" disabled={isResetting}>
-            {isResetting ? <CircularProgress size={20} /> : '确认重置'}
+            {isResetting ? <CircularProgress size={20} /> : t('channelDetail.resetDialog.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

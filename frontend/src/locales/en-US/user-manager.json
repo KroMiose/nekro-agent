@@ -1,0 +1,126 @@
+{
+  "title": "User Management",
+  "search": {
+    "placeholder": "Search username or QQ number",
+    "noResults": "No matching users found"
+  },
+  "actions": {
+    "search": "Search",
+    "create": "Create User",
+    "edit": "Edit User",
+    "delete": "Delete User",
+    "viewDetails": "View Details",
+    "ban": "Ban User",
+    "unban": "Unban User",
+    "resetPassword": "Reset Password",
+    "restoreTrigger": "Restore Trigger Permission",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
+  },
+  "list": {
+    "empty": "No users available",
+    "total": "{{count}} users total",
+    "noData": "No data"
+  },
+  "table": {
+    "userId": "User ID",
+    "username": "Username",
+    "nickname": "Nickname",
+    "status": "Status",
+    "lastActive": "Last Active",
+    "createdAt": "Created At",
+    "adapterPlatform": "Platform",
+    "platformUserId": "Platform User ID",
+    "permission": "Permission",
+    "actions": "Actions"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "banned": "Banned",
+    "normal": "Normal",
+    "passive": "Passive"
+  },
+  "duration": {
+    "permanent": "Permanent",
+    "days": "Days",
+    "hours": "Hours",
+    "minutes": "Mins",
+    "banTitle": "Set ban duration:",
+    "preventTriggerTitle": "Set prevent trigger duration:"
+  },
+  "tooltips": {
+    "view": "View Details",
+    "edit": "Edit User",
+    "ban": "Ban User",
+    "unban": "Unban User",
+    "preventTrigger": "Prevent Trigger",
+    "restoreTrigger": "Restore Trigger",
+    "resetPassword": "Reset Password",
+    "delete": "Delete User"
+  },
+  "sort": {
+    "asc": "Ascending",
+    "desc": "Descending"
+  },
+  "dialogs": {
+    "deleteTitle": "Delete User",
+    "deleteConfirm": "Are you sure you want to delete user \"{{username}}\"? This action cannot be undone.",
+    "unbanTitle": "Unban User",
+    "unbanConfirm": "Are you sure you want to unban user \"{{username}}\"?",
+    "restoreTriggerTitle": "Restore Trigger Permission",
+    "restoreTriggerConfirm": "Are you sure you want to restore trigger permission for user \"{{username}}\"?",
+    "resetPasswordTitle": "Reset Password",
+    "passwordLabel": "New Password",
+    "editUserTitle": "Edit User"
+  },
+  "messages": {
+    "createSuccess": "User created successfully",
+    "updateSuccess": "User updated successfully",
+    "deleteSuccess": "User deleted successfully",
+    "banSuccess": "User banned successfully",
+    "unbanSuccess": "User unbanned successfully",
+    "resetPasswordSuccess": "Password reset successfully",
+    "restoreTriggerSuccess": "Trigger permission restored",
+    "createFailed": "Create failed: {{error}}"
+  },
+  "form": {
+    "username": "Username",
+    "permLevel": "Permission Level",
+    "accessKey": "Access Key",
+    "accessKeyHelper": "Please enter super access key to confirm changes",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "newPassword": "New Password",
+    "resetPasswordPrompt": "Set new password for user \"{{username}}\":",
+    "adapterKey": "Adapter",
+    "platformUserId": "Platform User ID",
+    "createAccessKeyHelper": "Please enter super access key to confirm creation"
+  },
+  "validation": {
+    "usernameRequired": "Username is required",
+    "passwordRequired": "Password is required",
+    "passwordLength": "Password must be at least 6 characters",
+    "passwordMismatch": "Passwords do not match",
+    "adapterKeyRequired": "Adapter is required",
+    "platformUserIdRequired": "Platform User ID is required",
+    "accessKeyRequired": "Access Key is required"
+  },
+  "detail": {
+    "title": "User Details",
+    "basicInfo": "Basic Info",
+    "statusInfo": "Status Info",
+    "otherInfo": "Other Info",
+    "extData": "Extended Data",
+    "updateTime": "Update Time",
+    "uniqueId": "Unique ID",
+    "accountStatus": "Account Status",
+    "banUntil": "Ban Until",
+    "triggerPermission": "Trigger Permission",
+    "preventTriggerUntil": "Prevent Trigger Until",
+    "loadingError": "Loading failed: {{error}}",
+    "notFound": "User data not found",
+    "allowTrigger": "Allow Trigger",
+    "preventTrigger": "Prevent Trigger"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "sidebar": {
+    "logout": "退出登录",
+    "copyright": "版权所有",
+    "toggleSidebar": "切换侧边栏",
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏"
+  },
+  "aria": {
+    "expandSidebar": "展开侧边栏",
+    "collapseSidebar": "收起侧边栏",
+    "openDocumentation": "打开文档"
+  },
+  "topbar": {
+    "openDocumentation": "打开文档",
+    "stars": "Stars",
+    "refreshPage": "页面已刷新"
+  },
+  "devMode": {
+    "enabled": "开发者模式已开启！",
+    "disabled": "开发者模式已关闭"
+  }
+}

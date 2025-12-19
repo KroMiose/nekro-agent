@@ -425,15 +425,6 @@ export const LOGIN_PAGE_STYLES = {
   }
 }
 
-// 指标名称映射
-export const metricNames = {
-  messages: '消息数',
-  sandbox_calls: '沙盒调用',
-  success_calls: '成功调用',
-  failed_calls: '失败调用',
-  success_rate: '成功率',
-}
-
 // 导出兼容旧常量
 export const GRADIENTS = UI_STYLES.GRADIENTS
 export const SHADOWS = UI_STYLES.SHADOWS

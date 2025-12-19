@@ -55,30 +55,32 @@ import { reloadPlugins } from '../../services/api/plugins'
 import { alpha } from '@mui/material/styles'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_STYLES, BORDER_RADIUS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 // 新建插件对话框组件
 interface NewPluginDialogProps {
   open: boolean
   onClose: () => void
   onConfirm: (name: string, description: string) => void
+  t: (key: string) => string
 }
 
-function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
+function NewPluginDialog({ open, onClose, onConfirm, t }: NewPluginDialogProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [error, setError] = useState('')
 
   const handleConfirm = () => {
     if (!name) {
-      setError('请输入插件名称')
+      setError(t('editor.validation.emptyName'))
       return
     }
     if (!name.match(/^[a-z][a-z0-9_]*$/)) {
-      setError('插件名称只能包含小写字母、数字和下划线，且必须以字母开头')
+      setError(t('editor.validation.invalidName'))
       return
     }
     if (!description) {
-      setError('请输入插件描述')
+      setError(t('editor.validation.emptyDescription'))
       return
     }
     onConfirm(name, description)
@@ -94,7 +96,7 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>新建插件</DialogTitle>
+      <DialogTitle>{t('editor.newPlugin')}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
           {error && (
@@ -103,15 +105,15 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
             </Alert>
           )}
           <TextField
-            label="插件名称"
+            label={t('editor.pluginName')}
             value={name}
             onChange={e => setName(e.target.value)}
-            helperText="只能包含小写字母、数字和下划线，且必须以字母开头"
+            helperText={t('editor.pluginNameHelper')}
             fullWidth
             required
           />
           <TextField
-            label="插件描述"
+            label={t('editor.pluginDescription')}
             value={description}
             onChange={e => setDescription(e.target.value)}
             fullWidth
@@ -122,9 +124,9 @@ function NewPluginDialog({ open, onClose, onConfirm }: NewPluginDialogProps) {
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>取消</Button>
+        <Button onClick={handleClose}>{t('editor.cancel')}</Button>
         <Button onClick={handleConfirm} variant="contained">
-          创建
+          {t('editor.create')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -173,6 +175,7 @@ export default function PluginsEditorPage() {
 
   // 使用新的通知系统
   const notification = useNotification()
+  const { t } = useTranslation('plugins')
 
   // 页面初始化时加载文件列表
   useEffect(() => {
@@ -203,7 +206,7 @@ export default function PluginsEditorPage() {
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
             console.error('加载初始文件内容失败:', errorMsg)
-            notification.error('加载初始文件内容失败: ' + errorMsg)
+            notification.error(t('editor.messages.loadFileFailed') + ': ' + errorMsg)
           } finally {
             isLoadingContentRef.current = false
           }
@@ -212,10 +215,10 @@ export default function PluginsEditorPage() {
         // 标记为已初始化
         initializedRef.current = true
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '未知错误'
-        console.error('加载文件列表失败:', err)
-        setError('加载文件列表失败: ' + errorMessage)
-        notification.error('加载文件列表失败: ' + errorMessage)
+        const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+        console.error('Failed to load file list:', err)
+        setError(t('editor.messages.loadFileListFailed') + ': ' + errorMessage)
+        notification.error(t('editor.messages.loadFileListFailed') + ': ' + errorMessage)
       } finally {
         isLoadingFilesRef.current = false
       }
@@ -245,9 +248,9 @@ export default function PluginsEditorPage() {
         setHasUnsavedChanges(false)
         setError('')
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : '未知错误'
-        setError('加载文件内容失败: ' + errorMessage)
-        notification.error('加载文件内容失败: ' + errorMessage)
+        const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+        setError(t('editor.messages.loadContentFailed') + ': ' + errorMessage)
+        notification.error(t('editor.messages.loadContentFailed') + ': ' + errorMessage)
         console.error('Failed to load file content:', err)
       } finally {
         setIsLoading(false)
@@ -267,15 +270,15 @@ export default function PluginsEditorPage() {
       await pluginEditorApi.savePluginFile(selectedFile, code)
       setOriginalCode(code)
       setHasUnsavedChanges(false)
-      notification.success('保存成功')
+      notification.success(t('editor.messages.saveSuccess'))
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      setError('保存失败: ' + errorMessage)
-      notification.error('保存失败: ' + errorMessage)
+      const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+      setError(t('editor.messages.saveFailed') + ': ' + errorMessage)
+      notification.error(t('editor.messages.saveFailed') + ': ' + errorMessage)
     } finally {
       setIsSaving(false)
     }
-  }, [code, selectedFile, notification])
+  }, [code, selectedFile, notification, t])
 
   // 监听保存快捷键
   useEffect(() => {
@@ -303,7 +306,7 @@ export default function PluginsEditorPage() {
   // 生成代码
   const handleGenerate = async () => {
     if (!prompt.trim()) {
-      notification.error('请输入提示词')
+      notification.error(t('editor.messages.enterPrompt'))
       return
     }
 
@@ -366,7 +369,7 @@ export default function PluginsEditorPage() {
       }
     } catch (err) {
       console.error('启动代码生成失败:', err)
-      notification.error('启动代码生成失败')
+      notification.error(t('editor.messages.startGenerateFailed'))
       setIsGenerating(false)
       setAbortController(null)
     }
@@ -387,14 +390,14 @@ export default function PluginsEditorPage() {
       const result = await pluginEditorApi.applyGeneratedCode(selectedFile, prompt, generatedCode)
       setCode(result || '')
       setHasUnsavedChanges(true)
-      notification.success('代码应用成功')
+      notification.success(t('editor.messages.applySuccess'))
 
       // 在移动设备上，自动切换到编辑器标签
       if (isMobile) {
         setActiveTab(0)
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : '代码应用失败'
+      const errorMsg = error instanceof Error ? error.message : t('editor.messages.applyFailed')
       setError(errorMsg)
       notification.error(errorMsg)
     } finally {
@@ -430,7 +433,7 @@ export default function PluginsEditorPage() {
     setCode(originalCode)
     setHasUnsavedChanges(false)
     setIsResetDialogOpen(false)
-    notification.info('代码已重置')
+    notification.info(t('editor.messages.codeReset'))
   }
 
   // 处理代码变更
@@ -449,7 +452,7 @@ export default function PluginsEditorPage() {
     if (!file) return
 
     if (!file.name.endsWith('.py')) {
-      notification.error('只能导入 Python 文件')
+      notification.error(t('editor.messages.importOnlyPy'))
       return
     }
 
@@ -462,10 +465,10 @@ export default function PluginsEditorPage() {
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
         setSelectedFile(file.name)
-        notification.success('文件导入成功')
+        notification.success(t('editor.messages.importSuccess'))
       } catch (err: unknown) {
-        const errorMessage = err instanceof Error ? err.message : '未知错误'
-        notification.error('导入文件失败: ' + errorMessage)
+        const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+        notification.error(t('editor.messages.importFailed') + ': ' + errorMessage)
       }
     }
     reader.readAsText(file)
@@ -494,10 +497,10 @@ export default function PluginsEditorPage() {
       setOriginalCode(template || '')
       setHasUnsavedChanges(false)
       setIsNewPluginDialogOpen(false)
-      notification.success('插件创建成功')
+      notification.success(t('editor.messages.createSuccess'))
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
-      notification.error('创建插件失败: ' + errorMessage)
+      const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+      notification.error(t('editor.messages.createFailed') + ': ' + errorMessage)
       console.error('Failed to create extension:', err)
     } finally {
       setIsLoading(false)
@@ -513,7 +516,7 @@ export default function PluginsEditorPage() {
         isLoadingFilesRef.current = true
 
         await pluginEditorApi.deletePluginFile(fileToDelete)
-        notification.success('文件删除成功')
+        notification.success(t('editor.messages.deleteSuccess'))
 
         // 重新加载文件列表
         const files = await pluginEditorApi.getPluginFiles()
@@ -548,7 +551,7 @@ export default function PluginsEditorPage() {
         }
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : String(error)
-        notification.error('删除失败: ' + errorMsg)
+        notification.error(t('editor.messages.deleteFailed') + ': ' + errorMsg)
       } finally {
         setIsLoading(false)
         isLoadingFilesRef.current = false
@@ -561,7 +564,7 @@ export default function PluginsEditorPage() {
   // 重载插件
   const handleReloadExt = async () => {
     if (!selectedFile) {
-      notification.error('请先选择一个插件文件')
+      notification.error(t('editor.messages.selectPluginFirst'))
       return
     }
 
@@ -572,13 +575,13 @@ export default function PluginsEditorPage() {
       // 获取模块名称：去掉扩展名(.py或.disabled)的文件名
       const moduleName = selectedFile.replace(/\.(py|disabled)$/, '')
       if (!moduleName) {
-        notification.error('无法获取有效的模块名')
+        notification.error(t('editor.messages.invalidModuleName'))
         return
       }
 
       const result = await reloadPlugins(moduleName)
       if (!result.success) {
-        notification.error(result.errorMsg || '重载插件失败: 未知错误')
+        notification.error(result.errorMsg || t('editor.messages.reloadFailed'))
         setReloadExtDialogOpen(false)
         return
       }
@@ -588,10 +591,10 @@ export default function PluginsEditorPage() {
       setFiles(files)
 
       // 保持当前选中文件不变
-      notification.success(`插件 ${moduleName} 重载成功`)
+      notification.success(t('editor.messages.reloadSuccess', { name: moduleName }))
       setReloadExtDialogOpen(false)
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : '未知错误'
+      const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
       notification.error(errorMessage)
       console.error('Failed to reload plugins:', err)
     } finally {
@@ -635,12 +638,17 @@ export default function PluginsEditorPage() {
       const files = await pluginEditorApi.getPluginFiles()
       setFiles(files)
 
-      notification.success(`插件${isDisabled ? '启用' : '禁用'}成功，请重载插件使更改生效`)
+      notification.success(
+        t('editor.messages.toggleSuccess', {
+          action: isDisabled ? t('editor.messages.enabled') : t('editor.messages.disabled'),
+        })
+      )
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      notification.error(
-        `${selectedFile.endsWith('.disabled') ? '启用' : '禁用'}插件失败: ${errorMsg}`
-      )
+      const action = selectedFile.endsWith('.disabled')
+        ? t('editor.messages.enabled')
+        : t('editor.messages.disabled')
+      notification.error(t('editor.messages.toggleFailed', { action }) + ': ' + errorMsg)
     } finally {
       setIsLoading(false)
       isLoadingContentRef.current = false
@@ -652,14 +660,14 @@ export default function PluginsEditorPage() {
     if (generatedCode) {
       navigator.clipboard.writeText(generatedCode)
       setIsCopied(true)
-      notification.success('代码已复制到剪贴板')
+      notification.success(t('editor.messages.codeCopied'))
       setTimeout(() => setIsCopied(false), 2000)
     }
   }
 
   const handleClearCode = () => {
     setGeneratedCode('')
-    notification.info('生成结果已清空')
+    notification.info(t('editor.messages.generateCleared'))
   }
 
   // 切换抽屉
@@ -676,10 +684,10 @@ export default function PluginsEditorPage() {
   const renderFileSelector = () => (
     <Box sx={{ mb: 2 }}>
       <FormControl fullWidth>
-        <InputLabel>选择插件文件</InputLabel>
+        <InputLabel>{t('editor.selectPluginFile')}</InputLabel>
         <Select
           value={selectedFile}
-          label="选择插件文件"
+          label={t('editor.selectPluginFile')}
           onChange={handleFileSelect}
           sx={{
             '& .MuiSelect-select': {
@@ -741,7 +749,7 @@ export default function PluginsEditorPage() {
               >
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   {isDisabled && <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />}
-                  {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
+                  {isDisabled ? file.replace('.disabled', '') + ` (${t('editor.disabled')})` : file}
                 </Box>
               </MenuItem>
             )
@@ -754,7 +762,7 @@ export default function PluginsEditorPage() {
   // 渲染文件操作按钮
   const renderFileActions = () => (
     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-      <Tooltip title="新建插件">
+      <Tooltip title={t('editor.newPluginTooltip')}>
         <IconButton
           color="primary"
           onClick={() => setIsNewPluginDialogOpen(true)}
@@ -763,13 +771,13 @@ export default function PluginsEditorPage() {
           <AddIcon />
         </IconButton>
       </Tooltip>
-      <Tooltip title="导入插件">
+      <Tooltip title={t('editor.importPlugin')}>
         <IconButton color="primary" component="label" size={isSmall ? 'small' : 'medium'}>
           <input type="file" hidden accept=".py" onChange={handleImportFile} />
           <UploadIcon />
         </IconButton>
       </Tooltip>
-      <Tooltip title="保存 (Ctrl+S)">
+      <Tooltip title={t('editor.saveTooltip')}>
         <span>
           <IconButton
             color="primary"
@@ -798,9 +806,9 @@ export default function PluginsEditorPage() {
         }}
         size={isSmall ? 'small' : 'medium'}
       >
-        {isSmall ? '重置' : '重置代码'}
+        {isSmall ? t('actions.reset') : t('editor.resetCode')}
       </Button>
-      <Tooltip title="修改后的插件需要重载才能生效" arrow placement="top">
+      <Tooltip title={t('editor.reloadPlugin')} arrow placement="top">
         <Button
           startIcon={<ExtensionIcon />}
           onClick={() => setReloadExtDialogOpen(true)}
@@ -811,7 +819,7 @@ export default function PluginsEditorPage() {
           }}
           size={isSmall ? 'small' : 'medium'}
         >
-          {isSmall ? '重载' : '重载插件'}
+          {isSmall ? t('actions.reload') : t('editor.reloadPlugin')}
         </Button>
       </Tooltip>
       <Button
@@ -827,11 +835,11 @@ export default function PluginsEditorPage() {
       >
         {isSmall
           ? selectedFile?.endsWith('.disabled')
-            ? '启用'
-            : '禁用'
+            ? t('editor.messages.enabled')
+            : t('editor.messages.disabled')
           : selectedFile?.endsWith('.disabled')
-            ? '启用插件'
-            : '禁用插件'}
+            ? t('editor.enablePlugin')
+            : t('editor.disablePlugin')}
       </Button>
       <Button
         id="more-button"
@@ -882,11 +890,13 @@ export default function PluginsEditorPage() {
               component="div"
               sx={{ flexGrow: 1, fontWeight: 'medium' }}
             >
-              {selectedFile ? selectedFile : '插件编辑器'}
+              {selectedFile ? selectedFile : t('title')}
             </Typography>
             {selectedFile && (
               <Tooltip
-                title={hasUnsavedChanges ? '保存 (Ctrl+S)' : '已保存'}
+                title={
+                  hasUnsavedChanges ? t('editor.saveTooltip') : t('editor.messages.saveSuccess')
+                }
                 arrow
                 placement="bottom"
               >
@@ -937,7 +947,7 @@ export default function PluginsEditorPage() {
             <Tab
               icon={<CodeIcon fontSize="small" />}
               iconPosition="start"
-              label="编辑器"
+              label={t('editor.tabs.editor')}
               sx={{
                 display: 'flex',
                 flexDirection: 'row',
@@ -986,7 +996,7 @@ export default function PluginsEditorPage() {
           }}
         >
           <Box sx={{ mb: 2 }}>
-            <Typography variant="h6">文件管理</Typography>
+            <Typography variant="h6">{t('editor.fileManagement')}</Typography>
           </Box>
           {renderFileSelector()}
 
@@ -1004,7 +1014,7 @@ export default function PluginsEditorPage() {
                 fontWeight: 'medium',
               }}
             >
-              新建插件
+              {t('editor.newPlugin')}
             </Button>
             <Button
               variant="outlined"
@@ -1016,7 +1026,7 @@ export default function PluginsEditorPage() {
                 fontWeight: 'medium',
               }}
             >
-              导入插件
+              {t('editor.importPlugin')}
               <input type="file" hidden accept=".py" onChange={handleImportFile} />
             </Button>
           </Box>
@@ -1024,7 +1034,7 @@ export default function PluginsEditorPage() {
           <Divider sx={{ my: 2 }} />
 
           <Typography variant="h6" sx={{ mb: 1 }}>
-            操作
+            {t('editor.operations')}
           </Typography>
           <Stack spacing={1}>
             <Button
@@ -1043,7 +1053,7 @@ export default function PluginsEditorPage() {
                 opacity: hasUnsavedChanges ? 1 : 0.7,
               }}
             >
-              重置代码
+              {t('editor.resetCode')}
             </Button>
 
             <Button
@@ -1060,7 +1070,7 @@ export default function PluginsEditorPage() {
                 fontWeight: 'medium',
               }}
             >
-              重载插件
+              {t('editor.reloadPlugin')}
             </Button>
 
             <Button
@@ -1095,7 +1105,9 @@ export default function PluginsEditorPage() {
                   }),
               }}
             >
-              {selectedFile?.endsWith('.disabled') ? '启用插件' : '禁用插件'}
+              {selectedFile?.endsWith('.disabled')
+                ? t('editor.enablePlugin')
+                : t('editor.disablePlugin')}
             </Button>
 
             <Button
@@ -1107,7 +1119,7 @@ export default function PluginsEditorPage() {
                   setDeleteDialogOpen(true)
                   setDrawerOpen(false)
                 } else {
-                  notification.error('请先选择一个文件')
+                  notification.error(t('editor.messages.selectPluginFirst'))
                 }
               }}
               disabled={!selectedFile}
@@ -1119,7 +1131,7 @@ export default function PluginsEditorPage() {
                 opacity: selectedFile ? 1 : 0.7,
               }}
             >
-              删除插件
+              {t('editor.deleteFile')}
             </Button>
           </Stack>
         </Drawer>
@@ -1221,7 +1233,9 @@ export default function PluginsEditorPage() {
                             {isDisabled && (
                               <BlockIcon color="error" fontSize="small" sx={{ opacity: 0.7 }} />
                             )}
-                            {isDisabled ? file.replace('.disabled', '') + ' (已禁用)' : file}
+                            {isDisabled
+                              ? file.replace('.disabled', '') + ` (${t('editor.disabled')})`
+                              : file}
                           </Box>
                         </MenuItem>
                       )
@@ -1272,7 +1286,7 @@ export default function PluginsEditorPage() {
                 >
                   <CircularProgress size={36} sx={{ mb: 1 }} />
                   <Typography variant="body2">
-                    {isLoading ? '加载中...' : '正在应用修订方案...'}
+                    {isLoading ? t('editor.loading') : t('editor.applying')}
                   </Typography>
                 </Box>
               )}
@@ -1283,19 +1297,19 @@ export default function PluginsEditorPage() {
                 value={code}
                 onChange={handleCodeChange}
                 loading={
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
+                  <Box
+                    sx={{
+                      display: 'flex',
                       flexDirection: 'column',
-                      justifyContent: 'center', 
-                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      alignItems: 'center',
                       height: '100%',
-                      gap: 2 
+                      gap: 2,
                     }}
                   >
                     <CircularProgress />
                     <Typography variant="body2" color="text.secondary">
-                      正在加载编辑器...
+                      {t('editor.loadingEditor')}
                     </Typography>
                   </Box>
                 }
@@ -1308,7 +1322,7 @@ export default function PluginsEditorPage() {
                   formatOnPaste: true,
                   formatOnType: true,
                   scrollBeyondLastLine: false,
-                  automaticLayout: true,  // 自动布局
+                  automaticLayout: true, // 自动布局
                 }}
                 onMount={editor => {
                   try {
@@ -1337,7 +1351,7 @@ export default function PluginsEditorPage() {
                     }
                   } catch (error) {
                     console.error('Monaco Editor mount error:', error)
-                    notification.error('编辑器初始化失败，请刷新页面重试')
+                    notification.error(t('editor.editorInitFailed'))
                   }
                 }}
                 onValidate={markers => {
@@ -1371,7 +1385,7 @@ export default function PluginsEditorPage() {
             {/* 操作区 */}
             <Box>
               <Typography variant="h6" sx={{ mb: 1 }}>
-                操作区
+                {t('editor.operations')}
               </Typography>
               {renderOperationButtons()}
               <Menu
@@ -1390,13 +1404,15 @@ export default function PluginsEditorPage() {
                         // 如果存在导出功能，使用导出功能，否则提示功能不可用
                         if (typeof pluginEditorApi.exportPluginFile === 'function') {
                           await pluginEditorApi.exportPluginFile(selectedFile)
-                          notification.success('文件导出成功')
+                          notification.success(t('editor.messages.exportSuccess'))
                         } else {
-                          notification.error('导出功能暂不可用')
+                          notification.error(t('editor.messages.exportNotAvailable'))
                         }
                       } catch (err) {
                         notification.error(
-                          '文件导出失败: ' + (err instanceof Error ? err.message : String(err))
+                          t('editor.messages.exportFailed') +
+                            ': ' +
+                            (err instanceof Error ? err.message : String(err))
                         )
                       }
                     }
@@ -1404,14 +1420,14 @@ export default function PluginsEditorPage() {
                   }}
                   disabled={!selectedFile}
                 >
-                  导出
+                  {t('editor.export')}
                 </MenuItem>
                 <MenuItem
                   onClick={async () => {
                     if (selectedFile) {
                       try {
                         await pluginEditorApi.deletePluginFile(selectedFile)
-                        notification.success('文件删除成功')
+                        notification.success(t('editor.messages.deleteSuccess'))
                         // 重新加载文件列表
                         const files = await pluginEditorApi.getPluginFiles()
                         setFiles(files)
@@ -1419,7 +1435,9 @@ export default function PluginsEditorPage() {
                         setCode('')
                       } catch (err) {
                         notification.error(
-                          '删除失败: ' + (err instanceof Error ? err.message : String(err))
+                          t('editor.messages.deleteFailed') +
+                            ': ' +
+                            (err instanceof Error ? err.message : String(err))
                         )
                       }
                     }
@@ -1428,7 +1446,7 @@ export default function PluginsEditorPage() {
                   disabled={!selectedFile}
                 >
                   <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-                  删除
+                  {t('actions.delete')}
                 </MenuItem>
               </Menu>
             </Box>
@@ -1455,8 +1473,8 @@ export default function PluginsEditorPage() {
                   rows={4}
                   value={prompt}
                   onChange={e => setPrompt(e.target.value)}
-                  label="修订需求"
-                  placeholder="描述你想要实现的插件功能或修订需求..."
+                  label={t('editor.revisionRequest')}
+                  placeholder={t('editor.promptPlaceholder')}
                   onKeyDown={e => {
                     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
                       e.preventDefault()
@@ -1543,7 +1561,7 @@ export default function PluginsEditorPage() {
                           fontSize: '0.85rem',
                         }}
                       >
-                        点击中断生成
+                        {t('editor.stopGenerate')}
                       </Box>
                     </>
                   ) : (
@@ -1559,7 +1577,7 @@ export default function PluginsEditorPage() {
                           alignItems: 'center',
                         }}
                       >
-                        AI 生成 (Ctrl+Enter)
+                        {t('editor.aiGenerate')}
                       </Box>
                     </>
                   )}
@@ -1637,10 +1655,10 @@ export default function PluginsEditorPage() {
                         {isGenerating ? (
                           <Box sx={{ textAlign: 'center' }}>
                             <CircularProgress size={32} sx={{ mb: 1 }} />
-                            <Typography variant="body2">正在生成修订方案...</Typography>
+                            <Typography variant="body2">{t('editor.generatingPlan')}</Typography>
                           </Box>
                         ) : (
-                          <Typography variant="body2">生成的修订方案将在这里显示...</Typography>
+                          <Typography variant="body2">{t('editor.generatePlaceholder')}</Typography>
                         )}
                       </Box>
                     )}
@@ -1655,7 +1673,9 @@ export default function PluginsEditorPage() {
                     }}
                   >
                     <Box sx={{ display: 'flex', gap: 0.5 }}>
-                      <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
+                      <Tooltip
+                        title={isCopied ? t('editor.copiedToClipboard') : t('editor.copyCode')}
+                      >
                         <Button
                           startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
                           onClick={handleCopyCode}
@@ -1664,10 +1684,10 @@ export default function PluginsEditorPage() {
                           variant="outlined"
                           sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                         >
-                          {isCopied ? '已复制' : '复制'}
+                          {isCopied ? t('editor.copied') : t('actions.copy')}
                         </Button>
                       </Tooltip>
-                      <Tooltip title="清空生成结果">
+                      <Tooltip title={t('editor.clearGenerated')}>
                         <Button
                           startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
                           onClick={handleClearCode}
@@ -1677,7 +1697,7 @@ export default function PluginsEditorPage() {
                           variant="outlined"
                           sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                         >
-                          清空
+                          {t('editor.clear')}
                         </Button>
                       </Tooltip>
                     </Box>
@@ -1739,7 +1759,7 @@ export default function PluginsEditorPage() {
                         },
                       }}
                     >
-                      {isApplying ? '应用中...' : '应用方案'}
+                      {isApplying ? t('editor.applying') : t('editor.applyCode')}
                     </Button>
                   </Box>
                 </Box>
@@ -1812,7 +1832,7 @@ export default function PluginsEditorPage() {
                     >
                       <CircularProgress size={36} sx={{ mb: 1 }} />
                       <Typography variant="body2">
-                        {isLoading ? '加载中...' : '正在应用修订方案...'}
+                        {isLoading ? t('editor.loading') : t('editor.applying')}
                       </Typography>
                     </Box>
                   )}
@@ -1823,14 +1843,14 @@ export default function PluginsEditorPage() {
                     value={code}
                     onChange={handleCodeChange}
                     loading={
-                      <Box 
-                        sx={{ 
-                          display: 'flex', 
+                      <Box
+                        sx={{
+                          display: 'flex',
                           flexDirection: 'column',
-                          justifyContent: 'center', 
-                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          alignItems: 'center',
                           height: '100%',
-                          gap: 2 
+                          gap: 2,
                         }}
                       >
                         <CircularProgress />
@@ -1848,7 +1868,7 @@ export default function PluginsEditorPage() {
                       formatOnPaste: true,
                       formatOnType: true,
                       scrollBeyondLastLine: false,
-                      automaticLayout: true,  // 自动布局
+                      automaticLayout: true, // 自动布局
                     }}
                     onMount={editor => {
                       try {
@@ -1877,7 +1897,7 @@ export default function PluginsEditorPage() {
                         }
                       } catch (error) {
                         console.error('Monaco Editor mount error:', error)
-                        notification.error('编辑器初始化失败，请刷新页面重试')
+                        notification.error(t('editor.editorInitFailed'))
                       }
                     }}
                     onValidate={markers => {
@@ -2215,51 +2235,49 @@ export default function PluginsEditorPage() {
         open={isNewPluginDialogOpen}
         onClose={() => setIsNewPluginDialogOpen(false)}
         onConfirm={handleCreateNewPlugin}
+        t={t}
       />
 
       {/* 重置代码确认对话框 */}
       <Dialog open={isResetDialogOpen} onClose={() => setIsResetDialogOpen(false)}>
-        <DialogTitle>确认重置代码？</DialogTitle>
+        <DialogTitle>{t('editor.dialogs.resetTitle')}</DialogTitle>
         <DialogContent>
-          <Typography>
-            这将丢弃当前所有未保存的更改，并恢复到服务器上的代码版本。此操作无法撤销。
-          </Typography>
+          <Typography>{t('editor.dialogs.resetMessage')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsResetDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setIsResetDialogOpen(false)}>{t('editor.cancel')}</Button>
           <Button onClick={handleResetCode} color="warning" variant="contained">
-            重置
+            {t('actions.reset')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 删除确认对话框 */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>确认删除</DialogTitle>
+        <DialogTitle>{t('editor.dialogs.deleteTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>确定要删除文件 {fileToDelete} 吗？此操作不可恢复。</DialogContentText>
+          <DialogContentText>
+            {t('editor.dialogs.deleteMessage', { file: fileToDelete })}
+          </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setDeleteDialogOpen(false)}>{t('editor.cancel')}</Button>
           <Button onClick={handleDeleteConfirm} color="error">
-            删除
+            {t('actions.delete')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 重载插件对话框 */}
       <Dialog open={reloadExtDialogOpen} onClose={() => setReloadExtDialogOpen(false)}>
-        <DialogTitle>确认重载插件</DialogTitle>
+        <DialogTitle>{t('editor.dialogs.reloadTitle')}</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            这将重新加载当前插件文件 "{selectedFile?.replace(/\.(py|disabled)$/, '')}"
-            并更新应用。确定要继续吗？
-          </DialogContentText>
+          <DialogContentText>{t('editor.dialogs.reloadMessage')}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setReloadExtDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setReloadExtDialogOpen(false)}>{t('editor.cancel')}</Button>
           <Button onClick={handleReloadExt} color="primary" variant="contained">
-            重载
+            {t('actions.reload')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -2267,23 +2285,29 @@ export default function PluginsEditorPage() {
       {/* 启用/禁用插件对话框 */}
       <Dialog open={isDisableDialogOpen} onClose={() => setIsDisableDialogOpen(false)}>
         <DialogTitle>
-          {selectedFile?.endsWith('.disabled') ? '确认启用插件' : '确认禁用插件'}
+          {selectedFile?.endsWith('.disabled')
+            ? t('editor.dialogs.toggleTitle', { action: t('editor.messages.enabled') })
+            : t('editor.dialogs.toggleTitle', { action: t('editor.messages.disabled') })}
         </DialogTitle>
         <DialogContent>
           <DialogContentText>
-            {selectedFile?.endsWith('.disabled')
-              ? '这将启用当前插件，启用后需要重载插件才能生效。确定要继续吗？'
-              : '这将禁用当前插件，禁用后需要重载插件才能生效。确定要继续吗？'}
+            {t('editor.dialogs.toggleMessage', {
+              action: selectedFile?.endsWith('.disabled')
+                ? t('editor.messages.enabled')
+                : t('editor.messages.disabled'),
+            })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsDisableDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setIsDisableDialogOpen(false)}>{t('editor.cancel')}</Button>
           <Button
             onClick={handleTogglePlugin}
             color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
             variant="contained"
           >
-            {selectedFile?.endsWith('.disabled') ? '启用' : '禁用'}
+            {selectedFile?.endsWith('.disabled')
+              ? t('editor.messages.enabled')
+              : t('editor.messages.disabled')}
           </Button>
         </DialogActions>
       </Dialog>

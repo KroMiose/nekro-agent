@@ -26,15 +26,16 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
-  PieChart, 
-  Pie, 
-  Cell, 
-  Legend
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
 } from 'recharts'
 import { format } from 'date-fns'
 import { zhCN } from 'date-fns/locale'
 import { UI_STYLES } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 // 统计卡片组件
 const StatCard = ({
@@ -50,7 +51,7 @@ const StatCard = ({
 }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  
+
   return (
     <Card
       sx={{
@@ -64,16 +65,16 @@ const StatCard = ({
     >
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Box>
-          <Typography 
-            variant="body2" 
+          <Typography
+            variant="body2"
             color="text.secondary"
             sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
           >
             {title}
           </Typography>
-          <Typography 
-            variant={isMobile ? "h5" : "h4"}
-            component="div" 
+          <Typography
+            variant={isMobile ? 'h5' : 'h4'}
+            component="div"
             sx={{ mt: 1, fontWeight: 'medium' }}
           >
             {value}
@@ -119,7 +120,8 @@ const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
     return (
       <Box
         sx={{
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          bgcolor:
+            theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
           p: isMobile ? 1 : 1.5,
@@ -128,28 +130,28 @@ const CustomPieTooltip = ({ active, payload }: PieTooltipProps) => {
           fontSize: isMobile ? '0.75rem' : '0.875rem',
         }}
       >
-        <Typography 
-          variant="body2" 
-          color="text.primary" 
-          fontWeight="medium" 
-          sx={{ 
+        <Typography
+          variant="body2"
+          color="text.primary"
+          fontWeight="medium"
+          sx={{
             mb: 0.5,
-            fontSize: isMobile ? '0.75rem' : '0.875rem'
+            fontSize: isMobile ? '0.75rem' : '0.875rem',
           }}
         >
           {item.version}
         </Typography>
-        <Typography 
-          variant="body2" 
-          fontWeight="bold" 
+        <Typography
+          variant="body2"
+          fontWeight="bold"
           color="text.primary"
           sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
         >
           数量: {item.count}
         </Typography>
-        <Typography 
-          variant="body2" 
-          fontWeight="bold" 
+        <Typography
+          variant="body2"
+          fontWeight="bold"
           color="text.primary"
           sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
         >
@@ -178,7 +180,8 @@ const CustomLineTooltip = ({ active, payload, label }: LineTooltipProps) => {
     return (
       <Box
         sx={{
-          bgcolor: theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          bgcolor:
+            theme.palette.mode === 'dark' ? 'rgba(30, 30, 30, 0.9)' : 'rgba(255, 255, 255, 0.9)',
           border: `1px solid ${theme.palette.divider}`,
           boxShadow: theme.shadows[3],
           p: isMobile ? 1 : 1.5,
@@ -187,20 +190,20 @@ const CustomLineTooltip = ({ active, payload, label }: LineTooltipProps) => {
           fontSize: isMobile ? '0.75rem' : '0.875rem',
         }}
       >
-        <Typography 
-          variant="body2" 
-          color="text.primary" 
-          fontWeight="medium" 
-          sx={{ 
+        <Typography
+          variant="body2"
+          color="text.primary"
+          fontWeight="medium"
+          sx={{
             mb: 0.5,
-            fontSize: isMobile ? '0.75rem' : '0.875rem'
+            fontSize: isMobile ? '0.75rem' : '0.875rem',
           }}
         >
           日期: {label}
         </Typography>
-        <Typography 
-          variant="body2" 
-          fontWeight="bold" 
+        <Typography
+          variant="body2"
+          fontWeight="bold"
           color="text.primary"
           sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
         >
@@ -224,6 +227,7 @@ export default function TelemetryStats() {
   const [error, setError] = useState<string | null>(null)
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('cloud')
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -233,15 +237,15 @@ export default function TelemetryStats() {
         setStats(data)
         setError(null)
       } catch (err) {
-        console.error('获取社区统计数据失败', err)
-        setError('获取社区统计数据失败')
+        console.error('Failed to fetch telemetry stats', err)
+        setError(t('telemetry.fetchFailed'))
       } finally {
         setLoading(false)
       }
     }
 
     fetchStats()
-  }, [])
+  }, [t])
 
   // 格式化日期
   const formatDate = (dateString: string) => {
@@ -259,7 +263,7 @@ export default function TelemetryStats() {
 
   const renderLineChart = (data: CommunityStats['newInstancesTrend']) => {
     // 处理日期格式
-    const chartData = data.map((item: {date: string, count: number}) => ({
+    const chartData = data.map((item: { date: string; count: number }) => ({
       date: formatDate(item.date),
       count: item.count,
     }))
@@ -310,7 +314,10 @@ export default function TelemetryStats() {
 
   const renderPieChart = (data: CommunityStats['versionDistribution']) => {
     // 计算总数用于百分比计算
-    const total = data.reduce((sum: number, item: {version: string, count: number}) => sum + item.count, 0)
+    const total = data.reduce(
+      (sum: number, item: { version: string; count: number }) => sum + item.count,
+      0
+    )
 
     // 先按版本字符串排序数据
     const sortedData = [...data].sort((a, b) => a.version.localeCompare(b.version))
@@ -344,7 +351,7 @@ export default function TelemetryStats() {
           </defs>
           <Pie
             data={enhancedData}
-            cx={isMobile ? "35%" : "40%"}
+            cx={isMobile ? '35%' : '40%'}
             cy="50%"
             labelLine={false}
             outerRadius={isMobile ? 80 : 100}
@@ -362,7 +369,11 @@ export default function TelemetryStats() {
                 <text
                   x={x}
                   y={y}
-                  fill={theme.palette.mode === 'dark' ? theme.palette.grey[100] : theme.palette.grey[800]}
+                  fill={
+                    theme.palette.mode === 'dark'
+                      ? theme.palette.grey[100]
+                      : theme.palette.grey[800]
+                  }
                   textAnchor={x > (cx as number) ? 'start' : 'end'}
                   dominantBaseline="central"
                   fontSize={isMobile ? 10 : 12}
@@ -421,7 +432,9 @@ export default function TelemetryStats() {
   if (error) {
     return (
       <Box sx={{ p: isMobile ? 2 : 3 }}>
-        <Alert severity="error" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>{error}</Alert>
+        <Alert severity="error" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>
+          {error}
+        </Alert>
       </Box>
     )
   }
@@ -429,7 +442,9 @@ export default function TelemetryStats() {
   if (!stats) {
     return (
       <Box sx={{ p: isMobile ? 2 : 3 }}>
-        <Alert severity="info" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>暂无统计数据</Alert>
+        <Alert severity="info" sx={{ fontSize: isMobile ? '0.85rem' : '1rem' }}>
+          {t('telemetry.noData')}
+        </Alert>
       </Box>
     )
   }
@@ -439,7 +454,7 @@ export default function TelemetryStats() {
       <Grid container spacing={isMobile ? 2 : 3} sx={{ mb: isMobile ? 2 : 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="实例总数"
+            title={t('telemetry.totalInstances')}
             value={formatNumber(stats.totalInstances)}
             icon={<StorageIcon />}
             color={theme.palette.primary.main}
@@ -447,7 +462,7 @@ export default function TelemetryStats() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="活跃实例"
+            title={t('telemetry.activeInstances')}
             value={formatNumber(stats.activeInstances)}
             icon={<CheckCircleIcon />}
             color={theme.palette.success.main}
@@ -455,7 +470,7 @@ export default function TelemetryStats() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="总用户数"
+            title={t('telemetry.totalUsers')}
             value={formatNumber(stats.totalUsers)}
             icon={<PeopleIcon />}
             color={theme.palette.warning.main}
@@ -463,7 +478,7 @@ export default function TelemetryStats() {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="沙盒调用"
+            title={t('telemetry.sandboxCalls')}
             value={formatNumber(stats.totalSandboxCalls)}
             icon={<CodeIcon />}
             color={theme.palette.secondary.main}
@@ -481,7 +496,7 @@ export default function TelemetryStats() {
           >
             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
-                社区活跃版本分布
+                {t('telemetry.versionDistribution')}
               </Typography>
               {renderPieChart(stats.versionDistribution)}
             </CardContent>
@@ -496,7 +511,7 @@ export default function TelemetryStats() {
           >
             <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" gutterBottom>
-                新增实例趋势
+                {t('telemetry.newInstancesTrend')}
               </Typography>
               {renderLineChart(stats.newInstancesTrend)}
             </CardContent>
@@ -506,7 +521,7 @@ export default function TelemetryStats() {
 
       <Box sx={{ mt: isMobile ? 2 : 4 }}>
         <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-          最后更新时间:{' '}
+          {t('telemetry.lastUpdated')}:{' '}
           {format(new Date(stats.lastUpdated), 'yyyy-MM-dd HH:mm:ss', { locale: zhCN })}
         </Typography>
       </Box>

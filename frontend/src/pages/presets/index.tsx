@@ -51,6 +51,7 @@ import { CHIP_VARIANTS, CARD_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/va
 import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
 import PaginationStyled from '../../components/common/PaginationStyled'
+import { useTranslation } from 'react-i18next'
 
 // 定义预设编辑表单数据类型
 interface PresetFormData {
@@ -93,6 +94,7 @@ const PresetEditDialog = ({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { enqueueSnackbar } = useSnackbar()
+  const { t } = useTranslation('presets')
 
   useEffect(() => {
     if (preset) {
@@ -151,7 +153,7 @@ const PresetEditDialog = ({
         if (tagsArray.length >= 8) {
           setErrors(prev => ({
             ...prev,
-            tags: '最多只能添加8个标签',
+            tags: t('form.maxTags'),
           }))
           return
         }
@@ -160,7 +162,7 @@ const PresetEditDialog = ({
         if (tagsArray.some(tag => tag.trim().toLowerCase() === value.toLowerCase())) {
           setErrors(prev => ({
             ...prev,
-            tags: '标签不能重复',
+            tags: t('form.duplicateTag'),
           }))
           return
         }
@@ -207,17 +209,17 @@ const PresetEditDialog = ({
           ...prev,
           avatar: response.data.avatar,
         }))
-        enqueueSnackbar('头像上传成功', { variant: 'success' })
+        enqueueSnackbar(t('form.uploadSuccess'), { variant: 'success' })
       } else {
         setErrors(prev => ({
           ...prev,
-          avatar: `上传失败: ${response.msg}`,
+          avatar: `${t('form.uploadFailed')}: ${response.msg}`,
         }))
       }
     } catch {
       setErrors(prev => ({
         ...prev,
-        avatar: '上传失败，请重试',
+        avatar: t('form.retryUpload'),
       }))
     } finally {
       setLoading(false)
@@ -229,11 +231,11 @@ const PresetEditDialog = ({
     const newErrors: Record<string, string> = {}
 
     if (!formData.name.trim()) {
-      newErrors.name = '请输入人设名称'
+      newErrors.name = t('form.nameRequired')
     }
 
     if (!formData.content.trim()) {
-      newErrors.content = '请输入人设内容'
+      newErrors.content = t('form.contentRequired')
     }
 
     setErrors(newErrors)
@@ -321,13 +323,13 @@ const PresetEditDialog = ({
             borderColor: 'divider',
           }}
         >
-          {isNew ? '创建新人设' : '编辑人设'}
+          {isNew ? t('dialog.createTitle') : t('dialog.editTitle')}
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>
           <Box component="form" noValidate sx={{ mt: 1 }} className="space-y-4" autoComplete="off">
             {preset?.remote_id && preset?.on_shared && (
               <Alert severity="info" sx={{ mb: 2 }}>
-                此人设已共享到云端，保存后可以通过"同步到云端"按钮将修改同步到云端共享。
+                {t('cloud.sharedInfo')}
               </Alert>
             )}
 
@@ -353,7 +355,7 @@ const PresetEditDialog = ({
                     {formData.avatar ? (
                       <img
                         src={formData.avatar}
-                        alt="头像预览"
+                        alt={t('form.avatar')}
                         style={{
                           position: 'absolute',
                           top: 0,
@@ -378,7 +380,7 @@ const PresetEditDialog = ({
                           color: 'text.secondary',
                         }}
                       >
-                        <Typography variant="body2">无头像</Typography>
+                        <Typography variant="body2">{t('form.noAvatar')}</Typography>
                       </Box>
                     )}
                     {loading && (
@@ -413,7 +415,7 @@ const PresetEditDialog = ({
                     onClick={() => fileInputRef.current?.click()}
                     disabled={loading}
                   >
-                    上传头像
+                    {t('form.uploadAvatar')}
                   </Button>
                   {errors.avatar && (
                     <Typography variant="caption" color="error" mt={1}>
@@ -421,14 +423,14 @@ const PresetEditDialog = ({
                     </Typography>
                   )}
                   <Typography variant="caption" color="text.secondary" mt={1}>
-                    建议比例: 正方形图片, 将自动压缩至 500KB 内
+                    {t('form.avatarTip')}
                   </Typography>
                 </Box>
               </Grid>
               <Grid item xs={12} md={8} className="space-y-4">
                 <TextField
                   name="name"
-                  label="人设名称"
+                  label={t('form.name')}
                   fullWidth
                   required
                   value={formData.name}
@@ -439,16 +441,16 @@ const PresetEditDialog = ({
                 />
                 <TextField
                   name="title"
-                  label="标题"
+                  label={t('form.title')}
                   fullWidth
                   value={formData.title}
                   onChange={handleChange}
-                  helperText="默认与名称相同"
+                  helperText={t('form.titleHelper')}
                   autoComplete="off"
                 />
                 <Box sx={{ width: '100%', mb: 2 }}>
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    标签
+                    {t('form.tags')}
                   </Typography>
 
                   <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
@@ -470,7 +472,7 @@ const PresetEditDialog = ({
 
                   <TextField
                     fullWidth
-                    placeholder="输入标签后按回车或逗号添加"
+                    placeholder={t('form.tagsPlaceholder')}
                     size="small"
                     onKeyDown={handleTagKeyDown}
                     onChange={e => {
@@ -485,12 +487,12 @@ const PresetEditDialog = ({
                       ) : null,
                     }}
                     autoComplete="off"
-                    helperText={errors.tags || '用逗号或回车分隔多个标签，最多8个'}
+                    helperText={errors.tags || t('form.tagsHelper')}
                   />
                 </Box>
                 <TextField
                   name="author"
-                  label="作者"
+                  label={t('form.author')}
                   fullWidth
                   value={formData.author}
                   onChange={handleChange}
@@ -498,18 +500,18 @@ const PresetEditDialog = ({
                 />
                 <TextField
                   name="description"
-                  label="描述"
+                  label={t('form.description')}
                   fullWidth
                   multiline
                   rows={2}
                   value={formData.description}
                   onChange={handleChange}
                   autoComplete="off"
-                  helperText="填写人设的简要描述"
+                  helperText={t('form.descriptionHelper')}
                 />
                 <TextField
                   name="content"
-                  label="人设内容"
+                  label={t('form.content')}
                   fullWidth
                   required
                   multiline
@@ -526,10 +528,10 @@ const PresetEditDialog = ({
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={onClose} disabled={loading}>
-            取消
+            {t('dialog.cancel')}
           </Button>
           <Button onClick={handleSave} color="primary" disabled={loading} variant="contained">
-            {loading ? <CircularProgress size={24} /> : '保存'}
+            {loading ? <CircularProgress size={24} /> : t('dialog.save')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -554,18 +556,18 @@ const PresetEditDialog = ({
             borderColor: 'divider',
           }}
         >
-          解除云端关联确认
+          {t('cloud.unlinkTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            此人设来自云端下载，编辑后将解除与云端的关联，无法再同步最新更新。
+            {t('cloud.unlinkWarning')}
           </Alert>
-          <Typography>确定要继续编辑并解除云端关联吗？</Typography>
+          <Typography>{t('cloud.unlinkConfirm')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => handleRemoteConfirm(false)}>取消</Button>
+          <Button onClick={() => handleRemoteConfirm(false)}>{t('dialog.cancel')}</Button>
           <Button onClick={() => handleRemoteConfirm(true)} color="primary" variant="contained">
-            确认解除并继续
+            {t('cloud.unlinkButton')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -600,6 +602,7 @@ const PresetCard = ({
   isSmall?: boolean
 }) => {
   const { enqueueSnackbar } = useSnackbar()
+  const { t } = useTranslation('presets')
   const [preset, setPreset] = useState(initialPreset)
   const [loading, setLoading] = useState(false)
   const [detailData, setDetailData] = useState<PresetDetail | null>(null)
@@ -628,14 +631,14 @@ const PresetCard = ({
           setDetailData(data)
         } catch (error) {
           console.error('获取人设详情失败', error)
-          showError('获取人设详情失败')
+          showError(t('card.loadDetails'))
         } finally {
           setLoading(false)
         }
       }
       fetchData()
     }
-  }, [expanded, preset.id, enqueueSnackbar, detailData, showError])
+  }, [expanded, preset.id, enqueueSnackbar, detailData, showError, t])
 
   // 共享人设到云端
   const handleShareToCloud = async () => {
@@ -644,7 +647,7 @@ const PresetCard = ({
       // 移除过程提示
       const response = await presetsApi.shareToCloud(preset.id, isSfw)
       if (response.code === 200) {
-        showSuccess('共享成功')
+        showSuccess(t('cloud.shareSuccess'))
         setShowShareDialog(false)
         // 更新本地状态
         setPreset({
@@ -655,13 +658,13 @@ const PresetCard = ({
         await onRefreshList()
       } else {
         // 直接显示错误，只使用全局错误提示
-        const errorMsg = response.msg || '未知错误'
-        showError(`共享失败: ${errorMsg}`)
+        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
+        showError(`${t('cloud.shareFailed')}: ${errorMsg}`)
 
         // 如果是描述缺失错误，打开编辑对话框
         if (response.msg && response.msg.includes('描述不能为空')) {
           setTimeout(() => {
-            showError('请添加人设描述后再共享')
+            showError(t('cloud.addDescriptionFirst'))
             onEdit()
           }, 800)
         }
@@ -670,7 +673,7 @@ const PresetCard = ({
     } catch (error) {
       console.error('共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`共享失败: ${errorMessage}`)
+      showError(`${t('cloud.shareFailed')}: ${errorMessage}`)
       setShowShareDialog(false)
     } finally {
       setShareLoading(false)
@@ -684,7 +687,7 @@ const PresetCard = ({
       // 移除过程提示
       const response = await presetsApi.unshare(preset.id)
       if (response.code === 200) {
-        showSuccess('撤回共享成功')
+        showSuccess(t('cloud.revokeSuccess'))
         setShowUnshareDialog(false)
         // 更新本地状态
         setPreset({
@@ -694,14 +697,14 @@ const PresetCard = ({
         })
         await onRefreshList()
       } else {
-        const errorMsg = response.msg || '未知错误'
-        showError(`撤回共享失败: ${errorMsg}`)
+        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
+        showError(`${t('cloud.revokeFailed')}: ${errorMsg}`)
         setShowUnshareDialog(false)
       }
     } catch (error) {
       console.error('撤回共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`撤回共享失败: ${errorMessage}`)
+      showError(`${t('cloud.revokeFailed')}: ${errorMessage}`)
       setShowUnshareDialog(false)
     } finally {
       setShareLoading(false)
@@ -716,18 +719,18 @@ const PresetCard = ({
       const response = await presetsApi.syncToCloud(preset.id, isSfw)
       if (response.code === 200) {
         // 优先显示服务器返回的详细信息，如果没有则显示通用信息
-        showSuccess(response.msg || '同步成功')
+        showSuccess(response.msg || t('cloud.syncSuccess'))
         setShowSyncToCloudDialog(false)
         await onRefreshList()
       } else {
         // 直接显示错误，同时使用全局错误提示
-        const errorMsg = response.msg || '未知错误'
-        showError(`同步失败: ${errorMsg}`)
+        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
+        showError(`${t('cloud.syncFailed')}: ${errorMsg}`)
 
         // 如果是描述缺失错误，打开编辑对话框
         if (response.msg && response.msg.includes('描述不能为空')) {
           setTimeout(() => {
-            showError('请添加人设描述后再同步')
+            showError(t('cloud.addDescriptionFirst'))
             onEdit()
           }, 800)
         }
@@ -736,7 +739,7 @@ const PresetCard = ({
     } catch (error) {
       console.error('同步失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`同步失败: ${errorMessage}`)
+      showError(`${t('cloud.syncFailed')}: ${errorMessage}`)
       setShowSyncToCloudDialog(false)
     } finally {
       setShareLoading(false)
@@ -750,7 +753,7 @@ const PresetCard = ({
     // 未共享 且 无远程id：显示"共享此设定"按钮
     if (!preset.on_shared && !preset.remote_id) {
       return (
-        <Tooltip title="共享此设定到云端">
+        <Tooltip title={t('cloud.shareToCloud')}>
           <IconButton size="small" color="primary" onClick={() => setShowShareDialog(true)}>
             <CloudUploadIcon />
           </IconButton>
@@ -761,12 +764,12 @@ const PresetCard = ({
     else if (preset.on_shared) {
       return (
         <>
-          <Tooltip title="撤回共享">
+          <Tooltip title={t('cloud.revokeShare')}>
             <IconButton size="small" color="warning" onClick={() => setShowUnshareDialog(true)}>
               <CloudOffIcon />
             </IconButton>
           </Tooltip>
-          <Tooltip title="同步更新到云端">
+          <Tooltip title={t('cloud.syncToCloud')}>
             <IconButton size="small" color="primary" onClick={() => setShowSyncToCloudDialog(true)}>
               <UploadIcon />
             </IconButton>
@@ -777,7 +780,7 @@ const PresetCard = ({
     // 未共享但有远程id：显示"从云端同步"按钮（云端下载的人设）
     else if (!preset.on_shared && preset.remote_id) {
       return (
-        <Tooltip title="从云端同步最新版本">
+        <Tooltip title={t('cloud.syncFromCloud')}>
           <IconButton
             size="small"
             color="primary"
@@ -826,7 +829,7 @@ const PresetCard = ({
       {preset.remote_id && (
         <Chip
           icon={<CloudDownloadIcon />}
-          label="云端人设"
+          label={t('filter.cloud')}
           size="small"
           color="primary"
           sx={{
@@ -842,7 +845,7 @@ const PresetCard = ({
       {preset.on_shared && (
         <Chip
           icon={<CloudUploadIcon />}
-          label="已共享"
+          label={t('filter.shared')}
           size="small"
           color="success"
           sx={{
@@ -947,7 +950,7 @@ const PresetCard = ({
                   WebkitBoxOrient: 'vertical',
                 }}
               >
-                {preset.description || '无描述'}
+                {preset.description || t('card.noDescription')}
               </Typography>
             </Box>
 
@@ -980,7 +983,7 @@ const PresetCard = ({
                     ))
                   ) : !isGridLayout ? (
                     <Typography variant="caption" color="text.disabled">
-                      无标签
+                      {t('filter.noTags')}
                     </Typography>
                   ) : null}
                   {isGridLayout && tagsArray.length > 3 && (
@@ -1005,7 +1008,7 @@ const PresetCard = ({
                   }}
                 >
                   <Typography variant="caption" color="text.secondary">
-                    作者: {preset.author || '未知'}
+                    {t('form.author')}: {preset.author || t('common.unknown', { ns: 'common' })}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     最近更新: {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
@@ -1041,16 +1044,16 @@ const PresetCard = ({
             },
           }}
         >
-          详情
+          {t('card.moreActions')}
         </Button>
         <Box>
-          <Tooltip title="编辑">
+          <Tooltip title={t('card.edit')}>
             <IconButton size="small" color="primary" onClick={onEdit}>
               <EditIcon />
             </IconButton>
           </Tooltip>
           {preset.remote_id && preset.on_shared && (
-            <Tooltip title="同步云端最新数据">
+            <Tooltip title={t('cloud.syncFromCloud')}>
               <IconButton
                 size="small"
                 color="primary"
@@ -1071,7 +1074,7 @@ const PresetCard = ({
             </Tooltip>
           )}
           {renderShareButtons()}
-          <Tooltip title="删除">
+          <Tooltip title={t('card.delete')}>
             <IconButton size="small" color="error" onClick={onDelete}>
               <DeleteIcon />
             </IconButton>
@@ -1169,7 +1172,7 @@ const PresetCard = ({
                         ))
                       ) : (
                         <Typography variant="caption" color="text.disabled">
-                          无标签
+                          {t('filter.noTags')}
                         </Typography>
                       )}
                     </Box>
@@ -1182,7 +1185,7 @@ const PresetCard = ({
                 </Typography>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-                    作者: {preset.author || '未知'}
+                    {t('form.author')}: {preset.author || t('common.unknown', { ns: 'common' })}
                   </Typography>
                   <Typography
                     variant="body1"
@@ -1199,12 +1202,12 @@ const PresetCard = ({
                       mt: 1,
                     }}
                   >
-                    {preset.description || '无描述'}
+                    {preset.description || t('card.noDescription')}
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap', mb: 2, mt: 3 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                        更新时间:
+                        {t('card.updatedAt')}:
                       </Typography>
                       <Typography variant="body2">
                         {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
@@ -1214,7 +1217,7 @@ const PresetCard = ({
                 </Box>
                 <Divider sx={{ mb: 2.5 }} />
                 <Typography variant="h6" gutterBottom fontWeight={600}>
-                  人设内容:
+                  {t('form.content')}:
                 </Typography>
                 <Typography
                   variant="body2"
@@ -1233,17 +1236,17 @@ const PresetCard = ({
                     lineHeight: 1.6,
                   }}
                 >
-                  {detailData.content || '无内容'}
+                  {detailData.content || t('card.noContent')}
                 </Typography>
               </Grid>
             </Grid>
           ) : (
-            <Typography color="text.secondary">加载失败</Typography>
+            <Typography color="text.secondary">{t('card.loadDetails')}</Typography>
           )}
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button variant="contained" onClick={onExpand} color="primary">
-            关闭
+            {t('actions.close')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1268,19 +1271,17 @@ const PresetCard = ({
             borderColor: 'divider',
           }}
         >
-          共享人设到云端
+          {t('cloud.shareConfirmTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
-          <Typography paragraph>
-            确定要将此人设共享到云端平台吗？共享后将可被其他实例下载使用。
-          </Typography>
+          <Typography paragraph>{t('cloud.shareConfirmMessage')}</Typography>
           <Alert severity="info" sx={{ mb: 2 }}>
-            共享后，其他人可以下载和使用您的人设。
+            {t('cloud.shareInfo')}
           </Alert>
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <FormControlLabel
               control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
-              label="我确认这是符合社区内容规则的安全内容(SFW)"
+              label={t('cloud.sfwConfirm')}
             />
             <FormControlLabel
               control={
@@ -1291,14 +1292,14 @@ const PresetCard = ({
               }
               label={
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  我已阅读并接受{' '}
+                  {t('cloud.termsConfirm')}{' '}
                   <Link
                     href="https://community.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
                   >
-                    《NekroAI 社区资源共享协议》
+                    {t('cloud.termsLink')}
                   </Link>
                 </Box>
               }
@@ -1307,7 +1308,7 @@ const PresetCard = ({
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowShareDialog(false)} disabled={shareLoading}>
-            取消
+            {t('dialog.cancel')}
           </Button>
           <Button
             onClick={handleShareToCloud}
@@ -1315,7 +1316,7 @@ const PresetCard = ({
             variant="contained"
             disabled={shareLoading || !isSfw || !agreeToTerms}
           >
-            {shareLoading ? <CircularProgress size={24} /> : '共享'}
+            {shareLoading ? <CircularProgress size={24} /> : t('actions.share')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1340,17 +1341,17 @@ const PresetCard = ({
             borderColor: 'divider',
           }}
         >
-          撤回共享
+          {t('cloud.revokeConfirmTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            撤回共享将从云端删除此人设，其他实例可能无法再下载此人设。
+            {t('cloud.revokeWarning')}
           </Alert>
-          <Typography>确定要撤回共享吗？</Typography>
+          <Typography>{t('cloud.revokeConfirmMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowUnshareDialog(false)} disabled={shareLoading}>
-            取消
+            {t('dialog.cancel')}
           </Button>
           <Button
             onClick={handleUnshare}
@@ -1358,7 +1359,7 @@ const PresetCard = ({
             variant="contained"
             disabled={shareLoading}
           >
-            {shareLoading ? <CircularProgress size={24} /> : '撤回共享'}
+            {shareLoading ? <CircularProgress size={24} /> : t('cloud.revokeShare')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1383,19 +1384,17 @@ const PresetCard = ({
             borderColor: 'divider',
           }}
         >
-          同步更新到云端
+          {t('cloud.syncConfirmTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
-          <Typography paragraph>
-            确定要将本地修改同步到云端平台吗？这将覆盖云端的当前版本。
-          </Typography>
+          <Typography paragraph>{t('cloud.syncConfirmMessage')}</Typography>
           <Alert severity="info" sx={{ mb: 2 }}>
-            同步将用本地版本覆盖云端版本。
+            {t('cloud.syncWarning')}
           </Alert>
           <Box sx={{ display: 'flex', flexDirection: 'column' }}>
             <FormControlLabel
               control={<Checkbox checked={isSfw} onChange={e => setIsSfw(e.target.checked)} />}
-              label="我确认这是符合社区内容规则的安全内容(SFW)"
+              label={t('cloud.sfwConfirm')}
             />
             <FormControlLabel
               control={
@@ -1406,14 +1405,14 @@ const PresetCard = ({
               }
               label={
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  我已阅读并接受{' '}
+                  {t('cloud.termsConfirm')}{' '}
                   <Link
                     href="https://community.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
                   >
-                    《NekroAI 社区资源共享协议》
+                    {t('cloud.termsLink')}
                   </Link>
                 </Box>
               }
@@ -1422,7 +1421,7 @@ const PresetCard = ({
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setShowSyncToCloudDialog(false)} disabled={shareLoading}>
-            取消
+            {t('dialog.cancel')}
           </Button>
           <Button
             onClick={handleSyncToCloud}
@@ -1460,6 +1459,7 @@ export default function PresetsPage() {
   // 添加宽屏检测
   const isLargeScreen = useMediaQuery(theme.breakpoints.up('lg'))
   const isExtraLargeScreen = useMediaQuery(theme.breakpoints.up('xl'))
+  const { t } = useTranslation('presets')
 
   // 统一使用 notistack 的通知系统
   const showError = useCallback(
@@ -1497,11 +1497,11 @@ export default function PresetsPage() {
       }
     } catch (error) {
       console.error('获取人设列表失败', error)
-      showError('获取人设列表失败')
+      showError(t('list.fetchFailed'))
     } finally {
       setLoading(false)
     }
-  }, [page, pageSize, search, selectedTags, showError])
+  }, [page, pageSize, search, selectedTags, showError, t])
 
   useEffect(() => {
     fetchData()
@@ -1514,9 +1514,9 @@ export default function PresetsPage() {
       setAvailableTags(tags)
     } catch (error) {
       console.error('获取标签失败', error)
-      showError('获取标签列表失败，请检查网络连接')
+      showError(t('list.fetchTagsFailed'))
     }
-  }, [showError])
+  }, [showError, t])
 
   useEffect(() => {
     fetchAvailableTags()
@@ -1548,14 +1548,14 @@ export default function PresetsPage() {
 
   const handleEditClick = async (preset: Preset) => {
     try {
-      showSuccess('正在加载人设详情...')
+      showSuccess(t('list.loadingDetails'))
       // 加载详细数据
       const detailData = await presetsApi.getDetail(preset.id)
       setEditingPreset(detailData)
       setEditDialog(true)
     } catch (error) {
       console.error('获取人设详情失败', error)
-      showError('获取人设详情失败')
+      showError(t('card.loadDetails'))
     }
   }
 
@@ -1564,22 +1564,22 @@ export default function PresetsPage() {
     try {
       if (editingPreset) {
         console.log('更新现有人设:', editingPreset.id)
-        showSuccess('正在更新人设...')
+        showSuccess(t('list.updating'))
         await presetsApi.update(editingPreset.id, data)
-        showSuccess('更新成功')
+        showSuccess(t('messages.updateSuccess', { ns: 'common' }))
       } else {
         console.log('创建新人设')
-        showSuccess('正在创建人设...')
+        showSuccess(t('list.creating'))
         const result = await presetsApi.create(data)
         console.log('创建人设API响应:', result)
-        showSuccess('创建成功')
+        showSuccess(t('messages.createSuccess', { ns: 'common' }))
       }
       fetchData()
       fetchAvailableTags() // 刷新标签列表
     } catch (error) {
       console.error('保存失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`保存失败: ${errorMessage}`)
+      showError(`${t('messages.saveFailed', { ns: 'common' })}: ${errorMessage}`)
       throw error // 传递错误以便上层组件处理
     }
   }
@@ -1592,9 +1592,9 @@ export default function PresetsPage() {
     if (confirmDelete === null) return
 
     try {
-      showSuccess('正在删除人设...')
+      showSuccess(t('list.deleting'))
       await presetsApi.delete(confirmDelete)
-      showSuccess('删除成功')
+      showSuccess(t('messages.deleteSuccess', { ns: 'common' }))
       fetchData()
       fetchAvailableTags() // 刷新标签列表
       if (expandedId === confirmDelete) {
@@ -1603,7 +1603,7 @@ export default function PresetsPage() {
     } catch (error) {
       console.error('删除失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`删除失败: ${errorMessage}`)
+      showError(`${t('messages.deleteFailed', { ns: 'common' })}: ${errorMessage}`)
     } finally {
       setConfirmDelete(null)
     }
@@ -1614,7 +1614,7 @@ export default function PresetsPage() {
       const response = await presetsApi.sync(id)
       if (response.code === 200) {
         // 优先显示服务器返回的详细信息，如果没有则显示通用成功信息
-        showSuccess(response.msg || '同步成功')
+        showSuccess(response.msg || t('cloud.syncSuccess'))
         // 强制刷新数据
         await fetchData()
         // 如果当前有展开的详情，也需要刷新
@@ -1623,14 +1623,14 @@ export default function PresetsPage() {
           setTimeout(() => setExpandedId(id), 100) // 再展开以刷新详情
         }
       } else {
-        const errorMsg = response.msg || '未知错误'
-        showError(`同步失败: ${errorMsg}`)
+        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
+        showError(`${t('cloud.syncFailed')}: ${errorMsg}`)
         throw new Error(errorMsg)
       }
     } catch (error) {
       console.error('同步失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`同步失败: ${errorMessage}`)
+      showError(`${t('cloud.syncFailed')}: ${errorMessage}`)
       throw error
     }
   }
@@ -1639,24 +1639,27 @@ export default function PresetsPage() {
   const handleRefreshSharedStatus = async () => {
     try {
       setRefreshingShared(true)
-      showSuccess('正在刷新共享状态...')
+      showSuccess(t('cloud.refreshingStatus'))
       const response = await presetsApi.refreshSharedStatus()
       if (response.code === 200) {
-        showSuccess(response.msg || '刷新共享状态成功')
+        showSuccess(response.msg || t('cloud.refreshStatusSuccess'))
         if (response.data) {
           showSuccess(
-            `更新了${response.data.updated_count}个人设的共享状态，云端共有${response.data.total_cloud_presets}个人设`
+            t('cloud.refreshStatusDetails', {
+              updated: response.data.updated_count,
+              total: response.data.total_cloud_presets,
+            })
           )
         }
         // 刷新人设列表
         await fetchData()
       } else {
-        showError(`刷新失败: ${response.msg}`)
+        showError(`${t('cloud.refreshFailed')}: ${response.msg}`)
       }
     } catch (error) {
       console.error('刷新共享状态失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
-      showError(`刷新失败: ${errorMessage}`)
+      showError(`${t('cloud.refreshFailed')}: ${errorMessage}`)
     } finally {
       setRefreshingShared(false)
     }
@@ -1693,7 +1696,7 @@ export default function PresetsPage() {
         <Box component="form" onSubmit={handleSearch} className="flex" autoComplete="off">
           <TextField
             size="small"
-            placeholder="搜索人设"
+            placeholder={t('search.placeholder')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             autoComplete="off"
@@ -1720,9 +1723,9 @@ export default function PresetsPage() {
             {refreshingShared ? (
               <CircularProgress size={isSmall ? 16 : 24} />
             ) : isMobile ? (
-              '刷新状态'
+              t('actions.refreshShort')
             ) : (
-              '刷新共享状态'
+              t('actions.refresh')
             )}
           </Button>
           <Button
@@ -1734,7 +1737,7 @@ export default function PresetsPage() {
             }}
             size={isSmall ? 'small' : 'medium'}
           >
-            创建人设
+            {t('actions.create')}
           </Button>
         </Box>
       </Box>
@@ -1761,7 +1764,7 @@ export default function PresetsPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <FilterListIcon fontSize="small" color="primary" />
               <Typography variant="body2" color="text.secondary" fontWeight={500}>
-                按标签筛选 ({availableTags.length} 个标签)
+                {t('filter.byTag', { count: availableTags.length })}
               </Typography>
             </Box>
             {selectedTags.length > 0 && (
@@ -1779,7 +1782,7 @@ export default function PresetsPage() {
                   },
                 }}
               >
-                清除筛选
+                {t('filter.clearFilters')}
               </Button>
             )}
           </Box>
@@ -1872,7 +1875,7 @@ export default function PresetsPage() {
           }}
         >
           <Typography color="text.secondary" gutterBottom>
-            没有找到人设
+            {t('list.noResults')}
           </Typography>
           <Button
             variant="outlined"
@@ -1883,7 +1886,7 @@ export default function PresetsPage() {
             }}
             size={isSmall ? 'small' : 'medium'}
           >
-            创建新人设
+            {t('actions.create')}
           </Button>
         </Box>
       )}
@@ -1917,15 +1920,15 @@ export default function PresetsPage() {
             borderColor: 'divider',
           }}
         >
-          确认删除
+          {t('dialog.confirmDeleteTitle')}
         </DialogTitle>
         <DialogContent sx={{ p: 3 }}>
-          <Typography>确定要删除这个人设吗？此操作不可恢复。</Typography>
+          <Typography>{t('dialog.confirmDeleteMessage')}</Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setConfirmDelete(null)}>取消</Button>
+          <Button onClick={() => setConfirmDelete(null)}>{t('dialog.cancel')}</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            确认删除
+            {t('dialog.confirmDeleteTitle')}
           </Button>
         </DialogActions>
       </Dialog>

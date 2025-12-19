@@ -13,6 +13,7 @@ import { useOutletContext, useParams } from 'react-router-dom'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
 import { adaptersApi, AdapterDetailInfo } from '../../services/api/adapters'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 interface AdapterContextType {
   adapterInfo: AdapterDetailInfo
@@ -22,6 +23,7 @@ export default function AdapterHomePage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const { adapterInfo } = useOutletContext<AdapterContextType>()
   const theme = useTheme()
+  const { t } = useTranslation('adapter')
 
   // 获取适配器文档
   const {
@@ -58,8 +60,8 @@ export default function AdapterHomePage() {
           </Typography>
           {adapterInfo.version && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              版本: {adapterInfo.version}
-              {adapterInfo.author && ` • 作者: ${adapterInfo.author}`}
+              {t('home.version')}: {adapterInfo.version}
+              {adapterInfo.author && ` • ${t('home.author')}: ${adapterInfo.author}`}
             </Typography>
           )}
         </CardContent>
@@ -71,13 +73,13 @@ export default function AdapterHomePage() {
           <CardContent sx={{ p: 3, textAlign: 'center' }}>
             <CircularProgress size={32} />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              加载文档中...
+              {t('home.loadingDocs')}
             </Typography>
           </CardContent>
         </Card>
       ) : docsError ? (
         <Alert severity="error" sx={{ mb: 3 }}>
-          加载文档失败：{docsError.message}
+          {t('home.loadDocsFailed')}：{docsError.message}
         </Alert>
       ) : docs?.exists ? (
         <Card sx={CARD_VARIANTS.default.styles}>
@@ -85,14 +87,14 @@ export default function AdapterHomePage() {
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <DescriptionIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                适配器文档
+                {t('home.adapterDocs')}
               </Typography>
             </Box>
             <MarkdownRenderer>{docs.content}</MarkdownRenderer>
           </CardContent>
         </Card>
       ) : (
-        <Alert severity="info">该适配器暂无文档说明。</Alert>
+        <Alert severity="info">{t('home.noDocs')}</Alert>
       )}
     </Box>
   )

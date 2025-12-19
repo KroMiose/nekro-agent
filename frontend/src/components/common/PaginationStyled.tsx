@@ -1,4 +1,5 @@
 import { Pagination, PaginationProps, Stack, Typography } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 
 interface PaginationStyledProps extends PaginationProps {
   totalPages: number
@@ -24,6 +25,8 @@ const PaginationStyled = ({
   showPageInfo = true, // 默认显示页码信息
   ...props
 }: PaginationStyledProps) => {
+  const { t } = useTranslation('common')
+  
   // 如果只有一页或没有页且不是始终显示模式，则不显示分页器
   if (totalPages <= 1 && !alwaysShow) return null
 
@@ -50,7 +53,7 @@ const PaginationStyled = ({
           color="text.secondary"
           sx={{ mb: 0.5 }}
         >
-          第 {validCurrentPage} 页 / 共 {pageCount} 页
+          {t('common.page', { current: validCurrentPage, total: pageCount })}
         </Typography>
       )}
       

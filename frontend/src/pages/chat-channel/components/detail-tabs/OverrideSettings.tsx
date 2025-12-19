@@ -3,6 +3,7 @@ import { Box, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import ConfigTable from '../../../../components/common/ConfigTable'
 import { createConfigService } from '../../../../services/api/unified-config'
+import { useTranslation } from 'react-i18next'
 
 interface OverrideSettingsProps {
   chatKey: string
@@ -10,6 +11,7 @@ interface OverrideSettingsProps {
 
 export default function OverrideSettings({ chatKey }: OverrideSettingsProps) {
   const [searchText, setSearchText] = useState<string>('')
+  const { t } = useTranslation('chat-channel')
 
   // 创建聊天频道覆盖配置服务
   const configKey = `channel_config_${chatKey}`
@@ -55,12 +57,10 @@ export default function OverrideSettings({ chatKey }: OverrideSettingsProps) {
         showToolbar={true}
         infoBox={
           <Typography variant="body2" color="text.secondary">
-            此处的配置将仅对当前聊天频道生效。
-            <br />
-            它的优先级最高，将覆盖所有来自适配器和系统的同名配置。
+            {t('overrideSettings.info')}
           </Typography>
         }
-        emptyMessage="该聊天频道暂无可覆盖的配置项"
+        emptyMessage={t('overrideSettings.emptyMessage')}
         isOverridePage={true}
       />
     </Box>

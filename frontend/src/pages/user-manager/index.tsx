@@ -17,6 +17,7 @@ import { useUserData } from './hooks/useUserData'
 import { UserFormData } from '../../services/api/user-manager'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import { useTranslation } from 'react-i18next'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 
 const UserManagerPage: React.FC = () => {
@@ -29,6 +30,7 @@ const UserManagerPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
+  const { t } = useTranslation('user-manager')
 
   const {
     users,
@@ -67,11 +69,16 @@ const UserManagerPage: React.FC = () => {
   const handleCreateUser = async (data: UserFormData) => {
     try {
       await createUser(data)
-      handleShowSuccess('用户创建成功')
+      handleShowSuccess(t('messages.createSuccess'))
       refetch()
       return Promise.resolve()
     } catch (error) {
-      handleShowError(`创建失败: ${error instanceof Error ? error.message : '未知错误'}`)
+      handleShowError(
+        t('messages.createFailed', {
+          error:
+            error instanceof Error ? error.message : t('common.unknownError', { ns: 'common' }),
+        })
+      )
       return Promise.reject(error)
     }
   }
@@ -96,7 +103,7 @@ const UserManagerPage: React.FC = () => {
         }}
       >
         <TextField
-          placeholder="搜索用户名或QQ号"
+          placeholder={t('search.placeholder')}
           size="small"
           sx={{ flex: 1 }}
           value={searchTerm}
@@ -119,7 +126,7 @@ const UserManagerPage: React.FC = () => {
             flexShrink: 0,
           }}
         >
-          搜索
+          {t('actions.search')}
         </Button>
       </Box>
 

@@ -26,12 +26,9 @@ import {
 } from 'recharts'
 import { formatTimestampToTime } from '../../../utils/time'
 import { RealTimeDataPoint } from '../../../services/api/dashboard'
-import {
-  UI_STYLES,
-  BORDER_RADIUS,
-  metricColors
-} from '../../../theme/themeConfig'
+import { UI_STYLES, BORDER_RADIUS, metricColors } from '../../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
 
 interface RealTimeStatsProps {
   title: string
@@ -91,35 +88,35 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, t
   return null
 }
 
-// 定义粒度选项
-const granularityOptions = [
-  { value: 1, label: '1分钟' },
-  { value: 5, label: '5分钟' },
-  { value: 10, label: '10分钟' },
-  { value: 30, label: '30分钟' },
-  { value: 60, label: '1小时' },
+// 定义粒度选项 - 需要使用 t() 函数动态翻译
+const getGranularityOptions = (t: (key: string) => string) => [
+  { value: 1, label: t('granularity.1min') },
+  { value: 5, label: t('granularity.5min') },
+  { value: 10, label: t('granularity.10min') },
+  { value: 30, label: t('granularity.30min') },
+  { value: 60, label: t('granularity.1hour') },
 ]
 
 // 指标配置 - 直接使用动态颜色系统
-const getMetrics = () => [
+const getMetrics = (t: (key: string) => string) => [
   {
     id: 'messages',
-    name: '消息数',
+    name: t('metrics.messages'),
     color: metricColors.messages,
   },
   {
     id: 'sandbox_calls',
-    name: '沙盒调用',
+    name: t('metrics.sandboxCalls'),
     color: metricColors.sandbox_calls,
   },
   {
     id: 'success_calls',
-    name: '成功调用',
+    name: t('metrics.successCalls'),
     color: metricColors.success_calls,
   },
   {
     id: 'failed_calls',
-    name: '失败调用',
+    name: t('metrics.failedCalls'),
     color: metricColors.failed_calls,
   },
 ]
@@ -136,7 +133,7 @@ const scrollbar = {
   HEIGHT: '6px',
   TRACK: (theme: Theme) => alpha(theme.palette.divider, 0.1),
   THUMB: (theme: Theme) => alpha(theme.palette.primary.main, 0.2),
-  THUMB_HOVER: (theme: Theme) => alpha(theme.palette.primary.main, 0.3)
+  THUMB_HOVER: (theme: Theme) => alpha(theme.palette.primary.main, 0.3),
 }
 
 export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
@@ -147,9 +144,13 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
 }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  
+  const { t } = useTranslation('dashboard')
+
   // 获取当前主题下的指标配置
-  const metricsConfig = useMemo(() => getMetrics(), [])
+  const metricsConfig = useMemo(() => getMetrics(t), [t])
+
+  // 获取粒度选项
+  const granularityOptions = useMemo(() => getGranularityOptions(t), [t])
 
   // 处理粒度变更
   const handleGranularityChange = (value: number) => {
@@ -175,10 +176,7 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
   }, [data])
 
   return (
-    <Card
-      className="w-full h-full"
-      sx={CARD_VARIANTS.default.styles}
-    >
+    <Card className="w-full h-full" sx={CARD_VARIANTS.default.styles}>
       <CardContent className="h-full">
         <Box
           className={`flex ${isMobile ? 'flex-col' : 'justify-between'} items-${
@@ -209,13 +207,15 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
               },
             }}
           >
-            <InputLabel id="granularity-select-label">数据粒度</InputLabel>
+            <InputLabel id="granularity-select-label">{t('granularity.label')}</InputLabel>
             <Select
               labelId="granularity-select-label"
               id="granularity-select"
               value={granularity}
-              label="数据粒度"
-              onChange={(event: SelectChangeEvent<number>) => handleGranularityChange(Number(event.target.value))}
+              label={t('granularity.label')}
+              onChange={(event: SelectChangeEvent<number>) =>
+                handleGranularityChange(Number(event.target.value))
+              }
               sx={{
                 bgcolor: theme.palette.background.paper,
                 '&:hover': {
@@ -236,9 +236,9 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
         </Box>
 
         {data.length > 0 ? (
-          <Box 
-            className="h-full" 
-            sx={{ 
+          <Box
+            className="h-full"
+            sx={{
               overflow: 'auto',
               '&::-webkit-scrollbar': {
                 width: scrollbar.WIDTH,
@@ -258,7 +258,13 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
               mt: 2,
             }}
           >
-            <Box sx={{ height: isMobile ? CHART_HEIGHT.MOBILE : CHART_HEIGHT.DESKTOP, minWidth: isMobile ? 500 : 'auto', pt: 1 }}>
+            <Box
+              sx={{
+                height: isMobile ? CHART_HEIGHT.MOBILE : CHART_HEIGHT.DESKTOP,
+                minWidth: isMobile ? 500 : 'auto',
+                pt: 1,
+              }}
+            >
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart
                   data={formattedData}
@@ -269,16 +275,23 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                     bottom: isMobile ? 5 : 20,
                   }}
                 >
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke={alpha(theme.palette.divider, 0.7)} 
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke={alpha(theme.palette.divider, 0.7)}
                     vertical={false}
                   />
                   <defs>
-                    {metricsConfig.map((metric) => (
-                      <linearGradient key={`gradient-${metric.id}`} id={`color${metric.id}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={metric.color} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={metric.color} stopOpacity={0}/>
+                    {metricsConfig.map(metric => (
+                      <linearGradient
+                        key={`gradient-${metric.id}`}
+                        id={`color${metric.id}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="5%" stopColor={metric.color} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={metric.color} stopOpacity={0} />
                       </linearGradient>
                     ))}
                   </defs>
@@ -291,13 +304,13 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                     interval="preserveEnd"
                     tickCount={isMobile ? 4 : 6}
                   />
-                  <YAxis 
+                  <YAxis
                     tick={{ fontSize: isMobile ? 10 : 12, fill: theme.palette.text.secondary }}
                     stroke={theme.palette.text.secondary}
                     width={isMobile ? 30 : 40}
                   />
-                  <Tooltip 
-                    content={<CustomTooltip theme={theme as Theme} />} 
+                  <Tooltip
+                    content={<CustomTooltip theme={theme as Theme} />}
                     animationDuration={300}
                     animationEasing="ease-in-out"
                     cursor={{
@@ -306,12 +319,17 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                       strokeWidth: 1,
                     }}
                   />
-                  <Legend 
-                    wrapperStyle={{ paddingTop: isMobile ? 5 : 10 }} 
-                    iconSize={isMobile ? 8 : 10} 
+                  <Legend
+                    wrapperStyle={{ paddingTop: isMobile ? 5 : 10 }}
+                    iconSize={isMobile ? 8 : 10}
                     iconType="circle"
-                    formatter={(value) => (
-                      <span style={{ color: theme.palette.text.primary, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+                    formatter={value => (
+                      <span
+                        style={{
+                          color: theme.palette.text.primary,
+                          fontSize: isMobile ? '0.75rem' : '0.875rem',
+                        }}
+                      >
                         {value}
                       </span>
                     )}
@@ -324,10 +342,10 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
                       name={metric.name}
                       stroke={metric.color}
                       strokeWidth={isMobile ? 1.5 : 2.5}
-                      activeDot={{ 
-                        r: isMobile ? 4 : 6, 
-                        strokeWidth: 0, 
-                        fill: metric.color
+                      activeDot={{
+                        r: isMobile ? 4 : 6,
+                        strokeWidth: 0,
+                        fill: metric.color,
                       }}
                       dot={false}
                       isAnimationActive={true}
@@ -345,7 +363,7 @@ export const RealTimeStats: React.FC<RealTimeStatsProps> = ({
         ) : (
           <Box className="flex justify-center items-center h-[350px]">
             <Typography variant="body2" color="text.secondary" className="text-center px-4">
-              暂无实时数据，请等待数据收集
+              {t('charts.noRealtimeData')}
             </Typography>
           </Box>
         )}

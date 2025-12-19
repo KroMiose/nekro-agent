@@ -46,7 +46,6 @@ import {
   Wallpaper as WallpaperIcon,
   Palette as PaletteIcon,
   FormatColorFill as FormatColorFillIcon,
-
 } from '@mui/icons-material'
 import { useColorMode } from '../../stores/theme'
 import {
@@ -66,6 +65,7 @@ import WallpaperBackground from '../../components/common/WallpaperBackground'
 import { BUTTON_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import GitHubStarWarning from '../../components/common/GitHubStarWarning'
 import { useGitHubStarStore } from '../../stores/githubStar'
+import { useTranslation } from 'react-i18next'
 
 // 颜色预览组件
 const ColorPreview = ({
@@ -132,6 +132,7 @@ const ColorPickerDialog = ({
   onChange: (color: string) => void
   title: string
 }) => {
+  const { t } = useTranslation('settings')
   const [tempColor, setTempColor] = useState(color)
 
   // 当对话框打开或颜色变更时同步状态
@@ -168,12 +169,12 @@ const ColorPickerDialog = ({
           <HexColorPicker color={tempColor} onChange={setTempColor} style={{ width: '100%' }} />
           <TextField
             fullWidth
-            label="十六进制颜色值"
+            label={t('theme.colors.colorPicker.label')}
             value={tempColor}
             onChange={handleInputChange}
             error={!/^#([0-9A-F]{3}){1,2}$/i.test(tempColor)}
             helperText={
-              !/^#([0-9A-F]{3}){1,2}$/i.test(tempColor) ? '请输入有效的十六进制颜色值' : ''
+              !/^#([0-9A-F]{3}){1,2}$/i.test(tempColor) ? t('theme.colors.colorPicker.helper') : ''
             }
             InputProps={{
               startAdornment: (
@@ -193,26 +194,18 @@ const ColorPickerDialog = ({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>取消</Button>
+        <Button onClick={onClose}>{t('theme.colors.colorPicker.cancel')}</Button>
         <Button
           onClick={handleSave}
           variant="contained"
           disabled={!/^#([0-9A-F]{3}){1,2}$/i.test(tempColor)}
         >
-          应用
+          {t('theme.colors.colorPicker.apply')}
         </Button>
       </DialogActions>
     </Dialog>
   )
 }
-
-// 壁纸模式选项
-const WALLPAPER_MODES = [
-  { value: 'cover', label: '填充', icon: <PhotoSizeSelectLargeIcon /> },
-  { value: 'contain', label: '适应', icon: <PhotoSizeSelectActualIcon /> },
-  { value: 'center', label: '居中', icon: <ImageIcon /> },
-  { value: 'repeat', label: '平铺', icon: <PagesIcon /> },
-]
 
 // 主题预览卡片
 const ThemePreviewCard = ({
@@ -236,6 +229,8 @@ const ThemePreviewCard = ({
 }) => {
   const theme = useTheme()
   const { mode } = useColorMode()
+
+  const { t } = useTranslation('settings')
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const currentMode = mode as 'light' | 'dark'
 
@@ -280,7 +275,7 @@ const ThemePreviewCard = ({
         <Stack spacing={2}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <Typography variant="h6" sx={{ fontSize: isSmall ? '1rem' : '1.25rem' }}>
-              {preset.name}
+              {t(preset.name)}
             </Typography>
             {isCustom && onCustomizeClick && (
               <IconButton
@@ -299,18 +294,18 @@ const ThemePreviewCard = ({
             color="text.secondary"
             sx={{ mb: 2, fontSize: isSmall ? '0.75rem' : '0.875rem' }}
           >
-            {preset.description}
+            {t(preset.description)}
           </Typography>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="caption" sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}>
-                主色:
+                {t('theme.colors.label')}:
               </Typography>
               <ColorPreview color={preset[currentMode].brand} size={isSmall ? 24 : 30} />
             </Stack>
             <Stack direction="row" spacing={1} alignItems="center">
               <Typography variant="caption" sx={{ fontSize: isSmall ? '0.65rem' : '0.75rem' }}>
-                辅色:
+                {t('theme.colors.accentLabel')}:
               </Typography>
               <ColorPreview color={preset[currentMode].accent} size={isSmall ? 24 : 30} />
             </Stack>
@@ -332,13 +327,33 @@ interface ColorDialogState {
 
 // 主题配置页面
 export default function ThemeConfigPage() {
-  const { mode, setColorMode, setThemePreset, setCustomColors, performanceMode, setPerformanceMode } = useColorMode()
+  const {
+    mode,
+    setColorMode,
+    setThemePreset,
+    setCustomColors,
+    performanceMode,
+    setPerformanceMode,
+  } = useColorMode()
   const theme = useTheme()
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const currentMode = mode as 'light' | 'dark'
   const notification = useNotification()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const initializedRef = useRef(false)
+  const { t } = useTranslation('settings')
+
+  // 壁纸模式选项
+  const wallpaperModes = [
+    { value: 'cover', label: t('theme.wallpaper.modes.cover'), icon: <PhotoSizeSelectLargeIcon /> },
+    {
+      value: 'contain',
+      label: t('theme.wallpaper.modes.contain'),
+      icon: <PhotoSizeSelectActualIcon />,
+    },
+    { value: 'center', label: t('theme.wallpaper.modes.center'), icon: <ImageIcon /> },
+    { value: 'repeat', label: t('theme.wallpaper.modes.repeat'), icon: <PagesIcon /> },
+  ]
 
   // 选中的主题
   const [selectedPresetId, setSelectedPresetId] = useState(currentThemePresetId)
@@ -346,8 +361,8 @@ export default function ThemeConfigPage() {
   // 自定义主题
   const [customTheme, setCustomTheme] = useState({
     id: 'custom',
-    name: '自定义主题',
-    description: '自定义色彩搭配',
+    name: t('theme.colors.custom.name'),
+    description: t('theme.colors.custom.desc'),
     light: {
       brand: '#7E57C2',
       accent: '#26A69A',
@@ -421,7 +436,11 @@ export default function ThemeConfigPage() {
       setMainWallpaper(null)
     }
 
-    notification.info(`已移除${wallpaperTab === 0 ? '登录页' : '主页'}壁纸`)
+    notification.info(
+      t('theme.wallpaper.messages.removed', {
+        type: wallpaperTab === 0 ? t('theme.wallpaper.tabs.login') : t('theme.wallpaper.tabs.main'),
+      })
+    )
   }
 
   // 获取壁纸列表
@@ -432,11 +451,11 @@ export default function ThemeConfigPage() {
       if (response.code === 200 && Array.isArray(response.data)) {
         setWallpapers(response.data)
       } else {
-        notification.error('获取壁纸列表失败')
+        notification.error(t('theme.wallpaper.messages.fetchFailed'))
       }
     } catch (error) {
       console.error('获取壁纸列表失败:', error)
-      notification.error('获取壁纸列表失败')
+      notification.error(t('theme.wallpaper.messages.fetchFailed'))
     } finally {
       setLoading(false)
     }
@@ -447,20 +466,20 @@ export default function ThemeConfigPage() {
     // 检查文件类型
     const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
     if (!validTypes.includes(file.type)) {
-      notification.error('不支持的文件类型，请上传 JPG, PNG, GIF 或 WebP 格式的图片')
+      notification.error(t('theme.wallpaper.messages.invalidType'))
       return
     }
 
     // 检查文件大小 (限制 24 MB)
     if (file.size > 24 * 1024 * 1024) {
-      notification.error('文件大小不能超过10MB')
+      notification.error(t('theme.wallpaper.messages.sizeLimit'))
       return
     }
 
     try {
       setUploading(true)
       // 显示上传中通知
-      notification.info(`正在上传壁纸 "${file.name}"...可能需要一段时间，请耐心等待`, {
+      notification.info(t('theme.wallpaper.messages.uploadInfo', { name: file.name }), {
         autoHideDuration: null, // 不自动隐藏
         key: 'upload-wallpaper-progress', // 使用固定key以便后续更新
       })
@@ -470,7 +489,7 @@ export default function ThemeConfigPage() {
       if (response.code === 200 && response.data) {
         // 关闭上传中通知
         notification.close('upload-wallpaper-progress')
-        notification.success('壁纸上传成功')
+        notification.success(t('theme.wallpaper.messages.uploadSuccess'))
 
         // 获取壁纸列表并确保最新上传的壁纸被选中
         await fetchWallpapers()
@@ -482,7 +501,7 @@ export default function ThemeConfigPage() {
       } else {
         // 关闭上传中通知并显示错误
         notification.close('upload-wallpaper-progress')
-        notification.error(response.msg || '壁纸上传失败')
+        notification.error(response.msg || t('theme.wallpaper.messages.uploadFail'))
       }
     } catch (error) {
       console.error('壁纸上传失败:', error)
@@ -492,14 +511,14 @@ export default function ThemeConfigPage() {
       // 提供更详细的错误信息
       if (error instanceof Error) {
         if (error.message.includes('timeout')) {
-          notification.error('壁纸上传超时，请检查网络连接或尝试上传较小的图片')
+          notification.error(t('theme.wallpaper.messages.timeout'))
         } else if (error.message.includes('Network Error')) {
-          notification.error('网络连接失败，请检查网络设置后重试')
+          notification.error(t('theme.wallpaper.messages.networkError'))
         } else {
-          notification.error(`壁纸上传失败: ${error.message}`)
+          notification.error(`${t('theme.wallpaper.messages.uploadFail')}: ${error.message}`)
         }
       } else {
-        notification.error('壁纸上传失败，请稍后重试')
+        notification.error(t('theme.wallpaper.messages.uploadFail'))
       }
     } finally {
       setUploading(false)
@@ -520,7 +539,7 @@ export default function ThemeConfigPage() {
   const applyWallpaper = (wallpaper: Wallpaper) => {
     try {
       // 显示应用中通知
-      notification.info(`正在应用壁纸...`, {
+      notification.info(t('theme.wallpaper.messages.applyInfo'), {
         autoHideDuration: 1500, // 短时间显示
       })
 
@@ -536,7 +555,12 @@ export default function ThemeConfigPage() {
       img.src = wallpaper.url
       img.onload = () => {
         // 显示成功应用通知
-        notification.success(`已成功设置为${wallpaperTab === 0 ? '登录页' : '主页'}壁纸`)
+        notification.success(
+          t('theme.wallpaper.messages.applied', {
+            type:
+              wallpaperTab === 0 ? t('theme.wallpaper.tabs.login') : t('theme.wallpaper.tabs.main'),
+          })
+        )
 
         // 更新设置标签页以反映新设置
         if (wallpaperTab === 0) {
@@ -556,7 +580,7 @@ export default function ThemeConfigPage() {
         }
       }
       img.onerror = () => {
-        notification.error(`壁纸应用失败，无法加载图片: ${wallpaper.url}`)
+        notification.error(t('theme.wallpaper.messages.loadFailed', { url: wallpaper.url }))
         // 回滚设置
         if (wallpaperTab === 0) {
           setLoginWallpaper(null)
@@ -566,7 +590,7 @@ export default function ThemeConfigPage() {
       }
     } catch (error) {
       console.error('应用壁纸失败:', error)
-      notification.error('应用壁纸失败')
+      notification.error(t('theme.wallpaper.messages.applyFailed'))
     }
   }
 
@@ -576,7 +600,7 @@ export default function ThemeConfigPage() {
       const response = await commonApi.deleteWallpaper(wallpaperId)
 
       if (response.code === 200) {
-        notification.success('壁纸删除成功')
+        notification.success(t('theme.wallpaper.messages.deleteSuccess'))
 
         // 找到被删除的壁纸
         const deletedWallpaper = wallpapers.find(wp => wp.id === wallpaperId)
@@ -594,11 +618,11 @@ export default function ThemeConfigPage() {
           setPreviewWallpaper(null)
         }
       } else {
-        notification.error(response.msg || '壁纸删除失败')
+        notification.error(response.msg || t('theme.wallpaper.messages.deleteFail'))
       }
     } catch (error) {
       console.error('壁纸删除失败:', error)
-      notification.error('壁纸删除失败')
+      notification.error(t('theme.wallpaper.messages.deleteFail'))
     }
   }
 
@@ -630,7 +654,7 @@ export default function ThemeConfigPage() {
     }
 
     setShowSettings(false)
-    notification.success('壁纸设置已应用')
+    notification.success(t('theme.wallpaper.messages.settingsApplied'))
   }
 
   // 在页面加载时同步自定义主题
@@ -694,14 +718,17 @@ export default function ThemeConfigPage() {
   const openColorPicker = (type: 'brand' | 'accent', mode: 'light' | 'dark') => {
     // 如果未Star，显示提示
     if (!allStarred) {
-      notification.warning('请先支持开源项目后再使用自定义主题功能')
+      notification.warning(t('theme.colors.messages.starRequiredCustom'))
       return
     }
 
     setColorDialog({
       open: true,
       color: customTheme[mode][type],
-      title: `选择${mode === 'light' ? '浅色' : '深色'}主题的${type === 'brand' ? '主色' : '辅助色'}`,
+      title: t('theme.colors.colorPicker.title', {
+        mode: mode === 'light' ? t('theme.mode.light') : t('theme.mode.dark'),
+        type: type === 'brand' ? t('theme.colors.label') : t('theme.colors.accentLabel'),
+      }),
       mode,
       type,
     })
@@ -713,7 +740,7 @@ export default function ThemeConfigPage() {
 
     // 如果未Star，阻止修改
     if (!allStarred) {
-      notification.warning('请先支持开源项目后再使用自定义主题功能')
+      notification.warning(t('theme.colors.messages.starRequiredCustom'))
       return
     }
 
@@ -749,7 +776,7 @@ export default function ThemeConfigPage() {
   const applyTheme = (presetId: string) => {
     // 如果未Star且不是默认主题，显示提示并使用默认主题
     if (!allStarred && presetId !== 'kolo' && presetId !== 'custom') {
-      notification.warning('高级主题需要您支持开源项目后才能使用')
+      notification.warning(t('theme.colors.messages.starRequired'))
       setThemePreset('kolo')
       setSelectedPresetId('kolo')
       return
@@ -769,12 +796,12 @@ export default function ThemeConfigPage() {
         }
         setCustomColors(themeColors)
 
-        notification.success('已应用自定义主题')
+        notification.success(t('theme.colors.messages.customApplied'))
       } else {
         // 查找预设主题
         const preset = themePresets.find(p => p.id === presetId)
         if (!preset) {
-          notification.error('找不到指定的预设主题')
+          notification.error(t('theme.colors.messages.presetNotFound'))
           return
         }
 
@@ -784,14 +811,14 @@ export default function ThemeConfigPage() {
         // 更新状态管理
         setThemePreset(presetId)
 
-        notification.success(`已应用"${preset.name}"主题`)
+        notification.success(t('theme.colors.messages.applied', { name: preset.name }))
       }
 
       // 更新选中状态
       setSelectedPresetId(presetId)
     } catch (error) {
       console.error('应用主题失败:', error)
-      notification.error('应用主题失败，请重试')
+      notification.error(t('theme.colors.messages.applyFailed'))
     }
   }
 
@@ -799,7 +826,9 @@ export default function ThemeConfigPage() {
   const handleThemeModeChange = (newMode: 'light' | 'dark') => {
     setColorMode(newMode)
     notification.info(
-      `已切换至${newMode === 'light' ? '浅色' : '深色'}模式`
+      t('theme.mode.switchMessage', {
+        mode: newMode === 'light' ? t('theme.mode.light') : t('theme.mode.dark'),
+      })
     )
   }
 
@@ -826,6 +855,7 @@ export default function ThemeConfigPage() {
 
       // 更新状态管理
       const themeColors = {
+        presetId: 'custom',
         lightBrand: defaultCustom.light.brand,
         lightAccent: defaultCustom.light.accent,
         darkBrand: defaultCustom.dark.brand,
@@ -833,7 +863,7 @@ export default function ThemeConfigPage() {
       }
       setCustomColors(themeColors)
 
-      notification.success('已重置自定义主题')
+      notification.success(t('theme.colors.messages.customReset'))
     }
   }
 
@@ -871,7 +901,7 @@ export default function ThemeConfigPage() {
       wallpaperBlur: 0,
       wallpaperDim: 30,
     })
-    notification.info('已重置壁纸设置为默认值')
+    notification.info(t('theme.wallpaper.messages.resetDefault'))
   }
 
   // GitHub Star状态
@@ -881,13 +911,14 @@ export default function ThemeConfigPage() {
   const handlePerformanceModeChange = (newMode: 'performance' | 'balanced' | 'quality') => {
     setPerformanceMode(newMode)
     notification.info(
-      `已切换至${
-        newMode === 'performance'
-          ? '性能优先模式'
-          : newMode === 'balanced'
-          ? '均衡模式'
-          : '质量优先模式'
-      }`
+      t('theme.performance.switchMessage', {
+        mode:
+          newMode === 'performance'
+            ? t('theme.performance.modes.performance')
+            : newMode === 'balanced'
+              ? t('theme.performance.modes.balanced')
+              : t('theme.performance.modes.quality'),
+      })
     )
   }
 
@@ -900,7 +931,7 @@ export default function ThemeConfigPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <LightModeIcon sx={{ mr: 1, color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
-              主题模式
+              {t('theme.mode.title')}
             </Typography>
           </Box>
 
@@ -911,7 +942,7 @@ export default function ThemeConfigPage() {
               onClick={() => handleThemeModeChange('light')}
               size={isSmall ? 'small' : 'medium'}
             >
-              浅色模式
+              {t('theme.mode.light')}
             </Button>
 
             <Button
@@ -920,12 +951,14 @@ export default function ThemeConfigPage() {
               onClick={() => handleThemeModeChange('dark')}
               size={isSmall ? 'small' : 'medium'}
             >
-              深色模式
+              {t('theme.mode.dark')}
             </Button>
           </Stack>
 
           <Typography variant="body2" color="text.secondary">
-            当前模式: {mode === 'light' ? '浅色' : '深色'}
+            {t('theme.mode.current', {
+              mode: mode === 'light' ? t('theme.mode.light') : t('theme.mode.dark'),
+            })}
           </Typography>
         </Paper>
 
@@ -934,10 +967,10 @@ export default function ThemeConfigPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <TuneIcon sx={{ mr: 1, color: 'primary.main' }} />
             <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
-              性能模式
+              {t('theme.performance.title')}
             </Typography>
           </Box>
-          
+
           <Stack direction="row" spacing={3} className="mb-2">
             <Button
               variant={performanceMode === 'performance' ? 'contained' : 'outlined'}
@@ -945,7 +978,7 @@ export default function ThemeConfigPage() {
               onClick={() => handlePerformanceModeChange('performance')}
               size={isSmall ? 'small' : 'medium'}
             >
-              性能优先
+              {t('theme.performance.modes.performance')}
             </Button>
 
             <Button
@@ -954,7 +987,7 @@ export default function ThemeConfigPage() {
               onClick={() => handlePerformanceModeChange('balanced')}
               size={isSmall ? 'small' : 'medium'}
             >
-              均衡模式
+              {t('theme.performance.modes.balanced')}
             </Button>
 
             <Button
@@ -963,25 +996,26 @@ export default function ThemeConfigPage() {
               onClick={() => handlePerformanceModeChange('quality')}
               size={isSmall ? 'small' : 'medium'}
             >
-              质量优先
+              {t('theme.performance.modes.quality')}
             </Button>
           </Stack>
 
           <Typography variant="body2" color="text.secondary" className="mb-2">
-            当前模式: {
-              performanceMode === 'performance' 
-                ? '性能优先 - 减少视觉效果以提高性能' 
-                : performanceMode === 'balanced' 
-                  ? '均衡模式 - 平衡视觉效果与性能' 
-                  : '质量优先 - 完整视觉效果'
-            }
+            {t('theme.performance.current', {
+              desc:
+                performanceMode === 'performance'
+                  ? t('theme.performance.descriptions.performance')
+                  : performanceMode === 'balanced'
+                    ? t('theme.performance.descriptions.balanced')
+                    : t('theme.performance.descriptions.quality'),
+            })}
           </Typography>
         </Paper>
 
         {/* 将GitHubStarWarning移到这里，包裹主题颜色和壁纸设置部分 */}
         <GitHubStarWarning
-          title="解锁个性化设置"
-          message="支持开源项目后即可使用自定义主题和壁纸功能，打造专属于您的个性化界面！"
+          title={t('theme.star.title')}
+          message={t('theme.star.message')}
           onStarred={() => {
             // 初始化操作
             fetchWallpapers()
@@ -992,7 +1026,7 @@ export default function ThemeConfigPage() {
           }}
           onError={error => {
             console.error('检查Star状态出错:', error)
-            notification.error('功能授权检查失败，请稍后再试')
+            notification.error(t('theme.star.checkFailed'))
           }}
           searchParam="NEKRO_CLOUD"
         >
@@ -1001,7 +1035,7 @@ export default function ThemeConfigPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <PaletteIcon sx={{ mr: 1, color: 'primary.main' }} />
               <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
-                主题颜色
+                {t('theme.colors.title')}
               </Typography>
             </Box>
 
@@ -1027,7 +1061,7 @@ export default function ThemeConfigPage() {
                 <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <FormatColorFillIcon sx={{ mr: 1, color: 'primary.main' }} />
                   <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
-                    自定义主题编辑
+                    {t('theme.colors.customTitle')}
                   </Typography>
                 </Box>
                 <Button
@@ -1035,7 +1069,7 @@ export default function ThemeConfigPage() {
                   onClick={resetCustomTheme}
                   size={isSmall ? 'small' : 'medium'}
                 >
-                  重置
+                  {t('theme.colors.reset')}
                 </Button>
               </Box>
 
@@ -1049,7 +1083,7 @@ export default function ThemeConfigPage() {
                         gutterBottom
                         sx={{ fontSize: isSmall ? '0.9rem' : '1rem', fontWeight: 'bold' }}
                       >
-                        浅色模式颜色
+                        {t('theme.colors.lightMode')}
                       </Typography>
                       <Grid container spacing={2} sx={{ mt: 1 }}>
                         <Grid item xs={6}>
@@ -1058,27 +1092,38 @@ export default function ThemeConfigPage() {
                               variant="caption"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                             >
-                              主色调
+                              {t('theme.colors.label')}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ColorPreview
-                                color={customTheme.light.brand}
-                                onClick={() => openColorPicker('brand', 'light')}
-                                size={isSmall ? 30 : 36}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontSize: isSmall ? '0.75rem' : '0.875rem',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                {customTheme.light.brand}
-                              </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                width: '100%',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ColorPreview
+                                  color={customTheme.light.brand}
+                                  onClick={() => openColorPicker('brand', 'light')}
+                                  size={isSmall ? 30 : 36}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {customTheme.light.brand}
+                                </Typography>
+                              </Box>
                               <IconButton
                                 size="small"
                                 onClick={() => openColorPicker('brand', 'light')}
-                                sx={{ ml: 'auto' }}
+                                sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
@@ -1091,27 +1136,38 @@ export default function ThemeConfigPage() {
                               variant="caption"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                             >
-                              辅助色
+                              {t('theme.colors.accentLabel')}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ColorPreview
-                                color={customTheme.light.accent}
-                                onClick={() => openColorPicker('accent', 'light')}
-                                size={isSmall ? 30 : 36}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontSize: isSmall ? '0.75rem' : '0.875rem',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                {customTheme.light.accent}
-                              </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                width: '100%',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ColorPreview
+                                  color={customTheme.light.accent}
+                                  onClick={() => openColorPicker('accent', 'light')}
+                                  size={isSmall ? 30 : 36}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {customTheme.light.accent}
+                                </Typography>
+                              </Box>
                               <IconButton
                                 size="small"
                                 onClick={() => openColorPicker('accent', 'light')}
-                                sx={{ ml: 'auto' }}
+                                sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
@@ -1126,7 +1182,7 @@ export default function ThemeConfigPage() {
                           gutterBottom
                           sx={{ display: 'block', fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                         >
-                          派生色预览
+                          {t('theme.colors.preview')}
                         </Typography>
                         <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                           <ColorPreview
@@ -1154,7 +1210,7 @@ export default function ThemeConfigPage() {
                         gutterBottom
                         sx={{ fontSize: isSmall ? '0.9rem' : '1rem', fontWeight: 'bold' }}
                       >
-                        深色模式颜色
+                        {t('theme.colors.darkMode')}
                       </Typography>
                       <Grid container spacing={2} sx={{ mt: 1 }}>
                         <Grid item xs={6}>
@@ -1163,27 +1219,38 @@ export default function ThemeConfigPage() {
                               variant="caption"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                             >
-                              主色调
+                              {t('theme.colors.label')}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ColorPreview
-                                color={customTheme.dark.brand}
-                                onClick={() => openColorPicker('brand', 'dark')}
-                                size={isSmall ? 30 : 36}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontSize: isSmall ? '0.75rem' : '0.875rem',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                {customTheme.dark.brand}
-                              </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                width: '100%',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ColorPreview
+                                  color={customTheme.dark.brand}
+                                  onClick={() => openColorPicker('brand', 'dark')}
+                                  size={isSmall ? 30 : 36}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {customTheme.dark.brand}
+                                </Typography>
+                              </Box>
                               <IconButton
                                 size="small"
                                 onClick={() => openColorPicker('brand', 'dark')}
-                                sx={{ ml: 'auto' }}
+                                sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
@@ -1196,27 +1263,38 @@ export default function ThemeConfigPage() {
                               variant="caption"
                               sx={{ fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                             >
-                              辅助色
+                              {t('theme.colors.accentLabel')}
                             </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <ColorPreview
-                                color={customTheme.dark.accent}
-                                onClick={() => openColorPicker('accent', 'dark')}
-                                size={isSmall ? 30 : 36}
-                              />
-                              <Typography
-                                variant="body2"
-                                sx={{
-                                  fontSize: isSmall ? '0.75rem' : '0.875rem',
-                                  textTransform: 'uppercase',
-                                }}
-                              >
-                                {customTheme.dark.accent}
-                              </Typography>
+                            <Box
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 1,
+                                width: '100%',
+                                justifyContent: 'space-between',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <ColorPreview
+                                  color={customTheme.dark.accent}
+                                  onClick={() => openColorPicker('accent', 'dark')}
+                                  size={isSmall ? 30 : 36}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                    textTransform: 'uppercase',
+                                    fontFamily: 'monospace',
+                                  }}
+                                >
+                                  {customTheme.dark.accent}
+                                </Typography>
+                              </Box>
                               <IconButton
                                 size="small"
                                 onClick={() => openColorPicker('accent', 'dark')}
-                                sx={{ ml: 'auto' }}
+                                sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
                               </IconButton>
@@ -1231,7 +1309,7 @@ export default function ThemeConfigPage() {
                           gutterBottom
                           sx={{ display: 'block', fontSize: isSmall ? '0.7rem' : '0.75rem' }}
                         >
-                          派生色预览
+                          {t('theme.colors.preview')}
                         </Typography>
                         <Box sx={{ mt: 1, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                           <ColorPreview
@@ -1258,7 +1336,7 @@ export default function ThemeConfigPage() {
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <WallpaperIcon sx={{ mr: 1, verticalAlign: 'text-bottom', color: 'primary.main' }} />
               <Typography variant="h6" sx={{ fontSize: isSmall ? '1.1rem' : '1.25rem' }}>
-                壁纸设置
+                {t('theme.wallpaper.title')}
               </Typography>
             </Box>
 
@@ -1303,8 +1381,8 @@ export default function ThemeConfigPage() {
                     variant="fullWidth"
                     sx={{ mb: 2 }}
                   >
-                    <Tab label="登录页壁纸" />
-                    <Tab label="主布局壁纸" />
+                    <Tab label={t('theme.wallpaper.tabs.login')} />
+                    <Tab label={t('theme.wallpaper.tabs.main')} />
                   </Tabs>
 
                   {/* 预览区域 - 使用固定高度确保在所有设备上可见 */}
@@ -1356,7 +1434,7 @@ export default function ThemeConfigPage() {
                       >
                         <ImageIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
                         <Typography color="textSecondary" align="center">
-                          未设置壁纸
+                          {t('theme.wallpaper.status.noWallpaper')}
                         </Typography>
                       </div>
                     )}
@@ -1371,7 +1449,7 @@ export default function ThemeConfigPage() {
                       onClick={() => setShowSettings(true)}
                       disabled={!hasCurrentWallpaper()}
                     >
-                      壁纸设置
+                      {t('theme.wallpaper.actions.settings')}
                     </Button>
 
                     <Button
@@ -1382,7 +1460,7 @@ export default function ThemeConfigPage() {
                       onClick={removeCurrentWallpaper}
                       disabled={!hasCurrentWallpaper()}
                     >
-                      移除壁纸
+                      {t('theme.wallpaper.actions.remove')}
                     </Button>
                   </Box>
                 </Box>
@@ -1414,7 +1492,7 @@ export default function ThemeConfigPage() {
                   }}
                 >
                   <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    选择壁纸
+                    {t('theme.wallpaper.title')}
                   </Typography>
 
                   <Box sx={{ display: 'flex', gap: 1 }}>
@@ -1425,7 +1503,7 @@ export default function ThemeConfigPage() {
                       onClick={fetchWallpapers}
                       disabled={loading}
                     >
-                      刷新
+                      {t('theme.wallpaper.actions.refresh')}
                     </Button>
 
                     <Button
@@ -1442,7 +1520,9 @@ export default function ThemeConfigPage() {
                         overflow: 'hidden',
                       }}
                     >
-                      {uploading ? '上传中...' : '上传壁纸'}
+                      {uploading
+                        ? t('theme.wallpaper.actions.uploading')
+                        : t('theme.wallpaper.actions.upload')}
                       {uploading && (
                         <Box
                           sx={{
@@ -1492,8 +1572,7 @@ export default function ThemeConfigPage() {
                     flexDirection: 'column',
                     height: 'calc(100% - 48px)', // 减去标题栏的高度
                     '&::before': {
-                      content:
-                        !uploading && wallpapers.length === 0 ? '"拖放图片到此处上传"' : '""',
+                      content: '""',
                       position: 'absolute',
                       top: '50%',
                       left: '50%',
@@ -1561,7 +1640,7 @@ export default function ThemeConfigPage() {
                     >
                       <ImageIcon sx={{ fontSize: 60, color: 'text.disabled', mb: 1 }} />
                       <Typography color="textSecondary" align="center" sx={{ mb: 1 }}>
-                        暂无壁纸
+                        {t('theme.wallpaper.status.emptyList')}
                       </Typography>
                       <Button
                         variant="outlined"
@@ -1569,30 +1648,30 @@ export default function ThemeConfigPage() {
                         size="small"
                         onClick={() => fileInputRef.current?.click()}
                       >
-                        上传壁纸
+                        {t('theme.wallpaper.actions.upload')}
                       </Button>
                       <Typography variant="caption" color="textSecondary" sx={{ mt: 2 }}>
-                        支持拖放图片到此区域上传
+                        {t('theme.wallpaper.status.dragDrop')}
                       </Typography>
                     </Box>
                   ) : (
                     <Grid container spacing={2}>
                       {wallpapers.map(wallpaper => (
                         <Grid item key={wallpaper.id} xs={12} sm={6} md={4} lg={3}>
-                                                      <Card
-                              sx={{
-                                ...CARD_VARIANTS.default.styles,
-                                display: 'flex',
-                                flexDirection: 'column',
-                                height: '100%',
-                                overflow: 'hidden',
-                                transition: 'all 0.2s',
-                                '&:hover': {
-                                  transform: 'translateY(-4px)',
-                                  boxShadow: theme.shadows[4],
-                                },
-                              }}
-                            >
+                          <Card
+                            sx={{
+                              ...CARD_VARIANTS.default.styles,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              height: '100%',
+                              overflow: 'hidden',
+                              transition: 'all 0.2s',
+                              '&:hover': {
+                                transform: 'translateY(-4px)',
+                                boxShadow: theme.shadows[4],
+                              },
+                            }}
+                          >
                             <CardMedia
                               component="div"
                               sx={{
@@ -1633,7 +1712,7 @@ export default function ThemeConfigPage() {
                               <IconButton
                                 size="small"
                                 onClick={() => setPreviewWallpaper(wallpaper)}
-                                title="预览壁纸"
+                                title={t('theme.wallpaper.actions.preview')}
                               >
                                 <VisibilityIcon fontSize="small" />
                               </IconButton>
@@ -1641,16 +1720,16 @@ export default function ThemeConfigPage() {
                                 size="small"
                                 variant="outlined"
                                 onClick={() => applyWallpaper(wallpaper)}
-                                title="应用为当前选择的壁纸"
+                                title={t('theme.wallpaper.actions.applyCurrent')}
                                 sx={{ ml: 'auto', minWidth: 0, px: 1 }}
                               >
-                                应用
+                                {t('theme.wallpaper.actions.apply')}
                               </Button>
                               <IconButton
                                 size="small"
                                 color="error"
                                 onClick={() => handleDeleteWallpaper(wallpaper.id)}
-                                title="删除壁纸"
+                                title={t('theme.wallpaper.actions.delete')}
                               >
                                 <DeleteIcon fontSize="small" />
                               </IconButton>
@@ -1678,11 +1757,11 @@ export default function ThemeConfigPage() {
 
       {/* 壁纸设置对话框 */}
       <Dialog open={showSettings} onClose={() => setShowSettings(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>壁纸设置</DialogTitle>
+        <DialogTitle>{t('theme.wallpaper.dialog.title')}</DialogTitle>
         <DialogContent>
           <Box sx={{ mb: 3, mt: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              显示模式
+              {t('theme.wallpaper.dialog.mode')}
             </Typography>
             <RadioGroup
               row
@@ -1690,7 +1769,7 @@ export default function ThemeConfigPage() {
               onChange={e => handleWallpaperSettingChange('wallpaperMode', e.target.value)}
               sx={{ display: 'flex', justifyContent: 'space-between' }}
             >
-              {WALLPAPER_MODES.map(mode => (
+              {wallpaperModes.map(mode => (
                 <FormControlLabel
                   key={mode.value}
                   value={mode.value}
@@ -1709,7 +1788,7 @@ export default function ThemeConfigPage() {
 
           <Box sx={{ mb: 3 }}>
             <Typography variant="subtitle2" gutterBottom>
-              模糊程度: {editSettings.wallpaperBlur}px
+              {t('theme.wallpaper.dialog.blur', { value: editSettings.wallpaperBlur })}
             </Typography>
             <Slider
               value={editSettings.wallpaperBlur}
@@ -1725,7 +1804,7 @@ export default function ThemeConfigPage() {
 
           <Box sx={{ mb: 1 }}>
             <Typography variant="subtitle2" gutterBottom>
-              暗度: {editSettings.wallpaperDim}%
+              {t('theme.wallpaper.dialog.dim', { value: editSettings.wallpaperDim })}
             </Typography>
             <Slider
               value={editSettings.wallpaperDim}
@@ -1739,16 +1818,18 @@ export default function ThemeConfigPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={resetWallpaperSettings} startIcon={<RefreshIcon />} color="inherit">
-            重置
+            {t('theme.wallpaper.dialog.reset')}
           </Button>
-          <Button onClick={() => setShowSettings(false)}>取消</Button>
+          <Button onClick={() => setShowSettings(false)}>
+            {t('theme.wallpaper.dialog.cancel')}
+          </Button>
           <Button
             variant="contained"
             onClick={applyWallpaperSettings}
             startIcon={<SaveIcon />}
             sx={BUTTON_VARIANTS.primary.styles}
           >
-            应用设置
+            {t('theme.wallpaper.dialog.apply')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1760,7 +1841,7 @@ export default function ThemeConfigPage() {
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>壁纸预览</DialogTitle>
+        <DialogTitle>{t('theme.wallpaper.dialog.previewTitle')}</DialogTitle>
         <DialogContent sx={{ position: 'relative', minHeight: 400 }}>
           {previewWallpaper && (
             <Box
@@ -1779,7 +1860,9 @@ export default function ThemeConfigPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreviewWallpaper(null)}>关闭</Button>
+          <Button onClick={() => setPreviewWallpaper(null)}>
+            {t('theme.wallpaper.actions.close')}
+          </Button>
           {previewWallpaper && (
             <>
               <Button
@@ -1790,7 +1873,7 @@ export default function ThemeConfigPage() {
                 }}
                 startIcon={<DeleteIcon />}
               >
-                删除
+                {t('theme.wallpaper.actions.delete')}
               </Button>
               <Button
                 variant="contained"
@@ -1800,7 +1883,12 @@ export default function ThemeConfigPage() {
                 }}
                 sx={BUTTON_VARIANTS.primary.styles}
               >
-                应用到{wallpaperTab === 0 ? '登录页' : '主布局'}
+                {t('theme.wallpaper.actions.applyTo', {
+                  target:
+                    wallpaperTab === 0
+                      ? t('theme.wallpaper.tabs.login')
+                      : t('theme.wallpaper.tabs.main'),
+                })}
               </Button>
             </>
           )}

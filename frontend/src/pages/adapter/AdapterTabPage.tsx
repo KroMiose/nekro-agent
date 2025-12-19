@@ -1,12 +1,14 @@
 import { useParams, useLocation } from 'react-router-dom'
 import { getAdapterConfig } from '../../config/adapters'
+import { useTranslation } from 'react-i18next'
 
 export default function AdapterTabPage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const location = useLocation()
+  const { t } = useTranslation('adapter')
 
   if (!adapterKey) {
-    return <div>适配器不存在</div>
+    return <div>{t('tab.adapterNotExist')}</div>
   }
 
   // 获取当前适配器配置
@@ -23,7 +25,7 @@ export default function AdapterTabPage() {
   const currentTab = adapterConfig.tabs.find(tab => tab.path === tabPath)
 
   if (!currentTab) {
-    return <div>页面不存在</div>
+    return <div>{t('tab.pageNotExist')}</div>
   }
 
   // 渲染对应的组件

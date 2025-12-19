@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useParams, useOutletContext } from 'react-router-dom'
 import { Box, Typography, Alert } from '@mui/material'
+import { useTranslation } from 'react-i18next'
 import { useQuery } from '@tanstack/react-query'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
@@ -14,6 +15,7 @@ export default function AdapterConfigPage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
   const { adapterInfo } = useOutletContext<AdapterContextType>()
   const [searchText, setSearchText] = useState<string>('')
+  const { t } = useTranslation('adapter')
 
   // 创建适配器配置服务，使用 adapter_${adapterKey} 作为配置键
   const configKey = `adapter_${adapterKey}`
@@ -36,9 +38,9 @@ export default function AdapterConfigPage() {
       <Box sx={{ p: 3 }}>
         <Alert severity="info">
           <Typography variant="h6" gutterBottom>
-            该适配器不支持配置
+            {t('config.notSupportedTitle')}
           </Typography>
-          该适配器没有可配置的参数，无需进行配置。
+          {t('config.notSupportedMessage')}
         </Alert>
       </Box>
     )
@@ -72,8 +74,8 @@ export default function AdapterConfigPage() {
         onRefresh={handleRefresh}
         showSearchBar={true}
         showToolbar={true}
-        emptyMessage={`暂无 ${adapterInfo.name} 配置项`}
+        emptyMessage={t('config.emptyMessage', { name: adapterInfo.name })}
       />
     </Box>
   )
-} 
+}

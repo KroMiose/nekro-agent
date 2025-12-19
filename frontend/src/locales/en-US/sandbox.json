@@ -1,0 +1,79 @@
+{
+  "title": "Sandbox Logs",
+  "stats": {
+    "total": "Total Executions",
+    "success": "Successful",
+    "agentCount": "Agent Executions",
+    "failed": "Failed",
+    "successRate": "Success Rate"
+  },
+  "table": {
+    "status": "Status",
+    "stopType": "Stop Type",
+    "triggerUser": "Trigger User",
+    "chatKey": "Chat Key",
+    "model": "Model",
+    "duration": "Gen Time | Exec Time",
+    "durationMobile": "Duration(Gen|Exec)",
+    "mode": "Mode",
+    "execTime": "Exec Time",
+    "unknown": "Unknown"
+  },
+  "tooltips": {
+    "generateTime": "Generation Time",
+    "executeTime": "Execution Time"
+  },
+  "status": {
+    "success": "Success",
+    "failed": "Failed",
+    "successTooltip": "Execution succeeded",
+    "failedTooltip": "Execution failed"
+  },
+  "mode": {
+    "stream": "Streaming",
+    "normal": "Non-streaming"
+  },
+  "performance": {
+    "title": "Performance Details",
+    "firstToken": "First Token Time:",
+    "notSupported": "N/A",
+    "tokensPerSec": "Speed (Token/s):",
+    "charsPerSec": "Speed (Chars/s):",
+    "tokenCount": "Tokens (In/Out/Total):",
+    "charCount": "Chars (In/Out/Total):"
+  },
+  "actions": {
+    "copyResult": "Copy Result",
+    "copyTrigger": "Copy Trigger Message",
+    "copyCode": "Copy Code",
+    "viewLog": "View Full Log",
+    "noContent": "No content to copy",
+    "copied": "{{content}} copied to clipboard",
+    "copyFailed": "Copy failed, please try again"
+  },
+  "detail": {
+    "result": "Execution Result",
+    "trigger": "Trigger Message",
+    "code": "Execution Code",
+    "executionCode": "Execution Code",
+    "empty": "None",
+    "noResult": "No execution result",
+    "noTrigger": "No trigger message",
+    "noCode": "No code",
+    "thoughtChain": "Thought Chain",
+    "performanceInfo": "Performance Info",
+    "copyThoughtChain": "Copy Thought Chain",
+    "copyCode": "Copy Code",
+    "copyOutput": "Copy Output"
+  },
+  "dialog": {
+    "logTitle": "View Log Content",
+    "requestDetails": "Request Details",
+    "response": "Response",
+    "thoughtChain": "Thought Chain:",
+    "content": "Content:",
+    "close": "Close",
+    "loadFailed": "Failed to load log content:",
+    "noContent": "No content available."
+  }
+}

@@ -16,7 +16,9 @@ import {
   QuestionAnswer as QuestionAnswerIcon,
   Chat as ChatIcon,
   Send as SendIcon,
+  Email as EmailIcon,
 } from '@mui/icons-material'
+import i18next from './i18n'
 import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
 import { Avatar, SxProps } from '@mui/material'
@@ -67,7 +69,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   onebot_v11: {
     key: 'onebot_v11',
     visual: {
-      displayName: 'OneBot V11',
+      displayName: 'names.onebot_v11',
       iconText: 'QQ',
       navIcon: <SmartToyIcon />,
       description: 'OneBot V11 协议适配器，支持 QQ 机器人通信',
@@ -75,42 +77,42 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: 'NapCat',
+        label: 'tabs.napcat',
         value: 'napcat',
         icon: <NapCatIcon fontSize="small" />,
         path: 'napcat',
         component: <OneBotV11NapCatPage />,
       },
       {
-        label: '容器日志',
+        label: 'tabs.logs',
         value: 'logs',
         icon: <LogsIcon fontSize="small" />,
         path: 'logs',
         component: <OneBotV11LogsPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -123,7 +125,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   minecraft: {
     key: 'minecraft',
     visual: {
-      displayName: 'Minecraft',
+      displayName: 'names.minecraft',
       iconText: 'MC',
       navIcon: <SportsEsportsIcon />,
       description: 'Minecraft 服务器适配器，支持游戏内聊天',
@@ -131,28 +133,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -165,7 +167,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   bilibili_live: {
     key: 'bilibili_live',
     visual: {
-      displayName: 'Bilibili Live',
+      displayName: 'names.bilibili_live',
       iconText: 'B站',
       navIcon: <LiveTvIcon />,
       description: 'Bilibili 直播适配器，接收直播间弹幕和互动',
@@ -173,28 +175,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -207,7 +209,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   discord: {
     key: 'discord',
     visual: {
-      displayName: 'Discord',
+      displayName: 'names.discord',
       iconText: 'DC',
       navIcon: <QuestionAnswerIcon />,
       description: '连接到 Discord 平台的适配器，允许通过 Bot 与服务器和用户进行交互。',
@@ -215,28 +217,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -249,7 +251,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   sse: {
     key: 'sse',
     visual: {
-      displayName: 'SSE',
+      displayName: 'names.sse',
       iconText: 'SSE',
       navIcon: <ApiIcon />,
       description: '基于 Server-Sent Events 的通用 HTTP 适配器',
@@ -257,28 +259,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -291,7 +293,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   wechatpad: {
     key: 'wechatpad',
     visual: {
-      displayName: 'WeChatPad',
+      displayName: 'names.wechatpad',
       iconText: '微信',
       navIcon: <ChatIcon />,
       description: 'WeChatPad 微信适配器，支持微信消息收发和群聊管理',
@@ -299,28 +301,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -333,7 +335,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   telegram: {
     key: 'telegram',
     visual: {
-      displayName: 'Telegram',
+      displayName: 'names.telegram',
       iconText: 'TG',
       navIcon: <SendIcon />,
       description: 'Telegram 适配器，支持 Telegram 机器人通信',
@@ -341,28 +343,71 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // Email 适配器配置
+  email: {
+    key: 'email',
+    visual: {
+      displayName: 'names.email',
+      iconText: 'Mail',
+      navIcon: <EmailIcon />,
+      description:
+        '邮箱适配器，支持通过IMAP/SMTP协议收发邮件，将同一邮箱账户的邮件归属到同一聊天中',
+      tags: ['Email', '邮件', 'IMAP', 'SMTP', '聊天'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -419,7 +464,7 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   default: {
     key: 'default',
     visual: {
-      displayName: '通用适配器',
+      displayName: 'names.default',
       iconText: 'AD',
       navIcon: <SettingsIcon />,
       description: '通用适配器配置',
@@ -427,28 +472,28 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     },
     tabs: [
       {
-        label: '主页',
+        label: 'tabs.home',
         value: 'home',
         icon: <HomeIcon fontSize="small" />,
         path: '',
         component: <AdapterHomePage />,
       },
       {
-        label: '适配器配置',
+        label: 'tabs.config',
         value: 'config',
         icon: <SettingsIcon fontSize="small" />,
         path: 'config',
         component: <AdapterConfigPage />,
       },
       {
-        label: '覆盖配置',
+        label: 'tabs.overrides',
         value: 'overrides',
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
       },
       {
-        label: '高级',
+        label: 'tabs.advanced',
         value: 'advanced',
         icon: <EngineeringIcon fontSize="small" />,
         path: 'advanced',
@@ -517,7 +562,7 @@ export const getAdapterNavigationConfigs = () => {
     .filter(config => config.key !== 'default')
     .map(config => ({
       path: `/adapters/${config.key}`,
-      text: config.visual.displayName,
+      text: i18next.t(config.visual.displayName, { ns: 'adapter' }),
       icon: config.visual.navIcon,
       parent: 'adapters',
     }))
@@ -533,28 +578,28 @@ export const getAdapterStatusDisplay = (status: string): AdapterStatusDisplay =>
     case 'loaded':
       return {
         icon: <CheckCircleIcon color="success" fontSize="small" />,
-        text: '已加载',
+        text: 'status.loaded',
         color: 'success',
         getBgColor: (theme: Theme) => theme.palette.success.main,
       }
     case 'failed':
       return {
         icon: <ErrorIcon color="error" fontSize="small" />,
-        text: '加载失败',
+        text: 'status.failed',
         color: 'error',
         getBgColor: (theme: Theme) => theme.palette.error.main,
       }
     case 'disabled':
       return {
         icon: <WarningIcon color="warning" fontSize="small" />,
-        text: '已禁用',
+        text: 'status.disabled',
         color: 'warning',
         getBgColor: (theme: Theme) => theme.palette.warning.main,
       }
     default:
       return {
         icon: <RadioButtonUncheckedIcon color="disabled" fontSize="small" />,
-        text: '未知',
+        text: 'status.unknown',
         color: 'default',
         getBgColor: (theme: Theme) => theme.palette.grey[500],
       }

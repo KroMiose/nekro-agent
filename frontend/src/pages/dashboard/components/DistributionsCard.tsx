@@ -13,12 +13,8 @@ import { PieChart, Pie, ResponsiveContainer, Cell, Legend, Tooltip } from 'recha
 import { DistributionItem } from '../../../services/api/dashboard'
 import { CARD_VARIANTS, BORDER_RADIUS } from '../../../theme/variants'
 import { UI_STYLES } from '../../../theme/themeConfig'
-import {
-  getStopTypeText,
-  getStopTypeColorValue,
-  getMessageTypeColor,
-  LEGACY_COLORS
-} from '../../../theme/utils'
+import { getMessageTypeColor, getStopTypeColorValue, getStopTypeTranslatedText } from '../../../theme/utils'
+import { useTranslation } from 'react-i18next'
 
 interface DistributionsCardProps {
   stopTypeData?: DistributionItem[]
@@ -48,6 +44,7 @@ const calculateTotal = (data: DistributionItem[] = []) => {
 // 自定义提示框组件
 const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
   const theme = useTheme()
+  const { t } = useTranslation('dashboard')
 
   if (active && payload && payload.length > 0) {
     const data = payload[0]
@@ -77,10 +74,10 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload }) => {
         </Typography>
         <Box className="flex justify-between gap-4 mt-1">
           <Typography variant="body2" color="text.secondary">
-            数量: {value}
+            {t('tooltip.count')}: {value}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            占比: {percentage.toFixed(1)}%
+            {t('tooltip.ratio')}: {percentage.toFixed(1)}%
           </Typography>
         </Box>
       </Box>
@@ -96,6 +93,26 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
 }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('dashboard')
+
+  // 翻译停止类型名称
+  const translateStopType = useMemo(() => {
+    return (stopType: number): string => {
+      return getStopTypeTranslatedText(stopType, t)
+    }
+  }, [t])
+
+  // 翻译消息类型名称
+  const translateMessageType = useMemo(() => {
+    const messageTypeKeyMap: Record<string, string> = {
+      群聊消息: 'messageType.group',
+      私聊消息: 'messageType.private',
+    }
+    return (msgType: string): string => {
+      const key = messageTypeKeyMap[msgType]
+      return key ? t(key, { ns: 'common' }) : t('messageType.unknown', { ns: 'common' })
+    }
+  }, [t])
 
   // 计算总计
   const stopTypeTotal = useMemo(() => calculateTotal(stopTypeData), [stopTypeData])
@@ -104,36 +121,31 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
   // 格式化停止类型数据
   const formattedStopTypeData = useMemo(() => {
     return stopTypeData.map((item: DistributionItem) => ({
-      name: getStopTypeText(Number(item.label)),
+      name: translateStopType(Number(item.label)),
       value: item.value,
-      color: getStopTypeColorValue(Number(item.label)) || LEGACY_COLORS.DEFAULT,
-      dataTotal: stopTypeTotal, // 添加数据集总值
+      color: getStopTypeColorValue(Number(item.label)),
+      dataTotal: stopTypeTotal,
     }))
-  }, [stopTypeData, stopTypeTotal])
+  }, [stopTypeData, stopTypeTotal, translateStopType])
 
   // 格式化消息类型数据 - 使用消息类型颜色常量
   const formattedMessageTypeData = useMemo(() => {
     return messageTypeData.map((item: DistributionItem) => {
-      // 使用constants中定义的getMessageTypeColor函数获取颜色
       const color = getMessageTypeColor(item.label)
-
       return {
-        name: item.label,
+        name: translateMessageType(item.label),
         value: item.value,
         color: color,
-        dataTotal: messageTypeTotal, // 添加数据集总值
+        dataTotal: messageTypeTotal,
       }
     })
-  }, [messageTypeData, messageTypeTotal])
+  }, [messageTypeData, messageTypeTotal, translateMessageType])
 
   return (
-    <Card
-      className="w-full h-full"
-      sx={CARD_VARIANTS.default.styles}
-    >
+    <Card className="w-full h-full" sx={CARD_VARIANTS.default.styles}>
       <CardContent>
         <Typography variant="h6" gutterBottom color="text.primary">
-          分布统计
+          {t('charts.distributionStats')}
         </Typography>
 
         {loading ? (
@@ -149,7 +161,7 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
             sx={{ height: UI_STYLES.CARD_LAYOUT.LOADING_HEIGHT }}
           >
             <Typography variant="body2" color="text.secondary">
-              暂无数据
+              {t('charts.noData')}
             </Typography>
           </Box>
         ) : (
@@ -162,11 +174,13 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                   marginBottom={1}
                   color="text.secondary"
                 >
-                  执行类型分布
+                  {t('charts.stopTypeDistribution')}
                 </Typography>
                 <Box
                   height={
-                    isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                    isMobile
+                      ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE
+                      : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
                   }
                 >
                   <ResponsiveContainer width="100%" height="100%">
@@ -211,11 +225,13 @@ export const DistributionsCard: React.FC<DistributionsCardProps> = ({
                   marginBottom={1}
                   color="text.secondary"
                 >
-                  消息类型分布
+                  {t('charts.messageTypeDistribution')}
                 </Typography>
                 <Box
                   height={
-                    isMobile ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
+                    isMobile
+                      ? UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.MOBILE
+                      : UI_STYLES.CARD_LAYOUT.CHART_HEIGHT.DESKTOP
                   }
                 >
                   <ResponsiveContainer width="100%" height="100%">

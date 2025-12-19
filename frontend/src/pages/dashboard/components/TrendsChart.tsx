@@ -8,7 +8,7 @@ import {
   useTheme,
   alpha,
   Theme,
-  useMediaQuery
+  useMediaQuery,
 } from '@mui/material'
 import {
   XAxis,
@@ -19,12 +19,22 @@ import {
   ResponsiveContainer,
   ReferenceLine,
   Area,
-  ComposedChart
+  ComposedChart,
 } from 'recharts'
 import { format, parseISO, isToday, isThisWeek, isThisMonth } from 'date-fns'
 import { TrendDataPoint } from '../../../services/api/dashboard'
-import { metricColors, metricNames } from '../../../theme/themeConfig'
+import { metricColors } from '../../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import { useTranslation } from 'react-i18next'
+
+// 将 snake_case 的 metric key 映射到 i18n 翻译 key
+const metricKeyMap: Record<string, string> = {
+  messages: 'messages',
+  sandbox_calls: 'sandboxCalls',
+  success_calls: 'successCalls',
+  failed_calls: 'failedCalls',
+  success_rate: 'successRate',
+}
 
 interface TrendsChartProps {
   title: string
@@ -49,14 +59,20 @@ interface CustomTooltipProps {
 }
 
 // 自定义提示框组件
-const CustomTooltip: React.FC<CustomTooltipProps> = ({ active, payload, label, theme, timeRange = 'day' }) => {
+const CustomTooltip: React.FC<CustomTooltipProps> = ({
+  active,
+  payload,
+  label,
+  theme,
+  timeRange = 'day',
+}) => {
   if (active && payload && payload.length) {
     // 根据时间范围选择合适的日期格式
-    let dateFormat = 'HH:mm';
+    let dateFormat = 'HH:mm'
     if (timeRange === 'week') {
-      dateFormat = 'MM-dd EEE';
+      dateFormat = 'MM-dd EEE'
     } else if (timeRange === 'month') {
-      dateFormat = 'MM-dd';
+      dateFormat = 'MM-dd'
     }
 
     return (
@@ -103,16 +119,17 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
 }) => {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const { t } = useTranslation('dashboard')
 
   // 根据时间范围选择合适的日期格式
   const getDateFormat = () => {
     switch (timeRange) {
       case 'week':
-        return 'MM-dd';
+        return 'MM-dd'
       case 'month':
-        return 'MM-dd';
+        return 'MM-dd'
       default:
-        return 'HH:mm';
+        return 'HH:mm'
     }
   }
 
@@ -180,13 +197,10 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
   const currentTimePoint = currentTimeIndex !== null ? data[currentTimeIndex]?.timestamp : null
 
   // 使用metricColors
-  const metricColorMap = metricColors;
+  const metricColorMap = metricColors
 
   return (
-    <Card
-      className="w-full h-full"
-      sx={CARD_VARIANTS.default.styles}
-    >
+    <Card className="w-full h-full" sx={CARD_VARIANTS.default.styles}>
       <CardContent className="h-full">
         <Typography variant="h6" gutterBottom color="text.primary">
           {title}
@@ -199,11 +213,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
         ) : data.length === 0 ? (
           <Box className="flex items-center justify-center h-[300px]">
             <Typography variant="body2" color="text.secondary">
-              暂无数据
+              {t('charts.noData')}
             </Typography>
           </Box>
         ) : (
-          <Box className={isMobile ? "h-[250px]" : "h-[350px]"}>
+          <Box className={isMobile ? 'h-[250px]' : 'h-[350px]'}>
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={data}
@@ -224,8 +238,8 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   interval="preserveEnd"
                   tickCount={isMobile ? 4 : 6}
                 />
-                <YAxis 
-                  stroke={theme.palette.text.secondary} 
+                <YAxis
+                  stroke={theme.palette.text.secondary}
                   tick={{ fontSize: isMobile ? 10 : 12 }}
                   width={isMobile ? 30 : 40}
                 />
@@ -236,32 +250,39 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                   animationDuration={400}
                   animationEasing="ease-in-out"
                 />
-                <Legend 
-                  wrapperStyle={{ paddingTop: isMobile ? 5 : 10 }} 
-                  iconSize={isMobile ? 8 : 10} 
-                  iconType="circle" 
+                <Legend
+                  wrapperStyle={{ paddingTop: isMobile ? 5 : 10 }}
+                  iconSize={isMobile ? 8 : 10}
+                  iconType="circle"
                 />
-                
+
                 <defs>
                   {metrics.map(metric => {
-                    const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8';
+                    const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8'
                     return (
-                      <linearGradient key={`gradient-${metric}`} id={`color${metric}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                      <linearGradient
+                        key={`gradient-${metric}`}
+                        id={`color${metric}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={color} stopOpacity={0} />
                       </linearGradient>
-                    );
+                    )
                   })}
                 </defs>
-                
+
                 {metrics.map(metric => {
-                  const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8';
+                  const color = metricColorMap[metric as keyof typeof metricColors] || '#8884d8'
                   return (
                     <Area
                       key={metric}
                       type="monotone"
                       dataKey={metric}
-                      name={metricNames[metric as keyof typeof metricNames] || metric}
+                      name={t(`metrics.${metricKeyMap[metric] || metric}`)}
                       stroke={color}
                       strokeWidth={isMobile ? 1.5 : 2.5}
                       dot={false}
@@ -271,7 +292,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                       fill={`url(#color${metric})`}
                       fillOpacity={1}
                     />
-                  );
+                  )
                 })}
 
                 {/* 当前时间参考线 */}
@@ -281,12 +302,16 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({
                     stroke="#ff5722"
                     strokeWidth={isMobile ? 1 : 2}
                     strokeDasharray="5 5"
-                    label={isMobile ? undefined : {
-                      value: '现在',
-                      position: 'insideTopRight',
-                      fill: theme.palette.text.primary,
-                      fontSize: 12,
-                    }}
+                    label={
+                      isMobile
+                        ? undefined
+                        : {
+                            value: t('time.now'),
+                            position: 'insideTopRight',
+                            fill: theme.palette.text.primary,
+                            fontSize: 12,
+                          }
+                    }
                   />
                 )}
               </ComposedChart>

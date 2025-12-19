@@ -1,0 +1,79 @@
+{
+  "title": "沙盒日志",
+  "stats": {
+    "total": "总执行次数",
+    "success": "成功次数",
+    "agentCount": "代理执行次数",
+    "failed": "失败次数",
+    "successRate": "沙盒执行成功率"
+  },
+  "table": {
+    "status": "状态",
+    "stopType": "停止类型",
+    "triggerUser": "触发用户",
+    "chatKey": "聊天标识",
+    "model": "使用模型",
+    "duration": "生成耗时 | 执行耗时",
+    "durationMobile": "耗时(生成|执行)",
+    "mode": "模式",
+    "execTime": "执行时间",
+    "unknown": "未知"
+  },
+  "tooltips": {
+    "generateTime": "生成耗时",
+    "executeTime": "执行耗时"
+  },
+  "status": {
+    "success": "成功",
+    "failed": "失败",
+    "successTooltip": "执行成功",
+    "failedTooltip": "执行失败"
+  },
+  "mode": {
+    "stream": "流式",
+    "normal": "非流式"
+  },
+  "performance": {
+    "title": "性能详情",
+    "firstToken": "首 Token 耗时:",
+    "notSupported": "不支持",
+    "tokensPerSec": "速度 (Token/s):",
+    "charsPerSec": "速度 (字符/s):",
+    "tokenCount": "Token 数 (输入/输出/总和):",
+    "charCount": "字符数 (输入/输出/总和):"
+  },
+  "actions": {
+    "copyResult": "复制结果",
+    "copyTrigger": "复制触发消息",
+    "copyCode": "复制代码",
+    "viewLog": "查看完整日志",
+    "noContent": "无内容可复制",
+    "copied": "{{content}}已复制到剪贴板",
+    "copyFailed": "复制失败，请重试"
+  },
+  "detail": {
+    "result": "执行结果",
+    "trigger": "触发消息",
+    "code": "执行代码",
+    "executionCode": "执行代码",
+    "empty": "无",
+    "noResult": "无执行结果",
+    "noTrigger": "无触发消息",
+    "noCode": "无代码",
+    "thoughtChain": "思维链信息",
+    "performanceInfo": "性能信息",
+    "copyThoughtChain": "复制思维链",
+    "copyCode": "复制代码",
+    "copyOutput": "复制输出"
+  },
+  "dialog": {
+    "logTitle": "查看日志内容",
+    "requestDetails": "请求详情",
+    "response": "响应",
+    "thoughtChain": "思维链:",
+    "content": "内容:",
+    "close": "关闭",
+    "loadFailed": "加载日志内容失败:",
+    "noContent": "无可用内容。"
+  }
+}

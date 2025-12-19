@@ -78,6 +78,7 @@ import {
 } from '../../services/api/space-cleanup'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import { useQuery } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 
 const MotionBox = motion(Box)
 
@@ -127,6 +128,7 @@ const sortResources = (categories: ResourceCategory[]): ResourceCategory[] => {
 export default function SpaceCleanupPage() {
   const theme = useTheme()
   const notification = useNotification()
+  const { t } = useTranslation('settings')
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const isTablet = useMediaQuery(theme.breakpoints.down('md'))
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -217,7 +219,7 @@ export default function SpaceCleanupPage() {
       clearScanInterval()
 
       await spaceCleanupApi.startScan()
-      notification.info('扫描已启动')
+      notification.info(t('spaceCleanup.status.scanStartInfo'))
 
       // 轮询扫描进度（使用递归方式避免并发请求）
       const pollProgress = async () => {
@@ -232,10 +234,10 @@ export default function SpaceCleanupPage() {
             setLoadingResult(true)
             try {
               await loadScanResult()
-              notification.success('扫描完成')
+              notification.success(t('spaceCleanup.status.scanSuccess'))
             } catch (error) {
               console.error('加载扫描结果失败:', error)
-              notification.error('加载扫描结果失败')
+              notification.error(t('spaceCleanup.status.loadScanResultFailed'))
             } finally {
               setScanning(false)
               setLoadingResult(false)
@@ -244,7 +246,7 @@ export default function SpaceCleanupPage() {
             clearScanInterval()
             setScanning(false)
             setLoadingResult(false)
-            notification.error('扫描失败')
+            notification.error(t('spaceCleanup.status.scanFailed'))
           } else if (progress.status === 'scanning') {
             // 继续轮询
             scanIntervalRef.current = setTimeout(pollProgress, 1000) as unknown as ReturnType<
@@ -264,7 +266,7 @@ export default function SpaceCleanupPage() {
       pollProgress()
     } catch {
       setScanning(false)
-      notification.error('启动扫描失败')
+      notification.error(t('spaceCleanup.status.scanStartInfo'))
     }
   }
 
@@ -394,7 +396,7 @@ export default function SpaceCleanupPage() {
   // 启动清理
   const handleStartCleanup = async () => {
     if (selectedResourceTypes.length === 0) {
-      notification.warning('请选择要清理的资源类型')
+      notification.warning(t('spaceCleanup.settings.selectTypeWarn'))
       return
     }
     setConfirmDialogOpen(true)
@@ -426,7 +428,7 @@ export default function SpaceCleanupPage() {
       }
 
       const { task_id: taskId } = await spaceCleanupApi.startCleanup(request)
-      notification.info('清理已启动')
+      notification.info(t('spaceCleanup.status.cleanupStartInfo'))
 
       // 轮询清理进度（使用递归方式避免并发请求）
       const pollCleanupProgress = async () => {
@@ -447,7 +449,7 @@ export default function SpaceCleanupPage() {
               failed_file_list: [],
             }
             setCleanupResult(result)
-            notification.success('清理完成')
+            notification.success(t('spaceCleanup.status.cleanupSuccess'))
             await handleStartScan()
           } else if (progress.status === CleanupStatus.FAILED) {
             clearCleanupInterval()
@@ -463,7 +465,7 @@ export default function SpaceCleanupPage() {
               failed_file_list: [],
             }
             setCleanupResult(result)
-            notification.error('清理失败')
+            notification.error(t('spaceCleanup.status.cleanupFailed'))
           } else if (progress.status === CleanupStatus.RUNNING) {
             // 继续轮询
             cleanupIntervalRef.current = setTimeout(
@@ -485,7 +487,7 @@ export default function SpaceCleanupPage() {
       pollCleanupProgress()
     } catch {
       setCleaning(false)
-      notification.error('启动清理失败')
+      notification.error(t('spaceCleanup.status.cleanStartFailed'))
     }
   }
 
@@ -537,22 +539,22 @@ export default function SpaceCleanupPage() {
 
     return [
       {
-        name: '系统闲置空间',
+        name: t('spaceCleanup.chart.systemFree'),
         value: freeSpace,
         color: COLORS[4],
       },
       {
-        name: '其他数据空间',
+        name: t('spaceCleanup.chart.otherData'),
         value: otherDataSize,
         color: COLORS[8],
       },
       {
-        name: 'NekroAgent 数据',
+        name: t('spaceCleanup.chart.agentData'),
         value: nekroAgentSize,
         color: COLORS[0],
       },
     ].filter(item => item.value > 0)
-  }, [scanResult])
+  }, [scanResult, t])
 
   // 准备资源分布数据（右侧图表）
   const resourceDistributionData =
@@ -624,12 +626,12 @@ export default function SpaceCleanupPage() {
         <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
             <SearchIcon sx={{ mr: 1, color: 'primary.main', fontSize: 28 }} />
-            <Typography variant="h6">占用分析</Typography>
+            <Typography variant="h6">{t('spaceCleanup.analysis.title')}</Typography>
           </Box>
 
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2">
-              空间回收功能尚处于实验性阶段，请注意备份关键数据并谨慎使用
+              {t('spaceCleanup.analysis.warning')}
             </Typography>
           </Alert>
 
@@ -649,16 +651,15 @@ export default function SpaceCleanupPage() {
                   color="text.secondary"
                   sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
                 >
-                  上次扫描:{' '}
+                  {t('spaceCleanup.analysis.lastScan')}:{' '}
                   {scanResult.summary.end_time
                     ? new Date(scanResult.summary.end_time).toLocaleString('zh-CN')
-                    : '未知'}{' '}
-                  · 耗时 {formatDuration(scanResult.summary.duration_seconds || 0)} · 发现{' '}
-                  {scanResult.summary.total_files || 0} 个文件
+                    : t('spaceCleanup.analysis.unknown')}{' '}
+                  · {t('spaceCleanup.analysis.duration')} {formatDuration(scanResult.summary.duration_seconds || 0)} · {t('spaceCleanup.analysis.filesFound', { count: scanResult.summary.total_files || 0 })}
                 </Typography>
               )) || (
                 <Typography variant="body2" color="text.secondary">
-                  待扫描资源...
+                  {t('spaceCleanup.analysis.waitingScan')}
                 </Typography>
               )}
             </Box>
@@ -672,7 +673,7 @@ export default function SpaceCleanupPage() {
               fullWidth={isMobile}
               size={isMobile ? 'medium' : 'large'}
             >
-              {scanning ? '扫描中...' : scanResult ? '重新扫描' : '开始扫描'}
+              {scanning ? t('spaceCleanup.actions.scanning') : scanResult ? t('spaceCleanup.actions.rescan') : t('spaceCleanup.actions.scan')}
             </Button>
           </Box>
 
@@ -688,7 +689,7 @@ export default function SpaceCleanupPage() {
                 <Box sx={{ mt: 2 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                     <Typography variant="body2" color="text.secondary">
-                      {loadingResult ? '正在加载扫描结果...' : '正在扫描资源...'}
+                      {loadingResult ? t('spaceCleanup.status.loadScanResult') : t('spaceCleanup.status.scanningDesc')}
                     </Typography>
                     {!loadingResult && (
                       <Typography variant="body2" fontWeight="600">
@@ -723,10 +724,10 @@ export default function SpaceCleanupPage() {
             <Box sx={{ textAlign: 'center', py: 6 }}>
               <CircularProgress size={60} sx={{ mb: 2 }} />
               <Typography variant="h6" gutterBottom>
-                正在加载扫描结果...
+                {t('spaceCleanup.status.loadScanResult')}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                请稍候
+                {t('spaceCleanup.status.wait')}
               </Typography>
             </Box>
           </Paper>
@@ -737,10 +738,10 @@ export default function SpaceCleanupPage() {
             <Box sx={{ textAlign: 'center', py: 6 }}>
               <CleaningServicesIcon sx={{ fontSize: 80, color: 'text.disabled', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
-                尚未进行空间扫描
+                {t('spaceCleanup.status.scanNotStarted')}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-                点击上方的"开始扫描"按钮，系统将分析各类资源的占用情况
+                {t('spaceCleanup.status.scanNotStartedDesc')}
               </Typography>
             </Box>
           </Paper>
@@ -751,7 +752,7 @@ export default function SpaceCleanupPage() {
           <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <PieChartIcon sx={{ mr: 1, color: 'primary.main' }} />
-              <Typography variant="h6">空间分布概览</Typography>
+              <Typography variant="h6">{t('spaceCleanup.analysis.overviewTitle')}</Typography>
             </Box>
 
             <Grid container spacing={3}>
@@ -768,7 +769,7 @@ export default function SpaceCleanupPage() {
                 >
                   <StorageIcon sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    系统总空间
+                    {t('spaceCleanup.analysis.systemTotal')}
                   </Typography>
                   <Typography
                     variant={isMobile ? 'h6' : 'h5'}
@@ -792,7 +793,7 @@ export default function SpaceCleanupPage() {
                 >
                   <FolderIcon sx={{ fontSize: 40, color: 'info.main', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    NekroAgent 占用
+                    {t('spaceCleanup.analysis.agentUsage')}
                   </Typography>
                   <Typography
                     variant={isMobile ? 'h6' : 'h5'}
@@ -816,7 +817,7 @@ export default function SpaceCleanupPage() {
                 >
                   <DeleteIcon sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    可清理空间
+                    {t('spaceCleanup.analysis.cleanable')}
                   </Typography>
                   <Typography
                     variant={isMobile ? 'h6' : 'h5'}
@@ -840,7 +841,7 @@ export default function SpaceCleanupPage() {
                 >
                   <WarningIcon sx={{ fontSize: 40, color: 'warning.main', mb: 1 }} />
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    文件总数
+                    {t('spaceCleanup.analysis.fileCount')}
                   </Typography>
                   <Typography
                     variant={isMobile ? 'h6' : 'h5'}
@@ -868,8 +869,13 @@ export default function SpaceCleanupPage() {
                     overflow: 'hidden',
                   }}
                 >
-                  <Typography variant="subtitle1" fontWeight="600" gutterBottom sx={{ flexShrink: 0 }}>
-                    系统空间分布
+                  <Typography
+                    variant="subtitle1"
+                    fontWeight="600"
+                    gutterBottom
+                    sx={{ flexShrink: 0 }}
+                  >
+                    {t('spaceCleanup.analysis.systemDist')}
                   </Typography>
                   <Box sx={{ flex: 1, minHeight: 0, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -933,7 +939,7 @@ export default function SpaceCleanupPage() {
                     }}
                   >
                     <Typography variant="subtitle1" fontWeight="600">
-                      NekroAgent 资源分布
+                      {t('spaceCleanup.analysis.resourceDist')}
                     </Typography>
                     <ToggleButtonGroup
                       value={rightChartType}
@@ -947,10 +953,10 @@ export default function SpaceCleanupPage() {
                       sx={{ width: isMobile ? '100%' : 'auto' }}
                     >
                       <ToggleButton value="pie" sx={{ flex: isMobile ? 1 : 'none' }}>
-                        饼图
+                        {t('spaceCleanup.analysis.pieChart')}
                       </ToggleButton>
                       <ToggleButton value="bar" sx={{ flex: isMobile ? 1 : 'none' }}>
-                        排行
+                        {t('spaceCleanup.analysis.barChart')}
                       </ToggleButton>
                     </ToggleButtonGroup>
                   </Box>
@@ -1033,11 +1039,11 @@ export default function SpaceCleanupPage() {
             >
               <Box sx={{ display: 'flex', alignItems: 'center' }}>
                 <FolderIcon sx={{ mr: 1, color: 'primary.main' }} />
-                <Typography variant="h6">资源分类详情</Typography>
+                <Typography variant="h6">{t('spaceCleanup.analysis.resourceDetail')}</Typography>
               </Box>
               {!isMobile && (
                 <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
-                  点击展开查看详细信息
+                  {t('spaceCleanup.actions.expand')}
                 </Typography>
               )}
             </Box>
@@ -1142,7 +1148,14 @@ export default function SpaceCleanupPage() {
                           )}
                           <ListItemText
                             primary={
-                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                              <Box
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 1,
+                                  flexWrap: 'wrap',
+                                }}
+                              >
                                 <Typography
                                   variant={isMobile ? 'body2' : 'subtitle1'}
                                   fontWeight="600"
@@ -1151,7 +1164,7 @@ export default function SpaceCleanupPage() {
                                 </Typography>
                                 {!category.supports_time_filter && category.can_cleanup && (
                                   <Tooltip
-                                    title="此类资源不支持按时间过滤（如Python包、特殊资源缓存等），启用时间过滤时将完全清理"
+                                    title={t('spaceCleanup.list.noTimeFilter')}
                                     arrow
                                     placement="top"
                                   >
@@ -1170,10 +1183,13 @@ export default function SpaceCleanupPage() {
                                 )}
                                 {!category.can_cleanup && (
                                   <Chip
-                                    label="仅查看"
+                                    label={t('spaceCleanup.list.onlyView')}
                                     size="small"
                                     variant="outlined"
-                                    sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem', height: isMobile ? 18 : 'auto' }}
+                                    sx={{
+                                      fontSize: isMobile ? '0.65rem' : '0.75rem',
+                                      height: isMobile ? 18 : 'auto',
+                                    }}
                                   />
                                 )}
                               </Box>
@@ -1209,13 +1225,19 @@ export default function SpaceCleanupPage() {
                             size="small"
                             color="primary"
                             variant="outlined"
-                            sx={{ fontSize: isMobile ? '0.65rem' : '0.875rem', height: isMobile ? 20 : 'auto' }}
+                            sx={{
+                              fontSize: isMobile ? '0.65rem' : '0.875rem',
+                              height: isMobile ? 20 : 'auto',
+                            }}
                           />
                           <Chip
-                            label={`${category.file_count} 文件`}
+                            label={t('spaceCleanup.list.filesWrapper', { count: category.file_count })}
                             size="small"
                             variant="outlined"
-                            sx={{ fontSize: isMobile ? '0.65rem' : '0.875rem', height: isMobile ? 20 : 'auto' }}
+                            sx={{
+                              fontSize: isMobile ? '0.65rem' : '0.875rem',
+                              height: isMobile ? 20 : 'auto',
+                            }}
                           />
                         </Stack>
                         {/* 只有有内容才显示展开按钮 */}
@@ -1251,7 +1273,7 @@ export default function SpaceCleanupPage() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                             <ExtensionIcon fontSize="small" color="primary" />
                             <Typography variant="subtitle2">
-                              插件资源 ({category.plugin_resources.length})
+                              {t('spaceCleanup.list.pluginResources', { count: category.plugin_resources.length })}
                             </Typography>
                           </Box>
                           <List
@@ -1268,7 +1290,7 @@ export default function SpaceCleanupPage() {
                                 <ListItem key={pluginRes.plugin_key}>
                                   <ListItemText
                                     primary={pluginRes.plugin_name || pluginRes.plugin_key}
-                                    secondary={`${formatBytes(pluginRes.total_size)} · ${pluginRes.file_count} 文件`}
+                                    secondary={`${formatBytes(pluginRes.total_size)} · ${t('spaceCleanup.list.filesWrapper', { count: pluginRes.file_count })}`}
                                   />
                                 </ListItem>
                               ))}
@@ -1280,7 +1302,7 @@ export default function SpaceCleanupPage() {
                       {category.chat_resources && category.chat_resources.length > 0 && (
                         <Box>
                           <Typography variant="subtitle2" gutterBottom>
-                            聊天资源 ({category.chat_resources.length})
+                            {t('spaceCleanup.list.chatResources', { count: category.chat_resources.length })}
                           </Typography>
                           <Box
                             sx={{
@@ -1323,7 +1345,14 @@ export default function SpaceCleanupPage() {
                                   ).includes(chatRes.chat_key)
 
                                   return (
-                                    <Grid item xs={12} sm={6} md={isTablet ? 6 : 4} lg={3} key={chatRes.chat_key}>
+                                    <Grid
+                                      item
+                                      xs={12}
+                                      sm={6}
+                                      md={isTablet ? 6 : 4}
+                                      lg={3}
+                                      key={chatRes.chat_key}
+                                    >
                                       <ListItemButton
                                         onClick={() => {
                                           if (category.can_cleanup) {
@@ -1430,7 +1459,7 @@ export default function SpaceCleanupPage() {
                                             }}
                                           />
                                           <Chip
-                                            label={`${chatRes.file_count} 文件`}
+                                            label={t('spaceCleanup.list.filesWrapper', { count: chatRes.file_count })}
                                             size="small"
                                             variant="outlined"
                                             sx={{
@@ -1460,7 +1489,7 @@ export default function SpaceCleanupPage() {
           <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
               <DeleteIcon sx={{ mr: 1, color: 'error.main' }} />
-              <Typography variant="h6">清理设置</Typography>
+              <Typography variant="h6">{t('spaceCleanup.settings.title')}</Typography>
             </Box>
 
             <Grid container spacing={3}>
@@ -1475,25 +1504,21 @@ export default function SpaceCleanupPage() {
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <ScheduleIcon fontSize="small" />
-                      <Typography variant="body2">启用时间过滤</Typography>
+                      <Typography variant="body2">{t('spaceCleanup.settings.enableTimeFilter')}</Typography>
                     </Box>
                   }
                 />
                 <TextField
                   type="number"
-                  label="清理多少天前的文件"
+                  label={t('spaceCleanup.settings.daysLabel')}
                   value={beforeDays}
                   onChange={e => setBeforeDays(Math.max(0, parseInt(e.target.value) || 0))}
                   fullWidth
                   disabled={!enableTimeFilter}
-                  helperText={enableTimeFilter ? '仅清理指定天数前修改的文件' : '已禁用时间过滤'}
+                  helperText={enableTimeFilter ? t('spaceCleanup.settings.daysHelper') : t('spaceCleanup.settings.daysHelperDisabled')}
                   sx={{ mt: 2 }}
                 />
-                <Stack
-                  direction={isMobile ? 'column' : 'row'}
-                  spacing={2}
-                  sx={{ mt: 3 }}
-                >
+                <Stack direction={isMobile ? 'column' : 'row'} spacing={2} sx={{ mt: 3 }}>
                   <Button
                     variant="contained"
                     color="error"
@@ -1501,10 +1526,12 @@ export default function SpaceCleanupPage() {
                       cleaning ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />
                     }
                     onClick={handleStartCleanup}
-                    disabled={cleaning || scanning || loadingResult || selectedResourceTypes.length === 0}
+                    disabled={
+                      cleaning || scanning || loadingResult || selectedResourceTypes.length === 0
+                    }
                     fullWidth={isMobile}
                   >
-                    {cleaning ? '清理中...' : '开始清理'}
+                    {cleaning ? t('spaceCleanup.actions.cleaning') : t('spaceCleanup.actions.cleanup')}
                   </Button>
                   <Button
                     variant="outlined"
@@ -1515,7 +1542,7 @@ export default function SpaceCleanupPage() {
                     disabled={cleaning || scanning || loadingResult}
                     fullWidth={isMobile}
                   >
-                    清除选择
+                    {t('spaceCleanup.actions.clearSelection')}
                   </Button>
                 </Stack>
               </Grid>
@@ -1534,7 +1561,7 @@ export default function SpaceCleanupPage() {
                   }}
                 >
                   <Typography variant="body2" color="text.secondary" gutterBottom>
-                    预计释放空间
+                    {t('spaceCleanup.settings.estimatedSpace')}
                   </Typography>
                   {estimatedSpace.hasUncertainty ? (
                     <>
@@ -1549,9 +1576,14 @@ export default function SpaceCleanupPage() {
                       <Typography
                         variant="caption"
                         color="warning.main"
-                        sx={{ mt: 1, display: 'block', textAlign: 'center', fontSize: isMobile ? '0.7rem' : '0.75rem' }}
+                        sx={{
+                          mt: 1,
+                          display: 'block',
+                          textAlign: 'center',
+                          fontSize: isMobile ? '0.7rem' : '0.75rem',
+                        }}
                       >
-                        ⚠️ 部分资源无法精确按时间过滤，显示为范围值
+                        {t('spaceCleanup.settings.estimatedUncertainty')}
                       </Typography>
                     </>
                   ) : (
@@ -1565,14 +1597,14 @@ export default function SpaceCleanupPage() {
                     </Typography>
                   )}
                   <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
-                    已选择 {selectedResourceTypes.length} 个资源类型
+                    {t('spaceCleanup.settings.selectedSummary', { typeCount: selectedResourceTypes.length })}
                     {(() => {
                       // 收集所有资源类型的聊天 keys 并去重
                       const allChatKeys = new Set<string>()
                       selectedResourceTypes.forEach(rt => {
                         ;(selectedChatKeys[rt] || []).forEach(key => allChatKeys.add(key))
                       })
-                      return allChatKeys.size > 0 ? ` · ${allChatKeys.size} 个聊天` : ''
+                      return allChatKeys.size > 0 ? t('spaceCleanup.settings.selectedSummaryChat', { chatCount: allChatKeys.size }) : ''
                     })()}
                   </Typography>
                 </Paper>
@@ -1591,7 +1623,7 @@ export default function SpaceCleanupPage() {
                   <Box sx={{ mt: 3 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                       <Typography variant="body2" color="text.secondary">
-                        {cleanupProgress.message || '正在清理...'}
+                        {cleanupProgress.message || t('spaceCleanup.cleanupResult.progressMessage')}
                       </Typography>
                       <Typography variant="body2" fontWeight="600">
                         {cleanupProgress.processed_files}/{cleanupProgress.total_files} 文件
@@ -1615,7 +1647,7 @@ export default function SpaceCleanupPage() {
                       color="text.secondary"
                       sx={{ mt: 1, display: 'block' }}
                     >
-                      已释放: {formatBytes(cleanupProgress.freed_space)}
+                      {t('spaceCleanup.cleanupResult.freedLabel', { size: formatBytes(cleanupProgress.freed_space) })}
                     </Typography>
                   </Box>
                 </MotionBox>
@@ -1638,16 +1670,16 @@ export default function SpaceCleanupPage() {
                     sx={{ mt: 3 }}
                   >
                     <Typography variant="body2" fontWeight="600" gutterBottom>
-                      清理{cleanupResult.status === CleanupStatus.COMPLETED ? '完成' : '失败'}
+                      {cleanupResult.status === CleanupStatus.COMPLETED ? t('spaceCleanup.cleanupResult.completed') : t('spaceCleanup.cleanupResult.failed')}
                     </Typography>
                     <Stack direction="row" spacing={2} flexWrap="wrap" sx={{ mt: 1 }}>
                       <Chip
-                        label={`删除 ${cleanupResult.deleted_files}/${cleanupResult.total_files} 文件`}
+                        label={t('spaceCleanup.cleanupResult.deleted', { deleted: cleanupResult.deleted_files, total: cleanupResult.total_files })}
                         size="small"
                         variant="outlined"
                       />
                       <Chip
-                        label={`释放 ${formatBytes(cleanupResult.freed_space)}`}
+                        label={t('spaceCleanup.cleanupResult.freed', { size: formatBytes(cleanupResult.freed_space) })}
                         size="small"
                         variant="outlined"
                         color="success"
@@ -1680,14 +1712,14 @@ export default function SpaceCleanupPage() {
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <WarningIcon color="warning" />
             <Typography variant="h6" fontWeight="600">
-              确认清理
+              {t('spaceCleanup.dialog.title')}
             </Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" fontWeight="600">
-              ⚠️ 清理操作不可恢复，请确认您的选择！
+              {t('spaceCleanup.dialog.warning')}
             </Typography>
           </Alert>
           <Paper
@@ -1699,7 +1731,7 @@ export default function SpaceCleanupPage() {
             }}
           >
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              预计释放空间
+              {t('spaceCleanup.settings.estimatedSpace')}
             </Typography>
             {estimatedSpace.hasUncertainty ? (
               <>
@@ -1714,9 +1746,14 @@ export default function SpaceCleanupPage() {
                 <Typography
                   variant="caption"
                   color="warning.main"
-                  sx={{ mt: 1, display: 'block', textAlign: 'center', fontSize: isMobile ? '0.7rem' : '0.75rem' }}
+                  sx={{
+                    mt: 1,
+                    display: 'block',
+                    textAlign: 'center',
+                    fontSize: isMobile ? '0.7rem' : '0.75rem',
+                  }}
                 >
-                  ⚠️ 部分资源（如缓存、日志）无法精确按时间过滤，实际清理空间在此范围内
+                  {t('spaceCleanup.dialog.uncertaintyWarning')}
                 </Typography>
               </>
             ) : (
@@ -1731,11 +1768,11 @@ export default function SpaceCleanupPage() {
             )}
           </Paper>
           <Typography variant="body2" gutterBottom>
-            已选择 {selectedResourceTypes.length} 个资源类型
+            {t('spaceCleanup.dialog.summaryType', { count: selectedResourceTypes.length })}
           </Typography>
           {enableTimeFilter && beforeDays > 0 && (
             <Typography variant="body2" color="text.secondary">
-              📅 仅清理 {beforeDays} 天前修改的文件
+              {t('spaceCleanup.dialog.summaryDays', { days: beforeDays })}
             </Typography>
           )}
           {(() => {
@@ -1746,7 +1783,7 @@ export default function SpaceCleanupPage() {
             })
             return allChatKeys.size > 0 ? (
               <Typography variant="body2" color="text.secondary">
-                💬 仅清理选定的 {allChatKeys.size} 个聊天
+                {t('spaceCleanup.dialog.summaryChat', { count: allChatKeys.size })}
               </Typography>
             ) : null
           })()}
@@ -1771,7 +1808,7 @@ export default function SpaceCleanupPage() {
                 {dangerCategories.length > 0 && (
                   <Alert severity="error" sx={{ mb: 2 }}>
                     <Typography variant="body2" fontWeight="600" gutterBottom>
-                      ⚠️ 高风险资源警告
+                      {t('spaceCleanup.dialog.highRiskTitle')}
                     </Typography>
                     <Box component="ul" sx={{ m: 0, pl: 2 }}>
                       {dangerCategories.map(cat => (
@@ -1788,7 +1825,7 @@ export default function SpaceCleanupPage() {
                 {warningCategories.length > 0 && (
                   <Alert severity="warning">
                     <Typography variant="body2" fontWeight="600" gutterBottom>
-                      ⚠️ 中等风险资源提示
+                      {t('spaceCleanup.dialog.mediumRiskTitle')}
                     </Typography>
                     <Box component="ul" sx={{ m: 0, pl: 2 }}>
                       {warningCategories.map(cat => (
@@ -1818,7 +1855,7 @@ export default function SpaceCleanupPage() {
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
-            取消
+            {t('actions.cancel')}
           </Button>
           <Button
             onClick={handleConfirmCleanup}
@@ -1827,7 +1864,7 @@ export default function SpaceCleanupPage() {
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
-            确认清理
+            {t('spaceCleanup.actions.confirmCleanup')}
           </Button>
         </DialogActions>
       </Dialog>

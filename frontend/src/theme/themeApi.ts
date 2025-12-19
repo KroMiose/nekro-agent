@@ -52,14 +52,13 @@ import {
 
 // 从 utils.ts
 import {
-  getStopTypeText,
   getStopTypeColor,
   getStopTypeColorValue,
+  getStopTypeTranslatedText,
+  getStopTypeI18nKey,
   getMessageTypeColor,
-  LEGACY_COLORS,
-  stopTypeColors,
   stopTypeColorValues,
-  stopTypeTexts,
+  STOP_TYPE_I18N_KEYS,
 } from './utils'
 
 // 从新的高级渐变系统导入
@@ -119,14 +118,13 @@ export {
   methodTypeDescriptions,
 
   // 从 utils.ts
-  getStopTypeText,
   getStopTypeColor,
   getStopTypeColorValue,
+  getStopTypeTranslatedText,
+  getStopTypeI18nKey,
   getMessageTypeColor,
-  LEGACY_COLORS,
-  stopTypeColors,
   stopTypeColorValues,
-  stopTypeTexts,
+  STOP_TYPE_I18N_KEYS,
 
   // 从 gradients.ts
   AdvancedGradients,
