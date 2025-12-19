@@ -559,50 +559,51 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
             account_username = account.USERNAME
             if account_username in email_adapter.imap_connections:
                 conn = email_adapter.imap_connections[account_username]
-                try:
-                    # 在线程中执行 IMAP list 操作，避免阻塞事件循环
-                    status, folders = await asyncio.to_thread(conn.list)
-                    target_folder = "INBOX"
-                    if status == 'OK' and folders:
-                        folder_names = []
-                        for folder in folders:
-                            info = folder.decode()
-                            m = re.search(r'"([^"]+)"$', info)
-                            if m:
-                                folder_names.append(m.group(1))
-                            else:
-                                parts = info.split()
-                                if parts:
-                                    folder_names.append(parts[-1].strip('"\''))
-                        if folder_names and target_folder not in folder_names:
-                            target_folder = folder_names[0]
+                # 获取该账户的锁，确保IMAP操作的线程安全
+                lock = email_adapter.imap_locks.get(account_username)
+                if not lock:
+                    logger.warning(f"账户 {account_username} 的锁不存在，跳过该账户")
+                    continue
 
-                    # 在线程中执行 select 操作
-                    await asyncio.to_thread(conn.select, target_folder)
+                async with lock:
+                    try:
+                        # 使用adapter的get_mailbox_folders方法获取文件夹列表
+                        folders = await asyncio.to_thread(email_adapter.get_mailbox_folders, conn)
+                        target_folder = "INBOX"
+                        # 优先选择INBOX，否则使用第一个可用文件夹
+                        if folders:
+                            if "INBOX" not in folders:
+                                target_folder = folders[0]
+                        else:
+                            logger.warning(f"账户 {account_username} 没有可用的邮箱文件夹")
+                            continue
 
-                    search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
-                    # 在线程中执行 search 操作
-                    status, messages = await asyncio.to_thread(conn.search, None, search_criteria)
+                        # 在线程中执行 select 操作
+                        await asyncio.to_thread(conn.select, target_folder)
 
-                    if status == 'OK':
-                        email_ids = messages[0].split()
-                        email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
+                        search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
+                        # 在线程中执行 search 操作
+                        status, messages = await asyncio.to_thread(conn.search, None, search_criteria)
 
-                        tasks = []
-                        for email_id in email_ids:
-                            task = asyncio.create_task(_fetch_email_content(_ctx, conn, account_username, email_id, timestamp_one_day_ago))
-                            tasks.append(task)
+                        if status == 'OK':
+                            email_ids = messages[0].split()
+                            email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
 
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                            tasks = []
+                            for email_id in email_ids:
+                                task = asyncio.create_task(_fetch_email_content(_ctx, conn, account_username, email_id, timestamp_one_day_ago))
+                                tasks.append(task)
 
-                        for result in results:
-                            if isinstance(result, Exception):
-                                logger.warning(f"获取邮件内容时出错: {result}")
-                            elif result is not None:
-                                recent_emails.append(result)
+                            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-                except Exception as e:
-                    logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
+                            for result in results:
+                                if isinstance(result, Exception):
+                                    logger.warning(f"获取邮件内容时出错: {result}")
+                                elif result is not None:
+                                    recent_emails.append(result)
+
+                    except Exception as e:
+                        logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
         
         # 按时间排序并限制数量
         recent_emails.sort(key=lambda x: x['date'], reverse=True)
@@ -801,33 +802,32 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
         # 检查账户是否存在且已连接
         if account_username not in email_adapter.imap_connections:
             raise Exception(f"账户 {account_username} 未连接或不存在")
-        
+
         conn = email_adapter.imap_connections[account_username]
 
-        # 在线程中执行 IMAP list 操作，避免阻塞事件循环
-        status, folders = await asyncio.to_thread(conn.list)
-        target_folder = "INBOX"
-        if status == 'OK' and folders:
-            folder_names = []
-            for folder in folders:
-                info = folder.decode()
-                m = re.search(r'"([^"]+)"$', info)
-                if m:
-                    folder_names.append(m.group(1))
-                else:
-                    parts = info.split()
-                    if parts:
-                        folder_names.append(parts[-1].strip('"\''))
-            if folder_names and target_folder not in folder_names:
-                target_folder = folder_names[0]
+        # 获取该账户的锁，确保IMAP操作的线程安全
+        lock = email_adapter.imap_locks.get(account_username)
+        if not lock:
+            raise Exception(f"账户 {account_username} 的锁不存在")
 
-        # 在线程中执行 select 操作
-        await asyncio.to_thread(conn.select, target_folder)
+        async with lock:
+            # 使用adapter的get_mailbox_folders方法获取文件夹列表
+            folders = await asyncio.to_thread(email_adapter.get_mailbox_folders, conn)
+            target_folder = "INBOX"
+            # 优先选择INBOX，否则使用第一个可用文件夹
+            if folders:
+                if "INBOX" not in folders:
+                    target_folder = folders[0]
+            else:
+                raise Exception(f"账户 {account_username} 没有可用的邮箱文件夹")
 
-        # 在线程中执行 fetch 操作
-        status, msg_data = await asyncio.to_thread(conn.fetch, email_id.encode(), '(RFC822)')
-        if status != 'OK':
-            raise Exception(f"获取邮件 {email_id} 失败")
+            # 在线程中执行 select 操作
+            await asyncio.to_thread(conn.select, target_folder)
+
+            # 在线程中执行 fetch 操作
+            status, msg_data = await asyncio.to_thread(conn.fetch, email_id.encode(), '(RFC822)')
+            if status != 'OK':
+                raise Exception(f"获取邮件 {email_id} 失败")
         
         # 解析邮件
         raw_email = msg_data[0][1]

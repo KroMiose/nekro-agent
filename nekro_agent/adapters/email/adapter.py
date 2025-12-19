@@ -118,16 +118,19 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     def __init__(self, config_cls: Type[EmailConfig] = EmailConfig):
         """初始化邮箱适配器"""
         super().__init__(config_cls)
-        
+
         # 初始化邮箱提供商
         self.providers: List = []
-        
+
         # IMAP连接池
         self.imap_connections: dict = {}
-        
+
+        # IMAP连接锁（确保每个连接的线程安全访问）
+        self.imap_locks: Dict[str, asyncio.Lock] = {}
+
         # 邮箱账户到聊天ID的映射
         self.account_chat_mapping: Dict[str, str] = {}
-        
+
         # 轮询任务
         self._polling_task: Optional[asyncio.Task] = None
         self._polling_active = False
@@ -388,8 +391,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 # 发生错误时仍然继续轮询
                 await asyncio.sleep(self.config.POLL_INTERVAL)
     
-    def _get_mailbox_folders(self, conn: imaplib.IMAP4_SSL) -> List[str]:
-        """获取邮箱文件夹列表（同步版本，供asyncio.to_thread调用）"""
+    def get_mailbox_folders(self, conn: imaplib.IMAP4_SSL) -> List[str]:
+        """获取邮箱文件夹列表（同步版本，供asyncio.to_thread调用）
+
+        优先返回INBOX，其次返回其他文件夹
+        """
         # 获取文件夹列表
         status, folders = conn.list()
         if status != 'OK':
@@ -424,66 +430,73 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     
     async def _check_new_emails(self, account_username: str, conn: imaplib.IMAP4_SSL) -> None:
         """检查指定账户的新邮件"""
-        try:
-            # 获取文件夹列表（在线程中执行）
-            folders = await asyncio.to_thread(self._get_mailbox_folders, conn)
-            logger.debug(f"账户 {account_username} 的文件夹列表: {folders}")
+        # 获取该账户的锁，确保IMAP操作的线程安全
+        lock = self.imap_locks.get(account_username)
+        if not lock:
+            logger.error(f"账户 {account_username} 的锁不存在")
+            return
 
-            # 确定要检查的文件夹
-            # 默认使用INBOX文件夹
-            target_folder = "INBOX"
+        async with lock:
+            try:
+                # 获取文件夹列表（在线程中执行）
+                folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
+                logger.debug(f"账户 {account_username} 的文件夹列表: {folders}")
 
-            # 如果INBOX文件夹不可用，使用第一个可用的文件夹
-            if folders and target_folder not in folders and folders:
-                target_folder = folders[0]
-                logger.info(f"账户 {account_username} 使用第一个可用文件夹: {target_folder}")
+                # 确定要检查的文件夹
+                # 默认使用INBOX文件夹
+                target_folder = "INBOX"
 
-            # 选择邮箱文件夹（在线程中执行）
-            await asyncio.to_thread(conn.select, target_folder)
+                # 如果INBOX文件夹不可用，使用第一个可用的文件夹
+                if folders and target_folder not in folders and folders:
+                    target_folder = folders[0]
+                    logger.info(f"账户 {account_username} 使用第一个可用文件夹: {target_folder}")
 
-            # 根据配置决定是否只检查未读邮件
-            if self.config.FETCH_UNSEEN_ONLY:
-                # 搜索未读邮件（在线程中执行）
-                status, messages = await asyncio.to_thread(conn.search, None, 'UNSEEN')
-            else:
-                # 搜索所有邮件（在线程中执行）
-                status, messages = await asyncio.to_thread(conn.search, None, 'ALL')
+                # 选择邮箱文件夹（在线程中执行）
+                await asyncio.to_thread(conn.select, target_folder)
 
-            if status == 'OK':
-                email_ids = messages[0].split()
-                if email_ids:
-                    logger.info(f"账户 {account_username} 在文件夹 {target_folder} 中发现 {len(email_ids)} 封新邮件")
-                    # 处理新邮件，但不超过配置的最大数量
-                    max_emails = min(len(email_ids), self.config.MAX_PER_POLL)
-                    for i in range(max_emails):
-                        email_id = email_ids[i]
-                        try:
-                            await self._process_email(account_username, email_id, conn)
-                        except Exception as e:
-                            logger.error(f"处理邮件 {email_id} 时发生错误: {e}")
+                # 根据配置决定是否只检查未读邮件
+                if self.config.FETCH_UNSEEN_ONLY:
+                    # 搜索未读邮件（在线程中执行）
+                    status, messages = await asyncio.to_thread(conn.search, None, 'UNSEEN')
+                else:
+                    # 搜索所有邮件（在线程中执行）
+                    status, messages = await asyncio.to_thread(conn.search, None, 'ALL')
 
-                    # 如果配置了标记已读，则标记这些邮件为已读（在线程中执行）
-                    if self.config.MARK_AS_SEEN_AFTER_FETCH and self.config.FETCH_UNSEEN_ONLY:
+                if status == 'OK':
+                    email_ids = messages[0].split()
+                    if email_ids:
+                        logger.info(f"账户 {account_username} 在文件夹 {target_folder} 中发现 {len(email_ids)} 封新邮件")
+                        # 处理新邮件，但不超过配置的最大数量
+                        max_emails = min(len(email_ids), self.config.MAX_PER_POLL)
                         for i in range(max_emails):
                             email_id = email_ids[i]
-                            await asyncio.to_thread(conn.store, email_id, '+FLAGS', '\\Seen')
-                else:
-                    logger.debug(f"账户 {account_username} 在文件夹 {target_folder} 中没有新邮件")
-            else:
-                logger.warning(f"账户 {account_username} 邮件搜索失败: {status}")
+                            try:
+                                await self._process_email(account_username, email_id, conn)
+                            except Exception as e:
+                                logger.error(f"处理邮件 {email_id} 时发生错误: {e}")
 
-        except Exception as e:
-            logger.error(f"检查账户 {account_username} 邮件时发生错误: {e}")
-            # 尝试重新连接
-            # 查找对应的账户配置
-            for account in self.config.RECEIVE_ACCOUNTS:
-                if account.USERNAME == account_username and account.ENABLED:
-                    logger.info(f"尝试重新连接账户 {account_username}")
-                    if await self._reconnect_imap(account):
-                        logger.info(f"账户 {account_username} 重新连接成功")
+                        # 如果配置了标记已读，则标记这些邮件为已读（在线程中执行）
+                        if self.config.MARK_AS_SEEN_AFTER_FETCH and self.config.FETCH_UNSEEN_ONLY:
+                            for i in range(max_emails):
+                                email_id = email_ids[i]
+                                await asyncio.to_thread(conn.store, email_id, '+FLAGS', '\\Seen')
                     else:
-                        logger.error(f"账户 {account_username} 重新连接失败")
-                    break
+                        logger.debug(f"账户 {account_username} 在文件夹 {target_folder} 中没有新邮件")
+                else:
+                    logger.warning(f"账户 {account_username} 邮件搜索失败: {status}")
+
+            except Exception as e:
+                logger.error(f"检查账户 {account_username} 邮件时发生错误: {e}")
+                # 尝试重新连接
+                # 查找对应的账户配置
+                for account in self.config.RECEIVE_ACCOUNTS:
+                    if account.USERNAME == account_username and account.ENABLED:
+                        logger.info(f"尝试重新连接账户 {account_username}")
+                        if await self._reconnect_imap(account):
+                            logger.info(f"账户 {account_username} 重新连接成功")
+                        else:
+                            logger.error(f"账户 {account_username} 重新连接失败")
+                        break
     
     async def _process_email(
         self,
@@ -623,6 +636,8 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             try:
                 conn = self._connect_imap(account)
                 self.imap_connections[account.USERNAME] = conn
+                # 为每个连接创建一个锁，确保线程安全
+                self.imap_locks[account.USERNAME] = asyncio.Lock()
                 logger.info(f"IMAP连接建立成功: {account.USERNAME}")
 
             except Exception as e:
@@ -642,6 +657,9 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
             conn = self._connect_imap(account)
             self.imap_connections[account.USERNAME] = conn
+            # 确保锁存在（如果之前没有创建）
+            if account.USERNAME not in self.imap_locks:
+                self.imap_locks[account.USERNAME] = asyncio.Lock()
             logger.info(f"IMAP连接重新建立成功: {account.USERNAME}")
             return True
 
@@ -886,73 +904,83 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         conn = self.imap_connections[account_username]
 
-        try:
-            # 获取邮件内容
-            # email_id是字符串，需要转换为bytes
-            email_id_bytes = email_id.encode() if isinstance(email_id, str) else email_id
+        # 获取该账户的锁，确保IMAP操作的线程安全
+        lock = self.imap_locks.get(account_username)
+        if not lock:
+            raise Exception(f"Lock for account {account_username} not found")
 
-            # 选择要使用的邮箱文件夹：
-            # - 如果调用方传入了 folder，则优先使用传入的 folder
-            # - 否则复用 _get_mailbox_folders 的通用策略（优先 INBOX，否则退回第一个可用文件夹）
-            mailbox_to_select = folder
-            if mailbox_to_select is None:
-                available_folders = await asyncio.to_thread(self._get_mailbox_folders, conn)
-                if not available_folders:
-                    raise Exception(f"No mailbox folders available for account {account_username}")
-                mailbox_to_select = available_folders[0]
+        async with lock:
+            try:
+                # 获取邮件内容
+                # email_id是字符串，需要转换为bytes
+                email_id_bytes = email_id.encode() if isinstance(email_id, str) else email_id
 
-            # 在线程中执行 select 操作
-            select_status, _ = await asyncio.to_thread(conn.select, mailbox_to_select)
-            if select_status != "OK":
-                raise Exception(
-                    f"Failed to select mailbox {mailbox_to_select} for account {account_username}"
-                )
-
-            # 在线程中执行 fetch 操作
-            status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, '(RFC822)')
-
-            if status == 'OK':
-                # 获取原始邮件数据
-                raw_email_data = msg_data[0][1] if msg_data and msg_data[0] else b""
-
-                # 将原始邮件数据转换为base64编码的字符串，便于传输
-                raw_email_base64 = base64.b64encode(raw_email_data).decode('utf-8') if raw_email_data else ""
-
-                # 解析邮件内容，提取HTML部分（如果存在）
-                html_content = ""
-                text_content = ""
-                if raw_email_data:
-                    email_message = email.message_from_bytes(raw_email_data)
-
-                    # 提取邮件正文
-                    if email_message.is_multipart():
-                        for part in email_message.walk():
-                            if part.get_content_type() == "text/html":
-                                charset = part.get_content_charset()
-                                html_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
-                            elif part.get_content_type() == "text/plain":
-                                charset = part.get_content_charset()
-                                text_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                # 选择要使用的邮箱文件夹：
+                # - 如果调用方传入了 folder，则优先使用传入的 folder
+                # - 否则复用 get_mailbox_folders 的通用策略（优先 INBOX，否则退回第一个可用文件夹）
+                mailbox_to_select = folder
+                if mailbox_to_select is None:
+                    available_folders = await asyncio.to_thread(self.get_mailbox_folders, conn)
+                    if not available_folders:
+                        raise Exception(f"No mailbox folders available for account {account_username}")
+                    # 优先选择 INBOX，如果不存在则使用第一个可用文件夹
+                    if "INBOX" in available_folders:
+                        mailbox_to_select = "INBOX"
                     else:
-                        charset = email_message.get_content_charset()
-                        if email_message.get_content_type() == "text/html":
-                            html_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
-                        elif email_message.get_content_type() == "text/plain":
-                            text_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                        mailbox_to_select = available_folders[0]
 
-                return {
-                    "account": account_username,
-                    "email_id": email_id,
-                    "raw_email_base64": raw_email_base64,
-                    "raw_email_size": len(raw_email_data) if raw_email_data else 0,
-                    "html_content": html_content,
-                    "text_content": text_content
-                }
-            else:
-                raise Exception(f"Failed to fetch email: {status}")
+                # 在线程中执行 select 操作
+                select_status, _ = await asyncio.to_thread(conn.select, mailbox_to_select)
+                if select_status != "OK":
+                    raise Exception(
+                        f"Failed to select mailbox {mailbox_to_select} for account {account_username}"
+                    )
 
-        except Exception as e:
-            raise Exception(f"Failed to get raw email content: {str(e)}")
+                # 在线程中执行 fetch 操作
+                status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, '(RFC822)')
+
+                if status == 'OK':
+                    # 获取原始邮件数据
+                    raw_email_data = msg_data[0][1] if msg_data and msg_data[0] else b""
+
+                    # 将原始邮件数据转换为base64编码的字符串，便于传输
+                    raw_email_base64 = base64.b64encode(raw_email_data).decode('utf-8') if raw_email_data else ""
+
+                    # 解析邮件内容，提取HTML部分（如果存在）
+                    html_content = ""
+                    text_content = ""
+                    if raw_email_data:
+                        email_message = email.message_from_bytes(raw_email_data)
+
+                        # 提取邮件正文
+                        if email_message.is_multipart():
+                            for part in email_message.walk():
+                                if part.get_content_type() == "text/html":
+                                    charset = part.get_content_charset()
+                                    html_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                                elif part.get_content_type() == "text/plain":
+                                    charset = part.get_content_charset()
+                                    text_content = part.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                        else:
+                            charset = email_message.get_content_charset()
+                            if email_message.get_content_type() == "text/html":
+                                html_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+                            elif email_message.get_content_type() == "text/plain":
+                                text_content = email_message.get_payload(decode=True).decode(charset or 'utf-8', errors='ignore')
+
+                    return {
+                        "account": account_username,
+                        "email_id": email_id,
+                        "raw_email_base64": raw_email_base64,
+                        "raw_email_size": len(raw_email_data) if raw_email_data else 0,
+                        "html_content": html_content,
+                        "text_content": text_content
+                    }
+                else:
+                    raise Exception(f"Failed to fetch email: {status}")
+
+            except Exception as e:
+                raise Exception(f"Failed to get raw email content: {str(e)}")
 
     async def _download_attachment(self, part, filename: str, account_username: str, email_subject: str, email_uid: str = None) -> None:
         """下载邮件附件"""
