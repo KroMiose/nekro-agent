@@ -9,6 +9,7 @@ import time
 from contextlib import asynccontextmanager
 from email import encoders
 from email.header import decode_header
+from email.message import Message
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -33,6 +34,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core import config as core_config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.message_service import message_service
 
 from .base import EMAIL_PROVIDER_CONFIGS
@@ -243,6 +245,8 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             raise ValueError(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
 
         imap_host = provider_config.get("imap_host")
+        if not imap_host:
+            raise ValueError(f"邮箱提供商 {account.EMAIL_ACCOUNT} 缺少 imap_host 配置")
         imap_port = int(provider_config.get("imap_port", 993))
 
         # 使用配置的超时时间
@@ -500,7 +504,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             return None
         return tokens[-1].strip('"')
 
-    def _extract_body(self, email_message: email.message.Message) -> tuple[str, str]:
+    def _extract_body(self, email_message: Message) -> tuple[str, str]:
         """提取邮件正文内容（HTML 和纯文本）
 
         Args:
@@ -588,7 +592,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         await self._select_mailbox(account_username, conn, preferred=preferred)
         return conn
 
-    async def imap_search(self, conn: imaplib.IMAP4_SSL, criteria: str):
+    async def imap_search(self, conn: imaplib.IMAP4_SSL, criteria: str) -> tuple[str, list]:
         """异步执行 IMAP SEARCH 命令
 
         Args:
@@ -596,11 +600,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             criteria: 搜索条件
 
         Returns:
-            搜索结果
+            tuple[str, list]: (status, data) 元组，status 为状态字符串，data 为搜索结果列表
         """
         return await asyncio.to_thread(conn.search, None, criteria)
 
-    async def imap_fetch(self, conn: imaplib.IMAP4_SSL, msg_id, query='(RFC822)'):
+    async def imap_fetch(self, conn: imaplib.IMAP4_SSL, msg_id, query: str = '(RFC822)') -> tuple[str, list]:
         """异步执行 IMAP FETCH 命令
 
         Args:
@@ -609,7 +613,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             query: 查询字符串，默认为 '(RFC822)'
 
         Returns:
-            fetch 结果
+            tuple[str, list]: (status, data) 元组，status 为状态字符串，data 为数据列表
         """
         return await asyncio.to_thread(conn.fetch, msg_id, query)
     
@@ -746,16 +750,14 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 content_text=content,
                 is_self=False,
                 timestamp=timestamp,
-                ext_data=PlatformMessageExt(
-                    raw_data=raw_email
-                )
+                ext_data=PlatformMessageExt()
             )
 
             # 创建平台频道对象
             platform_channel = PlatformChannel(
                 channel_id=chat_id,
                 channel_name=f"邮箱账户: {account_username}",
-                channel_type="private"
+                channel_type=ChatType.PRIVATE
             )
 
             # 创建平台用户对象
@@ -1030,7 +1032,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         return PlatformChannel(
             channel_id=channel_id,
             channel_name=f"邮箱账户: {channel_id}",
-            channel_type="private"  # 邮箱适配器默认是私聊
+            channel_type=ChatType.PRIVATE  # 邮箱适配器默认是私聊
         )
     
     def get_adapter_router(self) -> APIRouter:
@@ -1109,7 +1111,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             except Exception as e:
                 raise Exception(f"Failed to get raw email content: {str(e)}")
 
-    async def _download_attachment(self, part, filename: str, account_username: str, email_subject: str, email_uid: str = None) -> None:
+    async def _download_attachment(self, part, filename: str, account_username: str, email_subject: str, email_uid: str | None = None) -> None:
         """下载邮件附件"""
         try:
             # 使用固定的附件保存目录，便于沙盒访问

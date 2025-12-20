@@ -48,10 +48,14 @@ async def get_email_accounts(adapter = Depends(get_email_adapter)):
         # 尝试处理具有 dict()/model_dump() 的对象类型配置（例如 Pydantic 模型）
         elif hasattr(account, "dict") or hasattr(account, "model_dump"):
             dump_fn = getattr(account, "model_dump", None) or getattr(account, "dict", None)
-            sanitized = dump_fn(
-                exclude={"password", "secret", "token", "access_token", "refresh_token"},
-            )
-            sanitized_accounts.append(sanitized)
+            if dump_fn is not None:
+                sanitized = dump_fn(
+                    exclude={"password", "secret", "token", "access_token", "refresh_token"},
+                )
+                sanitized_accounts.append(sanitized)
+            else:
+                # 如果两个方法都不存在，转为字符串
+                sanitized_accounts.append(str(account))
         else:
             # 不可识别类型，直接转为字符串，避免暴露内部实现/敏感信息
             sanitized_accounts.append(str(account))
