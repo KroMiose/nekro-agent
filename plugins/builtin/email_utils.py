@@ -81,17 +81,18 @@ import re
 import smtplib
 import time
 from datetime import datetime, timedelta
+from email.header import decode_header
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import parseaddr
+from email.utils import parseaddr, parsedate_to_datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 
 import aiofiles
 import magic
 from pydantic import Field
 
-from nekro_agent.adapters.email.adapter import decode_mime_words
+from nekro_agent.adapters.email.adapter import EmailAdapter, decode_mime_words
 from nekro_agent.adapters.email.base import EMAIL_PROVIDER_CONFIGS
 from nekro_agent.adapters.email.config import EmailAccount
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -103,11 +104,10 @@ from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
 from nekro_agent.core.config import config as core_config
-from nekro_agent.core.os_env import OsEnv, USER_UPLOAD_DIR
+from nekro_agent.core.os_env import USER_UPLOAD_DIR, OsEnv
 from nekro_agent.services.agent.openai import gen_openai_chat_response
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin
 from nekro_agent.services.plugin.schema import SandboxMethodType
-
 
 # 创建插件实例
 plugin = NekroPlugin(
@@ -117,7 +117,7 @@ plugin = NekroPlugin(
     version="1.0.0",
     author="liugu",
     url="https://github.com/nekro-agent/nekro-agent",
-    #support_adapter=["email", "onebot_v11"],
+    # support_adapter=["email", "onebot_v11"],
     is_builtin=True,
 )
 
@@ -140,7 +140,7 @@ class EmailUtilsConfig(ConfigBase):
     MAX_EMAILS_FOR_SUMMARY: int = Field(
         default=10,
         title="最大总结邮件数",
-        description="单次总结的最大邮件数量"
+        description="单次总结的最大邮件数量",
     )
 
 
@@ -174,11 +174,8 @@ def _decode_header_value(value: str) -> str:
     """
     if not value:
         return ""
-    parts = email.header.decode_header(value)
-    return "".join(
-        p.decode(enc or "utf-8", errors="ignore") if isinstance(p, bytes) else str(p)
-        for p, enc in parts
-    )
+    parts = decode_header(value)
+    return "".join(p.decode(enc or "utf-8", errors="ignore") if isinstance(p, bytes) else str(p) for p, enc in parts)
 
 
 def _build_onebot_path(host_path: Path) -> Optional[str]:
@@ -196,7 +193,7 @@ def _build_onebot_path(host_path: Path) -> Optional[str]:
         # 确保两个路径都是绝对路径
         data_dir = Path(OsEnv.DATA_DIR).resolve()
         rel = os.path.relpath(str(host_path), str(data_dir))
-        return os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
+        return str(Path(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / rel)
     except Exception:
         return None
 
@@ -216,9 +213,15 @@ def _ensure_attachment_path(account_username: str, email_id: str, attachment_fil
 @plugin.mount_sandbox_method(
     method_type=SandboxMethodType.TOOL,
     name="send_email_attachment",
-    description="发送邮件附件到聊天频道"
+    description="发送邮件附件到聊天频道",
 )
-async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id: str, attachment_filename: str, chat_key: str) -> Dict[str, Any]:
+async def send_email_attachment(
+    _ctx: AgentCtx,
+    account_username: str,
+    email_id: str,
+    attachment_filename: str,
+    chat_key: str,
+) -> Dict[str, Any]:
     """
     将邮件附件转发到指定的聊天频道。
 
@@ -242,11 +245,22 @@ async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id:
             - message (str): 操作结果描述信息
             - filename (str): 附件的文件名
     """
+    def _raise_if_not_exists(path: Path) -> None:
+        if not path.exists():
+            raise FileNotFoundError(f"附件文件不存在: {path}")
+
+    def _raise_if_no_adapter_key(key: Optional[str]) -> None:
+        if not key:
+            raise Exception("适配器键未设置")
+
+    def _raise_if_send_failed(resp) -> None:
+        if not resp.success:
+            raise Exception(f"适配器发送失败: {resp.error_message}")
+
     try:
-        host_path = _ensure_attachment_path(account_username, email_id, attachment_filename)  
-  
-        if not host_path.exists():
-            raise FileNotFoundError(f"附件文件不存在: {host_path}")
+        host_path = _ensure_attachment_path(account_username, email_id, attachment_filename)
+
+        _raise_if_not_exists(host_path)
 
         # 使用原始文件名（已经经过 _sanitize_filename 清理）
         safe_filename = attachment_filename
@@ -278,7 +292,6 @@ async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id:
         data_dir = Path(OsEnv.DATA_DIR).resolve()
         relative_path = Path(data_dir.name) / target_path.relative_to(data_dir)
 
-
         segment_type = PlatformSendSegmentType.IMAGE if is_image else PlatformSendSegmentType.FILE
         request = PlatformSendRequest(
             chat_key=chat_key,
@@ -286,33 +299,36 @@ async def send_email_attachment(_ctx: AgentCtx, account_username: str, email_id:
                 PlatformSendSegment(
                     type=segment_type,
                     file_path=str(relative_path),  # 使用相对路径
-                )
+                ),
             ],
         )
 
         # 获取适配器并发送
+        _raise_if_no_adapter_key(_ctx.adapter_key)
+        assert _ctx.adapter_key is not None  # Type narrowing for Pylance
         adapter = adapter_utils.get_adapter(_ctx.adapter_key)
         response = await adapter.forward_message(request)
 
-        if not response.success:
-            raise Exception(f"适配器发送失败: {response.error_message}")
-
+        _raise_if_send_failed(response)
+    except Exception as e:
+        logger.error(f"发送邮件附件失败: {e}")
+        return {
+            "success": False,
+            "message": f"发送邮件附件失败: {e!s}",
+            "filename": attachment_filename,
+        }
+    else:
         return {
             "success": True,
             "message": f"附件已发送: {attachment_filename}",
-            "filename": attachment_filename
-        }  
-    except Exception as e:  
-        logger.error(f"发送邮件附件失败: {e}")  
-        return {  
-            "success": False,  
-            "message": f"发送邮件附件失败: {str(e)}",  
-            "filename": attachment_filename  
+            "filename": attachment_filename,
         }
+
+
 @plugin.mount_sandbox_method(
     method_type=SandboxMethodType.TOOL,
     name="get_email_accounts",
-    description="获取当前所有邮箱账户信息"
+    description="获取当前所有邮箱账户信息",
 )
 async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
     """
@@ -332,38 +348,49 @@ async def get_email_accounts(_ctx: AgentCtx) -> List[Dict[str, Any]]:
             - send_enabled (bool): 是否启用发信功能
             - is_default_sender (bool): 是否为默认发件人
     """
+    def _raise_if_no_adapter(adapter) -> None:
+        if not adapter:
+            raise Exception("邮箱适配器未启用或未找到")
+
     try:
         # 获取邮箱适配器
         email_adapter = adapter_utils.get_adapter("email")
-        if not email_adapter:
-            raise Exception("邮箱适配器未启用或未找到")
-        
+        _raise_if_no_adapter(email_adapter)
+
         # 获取配置
         config = email_adapter.config
-        
+    except Exception as e:
+        logger.error(f"获取邮箱账户信息失败: {e}")
+        raise
+    else:
         # 返回账户信息
         accounts = []
         for account in config.RECEIVE_ACCOUNTS:
             if account.ENABLED:
-                accounts.append({
-                    "email_address": account.USERNAME,
-                    "provider": account.EMAIL_ACCOUNT,
-                    "send_enabled": account.SEND_ENABLED,
-                    "is_default_sender": account.IS_DEFAULT_SENDER
-                })
-        
+                accounts.append(
+                    {
+                        "email_address": account.USERNAME,
+                        "provider": account.EMAIL_ACCOUNT,
+                        "send_enabled": account.SEND_ENABLED,
+                        "is_default_sender": account.IS_DEFAULT_SENDER,
+                    },
+                )
+
         return accounts
-    except Exception as e:
-        logger.error(f"获取邮箱账户信息失败: {e}")
-        raise
 
 
 @plugin.mount_sandbox_method(
     method_type=SandboxMethodType.TOOL,
     name="send_email",
-    description="发送邮件"
+    description="发送邮件",
 )
-async def send_email(_ctx: AgentCtx, to_address: str, subject: str, content: str, from_account: Optional[str] = None) -> Dict[str, Any]:
+async def send_email(
+    _ctx: AgentCtx,
+    to_address: str,
+    subject: str,
+    content: str,
+    from_account: Optional[str] = None,
+) -> Dict[str, Any]:
     """
     使用指定或默认的发件人账户发送邮件。
 
@@ -390,20 +417,31 @@ async def send_email(_ctx: AgentCtx, to_address: str, subject: str, content: str
             - to (str): 收件人地址
             - subject (str): 邮件主题
     """
+    def _raise_if_no_adapter(adapter) -> None:
+        if not adapter:
+            raise Exception("邮箱适配器未启用或未找到")
+
+    def _raise_if_no_sender(sender) -> None:
+        if not sender:
+            raise Exception("没有找到可用的发件人账户")
+
+    def _raise_if_no_smtp_host(host: str, email_account: str) -> None:
+        if not host:
+            raise Exception(f"未找到 {email_account} 的SMTP配置")
+
     try:
         # 获取邮箱适配器
         email_adapter = adapter_utils.get_adapter("email")
-        if not email_adapter:
-            raise Exception("邮箱适配器未启用或未找到")
-        
+        _raise_if_no_adapter(email_adapter)
+
         # 获取配置
         email_config = email_adapter.config
-        
+
         # 查找发件人账户
         sender_account: Optional[EmailAccount] = None
         if from_account:
             for account in email_config.RECEIVE_ACCOUNTS:
-                if account.USERNAME == from_account and account.SEND_ENABLED:
+                if from_account == account.USERNAME and account.SEND_ENABLED:
                     sender_account = account
                     break
         else:
@@ -418,10 +456,10 @@ async def send_email(_ctx: AgentCtx, to_address: str, subject: str, content: str
                     if account.SEND_ENABLED:
                         sender_account = account
                         break
-        
-        if not sender_account:
-            raise Exception("没有找到可用的发件人账户")
-        
+
+        _raise_if_no_sender(sender_account)
+        assert sender_account is not None  # Type narrowing for Pylance
+
         # 获取SMTP配置
         provider_config = EMAIL_PROVIDER_CONFIGS.get(sender_account.EMAIL_ACCOUNT, {})
         smtp_host = provider_config.get("smtp_host", "")
@@ -430,17 +468,16 @@ async def send_email(_ctx: AgentCtx, to_address: str, subject: str, content: str
         # 将字符串 "true"/"false" 转换为布尔值
         use_ssl_str = provider_config.get("smtp_use_ssl", "false").lower()
         use_ssl_preferred = use_ssl_str == "true"
-        
-        if not smtp_host:
-            raise Exception(f"未找到 {sender_account.EMAIL_ACCOUNT} 的SMTP配置")
-        
+
+        _raise_if_no_smtp_host(smtp_host, sender_account.EMAIL_ACCOUNT)
+
         # 创建邮件
         msg = MIMEMultipart()
         msg["From"] = sender_account.USERNAME
         msg["To"] = to_address
         msg["Subject"] = subject
         msg.attach(MIMEText(content, "plain", "utf-8"))
-        
+
         async def _send_mail(use_ssl: bool, port: int) -> None:
             def _sync_send() -> None:
                 if use_ssl:
@@ -467,38 +504,45 @@ async def send_email(_ctx: AgentCtx, to_address: str, subject: str, content: str
             if "(-1," in error_str:
                 logger.warning(f"邮件可能已发送成功，但收到特殊响应码: {e}")
                 # 不抛出异常，视为发送成功
-            elif not use_ssl_preferred and ("connect" in error_msg or "ssl" in error_msg or "tls" in error_msg or "certificate" in error_msg):
+            elif not use_ssl_preferred and (
+                "connect" in error_msg or "ssl" in error_msg or "tls" in error_msg or "certificate" in error_msg
+            ):
                 # 只在连接相关错误时尝试 SSL
                 logger.info(f"非 SSL 连接失败，尝试使用 SSL 连接: {e}")
                 await _send_mail(True, smtp_ssl_port)
             else:
                 # 其他错误直接抛出
                 raise
-        
+    except Exception as e:
+        logger.error(f"发送邮件失败: {e}")
+        return {
+            "success": False,
+            "message": f"邮件发送失败: {e!s}",
+            "from": from_account or "unknown",
+            "to": to_address,
+            "subject": subject,
+        }
+    else:
         return {
             "success": True,
             "message": "邮件发送成功",
             "from": sender_account.USERNAME,
             "to": to_address,
-            "subject": subject
-        }
-    except Exception as e:
-        logger.error(f"发送邮件失败: {e}")
-        return {
-            "success": False,
-            "message": f"邮件发送失败: {str(e)}",
-            "from": from_account or "unknown",
-            "to": to_address,
-            "subject": subject
+            "subject": subject,
         }
 
 
 @plugin.mount_sandbox_method(
     method_type=SandboxMethodType.AGENT,
     name="summarize_recent_emails",
-    description="调用指定模型组总结最近1天内的特定数量条邮件"
+    description="调用指定模型组总结最近1天内的特定数量条邮件",
 )
-async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = None, count: Optional[int] = None, account_filter: Optional[str] = None) -> str:
+async def summarize_recent_emails(
+    _ctx: AgentCtx,
+    model_group: Optional[str] = None,
+    count: Optional[int] = None,
+    account_filter: Optional[str] = None,
+) -> str:
     """
     使用 AI 模型总结最近 1 天内收到的邮件内容。
 
@@ -526,36 +570,42 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
             - 邮件 UID（用于后续操作）
             - 附件列表（如有）
     """
+    def _raise_if_no_adapter(adapter) -> None:
+        if not adapter:
+            raise Exception("邮箱适配器未启用或未找到")
+
+    def _raise_if_no_accounts(accounts: list) -> None:
+        if not accounts:
+            raise Exception("没有找到符合条件的邮箱账户")
+
     try:
         # 使用插件配置中的默认值
         if model_group is None:
             model_group = config.DEFAULT_SUMMARY_MODEL_GROUP
         if count is None:
             count = config.MAX_EMAILS_FOR_SUMMARY
-            
+
         # 获取邮箱适配器
-        email_adapter = adapter_utils.get_adapter("email")
-        if not email_adapter:
-            raise Exception("邮箱适配器未启用或未找到")
-        
+        base_adapter = adapter_utils.get_adapter("email")
+        _raise_if_no_adapter(base_adapter)
+        email_adapter = cast(EmailAdapter, base_adapter)
+
         # 获取配置
         email_config = email_adapter.config
-        
+
         # 筛选账户
         accounts_to_check = []
         for account in email_config.RECEIVE_ACCOUNTS:
-            if account.ENABLED:
-                if account_filter is None or account.USERNAME == account_filter:
-                    accounts_to_check.append(account)
-        
-        if not accounts_to_check:
-            raise Exception("没有找到符合条件的邮箱账户")
-        
+            if account.ENABLED and (account_filter is None or account_filter == account.USERNAME):
+                accounts_to_check.append(account)
+
+        _raise_if_no_accounts(accounts_to_check)
+
         # 收集最近1天的邮件
         recent_emails = []
         one_day_ago = datetime.now() - timedelta(days=1)
         timestamp_one_day_ago = one_day_ago.timestamp()
-        
+
         # 遍历每个账户的IMAP连接
         for account in accounts_to_check:
             account_username = account.USERNAME
@@ -577,14 +627,20 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
                         # 使用适配器的 imap_search 辅助方法
                         status, messages = await email_adapter.imap_search(conn, search_criteria)
 
-                        if status == 'OK':
+                        if status == "OK":
                             email_ids = messages[0].split()
                             email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
 
                             # 顺序获取邮件内容，避免并发访问同一个 IMAP 连接导致状态混乱
                             for email_id in email_ids:
                                 try:
-                                    result = await _fetch_email_content(_ctx, conn, account_username, email_id, timestamp_one_day_ago)
+                                    result = await _fetch_email_content(
+                                        _ctx,
+                                        conn,
+                                        account_username,
+                                        email_id,
+                                        timestamp_one_day_ago,
+                                    )
                                     if result is not None:
                                         recent_emails.append(result)
                                 except Exception as e:
@@ -592,14 +648,14 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
 
                     except Exception as e:
                         logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
-        
+
         # 按时间排序并限制数量
-        recent_emails.sort(key=lambda x: x['date'], reverse=True)
+        recent_emails.sort(key=lambda x: x["date"], reverse=True)
         recent_emails = recent_emails[:count]
-        
+
         if not recent_emails:
             return "没有找到最近1天内的邮件"
-        
+
         # 构造总结提示词（仅总结内容、邮箱账户、邮件UID；附件路径由单条查询方法提供）
         summary_prompt = "请总结以下邮件内容，为每封邮件提供简短摘要，并标明邮箱账户与对应的邮件UID（无需包含附件保存位置，若有附件仅列文件名），不要使用markdown格式:\n\n"
         for i, email_info in enumerate(recent_emails, 1):
@@ -607,23 +663,23 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
             summary_prompt += f"   发件人: {email_info['sender']}\n"
             summary_prompt += f"   主题: {email_info['subject']}\n"
             summary_prompt += f"   内容: {email_info['content']}\n"
-            if email_info.get('uid'):
+            if email_info.get("uid"):
                 summary_prompt += f"   邮件UID: {email_info['uid']}\n"
-            if email_info['attachments']:
+            if email_info["attachments"]:
                 att_names = []
-                for att in email_info['attachments']:
-                    name = att.get('filename') if isinstance(att, dict) else att
+                for att in email_info["attachments"]:
+                    name = att.get("filename") if isinstance(att, dict) else att
                     if name:
                         att_names.append(name)
                 if att_names:
                     summary_prompt += f"   附件: {', '.join(att_names)}\n"
             summary_prompt += "\n"
-        
+
         try:
             model_group_config = core_config.MODEL_GROUPS[model_group]
-        except KeyError:
-            raise Exception(f"模型组 '{model_group}' 未找到，请检查配置")
-        
+        except KeyError as e:
+            raise Exception(f"模型组 '{model_group}' 未找到，请检查配置") from e
+
         # 调用模型生成摘要
         try:
             response = await gen_openai_chat_response(
@@ -633,130 +689,157 @@ async def summarize_recent_emails(_ctx: AgentCtx, model_group: Optional[str] = N
                 api_key=model_group_config.API_KEY,
                 stream_mode=False,
             )
-            return response.response_content
         except Exception as e:
             logger.error(f"调用模型生成摘要失败: {e}")
-            raise Exception(f"调用模型生成摘要失败: {str(e)}")
-        
+            raise Exception(f"调用模型生成摘要失败: {e!s}") from e
+        else:
+            return response.response_content
+
     except Exception as e:
         logger.error(f"总结邮件失败: {e}")
-        return f"邮件总结失败: {str(e)}"
+        return f"邮件总结失败: {e!s}"
 
 
 def _sanitize_filename(filename: str) -> str:
     illegal_chars = '<>:"/\\|?*'
     for ch in illegal_chars:
-        filename = filename.replace(ch, '_')
-    filename = ''.join(ch for ch in filename if ord(ch) >= 32)
+        filename = filename.replace(ch, "_")
+    filename = "".join(ch for ch in filename if ord(ch) >= 32)
     if len(filename) > 255:
-        name, ext = os.path.splitext(filename)
-        filename = name[:255 - len(ext)] + ext
+        path = Path(filename)
+        name = path.stem
+        ext = path.suffix
+        filename = name[: 255 - len(ext)] + ext
     return filename
 
-async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id, timestamp_one_day_ago):
+
+async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id, _timestamp_one_day_ago):
     """异步获取单封邮件内容
 
     注意：不需要在这里过滤时间，因为 IMAP SINCE 命令已经过滤过了
     """
+    def _raise_if_no_adapter(adapter) -> None:
+        if not adapter:
+            raise Exception("邮箱适配器未启用或未找到")
+
     try:
         # 获取邮箱适配器
-        email_adapter = adapter_utils.get_adapter("email")
+        base_adapter = adapter_utils.get_adapter("email")
+        _raise_if_no_adapter(base_adapter)
+        email_adapter = cast(EmailAdapter, base_adapter)
 
         # 使用适配器的 imap_fetch 辅助方法
-        status, msg_data = await email_adapter.imap_fetch(conn, email_id, '(RFC822)')
-        if status == 'OK':
-            # 解析邮件
-            raw_email = msg_data[0][1]
-            email_message = email.message_from_bytes(raw_email)
+        status, msg_data = await email_adapter.imap_fetch(conn, email_id, "(RFC822)")
+        if status != "OK" or not msg_data or len(msg_data) == 0:
+            logger.warning(f"获取邮件 {email_id} 失败")
+            return None
 
-            # 提取邮件基本信息
-            subject = email_message.get('Subject', '')
-            from_header = email_message.get('From', '')
-            date_str = email_message.get('Date', '')
+        # 解析邮件
+        raw_email = msg_data[0][1]
+        if not isinstance(raw_email, bytes):
+            logger.warning(f"邮件 {email_id} 数据类型错误")
+            return None
+        email_message = email.message_from_bytes(raw_email)
 
-            # 解析并解码发件人
-            sender_name, sender_addr = parseaddr(from_header)
-            sender_name = decode_mime_words(sender_name) or sender_name
-            # 返回格式：名称 <地址>
-            sender = f"{sender_name} <{sender_addr}>" if sender_name else sender_addr
+        # 提取邮件基本信息
+        subject = email_message.get("Subject", "")
+        from_header = email_message.get("From", "")
+        date_str = email_message.get("Date", "")
 
-            # 解析邮件时间用于返回
-            email_date = None
-            if date_str:
-                try:
-                    email_date = email.utils.parsedate_to_datetime(date_str)
-                except Exception as e:
-                    logger.warning(f"解析邮件日期时出错: {e}")
-                    # 如果解析失败，使用当前时间
-                    email_date = datetime.now()
+        # 解析并解码发件人
+        sender_name, sender_addr = parseaddr(from_header)
+        sender_name = decode_mime_words(sender_name) or sender_name
+        # 返回格式：名称 <地址>
+        sender = f"{sender_name} <{sender_addr}>" if sender_name else sender_addr
 
-            # 如果没有日期，使用当前时间
-            if not email_date:
+        # 解析邮件时间用于返回
+        email_date = None
+        if date_str:
+            try:
+                email_date = parsedate_to_datetime(date_str)
+            except Exception as e:
+                logger.warning(f"解析邮件日期时出错: {e}")
+                # 如果解析失败，使用当前时间
                 email_date = datetime.now()
 
-            # 解码主题
-            if subject:
-                decoded_parts = email.header.decode_header(subject)
-                subject = ''.join([
-                    part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
+        # 如果没有日期，使用当前时间
+        if not email_date:
+            email_date = datetime.now()
+
+        # 解码主题
+        if subject:
+            decoded_parts = decode_header(subject)
+            subject = "".join(
+                [
+                    part.decode(encoding or "utf-8") if isinstance(part, bytes) else str(part)
                     for part, encoding in decoded_parts
-                ])
+                ],
+            )
 
-            # 提取邮件正文
-            content = ""
-            if email_message.is_multipart():
-                for part in email_message.walk():
-                    if part.get_content_type() == "text/plain":
-                        payload = part.get_payload(decode=True)
-                        if payload:
-                            charset = part.get_content_charset() or 'utf-8'
-                            content = payload.decode(charset, errors='ignore')
-                            break
-            else:
-                payload = email_message.get_payload(decode=True)
-                if payload:
-                    charset = email_message.get_content_charset() or 'utf-8'
-                    content = payload.decode(charset, errors='ignore')
+        # 提取邮件正文
+        content = ""
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                if part.get_content_type() == "text/plain":
+                    payload = part.get_payload(decode=True)
+                    if payload and isinstance(payload, bytes):
+                        charset = part.get_content_charset() or "utf-8"
+                        content = payload.decode(charset, errors="ignore")
+                        break
+        else:
+            payload = email_message.get_payload(decode=True)
+            if payload and isinstance(payload, bytes):
+                charset = email_message.get_content_charset() or "utf-8"
+                content = payload.decode(charset, errors="ignore")
 
-            # 提取附件
-            attachments = []
-            if email_message.is_multipart():
-                for part in email_message.walk():
-                    if part.get_content_disposition() == "attachment":
-                        filename = part.get_filename()
-                        if filename:
-                            decoded_parts = email.header.decode_header(filename)
-                            filename = ''.join([
-                                part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
+        # 提取附件
+        attachments = []
+        if email_message.is_multipart():
+            for part in email_message.walk():
+                if part.get_content_disposition() == "attachment":
+                    filename = part.get_filename()
+                    if filename:
+                        decoded_parts = decode_header(filename)
+                        filename = "".join(
+                            [
+                                part.decode(encoding or "utf-8") if isinstance(part, bytes) else str(part)
                                 for part, encoding in decoded_parts
-                            ])
-                            host_path = _ensure_attachment_path(account_username, email_id.decode(), filename)
-                            onebot_server_path = None
-                            if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
-                                try:
-                                    data_dir = Path(OsEnv.DATA_DIR).resolve()
-                                    rel = os.path.relpath(str(host_path), str(data_dir))
-                                    onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
-                                except Exception:
-                                    onebot_server_path = None
+                            ],
+                        )
+                        # email_id 应该是 bytes 类型，需要解码为字符串
+                        email_id_str = email_id.decode() if isinstance(email_id, bytes) else str(email_id)
+                        host_path = _ensure_attachment_path(account_username, email_id_str, filename)
+                        onebot_server_path = None
+                        if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
+                            try:
+                                data_dir = Path(OsEnv.DATA_DIR).resolve()
+                                rel = os.path.relpath(str(host_path), str(data_dir))
+                                onebot_server_path = str(Path(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / rel)
+                            except Exception:
+                                onebot_server_path = None
 
-                            attachments.append({
+                        attachments.append(
+                            {
                                 "filename": filename,
                                 "host_path": str(host_path),
-                                "onebot_server_path": onebot_server_path
-                            })
+                                "onebot_server_path": onebot_server_path,
+                            },
+                        )
 
-            return {
-                "account": account_username,
-                "subject": subject,
-                "sender": sender,
-                "date": email_date.isoformat(),
-                "content": _trim_text(content, _SUMMARY_CONTENT_LIMIT),
-                "attachments": attachments,
-                "uid": email_id.decode()
-            }
+        # email_id 应该是 bytes 类型，需要解码为字符串
+        email_id_str = email_id.decode() if isinstance(email_id, bytes) else str(email_id)
+        return {
+            "account": account_username,
+            "subject": subject,
+            "sender": sender,
+            "date": email_date.isoformat(),
+            "content": _trim_text(content, _SUMMARY_CONTENT_LIMIT),
+            "attachments": attachments,
+            "uid": email_id_str,
+        }
     except Exception as e:
-        logger.warning(f"获取邮件 {email_id.decode()} 时出错: {e}")
+        email_id_str = email_id.decode() if isinstance(email_id, bytes) else str(email_id)
+        logger.warning(f"获取邮件 {email_id_str} 时出错: {e}")
 
     return None
 
@@ -764,7 +847,7 @@ async def _fetch_email_content(_ctx: AgentCtx, conn, account_username, email_id,
 @plugin.mount_sandbox_method(
     method_type=SandboxMethodType.TOOL,
     name="get_email_content",
-    description="获取指定邮箱和邮件ID的邮件内容"
+    description="获取指定邮箱和邮件ID的邮件内容",
 )
 async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str) -> Dict[str, Any]:
     """
@@ -801,15 +884,30 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                 - filename (str): 附件文件名
                 - onebot_server_path (str): OneBot 服务器可访问的路径（如适用）
     """
-    try:
-        # 获取邮箱适配器
-        email_adapter = adapter_utils.get_adapter("email")
-        if not email_adapter:
+    def _raise_if_no_adapter(adapter) -> None:
+        if not adapter:
             raise Exception("邮箱适配器未启用或未找到")
 
+    def _raise_if_account_not_connected(username: str, connections: dict) -> None:
+        if username not in connections:
+            raise Exception(f"账户 {username} 未连接或不存在")
+
+    def _raise_if_fetch_failed(status: str, msg_data, eid: str) -> None:
+        if status != "OK" or not msg_data or len(msg_data) == 0:
+            raise Exception(f"获取邮件 {eid} 失败")
+
+    def _raise_if_invalid_type(raw: Any, eid: str) -> None:
+        if not isinstance(raw, bytes):
+            raise TypeError(f"邮件 {eid} 数据类型错误")
+
+    try:
+        # 获取邮箱适配器
+        base_adapter = adapter_utils.get_adapter("email")
+        _raise_if_no_adapter(base_adapter)
+        email_adapter = cast(EmailAdapter, base_adapter)
+
         # 检查账户是否存在且已连接
-        if account_username not in email_adapter.imap_connections:
-            raise Exception(f"账户 {account_username} 未连接或不存在")
+        _raise_if_account_not_connected(account_username, email_adapter.imap_connections)
 
         # 获取该账户的锁，确保IMAP操作的线程安全
         lock = email_adapter.imap_locks.get(account_username)
@@ -824,26 +922,29 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
             conn = await email_adapter.select_default_mailbox(account_username)
 
             # 使用适配器的 imap_fetch 辅助方法
-            status, msg_data = await email_adapter.imap_fetch(conn, email_id.encode(), '(RFC822)')
-            if status != 'OK':
-                raise Exception(f"获取邮件 {email_id} 失败")
+            status, msg_data = await email_adapter.imap_fetch(conn, email_id.encode(), "(RFC822)")
+            _raise_if_fetch_failed(status, msg_data, email_id)
 
-        # 解析邮件
-        raw_email = msg_data[0][1]
+            # 解析邮件
+            raw_email = msg_data[0][1]
+            _raise_if_invalid_type(raw_email, email_id)
+
         email_message = email.message_from_bytes(raw_email)
 
         # 提取邮件基本信息
-        subject = email_message.get('Subject', '')
-        from_header = email_message.get('From', '')
-        date_str = email_message.get('Date', '')
+        subject = email_message.get("Subject", "")
+        from_header = email_message.get("From", "")
+        date_str = email_message.get("Date", "")
 
         # 解码主题
         if subject:
-            decoded_parts = email.header.decode_header(subject)
-            subject = ''.join([
-                part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
-                for part, encoding in decoded_parts
-            ])
+            decoded_parts = decode_header(subject)
+            subject = "".join(
+                [
+                    part.decode(encoding or "utf-8") if isinstance(part, bytes) else str(part)
+                    for part, encoding in decoded_parts
+                ],
+            )
 
         # 解析并解码发件人
         sender_name, sender_addr = parseaddr(from_header)
@@ -931,11 +1032,13 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                 if part.get_content_disposition() == "attachment":
                     filename = part.get_filename()
                     if filename:
-                        decoded_parts = email.header.decode_header(filename)
-                        filename = ''.join([
-                            part.decode(encoding or 'utf-8') if isinstance(part, bytes) else str(part)
-                            for part, encoding in decoded_parts
-                        ])
+                        decoded_parts = decode_header(filename)
+                        filename = "".join(
+                            [
+                                part.decode(encoding or "utf-8") if isinstance(part, bytes) else str(part)
+                                for part, encoding in decoded_parts
+                            ],
+                        )
                         attachment_names.append(filename)
                         host_path = _ensure_attachment_path(account_username, email_id, filename)
                         onebot_server_path = None
@@ -943,13 +1046,15 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
                             try:
                                 data_dir = Path(OsEnv.DATA_DIR).resolve()
                                 rel = os.path.relpath(str(host_path), str(data_dir))
-                                onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, rel)
+                                onebot_server_path = str(Path(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR) / rel)
                             except Exception:
                                 onebot_server_path = None
-                        attachments.append({
-                            "filename": filename,
-                            "onebot_server_path": onebot_server_path
-                        })
+                        attachments.append(
+                            {
+                                "filename": filename,
+                                "onebot_server_path": onebot_server_path,
+                            },
+                        )
 
         return {
             "success": True,
@@ -963,11 +1068,11 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
             "has_attachments": len(attachments) > 0,
             "attachment_count": len(attachments),
             "attachment_names": attachment_names,
-            "attachments": attachments
+            "attachments": attachments,
         }
     except Exception as e:
         logger.error(f"获取邮件内容失败: {e}")
         return {
             "success": False,
-            "message": f"获取邮件内容失败: {str(e)}"
+            "message": f"获取邮件内容失败: {e!s}",
         }
