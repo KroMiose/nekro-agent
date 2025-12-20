@@ -319,13 +319,20 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     async def init(self) -> None:
         """初始化适配器"""
         logger.info("邮箱适配器初始化...")
+
+        # 检查是否有启用的邮箱账户
+        enabled_accounts = [acc for acc in self.config.RECEIVE_ACCOUNTS if acc.ENABLED]
+        if not enabled_accounts:
+            logger.info("没有启用的邮箱账户，跳过邮箱适配器初始化")
+            return
+
         # 确保附件保存目录存在
         try:
             os.makedirs(os.path.join(OsEnv.DATA_DIR, "uploads"), exist_ok=True)
             logger.info("附件保存目录已创建: ./data/uploads")
         except Exception as e:
             logger.error(f"创建附件保存目录失败: {e}")
-        
+
         # 初始化IMAP连接等操作
         await self._init_imap_connections()
         # 初始化邮箱账户到聊天ID的映射
@@ -351,6 +358,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
     
     def _start_polling(self) -> None:
         """启动轮询任务"""
+        # 如果没有IMAP连接，不启动轮询任务
+        if not self.imap_connections:
+            logger.info("没有IMAP连接，跳过轮询任务启动")
+            return
+
         if not self._polling_task or self._polling_task.done():
             self._polling_active = True
             self._polling_task = asyncio.create_task(self._polling_loop())
