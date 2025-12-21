@@ -1,6 +1,8 @@
-from typing import Any, Dict, List
+from contextlib import suppress
+from typing import Any, Dict, List, Literal
+
 from pydantic import BaseModel, Field, model_validator
-from typing import Literal
+
 from nekro_agent.adapters.interface.base import BaseAdapterConfig
 from nekro_agent.core.core_utils import ExtraField
 
@@ -79,7 +81,7 @@ class EmailConfig(BaseAdapterConfig):
     MARK_AS_SEEN_AFTER_FETCH: bool = Field(
         default=True,
         title="读取后标记已读",
-        description="启用后在读取并收集消息后将邮件标记为已读(\Seen)",
+        description=r"启用后在读取并收集消息后将邮件标记为已读(\Seen)",
         json_schema_extra=ExtraField().model_dump(),
     )
     IMAP_TIMEOUT: int = Field(
@@ -122,11 +124,13 @@ class EmailConfig(BaseAdapterConfig):
             self.MAX_PER_POLL = 50
         if not isinstance(self.IMAP_TIMEOUT, int) or self.IMAP_TIMEOUT <= 0:
             self.IMAP_TIMEOUT = 30
+
         # 互斥校验：最多仅允许一个默认发件人
-        try:
+        def _validate_default_sender() -> None:
             flags = [1 for acc in self.RECEIVE_ACCOUNTS if getattr(acc, "IS_DEFAULT_SENDER", False)]
             if len(flags) > 1:
                 raise ValueError("默认发件人只能选择一个：请取消多余的默认标记")
-        except Exception:
-            pass
+
+        with suppress(Exception):
+            _validate_default_sender()
         return self

@@ -2,20 +2,19 @@ import asyncio
 import base64
 import email
 import imaplib
-import os
 import re
 import smtplib
 import time
-from contextlib import asynccontextmanager
-from email import encoders
+from contextlib import asynccontextmanager, suppress
+from dataclasses import dataclass
 from email.header import decode_header
-from email.mime.base import MIMEBase
+from email.message import Message
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, mktime_tz, parseaddr, parsedate_to_datetime, parsedate_tz
+from email.utils import mktime_tz, parseaddr, parsedate_tz
 from html.parser import HTMLParser
+from pathlib import Path
 from typing import Dict, List, Optional, Type
-from dataclasses import dataclass
 
 import aiofiles
 from fastapi import APIRouter
@@ -33,34 +32,37 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core import config as core_config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.message_service import message_service
 
 from .base import EMAIL_PROVIDER_CONFIGS
 from .config import EmailAccount, EmailConfig
 from .routers import router, set_email_adapter
 
+
 def decode_mime_words(s):
     """解码MIME编码的字符串"""
     if not s:
         return ""
-    
+
     try:
         # 解码MIME头部
         decoded_parts = decode_header(s)
         decoded_string = ""
-        
+
         for part, encoding in decoded_parts:
             if isinstance(part, bytes):
                 # 如果是字节串，使用指定的编码解码
-                decoded_string += part.decode(encoding or 'utf-8', errors='ignore')
+                decoded_string += part.decode(encoding or "utf-8", errors="ignore")
             else:
                 # 如果已经是字符串，直接添加
                 decoded_string += part
-                
-        return decoded_string
+
     except Exception as e:
         logger.warning(f"解码MIME字符串时出错: {e}")
         return s if isinstance(s, str) else ""
+    else:
+        return decoded_string
 
 
 class _HTMLTextExtractor(HTMLParser):
@@ -73,7 +75,7 @@ class _HTMLTextExtractor(HTMLParser):
         self._texts: List[str] = []
         self._skip = False
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag, _attrs):
         tag_lower = tag.lower()
         if tag_lower in {"script", "style"}:
             self._skip = True
@@ -103,6 +105,7 @@ class _HTMLTextExtractor(HTMLParser):
 @dataclass
 class ParsedEmail:
     """解析后的邮件数据"""
+
     subject: str
     sender_name: str
     sender_addr: str
@@ -115,7 +118,7 @@ class ParsedEmail:
 
 class EmailAdapter(BaseAdapter[EmailConfig]):
     """邮箱适配器"""
-    
+
     def __init__(self, config_cls: Type[EmailConfig] = EmailConfig):
         """初始化邮箱适配器"""
         super().__init__(config_cls)
@@ -169,7 +172,6 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         if email_message.is_multipart():
             for part in email_message.walk():
                 content_type = part.get_content_type()
-                disposition = str(part.get("Content-Disposition", "")) or ""
                 cdisp = part.get_content_disposition()
 
                 # 处理附件（attachment 和 inline）
@@ -243,6 +245,8 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             raise ValueError(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
 
         imap_host = provider_config.get("imap_host")
+        if not imap_host:
+            raise ValueError(f"邮箱提供商 {account.EMAIL_ACCOUNT} 缺少 imap_host 配置")
         imap_port = int(provider_config.get("imap_port", 993))
 
         # 使用配置的超时时间
@@ -293,17 +297,18 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             agent_messages=notify_text,
             trigger_agent=True,
         )
-        
+
     @property
     def key(self) -> str:
         """适配器唯一标识"""
         return "email"
+
     @property
     def chat_key_rules(self) -> List[str]:
         return [
-            "邮箱：email-邮箱账户名（例如：email-123456@qq.com）"
+            "邮箱：email-邮箱账户名（例如：email-123456@qq.com）",
         ]
-    
+
     @property
     def metadata(self) -> AdapterMetadata:
         """适配器元数据"""
@@ -315,17 +320,24 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["email", "imap", "smtp", "mail"],
         )
-    
+
     async def init(self) -> None:
         """初始化适配器"""
         logger.info("邮箱适配器初始化...")
+
+        # 检查是否有启用的邮箱账户
+        enabled_accounts = [acc for acc in self.config.RECEIVE_ACCOUNTS if acc.ENABLED]
+        if not enabled_accounts:
+            logger.info("没有启用的邮箱账户，跳过邮箱适配器初始化")
+            return
+
         # 确保附件保存目录存在
         try:
-            os.makedirs(os.path.join(OsEnv.DATA_DIR, "uploads"), exist_ok=True)
+            Path(OsEnv.DATA_DIR, "uploads").mkdir(parents=True, exist_ok=True)
             logger.info("附件保存目录已创建: ./data/uploads")
         except Exception as e:
             logger.error(f"创建附件保存目录失败: {e}")
-        
+
         # 初始化IMAP连接等操作
         await self._init_imap_connections()
         # 初始化邮箱账户到聊天ID的映射
@@ -333,7 +345,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         # 启动轮询任务
         self._start_polling()
         logger.info("邮箱适配器初始化完成")
-    
+
     async def cleanup(self) -> None:
         """清理适配器"""
         logger.info("邮箱适配器清理中...")
@@ -348,21 +360,26 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 logger.warning(f"关闭IMAP连接时出错: {e}")
         self.imap_connections.clear()
         logger.info("邮箱适配器清理完成")
-    
+
     def _start_polling(self) -> None:
         """启动轮询任务"""
+        # 如果没有IMAP连接，不启动轮询任务
+        if not self.imap_connections:
+            logger.info("没有IMAP连接，跳过轮询任务启动")
+            return
+
         if not self._polling_task or self._polling_task.done():
             self._polling_active = True
             self._polling_task = asyncio.create_task(self._polling_loop())
             logger.info("邮箱适配器轮询任务已启动")
-    
+
     def _stop_polling(self) -> None:
         """停止轮询任务"""
         self._polling_active = False
         if self._polling_task and not self._polling_task.done():
             self._polling_task.cancel()
             logger.info("邮箱适配器轮询任务已停止")
-    
+
     async def _polling_loop(self) -> None:
         """轮询循环"""
         poll_count = 0
@@ -370,8 +387,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             try:
                 poll_count += 1
                 # 输出轮询状态信息
-                logger.info(f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}")
-                
+                logger.info(
+                    f"邮箱适配器第 {poll_count} 次轮询开始，轮询间隔: {self.config.POLL_INTERVAL} 秒，已连接账户数: {len(self.imap_connections)}",
+                )
+
                 # 检查每个账户的新邮件
                 accounts_to_check = list(self.imap_connections.items())
                 for account_username, conn in accounts_to_check:
@@ -380,10 +399,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                             await self._check_new_emails(account_username, conn)
                         except Exception as e:
                             logger.error(f"检查账户 {account_username} 的新邮件时发生错误: {e}")
-                        
+
                 # 等待下次轮询
                 await asyncio.sleep(self.config.POLL_INTERVAL)
-                
+
             except asyncio.CancelledError:
                 logger.info("邮箱适配器轮询任务被取消")
                 break
@@ -488,7 +507,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             return None
         return tokens[-1].strip('"')
 
-    def _extract_body(self, email_message: email.message.Message) -> tuple[str, str]:
+    def _extract_body(self, email_message: Message) -> tuple[str, str]:
         """提取邮件正文内容（HTML 和纯文本）
 
         Args:
@@ -536,7 +555,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         优先返回INBOX，其次返回其他文件夹
         """
         status, folders = conn.list()
-        if status != 'OK':
+        if status != "OK":
             return []
 
         folder_names: List[str] = []
@@ -544,7 +563,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         # 解析 IMAP LIST 返回的文件夹名
         for folder in folders or []:
             # IMAP 库通常返回 bytes，需要先解码
-            line = folder.decode(errors='ignore') if isinstance(folder, bytes) else str(folder)
+            line = folder.decode(errors="ignore") if isinstance(folder, bytes) else str(folder)
             name = self._parse_imap_list_line(line)
             if name:
                 folder_names.append(name)
@@ -576,7 +595,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         await self._select_mailbox(account_username, conn, preferred=preferred)
         return conn
 
-    async def imap_search(self, conn: imaplib.IMAP4_SSL, criteria: str):
+    async def imap_search(self, conn: imaplib.IMAP4_SSL, criteria: str) -> tuple[str, list]:
         """异步执行 IMAP SEARCH 命令
 
         Args:
@@ -584,11 +603,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             criteria: 搜索条件
 
         Returns:
-            搜索结果
+            tuple[str, list]: (status, data) 元组，status 为状态字符串，data 为搜索结果列表
         """
         return await asyncio.to_thread(conn.search, None, criteria)
 
-    async def imap_fetch(self, conn: imaplib.IMAP4_SSL, msg_id, query='(RFC822)'):
+    async def imap_fetch(self, conn: imaplib.IMAP4_SSL, msg_id, query: str = "(RFC822)") -> tuple[str, list]:
         """异步执行 IMAP FETCH 命令
 
         Args:
@@ -597,10 +616,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             query: 查询字符串，默认为 '(RFC822)'
 
         Returns:
-            fetch 结果
+            tuple[str, list]: (status, data) 元组，status 为状态字符串，data 为数据列表
         """
         return await asyncio.to_thread(conn.fetch, msg_id, query)
-    
+
     async def _check_new_emails(self, account_username: str, conn: imaplib.IMAP4_SSL) -> None:
         """检查指定账户的新邮件"""
         async with self._account_lock(account_username):
@@ -612,12 +631,12 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 # 根据配置决定是否只检查未读邮件
                 if self.config.FETCH_UNSEEN_ONLY:
                     # 搜索未读邮件（在线程中执行）
-                    status, messages = await asyncio.to_thread(conn.search, None, 'UNSEEN')
+                    status, messages = await asyncio.to_thread(conn.search, None, "UNSEEN")
                 else:
                     # 搜索所有邮件（在线程中执行）
-                    status, messages = await asyncio.to_thread(conn.search, None, 'ALL')
+                    status, messages = await asyncio.to_thread(conn.search, None, "ALL")
 
-                if status == 'OK':
+                if status == "OK":
                     email_ids = messages[0].split()
                     if email_ids:
                         logger.info(f"账户 {account_username} 在文件夹 {target_folder} 中发现 {len(email_ids)} 封新邮件")
@@ -634,7 +653,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                         if self.config.MARK_AS_SEEN_AFTER_FETCH and self.config.FETCH_UNSEEN_ONLY:
                             for i in range(max_emails):
                                 email_id = email_ids[i]
-                                await asyncio.to_thread(conn.store, email_id, '+FLAGS', '\\Seen')
+                                await asyncio.to_thread(conn.store, email_id, "+FLAGS", "\\Seen")
                     else:
                         logger.debug(f"账户 {account_username} 在文件夹 {target_folder} 中没有新邮件")
                 else:
@@ -645,14 +664,14 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 # 尝试重新连接
                 # 查找对应的账户配置
                 for account in self.config.RECEIVE_ACCOUNTS:
-                    if account.USERNAME == account_username and account.ENABLED:
+                    if account_username == account.USERNAME and account.ENABLED:
                         logger.info(f"尝试重新连接账户 {account_username}")
                         if await self._reconnect_imap(account):
                             logger.info(f"账户 {account_username} 重新连接成功")
                         else:
                             logger.error(f"账户 {account_username} 重新连接失败")
                         break
-    
+
     async def _process_email(
         self,
         account_username: str,
@@ -685,7 +704,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                                 account_username,
                                 parsed.subject,
                                 email_id.decode(),
-                            )
+                            ),
                         )
 
             # HTML → 文本规范化
@@ -716,10 +735,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             # 生成时间戳
             try:
                 date_tuple = parsedate_tz(parsed.date_str)
-                if date_tuple:
-                    timestamp = mktime_tz(date_tuple)
-                else:
-                    timestamp = int(time.time())
+                timestamp = mktime_tz(date_tuple) if date_tuple else int(time.time())
             except Exception:
                 timestamp = int(time.time())
 
@@ -734,16 +750,14 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 content_text=content,
                 is_self=False,
                 timestamp=timestamp,
-                ext_data=PlatformMessageExt(
-                    raw_data=raw_email
-                )
+                ext_data=PlatformMessageExt(),
             )
 
             # 创建平台频道对象
             platform_channel = PlatformChannel(
                 channel_id=chat_id,
                 channel_name=f"邮箱账户: {account_username}",
-                channel_type="private"
+                channel_type=ChatType.PRIVATE,
             )
 
             # 创建平台用户对象
@@ -751,7 +765,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 platform_name="email",
                 user_id=parsed.sender_addr,
                 user_name=parsed.sender_name,
-                user_avatar=""
+                user_avatar="",
             )
 
             # 将消息发送到核心引擎
@@ -770,7 +784,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
         except Exception as e:
             logger.error(f"处理邮件 {email_id.decode()} 时发生错误: {e}")
-    
+
     def _init_account_chat_mapping(self) -> None:
         """初始化邮箱账户到聊天ID的映射"""
         for account in self.config.RECEIVE_ACCOUNTS:
@@ -779,7 +793,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 chat_id = account.USERNAME
                 self.account_chat_mapping[account.USERNAME] = chat_id
                 logger.info(f"邮箱账户 {account.USERNAME} 映射到聊天 {chat_id}")
-    
+
     async def _init_imap_connections(self) -> None:
         """初始化IMAP连接"""
         for account in self.config.RECEIVE_ACCOUNTS:
@@ -795,42 +809,40 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
 
             except Exception as e:
                 logger.error(f"IMAP连接建立失败 ({account.USERNAME}): {e}")
-    
+
     async def _reconnect_imap(self, account: EmailAccount) -> bool:
         """重新连接IMAP"""
         try:
             # 关闭旧连接（如果存在）
             if account.USERNAME in self.imap_connections:
-                try:
+                with suppress(Exception):
                     old_conn = self.imap_connections[account.USERNAME]
                     old_conn.close()
                     old_conn.logout()
-                except Exception:
-                    pass
 
             conn = self._connect_imap(account)
             self.imap_connections[account.USERNAME] = conn
             # 确保锁存在（如果之前没有创建）
             if account.USERNAME not in self.imap_locks:
                 self.imap_locks[account.USERNAME] = asyncio.Lock()
-            logger.info(f"IMAP连接重新建立成功: {account.USERNAME}")
-            return True
-
         except Exception as e:
             logger.error(f"IMAP连接重新建立失败 ({account.USERNAME}): {e}")
             return False
-    
+        else:
+            logger.info(f"IMAP连接重新建立成功: {account.USERNAME}")
+            return True
+
     def _get_provider_config(self, email_account: str) -> dict:
         """获取邮箱提供商配置"""
         return EMAIL_PROVIDER_CONFIGS.get(email_account, {})
-    
+
     def _get_smtp_config(self, email_account: str) -> tuple[str, int]:
         """获取SMTP配置"""
         provider_config = self._get_provider_config(email_account)
         smtp_host = provider_config.get("smtp_host", "")
         smtp_port = int(provider_config.get("smtp_port", 587))
         return smtp_host, smtp_port
-    
+
     def _post_login_imap(self, conn: imaplib.IMAP4, username: str, host: str) -> None:
         """IMAP登录后的处理"""
         # 检查是否是163邮箱，如果是则发送ID命令
@@ -841,7 +853,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 logger.debug(f"163邮箱 IMAP ID 发送成功: {username}")
             except Exception as e:
                 logger.debug(f"163邮箱 IMAP ID 发送失败: {e!s}")
-    
+
     def _build_id_map(self, account: str) -> dict:
         """构建 ID 参数"""
         return {
@@ -850,52 +862,45 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             "vendor": "nekro-agent",
             "support-email": account,
         }
-    
+
     def _send_imap_id(self, conn: imaplib.IMAP4, id_map: dict) -> None:
         """发送 IMAP ID 命令"""
-        try:
+        with suppress(Exception):
             # 注册 ID 命令
             imaplib.Commands["ID"] = ("AUTH", "SELECTED")
-        except Exception:
-            pass
-        
+
         # 构建 ID 参数
-        kv = " ".join([f'"{k}" "{v}"' for k, v in id_map.items()])
-        payload = f'({kv})'
-        
+        kv = " ".join([f"{k!r} {v!r}" for k, v in id_map.items()])
+        payload = f"({kv})"
+
         # 发送 ID 命令
-        try:
-            conn._simple_command("ID", "NIL")
-        except Exception:
-            pass
-        
-        typ, data = conn._simple_command("ID", payload)
+        with suppress(Exception):
+            conn._simple_command("ID", "NIL")  # noqa: SLF001
+
+        typ, data = conn._simple_command("ID", payload)  # noqa: SLF001
         logger.debug(f"IMAP ID 返回: typ={typ} data={data}")
-    
-    def _pre_connect_smtp(self, smtp_host: str, smtp_port: int, use_ssl: bool) -> tuple[str, int]:
+
+    def _pre_connect_smtp(self, smtp_host: str, smtp_port: int, _use_ssl: bool) -> tuple[str, int]:
         """SMTP连接前的预处理"""
         # 目前没有特殊的SMTP预处理需求
         return smtp_host, smtp_port
-    
-    def _apply_provider_smtp_preprocessing(self, email_account: str, smtp_host: str, smtp_port: int) -> tuple[str, int]:
+
+    def _apply_provider_smtp_preprocessing(self, _email_account: str, smtp_host: str, smtp_port: int) -> tuple[str, int]:
         """应用提供商的SMTP预处理"""
-        # 获取邮箱提供商配置
-        provider_config = self._get_provider_config(email_account)
-        
         # 检查是否需要特殊的SMTP预处理
         use_ssl = True  # 默认使用SSL
         return self._pre_connect_smtp(smtp_host, smtp_port, use_ssl)
-    
+
     def get_chat_id_for_account(self, account_username: str) -> str:
         """获取邮箱账户对应的聊天ID"""
         return self.account_chat_mapping.get(account_username, f"email_{account_username}")
-    
+
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """发送邮件
-        
+
         Args:
             request: 包含要发送的邮件内容和目标地址
-            
+
         Returns:
             PlatformSendResponse: 发送结果
         """
@@ -906,46 +911,48 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 if account.SEND_ENABLED and account.IS_DEFAULT_SENDER:
                     sender_account = account
                     break
-            
+
             # 如果没有默认发件人，则使用第一个启用发信的账户
             if not sender_account:
                 for account in self.config.RECEIVE_ACCOUNTS:
                     if account.SEND_ENABLED:
                         sender_account = account
                         break
-            
+
             if not sender_account:
                 return PlatformSendResponse(
-                    success=False, 
-                    error_message="没有配置可用的发信账户"
+                    success=False,
+                    error_message="没有配置可用的发信账户",
                 )
-            
+
             # 获取SMTP配置
             smtp_host, smtp_port = self._get_smtp_config(sender_account.EMAIL_ACCOUNT)
             smtp_ssl_port = int(self._get_provider_config(sender_account.EMAIL_ACCOUNT).get("smtp_ssl_port", smtp_port))
             use_ssl_preferred = bool(self._get_provider_config(sender_account.EMAIL_ACCOUNT).get("smtp_use_ssl", False))
-            
+
             # 应用提供商的SMTP预处理
             smtp_host, smtp_port = self._apply_provider_smtp_preprocessing(
-                sender_account.EMAIL_ACCOUNT, smtp_host, smtp_port
+                sender_account.EMAIL_ACCOUNT,
+                smtp_host,
+                smtp_port,
             )
-            
+
             # 创建邮件
             msg = MIMEMultipart()
-            msg['From'] = sender_account.USERNAME
+            msg["From"] = sender_account.USERNAME
             # 注意：在邮箱适配器中，chat_key 必须是有效的邮箱地址，而非会话标识符
             # 这与其他适配器（如 onebot_v11）的 chat_key 语义不同，使用时需特别注意
-            msg['To'] = request.chat_key  # chat_key 在邮箱适配器中表示收件人邮箱地址
-            msg['Subject'] = "NekroAgent 消息"  # 可以从请求中获取主题
-            
+            msg["To"] = request.chat_key  # chat_key 在邮箱适配器中表示收件人邮箱地址
+            msg["Subject"] = "NekroAgent 消息"  # 可以从请求中获取主题
+
             # 添加文本内容
             text_content = ""
             for segment in request.segments:
                 if segment.type == "text":
                     text_content += segment.content + "\n"
-            
-            msg.attach(MIMEText(text_content, 'plain', 'utf-8'))
-            
+
+            msg.attach(MIMEText(text_content, "plain", "utf-8"))
+
             async def _send_mail(use_ssl: bool, port: int) -> None:
                 def _sync_send() -> None:
                     if use_ssl:
@@ -967,13 +974,13 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                     await _send_mail(True, smtp_ssl_port)
                 else:
                     raise
-            
+
             return PlatformSendResponse(success=True)
-            
+
         except Exception as e:
             logger.error(f"发送邮件失败: {e}")
             return PlatformSendResponse(success=False, error_message=str(e))
-    
+
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
         # 邮箱适配器的自身信息就是默认发件人
@@ -982,7 +989,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             if account.IS_DEFAULT_SENDER:
                 default_sender = account
                 break
-        
+
         if not default_sender:
             # 如果没有默认发件人，使用第一个账户
             if self.config.RECEIVE_ACCOUNTS:
@@ -993,49 +1000,49 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                     platform_name="email",
                     user_id="email_bot",
                     user_name="Email Bot",
-                    user_avatar=""
+                    user_avatar="",
                 )
-        
+
         return PlatformUser(
             platform_name="email",
             user_id=default_sender.USERNAME,
             user_name=default_sender.USERNAME,
-            user_avatar=""
+            user_avatar="",
         )
-    
-    async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
+
+    async def get_user_info(self, user_id: str, _channel_id: str) -> PlatformUser:
         """获取用户信息"""
         # 在邮箱适配器中，user_id就是邮箱地址
         return PlatformUser(
             platform_name="email",
             user_id=user_id,
             user_name=user_id,  # 可以从地址簿中查找真实姓名
-            user_avatar=""
+            user_avatar="",
         )
-    
+
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         """获取频道信息"""
         return PlatformChannel(
             channel_id=channel_id,
             channel_name=f"邮箱账户: {channel_id}",
-            channel_type="private"  # 邮箱适配器默认是私聊
+            channel_type=ChatType.PRIVATE,  # 邮箱适配器默认是私聊
         )
-    
+
     def get_adapter_router(self) -> APIRouter:
         """获取适配器路由"""
         # 设置适配器实例，以便路由器可以访问适配器状态
         set_email_adapter(self)
         return router
-    
+
     def get_polling_status(self) -> dict:
         """获取轮询状态信息"""
         return {
             "polling_active": self._polling_active,
             "connected_accounts": len(self.imap_connections),
             "poll_interval": self.config.POLL_INTERVAL,
-            "accounts": list(self.imap_connections.keys())
+            "accounts": list(self.imap_connections.keys()),
         }
-    
+
     async def get_raw_email_content(self, account_username: str, email_id: str, folder: str | None = None) -> dict:
         """获取邮件的原始内容
 
@@ -1058,6 +1065,11 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         conn = self.imap_connections[account_username]
 
         async with self._account_lock(account_username):
+
+            def _raise_if_failed(status: str) -> None:
+                if status != "OK":
+                    raise Exception(f"Failed to fetch email: {status}")
+
             try:
                 # 获取邮件内容
                 # email_id是字符串，需要转换为bytes
@@ -1067,95 +1079,87 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 await self._select_mailbox(account_username, conn, override_folder=folder)
 
                 # 在线程中执行 fetch 操作
-                status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, '(RFC822)')
+                status, msg_data = await asyncio.to_thread(conn.fetch, email_id_bytes, "(RFC822)")
 
-                if status == 'OK':
-                    # 获取原始邮件数据
-                    raw_email_data = msg_data[0][1] if msg_data and msg_data[0] else b""
+                _raise_if_failed(status)
 
-                    # 将原始邮件数据转换为base64编码的字符串，便于传输
-                    raw_email_base64 = base64.b64encode(raw_email_data).decode('utf-8') if raw_email_data else ""
+                # 获取原始邮件数据
+                raw_email_data = msg_data[0][1] if msg_data and msg_data[0] else b""
 
-                    # 解析邮件内容，提取HTML部分（如果存在）
-                    html_content = ""
-                    text_content = ""
-                    if raw_email_data:
-                        email_message = email.message_from_bytes(raw_email_data)
-                        html_content, text_content = self._extract_body(email_message)
+                # 将原始邮件数据转换为base64编码的字符串，便于传输
+                raw_email_base64 = base64.b64encode(raw_email_data).decode("utf-8") if raw_email_data else ""
 
-                    return {
-                        "account": account_username,
-                        "email_id": email_id,
-                        "raw_email_base64": raw_email_base64,
-                        "raw_email_size": len(raw_email_data) if raw_email_data else 0,
-                        "html_content": html_content,
-                        "text_content": text_content
-                    }
-                else:
-                    raise Exception(f"Failed to fetch email: {status}")
+                # 解析邮件内容，提取HTML部分（如果存在）
+                html_content = ""
+                text_content = ""
+                if raw_email_data:
+                    email_message = email.message_from_bytes(raw_email_data)
+                    html_content, text_content = self._extract_body(email_message)
+
+                return {
+                    "account": account_username,
+                    "email_id": email_id,
+                    "raw_email_base64": raw_email_base64,
+                    "raw_email_size": len(raw_email_data) if raw_email_data else 0,
+                    "html_content": html_content,
+                    "text_content": text_content,
+                }
 
             except Exception as e:
-                raise Exception(f"Failed to get raw email content: {str(e)}")
+                error_msg = f"Failed to get raw email content: {e!s}"
+                raise Exception(error_msg) from e
 
-    async def _download_attachment(self, part, filename: str, account_username: str, email_subject: str, email_uid: str = None) -> None:
+    async def _download_attachment(
+        self,
+        part,
+        filename: str,
+        account_username: str,
+        email_subject: str,
+        email_uid: str | None = None,
+    ) -> None:
         """下载邮件附件"""
         try:
             # 使用固定的附件保存目录，便于沙盒访问
-            base_path = os.path.join(OsEnv.DATA_DIR, "uploads", "email_attachment")
+            base_path = Path(OsEnv.DATA_DIR) / "uploads" / "email_attachment"
             # 保存到 DATA_DIR/uploads/email_attachment/{邮箱账户名}/{邮件UID}/ 目录下
             email_dir = (
-                os.path.join(base_path, account_username, email_uid)
+                base_path / account_username / email_uid
                 if email_uid
-                else os.path.join(
-                    base_path,
-                    account_username,
-                    self._sanitize_filename(email_subject)[:50],
-                )
+                else base_path / account_username / self._sanitize_filename(email_subject)[:50]
             )
 
             # 异步创建目录
-            await asyncio.to_thread(os.makedirs, email_dir, exist_ok=True)
+            await asyncio.to_thread(email_dir.mkdir, parents=True, exist_ok=True)
 
             # 构造完整的文件路径
-            file_path = os.path.join(email_dir, self._sanitize_filename(filename))
+            file_path = email_dir / self._sanitize_filename(filename)
 
             # 异步获取附件数据（解码可能耗时）
             attachment_data = await asyncio.to_thread(part.get_payload, decode=True)
 
             # 异步写入文件
             if attachment_data:
-                async with aiofiles.open(file_path, 'wb') as f:
+                async with aiofiles.open(file_path, "wb") as f:
                     await f.write(attachment_data)
                 logger.info(f"附件已下载: {file_path}")
-
-                # 这是AI能够访问的唯一路径
-                onebot_server_path = None
-                if core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR:
-                    try:
-                        # 计算相对于DATA_DIR的路径
-                        relative_path = os.path.relpath(file_path, OsEnv.DATA_DIR)
-                        # 构造OneBot服务器可访问的路径
-                        onebot_server_path = os.path.join(core_config.SANDBOX_ONEBOT_SERVER_MOUNT_DIR, relative_path)
-                    except Exception as e:
-                        logger.warning(f"计算OneBot服务器路径失败: {e}")
-                else:
-                    logger.info("未配置SANDBOX_ONEBOT_SERVER_MOUNT_DIR，AI无法访问附件")
             else:
                 logger.warning(f"附件数据为空: {filename}")
-                
+
         except Exception as e:
             logger.error(f"下载附件 {filename} 时出错: {e}")
-    
+
     def _sanitize_filename(self, filename: str) -> str:
         """清理文件名，移除非法字符"""
         # 移除或替换文件名中的非法字符
         illegal_chars = '<>:"/\\|?*'
         for char in illegal_chars:
-            filename = filename.replace(char, '_')
+            filename = filename.replace(char, "_")
         # 移除控制字符
-        filename = ''.join(ch for ch in filename if ord(ch) >= 32)
+        filename = "".join(ch for ch in filename if ord(ch) >= 32)
         # 限制文件名长度
         if len(filename) > 255:
-            name, ext = os.path.splitext(filename)
-            filename = name[:255-len(ext)] + ext
+            path = Path(filename)
+            name = path.stem
+            ext = path.suffix
+            filename = name[: 255 - len(ext)] + ext
         return filename

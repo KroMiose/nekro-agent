@@ -2,7 +2,6 @@
 
 from typing import Dict, Optional
 
-
 # 邮箱提供商配置映射
 EMAIL_PROVIDER_CONFIGS: Dict[str, Dict[str, str]] = {
     "QQ邮箱": {
