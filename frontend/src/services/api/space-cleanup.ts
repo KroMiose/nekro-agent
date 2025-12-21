@@ -1,4 +1,13 @@
+/**
+ * 空间清理 API 服务
+ *
+ * 改造说明:
+ * 1. 移除 .data.data 模式，后端现在直接返回数据
+ * 2. 添加 i18n 字段支持
+ */
+
 import axios from './axios'
+import { I18nDict } from './types'
 
 // 资源类型枚举
 export enum ResourceType {
@@ -72,6 +81,11 @@ export interface ResourceCategory {
   supports_time_filter: boolean
   chat_resources: ChatResourceInfo[]
   plugin_resources: PluginResourceInfo[]
+
+  // i18n 扩展字段
+  i18n_description?: I18nDict
+  i18n_display_name?: I18nDict
+  i18n_risk_message?: I18nDict
 }
 
 // 磁盘信息
@@ -146,68 +160,79 @@ export interface CleanupResult {
   failed_file_list: string[]
 }
 
+// 简单响应类型（与后端 Pydantic 模型对应）
+export interface ScanStartResponse {
+  scan_id: string
+}
+
+export interface CleanupStartResponse {
+  task_id: string
+}
+
+export interface ScanProgressResponse {
+  status: string
+  progress: number
+  message?: string
+}
+
 export const spaceCleanupApi = {
   // 启动扫描
-  startScan: async (): Promise<{ scan_id: string }> => {
-    const response = await axios.post<{ data: { scan_id: string } }>('/space-cleanup/scan/start')
-    return response.data.data
+  startScan: async (): Promise<ScanStartResponse> => {
+    const response = await axios.post<ScanStartResponse>('/space-cleanup/scan/start')
+    return response.data
   },
 
   // 获取扫描状态
   getScanStatus: async (): Promise<ScanStatusResponse> => {
-    const response = await axios.get<{ data: ScanStatusResponse }>('/space-cleanup/scan/status')
-    return response.data.data
+    const response = await axios.get<ScanStatusResponse>('/space-cleanup/scan/status')
+    return response.data
   },
 
   // 获取扫描结果
   getScanResult: async (): Promise<ScanResult> => {
-    const response = await axios.get<{ data: ScanResult }>('/space-cleanup/scan/result')
-    return response.data.data
+    const response = await axios.get<ScanResult>('/space-cleanup/scan/result')
+    return response.data
   },
 
   // 启动清理
-  startCleanup: async (request: CleanupRequest): Promise<{ task_id: string }> => {
-    const response = await axios.post<{ data: { task_id: string } }>(
+  startCleanup: async (request: CleanupRequest): Promise<CleanupStartResponse> => {
+    const response = await axios.post<CleanupStartResponse>(
       '/space-cleanup/cleanup/start',
       request
     )
-    return response.data.data
+    return response.data
   },
 
   // 获取清理进度
   getCleanupProgress: async (taskId: string): Promise<CleanupProgress> => {
-    const response = await axios.get<{ data: CleanupProgress }>(
+    const response = await axios.get<CleanupProgress>(
       `/space-cleanup/cleanup/progress/${taskId}`
     )
-    return response.data.data
+    return response.data
   },
 
   // 获取清理结果
   getCleanupResult: async (taskId: string): Promise<CleanupResult> => {
-    const response = await axios.get<{ data: CleanupResult }>(
-      `/space-cleanup/cleanup/result/${taskId}`
-    )
-    return response.data.data
+    const response = await axios.get<CleanupResult>(`/space-cleanup/cleanup/result/${taskId}`)
+    return response.data
   },
 
   // 获取磁盘信息
   getDiskInfo: async (): Promise<DiskInfo> => {
-    const response = await axios.get<{ data: DiskInfo }>('/space-cleanup/disk-info')
-    return response.data.data
+    const response = await axios.get<DiskInfo>('/space-cleanup/disk-info')
+    return response.data
   },
 
   // 从缓存加载扫描结果
   loadScanResultFromCache: async (): Promise<ScanResult> => {
-    const response = await axios.get<{ data: ScanResult }>('/space-cleanup/scan/load-cache')
-    return response.data.data
+    const response = await axios.get<ScanResult>('/space-cleanup/scan/load-cache')
+    return response.data
   },
 
   // 获取扫描进度
-  getScanProgress: async (): Promise<{ status: string; progress: number; message?: string }> => {
-    const response = await axios.get<{
-      data: { status: string; progress: number; message?: string }
-    }>('/space-cleanup/scan/progress')
-    return response.data.data
+  getScanProgress: async (): Promise<ScanProgressResponse> => {
+    const response = await axios.get<ScanProgressResponse>('/space-cleanup/scan/progress')
+    return response.data
   },
 }
 
@@ -224,17 +249,36 @@ export function formatBytes(bytes: number, decimals: number = 2): string {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i]
 }
 
-// 格式化时长
-export function formatDuration(seconds: number): string {
+// 格式化时长（支持 i18n）
+export function formatDuration(
+  seconds: number,
+  t?: (key: string, options?: Record<string, unknown>) => string
+): string {
+  // 如果没有传入 t 函数，使用默认中文
+  if (!t) {
+    if (seconds < 60) {
+      return `${seconds.toFixed(1)} 秒`
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60)
+      const secs = Math.floor(seconds % 60)
+      return `${minutes} 分 ${secs} 秒`
+    } else {
+      const hours = Math.floor(seconds / 3600)
+      const minutes = Math.floor((seconds % 3600) / 60)
+      return `${hours} 小时 ${minutes} 分`
+    }
+  }
+
+  // 使用 i18n
   if (seconds < 60) {
-    return `${seconds.toFixed(1)} 秒`
+    return t('spaceCleanup.duration.seconds', { seconds: seconds.toFixed(1) })
   } else if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60)
     const secs = Math.floor(seconds % 60)
-    return `${minutes} 分 ${secs} 秒`
+    return t('spaceCleanup.duration.minutesSeconds', { minutes, seconds: secs })
   } else {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours} 小时 ${minutes} 分`
+    return t('spaceCleanup.duration.hoursMinutes', { hours, minutes })
   }
 }

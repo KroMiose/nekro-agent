@@ -33,7 +33,7 @@ from nonebot.adapters.minecraft.model import (
 )
 
 from nekro_agent.adapters.minecraft.core.bot import get_bot
-from nekro_agent.api import core
+from nekro_agent.api import core, i18n
 from nekro_agent.api.core import logger
 from nekro_agent.api.plugin import NekroPlugin, SandboxMethod, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
@@ -69,6 +69,14 @@ plugin = NekroPlugin(
     author="Zaxpris",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["minecraft"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="Minecraft 工具插件",
+        en_US="Minecraft Utils Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供 Minecraft 适配器专用的消息发送和 RCON 命令执行功能",
+        en_US="Provides Minecraft adapter utilities for message sending and RCON command execution",
+    ),
 )
 
 

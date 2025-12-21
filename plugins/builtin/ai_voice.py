@@ -29,8 +29,13 @@ from nekro_agent.adapters.onebot_v11.matchers.command import (
     finish_with,
     on_command,
 )
-from nekro_agent.api import core
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
@@ -43,6 +48,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="AI 语音插件",
+        en_US="AI Voice Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供AI语音生成功能，支持将文本转为AI合成语音",
+        en_US="Provides AI voice generation to convert text into AI-synthesized speech",
+    ),
 )
 
 
@@ -54,6 +67,16 @@ class AIVoiceConfig(ConfigBase):
         default="lucy-voice-xueling",
         title="AI语音角色",
         description="使用命令 `/ai_voices` 可查看所有可用角色",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="AI语音角色",
+                en_US="AI Voice Character",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="使用命令 `/ai_voices` 可查看所有可用角色",
+                en_US="Use command `/ai_voices` to view all available characters",
+            ),
+        ).model_dump(),
     )
 
 

@@ -26,8 +26,13 @@ from typing import List
 
 from pydantic import Field
 
-from nekro_agent.api import core, schemas
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n, schemas
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
@@ -39,6 +44,14 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="漫游历史记录",
+        en_US="History Travel Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供历史聊天记录精确检索与漫游能力",
+        en_US="Provides precise retrieval and navigation of chat history",
+    ),
 )
 
 
@@ -46,8 +59,34 @@ plugin = NekroPlugin(
 class StatusConfig(ConfigBase):
     """状态控制配置"""
 
-    MAX_HISTORY_TRAVEL_QUERY_SIZE: int = Field(default=8, title="漫游记录泛查询数量")
-    MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE: int = Field(default=16, title="漫游记录范围查询最大数量")
+    MAX_HISTORY_TRAVEL_QUERY_SIZE: int = Field(
+        default=8,
+        title="漫游记录泛查询数量",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="漫游记录泛查询数量",
+                en_US="History Query Result Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="单次泛查询返回的最大记录数量",
+                en_US="Maximum number of records returned per general query",
+            ),
+        ).model_dump(),
+    )
+    MAX_HISTORY_TRAVEL_RANGE_QUERY_SIZE: int = Field(
+        default=16,
+        title="漫游记录范围查询最大数量",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="漫游记录范围查询最大数量",
+                en_US="Max Range Query Size",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="范围查询返回的最大记录数量",
+                en_US="Maximum number of records returned per range query",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置和插件存储

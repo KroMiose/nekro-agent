@@ -55,6 +55,7 @@ import { ThemedTooltip } from './ThemedTooltip'
 import { presetsApi, Preset } from '../../services/api/presets'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
+import { I18nDict, getLocalizedText } from '../../services/api/types'
 
 const HtmlTooltip = ThemedTooltip
 
@@ -100,6 +101,10 @@ export interface ConfigItem {
   enable_toggle?: string
   overridable?: boolean
   is_need_restart?: boolean
+  
+  // i18n 扩展字段（可选，与后端 ExtraField 对应）
+  i18n_title?: I18nDict
+  i18n_description?: I18nDict
 }
 
 export interface ModelGroupConfig {
@@ -862,10 +867,27 @@ export default function ConfigTable({
   const navigate = useNavigate()
   const notification = useNotification()
   const theme = useTheme()
-  const { t } = useTranslation('common')
+  const { t, i18n } = useTranslation('common')
   const defaultEmptyMessage = t('messages.noData')
   const actualEmptyMessage = emptyMessage || defaultEmptyMessage
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+
+  // i18n 辅助函数：获取本地化的配置项标题和描述
+  const getConfigTitle = useCallback(
+    (config: ConfigItem) => {
+      return getLocalizedText(config.i18n_title, config.title, i18n.language)
+    },
+    [i18n.language]
+  )
+
+  const getConfigDescription = useCallback(
+    (config: ConfigItem) => {
+      return config.description
+        ? getLocalizedText(config.i18n_description, config.description, i18n.language)
+        : undefined
+    },
+    [i18n.language]
+  )
 
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(new Set())
@@ -946,7 +968,7 @@ export default function ConfigTable({
           editingValues[config.key] !== undefined ? editingValues[config.key] : String(config.value)
         return !currentValue || currentValue === '' || currentValue === '[]'
       })
-      .map(config => config.title || config.key)
+      .map(config => getConfigTitle(config) || config.key)
 
     setEmptyRequiredFields(emptyFields)
     if (emptyFields.length > 0) {
@@ -954,7 +976,7 @@ export default function ConfigTable({
       return false
     }
     return true
-  }, [configs, editingValues, isOverridePage, enableStateMap])
+  }, [configs, editingValues, isOverridePage, enableStateMap, getConfigTitle])
 
   const handleSaveAllChanges = useCallback(
     async (force: boolean = false) => {
@@ -1084,16 +1106,19 @@ export default function ConfigTable({
 
     if (searchText) {
       const lowerSearchText = searchText.toLowerCase()
-      return processedConfigs.filter(
-        config =>
-          config.title.toLowerCase().includes(lowerSearchText) ||
+      return processedConfigs.filter(config => {
+        const title = getConfigTitle(config)
+        const description = getConfigDescription(config)
+        return (
+          title.toLowerCase().includes(lowerSearchText) ||
           config.key.toLowerCase().includes(lowerSearchText) ||
-          (config.description && config.description.toLowerCase().includes(lowerSearchText))
-      )
+          (description && description.toLowerCase().includes(lowerSearchText))
+        )
+      })
     }
 
     return processedConfigs
-  }, [configs, searchText, isOverridePage, enableStateMap])
+  }, [configs, searchText, isOverridePage, enableStateMap, getConfigTitle, getConfigDescription])
 
   useEffect(() => {
     if (configs) {
@@ -1171,7 +1196,11 @@ export default function ConfigTable({
               aria-label={t('configTable.goToModelGroup')}
               disabled={disabled}
             >
-              {t('configTable.ModelGroup', { label: typeOption.label })}
+              {t('configTable.ModelGroup', {
+                label: t(`configTable.modelTypes.${typeOption.value as 'chat' | 'embedding' | 'draw'}`, {
+                  defaultValue: typeOption.label,
+                }),
+              })}
             </Button>
           )}
         </Box>
@@ -1669,12 +1698,16 @@ export default function ConfigTable({
                             variant="body2"
                             sx={{ fontWeight: 600, color: 'text.primary' }}
                           >
-                            {config.title}
+                            {getConfigTitle(config)}
                           </Typography>
-                          {config.description && (
+                          {getConfigDescription(config) && (
                             <HtmlTooltip
                               title={
-                                <div dangerouslySetInnerHTML={{ __html: config.description }} />
+                                <div
+                                  dangerouslySetInnerHTML={{
+                                    __html: getConfigDescription(config) || '',
+                                  }}
+                                />
                               }
                               placement="right"
                             >

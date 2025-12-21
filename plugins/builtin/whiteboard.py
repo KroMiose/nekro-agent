@@ -49,7 +49,13 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import i18n
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import logger
 from nekro_agent.tools.path_convertor import is_url_path
@@ -62,6 +68,14 @@ plugin = NekroPlugin(
     author="nekro",
     url="https://github.com/nekro-agent/nekro-agent",
     support_adapter=["bilibili_live"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="直播白板演示插件",
+        en_US="Live Whiteboard Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="为直播场景提供专业的演示白板，支持实时展示图片、视频、HTML等内容",
+        en_US="Professional presentation whiteboard for live streaming with real-time image, video and HTML display",
+    ),
 )
 
 
@@ -69,14 +83,80 @@ plugin = NekroPlugin(
 class WhiteboardConfig(ConfigBase):
     """白板配置"""
 
-    DEFAULT_LAYOUT: str = Field(default="single", title="默认布局模式", description="single(单屏)/split(分屏)/grid(网格)")
-    AUTO_CLEAR_TIMEOUT: int = Field(default=300, title="自动清理超时", description="内容展示超时时间(秒)，0表示不自动清理")
-    MAX_CONTENT_SIZE: int = Field(default=10, title="最大内容数量", description="白板最多同时展示的内容数量")
-    ENABLE_ANIMATIONS: bool = Field(default=True, title="启用动画效果", description="是否启用内容切换的动画效果")
+    DEFAULT_LAYOUT: str = Field(
+        default="single",
+        title="默认布局模式",
+        description="single(单屏)/split(分屏)/grid(网格)",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="默认布局模式",
+                en_US="Default Layout Mode",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="single(单屏)/split(分屏)/grid(网格)",
+                en_US="single (full screen) / split (split view) / grid (grid layout)",
+            ),
+        ).model_dump(),
+    )
+    AUTO_CLEAR_TIMEOUT: int = Field(
+        default=300,
+        title="自动清理超时",
+        description="内容展示超时时间(秒)，0表示不自动清理",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="自动清理超时",
+                en_US="Auto Clear Timeout",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="内容展示超时时间(秒)，0表示不自动清理",
+                en_US="Content display timeout in seconds, 0 means no auto-clear",
+            ),
+        ).model_dump(),
+    )
+    MAX_CONTENT_SIZE: int = Field(
+        default=10,
+        title="最大内容数量",
+        description="白板最多同时展示的内容数量",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="最大内容数量",
+                en_US="Max Content Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="白板最多同时展示的内容数量",
+                en_US="Maximum number of contents to display simultaneously on whiteboard",
+            ),
+        ).model_dump(),
+    )
+    ENABLE_ANIMATIONS: bool = Field(
+        default=True,
+        title="启用动画效果",
+        description="是否启用内容切换的动画效果",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用动画效果",
+                en_US="Enable Animations",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="是否启用内容切换的动画效果",
+                en_US="Whether to enable animation effects for content transitions",
+            ),
+        ).model_dump(),
+    )
     MAX_FILE_SIZE_MB: float = Field(
         default=10.0,
         title="最大文件大小(MB)",
         description="支持转换为base64的最大文件大小，超过此大小的文件将被拒绝",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="最大文件大小(MB)",
+                en_US="Max File Size (MB)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="支持转换为base64的最大文件大小，超过此大小的文件将被拒绝",
+                en_US="Maximum file size for base64 conversion, larger files will be rejected",
+            ),
+        ).model_dump(),
     )
 
 

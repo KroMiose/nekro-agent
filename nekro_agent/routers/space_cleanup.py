@@ -1,15 +1,28 @@
-"""空间清理路由"""
+"""空间清理路由
+
+改造说明:
+1. 移除 Ret 包装，直接返回 Pydantic 模型
+2. 移除宽泛的 try-catch，由全局异常处理器统一处理
+3. 业务错误抛出具体的 AppError 子类
+4. 所有响应使用明确的 Pydantic 模型，禁止返回无约束字典
+"""
 
 from fastapi import APIRouter, Depends
 
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.message import Ret
+from nekro_agent.schemas.errors import (
+    CleanupTaskNotFoundError,
+    ScanNotStartedError,
+)
 from nekro_agent.schemas.space_cleanup import (
     CleanupProgress,
     CleanupRequest,
     CleanupResult,
+    CleanupStartResponse,
     DiskInfo,
+    ScanProgressResponse,
     ScanResult,
+    ScanStartResponse,
     ScanStatusResponse,
 )
 from nekro_agent.services.space_cleanup.cleaner import cleanup_service
@@ -22,81 +35,85 @@ router = APIRouter(prefix="/space-cleanup", tags=["Space Cleanup"])
 
 @router.post("/scan/start", summary="启动扫描")
 @require_role(Role.Admin)
-async def start_scan(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def start_scan(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ScanStartResponse:
     """启动空间扫描任务
 
     Returns:
-        Ret: 包含扫描任务ID的响应
+        扫描启动响应，包含扫描任务ID
     """
-    try:
-        scan_id = await scanner_service.start_scan()
-        return Ret.success(msg="扫描任务已启动", data={"scan_id": scan_id})
-    except Exception as e:
-        return Ret.error(msg=f"启动扫描失败: {e}")
+    scan_id = await scanner_service.start_scan()
+    return ScanStartResponse(scan_id=scan_id)
 
 
 @router.get("/scan/status", summary="获取扫描状态")
 @require_role(Role.Admin)
-async def get_scan_status(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def get_scan_status(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ScanStatusResponse:
     """获取扫描状态和进度
 
     Returns:
-        Ret: 包含扫描状态的响应
+        扫描状态响应
     """
-    try:
-        status = await scanner_service.get_scan_status()
-        return Ret.success(msg="获取成功", data=status.model_dump())
-    except Exception as e:
-        return Ret.error(msg=f"获取扫描状态失败: {e}")
+    return await scanner_service.get_scan_status()
 
 
 @router.get("/scan/progress", summary="获取扫描进度")
 @require_role(Role.Admin)
-async def get_scan_progress(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def get_scan_progress(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ScanProgressResponse:
     """获取扫描进度
 
     Returns:
-        Ret: 包含扫描进度的响应
+        扫描进度响应
     """
-    try:
-        progress = await scanner_service.get_scan_progress()
-        return Ret.success(msg="获取成功", data=progress)
-    except Exception as e:
-        return Ret.error(msg=f"获取扫描进度失败: {e!s}")
+    progress_data = await scanner_service.get_scan_progress()
+    return ScanProgressResponse(
+        status=progress_data["status"],
+        progress=progress_data["progress"],
+        message=progress_data.get("message"),
+    )
 
 
 @router.get("/scan/result", summary="获取扫描结果")
 @require_role(Role.Admin)
-async def get_scan_result(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def get_scan_result(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ScanResult:
     """获取扫描结果
 
     Returns:
-        Ret: 包含扫描结果的响应
+        扫描结果
+
+    Raises:
+        ScanNotStartedError: 暂无扫描结果
     """
-    try:
-        result = await scanner_service.get_scan_result()
-        if result is None:
-            return Ret.fail(msg="暂无扫描结果，请先启动扫描")
-        return Ret.success(msg="获取成功", data=result.model_dump())
-    except Exception as e:
-        return Ret.error(msg=f"获取扫描结果失败: {e!s}")
+    result = await scanner_service.get_scan_result()
+    if result is None:
+        raise ScanNotStartedError
+    return result
 
 
 @router.get("/scan/load-cache", summary="从缓存加载扫描结果")
 @require_role(Role.Admin)
-async def load_scan_result_from_cache(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def load_scan_result_from_cache(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ScanResult:
     """从缓存文件加载最新的空间扫描结果
 
     Returns:
-        Ret: 包含扫描结果的响应
+        扫描结果
+
+    Raises:
+        ScanNotStartedError: 缓存中无扫描结果
     """
-    try:
-        result = await scanner_service.load_scan_result_from_cache()
-        if result is None:
-            return Ret.fail(msg="缓存中无扫描结果")
-        return Ret.success(msg="从缓存加载成功", data=result.model_dump())
-    except Exception as e:
-        return Ret.error(msg=f"从缓存加载扫描结果失败: {e!s}")
+    result = await scanner_service.load_scan_result_from_cache()
+    if result is None:
+        raise ScanNotStartedError
+    return result
 
 
 @router.post("/cleanup/start", summary="启动清理任务")
@@ -104,20 +121,17 @@ async def load_scan_result_from_cache(_current_user: DBUser = Depends(get_curren
 async def start_cleanup(
     request: CleanupRequest,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CleanupStartResponse:
     """启动清理任务
 
     Args:
         request: 清理请求
 
     Returns:
-        Ret: 包含清理任务ID的响应
+        清理启动响应，包含清理任务ID
     """
-    try:
-        task_id = await cleanup_service.create_cleanup_task(request)
-        return Ret.success(msg="清理任务已启动", data={"task_id": task_id})
-    except Exception as e:
-        return Ret.error(msg=f"启动清理失败: {e}")
+    task_id = await cleanup_service.create_cleanup_task(request)
+    return CleanupStartResponse(task_id=task_id)
 
 
 @router.get("/cleanup/progress/{task_id}", summary="获取清理进度")
@@ -125,22 +139,22 @@ async def start_cleanup(
 async def get_cleanup_progress(
     task_id: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CleanupProgress:
     """获取清理进度
 
     Args:
         task_id: 任务ID
 
     Returns:
-        Ret: 包含清理进度的响应
+        清理进度
+
+    Raises:
+        CleanupTaskNotFoundError: 清理任务不存在
     """
-    try:
-        progress = await cleanup_service.get_cleanup_progress(task_id)
-        if progress is None:
-            return Ret.fail(msg="清理任务不存在")
-        return Ret.success(msg="获取成功", data=progress.model_dump())
-    except Exception as e:
-        return Ret.error(msg=f"获取清理进度失败: {e}")
+    progress = await cleanup_service.get_cleanup_progress(task_id)
+    if progress is None:
+        raise CleanupTaskNotFoundError
+    return progress
 
 
 @router.get("/cleanup/result/{task_id}", summary="获取清理结果")
@@ -148,37 +162,38 @@ async def get_cleanup_progress(
 async def get_cleanup_result(
     task_id: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CleanupResult:
     """获取清理结果
 
     Args:
         task_id: 任务ID
 
     Returns:
-        Ret: 包含清理结果的响应
+        清理结果
+
+    Raises:
+        CleanupTaskNotFoundError: 清理任务不存在或未完成
     """
-    try:
-        result = await cleanup_service.get_cleanup_result(task_id)
-        if result is None:
-            return Ret.fail(msg="清理任务不存在或未完成")
-        return Ret.success(msg="获取成功", data=result.model_dump())
-    except Exception as e:
-        return Ret.error(msg=f"获取清理结果失败: {e}")
+    result = await cleanup_service.get_cleanup_result(task_id)
+    if result is None:
+        raise CleanupTaskNotFoundError
+    return result
 
 
 @router.get("/disk-info", summary="获取磁盘信息")
 @require_role(Role.Admin)
-async def get_disk_info(_current_user: DBUser = Depends(get_current_active_user)) -> Ret:
+async def get_disk_info(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> DiskInfo:
     """获取磁盘信息
 
     Returns:
-        Ret: 包含磁盘信息的响应
+        磁盘信息
+
+    Raises:
+        ScanNotStartedError: 暂无磁盘信息
     """
-    try:
-        # 获取最新扫描结果中的磁盘信息
-        scan_result = await scanner_service.get_scan_result()
-        if scan_result and scan_result.disk_info:
-            return Ret.success(msg="获取成功", data=scan_result.disk_info.model_dump())
-        return Ret.fail(msg="暂无磁盘信息，请先启动扫描")
-    except Exception as e:
-        return Ret.error(msg=f"获取磁盘信息失败: {e!s}")
+    scan_result = await scanner_service.get_scan_result()
+    if scan_result and scan_result.disk_info:
+        return scan_result.disk_info
+    raise ScanNotStartedError

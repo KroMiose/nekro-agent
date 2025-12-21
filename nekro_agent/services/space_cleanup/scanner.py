@@ -24,6 +24,7 @@ from nekro_agent.core.os_env import (
     USER_UPLOAD_DIR,
     OsEnv,
 )
+from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.schemas.space_cleanup import (
     ChatResourceInfo,
     DiskInfo,
@@ -402,6 +403,15 @@ class ScannerService:
             supports_time_filter=True,
             chat_resources=chat_resources,
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="聊天上传资源", en_US="Chat Uploads"),
+            i18n_description=i18n_text(
+                zh_CN="聊天中接收到的文件和图片等资源",
+                en_US="Files and images received in chat",
+            ),
+            i18n_risk_message=i18n_text(
+                zh_CN="清理后AI将无法访问历史消息中的资源文件",
+                en_US="AI will not be able to access resource files in historical messages after cleanup",
+            ),
         )
 
     async def _scan_sandbox_shared(self) -> ResourceCategory:
@@ -421,6 +431,12 @@ class ScannerService:
                 supports_time_filter=False,
                 chat_resources=[],
                 plugin_resources=[],
+                i18n_display_name=i18n_text(zh_CN="沙盒临时代码", en_US="Sandbox Temp Code"),
+                i18n_description=i18n_text(
+                    zh_CN="AI 执行代码时产生的临时文件",
+                    en_US="Temporary files generated when AI executes code",
+                ),
+                i18n_risk_message=None,
             )
 
         chat_resources: Dict[str, ChatResourceInfo] = {}
@@ -493,6 +509,12 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=list(chat_resources.values()),
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="沙盒临时代码", en_US="Sandbox Temp Code"),
+            i18n_description=i18n_text(
+                zh_CN="AI 执行代码时产生的临时文件",
+                en_US="Temporary files generated when AI executes code",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_sandbox_pip_cache(self) -> ResourceCategory:
@@ -512,6 +534,12 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="沙盒 Pip 缓存", en_US="Sandbox Pip Cache"),
+            i18n_description=i18n_text(
+                zh_CN="Python 包管理器的缓存文件",
+                en_US="Cache files from Python package manager",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_sandbox_packages(self) -> ResourceCategory:
@@ -531,6 +559,12 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="沙盒依赖包", en_US="Sandbox Packages"),
+            i18n_description=i18n_text(
+                zh_CN="AI 动态安装的 Python 依赖包",
+                en_US="Python packages dynamically installed by AI",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_plugin_dynamic_packages(self) -> ResourceCategory:
@@ -550,6 +584,15 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="插件依赖包", en_US="Plugin Packages"),
+            i18n_description=i18n_text(
+                zh_CN="插件动态安装的 Python 依赖包",
+                en_US="Python packages dynamically installed by plugins",
+            ),
+            i18n_risk_message=i18n_text(
+                zh_CN="清理后插件可能行为异常，需要重启服务",
+                en_US="Plugins may behave abnormally after cleanup, restart required",
+            ),
         )
 
     async def _scan_prompt_logs(self) -> ResourceCategory:
@@ -569,6 +612,12 @@ class ScannerService:
             supports_time_filter=True,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="提示词日志", en_US="Prompt Logs"),
+            i18n_description=i18n_text(
+                zh_CN="AI 对话的提示词记录",
+                en_US="Prompt records from AI conversations",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_prompt_error_logs(self) -> ResourceCategory:
@@ -588,6 +637,12 @@ class ScannerService:
             supports_time_filter=True,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="错误提示词日志", en_US="Error Prompt Logs"),
+            i18n_description=i18n_text(
+                zh_CN="请求失败时的提示词记录",
+                en_US="Prompt records when requests failed",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_napcat_temp(self) -> ResourceCategory:
@@ -607,6 +662,12 @@ class ScannerService:
             supports_time_filter=True,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="NapCat 临时文件", en_US="NapCat Temp Files"),
+            i18n_description=i18n_text(
+                zh_CN="QQ 消息接收的临时文件",
+                en_US="Temporary files received from QQ messages",
+            ),
+            i18n_risk_message=None,
         )
 
     async def _scan_plugin_data(self) -> ResourceCategory:
@@ -661,6 +722,15 @@ class ScannerService:
             risk_message="清理插件数据可能导致插件工作异常，暂时不支持清理",
             supports_time_filter=False,
             plugin_resources=plugin_resources,
+            i18n_display_name=i18n_text(zh_CN="插件数据", en_US="Plugin Data"),
+            i18n_description=i18n_text(
+                zh_CN="插件的配置和存储数据",
+                en_US="Plugin configuration and storage data",
+            ),
+            i18n_risk_message=i18n_text(
+                zh_CN="清理插件数据可能导致插件工作异常，暂时不支持清理",
+                en_US="Cleaning plugin data may cause plugins to malfunction, not supported yet",
+            ),
         )
 
     async def _scan_app_logs(self) -> ResourceCategory:
@@ -678,6 +748,15 @@ class ScannerService:
             risk_level="warning",
             risk_message="暂不支持清理应用日志文件",
             supports_time_filter=False,
+            i18n_display_name=i18n_text(zh_CN="应用日志", en_US="Application Logs"),
+            i18n_description=i18n_text(
+                zh_CN="系统运行日志文件",
+                en_US="System runtime log files",
+            ),
+            i18n_risk_message=i18n_text(
+                zh_CN="暂不支持清理应用日志文件",
+                en_US="Cleaning application logs is not supported yet",
+            ),
         )
 
     async def _calculate_other_data(self, disk_info: DiskInfo, categories: List[ResourceCategory]) -> ResourceCategory:
@@ -708,6 +787,15 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN="其他数据", en_US="Other Data"),
+            i18n_description=i18n_text(
+                zh_CN="其他系统运行数据",
+                en_US="Other system runtime data",
+            ),
+            i18n_risk_message=i18n_text(
+                zh_CN="未识别清理风险的其他数据或关键系统数据，不建议清理",
+                en_US="Unidentified data with cleanup risks or critical system data, not recommended to clean",
+            ),
         )
 
     def _create_empty_category(self, resource_type: ResourceType, error_message: str = "") -> ResourceCategory:
@@ -732,6 +820,9 @@ class ScannerService:
             supports_time_filter=False,
             chat_resources=[],
             plugin_resources=[],
+            i18n_display_name=i18n_text(zh_CN=resource_type.value, en_US=resource_type.value),
+            i18n_description=i18n_text(zh_CN="扫描失败", en_US="Scan failed"),
+            i18n_risk_message=i18n_text(zh_CN=error_message, en_US=error_message) if error_message else None,
         )
 
     async def _save_scan_result(self, result: ScanResult) -> None:

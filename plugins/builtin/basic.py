@@ -45,9 +45,14 @@ import magic
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.tools import user
-from nekro_agent.api import core
+from nekro_agent.api import core, i18n
 from nekro_agent.api.message import ChatMessage
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.api.signal import MsgSignal
 from nekro_agent.services.message_service import message_service
@@ -69,6 +74,14 @@ plugin = NekroPlugin(
     version="0.1.1",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="基础交互插件",
+        en_US="Basic Interaction Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供基础的聊天消息发送、图片/文件资源发送等基础功能",
+        en_US="Provides basic chat messaging, image/file sending and other fundamental features",
+    ),
     # 开放给 telegram 使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
     support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram"],
 )
@@ -96,26 +109,76 @@ class BasicConfig(ConfigBase):
         default=True,
         title="启用消息相似度过滤",
         description="启用后将按以下策略自动过滤重复消息并提示 AI 调整生成策略",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用消息相似度过滤",
+                en_US="Enable Message Similarity Filtering",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后将按以下策略自动过滤重复消息并提示 AI 调整生成策略",
+                en_US="When enabled, duplicate messages will be automatically filtered and AI will be prompted to adjust generation strategy",
+            ),
+        ).model_dump(),
     )
     STRICT_MESSAGE_FILTER: bool = Field(
         default=False,
         title="启用严格重复消息过滤",
         description="启用后，完全重复的消息将直接抛出异常，否则仅过滤并提示",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用严格重复消息过滤",
+                en_US="Enable Strict Duplicate Message Filtering",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后，完全重复的消息将直接抛出异常，否则仅过滤并提示",
+                en_US="When enabled, identical messages will throw exceptions, otherwise only filtered with warnings",
+            ),
+        ).model_dump(),
     )
     SIMILARITY_THRESHOLD: float = Field(
         default=0.7,
         title="消息相似度警告阈值",
         description="当消息相似度超过该阈值时，将触发系统警告提示引导 AI 调整生成策略",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="消息相似度警告阈值",
+                en_US="Message Similarity Warning Threshold",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="当消息相似度超过该阈值时，将触发系统警告提示引导 AI 调整生成策略",
+                en_US="System warning will be triggered when message similarity exceeds this threshold",
+            ),
+        ).model_dump(),
     )
     SIMILARITY_CHECK_LENGTH: int = Field(
         default=12,
         title="启用消息相似度检查阈值",
         description="当消息长度超过该阈值时，将进行相似度检查",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用消息相似度检查阈值",
+                en_US="Message Similarity Check Length Threshold",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="当消息长度超过该阈值时，将进行相似度检查",
+                en_US="Similarity check will be performed when message length exceeds this threshold",
+            ),
+        ).model_dump(),
     )
     ALLOW_AT_ALL: bool = Field(
         default=False,
         title="允许 @全体成员",
         description="启用后，消息中可以触发 @全体成员 功能；禁用时将被替换为纯文本形式的 @全体成员",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="允许 @全体成员",
+                en_US="Allow @all Members",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后，消息中可以触发 @全体成员 功能；禁用时将被替换为纯文本形式的 @全体成员",
+                en_US="When enabled, messages can trigger @all function; when disabled, it will be replaced with plain text",
+            ),
+        ).model_dump(),
     )
 
 

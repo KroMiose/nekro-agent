@@ -23,6 +23,7 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text
 from nekro_agent.schemas.signal import MsgSignal
 
 from .schema import PromptInjectMethod, SandboxMethod, SandboxMethodType, WebhookMethod
@@ -51,16 +52,20 @@ class NekroPlugin:
         support_adapter: Optional[List[str]] = None,
         is_builtin: bool = False,
         is_package: bool = False,
+        i18n_name: Optional[I18nDict] = None,
+        i18n_description: Optional[I18nDict] = None,
     ):
         """
         Args:
-            name: 插件名称
+            name: 插件名称（默认）
             module_name: 插件模块名
-            description: 插件描述
+            description: 插件描述（默认）
             version: 插件版本
             author: 插件作者
             url: 插件地址
             support_adapter: 支持的适配器
+            i18n_name: 插件名称国际化
+            i18n_description: 插件描述国际化
 
         可用回调方法:
             init_method: 初始化方法
@@ -91,6 +96,8 @@ class NekroPlugin:
         self.author = _validate_name(author, "Author")
         self.url = url.strip()
         self.support_adapter = support_adapter or []
+        self.i18n_name = i18n_name
+        self.i18n_description = i18n_description
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
         self._collect_methods_func: Optional[CollectMethodsFunc] = None
@@ -464,6 +471,28 @@ class NekroPlugin:
     @property
     def key(self) -> str:
         return self._key
+
+    def get_name(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
+        """获取本地化插件名称
+
+        Args:
+            lang: 目标语言
+
+        Returns:
+            本地化插件名称，如果无对应翻译则返回默认名称
+        """
+        return get_text(self.i18n_name, self.name, lang)
+
+    def get_description(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
+        """获取本地化插件描述
+
+        Args:
+            lang: 目标语言
+
+        Returns:
+            本地化插件描述，如果无对应翻译则返回默认描述
+        """
+        return get_text(self.i18n_description, self.description, lang)
 
     async def render_inject_prompt(self, ctx: AgentCtx) -> str:
         """渲染提示注入提示词

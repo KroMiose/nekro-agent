@@ -76,6 +76,7 @@ import {
   type CleanupResult,
   type ResourceCategory,
 } from '../../services/api/space-cleanup'
+import { getLocalizedText } from '../../services/api/types'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -128,8 +129,19 @@ const sortResources = (categories: ResourceCategory[]): ResourceCategory[] => {
 export default function SpaceCleanupPage() {
   const theme = useTheme()
   const notification = useNotification()
-  const { t } = useTranslation('settings')
+  const { t, i18n } = useTranslation('settings')
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
+  const lang = i18n.language
+
+  // i18n 辅助函数：获取本地化的分类名称、描述、风险提示
+  const getCategoryName = (category: ResourceCategory) =>
+    getLocalizedText(category.i18n_display_name, category.display_name, lang)
+  const getCategoryDesc = (category: ResourceCategory) =>
+    getLocalizedText(category.i18n_description, category.description, lang)
+  const getCategoryRiskMsg = (category: ResourceCategory) =>
+    category.risk_message
+      ? getLocalizedText(category.i18n_risk_message, category.risk_message, lang)
+      : undefined
   const isTablet = useMediaQuery(theme.breakpoints.down('md'))
   const scanIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const cleanupIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -205,7 +217,7 @@ export default function SpaceCleanupPage() {
       const result = await spaceCleanupApi.loadScanResultFromCache()
       setScanResult(result)
     } catch {
-      console.log('暂无扫描结果')
+      // 暂无扫描结果是预期情况，静默处理
     } finally {
       setInitialLoading(false)
     }
@@ -235,8 +247,7 @@ export default function SpaceCleanupPage() {
             try {
               await loadScanResult()
               notification.success(t('spaceCleanup.status.scanSuccess'))
-            } catch (error) {
-              console.error('加载扫描结果失败:', error)
+            } catch {
               notification.error(t('spaceCleanup.status.loadScanResultFailed'))
             } finally {
               setScanning(false)
@@ -253,9 +264,8 @@ export default function SpaceCleanupPage() {
               typeof setInterval
             >
           }
-        } catch (error) {
-          console.error('获取扫描进度失败:', error)
-          // 出错后继续轮询
+        } catch {
+          // 轮询过程中的临时网络错误，静默处理并继续轮询
           scanIntervalRef.current = setTimeout(pollProgress, 2000) as unknown as ReturnType<
             typeof setInterval
           >
@@ -473,9 +483,8 @@ export default function SpaceCleanupPage() {
               1000
             ) as unknown as ReturnType<typeof setInterval>
           }
-        } catch (error) {
-          console.error('获取清理进度失败:', error)
-          // 出错后继续轮询
+        } catch {
+          // 轮询过程中的临时网络错误，静默处理并继续轮询
           cleanupIntervalRef.current = setTimeout(
             pollCleanupProgress,
             2000
@@ -561,7 +570,7 @@ export default function SpaceCleanupPage() {
     scanResult?.categories
       .filter(c => c.total_size > 0)
       .map((category, index) => ({
-        name: category.display_name,
+        name: getCategoryName(category),
         value: category.total_size,
         color: COLORS[index % COLORS.length],
       })) || []
@@ -573,7 +582,7 @@ export default function SpaceCleanupPage() {
       .sort((a, b) => b.total_size - a.total_size)
       .slice(0, 10)
       .map(category => ({
-        name: category.display_name,
+        name: getCategoryName(category),
         size: category.total_size / (1024 * 1024 * 1024), // 转换为 GB
         files: category.file_count,
       })) || []
@@ -1137,8 +1146,8 @@ export default function SpaceCleanupPage() {
                             minWidth: 0,
                           }}
                         >
-                          {category.risk_message ? (
-                            <Tooltip title={category.risk_message} arrow placement="top">
+                          {getCategoryRiskMsg(category) ? (
+                            <Tooltip title={getCategoryRiskMsg(category)!} arrow placement="top">
                               <Box sx={{ display: 'inline-flex', cursor: 'help', flexShrink: 0 }}>
                                 {getRiskIcon(category.risk_level)}
                               </Box>
@@ -1160,7 +1169,7 @@ export default function SpaceCleanupPage() {
                                   variant={isMobile ? 'body2' : 'subtitle1'}
                                   fontWeight="600"
                                 >
-                                  {category.display_name}
+                                  {getCategoryName(category)}
                                 </Typography>
                                 {!category.supports_time_filter && category.can_cleanup && (
                                   <Tooltip
@@ -1206,7 +1215,7 @@ export default function SpaceCleanupPage() {
                                   fontSize: isMobile ? '0.75rem' : '0.875rem',
                                 }}
                               >
-                                {category.description}
+                                {getCategoryDesc(category)}
                               </Typography>
                             }
                           />
@@ -1814,8 +1823,8 @@ export default function SpaceCleanupPage() {
                       {dangerCategories.map(cat => (
                         <li key={cat.resource_type}>
                           <Typography variant="body2">
-                            <strong>{cat.display_name}</strong>
-                            {cat.risk_message && `: ${cat.risk_message}`}
+                            <strong>{getCategoryName(cat)}</strong>
+                            {getCategoryRiskMsg(cat) && `: ${getCategoryRiskMsg(cat)}`}
                           </Typography>
                         </li>
                       ))}
@@ -1831,8 +1840,8 @@ export default function SpaceCleanupPage() {
                       {warningCategories.map(cat => (
                         <li key={cat.resource_type}>
                           <Typography variant="body2">
-                            <strong>{cat.display_name}</strong>
-                            {cat.risk_message && `: ${cat.risk_message}`}
+                            <strong>{getCategoryName(cat)}</strong>
+                            {getCategoryRiskMsg(cat) && `: ${getCategoryRiskMsg(cat)}`}
                           </Typography>
                         </li>
                       ))}

@@ -26,8 +26,13 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.api import schemas
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import i18n, schemas
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 
@@ -39,6 +44,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="状态控制插件",
+        en_US="Status Control Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="角色状态控制，提高角色状态保持能力，提供状态管理和名片更新能力",
+        en_US="Character status control for enhanced consistency in roleplay scenarios",
+    ),
 )
 
 
@@ -46,10 +59,62 @@ plugin = NekroPlugin(
 class StatusConfig(ConfigBase):
     """状态控制配置"""
 
-    MAX_PRESET_STATUS_LIST_SIZE: int = Field(default=99, title="保存的历史预设状态条数")
-    MAX_PRESET_STATUS_REFER_SIZE: int = Field(default=5, title="每次引用预设状态条数")
-    ENABLE_CHANGE_NICKNAME: bool = Field(default=True, title="启用根据状态更改群名片")
-    NICKNAME_PREFIX: str = Field(default="", title="群名片前缀")
+    MAX_PRESET_STATUS_LIST_SIZE: int = Field(
+        default=99,
+        title="保存的历史预设状态条数",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="保存的历史预设状态条数",
+                en_US="Max Preset Status History Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="保存的历史预设状态最大数量",
+                en_US="Maximum number of preset status history to save",
+            ),
+        ).model_dump(),
+    )
+    MAX_PRESET_STATUS_REFER_SIZE: int = Field(
+        default=5,
+        title="每次引用预设状态条数",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="每次引用预设状态条数",
+                en_US="Preset Status Reference Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="每次引用预设状态的最大数量",
+                en_US="Maximum number of preset status to reference each time",
+            ),
+        ).model_dump(),
+    )
+    ENABLE_CHANGE_NICKNAME: bool = Field(
+        default=True,
+        title="启用根据状态更改群名片",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用根据状态更改群名片",
+                en_US="Enable Auto-Update Group Nickname",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后将根据状态自动更新群名片",
+                en_US="Automatically update group nickname based on status when enabled",
+            ),
+        ).model_dump(),
+    )
+    NICKNAME_PREFIX: str = Field(
+        default="",
+        title="群名片前缀",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="群名片前缀",
+                en_US="Nickname Prefix",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="设置群名片时添加的前缀",
+                en_US="Prefix to add when setting group nickname",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置和插件存储

@@ -510,7 +510,9 @@ function EditDialog({
                   {getModelTypeIcon(type.value)}
                   <Box sx={{ ml: 1 }}>
                     <Typography variant="body2" sx={{ fontSize: isSmall ? '0.8rem' : 'inherit' }}>
-                      {type.label}
+                      {t(`modelGroup.types.${type.value as 'chat' | 'embedding' | 'draw'}`, {
+                        defaultValue: type.label,
+                      })}
                     </Typography>
                     {type.description && (
                       <Typography
@@ -518,7 +520,9 @@ function EditDialog({
                         color="text.secondary"
                         sx={{ fontSize: isSmall ? '0.7rem' : 'inherit' }}
                       >
-                        {type.description}
+                        {t(`modelGroup.typeDescriptions.${type.value as 'chat' | 'embedding' | 'draw'}`, {
+                          defaultValue: type.description,
+                        })}
                       </Typography>
                     )}
                   </Box>
@@ -736,9 +740,11 @@ export default function ModelGroupsPage() {
 
   // 获取模型类型的显示名称
   const getModelTypeLabel = (type: string | undefined) => {
-    if (!type) return '聊天'
-    const found = modelTypes.find(t => t.value === type)
-    return found ? found.label : type
+    if (!type) return t('modelGroup.types.chat', { ns: 'settings', defaultValue: '聊天' })
+    return t(`modelGroup.types.${type as 'chat' | 'embedding' | 'draw'}`, {
+      ns: 'settings',
+      defaultValue: modelTypes.find(mt => mt.value === type)?.label || type,
+    })
   }
 
   // 获取模型类型对应的颜色

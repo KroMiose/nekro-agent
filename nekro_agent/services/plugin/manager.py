@@ -33,6 +33,8 @@ async def get_all_ext_meta_data() -> List[dict]:
             "url": plugin.url or "",
             "isBuiltin": plugin.is_builtin,
             "isPackage": plugin.is_package,
+            "i18n_name": plugin.i18n_name,
+            "i18n_description": plugin.i18n_description,
         }
         for plugin in plugins
     ]

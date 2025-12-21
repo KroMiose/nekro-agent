@@ -23,8 +23,13 @@ from typing import Optional
 from httpx import AsyncClient
 from pydantic import Field
 
-from nekro_agent.api import core, message
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n, message
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 
 plugin = NekroPlugin(
@@ -34,6 +39,14 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="Google搜索工具",
+        en_US="Google Search Tool",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供Google搜索功能，获取实时信息",
+        en_US="Provides Google search functionality for real-time information",
+    ),
 )
 
 
@@ -45,18 +58,48 @@ class GoogleSearchConfig(ConfigBase):
         default="",
         title="Google搜索API密钥",
         description="Google 搜索 API 密钥 <a href='https://developers.google.com/custom-search/v1/introduction?hl=zh-cn' target='_blank'>获取地址</a>",
-        json_schema_extra={"is_secret": True},
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_title=i18n.i18n_text(
+                zh_CN="Google搜索API密钥",
+                en_US="Google Search API Key",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="Google 搜索 API 密钥 <a href='https://developers.google.com/custom-search/v1/introduction?hl=zh-cn' target='_blank' rel='noopener noreferrer'>获取地址</a>",
+                en_US="Google Search API Key <a href='https://developers.google.com/custom-search/v1/introduction' target='_blank' rel='noopener noreferrer'>Get Here</a>",
+            ),
+        ).model_dump(),
     )
     CX_KEY: str = Field(
         default="",
         title="Google搜索CX密钥",
         description="Google 搜索 CX 密钥 <a href='https://programmablesearchengine.google.com/controlpanel/all' target='_blank'>获取地址</a>",
-        json_schema_extra={"is_secret": True},
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_title=i18n.i18n_text(
+                zh_CN="Google搜索CX密钥",
+                en_US="Google Search CX Key",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="Google 搜索 CX 密钥 <a href='https://programmablesearchengine.google.com/controlpanel/all' target='_blank' rel='noopener noreferrer'>获取地址</a>",
+                en_US="Google Search CX Key <a href='https://programmablesearchengine.google.com/controlpanel/all' target='_blank' rel='noopener noreferrer'>Get Here</a>",
+            ),
+        ).model_dump(),
     )
     THROTTLE_TIME: int = Field(
         default=10,
         title="搜索冷却时间(秒)",
         description="同一关键词在此时间内重复搜索将被阻止",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="搜索冷却时间(秒)",
+                en_US="Search Cooldown (seconds)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="同一关键词在此时间内重复搜索将被阻止",
+                en_US="Repeated searches for the same keyword within this time will be blocked",
+            ),
+        ).model_dump(),
     )
     MAX_RESULTS: int = Field(
         default=5,
@@ -97,11 +140,7 @@ async def google_search(_ctx: AgentCtx, keyword: str) -> str:
     if not api_key or not cx_key:
         return "[Google] 未配置 API Key 或 CX Key"
 
-    proxy = (
-        proxy if proxy and proxy.startswith(("http://", "https://"))
-        else f"http://{proxy}" if proxy
-        else None
-    )
+    proxy = proxy if proxy and proxy.startswith(("http://", "https://")) else f"http://{proxy}" if proxy else None
 
     headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 

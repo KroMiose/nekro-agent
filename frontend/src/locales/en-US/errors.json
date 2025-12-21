@@ -1,0 +1,12 @@
+{
+  "networkError": "Network connection failed, please check your network settings",
+  "unauthorized": "Unauthorized access",
+  "forbidden": "Permission denied",
+  "notFound": "Resource not found",
+  "serverError": "Internal server error",
+  "timeout": "Request timeout, please try again later",
+  "validationError": "Invalid request parameters",
+  "conflict": "Resource conflict",
+  "tooManyRequests": "Too many requests, please try again later"
+}
+

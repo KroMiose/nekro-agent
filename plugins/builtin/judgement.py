@@ -19,8 +19,13 @@ AI 在使用此功能时被要求保持谨慎和公正，避免滥用。
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.api import core, message
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n, message
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config
 from nekro_agent.schemas.chat_message import ChatType
@@ -33,6 +38,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="风纪委员",
+        en_US="Discipline Committee Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="群管理工具集，提供临时禁言群管理功能",
+        en_US="Group management tools providing temporary mute features",
+    ),
 )
 
 
@@ -44,11 +57,31 @@ class JudgementConfig(ConfigBase):
         default=60 * 60 * 24,
         title="最大禁言时长（秒）",
         description="单次禁言的最大时长，超过此时长将被拒绝",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="最大禁言时长（秒）",
+                en_US="Max Mute Duration (seconds)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="单次禁言的最大时长，超过此时长将被拒绝",
+                en_US="Maximum duration for a single mute, requests exceeding this will be rejected",
+            ),
+        ).model_dump(),
     )
     ENABLE_ADMIN_REPORT: bool = Field(
         default=True,
         title="启用管理频道反馈",
         description="启用后，禁言操作将发送报告给管理频道 (需要先配置管理频道)",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用管理频道反馈",
+                en_US="Enable Admin Channel Report",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后，禁言操作将发送报告给管理频道 (需要先配置管理频道)",
+                en_US="When enabled, mute operations will send reports to admin channel (requires admin channel configuration)",
+            ),
+        ).model_dump(),
     )
 
 

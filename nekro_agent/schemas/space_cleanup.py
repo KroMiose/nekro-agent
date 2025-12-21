@@ -6,6 +6,8 @@ from typing import Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from nekro_agent.schemas.i18n import I18nDict
+
 
 class ResourceType(str, Enum):
     """资源类型枚举"""
@@ -76,16 +78,21 @@ class ResourceCategory(BaseModel):
     """资源分类"""
 
     resource_type: ResourceType = Field(..., description="资源类型")
-    display_name: str = Field(..., description="显示名称")
-    description: str = Field(..., description="描述")
+    display_name: str = Field(..., description="显示名称（向后兼容）")
+    description: str = Field(..., description="描述（向后兼容）")
     total_size: int = Field(0, description="总大小（字节）")
     file_count: int = Field(0, description="文件数量")
     can_cleanup: bool = Field(True, description="是否可清理")
     risk_level: str = Field("safe", description="风险等级: safe/warning/danger")
-    risk_message: Optional[str] = Field(None, description="风险提示")
+    risk_message: Optional[str] = Field(None, description="风险提示（向后兼容）")
     supports_time_filter: bool = Field(True, description="是否支持按时间过滤（False表示只能完全清理）")
     chat_resources: List[ChatResourceInfo] = Field(default_factory=list, description="按聊天分组的资源")
     plugin_resources: List[PluginResourceInfo] = Field(default_factory=list, description="按插件分组的资源")
+
+    # i18n 扩展字段（可选，向后兼容，以 i18n_ 前缀便于字母排序聚合）
+    i18n_description: Optional[I18nDict] = Field(None, description="描述国际化")
+    i18n_display_name: Optional[I18nDict] = Field(None, description="显示名称国际化")
+    i18n_risk_message: Optional[I18nDict] = Field(None, description="风险提示国际化")
 
 
 class DiskInfo(BaseModel):
@@ -175,3 +182,28 @@ class CleanupResult(BaseModel):
     duration_seconds: Optional[float] = Field(None, description="持续时长（秒）")
     error_message: Optional[str] = Field(None, description="错误信息")
     failed_file_list: List[str] = Field(default_factory=list, description="删除失败的文件列表")
+
+
+# ============================================================
+# 简单响应模型（避免返回无约束字典）
+# ============================================================
+
+
+class ScanStartResponse(BaseModel):
+    """扫描启动响应"""
+
+    scan_id: str = Field(..., description="扫描任务ID")
+
+
+class CleanupStartResponse(BaseModel):
+    """清理启动响应"""
+
+    task_id: str = Field(..., description="清理任务ID")
+
+
+class ScanProgressResponse(BaseModel):
+    """扫描进度响应"""
+
+    status: str = Field(..., description="扫描状态")
+    progress: float = Field(0, description="进度（0-100）")
+    message: Optional[str] = Field(None, description="状态消息")
