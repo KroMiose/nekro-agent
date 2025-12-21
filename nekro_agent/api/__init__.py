@@ -4,7 +4,8 @@
 
 Example:
     ```python
-    from nekro_agent.api import message, timer, user, context, core, llm
+    from nekro_agent.api import message, timer, user, context, core, llm, i18n
+    from nekro_agent.api.plugin import NekroPlugin, ExtraField
 
     # 发送消息
     await message.send_text(_ck, "你好，世界！", ctx)
@@ -15,17 +16,22 @@ Example:
     # 使用核心功能
     core.logger.info("这是一条日志")
 
-    # 使用 LLM 模型
-    response = await llm.get_chat_response([
-        {"role": "user", "content": "你好，请帮我写一首诗"}
-    ])
+    # 创建国际化插件
+    plugin = NekroPlugin(
+        name="我的插件",
+        module_name="my_plugin",
+        description="描述",
+        i18n_name=i18n.i18n_text(zh_CN="我的插件", en_US="My Plugin"),
+        i18n_description=i18n.i18n_text(zh_CN="描述", en_US="Description"),
+    )
     ```
 """
 
-from nekro_agent.api import core, message, plugin, schemas, signal, timer
+from nekro_agent.api import core, i18n, message, plugin, schemas, signal, timer
 
 __all__ = [
     "core",
+    "i18n",
     "message",
     "plugin",
     "schemas",

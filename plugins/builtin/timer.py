@@ -22,8 +22,13 @@ from datetime import datetime
 
 from pydantic import Field
 
-from nekro_agent.api import core, timer
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n, timer
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.services.festival_service import FestivalService
 
@@ -34,6 +39,14 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="定时器工具集",
+        en_US="Timer Utilities",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供主动触发、预定事件的能力，支持设置、清除定时器",
+        en_US="Provides timer capabilities for scheduled events and active triggers",
+    ),
 )
 
 
@@ -41,7 +54,20 @@ plugin = NekroPlugin(
 class TimerConfig(ConfigBase):
     """定时器配置"""
 
-    MAX_DISPLAY_DESC_LENGTH: int = Field(default=100, title="定时器描述最大显示长度")
+    MAX_DISPLAY_DESC_LENGTH: int = Field(
+        default=100,
+        title="定时器描述最大显示长度",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="定时器描述最大显示长度",
+                en_US="Max Timer Description Display Length",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="定时器描述超过该长度时将被截断显示",
+                en_US="Timer descriptions exceeding this length will be truncated",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置

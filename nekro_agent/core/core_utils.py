@@ -21,6 +21,8 @@ import yaml
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, PrivateAttr
 
+from nekro_agent.schemas.i18n import I18nDict
+
 
 class ArgTypes:
 
@@ -81,6 +83,12 @@ class OsEnvTypes:
 
 
 class ExtraField(BaseModel):
+    """配置字段的扩展元数据
+
+    用于定义配置字段的 UI 行为和国际化支持。
+    所有字段描述都应添加对应的 i18n 字段以支持多语言。
+    """
+
     is_hidden: bool = Field(default=False, title="配置项可见性控制", description="设置为True时，该配置项将在WebUI界面中被隐藏")
     is_secret: bool = Field(
         default=False,
@@ -148,6 +156,18 @@ class ExtraField(BaseModel):
         default=False,
         title="多人设引用标识",
         description="设置为True时，表示该字段支持选择多个人设，值为人设ID列表",
+    )
+
+    # i18n 扩展字段（可选，向后兼容，以 i18n_ 前缀便于字母排序聚合）
+    i18n_title: Optional[I18nDict] = Field(
+        default=None,
+        title="字段标题国际化",
+        description="字段标题的多语言翻译，格式: {'zh-CN': '中文', 'en-US': 'English'}",
+    )
+    i18n_description: Optional[I18nDict] = Field(
+        default=None,
+        title="字段描述国际化",
+        description="字段描述的多语言翻译，格式: {'zh-CN': '中文', 'en-US': 'English'}",
     )
 
 

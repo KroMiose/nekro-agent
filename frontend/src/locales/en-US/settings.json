@@ -20,6 +20,16 @@
     "deleteConfirm": "Are you sure you want to delete this model group?",
     "deleteSuccess": "Model group deleted successfully",
     "saveSuccess": "Model group saved successfully",
+    "types": {
+      "chat": "Chat",
+      "embedding": "Embedding",
+      "draw": "Drawing"
+    },
+    "typeDescriptions": {
+      "chat": "Model for conversation",
+      "embedding": "Model for converting text to vectors",
+      "draw": "Model for image generation"
+    },
     "form": {
       "groupName": "Group Name",
       "apiAddress": "API Address",
@@ -279,6 +289,11 @@
     "cleanup": "Run Cleanup",
     "cleanupSuccess": "Cleanup successful",
     "cleanupFailed": "Cleanup Failed",
+    "duration": {
+      "seconds": "{{seconds}} seconds",
+      "minutesSeconds": "{{minutes}} min {{seconds}} sec",
+      "hoursMinutes": "{{hours}} hr {{minutes}} min"
+    },
     "actions": {
       "scan": "Start Scan",
       "rescan": "Rescan",

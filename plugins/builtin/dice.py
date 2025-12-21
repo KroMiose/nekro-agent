@@ -35,7 +35,7 @@ from nekro_agent.adapters.onebot_v11.matchers.command import (
     finish_with,
     on_command,
 )
-from nekro_agent.api import core, message
+from nekro_agent.api import core, i18n, message
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 
@@ -47,6 +47,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11", "discord"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="掷骰姬",
+        en_US="Dice Roller",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供掷骰检定能力和概率轮盘选择功能",
+        en_US="Provides dice rolling and probability roulette selection features",
+    ),
 )
 
 _ASSERT_DICE_NUM: int = 0

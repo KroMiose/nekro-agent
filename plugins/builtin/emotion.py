@@ -50,7 +50,7 @@ from nekro_agent.adapters.onebot_v11.matchers.command import (
     finish_with,
     on_command,
 )
-from nekro_agent.api import schemas
+from nekro_agent.api import i18n, schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
 from nekro_agent.api.plugin import (
@@ -76,6 +76,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11", "discord"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="表情包插件",
+        en_US="Emotion Pack Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供收集、搜索、使用表情包能力，使用Qdrant向量数据库",
+        en_US="Provides emotion pack collection, search and usage features using Qdrant vector database",
+    ),
 )
 
 
@@ -87,19 +95,79 @@ class EmotionConfig(ConfigBase):
         default=5,
         title="最近添加表情包显示数量",
         description="最近添加表情包最大显示数量",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="最近添加表情包显示数量",
+                en_US="Recent Emotion Display Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="最近添加表情包最大显示数量",
+                en_US="Maximum number of recently added emotions to display",
+            ),
+        ).model_dump(),
     )
-    MAX_SEARCH_RESULTS: int = Field(default=3, title="搜索结果显示数量", description="搜索结果显示数量")
+    MAX_SEARCH_RESULTS: int = Field(
+        default=3,
+        title="搜索结果显示数量",
+        description="搜索结果显示数量",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="搜索结果显示数量",
+                en_US="Search Result Display Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="搜索结果显示数量",
+                en_US="Number of search results to display",
+            ),
+        ).model_dump(),
+    )
     EMBEDDING_MODEL: str = Field(
         default="text-embedding",
         title="嵌入模型组",
         description="在此填入向量嵌入模型组名称",
-        json_schema_extra=ExtraField(ref_model_groups=True, required=True, model_type="embedding").model_dump(),
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            required=True,
+            model_type="embedding",
+            i18n_title=i18n.i18n_text(
+                zh_CN="嵌入模型组",
+                en_US="Embedding Model Group",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="在此填入向量嵌入模型组名称",
+                en_US="Enter the vector embedding model group name here",
+            ),
+        ).model_dump(),
     )
-    EMBEDDING_DIMENSION: int = Field(default=1024, title="嵌入维度", description="嵌入维度")
+    EMBEDDING_DIMENSION: int = Field(
+        default=1024,
+        title="嵌入维度",
+        description="嵌入维度",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="嵌入维度",
+                en_US="Embedding Dimension",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="嵌入维度",
+                en_US="Dimension of embeddings",
+            ),
+        ).model_dump(),
+    )
     STRICT_EMOTION_COLLECT: bool = Field(
         default=False,
         title="严格表情包模式",
         description="是否严格限制表情包收集并拒绝非表情包内容 (截图、非表情包内容等)",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="严格表情包模式",
+                en_US="Strict Emotion Mode",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="是否严格限制表情包收集并拒绝非表情包内容 (截图、非表情包内容等)",
+                en_US="Whether to strictly limit emotion collection and reject non-emotion content (screenshots, etc.)",
+            ),
+        ).model_dump(),
     )
 
 

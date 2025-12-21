@@ -186,6 +186,11 @@
     "invalidJson": "无效的JSON",
     "addItem": "添加{{name}}",
     "selectPreset": "选择人设",
+    "modelTypes": {
+      "chat": "聊天",
+      "embedding": "嵌入",
+      "draw": "绘图"
+    },
     "addNewItem": "添加新{{name}}",
     "newItemPlaceholder": "输入新键名，按回车添加",
     "headerEnableOverride": "启用覆盖",

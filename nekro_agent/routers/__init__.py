@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from nekro_agent.adapters import load_adapters_api
 from nekro_agent.core.args import Args
+from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.message import Ret
@@ -52,14 +53,9 @@ def mount_middlewares(app: FastAPI):
         allow_headers=["*"],
     )
 
-    @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception):  # noqa: ARG001
-        """全局异常处理器"""
-        logger.exception(f"服务器错误: {exc}")
-        return JSONResponse(
-            status_code=500,
-            content=Ret.error(msg=str(exc)).model_dump(),
-        )
+    # 注册统一的全局异常处理器
+    # 支持 AppError 业务错误、验证错误、HTTPException 及通用异常
+    register_exception_handlers(app)
 
 
 def mount_api_routes(app: FastAPI):

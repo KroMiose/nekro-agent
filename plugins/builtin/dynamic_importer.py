@@ -26,6 +26,7 @@
 
 from typing import Optional
 
+from nekro_agent.api import i18n
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 
@@ -36,6 +37,14 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="动态 pip 导入工具",
+        en_US="Dynamic Pip Importer",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供动态 pip 安装、导入、持久化功能",
+        en_US="Provides dynamic pip installation, import and persistence features",
+    ),
 )
 
 

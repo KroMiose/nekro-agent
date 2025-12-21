@@ -18,7 +18,7 @@ from typing import List
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.api import core
+from nekro_agent.api import core, i18n
 from nekro_agent.api.plugin import (
     ConfigBase,
     ExtraField,
@@ -37,6 +37,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="群荣誉插件",
+        en_US="Group Honor Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供群荣誉功能，支持设置用户群组头衔",
+        en_US="Provides group honor features for setting user group titles",
+    ),
 )
 
 

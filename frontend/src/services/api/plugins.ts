@@ -1,5 +1,6 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
+import { I18nDict } from './types'
 
 export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
 
@@ -29,6 +30,8 @@ export interface Plugin {
   hasConfig: boolean
   isBuiltin: boolean // 是否为内置插件
   isPackage: boolean // 是否为市场插件（包）
+  i18n_name?: I18nDict // 插件名称国际化
+  i18n_description?: I18nDict // 插件描述国际化
 }
 
 export interface PluginConfig {

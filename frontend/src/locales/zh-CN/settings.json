@@ -20,6 +20,16 @@
     "deleteConfirm": "确定要删除此模型组吗？",
     "deleteSuccess": "模型组删除成功",
     "saveSuccess": "模型组保存成功",
+    "types": {
+      "chat": "聊天",
+      "embedding": "嵌入",
+      "draw": "绘图"
+    },
+    "typeDescriptions": {
+      "chat": "用于对话的模型",
+      "embedding": "用于将文本转换为向量的模型",
+      "draw": "用于生成图像的模型"
+    },
     "form": {
       "groupName": "组名",
       "apiAddress": "API地址",
@@ -280,6 +290,11 @@
     "cleanup": "执行清理",
     "cleanupSuccess": "清理成功",
     "cleanupFailed": "清理失败",
+    "duration": {
+      "seconds": "{{seconds}} 秒",
+      "minutesSeconds": "{{minutes}} 分 {{seconds}} 秒",
+      "hoursMinutes": "{{hours}} 小时 {{minutes}} 分"
+    },
     "actions": {
       "scan": "开始扫描",
       "rescan": "重新扫描",

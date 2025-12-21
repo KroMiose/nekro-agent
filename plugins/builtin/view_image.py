@@ -24,8 +24,13 @@ from typing import Any, Dict, List
 
 from pydantic import Field
 
-from nekro_agent.api import core
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import ModelConfigGroup
 from nekro_agent.core.config import config as core_config
@@ -41,6 +46,14 @@ plugin = NekroPlugin(
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["onebot_v11", "sse", "discord"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="查看图片",
+        en_US="View Image Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="为不具备多模态视觉能力的模型提供图像理解能力",
+        en_US="Provides image understanding for models without multimodal vision capabilities",
+    ),
 )
 
 
@@ -52,11 +65,19 @@ class ViewImageConfig(ConfigBase):
         default="default",
         title="用于查看图片的模型,如果主模型自带视觉请勿开启本插件",
         description="用于查看图片并描述内容,以文本形式返回给主模型",
-        json_schema_extra={
-            "ref_model_groups": True,
-            "required": True,
-            "model_type": "chat",
-        },
+        json_schema_extra=ExtraField(
+            ref_model_groups=True,
+            required=True,
+            model_type="chat",
+            i18n_title=i18n.i18n_text(
+                zh_CN="用于查看图片的模型,如果主模型自带视觉请勿开启本插件",
+                en_US="Model for viewing images, do not enable if main model has built-in vision",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="用于查看图片并描述内容,以文本形式返回给主模型",
+                en_US="Used to view images and describe content, returning text to main model",
+            ),
+        ).model_dump(),
     )
 
 
@@ -122,9 +143,7 @@ async def view_image(_ctx: AgentCtx, images: List[str]):
         raise ValueError("当前模型组不支持视觉功能")
 
     # 构造发送给视觉模型的消息
-    vision_prompt = (
-        "Describe the content shown in this images in relatively detailed language."
-    )
+    vision_prompt = "Describe the content shown in this images in relatively detailed language."
     vision_msg = OpenAIChatMessage.from_text("user", vision_prompt)
 
     for i, image_path in enumerate(images):

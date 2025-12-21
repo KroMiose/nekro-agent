@@ -77,9 +77,19 @@ import {
 } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
+import { getLocalizedText } from '../../services/api/types'
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
+
+// 插件国际化辅助函数
+const getPluginName = (plugin: Plugin, language: string) => {
+  return getLocalizedText(plugin.i18n_name, plugin.name, language)
+}
+
+const getPluginDescription = (plugin: Plugin, language: string) => {
+  return getLocalizedText(plugin.i18n_description, plugin.description, language)
+}
 
 interface PluginDetailProps {
   plugin: Plugin
@@ -106,7 +116,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
-  const { t } = useTranslation('plugins')
+  const { t, i18n } = useTranslation('plugins')
 
   // 获取插件配置
   const { data: pluginConfig, isLoading: configLoading } = useQuery({
@@ -303,7 +313,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                 fontWeight: 600,
               }}
             >
-              {plugin.name}
+              {getPluginName(plugin, i18n.language)}
             </Typography>
           </Box>
           <FormControlLabel
@@ -509,7 +519,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             <Card sx={CARD_VARIANTS.default.styles}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
                 <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6, mb: 3 }}>
-                  {plugin.description}
+                  {getPluginDescription(plugin, i18n.language)}
                 </Typography>
                 <Divider />
                 <Box
@@ -1208,7 +1218,7 @@ export default function PluginsManagementPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const notification = useNotification()
-  const { t } = useTranslation('plugins')
+  const { t, i18n } = useTranslation('plugins')
 
   // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
@@ -1271,9 +1281,12 @@ export default function PluginsManagementPage() {
   // 过滤插件列表
   const filteredPlugins = plugins
     .filter(
-      plugin =>
-        plugin.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        plugin.description.toLowerCase().includes(searchTerm.toLowerCase())
+      plugin => {
+        const name = getPluginName(plugin, i18n.language).toLowerCase()
+        const description = getPluginDescription(plugin, i18n.language).toLowerCase()
+        const search = searchTerm.toLowerCase()
+        return name.includes(search) || description.includes(search)
+      }
     )
     .sort((a, b) => {
       // 基础交互插件(模块名为"basic")固定放在最前面
@@ -1300,7 +1313,7 @@ export default function PluginsManagementPage() {
       }
 
       // 最后按名称字母顺序排序
-      return a.name.localeCompare(b.name)
+      return getPluginName(a, i18n.language).localeCompare(getPluginName(b, i18n.language))
     })
 
   const pluginListContent = (
@@ -1379,7 +1392,7 @@ export default function PluginsManagementPage() {
                             ml: 0.5,
                           }}
                         >
-                          {plugin.name}
+                          {getPluginName(plugin, i18n.language)}
                         </Typography>
                         {plugin.hasConfig && (
                           <Tooltip title={t('list.hasConfig')}>
@@ -1403,7 +1416,7 @@ export default function PluginsManagementPage() {
                           color: 'text.secondary',
                         }}
                       >
-                        {plugin.description}
+                        {getPluginDescription(plugin, i18n.language)}
                       </Typography>
                     }
                   />

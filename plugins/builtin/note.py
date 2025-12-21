@@ -29,8 +29,13 @@ from typing import Dict, Optional
 
 from pydantic import BaseModel, Field
 
-from nekro_agent.api import core, schemas
-from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
+from nekro_agent.api import core, i18n, schemas
+from nekro_agent.api.plugin import (
+    ConfigBase,
+    ExtraField,
+    NekroPlugin,
+    SandboxMethodType,
+)
 from nekro_agent.models.db_chat_channel import DBChatChannel
 
 plugin = NekroPlugin(
@@ -40,6 +45,14 @@ plugin = NekroPlugin(
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
+    i18n_name=i18n.i18n_text(
+        zh_CN="笔记系统插件",
+        en_US="Note System Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供笔记系统功能，支持设置、获取、删除笔记",
+        en_US="Provides note system features including creating, retrieving and deleting notes",
+    ),
 )
 
 
@@ -47,11 +60,35 @@ plugin = NekroPlugin(
 class NoteConfig(ConfigBase):
     """笔记系统配置"""
 
-    MAX_NOTE_LENGTH: int = Field(default=72, title="单条笔记最大显示长度", description="超出该长度时，会自动摘要显示")
+    MAX_NOTE_LENGTH: int = Field(
+        default=72,
+        title="单条笔记最大显示长度",
+        description="超出该长度时，会自动摘要显示",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="单条笔记最大显示长度",
+                en_US="Max Note Display Length",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="超出该长度时，会自动摘要显示",
+                en_US="Notes exceeding this length will be summarized for display",
+            ),
+        ).model_dump(),
+    )
     NOTE_PROMPT_CLEAN_THRESHOLD: int = Field(
         default=12,
         title="笔记提示清理阈值",
         description="超出该长度时，会提示清理过期或无用的笔记",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="笔记提示清理阈值",
+                en_US="Note Cleanup Threshold",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="超出该长度时，会提示清理过期或无用的笔记",
+                en_US="When exceeded, prompt to clean up expired or unnecessary notes",
+            ),
+        ).model_dump(),
     )
 
 

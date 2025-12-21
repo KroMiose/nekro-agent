@@ -33,7 +33,7 @@ from typing import Any, Dict, List
 
 from pydantic import Field
 
-from nekro_agent.api import core
+from nekro_agent.api import core, i18n
 from nekro_agent.api.core import logger
 from nekro_agent.api.plugin import (
     ConfigBase,
@@ -54,6 +54,14 @@ plugin = NekroPlugin(
     author="Zaxpris",
     url="https://github.com/KroMiose/nekro-agent",
     support_adapter=["bilibili_live"],
+    i18n_name=i18n.i18n_text(
+        zh_CN="Bilibili 直播工具插件",
+        en_US="Bilibili Live Utils Plugin",
+    ),
+    i18n_description=i18n.i18n_text(
+        zh_CN="提供 Bilibili 直播适配器专用的消息发送和Live2d模型设置等功能",
+        en_US="Provides Bilibili live adapter utilities for messaging and Live2d model configuration",
+    ),
 )
 
 

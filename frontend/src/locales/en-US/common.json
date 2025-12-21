@@ -183,6 +183,11 @@
     "invalidJson": "Invalid JSON",
     "addItem": "Add {{name}}",
     "addNewItem": "Add new {{name}}",
+    "modelTypes": {
+      "chat": "Chat",
+      "embedding": "Embedding",
+      "draw": "Drawing"
+    },
     "newItemPlaceholder": "Enter key name and press Enter",
     "headerEnableOverride": "Enable Override",
     "headerConfigItem": "Config Item",
