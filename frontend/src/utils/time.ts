@@ -41,11 +41,24 @@ export function formatLastActiveTime(timestamp: number): string {
 }
 
 export function formatTimestampToTime(timestamp: string | number): string {
-  // 检查参数类型并转换为数字
-  const numTimestamp = typeof timestamp === 'string' ? parseInt(timestamp, 10) : timestamp
+  let date: Date
 
-  // 创建日期对象
-  const date = new Date(numTimestamp)
+  if (typeof timestamp === 'number') {
+    date = new Date(timestamp)
+  } else {
+    // 如果是纯数字字符串（Unix时间戳），转换为数字
+    if (/^\d+$/.test(timestamp)) {
+      date = new Date(parseInt(timestamp, 10))
+    } else {
+      // ISO格式或其他日期字符串直接解析
+      date = new Date(timestamp)
+    }
+  }
+
+  // 检查日期是否有效
+  if (isNaN(date.getTime())) {
+    return 'Invalid Time'
+  }
 
   // 格式化时间 HH:MM:SS
   const hours = date.getHours().toString().padStart(2, '0')
