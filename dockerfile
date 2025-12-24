@@ -61,8 +61,8 @@ ENV STATIC_DIR=/app/static
 # 安装 UV（使用官方推荐方式）
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# 首先复制依赖文件，利用缓存
-COPY pyproject.toml uv.lock ./
+# 首先复制依赖文件和 README（pyproject.toml 需要），利用缓存
+COPY pyproject.toml uv.lock README.md ./
 
 # 使用 UV 安装依赖（包括 nb-cli）
 RUN uv sync --frozen --no-dev

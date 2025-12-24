@@ -56,11 +56,16 @@ RUN mkdir -p /app /app/shared /app/packages && \
     chmod -R 777 /app /app/shared /app/packages && \
     chmod 755 /bin/bash
 
-# 设置工作目录并复制文件
+# 设置工作目录
 WORKDIR /app
-COPY . /app
+
+# 先复制依赖文件，利用 Docker 缓存
+COPY pyproject.toml uv.lock README.md ./
 
 # 使用 UV 安装项目依赖
 RUN uv sync --frozen
+
+# 复制其余文件
+COPY . /app
 
 CMD ["bash"]
