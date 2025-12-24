@@ -51,6 +51,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Get lowercase repository owner
+        id: repo
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+      
       - name: Build and Push Multi-arch Images
         uses: docker/build-push-action@v6
         with:
@@ -61,8 +65,8 @@ jobs:
           tags: |
             kromiose/nekro-agent:${{ needs.setup-version.outputs.version }}
             kromiose/nekro-agent:latest
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:${{ needs.setup-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:latest
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:${{ needs.setup-version.outputs.version }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
@@ -97,6 +101,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
+      - name: Get lowercase repository owner
+        id: repo
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+      
       - name: Build and Push Multi-arch Images
         uses: docker/build-push-action@v6
         with:
@@ -107,8 +115,8 @@ jobs:
           tags: |
             kromiose/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
             kromiose/nekro-agent-sandbox:latest
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:latest
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
       

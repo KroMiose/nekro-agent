@@ -67,6 +67,10 @@ jobs:
         id: sha
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       
+      - name: Get lowercase repository owner
+        id: repo
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+      
       - name: Build and Push Preview Image
         uses: docker/build-push-action@v6
         with:
@@ -77,8 +81,8 @@ jobs:
           tags: |
             kromiose/nekro-agent:preview
             kromiose/nekro-agent:preview-${{ steps.sha.outputs.short_sha }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:preview
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:preview-${{ steps.sha.outputs.short_sha }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:preview
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent:preview-${{ steps.sha.outputs.short_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
@@ -119,6 +123,10 @@ jobs:
         id: sha
         run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
       
+      - name: Get lowercase repository owner
+        id: repo
+        run: echo "owner=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+      
       - name: Build and Push Preview Sandbox Image
         uses: docker/build-push-action@v6
         with:
@@ -129,8 +137,8 @@ jobs:
           tags: |
             kromiose/nekro-agent-sandbox:preview
             kromiose/nekro-agent-sandbox:preview-${{ steps.sha.outputs.short_sha }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:preview
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:preview-${{ steps.sha.outputs.short_sha }}
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:preview
+            ghcr.io/${{ steps.repo.outputs.owner }}/nekro-agent-sandbox:preview-${{ steps.sha.outputs.short_sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       
