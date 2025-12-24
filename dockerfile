@@ -31,7 +31,7 @@ RUN pnpm build
 FROM busybox:1.36 AS frontend-dist
 COPY --from=frontend-builder /app/frontend/dist /frontend-dist
 
-FROM python:3.10.13-slim-bullseye
+FROM python:3.11-slim-bullseye
 
 # 设置环境变量
 ENV DEBIAN_FRONTEND=noninteractive
@@ -58,13 +58,14 @@ WORKDIR /app
 # 设置环境变量
 ENV STATIC_DIR=/app/static
 
-# 安装 Poetry 和 nb-cli
-RUN pip install poetry==1.8.0 nb-cli
+# 安装 UV（使用官方推荐方式）
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
 # 首先复制依赖文件，利用缓存
-COPY pyproject.toml poetry.lock ./
-RUN poetry config virtualenvs.create false \
-    && poetry install --only main --without dev --no-interaction --no-ansi
+COPY pyproject.toml uv.lock ./
+
+# 使用 UV 安装依赖（包括 nb-cli）
+RUN uv sync --frozen --no-dev
 
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
@@ -81,4 +82,4 @@ EXPOSE 8021
 HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/health || exit 1
 
 # 启动应用
-CMD ["nb", "run"]
+CMD ["uv", "run", "nb", "run"]

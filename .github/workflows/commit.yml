@@ -10,16 +10,17 @@ on:
       - main
 
 jobs:
-  plugin-load-test:
-    name: Run Plugin Load Test
+  # Poetry 测试（保留以确保向后兼容）
+  plugin-load-test-poetry:
+    name: Run Plugin Load Test (Poetry)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10.15"
+          python-version: "3.11"
 
       - name: Setup Poetry
         uses: pronovic/setup-poetry@v2
@@ -39,4 +40,33 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "Debug Mode Enabled"
             poetry run bot --load-test --verbose
+          fi
+
+  # UV 测试（新增）
+  plugin-load-test-uv:
+    name: Run Plugin Load Test (UV)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Install Dependencies
+        run: uv sync
+
+      - name: Plugin Load Test
+        run: |
+          uv run bot --load-test
+          if [ $? -ne 0 ]; then
+            echo "Debug Mode Enabled"
+            uv run bot --load-test --verbose
           fi

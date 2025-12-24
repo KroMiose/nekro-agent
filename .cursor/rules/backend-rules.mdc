@@ -8,7 +8,7 @@ alwaysApply: false
 - Python + FastAPI + NoneBot2
 - PostgreSQL + Tortoise ORM
 - Docker + Docker Compose
-- poetry
+- uv (Python 包管理器)
 
 # 目录结构
 

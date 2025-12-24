@@ -6,7 +6,8 @@
 
 ### 环境要求
 
-- Python 3.10+ + Poetry
+- Python 3.11+
+- UV (Python 包管理器)
 - Node.js 18+ (前端开发)
 - Docker & Docker Compose
 
@@ -26,10 +27,14 @@
    docker-compose -f docker/docker-compose.dev.yml up -d
    ```
 
-3. **安装 Python 依赖**
+3. **安装 UV 和 Python 依赖**
 
    ```bash
-   poetry install
+   # 安装 UV
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   
+   # 安装项目依赖
+   uv sync
    ```
 
 4. **配置环境变量**
@@ -46,7 +51,7 @@
 
    ```bash
    # 🎯 推荐的开发启动命令
-   poetry run bot --docs --env dev --reload
+   uv run bot --docs --env dev --reload
    ```
 
 6. **启动前端开发服务器**（可选）
@@ -87,7 +92,7 @@
 启动命令示例
 
 ```bash
-poetry run bot --docs --env dev --reload
+uv run bot --docs --env dev --reload
 ```
 
 参数说明：
@@ -133,7 +138,7 @@ docker-compose -f docker/docker-compose.dev.yml up -d
 docker-compose -f docker/docker-compose.dev.yml down
 
 # 完整开发模式启动 NekroAgent
-poetry run bot --docs --env dev --reload
+uv run bot --docs --env dev --reload
 ```
 
 ## 🧪 测试

@@ -11,7 +11,7 @@
 
 <div align="center">
   ✨ Highly Extensible | High Freedom | Minimalist Deployment AI Chat & Agent Execution Bot! ✨<br/>
-    <img src="https://img.shields.io/badge/python-3.9+-6a9.svg" alt="python">
+    <img src="https://img.shields.io/badge/python-3.11+-6a9.svg" alt="python">
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
   </a>
@@ -56,7 +56,7 @@ NekroAgent uses a powerful and flexible prompt construction system to guide the 
 
 **Connectivity & Interaction:**
 
-- **Multi-platform Adapter Architecture**: Natively supports various chat platforms like `OneBot v11`, `Discord`, `Minecraft`, and `Bilibili Live`, providing a unified development interface.
+- **Multi-platform Adapter Architecture**: Natively supports various chat platforms like `OneBot v11` (QQ), `Discord`, `Telegram`, `Minecraft`, `Bilibili Live`, `WeChat`, `Email`, and `SSE+SDK`, providing a unified development interface.
 - **Native Multimodal Vision Understanding**: Can process various resources like images and files for multimodal interaction with users.
 - **Event-driven Asynchronous Architecture**: Follows an async-first principle for efficient responsiveness.
 
@@ -128,8 +128,11 @@ Nekro Agent offers a variety of application scenarios, from emotional companions
 - ✅ **Multi-platform Support**:
   - ✅ OneBot v11 (QQ)
   - ✅ Discord
+  - ✅ Telegram
   - ✅ Minecraft
   - ✅ Bilibili Live
+  - ✅ WeChat (via WeChatPad)
+  - ✅ Email (SMTP/IMAP)
   - ✅ SSE+SDK (Server-Sent Events + SDK)
   - ✅ ... more adapters in development
 - ✅ **Intelligent Chat**: Context-aware intelligent chat in group/private scenarios.
@@ -154,7 +157,7 @@ We offer multiple deployment methods. Please visit the [Quick Start Guide (Chine
 #### From Github (Recommended)
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh)"
+sudo -E bash -c "$(curl -fsSL https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker/install.sh)" - --with-napcat
 ```
 
 If you encounter network issues downloading the script from Github, you can use the Nekro Endpoint's edge proxy access address:
@@ -162,7 +165,36 @@ If you encounter network issues downloading the script from Github, you can use 
 #### From [NekroEndpoint](https://ep.nekro.ai) (Cloudflare Edge Proxy Access)
 
 ```bash
-sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker/install.sh)"
+sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker/install.sh)" - --with-napcat
+```
+
+Note: The `--with-napcat` parameter enables fully automatic standard deployment. Without this parameter, the script will start in interactive mode, where you can choose to install Napcat.
+
+### Docker Image Information
+
+Nekro Agent provides two Docker image tags, published to both **Docker Hub** and **GitHub Container Registry (GHCR)**:
+
+- **latest**: Stable version, released based on tags, suitable for production environments
+- **preview**: Preview version, automatically built on every main branch update, includes latest features, suitable for testing and development
+
+#### Pull from Docker Hub (Recommended)
+
+```bash
+# Use stable version (recommended)
+docker pull kromiose/nekro-agent:latest
+
+# Use preview version (experience latest features)
+docker pull kromiose/nekro-agent:preview
+```
+
+#### Pull from GitHub Container Registry
+
+```bash
+# Use stable version
+docker pull ghcr.io/kromiose/nekro-agent:latest
+
+# Use preview version
+docker pull ghcr.io/kromiose/nekro-agent:preview
 ```
 
 ## 🖥️ Developer Resources

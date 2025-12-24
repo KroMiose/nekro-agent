@@ -1,126 +1,15 @@
-name: Release Docker Images
+name: Build Preview Images
 
 on:
   push:
-    tags:
-      - v*.*.*
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  setup-version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - name: Install toml
-        run: pip install toml
-      - name: Get Version
-        id: get_version
-        run: |
-          VERSION=$(python3 -c 'import toml; print(toml.load("pyproject.toml")["project"]["version"])')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
-
-  build-and-push-agent:
-    name: Build and Push Nekro Agent Image
-    runs-on: ubuntu-latest
-    needs: setup-version
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:qemu-v7.0.0-28
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build and Push Multi-arch Images
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            kromiose/nekro-agent:${{ needs.setup-version.outputs.version }}
-            kromiose/nekro-agent:latest
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:${{ needs.setup-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Docker Logout
-        run: |
-          docker logout
-          docker logout ghcr.io
-
-  build-and-push-sandbox:
-    name: Build and Push Sandbox Image
-    runs-on: ubuntu-latest
-    needs: setup-version
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          image: tonistiigi/binfmt:qemu-v7.0.0-28
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-      
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Build and Push Multi-arch Images
-        uses: docker/build-push-action@v6
-        with:
-          context: ./sandbox
-          file: sandbox/dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            kromiose/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
-            kromiose/nekro-agent-sandbox:latest
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:${{ needs.setup-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Docker Logout
-        run: |
-          docker logout
-          docker logout ghcr.io
-
-  publish-to-pypi:
-    name: Publish to PyPI
-    runs-on: ubuntu-latest
-    needs: setup-version
+  plugin-load-test:
+    name: Run Plugin Load Test
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       
@@ -135,13 +24,118 @@ jobs:
           version: "latest"
           enable-cache: true
       
-      - name: Install dependencies
+      - name: Install Dependencies
         run: uv sync
       
-      - name: Build package
-        run: uv build
+      - name: Plugin Load Test
+        run: |
+          uv run bot --load-test
+          if [ $? -ne 0 ]; then
+            echo "Debug Mode Enabled"
+            uv run bot --load-test --verbose
+          fi
+
+  build-preview-agent:
+    name: Build Preview Nekro Agent Image
+    runs-on: ubuntu-latest
+    needs: plugin-load-test
+    steps:
+      - uses: actions/checkout@v4
       
-      - name: Publish package to PyPI
-        env:
-          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
-        run: uv publish
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          image: tonistiigi/binfmt:qemu-v7.0.0-28
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get short SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Build and Push Preview Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            kromiose/nekro-agent:preview
+            kromiose/nekro-agent:preview-${{ steps.sha.outputs.short_sha }}
+            ghcr.io/${{ github.repository_owner }}/nekro-agent:preview
+            ghcr.io/${{ github.repository_owner }}/nekro-agent:preview-${{ steps.sha.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Docker Logout
+        run: |
+          docker logout
+          docker logout ghcr.io
+
+  build-preview-sandbox:
+    name: Build Preview Sandbox Image
+    runs-on: ubuntu-latest
+    needs: plugin-load-test
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          image: tonistiigi/binfmt:qemu-v7.0.0-28
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Get short SHA
+        id: sha
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Build and Push Preview Sandbox Image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./sandbox
+          file: sandbox/dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            kromiose/nekro-agent-sandbox:preview
+            kromiose/nekro-agent-sandbox:preview-${{ steps.sha.outputs.short_sha }}
+            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:preview
+            ghcr.io/${{ github.repository_owner }}/nekro-agent-sandbox:preview-${{ steps.sha.outputs.short_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      
+      - name: Docker Logout
+        run: |
+          docker logout
+          docker logout ghcr.io
+

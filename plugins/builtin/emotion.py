@@ -39,7 +39,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import aiofiles
 import httpx
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
+from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
 from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 from pydantic import BaseModel, Field
@@ -519,7 +519,7 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     try:
         query_embedding = await generate_embedding(cmd_content)
     except Exception as e:
-        logger.error(f"生成查询向量失败: {e}")
+        logger.exception(f"生成查询向量失败: {e}")
         await finish_with(matcher, message=f"喵呜... 生成查询向量失败了: {e!s}")
         return
 
@@ -547,8 +547,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     # 加载表情包存储
     emotion_store = await load_emotion_store()
 
-    # 构建返回消息
-    message_parts = [f"喵~ 这是和「{cmd_content}」相关的表情包："]
+    # 构建返回消息（包含图片和文字）
+    message = Message()
+    message.append(MessageSegment.text(f"喵~ 这是和「{cmd_content}」相关的表情包：\n"))
     found_valid_results = False
 
     # 处理搜索结果
@@ -563,20 +564,38 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         if not metadata:
             continue
 
+        # 解析文件路径
+        file_path = resolve_emotion_file_path(metadata.file_path)
+        if not file_path.exists():
+            logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
+            continue
+
         # 准备标签字符串
         tags_str = "、".join(metadata.tags) if metadata.tags else "暂无标签"
 
-        # 添加表情包信息
-        message_parts.append(
-            f"\n{i}. ID: {emotion_id}\n描述: {metadata.description}\n标签: {tags_str}",
+        # 添加表情包信息文本
+        message.append(
+            MessageSegment.text(
+                f"\n{i}. ID: {emotion_id}\n描述: {metadata.description}\n标签: {tags_str}\n",
+            ),
         )
+
+        # 添加表情包图片
+        try:
+            image_bytes = file_path.read_bytes()
+            message.append(MessageSegment.image(file=image_bytes))
+        except Exception as e:
+            logger.error(f"读取表情包图片失败: {emotion_id}, {file_path}, 错误: {e}")
+            message.append(MessageSegment.text("[图片加载失败]\n"))
+
         found_valid_results = True
 
     if not found_valid_results:
         await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的可用表情包呢...")
         return
 
-    await finish_with(matcher, message="\n".join(message_parts))
+    # 使用 matcher.finish 直接发送包含图片的消息
+    await matcher.finish(message)
 
 
 @on_command("emo_stats", aliases={"emo-stats"}, priority=5, block=True).handle()

@@ -1,35 +1,32 @@
-[tool.poetry]
+[project]
 name = "nekro-agent-sandbox"
 version = "0.2.0"
 description = "Nekro Agent AI 执行沙盒环境"
-authors = ["KroMiose <li_xiangff@163.com>"]
+authors = [{name = "KroMiose", email = "li_xiangff@163.com"}]
 readme = "README.md"
+requires-python = ">=3.11"
 
-[tool.poetry.dependencies]
-python = "^3.10"
-matplotlib = "^3.9.1"
-opencv-python = "^4.10.0.84"
-numpy = "^1.26.4"
-scipy = "^1.14.0"
-scikit-learn = "^1.5.1"
-imageio = "^2.35.0"
-pytesseract = "^0.3.13"
-sympy = "^1.13.3"
-pymupdf = "1.23.8"
-rarfile = "^4.2"
-markdown = "^3.7"
-pandas = "^2.2.3"
-openpyxl = "^3.1.5"
-docx = "^0.2.4"
-python-pptx = "^1.0.2"
-mplfonts = "^0.0.8"
-networkx = "^3.4.2"
+dependencies = [
+    "pip>=24.0",
+    "matplotlib>=3.9.1,<4.0.0",
+    "opencv-python>=4.10.0.84,<5.0.0",
+    "numpy>=1.26.4,<2.0.0",
+    "scipy>=1.14.0,<2.0.0",
+    "scikit-learn>=1.5.1,<2.0.0",
+    "imageio>=2.35.0,<3.0.0",
+    "pytesseract>=0.3.13,<1.0.0",
+    "sympy>=1.13.3,<2.0.0",
+    "pymupdf==1.23.8",
+    "rarfile>=4.2,<5.0",
+    "markdown>=3.7,<4.0",
+    "pandas>=2.2.3,<3.0.0",
+    "openpyxl>=3.1.5,<4.0.0",
+    "docx>=0.2.4,<1.0.0",
+    "python-pptx>=1.0.2,<2.0.0",
+    "mplfonts>=0.0.8,<1.0.0",
+    "networkx>=3.4.2,<4.0.0",
+]
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
-
-# [[tool.poetry.source]]
-# name = "aliyun"
-# url = "https://mirrors.aliyun.com/pypi/simple/"
-# priority = "primary"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -11,7 +11,7 @@ Switch to [English](./README_en.md)
 
 <div align="center">
   ✨ 高可扩展 | 高自由度 | 极简部署 的 AI 聊天 & 代理执行 Bot! ✨<br/>
-    <img src="https://img.shields.io/badge/python-3.10+-6a9.svg" alt="python">
+    <img src="https://img.shields.io/badge/python-3.11+-6a9.svg" alt="python">
   <a href="https://pypi.python.org/pypi/nekro-agent" target="_blank">
     <img src="https://img.shields.io/pypi/v/nekro-agent.svg" alt="pypi">
   </a>
@@ -59,7 +59,7 @@ NekroAgent 通过强大灵活的提示词构建系统，引导 AI 生成准确�
 
 **连接与交互:**
 
-- **多平台适配器架构**：原生支持 `OneBot v11`, `Minecraft`, `B站直播` 等多种聊天平台，提供统一的开发接口。
+- **多平台适配器架构**：原生支持 `OneBot v11` (QQ)、`Discord`、`Telegram`、`Minecraft`、`B站直播`、`微信`、`邮件` 及 `SSE+SDK` 等多种聊天平台，提供统一的开发接口。
 - **原生多模态视觉理解**：可处理图片、文件等多种资源，与用户进行多模态交互。
 - **基于事件驱动的异步架构**：遵循异步优先的高效响应机制。
 
@@ -131,8 +131,11 @@ Nekro Agent 提供多样化的应用场景，从情感陪伴到复杂任务处�
 - ✅ **多平台适配**：
   - ✅ OneBot v11 (QQ)
   - ✅ Discord
+  - ✅ Telegram
   - ✅ Minecraft
   - ✅ Bilibili Live (B 站直播)
+  - ✅ WeChat (微信，通过 WeChatPad)
+  - ✅ Email (邮件，SMTP/IMAP)
   - ✅ SSE+SDK (Server-Sent Events + SDK)
   - ✅ ... 更多适配器开发中
 - ✅ **智能聊天**：群聊/私聊场景下的上下文智能聊天
@@ -177,6 +180,32 @@ sudo -E bash -c "$(curl -fsSL https://ep.nekro.ai/e/KroMiose/nekro-agent/main/do
 上述命令中的 --with-napcat 参数会启动全自动标准部署。
 如果不加此参数，脚本会以交互模式启动，届时请选择 Y 以安装 Napcat。
 
+### Docker 镜像说明
+
+Nekro Agent 提供两种 Docker 镜像标签，同时发布到 **Docker Hub** 和 **GitHub Container Registry (GHCR)**：
+
+- **latest**: 稳定版本，基于 tag 发布，适用于生产环境
+- **preview**: 预览版本，每次 main 分支更新自动构建，包含最新功能，适用于测试和开发
+
+#### 从 Docker Hub 拉取（推荐）
+
+```bash
+# 使用稳定版本（推荐）
+docker pull kromiose/nekro-agent:latest
+
+# 使用预览版本（体验最新功能）
+docker pull kromiose/nekro-agent:preview
+```
+
+#### 从 GitHub Container Registry 拉取
+
+```bash
+# 使用稳定版本
+docker pull ghcr.io/kromiose/nekro-agent:latest
+
+# 使用预览版本
+docker pull ghcr.io/kromiose/nekro-agent:preview
+
 ## 🖥️ 开发者资源
 
 我们欢迎所有开发者为 Nekro Agent 社区贡献代码或想法！
@@ -210,3 +239,4 @@ NekroAgent 采用 [自定义的开源协议](./LICENSE)（基于 Apache License 
 ## ⭐ Star 历史
 
 ![Star History Chart](https://api.star-history.com/svg?repos=KroMiose/nekro-agent&type=Date)
+```
