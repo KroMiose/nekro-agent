@@ -1,6 +1,8 @@
 import asyncio
 from typing import TYPE_CHECKING
 
+import discord
+
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -19,12 +21,6 @@ from nekro_agent.schemas.chat_message import (
 
 if TYPE_CHECKING:
     from .adapter import DiscordAdapter
-
-
-try:
-    import discord
-except ImportError as e:
-    raise ImportError("The 'discord' package is not installed. Please install it with: poetry install -E discord") from e
 
 
 class DiscordClient:

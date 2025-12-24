@@ -50,11 +50,11 @@ def install_package():
     """安装包与依赖"""
     pkg_name, pkg_version = get_current_pkg()
     print("Installing package...")
-    if Path("poetry.lock").exists():
-        # 更新 poetry.lock
-        os.system("poetry lock --no-update")
+    if Path("uv.lock").exists():
+        # 更新 uv.lock
+        os.system("uv lock")
     # 安装依赖
-    os.system("poetry install")
+    os.system("uv sync")
 
     print("Package install success!\n")
 
@@ -69,7 +69,7 @@ def test_package():
     if "test" in pyproject:
         print("Running tests...")
         try:
-            assert os.system("poetry run test") == 0
+            assert os.system("uv run poe test") == 0
         except AssertionError:
             print("Package test failed.")
             exit(1)
@@ -89,7 +89,7 @@ def build_package():
         file.unlink()
     # 执行构建
     try:
-        assert os.system("poetry build") == 0
+        assert os.system("uv build") == 0
     except AssertionError:
         print("Package build failed.")
         exit(1)
@@ -109,7 +109,7 @@ def publish_package():
         return
     # 执行发布
     try:
-        assert os.system("poetry publish") == 0
+        assert os.system("uv publish") == 0
     except AssertionError:
         print("Package publish failed.")
         exit(1)
