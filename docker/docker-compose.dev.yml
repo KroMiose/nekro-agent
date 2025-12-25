@@ -28,8 +28,9 @@ services:
     restart: unless-stopped
     entrypoint: >
       bash -c "
-      echo 'host all all 0.0.0.0/0 trust' > /tmp/pg_hba.conf &&
-      docker-entrypoint.sh postgres -c listen_addresses='*' -c hba_file=/tmp/pg_hba.conf
+      echo 'local all all trust' > /tmp/pg_hba.conf &&
+      echo 'host all all 0.0.0.0/0 trust' >> /tmp/pg_hba.conf &&
+      exec docker-entrypoint.sh postgres -c listen_addresses='*' -c hba_file=/tmp/pg_hba.conf
       "
 
   # Qdrant 服务
