@@ -59,13 +59,10 @@ RUN mkdir -p /app /app/shared /app/packages && \
 # 设置工作目录
 WORKDIR /app
 
-# 先复制依赖文件，利用 Docker 缓存
-COPY pyproject.toml uv.lock README.md ./
+# 复制所有文件（沙盒项目较小，直接复制所有文件）
+COPY . /app
 
 # 使用 UV 安装项目依赖
-RUN uv sync --frozen
-
-# 复制其余文件
-COPY . /app
+RUN uv sync --frozen --no-install-project
 
 CMD ["bash"]
