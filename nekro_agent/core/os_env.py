@@ -14,7 +14,7 @@ class OsEnv:
     INSTANCE_NAME: str = OsEnvTypes.Str("INSTANCE_NAME", default="")
 
     """数据目录"""
-    DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data")  # `~/srv/nekro_agent` In Docker
+    DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data/nekro_agent")  # `~/srv/nekro_agent` In Docker
 
     """Postgres 数据库配置"""
     USE_ENV_DATABASE: str = OsEnvTypes.Str("USE_ENV_DATABASE", default="false")

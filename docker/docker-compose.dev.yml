@@ -2,7 +2,7 @@
 # 用于启动开发所需的依赖服务，主应用通过源码运行
 # 
 # 使用方法:
-# docker-compose -f docker/docker-compose.dev.yml up -d
+# docker compose -f docker/docker-compose.dev.yml up -d
 
 version: "3"
 

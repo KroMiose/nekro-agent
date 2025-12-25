@@ -25,7 +25,7 @@ cd nekro-agent
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 3. 启动开发依赖服务
-docker-compose -f docker/docker-compose.dev.yml up -d
+docker compose -f docker/docker-compose.dev.yml up -d
 
 # 4. 配置环境变量
 cp .env.example .env.dev
@@ -59,7 +59,7 @@ uv run bot --docs --env dev --reload
 uv run bot --docs --env dev --reload
 
 # 启动开发依赖服务
-docker-compose -f docker/docker-compose.dev.yml up -d
+docker compose -f docker/docker-compose.dev.yml up -d
 
 # 停止开发依赖服务
 docker-compose -f docker/docker-compose.dev.yml down
