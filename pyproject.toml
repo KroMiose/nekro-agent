@@ -149,17 +149,17 @@ select = [
 
 # 开发运行
 [tool.poe.tasks.dev]
-help = "启动开发服务器（带热重载）"
-cmd = "nb run --reload --reload-excludes data"
+help = "启动开发服务器（带热重载，使用 .env.dev）"
+cmd = "bot --env=dev --reload"
 
 [tool.poe.tasks.dev-docs]
-help = "启动开发服务器（带热重载和 OpenAPI 文档）"
-cmd = "nb run --reload --reload-excludes data --docs"
+help = "启动开发服务器（带热重载和 OpenAPI 文档，使用 .env.dev）"
+cmd = "bot --env=dev --reload --docs"
 
 # 生产运行
 [tool.poe.tasks.start]
-help = "启动生产服务器"
-cmd = "nb run"
+help = "启动生产服务器（使用 .env.prod）"
+cmd = "bot --env=prod"
 
 # 测试相关
 [tool.poe.tasks.test]

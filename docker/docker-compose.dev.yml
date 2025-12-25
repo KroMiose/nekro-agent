@@ -1,6 +1,6 @@
- # NekroAgent 开发环境 Docker Compose
+# NekroAgent 开发环境 Docker Compose
 # 用于启动开发所需的依赖服务，主应用通过源码运行
-# 
+#
 # 使用方法:
 # docker compose -f docker/docker-compose.dev.yml up -d
 
@@ -15,10 +15,16 @@ services:
       POSTGRES_USER: nekro_agent
       POSTGRES_PASSWORD: nekro_agent
       POSTGRES_DB: nekro_agent_dev
+      # 配置 PostgreSQL 允许所有连接（开发环境）
+      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
-      - "5433:5432"  # 使用 5433 避免与本地 PostgreSQL 冲突
+      - "5433:5432" # 使用 5433 避免与本地 PostgreSQL 冲突
     volumes:
       - ../data/dev_postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c max_connections=200
     networks:
       - nekro_network
     restart: unless-stopped
@@ -30,7 +36,7 @@ services:
     environment:
       - QDRANT__SERVICE__API_KEY=your-qdrant-api-key
     ports:
-      - "6334:6333"  # 使用 6334 避免与生产环境 Qdrant 冲突
+      - "6334:6333" # 使用 6334 避免与生产环境 Qdrant 冲突
     volumes:
       - ../data/dev_qdrant_data:/qdrant/storage:z
     networks:
@@ -42,7 +48,7 @@ services:
     image: mlikiowa/napcat-docker
     container_name: nekro_dev_napcat
     ports:
-      - "6199:6099"  # 使用 6199 避免与默认 6099 冲突
+      - "6199:6099" # 使用 6199 避免与默认 6099 冲突
     volumes:
       - ../data:/app/nekro_agent_data
       - ../data/napcat_data/QQ:/app/.config/QQ
