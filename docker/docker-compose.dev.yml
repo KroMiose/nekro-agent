@@ -15,8 +15,6 @@ services:
       POSTGRES_USER: nekro_agent
       POSTGRES_PASSWORD: nekro_agent
       POSTGRES_DB: nekro_agent_dev
-      # 配置 PostgreSQL 允许所有连接（开发环境）
-      POSTGRES_HOST_AUTH_METHOD: trust
     ports:
       - "5433:5432" # 使用 5433 避免与本地 PostgreSQL 冲突
     volumes:
@@ -24,10 +22,15 @@ services:
     command: >
       postgres
       -c listen_addresses='*'
-      -c max_connections=200
+      -c hba_file=/tmp/pg_hba.conf
     networks:
       - nekro_network
     restart: unless-stopped
+    entrypoint: >
+      bash -c "
+      echo 'host all all 0.0.0.0/0 trust' > /tmp/pg_hba.conf &&
+      docker-entrypoint.sh postgres -c listen_addresses='*' -c hba_file=/tmp/pg_hba.conf
+      "
 
   # Qdrant 服务
   nekro_qdrant:
