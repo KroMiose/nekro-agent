@@ -16,7 +16,7 @@ async def init_db():
     global DB_INITED
 
     if not Args.LOAD_TEST:
-        if OsEnv.RUN_IN_DOCKER:
+        if OsEnv.RUN_IN_DOCKER or (OsEnv.USE_ENV_DATABASE.lower() == "true"):
             db_url = gen_postgres_conn_str(
                 host=OsEnv.POSTGRES_HOST,
                 port=OsEnv.POSTGRES_PORT,

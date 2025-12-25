@@ -17,6 +17,7 @@ class OsEnv:
     DATA_DIR: str = OsEnvTypes.Str("DATA_DIR", default="./data")  # `~/srv/nekro_agent` In Docker
 
     """Postgres 数据库配置"""
+    USE_ENV_DATABASE: str = OsEnvTypes.Str("USE_ENV_DATABASE", default="false")
     POSTGRES_HOST: str = OsEnvTypes.Str("POSTGRES_HOST", default="localhost")
     POSTGRES_PORT: int = OsEnvTypes.Int("POSTGRES_PORT", default=5432)
     POSTGRES_USER: str = OsEnvTypes.Str("POSTGRES_USER", default="nekro_agent")
@@ -24,6 +25,7 @@ class OsEnv:
     POSTGRES_DATABASE: str = OsEnvTypes.Str("POSTGRES_DATABASE", default="nekro_agent")
 
     """Qdrant 数据库配置"""
+    USE_ENV_QDRANT: str = OsEnvTypes.Str("USE_ENV_QDRANT", default="false")
     QDRANT_URL: str = OsEnvTypes.Str("QDRANT_URL", default="http://localhost:6333")
     QDRANT_API_KEY: str = OsEnvTypes.Str("QDRANT_API_KEY", default="")
 

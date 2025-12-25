@@ -30,7 +30,7 @@ services:
     environment:
       - QDRANT__SERVICE__API_KEY=your-qdrant-api-key
     ports:
-      - "6333:6333"
+      - "6334:6333"  # 使用 6334 避免与生产环境 Qdrant 冲突
     volumes:
       - ../data/dev_qdrant_data:/qdrant/storage:z
     networks:
@@ -42,7 +42,7 @@ services:
     image: mlikiowa/napcat-docker
     container_name: nekro_dev_napcat
     ports:
-      - "6199:6099"
+      - "6199:6099"  # 使用 6199 避免与默认 6099 冲突
     volumes:
       - ../data:/app/nekro_agent_data
       - ../data/napcat_data/QQ:/app/.config/QQ

@@ -19,7 +19,7 @@ class QdrantConfig(BaseModel):
 
 def get_qdrant_config() -> QdrantConfig:
     """获取 Qdrant 配置"""
-    if OsEnv.RUN_IN_DOCKER:
+    if OsEnv.RUN_IN_DOCKER or (OsEnv.USE_ENV_QDRANT.lower() == "true"):
         QDRANT_URL = OsEnv.QDRANT_URL
         QDRANT_API_KEY = OsEnv.QDRANT_API_KEY
     else:
