@@ -3,6 +3,7 @@ import json
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional
+import requests
 
 import aiofiles
 import magic
