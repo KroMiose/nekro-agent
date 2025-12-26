@@ -32,7 +32,7 @@ def get_app_version() -> str:
         return _APP_VERSION
     pyproject = toml.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     try:
-        _APP_VERSION = pyproject["tool"]["poetry"]["version"]
+        _APP_VERSION = pyproject["project"]["version"]
     except KeyError:
         _APP_VERSION = "unknown"
     return _APP_VERSION

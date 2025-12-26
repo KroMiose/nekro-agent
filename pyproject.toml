@@ -65,6 +65,7 @@ dev = [
 
 [project.scripts]
 publish = "scripts.run_publish:main"
+publish-sdk = "scripts.publish_sdk:main"
 bot = "run_bot:main"
 
 [project.urls]
@@ -210,4 +211,23 @@ rm -rf __pycache__
 rm -rf .pytest_cache
 find . -type d -name "__pycache__" -exec rm -rf {} +
 find . -type f -name "*.pyc" -delete
+"""
+
+# SDK发布
+[tool.poe.tasks.build-sdk]
+help = "构建SSE SDK包"
+shell = """
+cd nekro_agent/adapters/sse/sdk
+uv build
+"""
+
+[tool.poe.tasks.publish-sdk]
+help = "发布SSE SDK到PyPI"
+cmd = "publish-sdk"
+
+[tool.poe.tasks.clean-sdk]
+help = "清理SDK构建文件"
+shell = """
+cd nekro_agent/adapters/sse/sdk
+rm -rf dist build *.egg-info
 """

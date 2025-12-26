@@ -121,8 +121,18 @@ class SseMessageConverter:
                     ),
                 )
 
+        # 尝试获取频道名称
+        channel_name = None
+        try:
+            adapter = adapter_utils.get_adapter("sse")
+            channel_info = await adapter.get_channel_info(channel_id)
+            channel_name = channel_info.channel_name
+        except Exception as e:
+            logger.debug(f"获取频道名称失败，将使用空值: {e!s}")
+
         return SendMessage(
             channel_id=channel_id,
+            channel_name=channel_name,
             segments=sse_segments,
             timestamp=int(time.time()),
         )

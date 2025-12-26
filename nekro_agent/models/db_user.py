@@ -14,7 +14,7 @@ class DBUser(Model):
     password = fields.CharField(max_length=128, description="密码")
 
     adapter_key = fields.CharField(max_length=64, description="适配器ID")
-    platform_userid = fields.CharField(max_length=64, description="平台用户ID")
+    platform_userid = fields.CharField(max_length=256, description="平台用户ID")
 
     perm_level = fields.IntField(description="权限等级")
     login_time = fields.DatetimeField(description="上次登录时间")

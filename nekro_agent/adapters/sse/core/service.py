@@ -215,6 +215,7 @@ class SseApiService:
                                 request_id=request_id,
                                 data={
                                     "channel_id": message.channel_id,
+                                    "channel_name": message.channel_name,
                                     "segments": [segment.model_dump() for segment in message.segments],
                                 },
                             ),
@@ -270,6 +271,7 @@ class SseApiService:
                             request_id=request_id,
                             data={
                                 "channel_id": message.channel_id,
+                                "channel_name": message.channel_name,
                                 "segments": [segment.model_dump() for segment in message.segments],
                             },
                         ),

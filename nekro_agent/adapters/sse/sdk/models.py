@@ -149,6 +149,7 @@ class SendMessage(MessageBase):
     """要发送的消息（服务端发给客户端）"""
 
     channel_id: str = Field(..., description="频道ID")
+    channel_name: Optional[str] = Field(None, description="频道名称")
 
 
 # =============================================================================
@@ -293,7 +294,7 @@ class ConnectedData(BaseModel):
 T = TypeVar("T", bound=BaseModel)
 
 
-class Event(Generic[T], BaseModel):
+class Event(BaseModel, Generic[T]):
     """通用事件模型"""
 
     event: str = Field(..., description="事件类型")
@@ -345,6 +346,7 @@ class SendMessageRequest(BaseModel):
     """发送消息请求"""
 
     channel_id: str = Field(..., description="频道ID")
+    channel_name: Optional[str] = Field(None, description="频道名称")
     segments: List[MessageSegmentUnion] = Field(..., description="消息段列表")
 
 
