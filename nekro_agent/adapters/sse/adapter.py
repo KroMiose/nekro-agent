@@ -184,6 +184,7 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             sse_message = await self.message_converter.platform_to_sse_message(
                 channel_id=channel_id,
                 segments=request.segments,
+                chat_key=request.chat_key,
             )
 
             # 获取订阅该频道的客户端

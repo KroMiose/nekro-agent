@@ -32,9 +32,11 @@ from nekro_agent.adapters.sse.sdk.models import (
     image,
     text,
 )
+from nekro_agent.adapters.sse.tools.at_parser import SegAt, parse_at_from_text
 from nekro_agent.adapters.sse.tools.common import get_file_base64, get_file_info
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
@@ -51,22 +53,40 @@ class SseMessageConverter:
     """
 
     @staticmethod
-    async def platform_to_sse_message(channel_id: str, segments: List[PlatformSendSegment]) -> SendMessage:
+    async def platform_to_sse_message(channel_id: str, segments: List[PlatformSendSegment], chat_key: str) -> SendMessage:
         """将平台消息段转换为SSE消息
 
         Args:
             channel_id: 频道ID
             segments: 平台消息段列表
+            chat_key: 聊天频道标识
 
         Returns:
             SendMessage: SSE消息
         """
+
         sse_segments = []
+
+        # 获取频道信息用于@解析
+        db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
 
         for segment in segments:
             if segment.type == PlatformSendSegmentType.TEXT:
-                # 文本消息
-                sse_segments.append(text(segment.content))
+                # 文本消息 - 解析其中的@信息
+                if segment.content.strip() and db_chat_channel:
+                    parsed_segments = await parse_at_from_text(segment.content, db_chat_channel)
+
+                    for parsed_seg in parsed_segments:
+                        if isinstance(parsed_seg, str):
+                            if parsed_seg.strip():
+                                sse_segments.append(text(parsed_seg))
+                        elif isinstance(parsed_seg, SegAt):
+                            # 解析出的@消息段
+                            sse_segments.append(at(user_id=parsed_seg.platform_user_id, nickname=parsed_seg.nickname))
+                else:
+                    # 没有频道信息或空文本，直接添加
+                    if segment.content.strip():
+                        sse_segments.append(text(segment.content))
 
             elif segment.type == PlatformSendSegmentType.IMAGE:
                 # 图片消息

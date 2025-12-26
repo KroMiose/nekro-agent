@@ -51,7 +51,7 @@ TConfig = TypeVar("TConfig", bound=BaseAdapterConfig)
 T = TypeVar("T", bound="BaseAdapter")
 
 
-class BaseAdapter(Generic[TConfig], ABC):
+class BaseAdapter(ABC, Generic[TConfig]):
     """适配器基类"""
 
     _router: APIRouter  # 实例变量的类型注解
