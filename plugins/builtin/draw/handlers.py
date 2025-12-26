@@ -288,7 +288,7 @@ async def generate_chat_response_with_image_support(
     """
     #判断是否使用谷歌原生API适配模式    
     if config.GOOGLE_NATAVE:
-        logger.info("使用谷歌原生API适配模式绘图请求 (Gemini 2.5 Image)")
+        logger.info("使用谷歌原生API适配模式绘图请求")
         
         # 1. 基础配置
         URL = f"https://generativelanguage.googleapis.com/v1beta/{model_group.CHAT_MODEL}:generateContent?key={model_group.API_KEY}"
