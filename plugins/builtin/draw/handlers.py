@@ -300,28 +300,57 @@ async def generate_chat_response_with_image_support(
             for msg in messages:
                 if not isinstance(msg, dict): continue
                 
-                # 角色映射: assistant/system -> model, 其它 -> user
+                # 角色映射
                 role = "model" if msg.get("role") in ["assistant", "system"] else "user"
-                parts = []
+                parts = []                
+                content = msg.get("content")
 
-                # A. 处理文本
-                if msg.get("content"):
-                    parts.append({"text": str(msg["content"])})
+                # === 情况 A: content 是字符串 (纯文本) ===
+                if isinstance(content, str):
+                    parts.append({"text": content})
                 
-                # B. 处理图片 (自动清洗Base64前缀)
+                # === 情况 B: content 是列表 (OpenAI 多模态格式) ===
+                elif isinstance(content, list):
+                    for item in content:
+                        if not isinstance(item, dict): continue
+                        
+                        # B1. 提取文本
+                        if item.get("type") == "text":
+                            parts.append({"text": str(item.get("text", ""))})
+                        
+                        # B2. 提取图片 (image_url)
+                        elif item.get("type") == "image_url":
+                            image_url = item.get("image_url", {})
+                            url_data = image_url.get("url", "")
+                            
+                            # 解析 Base64 图片
+                            if "base64," in url_data:
+                                try:
+                                    header, base64_data = url_data.split("base64,")
+                                    base64_data = base64_data.strip().replace("\n", "").replace("\r", "")
+                                    mime_type = "image/jpeg"
+                                    if "png" in header: mime_type = "image/png"
+                                    elif "webp" in header: mime_type = "image/webp"
+                                    elif "heic" in header: mime_type = "image/heic"
+                                    
+                                    parts.append({
+                                        "inlineData": {
+                                            "mimeType": mime_type, 
+                                            "data": base64_data
+                                        }
+                                    })
+                                except Exception as e:
+                                    logger.error(f"解析 image_url 失败: {e}")
+
+                # === 情况 C: 兼容旧版 msg["image"] 字段 ===
                 if msg.get("image"):
                     img_data = msg["image"]
-                    mime_type = "image/jpeg" # 默认
-                    
-                    # 简单解析 data:image/png;base64,xxxx
                     if "base64," in img_data:
                         header, img_data = img_data.split("base64,")
-                        if "png" in header: mime_type = "image/png"
-                        elif "webp" in header: mime_type = "image/webp"
-
-                    parts.append({
-                        "inlineData": {"mimeType": mime_type, "data": img_data}
-                    })
+                        mime_type = "image/png" if "png" in header else "image/jpeg"
+                        parts.append({
+                            "inlineData": {"mimeType": mime_type, "data": img_data.strip()}
+                        })
 
                 if parts:
                     contents.append({"role": role, "parts": parts})
