@@ -3,7 +3,6 @@ import json
 import random
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-import requests
 
 import aiofiles
 import magic
@@ -287,12 +286,13 @@ async def generate_chat_response_with_image_support(
     Raises:
         Exception: 当无法找到图片内容时
     """
+    
     #判断是否使用谷歌原生API适配模式    
-    if config.GOOGLE_NATAVE:
+    if config.GOOGLE_NATIVE:
         logger.info("使用谷歌原生API适配模式绘图请求")
         
         # 1. 基础配置
-        URL = f"https://generativelanguage.googleapis.com/v1beta/{model_group.CHAT_MODEL}:generateContent?key={model_group.API_KEY}"
+        URL = f"{model_group.BASE_URL}/{model_group.CHAT_MODEL}:generateContent?key={model_group.API_KEY}"
         
         # 2. 消息转换逻辑
         def build_google_contents(messages):
@@ -340,35 +340,35 @@ async def generate_chat_response_with_image_support(
             "generationConfig": {"temperature": 0.8}
         }
         
-        # logger.info(f"请求Payload摘要: {str(payload)[:200]}...")
+        logger.info(f"请求Payload摘要: {str(payload)[:200]}...")
 
         try:
-            response = requests.post(URL, json=payload) # requests可以直接传json参数
-            if response.status_code != 200:
-                raise Exception(f"谷歌API报错 ({response.status_code}): {response.text}")
+            # 使用上下文管理器创建异步客户端，配置超时时间
+            async with AsyncClient(timeout=Timeout(read=max_wait_time, write=max_wait_time, connect=10, pool=10)) as client:
+                # 使用 await 异步发送 POST 请求
+                response = await client.post(URL, json=payload)
+                
+                # 检查 HTTP 状态码，如果不是 2xx 会抛出异常
+                response.raise_for_status()
 
-            result = response.json()
-            candidate = result.get('candidates', [{}])[0]
-            content_parts = candidate.get('content', {}).get('parts', [])
+                result = response.json()
+                candidate = result.get('candidates', [{}])[0]
+                content_parts = candidate.get('content', {}).get('parts', [])
+                collected_content = ""
 
-            collected_image_data = None
-            collected_text = ""
+                # 4. 解析响应
+                for part in content_parts:
+                    if 'inlineData' in part:
+                        collected_image_data = part['inlineData']['data']
+                    elif 'inline_data' in part:
+                        collected_image_data = part['inline_data']['data']
+                    if 'text' in part:
+                        collected_content += part['text'] # 修正变量名以匹配外层逻辑
+                        logger.info(f"文本输出: {collected_content}")
 
-            # 4. 解析响应 (扁平化处理)
-            for part in content_parts:
-                # 优先找图片
-                if 'inlineData' in part:
-                    collected_image_data = part['inlineData']['data']
-                elif 'inline_data' in part: # 兼容写法
-                    collected_image_data = part['inline_data']['data']
-                # 记录文本用于兜底
-                if 'text' in part:
-                    collected_text += part['text']
-                    logger.info(f"文本输出: {collected_text}")
-            
         except Exception as e:
             logger.error(f"❌ 谷歌API请求流程失败: {e}")
-            raise                    
+            raise               
     else:
         headers = {
             "Content-Type": "application/json",
