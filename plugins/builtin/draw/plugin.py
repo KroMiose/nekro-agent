@@ -166,6 +166,22 @@ class DrawConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    GOOGLE_NATIVE: bool = Field(
+        default=False,
+        title="谷歌原生API适配",
+        description="针对谷歌原生接口无法使用banana绘图的适配，使用谷歌原生接口画图时请开启此选项，其余情况不要开启，使用时确保模型组配置为谷歌原生接口，而非openai兼容接口",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="谷歌原生API适配",
+                en_US="Google Native API Adaptation",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="针对谷歌原生接口无法使用banana绘图的适配，使用时确保模型组配置为谷歌原生接口，而非openai兼容接口",
+                en_US="Adaptation for Google native API when Banana drawing is not usable. Enable this option when using Google native interface, otherwise do not enable",
+            ),
+        ).model_dump(),
+    )
+    
 
 
 # 获取配置

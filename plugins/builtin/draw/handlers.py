@@ -286,90 +286,203 @@ async def generate_chat_response_with_image_support(
     Raises:
         Exception: 当无法找到图片内容时
     """
-    headers = {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Authorization": f"Bearer {model_group.API_KEY}",
-    }
+    
+    #判断是否使用谷歌原生API适配模式    
+    if config.GOOGLE_NATIVE:
+        logger.info("使用谷歌原生API适配模式绘图请求")
+        
+        # 1. 基础配置
+        URL = f"{model_group.BASE_URL}/{model_group.CHAT_MODEL}:generateContent?key={model_group.API_KEY}"
+        
+        # 2. 消息转换逻辑
+        def build_google_contents(messages):
+            contents = []
+            for msg in messages:
+                if not isinstance(msg, dict): continue
+                
+                # 角色映射
+                role = "model" if msg.get("role") in ["assistant", "system"] else "user"
+                parts = []                
+                content = msg.get("content")
 
-    json_data = {
-        "model": model_group.CHAT_MODEL,
-        "messages": messages,
-        "stream": stream_mode,
-    }
+                # === 情况 A: content 是字符串 (纯文本) ===
+                if isinstance(content, str):
+                    parts.append({"text": content})
+                
+                # === 情况 B: content 是列表 (OpenAI 多模态格式) ===
+                elif isinstance(content, list):
+                    for item in content:
+                        if not isinstance(item, dict): continue
+                        
+                        # B1. 提取文本
+                        if item.get("type") == "text":
+                            parts.append({"text": str(item.get("text", ""))})
+                        
+                        # B2. 提取图片 (image_url)
+                        elif item.get("type") == "image_url":
+                            image_url = item.get("image_url", {})
+                            url_data = image_url.get("url", "")
+                            
+                            # 解析 Base64 图片
+                            if "base64," in url_data:
+                                try:
+                                    header, base64_data = url_data.split("base64,")
+                                    base64_data = base64_data.strip().replace("\n", "").replace("\r", "")
+                                    mime_type = "image/jpeg"
+                                    if "png" in header: mime_type = "image/png"
+                                    elif "webp" in header: mime_type = "image/webp"
+                                    elif "heic" in header: mime_type = "image/heic"
+                                    
+                                    parts.append({
+                                        "inlineData": {
+                                            "mimeType": mime_type, 
+                                            "data": base64_data
+                                        }
+                                    })
+                                except Exception as e:
+                                    logger.error(f"解析 image_url 失败: {e}")
 
-    collected_content = ""
-    collected_image_data: Optional[str] = None
+                # === 情况 C: 兼容旧版 msg["image"] 字段 ===
+                if msg.get("image"):
+                    img_data = msg["image"]
+                    if "base64," in img_data:
+                        header, img_data = img_data.split("base64,")
+                        mime_type = "image/png" if "png" in header else "image/jpeg"
+                        parts.append({
+                            "inlineData": {"mimeType": mime_type, "data": img_data.strip()}
+                        })
 
-    async with AsyncClient(timeout=Timeout(read=max_wait_time, write=max_wait_time, connect=10, pool=10)) as client:
-        if stream_mode:
-            # 流式请求
-            async with client.stream(
-                "POST",
-                f"{model_group.BASE_URL}/chat/completions",
-                headers=headers,
-                json=json_data,
-            ) as response:
+                if parts:
+                    contents.append({"role": role, "parts": parts})
+            return contents
+
+        # 3. 构造请求 Payload
+        payload = {
+            "contents": build_google_contents(messages),
+            # 安全设置：一键全关
+            "safetySettings": [
+                {"category": cat, "threshold": "BLOCK_NONE"} 
+                for cat in ["HARM_CATEGORY_HARASSMENT", "HARM_CATEGORY_HATE_SPEECH", 
+                            "HARM_CATEGORY_SEXUALLY_EXPLICIT", "HARM_CATEGORY_DANGEROUS_CONTENT", 
+                            "HARM_CATEGORY_CIVIC_INTEGRITY"]
+            ],
+            "generationConfig": {"temperature": 0.8}
+        }
+        
+        logger.info(f"请求Payload摘要: {str(payload)[:200]}...")
+
+        try:
+            # 使用上下文管理器创建异步客户端，配置超时时间
+            async with AsyncClient(timeout=Timeout(read=max_wait_time, write=max_wait_time, connect=10, pool=10)) as client:
+                # 使用 await 异步发送 POST 请求
+                response = await client.post(URL, json=payload)
+                
+                # 检查 HTTP 状态码，如果不是 2xx 会抛出异常
                 response.raise_for_status()
 
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line:
-                        continue
+                result = response.json()
+                candidate = result.get('candidates', [{}])[0]
+                content_parts = candidate.get('content', {}).get('parts', [])
+                collected_content = ""
 
-                    # 处理 SSE 格式
-                    if line.startswith("data: "):
-                        data_str = line[6:]  # 移除 "data: " 前缀
-                        if data_str.strip() == "[DONE]":
-                            break
+                # 4. 解析响应
+                for part in content_parts:
+                    if 'inlineData' in part:
+                        collected_image_data = part['inlineData']['data']
+                    elif 'inline_data' in part:
+                        collected_image_data = part['inline_data']['data']
+                    if 'text' in part:
+                        collected_content += part['text'] # 修正变量名以匹配外层逻辑
+                        logger.info(f"文本输出: {collected_content}")
 
-                        try:
-                            chunk_data = json.loads(data_str)
-                            choices = chunk_data.get("choices", [])
-                            if not choices:
-                                continue
+        except Exception as e:
+            logger.error(f"❌ 谷歌API请求流程失败: {e}")
+            raise               
+    else:
+        headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {model_group.API_KEY}",
+        }
 
-                            delta = choices[0].get("delta", {})
+        json_data = {
+            "model": model_group.CHAT_MODEL,
+            "messages": messages,
+            "stream": stream_mode,
+        }
 
-                            # 优先检查 image 字段
-                            image_data = delta.get("image")
-                            if image_data and isinstance(image_data, list) and image_data:
-                                # 取第一张图片的 base64 数据
-                                collected_image_data = image_data[0].get("data")
-                                if isinstance(collected_image_data, str):
-                                    logger.debug(f"找到 image 字段，数据长度: {len(collected_image_data)}")
+        collected_content = ""
+        collected_image_data: Optional[str] = None
 
-                            # 收集 content 内容作为备选
-                            content_data = delta.get("content")
-                            if content_data:
-                                collected_content += content_data
+        async with AsyncClient(timeout=Timeout(read=max_wait_time, write=max_wait_time, connect=10, pool=10)) as client:
+            if stream_mode:
+                # 流式请求
+                async with client.stream(
+                    "POST",
+                    f"{model_group.BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=json_data,
+                ) as response:
+                    response.raise_for_status()
 
-                        except json.JSONDecodeError as e:
-                            logger.debug(f"解析 JSON 失败: {e}, 数据: {data_str}")
+                    async for line in response.aiter_lines():
+                        line = line.strip()
+                        if not line:
                             continue
-        else:
-            # 非流式请求
-            response = await client.post(
-                f"{model_group.BASE_URL}/chat/completions",
-                headers=headers,
-                json=json_data,
-            )
-            response.raise_for_status()
-            data = response.json()
 
-            choices = data.get("choices", [])
-            if choices:
-                message = choices[0].get("message", {})
+                        # 处理 SSE 格式
+                        if line.startswith("data: "):
+                            data_str = line[6:]  # 移除 "data: " 前缀
+                            if data_str.strip() == "[DONE]":
+                                break
 
-                # 检查是否有 image 字段
-                image_data = message.get("image")
-                if image_data and isinstance(image_data, list) and image_data:
-                    collected_image_data = image_data[0]
+                            try:
+                                chunk_data = json.loads(data_str)
+                                choices = chunk_data.get("choices", [])
+                                if not choices:
+                                    continue
 
-                # 收集 content 内容
-                content_data = message.get("content")
-                if content_data:
-                    collected_content = content_data
+                                delta = choices[0].get("delta", {})
+
+                                # 优先检查 image 字段
+                                image_data = delta.get("image")
+                                if image_data and isinstance(image_data, list) and image_data:
+                                    # 取第一张图片的 base64 数据
+                                    collected_image_data = image_data[0].get("data")
+                                    if isinstance(collected_image_data, str):
+                                        logger.debug(f"找到 image 字段，数据长度: {len(collected_image_data)}")
+
+                                # 收集 content 内容作为备选
+                                content_data = delta.get("content")
+                                if content_data:
+                                    collected_content += content_data
+
+                            except json.JSONDecodeError as e:
+                                logger.debug(f"解析 JSON 失败: {e}, 数据: {data_str}")
+                                continue
+            else:
+                # 非流式请求
+                response = await client.post(
+                    f"{model_group.BASE_URL}/chat/completions",
+                    headers=headers,
+                    json=json_data,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                choices = data.get("choices", [])
+                if choices:
+                    message = choices[0].get("message", {})
+
+                    # 检查是否有 image 字段
+                    image_data = message.get("image")
+                    if image_data and isinstance(image_data, list) and image_data:
+                        collected_image_data = image_data[0]
+
+                    # 收集 content 内容
+                    content_data = message.get("content")
+                    if content_data:
+                        collected_content = content_data
 
     # 优先返回 image 字段中的 base64 数据
     if collected_image_data:
