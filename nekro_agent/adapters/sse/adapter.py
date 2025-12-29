@@ -57,8 +57,6 @@ class SSEConfig(BaseAdapterConfig):
         default=30.0,
         title="响应超时时间（秒）",
         description="等待客户端回执的超时时间，单位为秒。如果客户端在此时间内未响应，将认为发送失败",
-        ge=5.0,
-        le=300.0,
     )
     IGNORE_RESPONSE: bool = Field(
         default=False,
@@ -69,8 +67,6 @@ class SSEConfig(BaseAdapterConfig):
         default=3600,
         title="自身信息缓存时长（秒）",
         description="缓存机器人自身信息的时长，单位为秒。默认3600秒（60分钟）。设置为0则禁用缓存，每次都请求客户端",
-        ge=0,
-        le=86400,
     )
 
 
@@ -94,7 +90,7 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
 
         # 设置全局client_manager变量，确保commands.py中可以访问
         set_client_manager(self.client_manager)
-        
+
         # 缓存 self_info，避免每次都请求客户端
         self._self_info_cache: Optional[PlatformUser] = None
         self._self_info_cache_time: float = 0.0  # 缓存时间戳
@@ -209,22 +205,18 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
         current_time = time.time()
         # 动态获取缓存TTL配置，支持热更新
         cache_ttl = self.config.SELF_INFO_CACHE_TTL
-        
+
         # 检查缓存是否有效
-        if (
-            self._self_info_cache is not None
-            and cache_ttl > 0
-            and (current_time - self._self_info_cache_time) < cache_ttl
-        ):
+        if self._self_info_cache is not None and cache_ttl > 0 and (current_time - self._self_info_cache_time) < cache_ttl:
             logger.debug(
                 f"使用缓存的 self_info (缓存时间: {int(current_time - self._self_info_cache_time)}s / {cache_ttl}s)",
             )
             return self._self_info_cache
-        
+
         # 缓存过期或不存在，重新请求客户端
         if self._self_info_cache is not None:
             logger.debug("self_info 缓存已过期，重新请求客户端")
-        
+
         response = await self.service.get_self_info()
 
         if not response:
@@ -248,7 +240,7 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             logger.debug(f"self_info 已更新并缓存 (TTL: {cache_ttl}s)")
         else:
             logger.debug("self_info 缓存已禁用，每次都请求客户端")
-        
+
         return self._self_info_cache
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:  # noqa: ARG002
