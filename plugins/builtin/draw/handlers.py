@@ -364,7 +364,11 @@ async def generate_chat_response_with_image_support(
                 # 检查是否有 image 字段
                 image_data = message.get("image")
                 if image_data and isinstance(image_data, list) and image_data:
-                    collected_image_data = image_data[0]
+                    # 统一处理：提取data字段，避免直接使用对象
+                    if isinstance(image_data[0], dict):
+                        collected_image_data = image_data[0].get("data")
+                    else:
+                        collected_image_data = image_data[0]
 
                 # 收集 content 内容
                 content_data = message.get("content")
@@ -374,7 +378,19 @@ async def generate_chat_response_with_image_support(
     # 优先返回 image 字段中的 base64 数据
     if collected_image_data:
         logger.info("使用 image 字段中的 base64 数据")
-        return f"data:image/png;base64,{collected_image_data}"
+        # 确保是字符串类型
+        if not isinstance(collected_image_data, str):
+            logger.warning(f"image数据类型异常: {type(collected_image_data)}，尝试转换为字符串")
+            collected_image_data = str(collected_image_data)
+
+        # 清理可能的非base64字符，移除所有非A-Za-z0-9+/=的字符
+        import re
+        cleaned_data = re.sub(r'[^A-Za-z0-9+/=]', '', collected_image_data)
+
+        if cleaned_data != collected_image_data:
+            logger.warning(f"检测到image数据包含非base64字符，已清理。原始长度: {len(collected_image_data)}, 清理后长度: {len(cleaned_data)}")
+
+        return f"data:image/png;base64,{cleaned_data}"
 
     # 回退到从 content 中提取图片信息
     if collected_content:
