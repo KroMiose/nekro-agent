@@ -1,5 +1,6 @@
 # nekro_agent/services/plugin/packages.py
 import importlib
+import os
 import shlex
 import subprocess
 import sys
@@ -12,6 +13,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import parse as parse_version
 
+from nekro_agent.core.config import config
 from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
 
 
@@ -20,7 +22,7 @@ def dynamic_import_pkg(
     package_spec: str,
     import_name: Optional[str] = None,
     *,
-    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    mirror: Optional[str] = None,
     trusted_host: bool = True,
     timeout: int = 300,
     repo_dir: Optional[Path] = None,
@@ -35,6 +37,10 @@ def dynamic_import_pkg(
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
     repo_dir.mkdir(parents=True, exist_ok=True)
     site_dir = _ensure_repo(repo_dir)
+    
+    # 使用配置的PyPI镜像源
+    if mirror is None:
+        mirror = config.PLUGIN_PYPI_MIRROR
 
     if not _is_installed(req, site_dir):
         _install_package(req, mirror, trusted_host, timeout, repo_dir)
@@ -92,13 +98,22 @@ def _install_package(
         str(repo_dir),
         str(req),
     ]
+    
+    # 使用配置的PyPI镜像源
     if mirror:
         cmd.extend(["--index-url", mirror])
         if trusted_host and (host := urllib.parse.urlparse(mirror).hostname):
             cmd.extend(["--trusted-host", shlex.quote(host)])
+    
+    # 如果使用代理，设置环境变量
+    env = None
+    if config.PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY:
+        env = os.environ.copy()
+        env["HTTP_PROXY"] = config.DEFAULT_PROXY
+        env["HTTPS_PROXY"] = config.DEFAULT_PROXY
 
     try:
-        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
+        subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout, env=env)
     except subprocess.CalledProcessError as e:
         raise RuntimeError(_parse_pip_error(e.stderr or e.stdout)) from e
     except subprocess.TimeoutExpired as e:

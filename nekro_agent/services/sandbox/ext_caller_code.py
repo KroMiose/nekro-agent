@@ -67,7 +67,7 @@ def __extension_method_proxy(method: Callable):
 def dynamic_importer(
     package_spec: str,
     import_name: Optional[str] = None,
-    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    mirror: Optional[str] = None,
     trusted_host: bool = True,
     timeout: int = 300,
     repo_dir: Optional[str] = "/app/packages",
@@ -89,6 +89,17 @@ def dynamic_importer(
         RuntimeError: 安装失败时抛出
         ImportError: 导入失败时抛出
     """
+    # 使用配置的PyPI镜像源
+    try:
+        # 尝试从配置中获取镜像源
+        from nekro_agent.core.config import config
+        if mirror is None:
+            mirror = config.PLUGIN_PYPI_MIRROR
+    except ImportError:
+        # 如果无法导入配置，使用默认镜像源
+        if mirror is None:
+            mirror = "https://pypi.tuna.tsinghua.edu.cn/simple"
+    
     # 提取基础包名和版本约束
     package_name = package_spec.strip()
     version_spec = ""
@@ -161,7 +172,18 @@ def dynamic_importer(
 
         # 执行安装
         try:
-            subprocess.run(install_cmd, capture_output=True, text=True, check=True, timeout=timeout)
+            # 设置环境变量
+            env = None
+            try:
+                from nekro_agent.core.config import config
+                if config.PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY:
+                    env = os.environ.copy()
+                    env["HTTP_PROXY"] = config.DEFAULT_PROXY
+                    env["HTTPS_PROXY"] = config.DEFAULT_PROXY
+            except ImportError:
+                pass
+            
+            subprocess.run(install_cmd, capture_output=True, text=True, check=True, timeout=timeout, env=env)
         except subprocess.CalledProcessError as e:
             error_msg = _parse_pip_error(e.stderr or e.stdout)
             print(f"安装 {package_spec} 失败: {error_msg}")
