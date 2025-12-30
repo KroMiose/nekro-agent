@@ -197,7 +197,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
         Returns:
             Tuple[str, str]: (adapter_key, channel_id)
         """
-        parts = chat_key.split("-")
+        parts = chat_key.split("-", 1)
 
         if len(parts) != 2:
             raise ValueError(f"无效的聊天标识: {chat_key}")
