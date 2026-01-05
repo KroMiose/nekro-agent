@@ -39,7 +39,7 @@ def dynamic_import_pkg(
         trusted_host = config.DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST
     
     # 检查是否使用代理
-    use_proxy = config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY
+    proxy_url = config.DEFAULT_PROXY if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY else None
     
     req = _parse_spec(package_spec)
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
@@ -47,7 +47,7 @@ def dynamic_import_pkg(
     site_dir = _ensure_repo(repo_dir)
 
     if not _is_installed(req, site_dir):
-        _install_package(req, mirror, trusted_host, timeout, repo_dir, use_proxy)
+        _install_package(req, mirror, trusted_host, timeout, repo_dir, proxy_url)
 
     return _import_module(import_name or req.name, site_dir)
 
@@ -87,7 +87,7 @@ def _install_package(
     trusted_host: bool,
     timeout: int,
     repo_dir: Path,
-    use_proxy: bool,
+    proxy_url: Optional[str],
 ) -> None:
     """pip 安装到指定目录"""
     cmd = [
@@ -109,8 +109,8 @@ def _install_package(
             cmd.extend(["--trusted-host", shlex.quote(host)])
     
     # 添加代理配置
-    if use_proxy:
-        cmd.extend(["--proxy", config.DEFAULT_PROXY])
+    if proxy_url:
+        cmd.extend(["--proxy", proxy_url])
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
