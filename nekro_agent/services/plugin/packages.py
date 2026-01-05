@@ -12,6 +12,7 @@ from packaging.requirements import Requirement
 from packaging.specifiers import SpecifierSet
 from packaging.version import parse as parse_version
 
+from nekro_agent.core.config import config
 from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
 
 
@@ -20,8 +21,8 @@ def dynamic_import_pkg(
     package_spec: str,
     import_name: Optional[str] = None,
     *,
-    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
-    trusted_host: bool = True,
+    mirror: Optional[str] = None,
+    trusted_host: Optional[bool] = None,
     timeout: int = 300,
     repo_dir: Optional[Path] = None,
 ) -> Any:
@@ -31,13 +32,22 @@ def dynamic_import_pkg(
         RuntimeError: 安装失败
         ImportError:  导入失败
     """
+    # 使用配置文件中的默认值
+    if mirror is None:
+        mirror = config.DYNAMIC_PLUGIN_INSTALL_MIRROR
+    if trusted_host is None:
+        trusted_host = config.DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST
+    
+    # 检查是否使用代理
+    use_proxy = config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY
+    
     req = _parse_spec(package_spec)
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
     repo_dir.mkdir(parents=True, exist_ok=True)
     site_dir = _ensure_repo(repo_dir)
 
     if not _is_installed(req, site_dir):
-        _install_package(req, mirror, trusted_host, timeout, repo_dir)
+        _install_package(req, mirror, trusted_host, timeout, repo_dir, use_proxy)
 
     return _import_module(import_name or req.name, site_dir)
 
@@ -77,6 +87,7 @@ def _install_package(
     trusted_host: bool,
     timeout: int,
     repo_dir: Path,
+    use_proxy: bool,
 ) -> None:
     """pip 安装到指定目录"""
     cmd = [
@@ -96,6 +107,10 @@ def _install_package(
         cmd.extend(["--index-url", mirror])
         if trusted_host and (host := urllib.parse.urlparse(mirror).hostname):
             cmd.extend(["--trusted-host", shlex.quote(host)])
+    
+    # 添加代理配置
+    if use_proxy:
+        cmd.extend(["--proxy", config.DEFAULT_PROXY])
 
     try:
         subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=timeout)
