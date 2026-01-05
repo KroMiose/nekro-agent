@@ -899,6 +899,57 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    DYNAMIC_PLUGIN_INSTALL_USE_PROXY: bool = Field(
+        default=False,
+        title="动态安装插件依赖时使用代理",
+        description="是否在动态安装插件依赖时使用 `DEFAULT_PROXY` 配置的代理",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(
+                zh_CN="动态安装插件依赖时使用代理",
+                en_US="Use Proxy for Dynamic Plugin Installation",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="是否在动态安装插件依赖时使用 DEFAULT_PROXY 配置的代理",
+                en_US="Whether to use DEFAULT_PROXY when dynamically installing plugin dependencies",
+            ),
+        ).model_dump(),
+    )
+    DYNAMIC_PLUGIN_INSTALL_MIRROR: Literal[
+        "https://pypi.tuna.tsinghua.edu.cn/simple",
+        "https://mirrors.aliyun.com/pypi/simple",
+        "https://mirrors.cloud.tencent.com/pypi/simple",
+        "https://repo.huaweicloud.com/repository/pypi/simple",
+        "https://pypi.org/simple"
+    ] = Field(
+        default="https://pypi.tuna.tsinghua.edu.cn/simple",
+        title="动态插件依赖安装镜像源",
+        description="动态安装插件依赖时使用的 PyPI 镜像源地址",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(
+                zh_CN="动态插件依赖安装镜像源",
+                en_US="Dynamic Plugin Dependency Installation Mirror",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="动态安装插件依赖时使用的 PyPI 镜像源地址",
+                en_US="PyPI mirror for dynamically installing plugin dependencies",
+            ),
+        ).model_dump(),
+    )
+    DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST: bool = Field(
+        default=True,
+        title="信任动态插件依赖安装镜像源",
+        description="启用信任动态插件依赖安装镜像源",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(
+                zh_CN="信任动态插件依赖安装镜像源",
+                en_US="Trust Dynamic Plugin Dependency Installation Mirror",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用信任动态插件依赖安装镜像源",
+                en_US="Enable trust for dynamic plugin dependency installation mirror",
+            ),
+        ).model_dump(),
+    )
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(
