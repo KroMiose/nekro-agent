@@ -98,7 +98,7 @@ def dynamic_importer(
         trusted_host = config.DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST
     
     # 检查是否使用代理
-    use_proxy = config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY
+    proxy_url = config.DEFAULT_PROXY if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY else None
     
     # 提取基础包名和版本约束
     package_name = package_spec.strip()
@@ -169,8 +169,8 @@ def dynamic_importer(
                     install_cmd += ["--trusted-host", host]
         
         # 添加代理配置
-        if use_proxy:
-            install_cmd += ["--proxy", config.DEFAULT_PROXY]
+        if proxy_url:
+            install_cmd += ["--proxy", proxy_url]
 
         install_cmd.append(package_spec)
 
