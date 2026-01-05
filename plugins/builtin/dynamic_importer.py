@@ -106,16 +106,20 @@ async def dynamic_importer(
         os = dynamic_importer("os")  # ERROR: Built-in modules should be imported directly
         ```
     """
+    import asyncio
+    import functools
     from nekro_agent.services.plugin.packages import dynamic_import_pkg
 
     return await asyncio.get_event_loop().run_in_executor(
         None,
-        dynamic_import_pkg,
-        package_spec,
-        import_name,
-        mirror,
-        trusted_host,
-        timeout,
+        functools.partial(
+            dynamic_import_pkg,
+            package_spec,
+            import_name,
+            mirror=mirror,
+            trusted_host=trusted_host,
+            timeout=timeout,
+        ),
     )
 
 
