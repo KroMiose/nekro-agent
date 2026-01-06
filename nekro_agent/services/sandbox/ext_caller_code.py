@@ -12,7 +12,6 @@ from typing import Any, Callable, Dict, Optional, Tuple
 
 import matplotlib.pyplot as plt
 import requests as _requests
-from nekro_agent.core.config import config
 from packaging.specifiers import SpecifierSet
 from packaging.version import parse
 
@@ -68,19 +67,18 @@ def __extension_method_proxy(method: Callable):
 def dynamic_importer(
     package_spec: str,
     import_name: Optional[str] = None,
-    mirror: Optional[str] = None,
-    trusted_host: Optional[bool] = None,
+    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    trusted_host: bool = True,
     timeout: int = 300,
     repo_dir: Optional[str] = "/app/packages",
 ) -> Any:
-    """
-    动态安装并导入Python包
+    """动态安装并导入Python包
 
     Args:
         package_spec: 包名称和版本规范 (如 "requests" 或 "numpy==1.21.0")
         import_name: 导入名称（如果与包名不同）
-        mirror: PyPI镜像源URL (默认使用系统配置)
-        trusted_host: 是否信任镜像源主机 (默认使用系统配置)
+        mirror: PyPI镜像源URL
+        trusted_host: 是否信任镜像源主机
         timeout: 安装超时时间（秒）
         repo_dir: 持久化存储目录 (默认使用系统路径)
 
@@ -91,15 +89,6 @@ def dynamic_importer(
         RuntimeError: 安装失败时抛出
         ImportError: 导入失败时抛出
     """
-    # 使用配置文件中的默认值
-    if mirror is None:
-        mirror = config.DYNAMIC_PLUGIN_INSTALL_MIRROR
-    if trusted_host is None:
-        trusted_host = config.DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST
-    
-    # 检查是否使用代理
-    proxy_url = config.DEFAULT_PROXY if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY else None
-    
     # 提取基础包名和版本约束
     package_name = package_spec.strip()
     version_spec = ""
@@ -167,10 +156,6 @@ def dynamic_importer(
                 host = urllib.parse.urlparse(mirror).hostname
                 if host:
                     install_cmd += ["--trusted-host", host]
-        
-        # 添加代理配置
-        if proxy_url:
-            install_cmd += ["--proxy", proxy_url]
 
         install_cmd.append(package_spec)
 
