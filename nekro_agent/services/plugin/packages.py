@@ -22,7 +22,7 @@ def dynamic_import_pkg(
     import_name: Optional[str] = None,
     *,
     mirror: Optional[str] = None,
-    trusted_host: Optional[bool] = None,
+    trusted_host: bool = True,
     timeout: int = 300,
     repo_dir: Optional[Path] = None,
 ) -> Any:
@@ -35,8 +35,6 @@ def dynamic_import_pkg(
     # 使用配置文件中的默认值
     if mirror is None:
         mirror = config.DYNAMIC_PLUGIN_INSTALL_MIRROR
-    if trusted_host is None:
-        trusted_host = config.DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST
     
     # 检查是否使用代理
     proxy_url = config.DEFAULT_PROXY if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY else None
