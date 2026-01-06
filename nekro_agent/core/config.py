@@ -935,21 +935,7 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
-    DYNAMIC_PLUGIN_PYPI_TRUSTED_HOST: bool = Field(
-        default=True,
-        title="信任动态插件依赖安装镜像源",
-        description="启用信任动态插件依赖安装镜像源",
-        json_schema_extra=ExtraField(
-            i18n_title=i18n_text(
-                zh_CN="信任动态插件依赖安装镜像源",
-                en_US="Trust Dynamic Plugin Dependency Installation Mirror",
-            ),
-            i18n_description=i18n_text(
-                zh_CN="启用信任动态插件依赖安装镜像源",
-                en_US="Enable trust for dynamic plugin dependency installation mirror",
-            ),
-        ).model_dump(),
-    )
+    
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(
