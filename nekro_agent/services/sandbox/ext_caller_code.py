@@ -67,7 +67,7 @@ def __extension_method_proxy(method: Callable):
 def dynamic_importer(
     package_spec: str,
     import_name: Optional[str] = None,
-    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    mirror: Optional[str] = "https://mirrors.aliyun.com/pypi/simple",
     trusted_host: bool = True,
     timeout: int = 300,
     repo_dir: Optional[str] = "/app/packages",
