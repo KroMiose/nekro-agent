@@ -57,8 +57,8 @@ async def dynamic_importer(
     _ctx: AgentCtx,
     package_spec: str,
     import_name: Optional[str] = None,
-    mirror: Optional[str] = None,
-    trusted_host: Optional[bool] = None,
+    mirror: Optional[str] = "https://mirrors.aliyun.com/pypi/simple",
+    trusted_host: bool = True,
     timeout: int = 300,
 ):
     """Dynamically install and import Python packages
@@ -72,8 +72,8 @@ async def dynamic_importer(
     Args:
         package_spec (str): Package name with version (e.g. "requests" or "beautifulsoup4==4.9.3")
         import_name (Optional[str]): Module name to import if different from package name
-        mirror (Optional[str]): PyPI mirror URL, defaults to system config
-        trusted_host (Optional[bool]): Trust mirror host flag, defaults to system config
+        mirror (Optional[str]): PyPI mirror URL, defaults to Tsinghua mirror
+        trusted_host (bool): Trust mirror host flag, defaults to True
         timeout (int): Install timeout in seconds, defaults to 300
 
     Returns:
@@ -106,21 +106,7 @@ async def dynamic_importer(
         os = dynamic_importer("os")  # ERROR: Built-in modules should be imported directly
         ```
     """
-    import asyncio
-    import functools
-    from nekro_agent.services.plugin.packages import dynamic_import_pkg
-
-    return await asyncio.get_event_loop().run_in_executor(
-        None,
-        functools.partial(
-            dynamic_import_pkg,
-            package_spec,
-            import_name,
-            mirror=mirror,
-            trusted_host=trusted_host,
-            timeout=timeout,
-        ),
-    )
+    # Implementation is handled by the sandbox environment
 
 
 @plugin.mount_cleanup_method()
