@@ -169,6 +169,36 @@ class EmotionConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    EMBEDDING_REQUEST_TIMEOUT: int = Field(
+        default=5,
+        title="向量化请求超时时间",
+        description="生成嵌入向量时的 API 请求超时时间（秒）",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="向量化请求超时时间",
+                en_US="Embedding Request Timeout",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="生成嵌入向量时的 API 请求超时时间（秒）",
+                en_US="Timeout in seconds for embedding API requests",
+            ),
+        ).model_dump(),
+    )
+    IMAGE_DOWNLOAD_TIMEOUT: int = Field(
+        default=30,
+        title="图片下载超时时间",
+        description="下载表情包图片时的超时时间（秒）",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="图片下载超时时间",
+                en_US="Image Download Timeout",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="下载表情包图片时的超时时间（秒）",
+                en_US="Timeout in seconds for downloading emotion images",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置和插件存储
@@ -379,41 +409,97 @@ async def migrate_emotion_paths():
     return migrated_count
 
 
-async def generate_embedding(text: str) -> List[float]:
-    """生成文本嵌入向量"""
+async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
+    """生成文本嵌入向量（带重试机制）
+
+    Args:
+        text: 要生成嵌入向量的文本
+        max_retries: 最大重试次数，默认3次
+
+    Returns:
+        List[float]: 嵌入向量
+
+    Raises:
+        ValueError: 向量维度不匹配
+        Exception: 重试次数耗尽后仍然失败
+    """
     model_group: ModelConfigGroup = core_config.get_model_group_info(emotion_config.EMBEDDING_MODEL)
 
-    embedding_vector = await gen_openai_embeddings(
-        model=model_group.CHAT_MODEL,
-        input=text,
-        dimensions=emotion_config.EMBEDDING_DIMENSION,
-        api_key=model_group.API_KEY,
-        base_url=model_group.BASE_URL,
-    )
+    last_exception = None
 
-    vector_dimension = len(embedding_vector)
-    logger.debug(f"生成嵌入向量: {text[:10]}... 向量维度: {vector_dimension}")
+    def _validate_dimension(vector: List[float]) -> None:
+        """验证向量维度"""
+        vector_dimension = len(vector)
+        if vector_dimension != emotion_config.EMBEDDING_DIMENSION:
+            error_msg = (
+                f"嵌入向量维度错误！预期为 {emotion_config.EMBEDDING_DIMENSION} 维，"
+                f"但实际获取到 {vector_dimension} 维。"
+                f"请更新配置中的 EMBEDDING_DIMENSION 值为 {vector_dimension} 。"
+            )
+            logger.error(f"嵌入向量维度不匹配！预期: {emotion_config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
+            raise ValueError(error_msg)
 
-    # 验证维度是否一致
-    if vector_dimension != emotion_config.EMBEDDING_DIMENSION:
-        logger.error(f"嵌入向量维度不匹配！预期: {emotion_config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
-        raise ValueError(
-            f"嵌入向量维度错误！预期为 {emotion_config.EMBEDDING_DIMENSION} 维，但实际获取到 {vector_dimension} 维。请更新配置中的 EMBEDDING_DIMENSION 值为 {vector_dimension} 。",
-        )
+    for attempt in range(max_retries):
+        try:
+            embedding_vector = await gen_openai_embeddings(
+                model=model_group.CHAT_MODEL,
+                input=text,
+                dimensions=emotion_config.EMBEDDING_DIMENSION,
+                api_key=model_group.API_KEY,
+                base_url=model_group.BASE_URL,
+                timeout=emotion_config.EMBEDDING_REQUEST_TIMEOUT,
+            )
 
-    return embedding_vector
+            logger.debug(f"生成嵌入向量: {text[:10]}... 向量维度: {len(embedding_vector)}")
+
+            # 验证维度是否一致
+            _validate_dimension(embedding_vector)
+
+        except ValueError:
+            # 维度错误不需要重试，直接抛出
+            raise
+        except Exception as e:
+            last_exception = e
+            if attempt < max_retries - 1:
+                # 指数退避：1秒、2秒、4秒
+                wait_time = 2**attempt
+                logger.warning(
+                    f"生成嵌入向量失败 (尝试 {attempt + 1}/{max_retries}): {e}，{wait_time}秒后重试...",
+                )
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error(f"生成嵌入向量失败，已达最大重试次数 ({max_retries}): {e}")
+        else:
+            # 成功生成并验证通过，返回结果
+            return embedding_vector
+
+    # 所有重试都失败
+    raise Exception(f"生成嵌入向量失败，已重试 {max_retries} 次: {last_exception}") from last_exception
 
 
 async def download_image(url: str, save_path: Path) -> bool:
-    """下载图片到指定路径"""
+    """下载图片到指定路径
+    
+    Args:
+        url: 图片 URL
+        save_path: 保存路径
+    
+    Returns:
+        是否下载成功
+    """
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=30.0)
+        timeout = httpx.Timeout(emotion_config.IMAGE_DOWNLOAD_TIMEOUT)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.get(url)
             response.raise_for_status()
 
             async with aiofiles.open(save_path, "wb") as f:
                 await f.write(response.content)
+            logger.info(f"成功下载图片: {url} -> {save_path}")
             return True
+    except httpx.TimeoutException:
+        logger.error(f"下载图片超时 ({emotion_config.IMAGE_DOWNLOAD_TIMEOUT}秒): {url}")
+        return False
     except Exception as e:
         logger.error(f"下载图片失败: {url}, 错误: {e}")
         return False

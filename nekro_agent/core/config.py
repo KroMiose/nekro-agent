@@ -919,7 +919,7 @@ class CoreConfig(ConfigBase):
         "https://mirrors.aliyun.com/pypi/simple",
         "https://mirrors.cloud.tencent.com/pypi/simple",
         "https://repo.huaweicloud.com/repository/pypi/simple",
-        "https://pypi.org/simple"
+        "https://pypi.org/simple",
     ] = Field(
         default="https://pypi.tuna.tsinghua.edu.cn/simple",
         title="动态插件依赖安装镜像源",
@@ -935,7 +935,6 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
-    
 
     """Postgresql 配置"""
     POSTGRES_HOST: str = Field(

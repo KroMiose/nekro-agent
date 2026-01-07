@@ -13,6 +13,7 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import parse as parse_version
 
 from nekro_agent.core.config import config
+from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
 
 
@@ -35,10 +36,14 @@ def dynamic_import_pkg(
     # 使用配置文件中的默认值
     if mirror is None:
         mirror = config.DYNAMIC_PLUGIN_INSTALL_MIRROR
-    
+
     # 检查是否使用代理
-    proxy_url = config.DEFAULT_PROXY if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY else None
-    
+    proxy_url = (
+        config.DEFAULT_PROXY
+        if config.DYNAMIC_PLUGIN_INSTALL_USE_PROXY and config.DEFAULT_PROXY
+        else None
+    )
+
     req = _parse_spec(package_spec)
     repo_dir = repo_dir or Path(PLUGIN_DYNAMIC_PACKAGE_DIR)
     repo_dir.mkdir(parents=True, exist_ok=True)
@@ -105,7 +110,7 @@ def _install_package(
         cmd.extend(["--index-url", mirror])
         if trusted_host and (host := urllib.parse.urlparse(mirror).hostname):
             cmd.extend(["--trusted-host", shlex.quote(host)])
-    
+
     # 添加代理配置
     if proxy_url:
         cmd.extend(["--proxy", proxy_url])
@@ -143,6 +148,7 @@ def _parse_pip_error(output: str) -> str:
         "Connection refused": "连接被拒绝，检查镜像源地址",
         "Network is unreachable": "网络不可达",
     }
+    logger.error(f"pip 执行过程发生错误: {output}")
     for k, v in patterns.items():
         if k in output:
             return v

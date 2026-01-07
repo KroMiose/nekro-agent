@@ -408,15 +408,18 @@ async def gen_openai_chat_response(
     # 使用async with语法创建和管理httpx客户端
     try:
         wait_timeout = max_wait_time or 3600
-        async with _create_http_client(
-            proxy_url=proxy_url,
-            read_timeout=wait_timeout,
-            write_timeout=wait_timeout,
-        ) as http_client, AsyncOpenAI(
-            api_key=api_key.strip() if api_key else None,
-            base_url=base_url or _OPENAI_BASE_URL,
-            http_client=http_client,
-        ) as client:
+        async with (
+            _create_http_client(
+                proxy_url=proxy_url,
+                read_timeout=wait_timeout,
+                write_timeout=wait_timeout,
+            ) as http_client,
+            AsyncOpenAI(
+                api_key=api_key.strip() if api_key else None,
+                base_url=base_url or _OPENAI_BASE_URL,
+                http_client=http_client,
+            ) as client,
+        ):
 
             if stream_mode:
                 res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
@@ -538,9 +541,24 @@ async def gen_openai_embeddings(
     base_url: str,
     proxy_url: Optional[str] = None,
     endpoint: str = "/embeddings",
+    timeout: int = 10,
 ) -> List[float]:
-    """生成文本的向量表示"""
-    async with _create_http_client(proxy_url=proxy_url) as client:
+    """生成文本的向量表示
+
+    Args:
+        model: 模型名称
+        input: 输入文本或文本列表
+        dimensions: 向量维度
+        api_key: API 密钥
+        base_url: API 基础地址
+        proxy_url: 代理地址
+        endpoint: API 端点
+        timeout: 请求超时时间（秒），默认 10 秒
+
+    Returns:
+        嵌入向量
+    """
+    async with _create_http_client(proxy_url=proxy_url, read_timeout=timeout) as client:
         # 手动序列化JSON，并设置ensure_ascii=False
         data = json.dumps(
             {"model": model, "input": input, "dimensions": dimensions},
@@ -617,8 +635,6 @@ async def gen_openai_chat_stream(
         if gen_kwargs["extra_body"] is None:
             gen_kwargs["extra_body"] = {}
         gen_kwargs["extra_body"]["top_k"] = top_k
-
-
 
     gen_kwargs = {k: v for k, v in gen_kwargs.items() if v is not None}
 
