@@ -57,7 +57,7 @@ async def dynamic_importer(
     _ctx: AgentCtx,
     package_spec: str,
     import_name: Optional[str] = None,
-    mirror: Optional[str] = "https://pypi.tuna.tsinghua.edu.cn/simple",
+    mirror: Optional[str] = "https://mirrors.aliyun.com/pypi/simple",
     trusted_host: bool = True,
     timeout: int = 300,
 ):
