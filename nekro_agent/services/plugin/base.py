@@ -1,3 +1,4 @@
+import asyncio
 import re
 from pathlib import Path
 from types import ModuleType
@@ -112,6 +113,10 @@ class NekroPlugin:
         self._plugin_config_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key / "config.yaml"
         self._plugin_path = Path(OsEnv.DATA_DIR) / "plugin_data" / self.key
         self._store = PluginStore(self)
+
+        # 生命周期回调存储
+        self._on_enabled_callbacks: List[Callable[[], Coroutine[Any, Any, None]]] = []
+        self._on_disabled_callbacks: List[Callable[[], Coroutine[Any, Any, None]]] = []
 
     def reset_methods(self) -> None:
         self.init_method = None
@@ -404,18 +409,86 @@ class NekroPlugin:
         self,
     ) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
         """挂载清理方法
-
-        用于挂载清理方法，在插件卸载时执行。
-
+    
+        用于挂载清理方法,在插件卸载时执行。
+    
         Returns:
             装饰器函数
         """
-
+    
         def decorator(func: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[..., Coroutine[Any, Any, Any]]:
             self.cleanup_method = func
             return func
-
+    
         return decorator
+    
+    def on_enabled(self) -> Callable[[Callable[[], Coroutine[Any, Any, None]]], Callable[[], Coroutine[Any, Any, None]]]:
+        """装饰器：注册插件启用时的回调函数
+    
+        回调将在插件状态变更为启用后立即执行（在配置保存和路由挂载之前）。
+    
+        Returns:
+            装饰器函数
+    
+        Example:
+            ```python
+            @plugin.on_enabled()
+            async def handle_enabled():
+                print("插件已启用")
+            ```
+        """
+    
+        def decorator(func: Callable[[], Coroutine[Any, Any, None]]) -> Callable[[], Coroutine[Any, Any, None]]:
+            self._on_enabled_callbacks.append(func)
+            return func
+    
+        return decorator
+    
+    def on_disabled(self) -> Callable[[Callable[[], Coroutine[Any, Any, None]]], Callable[[], Coroutine[Any, Any, None]]]:
+        """装饰器：注册插件禁用时的回调函数
+    
+        回调将在插件状态变更为禁用后立即执行（在配置保存之前）。
+    
+        Returns:
+            装饰器函数
+    
+        Example:
+            ```python
+            @plugin.on_disabled()
+            async def handle_disabled():
+                print("插件已禁用")
+            ```
+        """
+    
+        def decorator(func: Callable[[], Coroutine[Any, Any, None]]) -> Callable[[], Coroutine[Any, Any, None]]:
+            self._on_disabled_callbacks.append(func)
+            return func
+    
+        return decorator
+    
+    async def trigger_callbacks(self, event_type: Literal["enabled", "disabled"]) -> None:
+        """触发回调函数
+    
+        并行执行所有已注册的回调函数，异常会被捕获并记录日志。
+        此方法由插件管理器在启用/禁用插件时调用。
+    
+        Args:
+            event_type: 事件类型（"enabled" 或 "disabled"）
+        """
+        callbacks = self._on_enabled_callbacks if event_type == "enabled" else self._on_disabled_callbacks
+    
+        if not callbacks:
+            return
+    
+        logger.debug(f"插件 {self.name} 触发 {event_type} 回调，共 {len(callbacks)} 个")
+    
+        # 并行执行所有回调
+        results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
+    
+        # 记录异常
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                logger.error(f"插件 {self.name} 的 {event_type} 回调执行失败 (回调索引 {i}): {result}")
 
     async def collect_available_methods(self, ctx: AgentCtx) -> List[SandboxMethod]:
         """收集可用方法

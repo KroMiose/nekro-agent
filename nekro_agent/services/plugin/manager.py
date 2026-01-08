@@ -131,6 +131,10 @@ async def enable_plugin(plugin_id: str) -> bool:
     try:
         # 启用插件
         plugin.enable()
+        
+        # 触发回调
+        await plugin.trigger_callbacks("enabled")
+        
         if plugin.key not in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
@@ -178,6 +182,10 @@ async def disable_plugin(plugin_id: str) -> bool:
 
         # 禁用插件
         plugin.disable()
+        
+        # 触发回调
+        await plugin.trigger_callbacks("disabled")
+        
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
