@@ -32,6 +32,11 @@ export interface Plugin {
   isPackage: boolean // 是否为市场插件（包）
   i18n_name?: I18nDict // 插件名称国际化
   i18n_description?: I18nDict // 插件描述国际化
+  loadFailed?: boolean // 是否加载失败
+  errorMessage?: string // 错误信息
+  errorType?: string // 错误类型
+  filePath?: string // 文件路径
+  stackTrace?: string // 堆栈信息
 }
 
 export interface PluginConfig {

@@ -8,6 +8,7 @@ import os
 import shutil
 import stat
 import sys
+import traceback
 from datetime import datetime
 from importlib import import_module, reload
 from pathlib import Path
@@ -36,6 +37,20 @@ class PackageInfo(BaseModel):
     remote_id: Optional[str] = None
     author: Optional[str] = None
     description: Optional[str] = None
+
+
+class FailedPluginInfo(BaseModel):
+    """加载失败的插件信息"""
+
+    module_name: str
+    file_path: str
+    error_message: str
+    error_type: str
+    is_builtin: bool = False
+    is_package: bool = False
+    author: Optional[str] = None
+    name: Optional[str] = None
+    stack_trace: Optional[str] = None  # 堆栈信息
 
 
 class PackageData(BaseModel):
@@ -94,6 +109,8 @@ class PluginCollector:
         # 存储已加载的插件
         self.loaded_plugins: Dict[str, NekroPlugin] = {}
         self.loaded_module_names: Set[str] = set()
+        # 存储加载失败的插件信息
+        self.failed_plugins: Dict[str, FailedPluginInfo] = {}
 
         # 初始化插件目录
         self.builtin_plugin_dir = Path(BUILTIN_PLUGIN_DIR)
@@ -404,14 +421,43 @@ class PluginCollector:
             is_package: 是否为云端插件
         """
         # logger.info(f"正在加载插件: {module_path} 从 {path}")
+
+        # 提取模块名称（最后一个点号之后的部分）
+        module_name = module_path.split(".")[-1]
+
         try:
             module = import_module(module_path)
         except Exception as e:
-            logger.exception(f"加载插件失败 {path}: {e}")
+            error_msg = f"加载插件失败 {path}: {e}"
+            logger.exception(error_msg)
+
+            # 记录失败的插件信息
+            self.failed_plugins[module_name] = FailedPluginInfo(
+                module_name=module_name,
+                file_path=str(path),
+                error_message=str(e),
+                error_type=type(e).__name__,
+                is_builtin=is_builtin,
+                is_package=is_package,
+                stack_trace=traceback.format_exc(),
+            )
             return
 
         if not hasattr(module, "plugin"):
-            raise ValueError(f"插件 `{module_path}` 中缺少 `plugin` 实例")
+            error_msg = f"插件 `{module_path}` 中缺少 `plugin` 实例"
+            logger.error(error_msg)
+
+            # 记录失败的插件信息
+            self.failed_plugins[module_name] = FailedPluginInfo(
+                module_name=module_name,
+                file_path=str(path),
+                error_message=error_msg,
+                error_type="MissingPluginInstance",
+                is_builtin=is_builtin,
+                is_package=is_package,
+                stack_trace="".join(traceback.format_stack()),
+            )
+            return
 
         plugin: NekroPlugin = module.plugin
         plugin._set_module(module)  # noqa: SLF001
@@ -440,7 +486,21 @@ class PluginCollector:
                 if plugin.init_method:
                     await plugin.init_method()
             except Exception as e:
-                logger.exception(f'插件 "{plugin.name}" 初始化失败 {path}: {e}')
+                error_msg = f'插件 "{plugin.name}" 初始化失败 {path}: {e}'
+                logger.exception(error_msg)
+
+                # 记录失败的插件信息
+                self.failed_plugins[module_name] = FailedPluginInfo(
+                    module_name=module_name,
+                    file_path=str(path),
+                    error_message=str(e),
+                    error_type=type(e).__name__,
+                    is_builtin=is_builtin,
+                    is_package=is_package,
+                    author=plugin.author,
+                    name=plugin.name,
+                    stack_trace=traceback.format_exc(),
+                )
                 return
 
             logger.success(
@@ -455,8 +515,37 @@ class PluginCollector:
                 await plugin.trigger_callbacks("enabled")
             self.loaded_plugins[plugin.key] = plugin
             self.loaded_module_names.add(module_path)
+
+            # 如果之前记录了失败信息，现在加载成功了，删除失败记录
+            if module_name in self.failed_plugins:
+                del self.failed_plugins[module_name]
         else:
-            logger.error(f"插件实例类型错误: {path}")
+            error_msg = f"插件实例类型错误: {path}"
+            logger.error(error_msg)
+
+            # 尝试从插件对象中获取 name 和 author（如果存在）
+            plugin_name = None
+            plugin_author = None
+            try:
+                if hasattr(plugin, "name"):
+                    plugin_name = str(plugin.name)
+                if hasattr(plugin, "author"):
+                    plugin_author = str(plugin.author)
+            except Exception:
+                pass  # 如果获取失败，就保持为 None
+
+            # 记录失败的插件信息
+            self.failed_plugins[module_name] = FailedPluginInfo(
+                module_name=module_name,
+                file_path=str(path),
+                error_message=error_msg,
+                error_type="InvalidPluginType",
+                is_builtin=is_builtin,
+                is_package=is_package,
+                author=plugin_author,
+                name=plugin_name,
+                stack_trace="".join(traceback.format_stack()),
+            )
 
     def get_plugin(self, key: str) -> Optional[NekroPlugin]:
         """根据插件键获取插件实例
@@ -503,6 +592,14 @@ class PluginCollector:
             List[NekroPlugin]: 插件列表
         """
         return [plugin for plugin in self.loaded_plugins.values() if plugin.is_enabled]
+
+    def get_all_failed_plugins(self) -> List[FailedPluginInfo]:
+        """获取所有加载失败的插件
+
+        Returns:
+            List[FailedPluginInfo]: 失败插件列表
+        """
+        return list(self.failed_plugins.values())
 
     def get_method(self, method_name: str) -> Optional[Callable[..., Coroutine[Any, Any, Any]]]:
         """获取指定方法

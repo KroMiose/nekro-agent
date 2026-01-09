@@ -14,7 +14,8 @@
   },
   "status": {
     "enabled": "已启用",
-    "disabled": "已禁用"
+    "disabled": "已禁用",
+    "loadFailed": "加载失败"
   },
   "info": {
     "author": "作者",
@@ -26,7 +27,10 @@
     "pluginDocs": "插件文档",
     "noDocs": "该插件暂无文档说明。",
     "loadingDocs": "加载文档中...",
-    "loadDocsFailed": "加载文档失败"
+    "loadDocsFailed": "加载文档失败",
+    "errorType": "错误类型",
+    "filePath": "文件路径",
+    "stackTrace": "堆栈追踪"
   },
   "methods": {
     "name": "方法名",
@@ -84,7 +88,8 @@
     "confirm": "确认",
     "search": "搜索",
     "refresh": "刷新",
-    "copy": "复制"
+    "copy": "复制",
+    "viewDetails": "查看详情"
   },
   "dialogs": {
     "reloadTitle": "确认重载插件",

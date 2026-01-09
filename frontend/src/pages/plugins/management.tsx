@@ -102,6 +102,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
   const [activeTab, setActiveTab] = useState(0)
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [resetDataConfirmOpen, setResetDataConfirmOpen] = useState(false)
+  const [errorDetailOpen, setErrorDetailOpen] = useState(false)
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [expandedDataRows, setExpandedDataRows] = useState<Set<number>>(new Set())
   const [updateConfirmOpen, setUpdateConfirmOpen] = useState(false)
@@ -316,17 +317,28 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
               {getPluginName(plugin, i18n.language)}
             </Typography>
           </Box>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={plugin.enabled}
-                onChange={e => onToggleEnabled(plugin.id, e.target.checked)}
-                color="primary"
-              />
-            }
-            label={plugin.enabled ? t('status.enabled') : t('status.disabled')}
-            sx={{ mr: 0, ml: 'auto' }}
-          />
+          {plugin.loadFailed ? (
+            // 加载失败时显示错误信息
+            <Chip
+              label={t('status.loadFailed')}
+              color="error"
+              size="small"
+              sx={{ mr: 0, ml: 'auto', fontWeight: 600 }}
+            />
+          ) : (
+            // 正常加载时显示开关
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={plugin.enabled}
+                  onChange={e => onToggleEnabled(plugin.id, e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={plugin.enabled ? t('status.enabled') : t('status.disabled')}
+              sx={{ mr: 0, ml: 'auto' }}
+            />
+          )}
         </Box>
       </Card>
 
@@ -438,7 +450,8 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       setResetDataConfirmOpen(true)
                       setMoreMenuAnchorEl(null)
                     }}
-                    sx={{ color: 'warning.main' }}
+                    disabled={plugin.loadFailed}
+                    sx={{ color: plugin.loadFailed ? 'text.disabled' : 'warning.main' }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <DeleteIcon fontSize="small" />
@@ -450,8 +463,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       setReloadConfirmOpen(true)
                       setMoreMenuAnchorEl(null)
                     }}
-                    disabled={plugin.isBuiltin}
-                    sx={{ color: plugin.isBuiltin ? 'text.disabled' : 'primary.main' }}
+                    disabled={plugin.isBuiltin || (plugin.loadFailed && plugin.isPackage)}
+                    sx={{
+                      color:
+                        plugin.isBuiltin || (plugin.loadFailed && plugin.isPackage)
+                          ? 'text.disabled'
+                          : 'primary.main',
+                    }}
                   >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <RefreshIcon fontSize="small" />
@@ -491,6 +509,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   variant="outlined"
                   startIcon={<DeleteIcon />}
                   onClick={() => setResetDataConfirmOpen(true)}
+                  disabled={plugin.loadFailed}
                   color="warning"
                   size="small"
                 >
@@ -500,7 +519,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                   variant="outlined"
                   startIcon={<RefreshIcon />}
                   onClick={() => setReloadConfirmOpen(true)}
-                  disabled={plugin.isBuiltin}
+                  disabled={plugin.isBuiltin || (plugin.loadFailed && plugin.isPackage)}
                   size="small"
                 >
                   {t('actions.reload')}
@@ -518,9 +537,39 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
             {/* 插件信息 */}
             <Card sx={CARD_VARIANTS.default.styles}>
               <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-                <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6, mb: 3 }}>
-                  {getPluginDescription(plugin, i18n.language)}
-                </Typography>
+                {plugin.loadFailed ? (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    <Typography sx={{ fontWeight: 600, mb: 1 }}>
+                      {t('status.loadFailed')}
+                    </Typography>
+                    <Typography variant="body2" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>
+                      {plugin.description}
+                    </Typography>
+                    {plugin.errorType && (
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1 }}>
+                        {t('info.errorType')}：{plugin.errorType}
+                      </Typography>
+                    )}
+                    {plugin.filePath && (
+                      <Typography variant="caption" sx={{ display: 'block', mt: 0.5 }}>
+                        {t('info.filePath')}：{plugin.filePath}
+                      </Typography>
+                    )}
+                    {plugin.stackTrace && (
+                      <Button
+                        size="small"
+                        onClick={() => setErrorDetailOpen(true)}
+                        sx={{ mt: 1.5, textTransform: 'none' }}
+                      >
+                        {t('actions.viewDetails')}
+                      </Button>
+                    )}
+                  </Alert>
+                ) : (
+                  <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6, mb: 3 }}>
+                    {getPluginDescription(plugin, i18n.language)}
+                  </Typography>
+                )}
                 <Divider />
                 <Box
                   sx={{
@@ -1206,6 +1255,62 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* 错误详情对话框 */}
+      <Dialog open={errorDetailOpen} onClose={() => setErrorDetailOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>{t('status.loadFailed')}</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              {t('info.errorType')}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ fontFamily: 'monospace', mb: 2, p: 1.5, bgcolor: 'grey.100', borderRadius: 1 }}
+            >
+              {plugin.errorType}
+            </Typography>
+
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              {t('info.filePath')}
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ fontFamily: 'monospace', mb: 2, p: 1.5, bgcolor: 'grey.100', borderRadius: 1 }}
+            >
+              {plugin.filePath}
+            </Typography>
+
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+              {t('info.stackTrace')}
+            </Typography>
+            <Box
+              sx={{
+                fontFamily: 'monospace',
+                fontSize: '0.75rem',
+                p: 1.5,
+                bgcolor: 'grey.900',
+                color: 'grey.100',
+                borderRadius: 1,
+                overflow: 'auto',
+                maxHeight: '400px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}
+            >
+              {plugin.stackTrace}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button
+            onClick={() => setErrorDetailOpen(false)}
+            sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
+          >
+            {t('actions.cancel')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
@@ -1293,6 +1398,11 @@ export default function PluginsManagementPage() {
       if (a.moduleName === 'basic') return -1
       if (b.moduleName === 'basic') return 1
 
+      // 失败的插件排在最后
+      if (a.loadFailed !== b.loadFailed) {
+        return a.loadFailed ? 1 : -1
+      }
+
       // 优先按启用状态排序（启用的在前）
       if (a.enabled !== b.enabled) {
         return a.enabled ? -1 : 1
@@ -1362,7 +1472,11 @@ export default function PluginsManagementPage() {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: plugin.enabled ? 'success.main' : 'error.main',
+                      bgcolor: plugin.loadFailed
+                        ? 'error.main'
+                        : plugin.enabled
+                        ? 'success.main'
+                        : 'grey.400',
                       mr: 1.5,
                       flexShrink: 0,
                     }}
