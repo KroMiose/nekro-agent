@@ -129,8 +129,9 @@ async def enable_plugin(plugin_id: str) -> bool:
         return True  # 已经启用，直接返回成功
 
     try:
-        # 启用插件
-        plugin.enable()
+        # 启用插件 - enable() 方法内部会自动触发回调
+        await plugin.enable()
+        
         if plugin.key not in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.append(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
@@ -176,8 +177,9 @@ async def disable_plugin(plugin_id: str) -> bool:
             logger.exception(f"插件 {plugin.name} 路由卸载失败: {router_error}")
             # 路由卸载失败不影响插件禁用
 
-        # 禁用插件
-        plugin.disable()
+        # 禁用插件 - disable() 方法内部会自动触发回调
+        await plugin.disable()
+        
         if plugin.key in config.PLUGIN_ENABLED:
             config.PLUGIN_ENABLED.remove(plugin.key)
             ConfigService.save_config(config, CONFIG_PATH)
