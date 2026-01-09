@@ -535,11 +535,31 @@ class NekroPlugin:
     def is_enabled(self) -> bool:
         return self._is_enabled
 
-    def enable(self) -> None:
+    async def enable(self) -> None:
+        """启用插件并触发相应的回调函数
+        
+        此方法是启用插件的统一入口，确保无论从何处调用，
+        都会自动执行状态变更和触发回调事件。
+        """
+        if self._is_enabled:
+            return  # 已经启用，无需重复操作
+        
         self._is_enabled = True
+        # 自动触发启用回调
+        await self.trigger_callbacks("enabled")
 
-    def disable(self) -> None:
+    async def disable(self) -> None:
+        """禁用插件并触发相应的回调函数
+        
+        此方法是禁用插件的统一入口，确保无论从何处调用，
+        都会自动执行状态变更和触发回调事件。
+        """
+        if not self._is_enabled:
+            return  # 已经禁用，无需重复操作
+        
         self._is_enabled = False
+        # 自动触发禁用回调
+        await self.trigger_callbacks("disabled")
 
     @property
     def key(self) -> str:
