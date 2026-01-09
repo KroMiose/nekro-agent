@@ -19,9 +19,12 @@ from nekro_agent.services.plugin.schema import SandboxMethodType
 
 
 async def get_all_ext_meta_data() -> List[dict]:
-    """获取所有已注册插件的元数据"""
+    """获取所有已注册插件的元数据（包括加载成功和失败的插件）"""
     plugins = plugin_collector.get_all_plugins()
-    return [
+    failed_plugins = plugin_collector.get_all_failed_plugins()
+
+    # 成功加载的插件
+    plugin_list = [
         {
             "id": plugin.key,
             "name": plugin.name,
@@ -35,15 +38,69 @@ async def get_all_ext_meta_data() -> List[dict]:
             "isPackage": plugin.is_package,
             "i18n_name": plugin.i18n_name,
             "i18n_description": plugin.i18n_description,
+            "loadFailed": False,  # 标记加载状态
         }
         for plugin in plugins
     ]
+
+    # 加载失败的插件
+    for failed_plugin in failed_plugins:
+        plugin_list.append(
+            {
+                "id": failed_plugin.module_name,
+                "name": failed_plugin.module_name,
+                "description": failed_plugin.error_message,  # 只显示错误信息，不添加前缀
+                "version": "N/A",
+                "author": "N/A",
+                "enabled": False,
+                "hasConfig": False,
+                "url": "N/A",
+                "isBuiltin": failed_plugin.is_builtin,
+                "isPackage": failed_plugin.is_package,
+                "i18n_name": None,
+                "i18n_description": None,
+                "loadFailed": True,  # 标记加载失败，前端根据此字段隐藏开关并显示"加载失败"
+                "errorMessage": failed_plugin.error_message,  # 完整错误信息
+                "errorType": failed_plugin.error_type,  # 错误类型
+                "filePath": failed_plugin.file_path,  # 文件路径
+                "stackTrace": failed_plugin.stack_trace,  # 堆栈信息
+            },
+        )
+
+    return plugin_list
 
 
 async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
     """获取指定插件的详细信息"""
     plugin = plugin_collector.get_plugin(plugin_id)
+
+    # 如果插件不存在，检查是否在失败列表中
     if not plugin:
+        # 提取模块名称（用于查询失败的插件）
+        module_name = plugin_id.split(".")[-1]
+        failed_plugin = plugin_collector.get_failed_plugin_by_module_name(module_name)
+        if failed_plugin:
+            return {
+                "name": failed_plugin.module_name,
+                "moduleName": failed_plugin.module_name,
+                "id": failed_plugin.module_name,
+                "version": "N/A",
+                "description": failed_plugin.error_message,  # 只显示错误信息，不添加前缀
+                "author": "N/A",
+                "url": "N/A",
+                "enabled": False,
+                "hasConfig": False,
+                "methods": [],
+                "webhooks": [],
+                "router": None,
+                "isBuiltin": failed_plugin.is_builtin,
+                "isPackage": failed_plugin.is_package,
+                "loadFailed": True,  # 前端根据此字段隐藏开关并显示"加载失败"
+                "errorMessage": failed_plugin.error_message,  # 完整错误信息
+                "errorType": failed_plugin.error_type,  # 错误类型
+                "filePath": failed_plugin.file_path,  # 文件路径
+                "stackTrace": failed_plugin.stack_trace,  # 堆栈信息
+            }
         return None
 
     # 获取方法信息
@@ -93,6 +150,7 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "router": router_info,  # 新增路由信息
         "isBuiltin": plugin.is_builtin,
         "isPackage": plugin.is_package,
+        "loadFailed": False,
     }
 
 

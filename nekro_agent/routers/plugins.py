@@ -106,6 +106,13 @@ async def toggle_plugin(
 ) -> Ret:
     """启用/禁用插件"""
     try:
+        # 检查插件是否加载失败
+        # 提取模块名称（从 plugin_id 中提取最后一部分）
+        module_name = plugin_id.split(".")[-1]
+        failed_plugin = plugin_collector.get_failed_plugin_by_module_name(module_name)
+        if failed_plugin:
+            return Ret.fail(msg=f"插件加载失败，无法进行此操作。错误: {failed_plugin.error_message}")
+
         if body.enabled:
             success = await enable_plugin(plugin_id)
             action = "启用"
