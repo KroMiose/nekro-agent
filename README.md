@@ -205,6 +205,7 @@ docker pull ghcr.io/kromiose/nekro-agent:latest
 
 # 使用预览版本
 docker pull ghcr.io/kromiose/nekro-agent:preview
+```
 
 ## 🖥️ 开发者资源
 
