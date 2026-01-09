@@ -448,7 +448,11 @@ class PluginCollector:
             )
             plugin._update_plugin_type(is_builtin, is_package)  # noqa: SLF001
             if plugin.key not in config.PLUGIN_ENABLED:
-                plugin.disable()
+                # 直接设置状态为禁用，不触发回调（因为插件刚加载，没有从启用变为禁用）
+                plugin._is_enabled = False  # noqa: SLF001
+            else:
+                # 插件已启用，触发 enabled 回调
+                await plugin.trigger_callbacks("enabled")
             self.loaded_plugins[plugin.key] = plugin
             self.loaded_module_names.add(module_path)
         else:
