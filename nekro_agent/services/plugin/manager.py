@@ -76,11 +76,10 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
 
     # 如果插件不存在，检查是否在失败列表中
     if not plugin:
-        # 提取模块名称
+        # 提取模块名称（用于查询失败的插件）
         module_name = plugin_id.split(".")[-1]
-        failed_plugins = plugin_collector.failed_plugins
-        if module_name in failed_plugins:
-            failed_plugin = failed_plugins[module_name]
+        failed_plugin = plugin_collector.get_failed_plugin_by_module_name(module_name)
+        if failed_plugin:
             return {
                 "name": failed_plugin.module_name,
                 "moduleName": failed_plugin.module_name,

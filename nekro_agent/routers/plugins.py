@@ -109,9 +109,9 @@ async def toggle_plugin(
         # 检查插件是否加载失败
         # 提取模块名称（从 plugin_id 中提取最后一部分）
         module_name = plugin_id.split(".")[-1]
-        failed_plugins = plugin_collector.failed_plugins
-        if module_name in failed_plugins:
-            return Ret.fail(msg=f"插件加载失败，无法进行此操作。错误: {failed_plugins[module_name].error_message}")
+        failed_plugin = plugin_collector.get_failed_plugin_by_module_name(module_name)
+        if failed_plugin:
+            return Ret.fail(msg=f"插件加载失败，无法进行此操作。错误: {failed_plugin.error_message}")
 
         if body.enabled:
             success = await enable_plugin(plugin_id)
