@@ -558,7 +558,11 @@ async def gen_openai_embeddings(
     Returns:
         嵌入向量
     """
-    async with _create_http_client(proxy_url=proxy_url, read_timeout=timeout) as client:
+    async with _create_http_client(
+        proxy_url=proxy_url,
+        read_timeout=timeout,
+        write_timeout=timeout,
+    ) as client:
         # 手动序列化JSON，并设置ensure_ascii=False
         data = json.dumps(
             {"model": model, "input": input, "dimensions": dimensions},
