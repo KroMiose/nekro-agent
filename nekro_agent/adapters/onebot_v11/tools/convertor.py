@@ -9,7 +9,6 @@ from nonebot.adapters.onebot.v11 import (
     Message,
     MessageEvent,
 )
-from pydantic import BaseModel
 
 from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import get_user_group_card_name
@@ -26,40 +25,6 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentType,
     ChatType,
 )
-
-
-# JSON卡片内部辅助模型（仅在解析时使用）
-class _JsonCardHost(BaseModel):
-    """JSON卡片分享者信息"""
-
-    uin: int | None = None
-    nick: str | None = None
-
-
-class _JsonCardDetail(BaseModel):
-    """JSON卡片详细信息"""
-
-    title: str | None = None
-    desc: str | None = None
-    icon: str | None = None
-    preview: str | None = None
-    url: str | None = None
-    qqdocurl: str | None = None
-    host: _JsonCardHost | None = None
-
-    class Config:
-        extra = "allow"
-
-
-class _JsonCardMeta(BaseModel):
-    """JSON卡片Meta信息"""
-
-    detail_1: _JsonCardDetail | None = None
-    detail_2: _JsonCardDetail | None = None
-    detail_3: _JsonCardDetail | None = None
-
-    class Config:
-        extra = "allow"
 
 
 def extract_json_card_details(json_data: dict) -> tuple[str, dict[str, str | None]]:
