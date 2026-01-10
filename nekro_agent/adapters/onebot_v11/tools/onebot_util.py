@@ -12,6 +12,7 @@ from nonebot.adapters.onebot.v11 import (
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
 from nekro_agent.adapters.onebot_v11.tools.convertor import (
+    JSON_CARD_FALLBACK_TEXT,
     parse_onebot_json_segment,
 )
 from nekro_agent.core.logger import logger
@@ -60,10 +61,10 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                 msg += text_summary
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON卡片解析失败（格式错误）: {e}")
-                msg += "[Json card]"
+                msg += JSON_CARD_FALLBACK_TEXT
             except Exception as e:
                 logger.error(f"处理JSON卡片时发生意外错误: {e}", exc_info=True)
-                msg += "[Json card]"
+                msg += JSON_CARD_FALLBACK_TEXT
     return msg, is_tome
 
 

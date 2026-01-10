@@ -1,4 +1,5 @@
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Union
 
@@ -26,6 +27,77 @@ from nekro_agent.schemas.chat_message import (
     ChatType,
 )
 
+# JSON卡片处理常量
+JSON_CARD_FALLBACK_TEXT = "[JSON卡片]"  # i18n: JSON Card fallback placeholder
+
+
+@dataclass
+class CardCore:
+    """JSON卡片核心字段规范化结构
+
+    用于统一提取 meta.detail 中的关键字段，减少解析过程中的重复判断
+    """
+
+    app_title: str | None = None  # meta.detail.title - 应用名称/标题
+    card_desc: str | None = None  # meta.detail.desc - 卡片描述/内容
+    url: str | None = None  # meta.detail.qqdocurl 或 meta.detail.url - 跳转链接
+    host_nick: str | None = None  # meta.detail.host.nick - 分享者昵称
+    icon: str | None = None  # meta.detail.icon - 图标
+    preview: str | None = None  # meta.detail.preview - 预览图
+
+
+def _get_str(detail: dict, key: str, strip: bool = False) -> str | None:
+    """从 detail 字典中安全获取字符串值
+
+    Args:
+        detail: JSON卡片 detail 字典
+        key: 字段名
+        strip: 是否删除首尾空白
+
+    Returns:
+        字符串值或 None
+    """
+    value = detail.get(key)
+    if isinstance(value, str):
+        return value.strip() if strip else value
+    return None
+
+
+def _extract_card_core(json_data: dict) -> CardCore:
+    """从JSON卡片中提取规范化的核心字段
+
+    统一处理 meta/detail 的提取逻辑，减少两个函数间的重复代码
+
+    Args:
+        json_data: 完整的JSON卡片数据
+
+    Returns:
+        CardCore 实例，包含提取到的关键字段
+    """
+    detail = _extract_detail_from_meta(json_data)
+    if detail is None:
+        return CardCore()
+
+    # 优先级：qqdocurl > url
+    url = None
+    if isinstance(detail.get("qqdocurl"), str):
+        url = detail["qqdocurl"]
+    elif isinstance(detail.get("url"), str):
+        url = detail["url"]
+
+    # 安全提取 host.nick
+    host_data = detail.get("host")
+    host_nick = host_data.get("nick") if isinstance(host_data, dict) and isinstance(host_data.get("nick"), str) else None
+
+    return CardCore(
+        app_title=_get_str(detail, "title", strip=True),
+        card_desc=_get_str(detail, "desc", strip=True),
+        url=url,
+        host_nick=host_nick,
+        icon=_get_str(detail, "icon"),
+        preview=_get_str(detail, "preview"),
+    )
+
 
 def extract_json_card_details(json_data: dict) -> tuple[str, dict[str, str | None]]:
     """从JSON卡片数据中提取详细信息
@@ -33,42 +105,18 @@ def extract_json_card_details(json_data: dict) -> tuple[str, dict[str, str | Non
     Returns:
         tuple: (text_summary, card_info_dict)
     """
+    core = _extract_card_core(json_data)
+
     card_info: dict[str, str | None] = {
-        "title": None,
-        "desc": None,
-        "icon": None,
-        "preview": None,
-        "url": None,
-        "share_from_nick": None,
+        "title": core.app_title,
+        "desc": core.card_desc,
+        "icon": core.icon,
+        "preview": core.preview,
+        "url": core.url,
+        "share_from_nick": core.host_nick,
     }
 
-    # 优先级1：从meta字段中查找detail信息
-    detail = _extract_detail_from_meta(json_data)
-    if detail:
-        # 提取应用标题
-        if "title" in detail and isinstance(detail["title"], str):
-            card_info["title"] = detail["title"].strip()
-        # 提取应用描述
-        if "desc" in detail and isinstance(detail["desc"], str):
-            card_info["desc"] = detail["desc"].strip()
-        # 提取应用图标
-        if "icon" in detail and isinstance(detail["icon"], str):
-            card_info["icon"] = detail["icon"]
-        # 提取预览图
-        if "preview" in detail and isinstance(detail["preview"], str):
-            card_info["preview"] = detail["preview"]
-        # 提取卡片链接（优先qqdocurl）
-        if "qqdocurl" in detail and isinstance(detail["qqdocurl"], str):
-            card_info["url"] = detail["qqdocurl"]
-        elif "url" in detail and isinstance(detail["url"], str):
-            card_info["url"] = detail["url"]
-        # 提取分享者信息
-        if "host" in detail and isinstance(detail["host"], dict):
-            host = detail["host"]
-            if "nick" in host and isinstance(host["nick"], str):
-                card_info["share_from_nick"] = host["nick"]
-
-    # 优先级2：如果meta中没有找到或字段为空，尝试从prompt字段提取
+    # Fallback: 如果没有 title，尝试从 prompt 字段提取
     if (not card_info["title"] or not str(card_info["title"]).strip()) and "prompt" in json_data:
         prompt = json_data["prompt"]
         if isinstance(prompt, str) and prompt.strip():
@@ -76,7 +124,7 @@ def extract_json_card_details(json_data: dict) -> tuple[str, dict[str, str | Non
             if prompt.startswith("[QQ小程序]"):
                 prompt = prompt[len("[QQ小程序]") :].strip()
             if prompt:
-                card_info["desc"] = prompt[:100]  # 取前100个字符作为描述
+                card_info["desc"] = prompt[:100]
 
     # 生成文本摘要
     text_summary = _generate_json_card_summary(card_info)
@@ -149,14 +197,20 @@ def parse_onebot_json_segment(seg: dict) -> tuple[str, dict[str, str | None], di
     """解析OneBot JSON卡片消息段
 
     Args:
-        seg: OneBot MessageSegment，类型为 'json'
+        seg: OneBot MessageSegment 的 data 字典（包含 "data" 键的字典）
 
     Returns:
-        tuple: (text_summary, card_info, json_data) 或异常时返回 (fallback_text, {}, {})
+        tuple: (text_summary, card_info, json_data)
+        - text_summary: 格式化后的卡片摘要文本
+        - card_info: 提取的卡片关键信息字典
+        - json_data: 解析后的完整JSON数据
 
     Raises:
-        json.JSONDecodeError: JSON格式错误（预期的错误）
-        Exception: 其他异常
+        json.JSONDecodeError: 当 JSON 格式错误时抛出
+        Exception: 其他异常情况
+
+    Note:
+        异常由调用方负责捕获和处理，调用方应构造降级文本
     """
     json_str = seg.get("data", "")
     json_data = json.loads(json_str) if isinstance(json_str, str) else json_str
@@ -183,32 +237,14 @@ def format_json_card_for_log(json_data: dict) -> dict:
     Returns:
         dict: 包含关键字段的字典 {标题, 跳转链接, 转发人, 应用}
     """
+    core = _extract_card_core(json_data)
+
     formatted: dict[str, str | None] = {
-        "标题": None,
-        "跳转链接": None,
-        "转发人": None,
-        "应用": None,
+        "标题": core.card_desc,
+        "跳转链接": core.url,
+        "转发人": core.host_nick,
+        "应用": core.app_title,
     }
-
-    detail = _extract_detail_from_meta(json_data)
-    if detail:
-        # 标题：使用 desc 字段（卡片显示的主内容）
-        if "desc" in detail and isinstance(detail["desc"], str):
-            formatted["标题"] = detail["desc"]
-
-        # 跳转链接（优先qqdocurl）
-        if "qqdocurl" in detail and isinstance(detail["qqdocurl"], str):
-            formatted["跳转链接"] = detail["qqdocurl"]
-        elif "url" in detail and isinstance(detail["url"], str):
-            formatted["跳转链接"] = detail["url"]
-
-        # 转发人昵称
-        if "host" in detail and isinstance(detail["host"], dict) and "nick" in detail["host"]:
-            formatted["转发人"] = detail["host"]["nick"]
-
-        # 转发自哪个应用（使用 title 作为应用名称）
-        if "title" in detail and isinstance(detail["title"], str):
-            formatted["应用"] = detail["title"]
 
     # 只返回非空字段，保持日志简洁
     return {k: v for k, v in formatted.items() if v is not None} or {"提示": "无法解析卡片信息"}
@@ -426,7 +462,7 @@ async def convert_chat_message(
                 ret_list.append(
                     ChatMessageSegment(
                         type=ChatMessageSegmentType.TEXT,
-                        text="[JSON卡片]",
+                        text=JSON_CARD_FALLBACK_TEXT,
                     ),
                 )
             except Exception as e:
@@ -435,7 +471,7 @@ async def convert_chat_message(
                 ret_list.append(
                     ChatMessageSegment(
                         type=ChatMessageSegmentType.TEXT,
-                        text="[JSON卡片]",
+                        text=JSON_CARD_FALLBACK_TEXT,
                     ),
                 )
 
