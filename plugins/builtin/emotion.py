@@ -458,6 +458,20 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
         except ValueError:
             # 维度错误不需要重试，直接抛出
             raise
+        except (httpx.ReadTimeout, httpx.WriteTimeout, httpx.TimeoutException) as e:
+            # 超时异常，提供更详细的错误信息
+            last_exception = e
+            timeout_seconds = emotion_config.EMBEDDING_REQUEST_TIMEOUT
+            error_msg = f"请求超时（超时时间: {timeout_seconds}秒）"
+            if attempt < max_retries - 1:
+                # 指数退避：1秒、2秒、4秒
+                wait_time = 2**attempt
+                logger.warning(
+                    f"生成嵌入向量超时 (尝试 {attempt + 1}/{max_retries}): {error_msg}，{wait_time}秒后重试...",
+                )
+                await asyncio.sleep(wait_time)
+            else:
+                logger.error(f"生成嵌入向量超时，已达最大重试次数 ({max_retries}): {error_msg}")
         except Exception as e:
             last_exception = e
             if attempt < max_retries - 1:
@@ -468,13 +482,22 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
                 )
                 await asyncio.sleep(wait_time)
             else:
-                logger.error(f"生成嵌入向量失败，已达最大重试次数 ({max_retries}): {e}")
+                logger.exception(f"生成嵌入向量失败，已达最大重试次数 ({max_retries}): {e}")
         else:
             # 成功生成并验证通过，返回结果
             return embedding_vector
 
     # 所有重试都失败
-    raise Exception(f"生成嵌入向量失败，已重试 {max_retries} 次: {last_exception}") from last_exception
+    timeout_seconds = emotion_config.EMBEDDING_REQUEST_TIMEOUT
+    if isinstance(last_exception, (httpx.ReadTimeout, httpx.WriteTimeout, httpx.TimeoutException)):
+        error_msg = (
+            f"生成嵌入向量失败，已重试 {max_retries} 次。"
+            f"请求超时（超时时间: {timeout_seconds}秒）。"
+            f"请检查网络连接或增加配置中的 EMBEDDING_REQUEST_TIMEOUT 值。"
+        )
+    else:
+        error_msg = f"生成嵌入向量失败，已重试 {max_retries} 次: {last_exception}"
+    raise Exception(error_msg) from last_exception
 
 
 async def download_image(url: str, save_path: Path) -> bool:
