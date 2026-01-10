@@ -133,45 +133,6 @@ class ChatMessageSegmentImage(ChatMessageSegmentFile):
         return ChatMessageSegmentType.IMAGE
 
 
-class JsonCardHost(BaseModel):
-    """JSON卡片分享者信息"""
-
-    uin: Optional[int] = None
-    nick: Optional[str] = None
-
-
-class JsonCardDetail(BaseModel):
-    """JSON卡片详细信息（支持detail_1, detail_2等多种格式）"""
-
-    appid: Optional[str] = None
-    appType: Optional[int] = None
-    title: Optional[str] = None
-    desc: Optional[str] = None
-    icon: Optional[str] = None
-    preview: Optional[str] = None
-    url: Optional[str] = None
-    scene: Optional[int] = None
-    host: Optional[JsonCardHost] = None
-    shareTemplateId: Optional[str] = None
-    shareTemplateData: Optional[Dict[str, Any]] = None
-    qqdocurl: Optional[str] = None
-    showLittleTail: Optional[str] = None
-    gamePoints: Optional[str] = None
-    gamePointsUrl: Optional[str] = None
-    shareOrigin: Optional[int] = None
-
-
-class JsonCardMeta(BaseModel):
-    """JSON卡片Meta信息"""
-
-    detail_1: Optional[JsonCardDetail] = None
-    detail_2: Optional[JsonCardDetail] = None
-    detail_3: Optional[JsonCardDetail] = None
-
-    class Config:
-        extra = "allow"  # 允许其他字段
-
-
 class ChatMessageSegmentJsonCard(ChatMessageSegment):
     """聊天消息段 JSON卡片"""
 

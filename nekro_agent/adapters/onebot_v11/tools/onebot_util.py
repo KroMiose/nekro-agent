@@ -53,17 +53,10 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
             # 处理JSON卡片消息
             try:
                 from nekro_agent.adapters.onebot_v11.tools.convertor import (
-                    extract_json_card_details,
+                    parse_onebot_json_segment,
                 )
 
-                json_str = seg.data.get("data", "")
-                if isinstance(json_str, str):
-                    json_data = json.loads(json_str)
-                else:
-                    json_data = json_str
-
-                # 使用统一的提取函数
-                text_summary, _ = extract_json_card_details(json_data)
+                text_summary, _, _ = parse_onebot_json_segment(seg.data)
                 msg += text_summary
             except json.JSONDecodeError as e:
                 from nekro_agent.core import logger

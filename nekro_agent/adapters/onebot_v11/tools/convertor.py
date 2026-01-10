@@ -9,6 +9,7 @@ from nonebot.adapters.onebot.v11 import (
     Message,
     MessageEvent,
 )
+from pydantic import BaseModel
 
 from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import get_user_group_card_name
@@ -27,7 +28,41 @@ from nekro_agent.schemas.chat_message import (
 )
 
 
-def extract_json_card_details(json_data: dict) -> tuple[str, dict]:
+# JSON卡片内部辅助模型（仅在解析时使用）
+class _JsonCardHost(BaseModel):
+    """JSON卡片分享者信息"""
+
+    uin: int | None = None
+    nick: str | None = None
+
+
+class _JsonCardDetail(BaseModel):
+    """JSON卡片详细信息"""
+
+    title: str | None = None
+    desc: str | None = None
+    icon: str | None = None
+    preview: str | None = None
+    url: str | None = None
+    qqdocurl: str | None = None
+    host: _JsonCardHost | None = None
+
+    class Config:
+        extra = "allow"
+
+
+class _JsonCardMeta(BaseModel):
+    """JSON卡片Meta信息"""
+
+    detail_1: _JsonCardDetail | None = None
+    detail_2: _JsonCardDetail | None = None
+    detail_3: _JsonCardDetail | None = None
+
+    class Config:
+        extra = "allow"
+
+
+def extract_json_card_details(json_data: dict) -> tuple[str, dict[str, str | None]]:
     """从JSON卡片数据中提取详细信息
 
     Returns:
@@ -84,7 +119,7 @@ def extract_json_card_details(json_data: dict) -> tuple[str, dict]:
     return text_summary, card_info
 
 
-def _generate_json_card_summary(card_info: dict) -> str:
+def _generate_json_card_summary(card_info: dict[str, str | None]) -> str:
     """根据提取的卡片信息生成文本摘要
 
     Args:
@@ -143,6 +178,35 @@ def _generate_json_card_summary(card_info: dict) -> str:
         parts.append(f"，链接为{display_url}")
 
     return "".join(parts)
+
+
+def parse_onebot_json_segment(seg: dict) -> tuple[str, dict[str, str | None], dict]:
+    """解析OneBot JSON卡片消息段
+
+    Args:
+        seg: OneBot MessageSegment，类型为 'json'
+
+    Returns:
+        tuple: (text_summary, card_info, json_data) 或异常时返回 (fallback_text, {}, {})
+
+    Raises:
+        json.JSONDecodeError: JSON格式错误（预期的错误）
+        Exception: 其他异常
+    """
+    json_str = seg.get("data", "")
+    json_data = json.loads(json_str) if isinstance(json_str, str) else json_str
+
+    # 记录原始JSON（调试用）
+    logger.debug(f"收到JSON卡片(原始): {json.dumps(json_data, ensure_ascii=False)}")
+
+    # 记录格式化后的关键字段（日常使用）
+    formatted_card = format_json_card_for_log(json_data)
+    logger.info(f"收到JSON卡片: {json.dumps(formatted_card, ensure_ascii=False)}")
+
+    # 提取卡片详细信息
+    text_summary, card_info = extract_json_card_details(json_data)
+
+    return text_summary, card_info, json_data
 
 
 def format_json_card_for_log(json_data: dict) -> dict:
@@ -376,23 +440,7 @@ async def convert_chat_message(
 
         elif seg.type == "json":
             try:
-                # 提取JSON数据（可能是字符串或已经是dict）
-                json_str = seg.data.get("data", "")
-
-                if isinstance(json_str, str):
-                    json_data = json.loads(json_str)
-                else:
-                    json_data = json_str
-
-                # 记录原始JSON（调试用）
-                logger.debug(f"收到JSON卡片(原始): {json.dumps(json_data, ensure_ascii=False)}")
-
-                # 记录格式化后的关键字段（日常使用）
-                formatted_card = format_json_card_for_log(json_data)
-                logger.info(f"收到JSON卡片: {json.dumps(formatted_card, ensure_ascii=False)}")
-
-                # 提取卡片详细信息
-                text_summary, card_info = extract_json_card_details(json_data)
+                text_summary, card_info, json_data = parse_onebot_json_segment(seg.data)
 
                 ret_list.append(
                     ChatMessageSegmentJsonCard(
