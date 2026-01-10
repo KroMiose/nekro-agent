@@ -65,10 +65,15 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                 # 使用统一的提取函数
                 text_summary, _ = extract_json_card_details(json_data)
                 msg += text_summary
+            except json.JSONDecodeError as e:
+                from nekro_agent.core import logger
+
+                logger.warning(f"JSON卡片解析失败（格式错误）: {e}")
+                msg += "[Json card]"
             except Exception as e:
                 from nekro_agent.core import logger
 
-                logger.warning(f"解析JSON卡片失败: {e}")
+                logger.error(f"处理JSON卡片时发生意外错误: {e}", exc_info=True)
                 msg += "[Json card]"
     return msg, is_tome
 

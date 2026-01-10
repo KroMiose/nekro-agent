@@ -183,6 +183,11 @@ class ChatMessageSegmentJsonCard(ChatMessageSegment):
     card_url: Optional[str] = None  # 卡片链接URL
     share_from_nick: Optional[str] = None  # 分享者昵称
 
+    @classmethod
+    def get_segment_type(cls) -> ChatMessageSegmentType:
+        """获取消息段类型"""
+        return ChatMessageSegmentType.JSON_CARD
+
 
 def segment_from_dict(data: Dict) -> ChatMessageSegment:
     """根据字典数据创建聊天消息段"""
