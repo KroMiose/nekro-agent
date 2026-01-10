@@ -11,10 +11,6 @@ from nonebot.adapters.onebot.v11 import (
 )
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.adapters.onebot_v11.tools.convertor import (
-    JSON_CARD_FALLBACK_TEXT,
-    parse_onebot_json_segment,
-)
 from nekro_agent.core.logger import logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
@@ -55,15 +51,26 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                     if user_name:
                         msg += f"[@id:{qq};nickname:{user_name}@]"  # 保持给bot看到的内容与真实用户看到的一致
         elif seg.type == "json":
-            # 处理JSON卡片消息
+            # 处理JSON卡片消息（延迟导入避免循环依赖）
             try:
+                from nekro_agent.adapters.onebot_v11.tools.convertor import (
+                    JSON_CARD_FALLBACK_TEXT,
+                    parse_onebot_json_segment,
+                )
+
                 text_summary, _, _ = parse_onebot_json_segment(seg.data)
                 msg += text_summary
             except json.JSONDecodeError as e:
                 logger.warning(f"JSON卡片解析失败（格式错误）: {e}")
+                from nekro_agent.adapters.onebot_v11.tools.convertor import (
+                    JSON_CARD_FALLBACK_TEXT,
+                )
                 msg += JSON_CARD_FALLBACK_TEXT
             except Exception as e:
                 logger.error(f"处理JSON卡片时发生意外错误: {e}", exc_info=True)
+                from nekro_agent.adapters.onebot_v11.tools.convertor import (
+                    JSON_CARD_FALLBACK_TEXT,
+                )
                 msg += JSON_CARD_FALLBACK_TEXT
     return msg, is_tome
 
