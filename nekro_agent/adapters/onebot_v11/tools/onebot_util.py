@@ -1,3 +1,4 @@
+import json
 from typing import Tuple, Union, cast
 
 from nonebot.adapters import Bot
@@ -48,6 +49,27 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                     )
                     if user_name:
                         msg += f"[@id:{qq};nickname:{user_name}@]"  # 保持给bot看到的内容与真实用户看到的一致
+        elif seg.type == "json":
+            # 处理JSON卡片消息
+            try:
+                from nekro_agent.adapters.onebot_v11.tools.convertor import (
+                    extract_json_card_details,
+                )
+
+                json_str = seg.data.get("data", "")
+                if isinstance(json_str, str):
+                    json_data = json.loads(json_str)
+                else:
+                    json_data = json_str
+
+                # 使用统一的提取函数
+                text_summary, _ = extract_json_card_details(json_data)
+                msg += text_summary
+            except Exception as e:
+                from nekro_agent.core import logger
+
+                logger.warning(f"解析JSON卡片失败: {e}")
+                msg += "[Json card]"
     return msg, is_tome
 
 
