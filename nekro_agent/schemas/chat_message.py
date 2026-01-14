@@ -26,6 +26,7 @@ class ChatMessageSegmentType(Enum):
     FILE = "file"
     REFERENCE = "reference"
     AT = "at"
+    JSON_CARD = "json_card"
 
 
 class ChatMessageSegment(BaseModel):
@@ -132,6 +133,23 @@ class ChatMessageSegmentImage(ChatMessageSegmentFile):
         return ChatMessageSegmentType.IMAGE
 
 
+class ChatMessageSegmentJsonCard(ChatMessageSegment):
+    """聊天消息段 JSON卡片"""
+
+    json_data: Dict[str, Any]  # 存储解析后的JSON卡片数据
+    card_title: Optional[str] = None  # 卡片标题
+    card_desc: Optional[str] = None  # 卡片描述
+    card_icon: Optional[str] = None  # 卡片图标URL
+    card_preview: Optional[str] = None  # 卡片预览图URL
+    card_url: Optional[str] = None  # 卡片链接URL
+    share_from_nick: Optional[str] = None  # 分享者昵称
+
+    @classmethod
+    def get_segment_type(cls) -> ChatMessageSegmentType:
+        """获取消息段类型"""
+        return ChatMessageSegmentType.JSON_CARD
+
+
 def segment_from_dict(data: Dict) -> ChatMessageSegment:
     """根据字典数据创建聊天消息段"""
     segment_type = ChatMessageSegmentType(data["type"])
@@ -143,6 +161,8 @@ def segment_from_dict(data: Dict) -> ChatMessageSegment:
         return ChatMessageSegmentFile.model_validate(data)
     if segment_type == ChatMessageSegmentType.AT:
         return ChatMessageSegmentAt.model_validate(data)
+    if segment_type == ChatMessageSegmentType.JSON_CARD:
+        return ChatMessageSegmentJsonCard.model_validate(data)
     raise ValueError(f"Unsupported segment type: {segment_type}")
 
 

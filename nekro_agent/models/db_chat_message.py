@@ -12,6 +12,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentAt,
     ChatMessageSegmentFile,
     ChatMessageSegmentImage,
+    ChatMessageSegmentJsonCard,
     segments_from_list,
 )
 from nekro_agent.tools.common_util import limited_text_output
@@ -110,6 +111,13 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, 
                 f"<At:[@id:{seg.target_platform_userid};nickname:{seg.target_nickname}@]>"
                 if travel_mode
                 else f"<{one_time_code} | At:[@id:{seg.target_platform_userid};nickname:{seg.target_nickname}@]>"
+            )
+        elif isinstance(seg, ChatMessageSegmentJsonCard):
+            # JSON卡片消息：直接使用格式化后的文本，已经包含所有关键信息
+            prompt_str += (
+                f"{seg.text}"
+                if travel_mode
+                else f"<{one_time_code} | {seg.text}>"
             )
         elif isinstance(seg, ChatMessageSegment):
             prompt_str += seg.text
