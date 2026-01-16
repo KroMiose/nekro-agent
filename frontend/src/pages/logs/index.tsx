@@ -36,6 +36,8 @@ import { FixedSizeList as List } from 'react-window'
 import AutoSizer from 'react-virtualized-auto-sizer'
 import NekroDialog from '../../components/common/NekroDialog'
 import { useTranslation } from 'react-i18next'
+import { useNotification } from '../../hooks/useNotification'
+import { copyText, showCopyableTextDialog } from '../../utils/clipboard'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
@@ -247,6 +249,7 @@ export default function LogsPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('logs')
+  const notification = useNotification()
 
   const { data: sources = [] } = useQuery({
     queryKey: ['log-sources'],
@@ -352,12 +355,16 @@ export default function LogsPage() {
     setDialogOpen(true)
   }, [])
 
-  const copyLogContent = (log: LogEntry) => {
+  const copyLogContent = async (log: LogEntry) => {
     const logText = `${log.timestamp} [${log.level}] [${log.source}] ${log.message}`
-    navigator.clipboard.writeText(logText).then(
-      () => console.log('Log copied to clipboard'),
-      err => console.error('Could not copy log: ', err)
-    )
+    const success = await copyText(logText)
+    if (success) {
+      notification.success(t('dialog.copyLog'))
+    } else {
+      // 复制失败，显示可复制的文本对话框
+      notification.warning(t('dialog.copyFailed') || 'Copy failed, showing text dialog')
+      showCopyableTextDialog(logText, t('dialog.copyLog'))
+    }
   }
 
   // 拆分并优化的 FilterContent 组件
