@@ -34,7 +34,6 @@ import {
   ListItemAvatar,
   Avatar,
 } from '@mui/material'
-import { VariantType, SnackbarKey } from 'notistack'
 import {
   Search as SearchIcon,
   CloudDownload as CloudDownloadIcon,
@@ -373,15 +372,7 @@ const PluginCard = ({
 }
 
 // 详情对话框组件
-interface NotificationService {
-  notify: (message: string, variant?: VariantType, options?: Record<string, unknown>) => SnackbarKey
-  success: (message: string, options?: Record<string, unknown>) => SnackbarKey
-  error: (message: string, options?: Record<string, unknown>) => SnackbarKey
-  warning: (message: string, options?: Record<string, unknown>) => SnackbarKey
-  info: (message: string, options?: Record<string, unknown>) => SnackbarKey
-  close: (key: string | number) => void
-  closeAll: () => void
-}
+type NotificationService = ReturnType<typeof useNotification>
 
 const PluginDetailDialog = ({
   open,
