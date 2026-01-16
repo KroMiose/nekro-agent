@@ -191,142 +191,47 @@ export async function copyText(text: string): Promise<boolean> {
 }
 
 /**
- * 创建对话框背景覆盖层
+ * 全局事件：显示可复制文本对话框
+ * 由 CopyableTextDialogProvider 监听和处理
  */
-function createOverlay(onClose: () => void): HTMLDivElement {
-  const overlay = document.createElement('div')
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 9999;
-  `
-  overlay.onclick = onClose
-  return overlay
+export const COPYABLE_TEXT_DIALOG_EVENT = 'nekro:showCopyableTextDialog'
+
+export interface CopyableTextDialogEventDetail {
+  text: string
+  title?: string
+  description?: string
 }
 
 /**
- * 创建对话框标题元素
- */
-function createTitle(text: string): HTMLDivElement {
-  const title = document.createElement('div')
-  title.style.cssText = 'font-weight: bold; margin-bottom: 10px; font-family: sans-serif;'
-  title.textContent = text
-  return title
-}
-
-/**
- * 创建文本内容输入框
- */
-function createContentTextarea(text: string): HTMLTextAreaElement {
-  const content = document.createElement('textarea')
-  content.value = text
-  content.style.cssText = `
-    width: 100%;
-    height: 200px;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-family: monospace;
-    font-size: 12px;
-    resize: vertical;
-  `
-  content.readOnly = false
-  return content
-}
-
-/**
- * 创建关闭按钮
- */
-function createCloseButton(label: string, onClose: () => void): HTMLButtonElement {
-  const button = document.createElement('button')
-  button.textContent = label
-  button.style.cssText = `
-    margin-top: 10px;
-    padding: 8px 16px;
-    background: #1976d2;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-family: sans-serif;
-  `
-  button.onclick = onClose
-  return button
-}
-
-/**
- * 创建对话框容器
- */
-function createDialogContainer(
-  title: string,
-  text: string,
-  closeLabel: string,
-  onClose: () => void,
-): HTMLDivElement {
-  const dialog = document.createElement('div')
-  dialog.style.cssText = `
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    padding: 20px;
-    z-index: 10000;
-    max-width: 80%;
-    max-height: 80%;
-    overflow: auto;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    font-family: monospace;
-    font-size: 12px;
-    white-space: pre-wrap;
-    word-break: break-all;
-  `
-
-  const titleEl = createTitle(title)
-  const content = createContentTextarea(text)
-  const button = createCloseButton(closeLabel, onClose)
-
-  dialog.appendChild(titleEl)
-  dialog.appendChild(content)
-  dialog.appendChild(button)
-
-  return dialog
-}
-
-/**
- * 显示包含可复制文本的对话框（最后的回退方案）
- * 这个函数应该在 copyText 失败时由调用者使用
+ * 显示包含可复制文本的对话框
+ * 通过全局事件触发，由 CopyableTextDialogProvider 管理 UI
  *
  * @param text 要显示的文本
- * @param title 对话框标题
- * @param closeLabel 关闭按钮标签（可选，用于本地化）
+ * @param title 对话框标题（可选，使用翻译默认值）
+ *
+ * @example
+ * ```typescript
+ * // 从工具函数调用
+ * showCopyableTextDialog('some text', 'My Dialog Title')
+ *
+ * // 使用翻译后的标题
+ * showCopyableTextDialog(logText, t('dialog.copyLog'))
+ * ```
  */
-export function showCopyableTextDialog(text: string, title: string = 'Copy Text', closeLabel?: string): void {
-  const finalCloseLabel = closeLabel ?? 'Close'
-
-  const onClose = () => {
-    dialog.remove()
-    overlay.remove()
-  }
-
-  const overlay = createOverlay(onClose)
-  const dialog = createDialogContainer(title, text, finalCloseLabel, onClose)
-
-  document.body.appendChild(overlay)
-  document.body.appendChild(dialog)
-
-  // 自动选中文本
-  setTimeout(() => {
-    const textarea = dialog.querySelector('textarea') as HTMLTextAreaElement | null
-    if (textarea) {
-      textarea.focus()
-      textarea.select()
-    }
-  }, 100)
+export function showCopyableTextDialog(
+  text: string,
+  title?: string,
+): void {
+  // 触发全局事件，由 CopyableTextDialogProvider 处理
+  const event = new CustomEvent<CopyableTextDialogEventDetail>(
+    COPYABLE_TEXT_DIALOG_EVENT,
+    {
+      detail: {
+        text,
+        title,
+        // closeLabel 已不再需要，Dialog UI 中直接使用 i18n 翻译
+      },
+    },
+  )
+  window.dispatchEvent(event)
 }

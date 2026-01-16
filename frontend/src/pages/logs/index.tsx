@@ -367,7 +367,7 @@ export default function LogsPage() {
           defaultValue: 'Copy failed, showing text dialog',
         }),
       )
-      showCopyableTextDialog(logText, t('dialog.copyLog'), t('dialog.close'))
+      showCopyableTextDialog(logText, t('dialog.copyLog'))
     }
   }
 

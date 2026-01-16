@@ -152,6 +152,12 @@
     "operationFailed": "Operation failed",
     "connectionLost": "Connection lost, please check internet connection"
   },
+  "clipboard": {
+    "dialogTitle": "Copy Text",
+    "dialogDescription": "Automatic copy failed, please manually copy the content below",
+    "textareaLabel": "Text Content",
+    "copied": "Copied to clipboard"
+  },
   "githubStar": {
     "title": "Support Open Source",
     "message": "Support us by starring the GitHub repository to unlock advanced customization features. Your support motivates us to keep improving!",
