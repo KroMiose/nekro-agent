@@ -362,7 +362,11 @@ export default function LogsPage() {
       notification.success(t('dialog.copyLog'))
     } else {
       // 复制失败，显示可复制的文本对话框
-      notification.warning(t('dialog.copyFailed') || 'Copy failed, showing text dialog')
+      notification.warning(
+        t('dialog.copyFailed', {
+          defaultValue: 'Copy failed, showing text dialog',
+        }),
+      )
       showCopyableTextDialog(logText, t('dialog.copyLog'))
     }
   }
