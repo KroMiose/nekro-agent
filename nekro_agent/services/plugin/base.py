@@ -4,6 +4,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import (
     Any,
+    AsyncGenerator,
     Callable,
     Coroutine,
     Dict,
@@ -26,6 +27,7 @@ from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text
 from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.plugin.task import TaskRunner
 
 from .schema import PromptInjectMethod, SandboxMethod, SandboxMethodType, WebhookMethod
 
@@ -118,6 +120,9 @@ class NekroPlugin:
         self._on_enabled_callbacks: List[Callable[[], Coroutine[Any, Any, None]]] = []
         self._on_disabled_callbacks: List[Callable[[], Coroutine[Any, Any, None]]] = []
 
+        # 异步任务注册
+        self._async_tasks: Dict[str, Callable[..., AsyncGenerator[Any, None]]] = {}
+
     def reset_methods(self) -> None:
         self.init_method = None
         self.cleanup_method = None
@@ -129,6 +134,8 @@ class NekroPlugin:
         # 重置路由相关
         self._router_func = None
         self._router = None
+        # 重置异步任务
+        self._async_tasks = {}
 
     def mount_init_method(self) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
         """挂载初始化方法
@@ -185,7 +192,7 @@ class NekroPlugin:
                 logger.exception(f"读取插件配置失败: {self.key} | 配置文件格式错误")
                 raise
             self._config.dump_config(self._plugin_config_path)
-        return cast(config_cls, self._config)
+        return cast(config_cls, self._config)  # pyright: ignore[reportInvalidTypeForm]
 
     def save_config(self, config: ConfigBase) -> None:
         """保存插件配置
@@ -213,6 +220,35 @@ class NekroPlugin:
             raise
 
     def get_plugin_path(self) -> Path:
+        """获取插件路径
+        
+        .. deprecated:: 
+            使用 get_plugin_data_dir() 代替，语义更明确
+        """
+        import warnings
+        warnings.warn(
+            "get_plugin_path() 已弃用，请使用 get_plugin_data_dir() 代替",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._plugin_path.mkdir(parents=True, exist_ok=True)
+        return self._plugin_path
+    
+    def get_plugin_data_dir(self) -> Path:
+        """获取插件数据目录
+        
+        返回插件专属的数据存储目录，用于存储插件的运行时数据、日志、缓存等。
+        目录位于 DATA_DIR/plugin_data/{author}.{module_name}/
+        
+        Returns:
+            Path: 插件数据目录的 Path 对象，目录会自动创建
+            
+        Example:
+            ```python
+            data_dir = plugin.get_plugin_data_dir()
+            log_file = data_dir / "logs" / "app.log"
+            ```
+        """
         self._plugin_path.mkdir(parents=True, exist_ok=True)
         return self._plugin_path
 
@@ -300,7 +336,7 @@ class NekroPlugin:
         """
 
         def decorator(func: Callable) -> Callable:
-            func._method_type = method_type  # noqa: SLF001
+            func._method_type = method_type  # noqa: SLF001  # pyright: ignore[reportFunctionMemberAccess]
             self.sandbox_methods.append(SandboxMethod(method_type, name, description, func))
             # logger.debug(f"从插件 {self.name} 挂载沙盒方法 {name} 成功")
             return func
@@ -420,6 +456,42 @@ class NekroPlugin:
             self.cleanup_method = func
             return func
     
+        return decorator
+
+    def mount_async_task(
+        self,
+        task_type: str,
+    ) -> Callable[[Callable[..., AsyncGenerator[Any, None]]], Callable[..., AsyncGenerator[Any, None]]]:
+        """挂载异步任务
+
+        用于注册异步任务函数，任务函数通过 yield TaskCtl 报告状态，
+        通过 AsyncTaskHandle.wait() 暂停等待外部信号。
+
+        Args:
+            task_type: 任务类型标识，用于启动和查询任务
+
+        Returns:
+            装饰器函数
+
+        Example:
+            ```python
+            @plugin.mount_async_task("video_gen")
+            async def video_generation(handle: AsyncTaskHandle, prompt: str):
+                yield TaskCtl.report_progress("等待审批")
+                approved = await handle.wait("approval", timeout=3600)
+                if approved:
+                    yield TaskCtl.success("完成", data=url)
+                else:
+                    yield TaskCtl.fail("审批被拒绝")
+            ```
+        """
+        def decorator(func: Callable[..., AsyncGenerator[Any, None]]) -> Callable[..., AsyncGenerator[Any, None]]:
+            self._async_tasks[task_type] = func
+            # 注册到全局 TaskRunner
+            TaskRunner().register_task_type(task_type, func)
+            logger.debug(f"插件 {self.name} 注册异步任务: {task_type}")
+            return func
+
         return decorator
     
     def on_enabled(self) -> Callable[[Callable[[], Coroutine[Any, Any, None]]], Callable[[], Coroutine[Any, Any, None]]]:
