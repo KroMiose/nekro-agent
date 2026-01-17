@@ -470,9 +470,9 @@ async def gen_openai_chat_response(
 
                 output = res.choices[0].message.content
                 thought_chain = getattr(res.choices[0].message, thought_chain_field_name, "") or ""
-                token_consumption: int = res.usage.total_tokens if res.usage else 0
-                token_input: int = res.usage.prompt_tokens if res.usage else 0
-                token_output: int = res.usage.completion_tokens if res.usage else 0
+                token_consumption = res.usage.total_tokens if res.usage else 0
+                token_input = res.usage.prompt_tokens if res.usage else 0
+                token_output = res.usage.completion_tokens if res.usage else 0
 
     except Exception as e:
         logger.exception(f"OpenAI请求失败: {e}")

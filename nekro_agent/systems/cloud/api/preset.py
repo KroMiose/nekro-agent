@@ -44,7 +44,7 @@ async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
             response.raise_for_status()
             return PresetCreateResponse(**response.json())
     except Exception as e:
-        logger.error(f"创建人设资源发生错误: {e}")
+        logger.exception(f"创建人设资源发生错误: {e}")
         return PresetCreateResponse.process_exception(e)
 
 
@@ -78,7 +78,7 @@ async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicRespo
             response.raise_for_status()
             return BasicResponse(**response.json())
     except Exception as e:
-        logger.error(f"更新人设资源发生错误: {e}")
+        logger.exception(f"更新人设资源发生错误: {e}")
         return BasicResponse.process_exception(e)
 
 
@@ -101,7 +101,7 @@ async def delete_preset(preset_id: str, instance_id: str) -> BasicResponse:
             response.raise_for_status()
             return BasicResponse(**response.json())
     except Exception as e:
-        logger.error(f"删除人设资源发生错误: {e}")
+        logger.exception(f"删除人设资源发生错误: {e}")
         return BasicResponse.process_exception(e)
 
 
@@ -120,7 +120,7 @@ async def get_preset(preset_id: str) -> PresetDetailResponse:
             response.raise_for_status()
             return PresetDetailResponse.model_validate(response.json())
     except Exception as e:
-        logger.error(f"获取人设详情发生错误: {e}")
+        logger.exception(f"获取人设详情发生错误: {e}")
         return PresetDetailResponse.process_exception(e)
 
 
@@ -163,7 +163,7 @@ async def list_presets(
             response.raise_for_status()
             return PresetListResponse(**response.json())
     except Exception as e:
-        logger.error(f"查询人设列表发生错误: {e}")
+        logger.exception(f"查询人设列表发生错误: {e}")
         return PresetListResponse.process_exception(e)
 
 
@@ -179,5 +179,5 @@ async def list_user_presets() -> UserPresetListResponse:
             response.raise_for_status()
             return UserPresetListResponse(**response.json())
     except Exception as e:
-        logger.error(f"获取用户上传人设列表发生错误: {e}")
+        logger.exception(f"获取用户上传人设列表发生错误: {e}")
         return UserPresetListResponse.process_exception(e)

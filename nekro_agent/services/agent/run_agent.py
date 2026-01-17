@@ -48,14 +48,15 @@ async def run_agent(
 ):
     # 获取当前聊天频道的有效配置
     one_time_code = os.urandom(4).hex()
+    db_chat_channel: DBChatChannel
     if ctx:
         if ctx.db_chat_channel:
-            db_chat_channel: DBChatChannel = ctx.db_chat_channel
+            db_chat_channel = ctx.db_chat_channel
         else:
-            db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+            db_chat_channel = await DBChatChannel.get(chat_key=chat_key)
             ctx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
     else:
-        db_chat_channel: DBChatChannel = await DBChatChannel.get(chat_key=chat_key)
+        db_chat_channel = await DBChatChannel.get(chat_key=chat_key)
         ctx = AgentCtx.create_by_db_chat_channel(db_chat_channel=db_chat_channel)
 
     config = await db_chat_channel.get_effective_config()
@@ -263,7 +264,7 @@ async def run_agent(
             is_debug_iteration=True,
             chat_key=chat_key,
         )
-        parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
+        parsed_code_data = parse_chat_response(llm_response.response_content)
 
 
 async def send_agent_request(
