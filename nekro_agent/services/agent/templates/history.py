@@ -149,15 +149,33 @@ async def render_history_data(
 
     logger.debug(f"已加载到 {len(img_seg_pairs)} 张图片")
     img_seg_pairs = img_seg_pairs[::-1]  # 反转得到正确排序的 描述-图片 对
+
     if img_seg_pairs:
         openai_chat_message.add(
             ContentSegment.text_content(
-                "Here are latest images in the chat history, carefully identify the image sender and use your vision if needed:",
+                f'<{one_time_code} | recent_chat_images count="{len(img_seg_pairs)}">\n'
+                "Match each image to its corresponding message in Recent Messages by the path reference.\n\n",
             ),
         )
-    for img_seg_prompt, img_seg_content in img_seg_pairs:
-        openai_chat_message.add(ContentSegment.text_content(img_seg_prompt))
-        openai_chat_message.add(img_seg_content)
+        for _idx, (img_seg_prompt, img_seg_content) in enumerate(img_seg_pairs, 1):
+            # 从 img_seg_prompt 中提取路径: "<code | Image:path>" -> "path"
+            img_path = img_seg_prompt.split("Image:")[-1].rstrip(">")
+            openai_chat_message.add(
+                ContentSegment.text_content(
+                    f'<{one_time_code} | image path="{img_path}">\n',
+                ),
+            )
+            openai_chat_message.add(img_seg_content)
+            openai_chat_message.add(
+                ContentSegment.text_content(
+                    f"\n</{one_time_code} | image>\n\n",
+                ),
+            )
+        openai_chat_message.add(
+            ContentSegment.text_content(
+                f"</{one_time_code} | recent_chat_images>\n\n",
+            ),
+        )
 
     openai_chat_message.add(
         ContentSegment.text_content(

@@ -260,7 +260,13 @@ class EmotionMetadata(BaseModel):
     last_updated: int
 
     @classmethod
-    def create(cls, description: str, tags: List[str], source_path: str, file_path: str):
+    def create(
+        cls,
+        description: str,
+        tags: List[str],
+        source_path: str,
+        file_path: str,
+    ):
         current_time = int(time.time())
         return cls(
             description=description,
@@ -304,7 +310,10 @@ class EmotionStore(BaseModel):
         """获取表情包元数据"""
         return self.emotions.get(emotion_id)
 
-    def get_recent_emotions(self, count: Optional[int] = None) -> List[Tuple[str, EmotionMetadata]]:
+    def get_recent_emotions(
+        self,
+        count: Optional[int] = None,
+    ) -> List[Tuple[str, EmotionMetadata]]:
         """获取最近添加的表情包"""
         if count is None:
             count = emotion_config.MAX_RECENT_EMOTION_COUNT
@@ -364,7 +373,10 @@ async def load_emotion_store() -> EmotionStore:
 
 async def save_emotion_store(emotion_store: EmotionStore):
     """保存表情包存储"""
-    await store.set(store_key="emotion_store", value=json.dumps(emotion_store.model_dump(), ensure_ascii=False))
+    await store.set(
+        store_key="emotion_store",
+        value=json.dumps(emotion_store.model_dump(), ensure_ascii=False),
+    )
 
 
 async def migrate_emotion_paths():
@@ -395,14 +407,20 @@ async def migrate_emotion_paths():
             else:
                 # 文件不存在，跳过但记录（这些文件可能真的丢失了）
                 skipped_count += 1
-                logger.warning(f"表情包文件不存在，跳过迁移: {emotion_id} -> {file_name}")
+                logger.warning(
+                    f"表情包文件不存在，跳过迁移: {emotion_id} -> {file_name}",
+                )
 
     if migrated_count > 0:
         await save_emotion_store(emotion_store)
-        logger.success(f"成功迁移 {migrated_count} 个表情包路径到新格式，跳过 {skipped_count} 个文件不存在的表情包")
+        logger.success(
+            f"成功迁移 {migrated_count} 个表情包路径到新格式，跳过 {skipped_count} 个文件不存在的表情包",
+        )
     else:
         if skipped_count > 0:
-            logger.warning(f"没有需要迁移的表情包路径，但有 {skipped_count} 个文件不存在")
+            logger.warning(
+                f"没有需要迁移的表情包路径，但有 {skipped_count} 个文件不存在",
+            )
         else:
             logger.info("没有需要迁移的表情包路径")
 
@@ -423,7 +441,9 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
         ValueError: 向量维度不匹配
         Exception: 重试次数耗尽后仍然失败
     """
-    model_group: ModelConfigGroup = core_config.get_model_group_info(emotion_config.EMBEDDING_MODEL)
+    model_group: ModelConfigGroup = core_config.get_model_group_info(
+        emotion_config.EMBEDDING_MODEL,
+    )
 
     last_exception = None
 
@@ -436,7 +456,9 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
                 f"但实际获取到 {vector_dimension} 维。"
                 f"请更新配置中的 EMBEDDING_DIMENSION 值为 {vector_dimension} 。"
             )
-            logger.error(f"嵌入向量维度不匹配！预期: {emotion_config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}")
+            logger.error(
+                f"嵌入向量维度不匹配！预期: {emotion_config.EMBEDDING_DIMENSION}, 实际: {vector_dimension}",
+            )
             raise ValueError(error_msg)
 
     for attempt in range(max_retries):
@@ -450,7 +472,9 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
                 timeout=emotion_config.EMBEDDING_REQUEST_TIMEOUT,
             )
 
-            logger.debug(f"生成嵌入向量: {text[:10]}... 向量维度: {len(embedding_vector)}")
+            logger.debug(
+                f"生成嵌入向量: {text[:10]}... 向量维度: {len(embedding_vector)}",
+            )
 
             # 验证维度是否一致
             _validate_dimension(embedding_vector)
@@ -471,7 +495,9 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
                 )
                 await asyncio.sleep(wait_time)
             else:
-                logger.error(f"生成嵌入向量超时，已达最大重试次数 ({max_retries}): {error_msg}")
+                logger.error(
+                    f"生成嵌入向量超时，已达最大重试次数 ({max_retries}): {error_msg}",
+                )
         except Exception as e:
             last_exception = e
             if attempt < max_retries - 1:
@@ -482,14 +508,19 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
                 )
                 await asyncio.sleep(wait_time)
             else:
-                logger.exception(f"生成嵌入向量失败，已达最大重试次数 ({max_retries}): {e}")
+                logger.exception(
+                    f"生成嵌入向量失败，已达最大重试次数 ({max_retries}): {e}",
+                )
         else:
             # 成功生成并验证通过，返回结果
             return embedding_vector
 
     # 所有重试都失败
     timeout_seconds = emotion_config.EMBEDDING_REQUEST_TIMEOUT
-    if isinstance(last_exception, (httpx.ReadTimeout, httpx.WriteTimeout, httpx.TimeoutException)):
+    if isinstance(
+        last_exception,
+        (httpx.ReadTimeout, httpx.WriteTimeout, httpx.TimeoutException),
+    ):
         error_msg = (
             f"生成嵌入向量失败，已重试 {max_retries} 次。"
             f"请求超时（超时时间: {timeout_seconds}秒）。"
@@ -502,11 +533,11 @@ async def generate_embedding(text: str, max_retries: int = 3) -> List[float]:
 
 async def download_image(url: str, save_path: Path) -> bool:
     """下载图片到指定路径
-    
+
     Args:
         url: 图片 URL
         save_path: 保存路径
-    
+
     Returns:
         是否下载成功
     """
@@ -528,7 +559,11 @@ async def download_image(url: str, save_path: Path) -> bool:
         return False
 
 
-async def save_image(source_path: str, file_name: str, _ctx: schemas.AgentCtx) -> Tuple[bool, str]:
+async def save_image(
+    source_path: str,
+    file_name: str,
+    _ctx: schemas.AgentCtx,
+) -> Tuple[bool, str]:
     """保存图片到表情包存储目录
 
     Args:
@@ -617,8 +652,18 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 
 # region: 表情包命令
 @on_command("emo_search", aliases={"emo-search"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    bot: Bot,
+    arg: Message = CommandArg(),
+):
+    username, cmd_content, chat_key, chat_type = await command_guard(
+        event,
+        bot,
+        arg,
+        matcher,
+    )
 
     if not cmd_content:
         await finish_with(matcher, message="喵~ 请输入要搜索的关键词哦！")
@@ -650,7 +695,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     # 检查是否有结果
     if not search_results:
-        await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的表情包呢...")
+        await finish_with(
+            matcher,
+            message=f"喵~ 没有找到和「{cmd_content}」相关的表情包呢...",
+        )
         return
 
     # 加载表情包存储
@@ -700,7 +748,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         found_valid_results = True
 
     if not found_valid_results:
-        await finish_with(matcher, message=f"喵~ 没有找到和「{cmd_content}」相关的可用表情包呢...")
+        await finish_with(
+            matcher,
+            message=f"喵~ 没有找到和「{cmd_content}」相关的可用表情包呢...",
+        )
         return
 
     # 使用 matcher.finish 直接发送包含图片的消息
@@ -708,8 +759,18 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 
 @on_command("emo_stats", aliases={"emo-stats"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    bot: Bot,
+    arg: Message = CommandArg(),
+):
+    username, cmd_content, chat_key, chat_type = await command_guard(
+        event,
+        bot,
+        arg,
+        matcher,
+    )
 
     try:
         # 加载表情包存储
@@ -717,7 +778,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
         # 获取Qdrant客户端并查询集合信息
         client = await get_qdrant_client()
-        collection_info = await client.get_collection(plugin.get_vector_collection_name())
+        collection_info = await client.get_collection(
+            plugin.get_vector_collection_name(),
+        )
 
         # 统计信息
         total_count = len(emotion_store.emotions)
@@ -738,9 +801,24 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     await finish_with(matcher, message=message)
 
 
-@on_command("emo_list", aliases={"emo-list", "emo_ls", "emo-ls"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+@on_command(
+    "emo_list",
+    aliases={"emo-list", "emo_ls", "emo-ls"},
+    priority=5,
+    block=True,
+).handle()
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    bot: Bot,
+    arg: Message = CommandArg(),
+):
+    username, cmd_content, chat_key, chat_type = await command_guard(
+        event,
+        bot,
+        arg,
+        matcher,
+    )
 
     # 加载表情包存储
     emotion_store = await load_emotion_store()
@@ -758,7 +836,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     # 确保页码有效
     if page > total_pages:
-        await finish_with(matcher, message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～")
+        await finish_with(
+            matcher,
+            message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～",
+        )
         return
     # 获取当前页的表情包
     start_idx = (page - 1) * page_size
@@ -775,7 +856,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     )[start_idx:end_idx]
 
     for emotion_id, metadata in sorted_emotions:
-        tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+        tags_str = "、".join(metadata.tags[:3]) + (
+            "..." if len(metadata.tags) > 3 else ""
+        )
         _message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
 
     _message += "使用 emo-list <页码> 查看其他页面～"
@@ -784,19 +867,42 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
 
 @on_command("emo_migrate", aliases={"emo-migrate"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    bot: Bot,
+    arg: Message = CommandArg(),
+):
+    username, cmd_content, chat_key, chat_type = await command_guard(
+        event,
+        bot,
+        arg,
+        matcher,
+    )
 
     # 执行路径迁移
     await matcher.send("喵~ 开始迁移表情包路径到新格式...")
 
     migrated_count = await migrate_emotion_paths()
-    await finish_with(matcher, message=f"喵~ 路径迁移完成！成功迁移 {migrated_count} 个表情包路径～")
+    await finish_with(
+        matcher,
+        message=f"喵~ 路径迁移完成！成功迁移 {migrated_count} 个表情包路径～",
+    )
 
 
 @on_command("emo_reindex", aliases={"emo-reindex"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+async def _(
+    matcher: Matcher,
+    event: MessageEvent,
+    bot: Bot,
+    arg: Message = CommandArg(),
+):
+    username, cmd_content, chat_key, chat_type = await command_guard(
+        event,
+        bot,
+        arg,
+        matcher,
+    )
 
     if "-y" not in cmd_content:
         await finish_with(matcher, message="喵~ 请输入 -y 确认重建表情包索引哦～")
@@ -811,12 +917,17 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
         return
 
     # 告知开始处理
-    await matcher.send(f"喵~ 开始重建 {total_emotions} 个表情包的索引，这可能需要一些时间...")
+    await matcher.send(
+        f"喵~ 开始重建 {total_emotions} 个表情包的索引，这可能需要一些时间...",
+    )
 
     # 获取Qdrant客户端
     client = await get_qdrant_client()
     if client is None:
-        await finish_with(matcher, message="喵呜... 无法连接到向量数据库，重建索引失败了～")
+        await finish_with(
+            matcher,
+            message="喵呜... 无法连接到向量数据库，重建索引失败了～",
+        )
         return
 
     collection_name = plugin.get_vector_collection_name()
@@ -888,7 +999,10 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             )
 
             # 如果达到批处理大小或是最后一个，则提交批次
-            if len(current_batch) >= batch_size or emotion_id == list(emotion_store.emotions.keys())[-1]:
+            if (
+                len(current_batch) >= batch_size
+                or emotion_id == list(emotion_store.emotions.keys())[-1]
+            ):
                 await client.upsert(
                     collection_name=collection_name,
                     points=current_batch,
@@ -901,7 +1015,9 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             # 按时间间隔更新进度（每1分钟一次）
             current_time = time.time()
             if current_time - last_progress_time >= progress_interval:
-                await matcher.send(f"喵~ 已成功处理 {success_count}/{total_emotions} 个表情包...")
+                await matcher.send(
+                    f"喵~ 已成功处理 {success_count}/{total_emotions} 个表情包...",
+                )
                 last_progress_time = current_time
 
             await asyncio.sleep(0.1)
@@ -935,8 +1051,12 @@ async def emotion_prompt_inject(_ctx: schemas.AgentCtx) -> str:
 
     prompt_parts = ["Recent Emotions:"]
     for idx, (emotion_id, metadata) in enumerate(recent_emotions, 1):
-        tags_str = ", ".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
-        prompt_parts.append(f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]")
+        tags_str = ", ".join(metadata.tags[:3]) + (
+            "..." if len(metadata.tags) > 3 else ""
+        )
+        prompt_parts.append(
+            f"{idx}. ID: {emotion_id} - {metadata.description[:30]}... [Tags: {tags_str}]",
+        )
 
     addition_prompt = "Attention: Emotion Plugin is a isolated self-managed plugin, you should not record the emotion ID manually by using other plugins. Just use the `collect_emotion` tool to collect the emotion and use `search_emotion` to search the emotion if you need."
 
@@ -957,21 +1077,19 @@ async def collect_emotion(
     _ctx: schemas.AgentCtx,
     source_path: str,
     description: str,
-    tags: Optional[List[str]] = None,
-    is_screenshot: bool = False,
-    vision_confirmed: bool = False,
+    tags: List[str],
+    vision_and_emotion_confirmed: bool,
 ) -> str:
     """Collect Emotion (表情包)
 
     Collect an expression image/GIF to the emotion database.
-    **IMPORTANT:** Only collect actual expression images or reaction GIFs, NOT ANY screenshots, photos, or other images! You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
+    **IMPORTANT:** Only collect actual expression images or reaction GIFs, **DO NOT COLLECT ANY screenshots, photos, or other images!** You can only collect the images you are sure about (visible in vision content). Do not collect anything send by yourself!
 
     Args:
         source_path (str): The path or URL of the expression image
         description (str): A detailed description of the emotion/expression (used for searching. You Must fill it in carefully)
-        tags (List[str], optional): Tags for the emotion (e.g. ["happy", "excited", "anime"])
-        is_screenshot (bool, optional): Whether the image is a screenshot (default: False)
-        vision_confirmed (bool, optional): Whether the image content is confirmed by vision (default: False, You Can Only Collect Images That Are Visible in Vision Content and NEVER Guess the content!)
+        tags (List[str]): Tags for the emotion (e.g. ["happy", "excited", "anime"])
+        vision_and_emotion_confirmed (bool): Whether the image content is confirmed by vision (default: False, You Can Only Collect Images That Are Visible in Vision Content and NEVER Guess the content!)
 
     Returns:
         str: The emotion ID
@@ -979,10 +1097,13 @@ async def collect_emotion(
     Example:
         ```python
         # Collect from URL
-        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"], is_screenshot=False, vision_confirmed=True)
+        emotion_id = collect_emotion("https://example.com/happy_cat.gif", "一只开心的猫跳来跳去", ["开心", "猫", "可爱", "Q版"], vision_and_emotion_confirmed=True)
 
         # Collect from local path
-        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"], is_screenshot=False, vision_confirmed=True) # Do not send the emotion ID in your message directly!
+        emotion_id = collect_emotion("/app/uploads/surprised_anime_girl.png", "蓝色头发的动漫女孩一脸惊讶", ["动漫", "惊讶", "反应"], vision_and_emotion_confirmed=True) # Do not send the emotion ID in your message directly!
+
+        # DO NOT COLLECT ANY screenshots, photos, or other images!
+        emotion_id = collect_emotion("/app/uploads/user_screenshot.png", "用户截图", ["截图", "用户", "游戏"], vision_and_emotion_confirmed=False)  # Rejected.
         ```
     """
     # 参数验证
@@ -996,17 +1117,10 @@ async def collect_emotion(
     if tags is None:
         tags = []
 
-    if is_screenshot and emotion_config.STRICT_EMOTION_COLLECT:
+    if not vision_and_emotion_confirmed:
         await message_service.push_system_message(
             _ctx.chat_key,
-            "Screenshot detected! You CANT Only Collect Emotion Stickers! Rejected.",
-        )
-        return ""
-
-    if not vision_confirmed:
-        await message_service.push_system_message(
-            _ctx.chat_key,
-            "Image content is not confirmed by vision! You CANT Guess the content! Rejected.",
+            "Image content is not confirmed by vision or it is a screenshot! You CANT COLLECT ANY screenshots, photos, or other images! Rejected.",
         )
         return ""
 
@@ -1019,7 +1133,10 @@ async def collect_emotion(
         path_obj = Path(source_path.split("?")[0])
         file_name = path_obj.name
         # 确保文件名有扩展名
-        if not any(file_name.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]):
+        if not any(
+            file_name.lower().endswith(ext)
+            for ext in [".jpg", ".jpeg", ".png", ".gif", ".webp"]
+        ):
             file_name = f"{hashlib.md5(source_path.encode()).hexdigest()[:8]}.png"
     else:
         # 本地文件，直接使用原文件名
@@ -1372,7 +1489,11 @@ async def get_emotion_path(_ctx: schemas.AgentCtx, emotion_id: str) -> str:
     name="搜索表情包",
     description="根据文本描述搜索表情包",
 )
-async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Optional[int] = None) -> Dict[str, Any]:
+async def search_emotion(
+    _ctx: schemas.AgentCtx,
+    query: str,
+    max_results: Optional[int] = None,
+) -> Dict[str, Any]:
     """Search Emotion
 
     Search for emotions using a text query and display the results.
@@ -1432,7 +1553,10 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
     emotion_store = await load_emotion_store()
 
     # 构建多模态消息
-    msg = OpenAIChatMessage.from_text("user", f"Here are the emotions You have collected for '{query}':")
+    msg = OpenAIChatMessage.from_text(
+        "user",
+        f"Here are the emotions You have collected for '{query}':",
+    )
 
     for i, result in enumerate(search_results):
         # 从payload中获取原始emotion_id
@@ -1456,7 +1580,7 @@ async def search_emotion(_ctx: schemas.AgentCtx, query: str, max_results: Option
         msg.batch_add(
             [
                 ContentSegment.text_content(
-                    f"\nEmotion {i+1} (ID: {emotion_id}):\nDescription: {metadata.description}\nTags: {tags_str}",
+                    f"\nEmotion {i + 1} (ID: {emotion_id}):\nDescription: {metadata.description}\nTags: {tags_str}",
                 ),
                 ContentSegment.image_content_from_path(str(file_path)),
             ],
