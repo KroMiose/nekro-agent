@@ -69,6 +69,7 @@ import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '../../utils/clipboard'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -371,6 +372,8 @@ const PluginCard = ({
 }
 
 // 详情对话框组件
+type NotificationService = ReturnType<typeof useNotification>
+
 const PluginDetailDialog = ({
   open,
   onClose,
@@ -381,6 +384,7 @@ const PluginDetailDialog = ({
   onRemove,
   onEdit,
   t,
+  notification,
 }: {
   open: boolean
   onClose: () => void
@@ -391,8 +395,11 @@ const PluginDetailDialog = ({
   onRemove?: () => void
   onEdit?: () => void
   t: (key: string, options?: Record<string, unknown>) => string
+  notification?: NotificationService
 }) => {
   const theme = useTheme()
+  const localNotification = useNotification()
+  const notif = notification || localNotification
   // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
@@ -653,7 +660,18 @@ const PluginDetailDialog = ({
                       fullWidth
                       variant="outlined"
                       startIcon={<CodeIcon />}
-                      onClick={() => navigator.clipboard.writeText(plugin.cloneUrl)}
+                      onClick={async () => {
+                        try {
+                          const success = await copyText(plugin.cloneUrl)
+                          if (success) {
+                            notif.success(t('pluginsMarket.cloneLinkCopied'))
+                          } else {
+                            notif.error(t('common.messages.operationFailed') || 'Failed to copy')
+                          }
+                        } catch (err) {
+                          console.error('Copy error:', err)
+                        }
+                      }}
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {t('pluginsMarket.copyCloneLink')}
@@ -2313,6 +2331,7 @@ export default function PluginsMarket() {
         onRemove={selectedPlugin?.is_local ? () => handleRemoveClick(selectedPlugin) : undefined}
         onEdit={selectedPlugin?.isOwner ? () => handleEditPlugin(selectedPlugin) : undefined}
         t={t}
+        notification={notification}
       />
 
       {/* 确认下载/更新/下架/移除对话框 */}

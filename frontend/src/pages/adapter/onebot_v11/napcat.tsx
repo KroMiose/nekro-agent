@@ -8,6 +8,7 @@ import { unifiedConfigApi } from '../../../services/api/unified-config'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '../../../utils/clipboard'
 
 export default function OneBotV11NapCatPage() {
   const [iframeLoaded, setIframeLoaded] = useState(false)
@@ -45,11 +46,10 @@ export default function OneBotV11NapCatPage() {
 
   const handleCopyOnebotToken = async () => {
     if (onebotToken) {
-      try {
-        await navigator.clipboard.writeText(onebotToken)
+      const success = await copyText(onebotToken)
+      if (success) {
         notification.success(t('napcat.accessKeyCopied'))
-      } catch (error) {
-        console.error('Copy failed:', error)
+      } else {
         notification.error(t('napcat.copyFailed'))
       }
     }
@@ -57,11 +57,10 @@ export default function OneBotV11NapCatPage() {
 
   const handleCopyNapcatToken = async () => {
     if (napcatToken) {
-      try {
-        await navigator.clipboard.writeText(napcatToken)
+      const success = await copyText(napcatToken)
+      if (success) {
         notification.success(t('napcat.tokenCopied'))
-      } catch (error) {
-        console.error('Copy failed:', error)
+      } else {
         notification.error(t('napcat.copyFailed'))
       }
     }

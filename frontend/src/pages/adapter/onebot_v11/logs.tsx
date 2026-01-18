@@ -19,6 +19,7 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useNotification } from '../../../hooks/useNotification'
+import { copyText } from '../../../utils/clipboard'
 
 // 格式化时间
 const formatTime = (isoTime: string, locale?: string) => {
@@ -188,11 +189,10 @@ export default function OneBotV11LogsPage() {
 
   const handleCopyToken = async () => {
     if (webuiToken) {
-      try {
-        await navigator.clipboard.writeText(webuiToken)
+      const success = await copyText(webuiToken)
+      if (success) {
         notification.success(t('logs.tokenCopied'))
-      } catch (error) {
-        console.error('复制失败:', error)
+      } else {
         notification.error(t('logs.copyFailed'))
       }
     }

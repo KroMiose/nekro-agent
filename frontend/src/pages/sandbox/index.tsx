@@ -59,6 +59,7 @@ import { useDevModeStore } from '../../stores/devMode'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../../stores/locale'
+import { copyText } from '../../utils/clipboard'
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -334,20 +335,18 @@ export default function SandboxPage() {
   }
 
   // 复制内容到剪贴板函数
-  const copyToClipboard = (text: string | null, contentType: string) => {
+  const copyToClipboard = async (text: string | null, contentType: string) => {
     if (!text) {
       notification.warning(t('actions.noContent'))
       return
     }
 
-    navigator.clipboard
-      .writeText(text)
-      .then(() => {
-        notification.success(t('actions.copied', { content: contentType }))
-      })
-      .catch(() => {
-        notification.error(t('actions.copyFailed'))
-      })
+    const success = await copyText(text)
+    if (success) {
+      notification.success(t('actions.copied', { content: contentType }))
+    } else {
+      notification.error(t('actions.copyFailed'))
+    }
   }
 
   // 统计卡片渲染

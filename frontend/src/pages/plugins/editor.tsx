@@ -56,6 +56,7 @@ import { alpha } from '@mui/material/styles'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_STYLES, BORDER_RADIUS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '../../utils/clipboard'
 
 // 新建插件对话框组件
 interface NewPluginDialogProps {
@@ -656,12 +657,16 @@ export default function PluginsEditorPage() {
     }
   }
 
-  const handleCopyCode = () => {
+  const handleCopyCode = async () => {
     if (generatedCode) {
-      navigator.clipboard.writeText(generatedCode)
-      setIsCopied(true)
-      notification.success(t('editor.messages.codeCopied'))
-      setTimeout(() => setIsCopied(false), 2000)
+      const success = await copyText(generatedCode)
+      if (success) {
+        setIsCopied(true)
+        notification.success(t('editor.messages.codeCopied'))
+        setTimeout(() => setIsCopied(false), 2000)
+      } else {
+        notification.error(t('common.messages.operationFailed') || 'Failed to copy')
+      }
     }
   }
 
