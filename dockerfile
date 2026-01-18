@@ -82,4 +82,4 @@ EXPOSE 8021
 HEALTHCHECK --interval=10s --timeout=3s CMD curl -f http://127.0.0.1:8021/api/health || exit 1
 
 # 启动应用
-CMD ["uv", "run", "nb", "run"]
+CMD ["uv", "run", "bot", "--env=prod"]
