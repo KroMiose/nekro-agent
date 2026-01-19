@@ -63,7 +63,7 @@ class ChatMessageSegmentFile(ChatMessageSegment):
         if url.startswith("data:"):
             return await cls.create_from_base64(url, from_chat_key, file_name, use_suffix)
 
-        local_path, _file_name = await download_file(url, use_suffix=use_suffix, from_chat_key=from_chat_key)
+        local_path, _file_name = await download_file(url, file_name=file_name, use_suffix=use_suffix, from_chat_key=from_chat_key)
 
         return cls(
             type=cls.get_segment_type(),
