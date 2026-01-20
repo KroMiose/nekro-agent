@@ -64,6 +64,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 # 首先复制依赖文件和 README（pyproject.toml 需要），利用缓存
 COPY pyproject.toml uv.lock README.md ./
 
+# 复制入口脚本（force-include 需要）
+COPY run_bot.py ./
+
 # 使用 UV 安装依赖（包括 nb-cli）
 RUN uv sync --frozen --no-dev
 
