@@ -79,6 +79,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["nekro_agent", "plugins"]
 
+[tool.hatch.build.targets.wheel.force-include]
+"run_bot.py" = "run_bot.py"
+
 # ============================================================================
 # Tool Configurations
 # ============================================================================
