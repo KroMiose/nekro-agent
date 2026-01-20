@@ -199,14 +199,15 @@ async def render_history_data(
             ),
         )
 
-    # 确保总记录长度不超过最大字符长度
+    # 确保总记录长度不超过最大字符长度（从后往前累积，保留较新的消息）
+    total_length = 0
     start_idx = 0
-    for i, prompt in enumerate(chat_history_prompts[::-1]):
-        if i + 1 >= len(chat_history_prompts):
+    for i in range(len(chat_history_prompts) - 1, -1, -1):
+        prompt_length = len(chat_history_prompts[i])
+        if total_length + prompt_length > config.AI_CONTEXT_LENGTH_PER_SESSION:
+            start_idx = i + 1  # 从下一条消息开始保留
             break
-        if len(prompt) + len(chat_history_prompts[i + 1]) > config.AI_CHAT_CONTEXT_MAX_LENGTH:
-            start_idx = i + 1
-            break
+        total_length += prompt_length
     chat_history_prompts = chat_history_prompts[start_idx:]
 
     chat_history_prompt = f"\n<{one_time_code} | message separator>\n".join(chat_history_prompts)
