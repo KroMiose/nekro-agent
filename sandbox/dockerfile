@@ -62,7 +62,7 @@ WORKDIR /app
 # 复制所有文件（沙盒项目较小，直接复制所有文件）
 COPY . /app
 
-# 使用 UV 安装项目依赖
-RUN uv sync --frozen --no-install-project
+# 使用 UV 安装项目依赖到系统 Python（保持与应用版本解耦）
+RUN uv pip install --system -r pyproject.toml
 
 CMD ["bash"]
