@@ -25,8 +25,12 @@ dependencies = [
     "python-pptx>=1.0.2,<2.0.0",
     "mplfonts>=0.0.8,<1.0.0",
     "networkx>=3.4.2,<4.0.0",
+    "requests>=2.32.5",
 ]
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["nekro_agent_sandbox"]
