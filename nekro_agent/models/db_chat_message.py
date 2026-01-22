@@ -50,7 +50,7 @@ class DBChatMessage(Model):
 
     def parse_chat_history_prompt(self, one_time_code: str, config: "CoreConfig", ref_mode: bool = False) -> str:
         """解析聊天历史记录生成提示词"""
-        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, ref_mode)
+        content = convert_raw_msg_data_json_to_msg_prompt(self.content_data, one_time_code, config, ref_mode)
         content = limited_text_output(content, config.AI_CONTEXT_LENGTH_PER_MESSAGE, placeholder="(content too long, omitted)")
         time_str = datetime.datetime.fromtimestamp(self.send_timestamp).strftime("%m-%d %H:%M:%S")
 
@@ -81,7 +81,7 @@ class DBChatMessage(Model):
             return PlatformMessageExt()
 
 
-def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, travel_mode: bool = False) -> str:
+def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, config: "CoreConfig", travel_mode: bool = False) -> str:
     """将数据库保存的原始消息数据 JSON 转换为提示词字符串
 
     Args:
@@ -95,16 +95,18 @@ def convert_raw_msg_data_json_to_msg_prompt(json_data: str, one_time_code: str, 
 
     for seg in segments_from_list(cast(List[Dict[str, Any]], json5.loads(json_data))):
         if isinstance(seg, ChatMessageSegmentImage):
+            remote_url_seg = f' (remote_url:"{seg.remote_url}")' if seg.remote_url and config.AI_SHOW_REMOTE_URL else ""
             prompt_str += (
-                f"<Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
+                f"<Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}{remote_url_seg}>"
                 if travel_mode
-                else f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
+                else f"<{one_time_code} | Image:{convert_filename_to_sandbox_upload_path(seg.file_name)}{remote_url_seg}>"
             )
         elif isinstance(seg, ChatMessageSegmentFile):
+            remote_url_seg = f' (remote_url:"{seg.remote_url}")' if seg.remote_url and config.AI_SHOW_REMOTE_URL else ""
             prompt_str += (
-                f"<File:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
+                f"<File:{convert_filename_to_sandbox_upload_path(seg.file_name)}{remote_url_seg}>"
                 if travel_mode
-                else f"<{one_time_code} | File:{convert_filename_to_sandbox_upload_path(seg.file_name)}>"
+                else f"<{one_time_code} | File:{convert_filename_to_sandbox_upload_path(seg.file_name)}{remote_url_seg}>"
             )
         elif isinstance(seg, ChatMessageSegmentAt):
             prompt_str += (

@@ -632,6 +632,22 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    AI_SHOW_REMOTE_URL: bool = Field(
+        default=False,
+        title="显示远程资源 URL",
+        description="启用后若资源远程 URL 可用，将在上下文中追加提供远程 URL 供 AI 参考使用",
+        json_schema_extra=ExtraField(
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="显示远程资源 URL",
+                en_US="Show Remote Resource URL",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后若资源远程 URL 可用，将在上下文中追加提供远程 URL 供 AI 参考使用",
+                en_US="When enabled, if the resource remote URL is available, it will be appended to the context for AI to reference",
+            ),
+        ).model_dump(),
+    )
     AI_REQUEST_STREAM_MODE: bool = Field(
         default=False,
         title="启用流式请求",
