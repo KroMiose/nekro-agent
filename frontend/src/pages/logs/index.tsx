@@ -37,7 +37,8 @@ import AutoSizer from 'react-virtualized-auto-sizer'
 import NekroDialog from '../../components/common/NekroDialog'
 import { useTranslation } from 'react-i18next'
 import { useNotification } from '../../hooks/useNotification'
-import { copyText, showCopyableTextDialog } from '../../utils/clipboard'
+import { copyText } from '../../utils/clipboard'
+import CopyableTextDialog from '../../components/common/CopyableTextDialog'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
@@ -243,6 +244,8 @@ export default function LogsPage() {
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [downloadConfirmOpen, setDownloadConfirmOpen] = useState(false)
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false)
+  const [copyDialogText, setCopyDialogText] = useState('')
   const logQueue = useRef<LogEntry[]>([])
 
   const theme = useTheme()
@@ -362,12 +365,8 @@ export default function LogsPage() {
       notification.success(t('dialog.copyLog'))
     } else {
       // 复制失败，显示可复制的文本对话框
-      notification.warning(
-        t('dialog.copyFailed', {
-          defaultValue: 'Copy failed, showing text dialog',
-        }),
-      )
-      showCopyableTextDialog(logText, t('dialog.copyLog'))
+      setCopyDialogText(logText)
+      setCopyDialogOpen(true)
     }
   }
 
@@ -831,6 +830,14 @@ export default function LogsPage() {
         </Typography>
         <Typography variant="body1">{t('download.securityInfo2')}</Typography>
       </NekroDialog>
+
+      {/* 复制失败时的降级对话框 */}
+      <CopyableTextDialog
+        open={copyDialogOpen}
+        onClose={() => setCopyDialogOpen(false)}
+        text={copyDialogText}
+        title={t('dialog.copyLog')}
+      />
     </Box>
   )
 }

@@ -10,7 +10,6 @@ export interface CopyableTextDialogProps {
   onClose: () => void
   text: string
   title?: string
-  description?: string
 }
 
 const CopyableTextDialog: React.FC<CopyableTextDialogProps> = ({
@@ -18,7 +17,6 @@ const CopyableTextDialog: React.FC<CopyableTextDialogProps> = ({
   onClose,
   text,
   title,
-  description,
 }) => {
   const { t } = useTranslation('common')
   const notification = useNotification()
@@ -38,21 +36,16 @@ const CopyableTextDialog: React.FC<CopyableTextDialogProps> = ({
   }, [open])
 
   const handleCopy = async () => {
-    try {
-      const success = await copyText(text)
-      if (success) {
-        notification.success(t('clipboard.copied'))
-        onClose()
-      } else {
-        notification.error(t('messages.operationFailed'))
-      }
-    } catch (error) {
+    const success = await copyText(text)
+    if (success) {
+      notification.success(t('clipboard.copied'))
+      onClose()
+    } else {
       notification.error(t('messages.operationFailed'))
     }
   }
 
   const finalTitle = title ?? t('clipboard.dialogTitle')
-  const finalDescription = description ?? t('clipboard.dialogDescription')
 
   return (
     <NekroDialog
@@ -74,11 +67,9 @@ const CopyableTextDialog: React.FC<CopyableTextDialogProps> = ({
       }
     >
       <Box ref={dialogContentRef} sx={{ p: 2 }}>
-        {finalDescription && (
-          <Box sx={{ mb: 2, fontSize: '0.875rem', color: 'text.secondary' }}>
-            {finalDescription}
-          </Box>
-        )}
+        <Box sx={{ mb: 2, fontSize: '0.875rem', color: 'text.secondary' }}>
+          {t('clipboard.dialogDescription')}
+        </Box>
         <TextField
           fullWidth
           multiline
