@@ -78,6 +78,7 @@ import {
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { getLocalizedText } from '../../services/api/types'
+import { copyText } from '../../utils/clipboard'
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
@@ -805,10 +806,14 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               <Button
                                 size="small"
                                 startIcon={<ContentCopyIcon fontSize="small" />}
-                                onClick={() => {
+                                onClick={async () => {
                                   const url = `${server_addr}/api/webhook/${webhook.endpoint}`
-                                  navigator.clipboard.writeText(url)
-                                  notification.success(t('webhook.copied'))
+                                  const success = await copyText(url)
+                                  if (success) {
+                                    notification.success(t('webhook.copied'))
+                                  } else {
+                                    notification.error(t('common.messages.operationFailed') || 'Failed to copy')
+                                  }
                                 }}
                                 sx={{
                                   textTransform: 'none',
@@ -964,9 +969,13 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                                 <Button
                                   size="small"
                                   startIcon={<ContentCopyIcon fontSize="small" />}
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(data.data_value)
-                                    notification.success(t('messages.dataCopied'))
+                                  onClick={async () => {
+                                    const success = await copyText(data.data_value)
+                                    if (success) {
+                                      notification.success(t('messages.dataCopied'))
+                                    } else {
+                                      notification.error(t('common.messages.operationFailed') || 'Failed to copy')
+                                    }
                                   }}
                                   sx={{
                                     textTransform: 'none',

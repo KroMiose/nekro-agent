@@ -155,6 +155,12 @@
     "operationFailed": "操作失败",
     "connectionLost": "与服务器的连接已断开，请检查网络连接"
   },
+  "clipboard": {
+    "dialogTitle": "复制文本",
+    "dialogDescription": "自动复制失败，请手动复制以下内容",
+    "textareaLabel": "文本内容",
+    "copied": "已复制到剪贴板"
+  },
   "githubStar": {
     "title": "欢迎支持开源项目",
     "message": "通过Star开源仓库来支持我们，即可解锁高级自定义功能。您的支持是我们持续改进的动力！",
