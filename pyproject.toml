@@ -1,6 +1,6 @@
 [project]
 name = "nekro-agent"
-version = "2.1.0"
+version = "2.2.0"
 description = "更智能、更优雅的代理执行 AI"
 authors = [{name = "KroMiose", email = "li_xiangff@163.com"}]
 readme = "README.md"
