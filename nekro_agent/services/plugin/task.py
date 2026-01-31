@@ -252,6 +252,7 @@ class TaskRunner:
         self._tasks: Dict[str, asyncio.Task] = {}
         self._states: Dict[str, TaskCtl] = {}
         self._task_funcs: Dict[str, AsyncTaskFunc] = {}
+        self._terminal_callbacks: Dict[str, Callable[[TaskCtl], None]] = {}
 
     def register_task_type(self, task_type: str, func: AsyncTaskFunc) -> None:
         """注册任务类型
@@ -270,6 +271,7 @@ class TaskRunner:
         chat_key: str,
         plugin: "NekroPlugin",
         *args: Any,
+        on_terminal: Optional[Callable[[TaskCtl], None]] = None,
         **kwargs: Any,
     ) -> AsyncTaskHandle:
         """启动任务
@@ -280,6 +282,7 @@ class TaskRunner:
             chat_key: 会话 Key
             plugin: 插件实例
             *args: 传递给任务函数的位置参数
+            on_terminal: 终态回调函数，当任务成功/失败/取消时调用
             **kwargs: 传递给任务函数的关键字参数
 
         Returns:
@@ -298,6 +301,7 @@ class TaskRunner:
             del self._tasks[key]
             self._handles.pop(key, None)
             self._states.pop(key, None)
+            self._terminal_callbacks.pop(key, None)
 
         func = self._task_funcs.get(task_type)
         if not func:
@@ -305,6 +309,10 @@ class TaskRunner:
 
         handle = AsyncTaskHandle(task_id, chat_key, plugin)
         self._handles[key] = handle
+
+        # 保存终态回调
+        if on_terminal:
+            self._terminal_callbacks[key] = on_terminal
 
         # 创建并启动任务
         task = asyncio.create_task(self._execute(key, func, handle, *args, **kwargs))
@@ -420,6 +428,7 @@ class TaskRunner:
             *args: 位置参数
             **kwargs: 关键字参数
         """
+        final_ctl: Optional[TaskCtl] = None
         try:
             # 调用任务函数
             result = func(handle, *args, **kwargs)
@@ -432,22 +441,36 @@ class TaskRunner:
                 async for ctl in result:
                     self._states[key] = ctl
                     if ctl.is_terminal:
+                        final_ctl = ctl
                         break
             else:
                 # 普通协程模式
                 await result
-                self._states[key] = TaskCtl.success("完成")
+                final_ctl = TaskCtl.success("完成")
+                self._states[key] = final_ctl
 
         except asyncio.CancelledError:
-            self._states[key] = TaskCtl.cancel("任务被取消")
+            final_ctl = TaskCtl.cancel("任务被取消")
+            self._states[key] = final_ctl
             logger.info(f"异步任务被取消: {key}")
         except Exception as e:
-            self._states[key] = TaskCtl.fail(str(e), error=e)
+            final_ctl = TaskCtl.fail(str(e), error=e)
+            self._states[key] = final_ctl
             logger.exception(f"异步任务执行异常: {key}")
         finally:
-            # 清理 handle（保留 state 用于查询）
+            # 调用终态回调
+            if final_ctl and final_ctl.is_terminal:
+                callback = self._terminal_callbacks.get(key)
+                if callback:
+                    try:
+                        callback(final_ctl)
+                    except Exception as cb_err:
+                        logger.warning(f"终态回调执行失败 ({key}): {cb_err}")
+
+            # 清理 handle 和回调（保留 state 用于查询）
             self._handles.pop(key, None)
             self._tasks.pop(key, None)
+            self._terminal_callbacks.pop(key, None)
 
 
 class TaskAPI:
@@ -481,15 +504,21 @@ class TaskAPI:
         chat_key: str,
         plugin: "NekroPlugin",
         *args: Any,
+        on_terminal: Optional[Callable[[TaskCtl], None]] = None,
         **kwargs: Any,
     ) -> AsyncTaskHandle:
-        """启动任务"""
+        """启动任务
+
+        Args:
+            on_terminal: 终态回调函数，当任务成功/失败/取消时调用
+        """
         return await TaskRunner().start(
             task_type,
             task_id,
             chat_key,
             plugin,
             *args,
+            on_terminal=on_terminal,
             **kwargs,
         )
 
