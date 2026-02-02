@@ -4,12 +4,10 @@
 # 使用方法:
 # docker compose -f docker/docker-compose.dev.yml up -d
 
-version: "3"
-
 services:
   # PostgreSQL 服务
   nekro_postgres:
-    image: postgres:14
+    image: postgres:16
     container_name: nekro_dev_postgres
     environment:
       POSTGRES_USER: nekro_agent
@@ -19,7 +17,7 @@ services:
     ports:
       - "5433:5432"  # 使用 5433 避免与本地 PostgreSQL 冲突
     volumes:
-      - ../data/dev_postgres_data:/var/lib/postgresql/data
+      - ../data/dev_postgres_data:/var/lib/postgresql/data:z
     networks:
       - nekro_network
     restart: unless-stopped
@@ -45,12 +43,14 @@ services:
     ports:
       - "6199:6099" # 使用 6199 避免与默认 6099 冲突
     volumes:
-      - ../data:/app/nekro_agent_data
-      - ../data/napcat_data/QQ:/app/.config/QQ
-      - ../data/napcat_data/napcat:/app/napcat/config
+      - ../data/nekro_agent:/app/nekro_agent_data
+      - ../data/nekro_agent/napcat_data/QQ:/app/.config/QQ
+      - ../data/nekro_agent/napcat_data/napcat:/app/napcat/config
     networks:
       - nekro_network
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 networks:
   nekro_network:
