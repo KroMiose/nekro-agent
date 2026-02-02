@@ -180,6 +180,21 @@ class BasicConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    ENABLE_VIEW_STR_CONTENT: bool = Field(
+        default=True,
+        title="启用字符串内容查看工具",
+        description="启用后，AI 可以使用 view_str_content 工具查看数据内容（如 Excel、CSV 等）",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="启用字符串内容查看工具",
+                en_US="Enable String Content Viewer Tool",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后，AI 可以使用 view_str_content 工具查看数据内容（如 Excel、CSV 等）",
+                en_US="When enabled, AI can use view_str_content tool to view data content (e.g., Excel, CSV)",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置
@@ -385,7 +400,7 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
     """获取用户头像
 
     Args:
-        user_qq (str): 用户 QQ 号
+        user_qq (str): 用户 QQ 号 (即 onebot 适配器的用户 id)
 
     Returns:
         str: 头像文件路径
@@ -396,19 +411,134 @@ async def get_user_avatar(_ctx: AgentCtx, user_qq: str) -> str:
         raise Exception(f"Error getting user avatar: {e}") from e
 
 
+@plugin.mount_sandbox_method(
+    SandboxMethodType.AGENT,
+    name="查看字符串内容",
+    description="查看字符串内容，支持分页浏览大数据",
+)
+async def view_str_content(
+    _ctx: AgentCtx,
+    data_str: str,
+    start_line: int = 1,
+    end_line: int = 100,
+    max_len: int = 4096,
+    show_line_num: bool = False,
+) -> str:
+    """查看字符串内容，用于在运行时"看到"数据内容以进行分析和决策
+
+    适用场景：
+    - 查看读取的文件内容（Excel、CSV、文本文件等）
+    - 浏览处理后的数据结果
+    - 检查长字符串的具体内容
+
+    Args:
+        data_str (str): 要查看的数据字符串
+        start_line (int): 起始行号，从 1 开始 (Default: 1)
+        end_line (int): 结束行号，包含该行 (Default: 100)
+        max_len (int): 返回内容的最大字符数 (Default: 4096)
+        show_line_num (bool): 是否在每行前显示行号 (Default: False)
+
+    Returns:
+        str: 数据内容，包含元信息（总行数、是否截断等）
+
+    Example:
+        # 查看 Excel 文件内容
+        import pandas as pd
+        df = pd.read_excel("/shared/data.xlsx")
+        view_str_content(df.to_string())  # 查看前100行
+
+        # 分页浏览大数据
+        view_str_content(df.to_string(), start_line=101, end_line=200)  # 查看第101-200行
+
+        # 查看 CSV 文件
+        df = pd.read_csv("/shared/data.csv")
+        view_str_content(df.head(50).to_string())  # 推荐：先用 pandas 筛选再查看
+
+        # 查看文本文件内容并显示行号
+        with open("/shared/readme.txt", "r") as f:
+            content = f.read()
+        view_str_content(content, start_line=1, end_line=50, show_line_num=True)
+    """
+    if not data_str:
+        return "⚠️ 数据为空，没有内容可查看。"
+
+    # 按行分割数据
+    lines = data_str.splitlines()
+    total_lines = len(lines)
+
+    # 参数边界校验
+    start_line = max(1, start_line)
+    end_line = min(total_lines, end_line)
+
+    if start_line > total_lines:
+        return f"⚠️ 起始行号 {start_line} 超出数据范围，数据共 {total_lines} 行。"
+
+    if start_line > end_line:
+        return f"⚠️ 起始行号 ({start_line}) 不能大于结束行号 ({end_line})。"
+
+    # 提取指定行范围（转换为 0-indexed）
+    selected_lines = lines[start_line - 1 : end_line]
+
+    # 构建内容（根据参数决定是否显示行号）
+    if show_line_num:
+        line_width = len(str(end_line))  # 行号宽度，用于对齐
+        formatted_lines = [f"{i:>{line_width}}| {line}" for i, line in enumerate(selected_lines, start=start_line)]
+    else:
+        formatted_lines = selected_lines
+    content = "\n".join(formatted_lines)
+
+    # 检查是否需要截断
+    is_truncated = False
+    if len(content) > max_len:
+        content = content[:max_len]
+        # 确保在换行符处截断，避免截断半行
+        last_newline = content.rfind("\n")
+        if last_newline > max_len // 2:
+            content = content[:last_newline]
+        is_truncated = True
+
+    # 构建元信息头部
+    meta_parts = [f"📊 数据概览: 共 {total_lines} 行"]
+
+    if start_line > 1 or end_line < total_lines:
+        meta_parts.append(f"当前显示: 第 {start_line}-{min(end_line, total_lines)} 行")
+
+    if is_truncated:
+        meta_parts.append("⚠️ 内容已截断，请缩小行范围或减少 max_len 查看完整内容")
+
+    # 提供分页建议
+    if end_line < total_lines:
+        next_start = end_line + 1
+        next_end = min(end_line + 100, total_lines)
+        meta_parts.append(f"💡 查看下一页: view_str_content(your_str, start_line={next_start}, end_line={next_end})")
+
+    meta_header = " | ".join(meta_parts)
+
+    return f"{meta_header}\n{'─' * 60}\n{content}"
+
+
 @plugin.mount_collect_methods()
 async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
     """根据适配器收集可用方法"""
+    methods: List[Callable] = []
+
     # 基础能力：大多数适配器支持文本与文件发送
     if _ctx.adapter_key == "minecraft":
-        return [send_msg_text]
-    if _ctx.adapter_key == "sse":
-        return [send_msg_text, send_msg_file]
-    if _ctx.adapter_key == "onebot_v11":
+        methods = [send_msg_text]
+    elif _ctx.adapter_key == "sse":
+        methods = [send_msg_text, send_msg_file]
+    elif _ctx.adapter_key == "onebot_v11":
         # 仅 OneBot 提供头像工具
-        return [send_msg_text, send_msg_file, get_user_avatar]
-    # 其他（包含 telegram、discord、wechatpad 等）
-    return [send_msg_text, send_msg_file]
+        methods = [send_msg_text, send_msg_file, get_user_avatar]
+    else:
+        # 其他（包含 telegram、discord、wechatpad 等）
+        methods = [send_msg_text, send_msg_file]
+
+    # 根据配置添加字符串内容查看工具
+    if config.ENABLE_VIEW_STR_CONTENT:
+        methods.append(view_str_content)
+
+    return methods
 
 
 @plugin.mount_cleanup_method()
