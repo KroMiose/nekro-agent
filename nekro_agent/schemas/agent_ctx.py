@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot
 from pydantic import BaseModel, Field
+from typing_extensions import deprecated
 
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core.config import CoreConfig, config
@@ -35,17 +36,37 @@ class AgentCtx(BaseModel):
     在插件实践中通常以 `_ctx` 作为变量名提供给插件扩展方法使用。
     """
 
-    container_key: Optional[str] = Field(default=None, description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。")
-    from_chat_key: Optional[str] = Field(default=None, description="来源聊天的唯一标识，用于追溯消息来源。")
+    container_key: Optional[str] = Field(
+        default=None,
+        description="沙盒容器的唯一标识，用于隔离不同聊天频道的运行环境。",
+    )
+    from_chat_key: Optional[str] = Field(
+        default=None,
+        description="来源聊天的唯一标识，用于追溯消息来源。",
+    )
     webhook_request: Optional[WebhookRequest] = Field(
         default=None,
         description="当 Agent 由 Webhook 触发时，这里会包含 Webhook 的请求数据。",
     )
-    channel_id: Optional[str] = Field(default=None, description="当前聊天频道的频道 ID，例如 QQ 群号或 用户 ID 等。")
-    channel_name: Optional[str] = Field(default=None, description="当前聊天频道的频道名称，例如 QQ 群名或 用户名等。")
-    channel_type: Optional[str] = Field(default=None, description="当前聊天频道的频道类型，例如 `group` 或 `private` 等。")
-    adapter_key: Optional[str] = Field(default=None, description="当前聊天频道所使用的适配器标识，例如 `onebot_v11` 等。")
-    _db_chat_channel: Optional["DBChatChannel"] = None  # 当前聊天频道的数据库聊天频道实例
+    channel_id: Optional[str] = Field(
+        default=None,
+        description="当前聊天频道的频道 ID，例如 QQ 群号或 用户 ID 等。",
+    )
+    channel_name: Optional[str] = Field(
+        default=None,
+        description="当前聊天频道的频道名称，例如 QQ 群名或 用户名等。",
+    )
+    channel_type: Optional[str] = Field(
+        default=None,
+        description="当前聊天频道的频道类型，例如 `group` 或 `private` 等。",
+    )
+    adapter_key: Optional[str] = Field(
+        default=None,
+        description="当前聊天频道所使用的适配器标识，例如 `onebot_v11` 等。",
+    )
+    _db_chat_channel: Optional["DBChatChannel"] = (
+        None  # 当前聊天频道的数据库聊天频道实例
+    )
     _trigger_db_user: Optional["DBUser"] = None  # 触发本次 Agent 的 DBUser 实例
 
     @property
@@ -62,6 +83,21 @@ class AgentCtx(BaseModel):
         if not self.from_chat_key:
             raise ValueError("missing from_chat_key")
         return self.from_chat_key
+
+    @property
+    @deprecated("兼容性保留，将在未来版本中移除，请使用 `from_platform_userid` 替代。")
+    def from_user_id(self) -> Optional[str]:
+        """
+        触发本次 Agent 的用户平台 ID。
+        """
+        return self.from_platform_userid
+
+    @property
+    def from_platform_userid(self) -> Optional[str]:
+        """
+        触发本次 Agent 的用户平台 ID。
+        """
+        return self._trigger_db_user and self._trigger_db_user.platform_userid
 
     @property
     def db_chat_channel(self) -> Optional["DBChatChannel"]:
@@ -250,7 +286,12 @@ class AgentCtx(BaseModel):
             >>> # 推送处理结果并触发 AI 响应
             >>> await _ctx.push_system_message("Search result of 'xxx' is: xxx. Please check the result.", trigger_agent=True)
         """
-        await self.ms.push_system(self.chat_key, message, self, trigger_agent=trigger_agent)
+        await self.ms.push_system(
+            self.chat_key,
+            message,
+            self,
+            trigger_agent=trigger_agent,
+        )
 
     async def get_preset_by_id(self, preset_id: int) -> Optional[DBPreset]:
         """根据人设ID获取人设数据对象
@@ -298,7 +339,10 @@ class AgentCtx(BaseModel):
 
             from nekro_agent.models.db_chat_channel import DefaultPreset
 
-            return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
+            return DefaultPreset(
+                name=config.AI_CHAT_PRESET_NAME,
+                content=config.AI_CHAT_PRESET_SETTING,
+            )
 
         # 尝试获取指定的人设
         preset = await DBPreset.get_or_none(id=preset_id)
@@ -311,7 +355,10 @@ class AgentCtx(BaseModel):
 
         from nekro_agent.models.db_chat_channel import DefaultPreset
 
-        return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
+        return DefaultPreset(
+            name=config.AI_CHAT_PRESET_NAME,
+            content=config.AI_CHAT_PRESET_SETTING,
+        )
 
     async def set_preset(self, preset_id: Optional[int] = None) -> bool:
         """设置当前生效的人设"""
@@ -320,7 +367,9 @@ class AgentCtx(BaseModel):
         if not self.chat_key:
             raise ValueError("未找到关联的聊天频道")
         if not self._db_chat_channel:
-            self._db_chat_channel = await DBChatChannel.get_channel(chat_key=self.chat_key)
+            self._db_chat_channel = await DBChatChannel.get_channel(
+                chat_key=self.chat_key,
+            )
         if preset_id == -1:
             preset_id = None
         if self._db_chat_channel.preset_id == preset_id:
@@ -364,7 +413,12 @@ class AgentCtx(BaseModel):
         from nekro_agent.models.db_chat_channel import DBChatChannel
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
-        return cls.create_by_db_chat_channel(db_chat_channel, container_key, from_chat_key, webhook_request)
+        return cls.create_by_db_chat_channel(
+            db_chat_channel,
+            container_key,
+            from_chat_key,
+            webhook_request,
+        )
 
     @classmethod
     async def create_by_webhook(
