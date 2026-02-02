@@ -21,6 +21,16 @@ done
 # Define base URLs
 BASE_URLS="https://raw.githubusercontent.com/KroMiose/nekro-agent/main/docker https://ep.nekro.ai/e/KroMiose/nekro-agent/main/docker"
 
+# Docker 镜像源列表
+DOCKER_IMAGE_MIRRORS="
+https://docker.m.daocloud.io
+https://docker.1ms.run
+https://ccr.ccs.tencentyun.com
+"
+
+# 镜像源配置状态
+DOCKER_MIRROR_CONFIGURED=""
+
 # 下载文件
 get_remote_file() {
     local filename=$1
@@ -47,6 +57,73 @@ generate_random_string() {
     else
         # 最后备选方案：使用日期和随机数
         date +%s%N | md5sum | head -c "$length"
+    fi
+}
+
+# 配置 Docker 镜像源 (无需 jq，直接写入)
+configure_docker_mirrors() {
+    local daemon_file="/etc/docker/daemon.json"
+    
+    echo "配置 Docker 镜像源..."
+    
+    # 构建 JSON 数组
+    local mirrors_json=""
+    for mirror in $DOCKER_IMAGE_MIRRORS; do
+        [ -z "$mirror" ] && continue
+        [ -n "$mirrors_json" ] && mirrors_json="$mirrors_json,"
+        mirrors_json="${mirrors_json}\"${mirror}\""
+    done
+    
+    # 备份已有配置
+    if [ -f "$daemon_file" ]; then
+        cp "$daemon_file" "$daemon_file.bak"
+        echo "已备份原配置到 $daemon_file.bak"
+    fi
+    
+    # 写入新配置
+    mkdir -p /etc/docker
+    cat > "$daemon_file" << EOF
+{
+  "registry-mirrors": [$mirrors_json]
+}
+EOF
+    
+    echo "✓ Docker 镜像源配置完成"
+    echo "镜像源列表:"
+    for mirror in $DOCKER_IMAGE_MIRRORS; do
+        [ -n "$mirror" ] && echo "  - $mirror"
+    done
+    
+    # 重启 Docker 服务
+    echo "重启 Docker 服务..."
+    if /etc/init.d/dockerd restart >/dev/null 2>&1; then
+        echo "✓ Docker 服务重启完成"
+        sleep 2  # 等待服务完全启动
+    else
+        echo "⚠ Docker 服务重启失败，请手动重启"
+    fi
+}
+
+# 移除 Docker 镜像源配置
+remove_docker_mirrors() {
+    local daemon_file="/etc/docker/daemon.json"
+    
+    echo "移除 Docker 镜像源配置..."
+    
+    if [ -f "$daemon_file.bak" ]; then
+        mv "$daemon_file.bak" "$daemon_file"
+        echo "✓ 已恢复原始配置"
+    else
+        rm -f "$daemon_file"
+        echo "✓ 已移除镜像源配置"
+    fi
+    
+    # 重启 Docker 服务
+    echo "重启 Docker 服务..."
+    if /etc/init.d/dockerd restart >/dev/null 2>&1; then
+        echo "✓ Docker 服务重启完成"
+    else
+        echo "⚠ Docker 服务重启失败，请手动重启"
     fi
 }
 
@@ -326,6 +403,15 @@ if ! echo "$yn" | grep -q "^[Yy]"; then
     exit 0
 fi
 
+# 询问是否配置 Docker 镜像源
+read -r -p "是否配置 Docker 镜像源加速？(国内网络推荐) [Y/n] " yn
+echo ""
+[ -z "$yn" ] && yn=y
+if echo "$yn" | grep -q "^[Yy]"; then
+    DOCKER_MIRROR_CONFIGURED=true
+    configure_docker_mirrors
+fi
+
 # 拉取 docker-compose.yml 文件
 if [ -z "$WITH_NAPCAT" ]; then
     read -r -p "是否同时使用 napcat 服务？[Y/n] " yn
@@ -485,5 +571,20 @@ echo "=== 注意事项 ==="
 echo "1. 软路由防火墙规则已自动配置"
 echo "2. 如果需要从外部访问，请将上述地址中的 127.0.0.1 替换为您的路由器IP"
 echo "3. 应用数据存储在: $NEKRO_DATA_DIR"
+
+# 询问是否保留 Docker 镜像源配置
+if [ "$DOCKER_MIRROR_CONFIGURED" = "true" ]; then
+    echo ""
+    read -r -p "是否保留 Docker 镜像源配置？[Y/n] " yn
+    echo ""
+    [ -z "$yn" ] && yn=y
+    if echo "$yn" | grep -q "^[Yy]"; then
+        echo "✓ 镜像源配置已保留"
+        # 清理备份文件
+        rm -f /etc/docker/daemon.json.bak
+    else
+        remove_docker_mirrors
+    fi
+fi
 
 echo "安装完成！祝您使用愉快！"
