@@ -506,15 +506,28 @@ if command -v uci >/dev/null 2>&1; then
     /etc/init.d/firewall restart >/dev/null 2>&1 && echo "防火墙重启完成"
 fi
 
-# 获取局域网IP地址
+# 获取局域网IP地址（排除 Docker 网络）
 get_lan_ip() {
-    # 尝试多种方法获取局域网IP
     local ip
-    ip=$(ip addr show | grep -E 'inet (192\.168|10\.|172\.1[6789]|172\.2[0-9]|172\.3[01])' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d'/' -f1)
     
-    if [ -z "$ip" ]; then
-        ip=$(ifconfig | grep -E 'inet (addr:)?(192\.168|10\.|172\.1[6789]|172\.2[0-9]|172\.3[01])' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d':' -f2)
+    # 方法1: 使用 uci 获取 OpenWrt/iStoreOS 的 LAN IP（最可靠）
+    if command -v uci >/dev/null 2>&1; then
+        ip=$(uci get network.lan.ipaddr 2>/dev/null)
+        if [ -n "$ip" ]; then
+            echo "$ip"
+            return
+        fi
     fi
+    
+    # 方法2: 从 br-lan 接口获取（OpenWrt 默认桥接接口）
+    ip=$(ip addr show br-lan 2>/dev/null | grep -E 'inet ' | awk '{print $2}' | cut -d'/' -f1 | head -1)
+    if [ -n "$ip" ]; then
+        echo "$ip"
+        return
+    fi
+    
+    # 方法3: 通用方法，排除 Docker 相关接口
+    ip=$(ip addr show | grep -v -E '(docker|br-[0-9a-f]+|veth)' | grep -E 'inet (192\.168|10\.|172\.(1[6-9]|2[0-9]|3[01]))' | grep -v '127.0.0.1' | head -1 | awk '{print $2}' | cut -d'/' -f1)
     
     echo "$ip"
 }
