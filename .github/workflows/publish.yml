@@ -192,6 +192,7 @@ jobs:
           uv build
 
       - name: Publish SDK to PyPI
+        continue-on-error: true  # SDK 版本未更新时不报错
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
