@@ -123,6 +123,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = re.sub(r"\( ?@(\d+) ?\)", r"[@id:\1@]", raw_response)
     # 修正 @123456@) -> [@id:123456@]
     raw_response = re.sub(r"@(\d+)@ ?\)", r"[@id:\1@]", raw_response)
+    # 修正 @id:123456@ -> [@id:123456@] (不带 [] 的情况，使用负向后顾避免重复处理)
+    raw_response = re.sub(r"(?<!\[)@id:(\d+)@(?!\])", r"[@id:\1@]", raw_response)
 
     # 处理类似 `<1952b262 | message separator>` 模型幻觉续写的情况，截断其后的所有内容
     reg = r"<\w{8} \| message separator>"
