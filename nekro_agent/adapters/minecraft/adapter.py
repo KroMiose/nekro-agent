@@ -35,22 +35,22 @@ class ServerConfig(BaseModel):
     ENABLE_QUEQIAO_V2: bool = Field(
         default=False,
         title="启用 Queqiao V2 协议",
-        description="为该服务器启用 Queqiao V2（开=V2，关=V1）",
+        description="为该服务器启用 Queqiao V2（开=V2，关=V1；关闭时下面的 QUEQIAO_* 配置会被忽略）",
     )
     QUEQIAO_WS_URL: str = Field(
         default="ws://localhost:8080",
         title="Queqiao V2 WebSocket 地址",
-        description="Queqiao 插件的 WebSocket 服务地址（仅该服务器启用 V2 时生效）",
+        description="Queqiao 插件的 WebSocket 服务地址（仅该服务器启用 V2 时生效，未启用将忽略）",
     )
     QUEQIAO_TOKEN: str = Field(
         default="",
         title="Queqiao V2 Token",
-        description="连接 Queqiao 的认证 Token（仅该服务器启用 V2 时生效）",
+        description="连接 Queqiao 的认证 Token（仅该服务器启用 V2 时生效，未启用将忽略）",
     )
     QUEQIAO_CLIENT_NAME: str = Field(
         default="nekro-agent",
         title="Queqiao V2 客户端名称",
-        description="连接时使用的客户端名称 (x-self-name，仅该服务器启用 V2 时生效)",
+        description="连接时使用的客户端名称 (x-self-name，仅该服务器启用 V2 时生效，未启用将忽略)",
     )
     SERVER_NAME: str = Field(
         default="",
@@ -101,7 +101,7 @@ class MinecraftConfig(BaseAdapterConfig):
     SERVERS: List[ServerConfig] = Field(
         default_factory=list,
         title="服务器列表",
-        description="在这里配置你的 Minecraft 服务器（每个服务器可选择 V1/V2）",
+        description="在这里配置你的 Minecraft 服务器（每个服务器可选择 V1/V2；未启用 V2 时可忽略 QUEQIAO_* 字段）",
         json_schema_extra=ExtraField(
             is_need_restart= True,
         ).model_dump(),
@@ -120,7 +120,7 @@ class MinecraftConfig(BaseAdapterConfig):
     MINECRAFT_ACCESS_TOKEN: str = Field(
         default="",
         title="Minecraft 服务器 WebSocket 认证密钥",
-        description="用于验证连接（仅 V1 模式使用）",
+        description="用于验证连接（仅 V1 模式使用，所有 V1 服务器共用）",
         json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_access_token",
