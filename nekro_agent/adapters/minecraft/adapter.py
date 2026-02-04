@@ -52,6 +52,14 @@ class ServerConfig(BaseModel):
         title="Queqiao V2 客户端名称",
         description="连接时使用的客户端名称 (x-self-name，仅该服务器启用 V2 时生效，未启用将忽略)",
     )
+    QUEQIAO_SELF_ID: str = Field(
+        default="",
+        title="Queqiao V2 自身标识符",
+        description=(
+            "用于识别自身消息的稳定标识符（严格匹配 player.uuid）；"
+            "留空则不判定为自身消息"
+        ),
+    )
     SERVER_NAME: str = Field(
         default="",
         title="服务器名称",
@@ -176,11 +184,10 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         """初始化Minecraft适配器"""
         super().__init__(config_cls)
         # Queqiao V2 related
-        self.ws = None
         self._running = False
-        self._connect_task = None
+        self._connect_tasks: Dict[str, asyncio.Task] = {}
         self._reconnect_interval = 5
-        self._active_v2_server: Optional[ServerConfig] = None
+        self._v2_ws: Dict[str, Any] = {}
 
     @property
     def key(self) -> str:
@@ -210,12 +217,18 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         """初始化适配器"""
         v2_servers = self._get_v2_servers()
         if v2_servers:
-            if len(v2_servers) > 1:
-                logger.warning("Minecraft Adapter: 检测到多个 V2 服务器，仅支持单个 V2 连接，将使用第一个")
-            self._active_v2_server = v2_servers[0]
             logger.info("Minecraft Adapter: 检测到 V2 服务器配置，正在初始化 WebSocket 连接...")
             self._running = True
-            self._connect_task = self._create_connect_task()
+            seen_names: set[str] = set()
+            for server in v2_servers:
+                if server.SERVER_NAME in seen_names:
+                    logger.error(
+                        "Minecraft Adapter: 检测到重复的 V2 服务器名称 %s，将跳过该配置",
+                        server.SERVER_NAME,
+                    )
+                    continue
+                seen_names.add(server.SERVER_NAME)
+                self._connect_tasks[server.SERVER_NAME] = self._create_connect_task(server)
 
         try:
             driver = nonebot.get_driver()
@@ -257,20 +270,23 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             logger.error(f"Minecraft 适配器初始化失败: {e}", exc_info=True)
             logger.warning("Minecraft 适配器未能加载")
 
-    def _create_connect_task(self):
-        return asyncio.create_task(self._queqiao_loop())
+    def _create_connect_task(self, server: ServerConfig):
+        return asyncio.create_task(self._queqiao_loop(server))
 
     async def cleanup(self) -> None:
         """清理适配器"""
         if self._running:
             import asyncio
             self._running = False
-            if self.ws:
-                await self.ws.close()
-            if self._connect_task:
-                self._connect_task.cancel()
+            for ws in list(self._v2_ws.values()):
                 try:
-                    await self._connect_task
+                    await ws.close()
+                except Exception:
+                    pass
+            for task in list(self._connect_tasks.values()):
+                task.cancel()
+                try:
+                    await task
                 except asyncio.CancelledError:
                     pass
         return
@@ -297,18 +313,38 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             return ""
         return str(raw)
 
-    def _parse_v2_chat_event(self, data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    def _resolve_v2_is_self(
+        self, player: Dict[str, Any], server_config: Optional[ServerConfig]
+    ) -> bool:
+        if not server_config:
+            return False
+        self_id = str(server_config.QUEQIAO_SELF_ID).strip()
+        if not self_id:
+            return False
+        player_uuid = player.get("uuid")
+        if not player_uuid:
+            return False
+        return str(player_uuid).lower() == self_id.lower()
+
+    def _parse_v2_chat_event(
+        self,
+        data: Dict[str, Any],
+        server_config: Optional[ServerConfig],
+    ) -> Optional[Dict[str, Any]]:
         post_type = data.get("post_type")
-        event_name = data.get("event_name")
-        sub_type = data.get("sub_type")
+        event_name = data.get("event_name") or None
+        sub_type = data.get("sub_type") or None
         if post_type != "message":
             return None
-        if event_name and event_name != "PlayerChatEvent" and sub_type != "player_chat":
+        valid_message_events = {
+            ("PlayerChatEvent", "player_chat"),
+        }
+        if (event_name, sub_type) not in valid_message_events:
             return None
 
-        server_name = data.get("server_name")
-        if not server_name and self._active_v2_server:
-            server_name = self._active_v2_server.SERVER_NAME
+        server_name = data.get("server_name") or (
+            server_config.SERVER_NAME if server_config else None
+        )
         if not server_name:
             server_name = "default"
         player = data.get("player") if isinstance(data.get("player"), dict) else {}
@@ -329,8 +365,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             "sender_name": sender_name,
             "message_id": str(data.get("message_id", "")),
             "text": text_content,
-            "is_self": sender_name
-            == (self._active_v2_server.QUEQIAO_CLIENT_NAME if self._active_v2_server else ""),
+            "is_self": self._resolve_v2_is_self(player, server_config),
         }
 
     def _build_v2_message_components(self, request: PlatformSendRequest) -> List[Dict[str, Any]]:
@@ -347,52 +382,56 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                     components.append({"text": text})
         return components
 
-    async def _queqiao_loop(self):
+    async def _queqiao_loop(self, server: ServerConfig):
         """Queqiao V2 WebSocket Loop"""
         import asyncio
         import websockets
 
-        if not self._active_v2_server:
-            return
+        server_name = server.SERVER_NAME or "default"
 
         while self._running:
             try:
                 headers = {
-                    "x-self-name": self._active_v2_server.QUEQIAO_CLIENT_NAME
+                    "x-self-name": server.QUEQIAO_CLIENT_NAME
                 }
-                if self._active_v2_server.QUEQIAO_TOKEN:
-                    headers["Authorization"] = f"Bearer {self._active_v2_server.QUEQIAO_TOKEN}"
-                
-                logger.info(f"Queqiao 正在连接到 {self._active_v2_server.QUEQIAO_WS_URL}...")
+                if server.QUEQIAO_TOKEN:
+                    headers["Authorization"] = f"Bearer {server.QUEQIAO_TOKEN}"
+
+                logger.info(
+                    f"Queqiao 正在连接到 {server.QUEQIAO_WS_URL} (server={server_name})..."
+                )
                 async with websockets.connect(
-                    self._active_v2_server.QUEQIAO_WS_URL, additional_headers=headers
+                    server.QUEQIAO_WS_URL, additional_headers=headers
                 ) as ws:
-                    self.ws = ws
-                    logger.info("Queqiao V2 连接成功")
-                    await self._recv_loop()
+                    self._v2_ws[server_name] = ws
+                    logger.info(f"Queqiao V2 连接成功 (server={server_name})")
+                    await self._recv_loop(ws, server)
             except Exception as e:
-                logger.warning(f"Queqiao 连接断开或失败: {e}，{self._reconnect_interval}秒后重连")
-                self.ws = None
+                logger.warning(
+                    "Queqiao 连接断开或失败 (server=%s): %s，%s秒后重连",
+                    server_name,
+                    e,
+                    self._reconnect_interval,
+                )
+            finally:
+                self._v2_ws.pop(server_name, None)
             
             if self._running:
                 await asyncio.sleep(self._reconnect_interval)
 
-    async def _recv_loop(self):
+    async def _recv_loop(self, ws: Any, server_config: ServerConfig):
         """Recv Loop for Queqiao"""
         # 延迟导入以避免循环依赖
         from nekro_agent.adapters.interface.collector import collect_message
         from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType
         from nekro_agent.adapters.interface.schemas.platform import PlatformMessage
-        
-        if not self.ws:
-            return
-            
-        async for message in self.ws:
+
+        async for message in ws:
             try:
                 data = json.loads(message)
                 logger.debug(f"Queqiao V2 收到消息: {data}")
 
-                parsed = self._parse_v2_chat_event(data)
+                parsed = self._parse_v2_chat_event(data, server_config)
                 if not parsed:
                     continue
 
@@ -475,18 +514,17 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         use_v2 = bool(server_config and server_config.ENABLE_QUEQIAO_V2)
 
         if use_v2:
-            if self._active_v2_server and server_config != self._active_v2_server:
+            ws = self._v2_ws.get(server_config.SERVER_NAME)
+            if not ws:
                 return PlatformSendResponse(
                     success=False,
-                    error_message="当前仅支持单个 V2 服务器连接，请仅启用一个 V2 服务器",
+                    error_message="Queqiao V2 未连接",
                 )
-            if not self.ws:
-                return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
             try:
                 from websockets.protocol import State
             except Exception:
                 State = None
-            if State is not None and self.ws.state != State.OPEN:
+            if State is not None and ws.state != State.OPEN:
                 return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
             try:
                 if len(request.segments) == 1 and request.segments[0].type == PlatformSendSegmentType.TEXT:
@@ -495,7 +533,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                         try:
                             payload = json.loads(raw_payload)
                             if isinstance(payload, dict) and payload.get("api") and payload.get("data") is not None:
-                                await self.ws.send(json.dumps(payload))
+                                await ws.send(json.dumps(payload))
                                 return PlatformSendResponse(success=True)
                         except json.JSONDecodeError:
                             pass
@@ -518,7 +556,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 }
                 
                 import json
-                await self.ws.send(json.dumps(payload))
+                await ws.send(json.dumps(payload))
                 return PlatformSendResponse(success=True)
             except Exception as e:
                 logger.error(f"Queqiao V2 发送失败: {e}")
