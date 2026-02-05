@@ -3,6 +3,7 @@ import json
 import os
 import re
 import websockets
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Type
 
 import nonebot
@@ -85,6 +86,16 @@ class ServerConfig(BaseModel):
         title="服务器RCON密码",
         description="服务器RCON密码",
     )
+
+
+@dataclass
+class V2ChatEvent:
+    server_name: str
+    sender_id: str
+    sender_name: str
+    message_id: str
+    text: str
+    is_self: bool
 
 
 class MinecraftConfig(BaseAdapterConfig):
@@ -273,6 +284,98 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     def _create_connect_task(self, server: ServerConfig):
         return asyncio.create_task(self._queqiao_loop(server))
 
+    async def _queqiao_loop(self, server: ServerConfig):
+        """Queqiao V2 WebSocket Loop"""
+        server_name = server.SERVER_NAME or "default"
+
+        while self._running:
+            try:
+                headers = {
+                    "x-self-name": server.QUEQIAO_CLIENT_NAME
+                }
+                if server.QUEQIAO_TOKEN:
+                    headers["Authorization"] = f"Bearer {server.QUEQIAO_TOKEN}"
+
+                logger.info(
+                    f"Queqiao 正在连接到 {server.QUEQIAO_WS_URL} (server={server_name})..."
+                )
+                async with websockets.connect(
+                    server.QUEQIAO_WS_URL, additional_headers=headers
+                ) as ws:
+                    self._v2_ws[server_name] = ws
+                    logger.info(f"Queqiao V2 连接成功 (server={server_name})")
+                    await self._recv_loop(ws, server)
+            except asyncio.CancelledError:
+                # 显式捕获 CancelledError，避免在 shutdown 时被当作一般异常记录错误日志
+                raise
+            except Exception as e:
+                logger.warning(
+                    "Queqiao 连接断开或失败 (server=%s): %s，%s秒后重连",
+                    server_name,
+                    e,
+                    self._reconnect_interval,
+                )
+            finally:
+                self._v2_ws.pop(server_name, None)
+            
+            if self._running:
+                await asyncio.sleep(self._reconnect_interval)
+
+    async def _recv_loop(self, ws: Any, server_config: ServerConfig):
+        """Recv Loop for Queqiao"""
+        # 延迟导入以避免循环依赖
+        from nekro_agent.adapters.interface.collector import collect_message
+        from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType
+        from nekro_agent.adapters.interface.schemas.platform import PlatformMessage
+
+        async for message in ws:
+            try:
+                data = json.loads(message)
+                logger.debug(f"Queqiao V2 收到消息: {data}")
+
+                event = self._parse_v2_chat_event(data, server_config)
+                if not event:
+                    continue
+
+                platform_user = PlatformUser(
+                    platform_name=self.key,
+                    user_id=event.sender_id,
+                    user_name=event.sender_name,
+                    user_avatar="",
+                )
+
+                platform_channel = PlatformChannel(
+                    platform_name=self.key,
+                    channel_id=event.server_name,
+                    channel_name=event.server_name,
+                    channel_type=ChatType.GROUP,
+                )
+
+                msg_segments = [
+                    ChatMessageSegment(
+                        type=ChatMessageSegmentType.TEXT,
+                        text=event.text,
+                    ),
+                ]
+
+                platform_message = PlatformMessage(
+                    message_id=event.message_id,
+                    sender_id=event.sender_id,
+                    sender_name=event.sender_name,
+                    content_text=event.text,
+                    content_data=msg_segments,
+                    sender_nickname=event.sender_name,
+                    is_self=event.is_self,
+                    is_tome=False,
+                )
+
+                await collect_message(self, platform_channel, platform_user, platform_message)
+                    
+            except json.JSONDecodeError:
+                logger.warning(f"Queqiao V2 收到非 JSON 消息: {message}")
+            except Exception as e:
+                logger.error(f"Queqiao V2 处理消息异常: {e}", exc_info=True)
+
     async def cleanup(self) -> None:
         """清理适配器"""
         if self._running:
@@ -290,6 +393,8 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 except asyncio.CancelledError:
                     pass
         return
+
+    # --- Queqiao V2 internals below ---
 
     def _get_v2_servers(self) -> List[ServerConfig]:
         return [
@@ -330,7 +435,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         self,
         data: Dict[str, Any],
         server_config: Optional[ServerConfig],
-    ) -> Optional[Dict[str, Any]]:
+    ) -> Optional[V2ChatEvent]:
         post_type = data.get("post_type")
         event_name = data.get("event_name") or None
         sub_type = data.get("sub_type") or None
@@ -343,10 +448,8 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             return None
 
         server_name = data.get("server_name") or (
-            server_config.SERVER_NAME if server_config else None
+            server_config.SERVER_NAME if server_config else "default"
         )
-        if not server_name:
-            server_name = "default"
         player = data.get("player") if isinstance(data.get("player"), dict) else {}
         sender_name = str(player.get("nickname") or player.get("name") or "Unknown")
         sender_id = str(player.get("uuid") or sender_name)
@@ -358,15 +461,14 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             raw_msg = data.get("rawMessage")
         text_content = self._extract_text_from_component(raw_msg)
 
-        return {
-            "channel_id": str(server_name),
-            "channel_name": str(server_name),
-            "sender_id": sender_id,
-            "sender_name": sender_name,
-            "message_id": str(data.get("message_id", "")),
-            "text": text_content,
-            "is_self": self._resolve_v2_is_self(player, server_config),
-        }
+        return V2ChatEvent(
+            server_name=str(server_name),
+            sender_id=sender_id,
+            sender_name=sender_name,
+            message_id=str(data.get("message_id", "")),
+            text=text_content,
+            is_self=self._resolve_v2_is_self(player, server_config),
+        )
 
     def _build_v2_message_components(self, request: PlatformSendRequest) -> List[Dict[str, Any]]:
         components: List[Dict[str, Any]] = []
@@ -382,97 +484,61 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                     components.append({"text": text})
         return components
 
-    async def _queqiao_loop(self, server: ServerConfig):
-        """Queqiao V2 WebSocket Loop"""
-        import asyncio
-        import websockets
+    async def _send_v2(
+        self,
+        request: PlatformSendRequest,
+        server_config: ServerConfig,
+    ) -> PlatformSendResponse:
+        ws = self._v2_ws.get(server_config.SERVER_NAME)
+        if not ws:
+            return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
 
-        server_name = server.SERVER_NAME or "default"
+        try:
+            from websockets.protocol import State
+        except Exception:
+            State = None
+        if State is not None and ws.state != State.OPEN:
+            return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
 
-        while self._running:
-            try:
-                headers = {
-                    "x-self-name": server.QUEQIAO_CLIENT_NAME
-                }
-                if server.QUEQIAO_TOKEN:
-                    headers["Authorization"] = f"Bearer {server.QUEQIAO_TOKEN}"
+        try:
+            # raw JSON passthrough branch (existing behavior)
+            if (
+                len(request.segments) == 1
+                and request.segments[0].type == PlatformSendSegmentType.TEXT
+            ):
+                raw_payload = request.segments[0].content.strip()
+                if raw_payload.startswith("{"):
+                    try:
+                        payload = json.loads(raw_payload)
+                        if (
+                            isinstance(payload, dict)
+                            and payload.get("api")
+                            and payload.get("data") is not None
+                        ):
+                            await ws.send(json.dumps(payload))
+                            return PlatformSendResponse(success=True)
+                    except json.JSONDecodeError:
+                        pass
 
-                logger.info(
-                    f"Queqiao 正在连接到 {server.QUEQIAO_WS_URL} (server={server_name})..."
-                )
-                async with websockets.connect(
-                    server.QUEQIAO_WS_URL, additional_headers=headers
-                ) as ws:
-                    self._v2_ws[server_name] = ws
-                    logger.info(f"Queqiao V2 连接成功 (server={server_name})")
-                    await self._recv_loop(ws, server)
-            except Exception as e:
-                logger.warning(
-                    "Queqiao 连接断开或失败 (server=%s): %s，%s秒后重连",
-                    server_name,
-                    e,
-                    self._reconnect_interval,
-                )
-            finally:
-                self._v2_ws.pop(server_name, None)
-            
-            if self._running:
-                await asyncio.sleep(self._reconnect_interval)
-
-    async def _recv_loop(self, ws: Any, server_config: ServerConfig):
-        """Recv Loop for Queqiao"""
-        # 延迟导入以避免循环依赖
-        from nekro_agent.adapters.interface.collector import collect_message
-        from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType
-        from nekro_agent.adapters.interface.schemas.platform import PlatformMessage
-
-        async for message in ws:
-            try:
-                data = json.loads(message)
-                logger.debug(f"Queqiao V2 收到消息: {data}")
-
-                parsed = self._parse_v2_chat_event(data, server_config)
-                if not parsed:
-                    continue
-
-                platform_user = PlatformUser(
-                    platform_name=self.key,
-                    user_id=parsed["sender_id"],
-                    user_name=parsed["sender_name"],
-                    user_avatar="",
+            msg_components = self._build_v2_message_components(request)
+            if not msg_components:
+                return PlatformSendResponse(
+                    success=False,
+                    error_message="Queqiao V2 发送内容为空",
                 )
 
-                platform_channel = PlatformChannel(
-                    platform_name=self.key,
-                    channel_id=parsed["channel_id"],
-                    channel_name=parsed["channel_name"],
-                    channel_type=ChatType.GROUP,
-                )
+            payload = {
+                "api": "broadcast",
+                "data": {
+                    "message": msg_components,
+                },
+            }
+            await ws.send(json.dumps(payload))
+            return PlatformSendResponse(success=True)
 
-                msg_segments = [
-                    ChatMessageSegment(
-                        type=ChatMessageSegmentType.TEXT,
-                        text=parsed["text"],
-                    ),
-                ]
-
-                platform_message = PlatformMessage(
-                    message_id=parsed["message_id"],
-                    sender_id=parsed["sender_id"],
-                    sender_name=parsed["sender_name"],
-                    content_text=parsed["text"],
-                    content_data=msg_segments,
-                    sender_nickname=parsed["sender_name"],
-                    is_self=parsed["is_self"],
-                    is_tome=False,
-                )
-
-                await collect_message(self, platform_channel, platform_user, platform_message)
-                    
-            except json.JSONDecodeError:
-                logger.warning(f"Queqiao V2 收到非 JSON 消息: {message}")
-            except Exception as e:
-                logger.error(f"Queqiao V2 处理消息异常: {e}", exc_info=True)
+        except Exception as e:
+            logger.error(f"Queqiao V2 发送失败: {e}")
+            return PlatformSendResponse(success=False, error_message=str(e))
 
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
@@ -514,53 +580,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         use_v2 = bool(server_config and server_config.ENABLE_QUEQIAO_V2)
 
         if use_v2:
-            ws = self._v2_ws.get(server_config.SERVER_NAME)
-            if not ws:
-                return PlatformSendResponse(
-                    success=False,
-                    error_message="Queqiao V2 未连接",
-                )
-            try:
-                from websockets.protocol import State
-            except Exception:
-                State = None
-            if State is not None and ws.state != State.OPEN:
-                return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
-            try:
-                if len(request.segments) == 1 and request.segments[0].type == PlatformSendSegmentType.TEXT:
-                    raw_payload = request.segments[0].content.strip()
-                    if raw_payload.startswith("{"):
-                        try:
-                            payload = json.loads(raw_payload)
-                            if isinstance(payload, dict) and payload.get("api") and payload.get("data") is not None:
-                                await ws.send(json.dumps(payload))
-                                return PlatformSendResponse(success=True)
-                        except json.JSONDecodeError:
-                            pass
-
-                msg_components = self._build_v2_message_components(request)
-                if not msg_components:
-                    return PlatformSendResponse(success=False, error_message="Queqiao V2 发送内容为空")
-
-                # 默认只实现 broadcast (对应 chat_key 无特定区分或 'broadcast' 关键字)
-                # 后续可根据 request.chat_key 区分私聊 (send_private_msg)
-
-                # Assume if target is not a known generic, it's a player? 
-                # For now simplify: All messages are broadcast unless specifically marked
-
-                payload = {
-                    "api": "broadcast",
-                    "data": {
-                        "message": msg_components
-                    }
-                }
-                
-                import json
-                await ws.send(json.dumps(payload))
-                return PlatformSendResponse(success=True)
-            except Exception as e:
-                logger.error(f"Queqiao V2 发送失败: {e}")
-                return PlatformSendResponse(success=False, error_message=str(e))
+            return await self._send_v2(request, server_config)
                 
         # Legacy/NoneBot Logic
         for seg in request.segments:
