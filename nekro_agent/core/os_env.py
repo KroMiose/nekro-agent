@@ -79,6 +79,15 @@ NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"  # NapCa
 WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"  # 壁纸目录
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
+# =============================================================================
+# Timer / Calendar data paths (under DATA_DIR)
+# =============================================================================
+TIMER_SYSTEM_DIR: str = APP_SYSTEM_DIR + "/timer"
+TIMER_ONE_SHOT_PERSIST_PATH: str = TIMER_SYSTEM_DIR + "/one_shot_timers.json"
+
+CALENDAR_SYSTEM_DIR: str = APP_SYSTEM_DIR + "/calendar"
+CALENDAR_CN_HOLIDAY_DIR: str = CALENDAR_SYSTEM_DIR + "/cn_holidays"
+
 
 # 设置上传目录及其子目录权限
 with contextlib.suppress(Exception):

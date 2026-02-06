@@ -53,6 +53,8 @@ dependencies = [
     "discord-py>=2.5.2,<3.0.0",
     "aiohttp>=3.11.15,<4.0.0",
     "python-telegram-bot>=22.4,<23.0",
+    "croniter>=6.0.0",
+    "chinesecalendar>=1.11.0",
 ]
 
 [project.optional-dependencies]

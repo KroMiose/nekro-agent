@@ -16,7 +16,8 @@ from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.festival_service import festival_service
 from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.plugin.collector import init_plugins
-from nekro_agent.services.timer_service import timer_service
+from nekro_agent.services.timer.recurring_timer_service import recurring_timer_service
+from nekro_agent.services.timer.timer_service import timer_service
 from nekro_agent.systems.cloud.scheduler import start_telemetry_task
 
 logging.getLogger("passlib").setLevel(logging.ERROR)
@@ -74,6 +75,9 @@ async def on_startup():
     await timer_service.start()
     logger.info("Timer service initialized")
 
+    await recurring_timer_service.start()
+    logger.info("Recurring timer service initialized")
+
     # 初始化节日提醒
     await festival_service.init_festivals()
     logger.info("Festival service initialized")
@@ -84,6 +88,7 @@ async def on_startup():
 
 @get_driver().on_shutdown
 async def on_shutdown():
+    await recurring_timer_service.stop()
     await timer_service.stop()
     await cleanup_adapters(get_app())
 

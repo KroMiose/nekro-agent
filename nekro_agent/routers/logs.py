@@ -29,11 +29,13 @@ async def get_logs(
     page: int = 1,
     page_size: int = 500,
     source: Optional[str] = None,
+    subsystem: Optional[str] = None,
+    plugin_key: Optional[str] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> Ret:
     """获取历史日志记录"""
-    logs = await get_log_records(page, page_size, source)
-    total = await get_log_records(1, 0, source, count_only=True)  # 获取总数
+    logs = await get_log_records(page, page_size, source, count_only=False, subsystem=subsystem, plugin_key=plugin_key)
+    total = await get_log_records(1, 0, source, count_only=True, subsystem=subsystem, plugin_key=plugin_key)  # 获取总数
     return Ret.success(
         msg="获取成功",
         data={

@@ -21,6 +21,7 @@ from fastapi import APIRouter
 
 from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.schemas.agent_ctx import AgentCtx
@@ -103,6 +104,12 @@ class NekroPlugin:
         self.i18n_description = i18n_description
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
+
+        # 插件子 logger：用于前端按插件过滤日志
+        # 约定字段：
+        # - subsystem="plugin"
+        # - plugin_key=author.module_name
+        self.logger = get_sub_logger("plugin", log_name=f"plugin.{self._key}", plugin_key=self._key)
         self._collect_methods_func: Optional[CollectMethodsFunc] = None
         self._is_builtin: bool = is_builtin  # 标记是否为内置插件
         self._is_package: bool = is_package  # 标记是否为包
@@ -189,7 +196,7 @@ class NekroPlugin:
             try:
                 self._config = self._Configs.load_config(file_path=self._plugin_config_path, auto_register=True)
             except Exception:
-                logger.exception(f"读取插件配置失败: {self.key} | 配置文件格式错误")
+                self.logger.exception(f"读取插件配置失败: {self.key} | 配置文件格式错误")
                 raise
             self._config.dump_config(self._plugin_config_path)
         return cast(config_cls, self._config)  # pyright: ignore[reportInvalidTypeForm]
@@ -214,9 +221,9 @@ class NekroPlugin:
             self._config = config
             # 保存配置到文件
             config.dump_config(self._plugin_config_path)
-            logger.debug(f"插件 {self.key} 配置保存成功")
+            self.logger.debug(f"插件 {self.key} 配置保存成功")
         except Exception:
-            logger.exception(f"保存插件配置失败: {self.key} | 配置文件写入错误")
+            self.logger.exception(f"保存插件配置失败: {self.key} | 配置文件写入错误")
             raise
 
     def get_plugin_path(self) -> Path:
@@ -283,7 +290,7 @@ class NekroPlugin:
             self._router_func = func
             # 清除缓存的路由实例，确保重新生成
             self._router = None
-            logger.debug(f"插件 {self.name} 路由生成函数注册完成")
+            self.logger.debug(f"插件 {self.name} 路由生成函数注册完成")
             return func
 
         return decorator
@@ -307,13 +314,13 @@ class NekroPlugin:
             self._router = self._router_func()
 
             if not isinstance(self._router, APIRouter):
-                logger.error(f"插件 {self.name} 的路由生成函数必须返回 APIRouter 实例，实际返回: {type(self._router)}")
+                self.logger.error(f"插件 {self.name} 的路由生成函数必须返回 APIRouter 实例，实际返回: {type(self._router)}")
                 return None
-        except Exception as e:
-            logger.exception(f"插件 {self.name} 生成路由时出错: {e}")
+        except Exception:
+            self.logger.exception(f"插件 {self.name} 生成路由时出错")
             return None
         else:
-            logger.info(f"插件 {self.name} 路由生成成功，路由数量: {len(self._router.routes)}")
+            self.logger.info(f"插件 {self.name} 路由生成成功，路由数量: {len(self._router.routes)}")
             return self._router
 
     def mount_sandbox_method(
@@ -489,7 +496,7 @@ class NekroPlugin:
             self._async_tasks[task_type] = func
             # 注册到全局 TaskRunner
             TaskRunner().register_task_type(task_type, func)
-            logger.debug(f"插件 {self.name} 注册异步任务: {task_type}")
+            self.logger.debug(f"插件 {self.name} 注册异步任务: {task_type}")
             return func
 
         return decorator
@@ -552,7 +559,7 @@ class NekroPlugin:
         if not callbacks:
             return
     
-        logger.debug(f"插件 {self.name} 触发 {event_type} 回调，共 {len(callbacks)} 个")
+        self.logger.debug(f"插件 {self.name} 触发 {event_type} 回调，共 {len(callbacks)} 个")
     
         # 并行执行所有回调
         results = await asyncio.gather(*[cb() for cb in callbacks], return_exceptions=True)
@@ -560,7 +567,7 @@ class NekroPlugin:
         # 记录异常
         for i, result in enumerate(results):
             if isinstance(result, Exception):
-                logger.error(f"插件 {self.name} 的 {event_type} 回调执行失败 (回调索引 {i}): {result}")
+                self.logger.error(f"插件 {self.name} 的 {event_type} 回调执行失败 (回调索引 {i}): {result}")
 
     async def collect_available_methods(self, ctx: AgentCtx) -> List[SandboxMethod]:
         """收集可用方法
@@ -679,7 +686,7 @@ class NekroPlugin:
         methods = await self.collect_available_methods(ctx) if self._collect_methods_func else self.sandbox_methods
         for method in methods:
             if not method.func.__doc__:
-                logger.warning(f"方法 {method.func.__name__} 没有可用的文档注解。")
+                self.logger.warning(f"方法 {method.func.__name__} 没有可用的文档注解。")
                 continue
             if method.method_type in [SandboxMethodType.AGENT, SandboxMethodType.MULTIMODAL_AGENT]:
                 prompts.append(
@@ -745,7 +752,7 @@ class NekroPlugin:
             if self._module.__doc__:
                 return self._module.__doc__.strip()
         except Exception as e:
-            logger.error(f"获取插件 {self.key} 文档失败: {e}")
+            self.logger.exception(f"获取插件 {self.key} 文档失败")
             return f"获取文档失败: {e}"
 
         return None

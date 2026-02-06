@@ -387,6 +387,15 @@ wheels = [
 ]
 
 [[package]]
+name = "chinesecalendar"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/ac/6f/c14fe8aedc706fab826c0ae7fccd1c8f69610254dcb004cd386a0662b3d5/chinesecalendar-1.11.0.tar.gz", hash = "sha256:1b85d920ffee8e19a98a2a27a699a99f39ca224b3b1096aa574384d3837f5492", size = 17359, upload-time = "2025-11-04T10:22:36.108Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/19/e7/8f0215070e3a154e861a5838282f493649fa6ebcee01c9e919922917bd25/chinesecalendar-1.11.0-py2.py3-none-any.whl", hash = "sha256:9479ead6010e6001472efdf97317699882c16604c7858ba26862dc9d36d56d46", size = 11222, upload-time = "2025-11-04T10:22:34.704Z" },
+]
+
+[[package]]
 name = "cint"
 version = "1.0.0"
 source = { registry = "https://pypi.org/simple" }
@@ -471,6 +480,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/17/9f2cd228eb949a91915acd38d3eecdc9d8893dde353b603f0db7e9f6be55/cookiecutter-2.6.0.tar.gz", hash = "sha256:db21f8169ea4f4fdc2408d48ca44859349de2647fbe494a9d6c3edfc0542c21c", size = 158767, upload-time = "2024-02-21T18:02:41.949Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b6/d9/0137658a353168ffa9d0fc14b812d3834772040858ddd1cb6eeaf09f7a44/cookiecutter-2.6.0-py3-none-any.whl", hash = "sha256:a54a8e37995e4ed963b3e82831072d1ad4b005af736bb17b99c2cbd9d41b6e2d", size = 39177, upload-time = "2024-02-21T18:02:39.569Z" },
+]
+
+[[package]]
+name = "croniter"
+version = "6.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "python-dateutil" },
+    { name = "pytz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/ad/2f/44d1ae153a0e27be56be43465e5cb39b9650c781e001e7864389deb25090/croniter-6.0.0.tar.gz", hash = "sha256:37c504b313956114a983ece2c2b07790b1f1094fe9d81cc94739214748255577", size = 64481, upload-time = "2024-12-17T17:17:47.32Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/4b/290b4c3efd6417a8b0c284896de19b1d5855e6dbdb97d2a35e68fa42de85/croniter-6.0.0-py2.py3-none-any.whl", hash = "sha256:2f878c3856f17896979b2a4379ba1f09c83e374931ea15cc835c5dd2eee9b368", size = 25468, upload-time = "2024-12-17T17:17:45.359Z" },
 ]
 
 [[package]]
@@ -1393,6 +1415,8 @@ dependencies = [
     { name = "aiosmtplib" },
     { name = "asyncpg" },
     { name = "bcrypt" },
+    { name = "chinesecalendar" },
+    { name = "croniter" },
     { name = "discord-py" },
     { name = "docker" },
     { name = "gitpython" },
@@ -1445,6 +1469,8 @@ requires-dist = [
     { name = "aiosmtplib", specifier = ">=2.0.0,<3.0.0" },
     { name = "asyncpg", specifier = ">=0.30.0,<1.0.0" },
     { name = "bcrypt", specifier = ">=4.2.0,<5.0.0" },
+    { name = "chinesecalendar", specifier = ">=1.11.0" },
+    { name = "croniter", specifier = ">=6.0.0" },
     { name = "discord-py", specifier = ">=2.5.2,<3.0.0" },
     { name = "docker", specifier = ">=7.1.0,<8.0.0" },
     { name = "gitpython", specifier = ">=3.1.44,<4.0.0" },

@@ -5,7 +5,7 @@
 
 from typing import Dict, List, Optional
 
-from nekro_agent.services.timer_service import TimerTask, timer_service
+from nekro_agent.services.timer.timer_service import TimerTask, timer_service
 
 __all__ = [
     "clear_timers",
