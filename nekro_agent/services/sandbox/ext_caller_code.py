@@ -1,7 +1,6 @@
 """沙盒环境下的扩展方法调用代理"""
 
 import importlib
-import os
 import pickle as _pickle
 import subprocess
 import sys

@@ -1,3 +1,4 @@
+
 # nekro_agent/services/plugin/packages.py
 import importlib
 import shlex
@@ -9,15 +10,14 @@ from pathlib import Path
 from typing import Any, Optional
 
 from packaging.requirements import Requirement
-from packaging.specifiers import SpecifierSet
-from packaging.version import parse as parse_version
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import PLUGIN_DYNAMIC_PACKAGE_DIR
 
-
 # ---------- 公开 API ----------
+
+logger = get_sub_logger("plugin_system")
 def dynamic_import_pkg(
     package_spec: str,
     import_name: Optional[str] = None,

@@ -1,16 +1,15 @@
 import datetime
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from lunar_python import Lunar
 
-from nekro_agent.core import logger
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentImage,
-    ChatMessageSegmentType,
 )
 from nekro_agent.tools.common_util import compress_image
 from nekro_agent.tools.path_convertor import (
@@ -21,7 +20,7 @@ from nekro_agent.tools.path_convertor import (
 from ..creator import ContentSegment, OpenAIChatMessage
 from .base import PromptTemplate, env, register_template
 
-
+logger = get_sub_logger("agent_runtime")
 @register_template("history.j2", "history_first_start")
 class HistoryFirstStart(PromptTemplate):
     enable_cot: bool

@@ -39,7 +39,7 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
     enabled: open && !!userId,
   })
 
-  const user = data?.data
+  const user = data
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return t('common.none', { ns: 'common' })

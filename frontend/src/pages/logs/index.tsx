@@ -247,6 +247,7 @@ export default function LogsPage() {
   const [copyDialogOpen, setCopyDialogOpen] = useState(false)
   const [copyDialogText, setCopyDialogText] = useState('')
   const logQueue = useRef<LogEntry[]>([])
+  const lastParseErrorAt = useRef(0)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -317,17 +318,21 @@ export default function LogsPage() {
                 logQueue.current.push(log)
               }
             } catch (error) {
-              console.error('Failed to parse log data:', error)
+              const now = Date.now()
+              if (now - lastParseErrorAt.current > 5000) {
+                lastParseErrorAt.current = now
+                notification.warning(t('errors.parseLog'))
+              }
             }
           },
           error => {
-            console.error('EventSource error:', error)
+            notification.error(t('errors.stream'))
             setIsDisconnected(true)
           }
         )
         setIsDisconnected(false)
       } catch (error) {
-        console.error('Failed to create EventSource:', error)
+        notification.error(t('errors.connect'))
         setIsDisconnected(true)
       }
     }
@@ -344,12 +349,16 @@ export default function LogsPage() {
     setDownloadConfirmOpen(true)
   }
 
-  const confirmDownloadLogs = () => {
+  const confirmDownloadLogs = async () => {
     const lines = parseInt(downloadLines) || 1000
-    logsApi.downloadLogs({
-      lines,
-      source: filters.source || undefined,
-    })
+    try {
+      await logsApi.downloadLogs({
+        lines,
+        source: filters.source || undefined,
+      })
+    } catch (error) {
+      notification.error(t('download.failed'))
+    }
     setDownloadConfirmOpen(false)
   }
 

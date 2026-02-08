@@ -3,6 +3,7 @@ import os
 import re
 from typing import Dict, List, Optional, Type
 
+
 import nonebot
 from fastapi import APIRouter
 from nonebot.adapters.minecraft import Bot, Message, MessageSegment
@@ -10,6 +11,7 @@ from nonebot.adapters.minecraft.model import ClickEvent, HoverEvent, TextColor
 from pydantic import BaseModel, Field, model_validator
 
 from nekro_agent.adapters.interface.base import (
+
     AdapterMetadata,
     BaseAdapter,
     BaseAdapterConfig,
@@ -21,12 +23,13 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.config import ExtraField
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
+logger = get_sub_logger("adapter.minecraft")
 class ServerConfig(BaseModel):
     """服务器配置"""
 

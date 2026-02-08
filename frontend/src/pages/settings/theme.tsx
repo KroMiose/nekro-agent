@@ -447,14 +447,9 @@ export default function ThemeConfigPage() {
   const fetchWallpapers = async () => {
     try {
       setLoading(true)
-      const response = await commonApi.getWallpapers()
-      if (response.code === 200 && Array.isArray(response.data)) {
-        setWallpapers(response.data)
-      } else {
-        notification.error(t('theme.wallpaper.messages.fetchFailed'))
-      }
+      const wallpapers = await commonApi.getWallpapers()
+      setWallpapers(wallpapers)
     } catch (error) {
-      console.error('获取壁纸列表失败:', error)
       notification.error(t('theme.wallpaper.messages.fetchFailed'))
     } finally {
       setLoading(false)
@@ -484,27 +479,20 @@ export default function ThemeConfigPage() {
         key: 'upload-wallpaper-progress', // 使用固定key以便后续更新
       })
 
-      const response = await commonApi.uploadWallpaper(file)
+      const wallpaper = await commonApi.uploadWallpaper(file)
 
-      if (response.code === 200 && response.data) {
-        // 关闭上传中通知
-        notification.close('upload-wallpaper-progress')
-        notification.success(t('theme.wallpaper.messages.uploadSuccess'))
+      // 关闭上传中通知
+      notification.close('upload-wallpaper-progress')
+      notification.success(t('theme.wallpaper.messages.uploadSuccess'))
 
-        // 获取壁纸列表并确保最新上传的壁纸被选中
-        await fetchWallpapers()
+      // 获取壁纸列表并确保最新上传的壁纸被选中
+      await fetchWallpapers()
 
-        // 如果当前没有壁纸，自动应用最新上传的壁纸
-        if (!hasCurrentWallpaper() && response.data && 'url' in response.data) {
-          applyWallpaper(response.data as Wallpaper)
-        }
-      } else {
-        // 关闭上传中通知并显示错误
-        notification.close('upload-wallpaper-progress')
-        notification.error(response.msg || t('theme.wallpaper.messages.uploadFail'))
+      // 如果当前没有壁纸，自动应用最新上传的壁纸
+      if (!hasCurrentWallpaper()) {
+        applyWallpaper(wallpaper)
       }
     } catch (error) {
-      console.error('壁纸上传失败:', error)
       // 关闭上传中通知并显示错误
       notification.close('upload-wallpaper-progress')
 
@@ -589,7 +577,6 @@ export default function ThemeConfigPage() {
         }
       }
     } catch (error) {
-      console.error('应用壁纸失败:', error)
       notification.error(t('theme.wallpaper.messages.applyFailed'))
     }
   }
@@ -599,29 +586,29 @@ export default function ThemeConfigPage() {
     try {
       const response = await commonApi.deleteWallpaper(wallpaperId)
 
-      if (response.code === 200) {
-        notification.success(t('theme.wallpaper.messages.deleteSuccess'))
+      if (!response.ok) {
+        notification.error(t('theme.wallpaper.messages.deleteFail'))
+        return
+      }
 
-        // 找到被删除的壁纸
-        const deletedWallpaper = wallpapers.find(wp => wp.id === wallpaperId)
+      notification.success(t('theme.wallpaper.messages.deleteSuccess'))
 
-        // 如果当前使用的壁纸被删除，则标记为无效
-        if (deletedWallpaper?.url) {
-          handleWallpaperInvalid(deletedWallpaper.url)
-        }
+      // 找到被删除的壁纸
+      const deletedWallpaper = wallpapers.find(wp => wp.id === wallpaperId)
 
-        // 更新壁纸列表
-        await fetchWallpapers()
+      // 如果当前使用的壁纸被删除，则标记为无效
+      if (deletedWallpaper?.url) {
+        handleWallpaperInvalid(deletedWallpaper.url)
+      }
 
-        // 如果预览的壁纸被删除，关闭预览
-        if (previewWallpaper?.id === wallpaperId) {
-          setPreviewWallpaper(null)
-        }
-      } else {
-        notification.error(response.msg || t('theme.wallpaper.messages.deleteFail'))
+      // 更新壁纸列表
+      await fetchWallpapers()
+
+      // 如果预览的壁纸被删除，关闭预览
+      if (previewWallpaper?.id === wallpaperId) {
+        setPreviewWallpaper(null)
       }
     } catch (error) {
-      console.error('壁纸删除失败:', error)
       notification.error(t('theme.wallpaper.messages.deleteFail'))
     }
   }
@@ -690,7 +677,7 @@ export default function ThemeConfigPage() {
           }
         }
       } catch (error) {
-        console.error('加载主题数据失败:', error)
+        // 忽略读取失败，保持默认主题
       }
 
       // 初始化壁纸功能
@@ -817,7 +804,6 @@ export default function ThemeConfigPage() {
       // 更新选中状态
       setSelectedPresetId(presetId)
     } catch (error) {
-      console.error('应用主题失败:', error)
       notification.error(t('theme.colors.messages.applyFailed'))
     }
   }
@@ -1025,7 +1011,6 @@ export default function ThemeConfigPage() {
             setThemePreset('kolo')
           }}
           onError={error => {
-            console.error('检查Star状态出错:', error)
             notification.error(t('theme.star.checkFailed'))
           }}
           searchParam="NEKRO_CLOUD"

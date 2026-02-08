@@ -58,8 +58,6 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           setLoading(true)
           const preset = await presetsApi.getDetail(channel.preset_id)
           setCurrentPreset(preset)
-        } catch (error) {
-          console.error('获取人设详情失败', error)
         } finally {
           setLoading(false)
         }
@@ -87,7 +85,6 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       })
       setPresets(response.items)
     } catch (error) {
-      console.error('获取人设列表失败', error)
       enqueueSnackbar(t('basicInfo.fetchPresetsFailed'), { variant: 'error' })
     } finally {
       setLoading(false)
@@ -118,7 +115,6 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
       // 刷新聊天频道详情
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
     } catch (error) {
-      console.error('设置人设失败', error)
       enqueueSnackbar(t('basicInfo.setPresetFailed'), { variant: 'error' })
     } finally {
       setLoading(false)

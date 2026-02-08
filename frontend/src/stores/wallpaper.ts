@@ -74,12 +74,10 @@ export const useWallpaperStore = create<WallpaperState>()(
           
           // 检查并清除无效壁纸
           if (state.loginWallpaper === wallpaperUrl) {
-            console.log('登录页壁纸已失效，重置为默认值:', wallpaperUrl)
             set({ loginWallpaper: null })
           }
           
           if (state.mainWallpaper === wallpaperUrl) {
-            console.log('主页壁纸已失效，重置为默认值:', wallpaperUrl)
             set({ mainWallpaper: null })
           }
         },

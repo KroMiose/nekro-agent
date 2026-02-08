@@ -5,12 +5,14 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set, Union
 
+
 from fastapi import Request
 from sse_starlette.sse import EventSourceResponse
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 
+logger = get_sub_logger("adapter.sse")
 class ClientInfo:
     """客户端信息"""
 

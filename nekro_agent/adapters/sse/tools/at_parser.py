@@ -1,3 +1,4 @@
+
 """SSE @ 解析工具
 
 这个模块包含 SSE 适配器特定的 @ 解析功能。
@@ -7,10 +8,11 @@ from typing import List, Optional, Union
 
 from pydantic import BaseModel
 
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 
 
+logger = get_sub_logger("adapter.sse")
 class SegAt(BaseModel):
     """@ 消息段"""
 

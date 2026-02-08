@@ -98,8 +98,6 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
       await onSubmit(formData)
       handleReset()
       onClose()
-    } catch (error) {
-      console.error('创建用户失败:', error)
     } finally {
       setIsSubmitting(false)
     }

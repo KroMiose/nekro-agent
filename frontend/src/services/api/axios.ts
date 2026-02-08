@@ -88,6 +88,13 @@ axiosInstance.interceptors.response.use(
     if (status === 401) {
       // 非登录接口的 401，执行登出
       if (!error.config?.url?.includes('/user/login')) {
+        const sessionMessage =
+          data?.message || i18n.t('sessionExpired', { ns: 'errors', defaultValue: '登录已过期，请重新登录' })
+        try {
+          sessionStorage.setItem('auth_error', sessionMessage)
+        } catch {
+          // ignore storage errors
+        }
         useAuthStore.getState().logout()
         window.location.href = '/#/login'
       }
@@ -102,13 +109,6 @@ axiosInstance.interceptors.response.use(
     // 后端返回了标准错误格式
     if (data?.error && data?.message) {
       throw new ApiError(data.error, data.message, data.detail, data.data)
-    }
-
-    // 兼容旧格式：后端返回 { msg: "..." } 格式
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const legacyData = data as any
-    if (legacyData?.msg) {
-      throw new ApiError('LegacyError', legacyData.msg)
     }
 
     // 兜底处理

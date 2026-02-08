@@ -1,17 +1,16 @@
+
 """空间清理服务"""
 
 import asyncio
 import json
-import shutil
 import stat
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import (
-    APP_LOG_DIR,
     APP_SYSTEM_DIR,
     NAPCAT_TEMPFILE_DIR,
     PLUGIN_DYNAMIC_PACKAGE_DIR,
@@ -32,6 +31,8 @@ from nekro_agent.schemas.space_cleanup import (
 )
 
 # 清理任务缓存目录
+
+logger = get_sub_logger("space_cleanup")
 CLEANUP_CACHE_DIR = Path(APP_SYSTEM_DIR) / "space_cleanup" / "tasks"
 CLEANUP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

@@ -1,11 +1,13 @@
 from typing import Optional
 
+
 from nonebot import get_bots
 from nonebot.adapters.minecraft import Bot
 
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 
+logger = get_sub_logger("adapter.minecraft")
 def get_bot(identifier: Optional[str] = None) -> Optional[Bot]:
     """
     获取 Minecraft Bot 实例。

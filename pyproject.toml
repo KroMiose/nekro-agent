@@ -61,7 +61,12 @@ dependencies = [
 dev = [
     "uvicorn>=0.23.2,<1.0.0",
     "nb-cli>=1.4.0,<2.0.0",
-    "ruff>=0.14.10,<1.0.0",
+    "ruff>=0.8.0,<1.0.0",
+    "pytest>=8.3.0,<9.0.0",
+    "pytest-asyncio>=1.0.0,<2.0.0",
+    "pytest-cov>=6.0.0,<7.0.0",
+    "pytest-mock>=3.14.0,<4.0.0",
+    "basedpyright>=1.20.0,<2.0.0",
     "poethepoet>=0.24.0,<1.0.0",
 ]
 
@@ -99,54 +104,48 @@ builtin_plugins = []
 line-length = 128
 
 [tool.basedpyright]
-typeCheckingMode = "standard"
+pythonVersion = "3.11"
+typeCheckingMode = "off"
+include = ["nekro_agent"]
+exclude = [
+    "data",
+    "nekro_agent/adapters",
+    "plugins",
+    "scripts",
+    "nekro_agent/schemas/message.py",
+]
+reportImportCycles = "none"
+reportGeneralTypeIssues = "none"
+reportUnknownMemberType = "none"
+reportAny = "none"
+reportPrivateLocalImportUsage = "none"
+reportUnusedCallResult = "none"
+reportDeprecated = "none"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+markers = [
+    "provider: real API provider tests (disabled by default; enable with --enable-provider-tests)",
+]
 
 [tool.ruff]
-extend-exclude = []
-ignore = [
-    "E402",
-    "E501",
-    "E722",
-    "B008",
-    "B905",
-    "F401",
-    "TID252",
-    "TRY002",
-    "TRY003",
-    "RUF001",
-    "RUF002",
-    "RUF003",
-    "RUF006",
-    "RUF012",
-    "RUF059",
-    "RUF100",
-    "PGH003",
-    "N801",
-    "A003",
+line-length = 120
+target-version = "py311"
+extend-exclude = [
+    "nekro_agent/adapters",
+    "plugins",
+    "scripts",
+    "nekro_agent_doc",
 ]
-select = [
-    "F",
-    "E",
-    "I",
-    "B",
-    "A",
-    "COM",
-    "C4",
-    "ISC",
-    "PIE",
-    "PYI",
-    "Q",
-    "RSE",
-    "RET",
-    "SLF",
-    "SIM",
-    "TID",
-    "ARG",
-    "PTH",
-    "PGH",
-    "TRY",
-    "RUF",
-]
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+ignore = ["E501", "E701"]
 
 # ============================================================================
 # Poe 任务配置
@@ -169,8 +168,20 @@ cmd = "bot --env=prod"
 
 # 测试相关
 [tool.poe.tasks.test]
+help = "运行测试"
+cmd = "pytest -v --tb=short"
+
+[tool.poe.tasks.load-test]
 help = "运行插件加载测试"
 cmd = "bot --load-test"
+
+[tool.poe.tasks.typecheck]
+help = "运行类型检查"
+cmd = "basedpyright ."
+
+[tool.poe.tasks.check]
+help = "运行所有检查"
+cmd = "bash -c 'poe lint && poe typecheck'"
 
 # 代码质量
 [tool.poe.tasks.lint]
@@ -188,6 +199,35 @@ cmd = "ruff format ."
 [tool.poe.tasks.format-check]
 help = "检查代码格式"
 cmd = "ruff format --check ."
+
+# 前端任务
+[tool.poe.tasks.frontend-install]
+help = "安装前端依赖"
+cmd = "bash -c 'cd frontend && pnpm install'"
+
+[tool.poe.tasks.frontend-dev]
+help = "启动前端开发服务器"
+cmd = "bash -c 'cd frontend && pnpm dev'"
+
+[tool.poe.tasks.frontend-build]
+help = "构建前端"
+cmd = "bash -c 'cd frontend && pnpm build'"
+
+[tool.poe.tasks.frontend-typecheck]
+help = "运行前端类型检查"
+cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit'"
+
+[tool.poe.tasks.frontend-lint]
+help = "运行前端 lint"
+cmd = "bash -c 'cd frontend && pnpm exec eslint src/ --ext ts,tsx --max-warnings 0'"
+
+[tool.poe.tasks.frontend-check]
+help = "运行前端检查"
+cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm build'"
+
+[tool.poe.tasks.frontend-preview]
+help = "预览前端构建"
+cmd = "bash -c 'cd frontend && pnpm preview'"
 
 # 依赖管理
 [tool.poe.tasks.sync]

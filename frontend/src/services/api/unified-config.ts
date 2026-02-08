@@ -16,26 +16,26 @@ export interface ConfigInfo {
 export const unifiedConfigApi = {
   // 获取所有配置键
   getConfigKeys: async (): Promise<string[]> => {
-    const response = await axios.get<{ data: string[] }>('/config/keys')
-    return response.data.data
+    const response = await axios.get<string[]>('/config/keys')
+    return response.data
   },
 
   // 获取配置基本信息
   getConfigInfo: async (configKey: string): Promise<ConfigInfo> => {
-    const response = await axios.get<{ data: ConfigInfo }>(`/config/info/${configKey}`)
-    return response.data.data
+    const response = await axios.get<ConfigInfo>(`/config/info/${configKey}`)
+    return response.data
   },
 
   // 获取指定配置的配置列表
   getConfigList: async (configKey: string): Promise<ConfigItem[]> => {
-    const response = await axios.get<{ data: ConfigItem[] }>(`/config/list/${configKey}`)
-    return response.data.data
+    const response = await axios.get<ConfigItem[]>(`/config/list/${configKey}`)
+    return response.data
   },
 
   // 获取指定配置的配置项
   getConfigItem: async (configKey: string, itemKey: string): Promise<ConfigItem> => {
-    const response = await axios.get<{ data: ConfigItem }>(`/config/get/${configKey}/${itemKey}`)
-    return response.data.data
+    const response = await axios.get<ConfigItem>(`/config/get/${configKey}/${itemKey}`)
+    return response.data
   },
 
   // 设置指定配置的配置项值
@@ -62,16 +62,14 @@ export const unifiedConfigApi = {
 
   // 获取模型组列表（兼容性API）
   getModelGroups: async (): Promise<Record<string, ModelGroupConfig>> => {
-    const response = await axios.get<{ data: Record<string, ModelGroupConfig> }>(
-      '/config/model-groups'
-    )
-    return response.data.data
+    const response = await axios.get<Record<string, ModelGroupConfig>>('/config/model-groups')
+    return response.data
   },
 
   // 获取模型类型列表（兼容性API）
   getModelTypes: async (): Promise<ModelTypeOption[]> => {
-    const response = await axios.get<{ data: ModelTypeOption[] }>('/config/model-types')
-    return response.data.data
+    const response = await axios.get<ModelTypeOption[]>('/config/model-types')
+    return response.data
   },
 
   // 插件配置相关API - 使用统一配置系统

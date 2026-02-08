@@ -1,3 +1,4 @@
+
 """
 SSE 命令处理模块
 ==============
@@ -33,10 +34,12 @@ from nekro_agent.adapters.sse.sdk.models import (
     Response as SseResponse,
 )
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import ChatType
 
 # 全局客户端管理器 - 从外部导入实例
+
+logger = get_sub_logger("adapter.sse")
 client_manager: SseClientManager
 
 # 消息转换器

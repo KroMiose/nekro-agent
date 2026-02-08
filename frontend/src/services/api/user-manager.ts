@@ -1,13 +1,11 @@
 import axios from './axios'
 
-// 用户状态枚举
 export enum UserStatus {
   Normal = 'normal',
   Passive = 'passive',
   Banned = 'banned',
 }
 
-// 用户类型定义
 export interface User {
   id: number
   username: string
@@ -55,7 +53,10 @@ export interface UserUpdateData {
   access_key: string
 }
 
-// 获取用户状态
+export interface ActionResponse {
+  ok: boolean
+}
+
 export const getUserStatus = (user: User): UserStatus => {
   if (!user.is_active) {
     return UserStatus.Banned
@@ -66,58 +67,50 @@ export const getUserStatus = (user: User): UserStatus => {
   return UserStatus.Normal
 }
 
-// 获取用户列表
 export const getUserList = async (params: UserListParams) => {
-  const response = await axios.get('/user-manager/list', { params })
+  const response = await axios.get<UserListResponse>('/user-manager/list', { params })
   return response.data
 }
 
-// 获取用户详情
 export const getUserDetail = async (id: number) => {
-  const response = await axios.get(`/user-manager/${id}`)
+  const response = await axios.get<User>(`/user-manager/${id}`)
   return response.data
 }
 
-// 创建用户
 export const createUser = async (data: UserFormData) => {
-  const response = await axios.post('/user-manager/create', data)
+  const response = await axios.post<ActionResponse>('/user-manager/create', data)
   return response.data
 }
 
-// 更新用户
 export const updateUser = async (id: number, data: UserUpdateData) => {
-  const response = await axios.put(`/user-manager/${id}`, data)
+  const response = await axios.put<ActionResponse>(`/user-manager/${id}`, data)
   return response.data
 }
 
-// 删除用户
 export const deleteUser = async (id: number) => {
-  const response = await axios.delete(`/user-manager/${id}`)
+  const response = await axios.delete<ActionResponse>(`/user-manager/${id}`)
   return response.data
 }
 
-// 封禁/解封用户
 export const banUser = async (id: number, banUntil: string | null) => {
-  // 如果有日期，确保添加 UTC 时区信息
   const formattedBanUntil = banUntil ? new Date(banUntil).toISOString() : null
-  const response = await axios.post(`/user-manager/${id}/ban`, { ban_until: formattedBanUntil })
+  const response = await axios.post<ActionResponse>(`/user-manager/${id}/ban`, {
+    ban_until: formattedBanUntil,
+  })
   return response.data
 }
 
-// 设置触发权限
 export const setPreventTrigger = async (id: number, preventTriggerUntil: string | null) => {
-  // 如果有日期，确保添加 UTC 时区信息
   const formattedPreventTriggerUntil = preventTriggerUntil
     ? new Date(preventTriggerUntil).toISOString()
     : null
-  const response = await axios.post(`/user-manager/${id}/prevent-trigger`, {
+  const response = await axios.post<ActionResponse>(`/user-manager/${id}/prevent-trigger`, {
     prevent_trigger_until: formattedPreventTriggerUntil,
   })
   return response.data
 }
 
-// 重置密码
 export const resetPassword = async (id: number, password: string) => {
-  const response = await axios.post(`/user-manager/${id}/reset-password`, { password })
+  const response = await axios.post<ActionResponse>(`/user-manager/${id}/reset-password`, { password })
   return response.data
 }

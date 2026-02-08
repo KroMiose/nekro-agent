@@ -45,7 +45,6 @@ export const STOP_TYPE_I18N_KEYS: Record<ExecStopType, string> = {
 export function getStopTypeI18nKey(stopType: number): string {
   const key = STOP_TYPE_I18N_KEYS[stopType as ExecStopType]
   if (!key) {
-    console.warn(`Invalid stop type: ${stopType}, falling back to NORMAL`)
     return STOP_TYPE_I18N_KEYS[ExecStopType.NORMAL]
   }
   return key

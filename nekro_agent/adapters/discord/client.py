@@ -1,16 +1,18 @@
 import asyncio
 from typing import TYPE_CHECKING
 
+
 import discord
 
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
 from nekro_agent.adapters.interface.schemas.platform import (
+
     PlatformChannel,
     PlatformMessage,
     PlatformUser,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentFile,
@@ -19,6 +21,7 @@ from nekro_agent.schemas.chat_message import (
     ChatType,
 )
 
+logger = get_sub_logger("adapter.discord")
 if TYPE_CHECKING:
     from .adapter import DiscordAdapter
 

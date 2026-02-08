@@ -1,10 +1,10 @@
+
 """
 Telegram 消息处理器
 """
 
 import asyncio
 from typing import TYPE_CHECKING, Optional, List, Any, Dict, Tuple
-
 try:
     import magic
     HAS_MAGIC = True
@@ -23,7 +23,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
     ChatType,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentType,
@@ -32,6 +32,8 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentAt,
 )
 from nekro_agent.tools.common_util import download_file_from_bytes
+
+logger = get_sub_logger("adapter.telegram")
 
 
 class MessageProcessor:
@@ -330,6 +332,7 @@ class MessageProcessor:
         # 如果 magic 库未检测出扩展名，尝试从原始文件名获取
         if not extension and original_filename:
             import os
+
             _, ext = os.path.splitext(original_filename.lower())
             if ext:
                 extension = ext

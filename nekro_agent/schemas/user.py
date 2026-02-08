@@ -3,8 +3,6 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from .message import ret_data_class
-
 
 class User(BaseModel):
     id: int
@@ -40,13 +38,6 @@ class UpdatePassword(BaseModel):
 class UserLogin(BaseModel):
     username: str
     password: str
-
-
-@ret_data_class
-class LoginRet(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
 
 
 class UserToken(BaseModel):

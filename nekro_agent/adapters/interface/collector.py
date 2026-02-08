@@ -1,7 +1,8 @@
 import time
 from typing import TYPE_CHECKING, Optional
 
-from nekro_agent.core import logger
+
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -9,8 +10,10 @@ from nekro_agent.schemas.user import UserCreate
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.util import user_register
 
+logger = get_sub_logger("adapter.interface")
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface import (
+
         BaseAdapter,
         PlatformChannel,
         PlatformMessage,

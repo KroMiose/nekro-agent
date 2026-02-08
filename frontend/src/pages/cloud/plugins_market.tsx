@@ -437,7 +437,8 @@ const PluginDetailDialog = ({
           setRepoInfo(info)
         })
         .catch(err => {
-          console.error('Failed to fetch repo info:', err)
+          const errorMessage = err instanceof Error ? err.message : String(err)
+          notif.error(`${t('pluginsMarket.unableToFetchRepo')}: ${errorMessage}`)
         })
         .finally(() => {
           setLoadingRepo(false)
@@ -669,7 +670,8 @@ const PluginDetailDialog = ({
                             notif.error(t('common.messages.operationFailed') || 'Failed to copy')
                           }
                         } catch (err) {
-                          console.error('Copy error:', err)
+                          const errorMessage = err instanceof Error ? err.message : String(err)
+                          notif.error(`${t('pluginsMarket.operationFailed')}: ${errorMessage}`)
                         }
                       }}
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
@@ -1131,7 +1133,6 @@ const CreatePluginDialog = ({
         })
       }
     } catch (error) {
-      console.error('图标转换失败:', error)
       setErrors(prev => ({
         ...prev,
         icon: '图标处理失败，请重试',
@@ -1452,7 +1453,7 @@ export default function PluginsMarket() {
         })
 
         setPlugins(data.items)
-        setTotalPages(data.totalPages)
+        setTotalPages(data.total_pages)
 
         if (data.items.length === 0 && data.total > 0 && page > 1) {
           // 如果当前页没有数据但总数大于0，说明可能是删除后的页码问题，回到第一页
@@ -1460,8 +1461,8 @@ export default function PluginsMarket() {
           fetchPlugins(1, keyword)
         }
       } catch (error) {
-        console.error('Failed to fetch plugins', error)
-        setError(t('pluginsMarket.fetchFailed'))
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        setError(`${t('pluginsMarket.fetchFailed')}: ${errorMessage}`)
       } finally {
         setLoading(false)
       }
@@ -1524,26 +1525,30 @@ export default function PluginsMarket() {
     try {
       setProcessingId(confirmDialog.plugin.id)
 
-      let response: { code: number; msg: string; data: null } | undefined
+      let ok = false
+      let errorMessage = t('pluginsMarket.operationFailedUnknown')
 
       if (confirmDialog.action === 'download') {
-        response = await pluginsMarketApi.downloadPlugin(confirmDialog.plugin.moduleName)
+        const response = await pluginsMarketApi.downloadPlugin(confirmDialog.plugin.moduleName)
+        ok = response.ok
       } else if (confirmDialog.action === 'update') {
         const updateResult = await updatePackage(confirmDialog.plugin.moduleName)
-        response = {
-          code: updateResult.success ? 200 : 500,
-          msg: updateResult.success ? '成功' : updateResult.errorMsg || '失败',
-          data: null,
+        ok = updateResult.success
+        if (!updateResult.success) {
+          errorMessage = updateResult.errorMsg || t('pluginsMarket.operationFailed')
         }
       } else if (confirmDialog.action === 'unpublish') {
-        response = await pluginsMarketApi.deleteUserPlugin(confirmDialog.plugin.moduleName)
+        const response = await pluginsMarketApi.deleteUserPlugin(confirmDialog.plugin.moduleName)
+        ok = response.ok
       } else if (confirmDialog.action === 'remove') {
         // 调用插件管理的移除插件接口
-        const success = await removePackage(confirmDialog.plugin.moduleName)
-        response = { code: success ? 200 : 500, msg: success ? '成功' : '失败', data: null }
+        ok = await removePackage(confirmDialog.plugin.moduleName)
+        if (!ok) {
+          errorMessage = t('pluginsMarket.operationFailed')
+        }
       }
 
-      if (response && response.code === 200) {
+      if (ok) {
         let successMessage = '操作成功'
         if (confirmDialog.action === 'download') {
           successMessage = '插件获取成功'
@@ -1586,14 +1591,12 @@ export default function PluginsMarket() {
         notification.success(successMessage)
         // 重新获取插件列表以更新状态
         fetchPlugins(currentPage, debouncedSearchKeyword)
-      } else if (response) {
-        notification.error(`${t('pluginsMarket.operationFailed')}: ${response.msg}`)
       } else {
-        notification.error(t('pluginsMarket.operationFailedUnknown'))
+        notification.error(`${t('pluginsMarket.operationFailed')}: ${errorMessage}`)
       }
     } catch (error) {
-      console.error('操作失败', error)
-      notification.error(t('pluginsMarket.operationFailedRetry'))
+      const message = error instanceof Error ? error.message : String(error)
+      notification.error(`${t('pluginsMarket.operationFailedRetry')}: ${message}`)
     } finally {
       setProcessingId(null)
       setConfirmDialog({ open: false, plugin: null, action: 'download' })
@@ -1604,25 +1607,13 @@ export default function PluginsMarket() {
   const handleCreatePlugin = async (data: PluginCreateRequest) => {
     try {
       setIsSubmitting(true)
-      const response = await pluginsMarketApi.createPlugin(data)
-
-      if (response.code === 200) {
-        // 成功创建
-        notification.success(t('pluginsMarket.publishSuccess'))
-        setCreateDialogOpen(false)
-        // 刷新插件列表
-        fetchPlugins(1, debouncedSearchKeyword)
-      } else {
-        // 处理不同的错误情况
-        const errorMsg = response.msg || '未知错误'
-        notification.error(errorMsg)
-      }
+      await pluginsMarketApi.createPlugin(data)
+      notification.success(t('pluginsMarket.publishSuccess'))
+      setCreateDialogOpen(false)
+      fetchPlugins(1, debouncedSearchKeyword)
     } catch (error) {
-      console.error('创建插件失败', error)
-
-      // 网络错误或其他未处理的错误
       const errorMessage = error instanceof Error ? error.message : String(error)
-      notification.error(`发布失败: ${errorMessage}`)
+      notification.error(`${t('pluginsMarket.operationFailed')}: ${errorMessage}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -1639,7 +1630,7 @@ export default function PluginsMarket() {
       setIsSubmitting(true)
       const response = await pluginsMarketApi.updateUserPlugin(moduleName, data)
 
-      if (response.code === 200) {
+      if (response.ok) {
         notification.success(t('pluginsMarket.updateInfoSuccess'))
         setEditingPlugin(null)
 
@@ -1656,10 +1647,9 @@ export default function PluginsMarket() {
           })
         }
       } else {
-        notification.error(response.msg || '更新失败')
+        notification.error(t('pluginsMarket.operationFailed'))
       }
     } catch (error) {
-      console.error('更新插件信息失败', error)
       notification.error(`更新失败: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsSubmitting(false)
@@ -1834,7 +1824,6 @@ export default function PluginsMarket() {
           })
         }
       } catch (error) {
-        console.error('图标转换失败:', error)
         setErrors(prev => ({
           ...prev,
           icon: '图标处理失败，请重试',

@@ -13,7 +13,6 @@ from nekro_agent.core.args import Args
 from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import OsEnv
-from nekro_agent.schemas.message import Ret
 from nekro_agent.schemas.user import UserLogin, UserToken
 from nekro_agent.services.user.util import user_login
 from nekro_agent.tools.common_util import get_app_version
@@ -85,10 +84,10 @@ def mount_api_routes(app: FastAPI):
 
     api.include_router(load_adapters_api())
 
-    @api.get("/health", response_model=Ret, tags=["Health"], summary="健康检查")
-    async def _() -> Ret:
+    @api.get("/health", tags=["Health"], summary="健康检查")
+    async def _() -> dict:
         """测试服务是否正常运行"""
-        return Ret.success(msg="Nekro agent Service Running...")
+        return {"ok": True}
 
     @api.post("/token", response_model=UserToken, tags=["User"], summary="OpenAPI OAuth2 授权")
     async def _(form_data: OAuth2PasswordRequestForm = Depends()) -> UserToken:
@@ -139,31 +138,24 @@ def mount_api_routes(app: FastAPI):
     app.include_router(api)
 
     # 🎯 正确的静态文件挂载方案：/webui + 根路径重定向
-    try:
-        static_dir = Path(OsEnv.STATIC_DIR)
-        if static_dir.exists():
-            # 将前端静态文件挂载到 /webui 路径
+    static_dir = Path(OsEnv.STATIC_DIR)
+    if static_dir.exists():
+        app.mount("/webui", StaticFiles(directory=str(static_dir), html=True), name="webui")
+        logger.info(f"✅ 前端静态文件已挂载到 /webui 路径: {static_dir}")
 
-            app.mount("/webui", StaticFiles(directory=str(static_dir), html=True), name="webui")
-            logger.info(f"✅ 前端静态文件已挂载到 /webui 路径: {static_dir}")
+        @app.get("/", include_in_schema=False)
+        async def redirect_to_webui():
+            """根路径重定向到前端界面"""
+            return RedirectResponse(url="/webui", status_code=302)
 
-            # 添加根路径重定向到前端界面
-            @app.get("/", include_in_schema=False)
-            async def redirect_to_webui():
-                """根路径重定向到前端界面"""
-                return RedirectResponse(url="/webui", status_code=302)
+        @app.get("/index.html", include_in_schema=False)
+        async def redirect_index_to_webui():
+            """index.html 重定向到前端界面"""
+            return RedirectResponse(url="/webui", status_code=302)
 
-            # 也处理 /index.html 的情况
-            @app.get("/index.html", include_in_schema=False)
-            async def redirect_index_to_webui():
-                """index.html 重定向到前端界面"""
-                return RedirectResponse(url="/webui", status_code=302)
-
-            logger.info("✅ 根路径重定向已配置：/ -> /webui/")
-        else:
-            logger.debug(f"静态文件目录不存在: {static_dir}")
-    except Exception as e:
-        logger.exception(f"❌ 挂载静态文件失败: {e}")
+        logger.info("✅ 根路径重定向已配置：/ -> /webui/")
+    else:
+        logger.debug(f"静态文件目录不存在: {static_dir}")
 
     # 将 OpenAPI 文档生成和 URL 设置移到 app 上，确保全局生效
     app.openapi_url = "/api/openapi.json"

@@ -36,25 +36,25 @@ export interface AdapterDocs {
 export const adaptersApi = {
   // 获取所有适配器列表
   getAdaptersList: async (): Promise<AdapterInfo[]> => {
-    const response = await axios.get<{ data: AdapterInfo[] }>('/adapters/list')
-    return response.data.data
+    const response = await axios.get<AdapterInfo[]>('/adapters/list')
+    return response.data
   },
 
   // 获取指定适配器详细信息
   getAdapterInfo: async (adapterKey: string): Promise<AdapterDetailInfo> => {
-    const response = await axios.get<{ data: AdapterDetailInfo }>(`/adapters/${adapterKey}/info`)
-    return response.data.data
+    const response = await axios.get<AdapterDetailInfo>(`/adapters/${adapterKey}/info`)
+    return response.data
   },
 
   // 获取适配器状态
   getAdapterStatus: async (adapterKey: string): Promise<AdapterStatus> => {
-    const response = await axios.get<{ data: AdapterStatus }>(`/adapters/${adapterKey}/status`)
-    return response.data.data
+    const response = await axios.get<AdapterStatus>(`/adapters/${adapterKey}/status`)
+    return response.data
   },
 
   // 获取适配器文档
   getAdapterDocs: async (adapterKey: string): Promise<AdapterDocs> => {
-    const response = await axios.get<{ data: AdapterDocs }>(`/adapters/${adapterKey}/docs`)
-    return response.data.data
+    const response = await axios.get<AdapterDocs>(`/adapters/${adapterKey}/docs`)
+    return response.data
   },
 }

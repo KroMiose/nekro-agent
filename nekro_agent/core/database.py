@@ -1,12 +1,14 @@
 from tortoise import Tortoise
 from tzlocal import get_localzone
 
+from nekro_agent.core.logger import get_sub_logger
+
 from .args import Args
 from .config import config
 from .core_utils import gen_postgres_conn_str, gen_sqlite_db_url
-from .logger import logger
 from .os_env import OsEnv
 
+logger = get_sub_logger("database")
 DB_INITED: bool = False
 
 db_url: str = ""

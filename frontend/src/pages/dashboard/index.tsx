@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Box,
@@ -44,20 +44,34 @@ const DashboardContent: React.FC = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('day')
   const [realTimeData, setRealTimeData] = useState<RealTimeDataPoint[]>([])
   const [granularity, setGranularity] = useState<number>(10) // 默认10分钟粒度
-  const [streamCancel, setStreamCancel] = useState<(() => void) | null>(null)
+  const streamCancelRef = useRef<(() => void) | null>(null)
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmallMobile = useMediaQuery(theme.breakpoints.down('sm'))
-  const notification = useNotification()
   const { t } = useTranslation('dashboard')
+  const notification = useNotification()
+  const notificationRef = useRef(notification)
+  const tRef = useRef(t)
 
   // 处理实时数据
+  useEffect(() => {
+    notificationRef.current = notification
+    tRef.current = t
+  }, [notification, t])
+
   const handleRealTimeData = useCallback((data: string) => {
+    if (!data || data.trim().length === 0) {
+      return
+    }
+    const trimmed = data.trim()
+    if (!trimmed.startsWith('{') || !trimmed.endsWith('}')) {
+      return
+    }
     try {
-      const newData = JSON.parse(data) as RealTimeDataPoint
+      const newData = JSON.parse(trimmed) as RealTimeDataPoint
       setRealTimeData(prev => {
         // 检查是否已存在相同时间戳的数据点
         const existingIndex = prev.findIndex(item => item.timestamp === newData.timestamp)
@@ -81,15 +95,15 @@ const DashboardContent: React.FC = () => {
         }
       })
     } catch (error) {
-      console.error('Failed to parse real-time data:', error)
+      notificationRef.current.error(tRef.current('messages.operationFailed', { ns: 'common' }))
     }
   }, [])
 
   // 初始化实时数据流
   useEffect(() => {
     // 取消之前的流
-    if (streamCancel) {
-      streamCancel()
+    if (streamCancelRef.current) {
+      streamCancelRef.current()
     }
 
     // 清空之前的数据
@@ -99,11 +113,11 @@ const DashboardContent: React.FC = () => {
     const cancelStream = createEventStream({
       endpoint: `/dashboard/stats/stream?granularity=${granularity}`,
       onMessage: handleRealTimeData,
-      onError: error => console.error('Dashboard data stream error:', error),
+      onError: () => notificationRef.current.error(tRef.current('messages.connectionLost', { ns: 'common' })),
     })
 
     // 保存取消函数
-    setStreamCancel(() => cancelStream)
+    streamCancelRef.current = cancelStream
 
     return () => {
       if (cancelStream) cancelStream()
@@ -158,15 +172,15 @@ const DashboardContent: React.FC = () => {
     setIsRestarting(true)
     try {
       const response = await restartApi.restartSystem()
-      if (response.code === 200) {
+      if (response.ok) {
         notification.success(t('restart.requestSent'))
         setRestartDialogOpen(false)
       } else {
-        notification.error(response.msg || t('restart.failed'))
+        notification.error(t('restart.failed'))
       }
     } catch (error) {
-      console.error('重启系统失败:', error)
-      notification.error(t('restart.networkError'))
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      notification.error(`${t('restart.networkError')}: ${errorMessage}`)
     } finally {
       setIsRestarting(false)
     }

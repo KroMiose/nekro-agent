@@ -1,24 +1,27 @@
 from typing import List, Optional, Type
 
+
 import discord
 from nonebot import get_driver
 from nonebot.drivers import Driver
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.schemas.platform import (
+
     PlatformChannel,
     PlatformSendRequest,
     PlatformSendResponse,
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .client import DiscordClient
 from .config import DiscordConfig
 from .tools import SegAt, parse_at_from_text
 
 
+logger = get_sub_logger("adapter.discord")
 class DiscordAdapter(BaseAdapter[DiscordConfig]):
     client: Optional[DiscordClient]
     

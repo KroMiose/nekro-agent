@@ -12,8 +12,6 @@ from nekro_agent.core.os_env import TIMER_ONE_SHOT_PERSIST_PATH
 from nekro_agent.services.message_service import message_service
 
 logger = get_sub_logger("timer")
-
-
 class TimerTask:
     """定时任务类"""
 

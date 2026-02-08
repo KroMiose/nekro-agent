@@ -1,16 +1,16 @@
+
 """空间扫描服务"""
 
 import asyncio
 import contextlib
 import json
 import shutil
-import time
 import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import (
     APP_LOG_DIR,
     APP_SYSTEM_DIR,
@@ -40,6 +40,8 @@ from nekro_agent.schemas.space_cleanup import (
 from nekro_agent.services.plugin.collector import plugin_collector
 
 # 扫描缓存目录
+
+logger = get_sub_logger("space_cleanup")
 SCAN_CACHE_DIR = Path(APP_SYSTEM_DIR) / "space_cleanup"
 SCAN_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 

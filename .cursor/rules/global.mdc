@@ -1,8 +1,14 @@
 ---
-description: 
-globs: 
+description: 项目通用规范与背景
+globs:
 alwaysApply: true
 ---
+# 项目背景（简要）
+
+- Nekro Agent 是面向多平台的 Agent 系统，前后端一体，核心 API 使用标准 HTTP 状态码与统一错误结构
+- 认证系统当前仅支持 `admin` 登录（用户表历史遗留，普通用户登录功能暂停使用）
+- 日志系统支持子系统过滤（`subsystem`），方便按模块观测
+
 # 开发规范
 
 - 先主动审查所有依赖与相关文件，再规划实现方案
@@ -28,7 +34,7 @@ alwaysApply: true
 ## 功能/页面开发完整流程
 
 1. 在 `frontend/src/pages` 下查找合适的页面或新建页面开始
-2. 在 `nekro_agent/routers` 下查找已存在的路由或者新建路由，注意使用 [message.py](mdc:nekro_agent/schemas/message.py) 结构; 如有必要查阅或者封装工具使用
+2. 在 `nekro_agent/routers` 下查找已存在的路由或者新建路由，遵循统一的 `AppError` 与标准响应结构
 3. 在 `frontend/src/services/api` 下准备合适的 API 路由实现
 4. 在 [index.tsx](mdc:frontend/src/router/index.tsx) 和 [MainLayout.tsx](mdc:frontend/src/layouts/MainLayout.tsx) 中注册路由和页面
 5. 检查所有修改中的 linter 警告或者错误并修复，直到没有错误！

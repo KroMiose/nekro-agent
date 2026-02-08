@@ -23,49 +23,23 @@ export interface UpdatePasswordParams {
   password: string
 }
 
-export interface ApiResponse<T> {
-  code: number
-  msg: string
-  data: T
+export interface ActionResponse {
+  ok: boolean
 }
 
 export const authApi = {
   login: async (params: LoginParams) => {
-    try {
-      const response = await axios.post<ApiResponse<LoginResponse>>('/user/login', params)
-      if (response.data.code !== 200) {
-        throw new Error(response.data.msg)
-      }
-      return response.data.data
-    } catch (error) {
-      console.error('Login failed:', error)
-      throw error
-    }
+    const response = await axios.post<LoginResponse>('/user/login', params)
+    return response.data
   },
 
   getUserInfo: async () => {
-    try {
-      const response = await axios.get<ApiResponse<UserInfo>>('/user/me')
-      if (response.data.code !== 200) {
-        throw new Error(response.data.msg)
-      }
-      return response.data.data
-    } catch (error) {
-      console.error('Get user info failed:', error)
-      throw error
-    }
+    const response = await axios.get<UserInfo>('/user/me')
+    return response.data
   },
 
   updatePassword: async (params: UpdatePasswordParams) => {
-    try {
-      const response = await axios.put<ApiResponse<null>>('/user/password', params)
-      if (response.data.code !== 200) {
-        throw new Error(response.data.msg)
-      }
-      return response.data.data
-    } catch (error) {
-      console.error('Update password failed:', error)
-      throw error
-    }
+    const response = await axios.put<ActionResponse>('/user/password', params)
+    return response.data
   },
 }

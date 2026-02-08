@@ -16,15 +16,12 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       userInfo: null,
       setToken: token => {
-        console.log('Setting token:', token ? '***' : 'null')
         set({ token })
       },
       setUserInfo: userInfo => {
-        console.log('Setting user info:', userInfo)
         set({ userInfo })
       },
       logout: () => {
-        console.log('Logging out')
         set({ token: null, userInfo: null })
       },
     }),

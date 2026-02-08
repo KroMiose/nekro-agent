@@ -32,6 +32,13 @@
     "securityWarning": "Warning! Log files may contain sensitive information!",
     "securityInfo1": "Logs may contain your API keys, user information, chat history, or other private data.",
     "securityInfo2": "For your security, please do not send unprocessed log files to untrusted parties or upload to public platforms."
+    ,
+    "failed": "Download failed, please try again later"
+  },
+  "errors": {
+    "parseLog": "Failed to parse log data",
+    "stream": "Log stream error",
+    "connect": "Failed to create log stream"
   },
   "dialog": {
     "details": "Log Details",

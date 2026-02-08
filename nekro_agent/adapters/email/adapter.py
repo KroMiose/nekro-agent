@@ -16,12 +16,14 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Dict, List, Optional, Type
 
+
 import aiofiles
 from fastapi import APIRouter
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
+
     PlatformChannel,
     PlatformMessage,
     PlatformMessageExt,
@@ -30,7 +32,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core import config as core_config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.message_service import message_service
@@ -40,6 +42,7 @@ from .config import EmailAccount, EmailConfig
 from .routers import router, set_email_adapter
 
 
+logger = get_sub_logger("adapter.email")
 def decode_mime_words(s):
     """解码MIME编码的字符串"""
     if not s:

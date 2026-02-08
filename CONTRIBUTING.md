@@ -107,6 +107,15 @@ pnpm dev
 - ✅ 使用类型注解，避免类型断言
 - ✅ 处理所有 Linter 警告和错误
 - ✅ 仔细审查所有由生成式 AI 生成的内容
+- ✅ 提交前至少通过 `poe lint` 与 `poe typecheck`（或使用 `poe check`）
+
+### 错误处理与响应规范
+
+- ✅ 路由层禁止宽泛 `try/except`，仅捕获特定异常
+- ✅ 业务错误必须使用 `AppError` 体系（`nekro_agent/schemas/errors.py`）
+- ✅ 禁止使用旧的 `Ret` 返回结构
+- ✅ 路由层禁止 `logger.exception`，由全局异常处理器统一记录堆栈
+- ✅ API 返回使用标准 HTTP 状态码；错误响应支持 i18n（通过 `Accept-Language`）
 
 ### 提交 Pull Request
 

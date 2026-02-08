@@ -63,7 +63,6 @@ const WallpaperBackground: React.FC<WallpaperBackgroundProps> = ({
 
     // 检查缓存中是否已存在
     if (wallpaperCache[wallpaperUrl]) {
-      console.log('使用缓存的壁纸:', wallpaperUrl)
       setCurrentWallpaper(wallpaperUrl)
       setHasError(false)
       return
@@ -86,11 +85,9 @@ const WallpaperBackground: React.FC<WallpaperBackgroundProps> = ({
     
     img.onerror = () => {
       // 加载失败，但如果之前已成功加载，保持当前壁纸
-      console.error('壁纸加载失败:', wallpaperUrl)
       
       // 如果当前已有壁纸且非首次加载，保持使用当前壁纸
       if (currentWallpaper && currentWallpaper !== wallpaperUrl) {
-        console.log('保持使用现有壁纸')
         setHasError(false)
       } else {
         setHasError(true)

@@ -601,7 +601,7 @@ export default function SandboxPage() {
                     try {
                       extraData = JSON.parse(log.extra_data)
                     } catch (e) {
-                      console.error('Failed to parse extra_data', e)
+                      extraData = null
                     }
                   }
 

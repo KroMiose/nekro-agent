@@ -1,12 +1,15 @@
 import re
 from typing import List, Union
 
+
 from pydantic import BaseModel
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 # 更新正则表达式以支持带有昵称的复杂 @ 格式
 # 例如 [@id:123456;nickname:SomeUser@]
+
+logger = get_sub_logger("adapter.discord")
 AT_PATTERN = re.compile(r"\[@id:(\d+?)(?:;nickname:.*?)?@\]")
 
 

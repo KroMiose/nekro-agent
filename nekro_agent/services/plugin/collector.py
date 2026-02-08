@@ -1,16 +1,16 @@
+
 """插件收集器
 
 负责插件的加载和管理功能。
 """
 
 import json
-import os
 import shutil
 import stat
 import sys
 import traceback
 from datetime import datetime
-from importlib import import_module, reload
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Coroutine, Dict, List, Literal, Optional, Set, Tuple
 
@@ -19,7 +19,7 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import BUILTIN_PLUGIN_DIR, PACKAGES_DIR, WORKDIR_PLUGIN_DIR
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
@@ -28,7 +28,7 @@ from nekro_agent.schemas.signal import MsgSignal
 from .base import NekroPlugin
 from .schema import SandboxMethod
 
-
+logger = get_sub_logger("plugin_system")
 class PackageInfo(BaseModel):
     """云端插件信息"""
 

@@ -19,7 +19,6 @@ from typing import (
 import aiofiles
 from fastapi import APIRouter
 
-from nekro_agent.core import logger
 from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv

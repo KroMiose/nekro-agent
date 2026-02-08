@@ -6,25 +6,31 @@ export interface ContainerStatus {
   started_at: string
 }
 
+export interface TokenResponse {
+  token: string | null
+}
+
+export interface ActionResponse {
+  ok: boolean
+}
+
 export const oneBotV11Api = {
   /**
    * 获取容器状态
    */
   getContainerStatus: async () => {
-    const { data } = await axios.get<{ data: ContainerStatus }>(
-      '/adapters/onebot_v11/container/status'
-    )
-    return data.data
+    const { data } = await axios.get<ContainerStatus>('/adapters/onebot_v11/container/status')
+    return data
   },
 
   /**
    * 获取历史日志
    */
   getContainerLogs: async (tail = 500) => {
-    const { data } = await axios.get<{ data: string[] }>('/adapters/onebot_v11/container/logs', {
+    const { data } = await axios.get<string[]>('/adapters/onebot_v11/container/logs', {
       params: { tail },
     })
-    return data.data
+    return data
   },
 
   /**
@@ -42,27 +48,23 @@ export const oneBotV11Api = {
    * 重启容器
    */
   restartContainer: async () => {
-    const { data } = await axios.post<{ data: boolean }>('/adapters/onebot_v11/container/restart')
-    return data.data
+    const { data } = await axios.post<ActionResponse>('/adapters/onebot_v11/container/restart')
+    return data.ok
   },
 
   /**
    * 获取OneBot访问令牌
    */
   getOneBotToken: async () => {
-    const { data } = await axios.get<{ data: string | null }>(
-      '/adapters/onebot_v11/container/onebot-token'
-    )
-    return data.data
+    const { data } = await axios.get<TokenResponse>('/adapters/onebot_v11/container/onebot-token')
+    return data.token
   },
 
   /**
    * 获取NapCat WebUI访问令牌
    */
   getNapcatToken: async () => {
-    const { data } = await axios.get<{ data: string | null }>(
-      '/adapters/onebot_v11/container/napcat-token'
-    )
-    return data.data
+    const { data } = await axios.get<TokenResponse>('/adapters/onebot_v11/container/napcat-token')
+    return data.token
   },
 }

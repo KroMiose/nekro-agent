@@ -1,10 +1,17 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.message import Ret
+from nekro_agent.schemas.errors import (
+    CloudServiceError,
+    ConflictError,
+    NotFoundError,
+    OperationFailedError,
+    PermissionDeniedError,
+)
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -16,13 +23,54 @@ from nekro_agent.systems.cloud.api.plugin import (
     list_plugins,
     list_user_plugins,
 )
-from nekro_agent.systems.cloud.api.plugin import (
-    update_plugin as cloud_update_plugin,
-)
-from nekro_agent.systems.cloud.schemas.plugin import PluginCreate, PluginUpdate
+from nekro_agent.systems.cloud.api.plugin import update_plugin as cloud_update_plugin
+from nekro_agent.systems.cloud.schemas.plugin import PluginCreate, PluginUpdate, RepoData
 from nekro_agent.tools.image_utils import process_image_data_url
 
+logger = get_sub_logger("cloud_api")
 router = APIRouter(prefix="/cloud/plugins-market", tags=["Cloud Plugins Market"])
+
+
+class CloudPlugin(BaseModel):
+    id: str
+    name: str
+    moduleName: str
+    description: str
+    author: str
+    hasWebhook: bool
+    homepageUrl: Optional[str] = None
+    githubUrl: Optional[str] = None
+    cloneUrl: Optional[str] = None
+    licenseType: Optional[str] = None
+    created_at: str = Field(alias="createdAt")
+    updated_at: str = Field(alias="updatedAt")
+    is_local: bool
+    version: Optional[str] = None
+    can_update: Optional[bool] = None
+    icon: Optional[str] = None
+    isOwner: Optional[bool] = None
+
+
+class CloudPluginListResponse(BaseModel):
+    total: int
+    items: List[CloudPlugin]
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class UserPlugin(BaseModel):
+    id: str
+    name: str
+    moduleName: str
+
+
+class ActionResponse(BaseModel):
+    ok: bool = True
+
+
+class CreateResponse(BaseModel):
+    id: str
 
 
 @router.get("/list", summary="获取云端插件列表")
@@ -33,102 +81,84 @@ async def get_cloud_plugins_list(
     keyword: Optional[str] = None,
     has_webhook: Optional[bool] = None,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CloudPluginListResponse:
     """获取云端插件列表"""
-    try:
-        # 查询云端插件列表
-        response = await list_plugins(page=page, page_size=page_size, keyword=keyword, has_webhook=has_webhook)
+    response = await list_plugins(page=page, page_size=page_size, keyword=keyword, has_webhook=has_webhook)
 
-        if not response.success:
-            return Ret.fail(msg=response.message)
+    if not response.success:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        if not response.data or not response.data.items:
-            return Ret.success(msg="暂无数据", data={"total": 0, "items": []})
-
-        # 获取所有云端插件的ID
-        # remote_ids = [item.id for item in response.data.items]
-
-        # 查询本地插件，获取版本信息
-        # 这里只是预留位置，实际实现需要根据你的系统进行调整
-        local_plugins = []
-        local_plugin_ids = plugin_collector.package_data.get_remote_ids()
-
-        # 构建返回结果，添加是否已在本地的标记
-        result = []
-        for item in response.data.items:
-            # 检查是否本地存在该插件
-            is_local = item.id in local_plugin_ids
-
-            # 获取本地版本，如果存在
-            version = None
-            can_update = False
-            if is_local:
-                # 查找对应的本地插件获取版本信息
-                for plugin in local_plugins:
-                    if getattr(plugin, "remote_id", None) == item.id:
-                        version = getattr(plugin, "version", None)
-                        # 简单判断是否可更新，实际逻辑可能更复杂
-                        can_update = False  # 这里先设为False，实际应该比较版本
-                        break
-
-            result.append(
-                {
-                    "id": item.id,
-                    "name": item.name,
-                    "moduleName": item.moduleName,
-                    "description": item.description,
-                    "author": item.author,
-                    "hasWebhook": item.hasWebhook,
-                    "homepageUrl": item.homepageUrl,
-                    "githubUrl": item.githubUrl,
-                    "cloneUrl": item.cloneUrl,
-                    "licenseType": item.licenseType,
-                    "createdAt": item.createdAt,
-                    "updatedAt": item.updatedAt,
-                    "is_local": is_local,
-                    "version": version,
-                    "can_update": can_update,
-                    "icon": item.icon,
-                    "isOwner": getattr(item, "isOwner", False),
-                },
-            )
-
-        return Ret.success(
-            msg="获取成功",
-            data={
-                "total": response.data.total,
-                "items": result,
-                "page": page,
-                "pageSize": page_size,
-                "totalPages": (response.data.total + page_size - 1) // page_size,  # 计算总页数
-            },
+    if not response.data or not response.data.items:
+        return CloudPluginListResponse(
+            total=0,
+            items=[],
+            page=page,
+            page_size=page_size,
+            total_pages=0,
         )
 
-    except Exception as e:
-        logger.error(f"获取云端插件列表失败: {e}")
-        return Ret.fail(msg=f"获取失败: {e}")
+    local_plugins = []
+    local_plugin_ids = plugin_collector.package_data.get_remote_ids()
+
+    result: List[CloudPlugin] = []
+    for item in response.data.items:
+        is_local = item.id in local_plugin_ids
+
+        version = None
+        can_update = False
+        if is_local:
+            for plugin in local_plugins:
+                if getattr(plugin, "remote_id", None) == item.id:
+                    version = getattr(plugin, "version", None)
+                    can_update = False
+                    break
+
+        result.append(
+            CloudPlugin(
+                id=item.id,
+                name=item.name,
+                moduleName=item.moduleName,
+                description=item.description,
+                author=item.author,
+                hasWebhook=item.hasWebhook,
+                homepageUrl=item.homepageUrl,
+                githubUrl=item.githubUrl,
+                cloneUrl=item.cloneUrl,
+                licenseType=item.licenseType,
+                created_at=item.createdAt,
+                updated_at=item.updatedAt,
+                is_local=is_local,
+                version=version,
+                can_update=can_update,
+                icon=item.icon,
+                isOwner=getattr(item, "isOwner", False),
+            ),
+        )
+
+    return CloudPluginListResponse(
+        total=response.data.total,
+        items=result,
+        page=page,
+        page_size=page_size,
+        total_pages=(response.data.total + page_size - 1) // page_size,
+    )
 
 
 @router.get("/user-plugins", summary="获取用户已上传的插件")
 @require_role(Role.Admin)
 async def get_user_plugins(
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> List[UserPlugin]:
     """获取用户已上传的插件列表"""
-    try:
-        response = await list_user_plugins()
+    response = await list_user_plugins()
 
-        if not response.success:
-            return Ret.fail(msg=f"获取失败: {response.error}")
+    if not response.success:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        if not response.data or not response.data.items:
-            return Ret.success(msg="暂无数据", data=[])
+    if not response.data or not response.data.items:
+        return []
 
-        return Ret.success(msg="获取成功", data=response.data.items)
-
-    except Exception as e:
-        logger.error(f"获取用户插件列表失败: {e}")
-        return Ret.fail(msg=f"获取失败: {e}")
+    return [UserPlugin(**item.model_dump()) for item in response.data.items]
 
 
 @router.get("/detail/{plugin_id}", summary="获取插件详情")
@@ -136,48 +166,34 @@ async def get_user_plugins(
 async def get_plugin_detail(
     plugin_id: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CloudPlugin:
     """获取插件详情"""
-    try:
-        # 获取云端插件详情
-        response = await get_plugin(plugin_id)
+    response = await get_plugin(plugin_id)
 
-        if not response.success or not response.data:
-            return Ret.fail(msg=f"获取失败: {response.error}")
+    if not response.success or not response.data:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        plugin_data = response.data
+    plugin_data = response.data
 
-        # 查询本地是否存在该插件
-        is_local = False
-        version = None
-        can_update = False
-
-        # 构建返回数据
-        result = {
-            "id": plugin_data.id,
-            "name": plugin_data.name,
-            "moduleName": plugin_data.moduleName,
-            "description": plugin_data.description,
-            "author": plugin_data.author,
-            "hasWebhook": plugin_data.hasWebhook,
-            "homepageUrl": plugin_data.homepageUrl,
-            "githubUrl": plugin_data.githubUrl,
-            "cloneUrl": plugin_data.cloneUrl,
-            "licenseType": plugin_data.licenseType,
-            "createdAt": plugin_data.created_at,
-            "updatedAt": plugin_data.updated_at,
-            "is_local": is_local,
-            "version": version,
-            "can_update": can_update,
-            "icon": plugin_data.icon,
-            "isOwner": plugin_data.isOwner,
-        }
-
-        return Ret.success(msg="获取成功", data=result)
-
-    except Exception as e:
-        logger.error(f"获取插件详情失败: {e}")
-        return Ret.fail(msg=f"获取失败: {e}")
+    return CloudPlugin(
+        id=plugin_data.id,
+        name=plugin_data.name,
+        moduleName=plugin_data.moduleName,
+        description=plugin_data.description,
+        author=plugin_data.author,
+        hasWebhook=plugin_data.hasWebhook,
+        homepageUrl=plugin_data.homepageUrl,
+        githubUrl=plugin_data.githubUrl,
+        cloneUrl=plugin_data.cloneUrl,
+        licenseType=plugin_data.licenseType,
+        created_at=plugin_data.created_at,
+        updated_at=plugin_data.updated_at,
+        is_local=False,
+        version=None,
+        can_update=False,
+        icon=plugin_data.icon,
+        isOwner=plugin_data.isOwner,
+    )
 
 
 @router.get("/repo/{module_name}", summary="获取插件仓库信息")
@@ -185,18 +201,14 @@ async def get_plugin_detail(
 async def get_plugin_repo(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> RepoData:
     """获取插件仓库详细信息"""
-    try:
-        response = await get_plugin_repo_info(module_name)
-        
-        if not response.success:
-            return Ret.fail(msg=response.message)
-            
-        return Ret.success(msg="获取成功", data=response.data)
-    except Exception as e:
-        logger.error(f"获取插件仓库信息失败: {e}")
-        return Ret.fail(msg=f"获取失败: {e}")
+    response = await get_plugin_repo_info(module_name)
+
+    if not response.success or not response.data:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
+
+    return response.data
 
 
 @router.post("/download/{module_name}", summary="下载云端插件到本地")
@@ -204,45 +216,31 @@ async def get_plugin_repo(
 async def download_plugin(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> ActionResponse:
     """下载云端插件到本地"""
-    try:
-        # 检查插件是否已存在
-        local_plugins = plugin_collector.package_data.get_remote_ids()
-        if module_name in local_plugins:
-            return Ret.fail(msg="插件已存在")
+    local_plugins = plugin_collector.package_data.get_remote_ids()
+    if module_name in local_plugins:
+        raise ConflictError(resource="插件")
 
-        # 获取云端插件详情
-        response = await get_plugin(module_name)
-        if not response.success or not response.data:
-            return Ret.fail(msg=response.message)
+    response = await get_plugin(module_name)
+    if not response.success or not response.data:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        plugin_data = response.data
+    plugin_data = response.data
 
-        if not plugin_data.cloneUrl:
-            return Ret.fail(msg=f"找不到插件 `{module_name}` 的仓库克隆地址")
+    if not plugin_data.cloneUrl:
+        raise NotFoundError(resource="插件仓库")
 
-        try:
-            await plugin_collector.clone_package(
-                module_name=plugin_data.moduleName,
-                git_url=plugin_data.cloneUrl,
-                remote_id=plugin_data.id,
-                auto_load=True,
-            )
-        except Exception as e:
-            return Ret.fail(msg=f"下载插件失败: {e}")
+    await plugin_collector.clone_package(
+        module_name=plugin_data.moduleName,
+        git_url=plugin_data.cloneUrl,
+        remote_id=plugin_data.id,
+        auto_load=True,
+    )
 
-        try:
-            await plugin_collector.reload_plugin_by_module_name(plugin_data.moduleName, is_package=True)
-        except Exception as e:
-            logger.exception(f"加载插件失败: {e}")
-            return Ret.fail(msg=f"加载插件失败: {e}")
+    await plugin_collector.reload_plugin_by_module_name(plugin_data.moduleName, is_package=True)
 
-        return Ret.success(msg="下载成功，插件已安装")
-
-    except Exception as e:
-        logger.error(f"下载插件失败: {e}")
-        return Ret.fail(msg=f"下载失败: {e}")
+    return ActionResponse(ok=True)
 
 
 @router.post("/update/{module_name}", summary="更新本地插件")
@@ -250,34 +248,24 @@ async def download_plugin(
 async def update_plugin(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> ActionResponse:
     """更新本地插件"""
-    try:
-        # 检查插件是否存在于本地
-        local_plugins = plugin_collector.package_data.get_remote_ids()
-        if module_name not in local_plugins:
-            return Ret.fail(msg="该插件不存在于本地，请先下载")
+    local_plugins = plugin_collector.package_data.get_remote_ids()
+    if module_name not in local_plugins:
+        raise NotFoundError(resource="插件")
 
-        # 获取云端插件详情
-        response = await get_plugin(module_name)
-        if not response.success or not response.data:
-            return Ret.fail(msg=response.message)
+    response = await get_plugin(module_name)
+    if not response.success or not response.data:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        logger.info(f"准备更新插件: {module_name}")
+    logger.info(f"准备更新插件: {module_name}")
 
-        try:
-            await plugin_collector.update_package(
-                module_name=response.data.moduleName,
-                auto_reload=True,
-            )
-        except Exception as e:
-            return Ret.fail(msg=f"更新插件失败: {e}")
+    await plugin_collector.update_package(
+        module_name=response.data.moduleName,
+        auto_reload=True,
+    )
 
-        return Ret.success(msg="更新成功，插件已更新至最新版本")
-
-    except Exception as e:
-        logger.error(f"更新插件失败: {e}")
-        return Ret.fail(msg=f"更新失败: {e}")
+    return ActionResponse(ok=True)
 
 
 @router.post("/create", summary="创建插件")
@@ -285,33 +273,20 @@ async def update_plugin(
 async def create_cloud_plugin(
     plugin_data: PluginCreate,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> CreateResponse:
     """创建云端插件"""
-    try:
-        # 处理图标，如果是Base64格式的，进行压缩处理
-        if plugin_data.icon and plugin_data.icon.startswith("data:image/"):
-            # 尝试压缩图标图片
-            try:
-                compressed_icon = await process_image_data_url(plugin_data.icon)
-                plugin_data.icon = compressed_icon
-            except Exception as e:
-                logger.error(f"压缩插件图标失败: {e}")
-                # 如果压缩失败，继续使用原图标
+    if plugin_data.icon and plugin_data.icon.startswith("data:image/"):
+        plugin_data.icon = await process_image_data_url(plugin_data.icon)
 
-        # 创建插件
-        response = await create_plugin(plugin_data)
+    response = await create_plugin(plugin_data)
 
-        if not response.success:
-            return Ret.fail(msg=response.message)
+    if not response.success:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        if not response.data:
-            return Ret.fail(msg="创建失败，服务返回数据为空")
+    if not response.data or "id" not in response.data:
+        raise OperationFailedError(operation="创建插件")
 
-        return Ret.success(msg="插件创建成功", data=response.data)
-
-    except Exception as e:
-        logger.error(f"创建插件失败: {e}")
-        return Ret.fail(msg=f"创建失败: {e}")
+    return CreateResponse(id=str(response.data.get("id")))
 
 
 @router.delete("/plugin/{module_name}", summary="下架云端插件")
@@ -319,22 +294,14 @@ async def create_cloud_plugin(
 async def delete_cloud_plugin(
     module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> ActionResponse:
     """下架云端插件"""
-    try:
-        # 调用云端接口删除插件
-        response = await delete_plugin(module_name)
+    response = await delete_plugin(module_name)
 
-        if not response.success:
-            # 处理可能的错误，比如权限不足或插件不存在
-            return Ret.fail(msg=response.message)
+    if not response.success:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        return Ret.success(msg=f"插件 '{module_name}' 已成功从云端删除")
-
-    except Exception as e:
-        logger.error(f"下架云端插件 '{module_name}' 失败: {e}")
-        # 处理调用过程中的其他异常
-        return Ret.fail(msg=f"删除插件失败: {e}")
+    return ActionResponse(ok=True)
 
 
 @router.put("/plugin/{module_name}", summary="更新插件信息")
@@ -343,46 +310,22 @@ async def update_user_plugin(
     module_name: str,
     plugin_data: PluginUpdate,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
-    """更新用户发布的插件信息
+) -> ActionResponse:
+    """更新用户发布的插件信息"""
+    current_plugin = await get_plugin(module_name)
+    if not current_plugin.success:
+        raise CloudServiceError(reason=str(current_plugin.error or current_plugin.message or "未知错误"))
 
-    Args:
-        module_name: 插件模块名称
-        plugin_data: 要更新的插件数据
-        _current_user: 当前用户
+    if not current_plugin.data or not current_plugin.data.isOwner:
+        raise PermissionDeniedError()
 
-    Returns:
-        Ret: 请求结果
-    """
-    try:
-        # 获取当前插件信息，判断用户是否有权限修改
-        current_plugin = await get_plugin(module_name)
-        if not current_plugin.success:
-            return Ret.fail(msg=f"获取插件信息失败: {current_plugin.error}")
+    if plugin_data.icon and plugin_data.icon.startswith("data:image/"):
+        plugin_data.icon = await process_image_data_url(plugin_data.icon)
 
-        if not current_plugin.data or not current_plugin.data.isOwner:
-            return Ret.fail(msg="您没有权限修改此插件信息")
+    update_data = plugin_data.model_dump(exclude_unset=True, exclude_none=True)
+    response = await cloud_update_plugin(module_name, update_data)
 
-        # 处理图标，如果是Base64格式的，进行压缩处理
-        if plugin_data.icon and plugin_data.icon.startswith("data:image/"):
-            try:
-                compressed_icon = await process_image_data_url(plugin_data.icon)
-                plugin_data.icon = compressed_icon
-            except Exception as e:
-                logger.error(f"压缩插件图标失败: {e}")
-                # 如果压缩失败，继续使用原图标
+    if not response.success:
+        raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
 
-        # 准备更新数据
-        update_data = plugin_data.dict(exclude_unset=True, exclude_none=True)
-
-        # 调用云端API更新插件信息
-        response = await cloud_update_plugin(module_name, update_data)
-
-        if not response.success:
-            return Ret.fail(msg=f"更新插件信息失败: {response.error}")
-
-        return Ret.success(msg="插件信息更新成功")
-
-    except Exception as e:
-        logger.error(f"更新插件信息失败: {e}")
-        return Ret.fail(msg=f"更新失败: {e}")
+    return ActionResponse(ok=True)

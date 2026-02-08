@@ -22,10 +22,8 @@ export interface CloudPresetListResponse {
   total_pages: number
 }
 
-export interface ApiResponse<T> {
-  code: number
-  msg: string
-  data: T
+export interface ActionResponse {
+  ok: boolean
 }
 
 export const presetsMarketApi = {
@@ -38,31 +36,15 @@ export const presetsMarketApi = {
     keyword?: string
     tag?: string
   }): Promise<CloudPresetListResponse> => {
-    try {
-      const response = await axios.get<{
-        code: number
-        msg: string
-        data: CloudPresetListResponse
-      }>('/cloud/presets-market/list', { params })
-      return response.data.data
-    } catch (error) {
-      console.error('获取云端人设列表失败:', error)
-      throw error
-    }
+    const response = await axios.get<CloudPresetListResponse>('/cloud/presets-market/list', { params })
+    return response.data
   },
 
   /**
    * 下载云端人设到本地
    */
-  downloadPreset: async (remote_id: string): Promise<ApiResponse<null>> => {
-    try {
-      const response = await axios.post<ApiResponse<null>>(
-        `/cloud/presets-market/download/${remote_id}`
-      )
-      return response.data
-    } catch (error) {
-      console.error('下载云端人设失败:', error)
-      throw error
-    }
+  downloadPreset: async (remote_id: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/cloud/presets-market/download/${remote_id}`)
+    return response.data
   },
 }

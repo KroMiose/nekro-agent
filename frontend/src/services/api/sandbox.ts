@@ -63,10 +63,10 @@ export const sandboxApi = {
     chat_key?: string
     success?: boolean
   }) => {
-    const response = await axios.get<{
-      data: { total: number; items: SandboxLog[] }
-    }>('/sandbox/logs', { params })
-    return response.data.data
+    const response = await axios.get<{ total: number; items: SandboxLog[] }>('/sandbox/logs', {
+      params,
+    })
+    return response.data
   },
 
   getLogContent: async (log_path: string) => {
@@ -77,7 +77,7 @@ export const sandboxApi = {
   },
 
   getStats: async () => {
-    const response = await axios.get<{ data: SandboxStats }>('/sandbox/stats')
-    return response.data.data
+    const response = await axios.get<SandboxStats>('/sandbox/stats')
+    return response.data
   },
 }

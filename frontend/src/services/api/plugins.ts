@@ -19,7 +19,7 @@ export interface Webhook {
 export interface Plugin {
   name: string
   moduleName: string
-  id: string // 插件唯一标识
+  id: string
   version: string
   description: string
   author: string
@@ -28,15 +28,15 @@ export interface Plugin {
   webhooks: Webhook[]
   enabled: boolean
   hasConfig: boolean
-  isBuiltin: boolean // 是否为内置插件
-  isPackage: boolean // 是否为市场插件（包）
-  i18n_name?: I18nDict // 插件名称国际化
-  i18n_description?: I18nDict // 插件描述国际化
-  loadFailed?: boolean // 是否加载失败
-  errorMessage?: string // 错误信息
-  errorType?: string // 错误类型
-  filePath?: string // 文件路径
-  stackTrace?: string // 堆栈信息
+  isBuiltin: boolean
+  isPackage: boolean
+  i18n_name?: I18nDict
+  i18n_description?: I18nDict
+  loadFailed?: boolean
+  errorMessage?: string
+  errorType?: string
+  filePath?: string
+  stackTrace?: string
 }
 
 export interface PluginConfig {
@@ -66,317 +66,207 @@ export interface PluginData {
   update_time: string
 }
 
+export interface ActionResponse {
+  ok: boolean
+}
+
+export interface PluginDocsResponse {
+  docs: string | null
+  exists: boolean
+}
+
+export interface GeneratedCodeResponse {
+  code: string
+}
+
+export interface PluginTemplateResponse {
+  template: string
+}
+
+export interface ReloadResult {
+  success: boolean
+  errorMsg?: string
+}
+
 export const pluginsApi = {
-  // 获取插件列表
   getPlugins: async (): Promise<Plugin[]> => {
-    try {
-      const response = await axios.get<{ data: Plugin[] }>('/plugins/list')
-      return response.data.data
-    } catch (error) {
-      console.error('获取插件列表失败:', error)
-      return []
-    }
+    const response = await axios.get<Plugin[]>('/plugins/list')
+    return response.data
   },
 
-  // 获取插件详情
-  getPluginDetail: async (pluginId: string): Promise<Plugin | null> => {
-    try {
-      const response = await axios.get<{ data: Plugin }>(`/plugins/detail/${pluginId}`)
-      return response.data.data
-    } catch (error) {
-      console.error(`获取插件 ${pluginId} 详情失败:`, error)
-      return null
-    }
+  getPluginDetail: async (pluginId: string): Promise<Plugin> => {
+    const response = await axios.get<Plugin>(`/plugins/detail/${pluginId}`)
+    return response.data
   },
 
-  // 启用/禁用插件
   togglePluginEnabled: async (pluginId: string, enabled: boolean): Promise<boolean> => {
-    try {
-      await axios.post(`/plugins/toggle/${pluginId}`, { enabled })
-      return true
-    } catch (error) {
-      console.error(`切换插件 ${pluginId} 状态失败:`, error)
-      return false
-    }
+    const response = await axios.post<ActionResponse>(`/plugins/toggle/${pluginId}`, { enabled })
+    return response.data.ok
   },
 
-  // 获取插件配置
   getPluginConfig: async (pluginId: string): Promise<PluginConfig[]> => {
-    try {
-      const response = await axios.get<{ data: PluginConfig[] }>(`/plugins/configs/${pluginId}`)
-      return response.data.data
-    } catch (error) {
-      console.error(`获取插件 ${pluginId} 配置失败:`, error)
-      return []
-    }
+    const response = await axios.get<PluginConfig[]>(`/config/list/plugin_${pluginId}`)
+    return response.data
   },
 
-  // 保存插件配置
   savePluginConfig: async (pluginId: string, configs: Record<string, string>): Promise<boolean> => {
-    try {
-      await axios.post(`/plugins/configs/${pluginId}`, { configs })
-      return true
-    } catch (error) {
-      console.error(`保存插件 ${pluginId} 配置失败:`, error)
-      return false
-    }
+    const response = await axios.post<ActionResponse>(`/config/batch/plugin_${pluginId}`, { configs })
+    return response.data.ok
   },
 
-  // 重载插件
-  reloadPlugins: async (module_name: string): Promise<{ success: boolean; errorMsg?: string }> => {
+  reloadPlugins: async (module_name: string): Promise<ReloadResult> => {
+    if (!module_name) {
+      return { success: false, errorMsg: 'module_name不能为空' }
+    }
     try {
-      if (!module_name) {
-        return { success: false, errorMsg: 'module_name不能为空' }
-      }
-      const response = await axios.post(
-        '/plugins/reload',
-        {},
-        {
-          params: { module_name },
-        }
-      )
-      // 检查返回的结果
-      if (response.data.code !== 200) {
-        return { success: false, errorMsg: response.data.msg || '重载失败' }
-      }
+      await axios.post('/plugins/reload', {}, { params: { module_name } })
       return { success: true }
     } catch (error: unknown) {
-      // 捕获并返回后端的详细错误信息
       const err = error as {
-        response?: {
-          data?: {
-            msg?: string
-            detail?: unknown
-          }
-        }
+        response?: { data?: { message?: string; detail?: unknown } }
         message?: string
       }
-
       const errorMsg =
-        err.response?.data?.msg ||
+        err.response?.data?.message ||
         (err.response?.data?.detail ? JSON.stringify(err.response.data.detail) : '') ||
         err.message ||
         '未知错误'
-      console.error(errorMsg)
       return { success: false, errorMsg }
     }
   },
 
-  // 获取插件文件列表
   getPluginFiles: async (): Promise<string[]> => {
-    try {
-      const response = await axios.get<{ data: string[] }>('/plugins/files')
-      return response.data.data
-    } catch (error) {
-      console.error('获取插件文件列表失败:', error)
-      return []
-    }
+    const response = await axios.get<string[]>('/plugin-editor/files')
+    return response.data
   },
 
-  // 获取插件文件内容
-  getPluginFileContent: async (filePath: string): Promise<string | null> => {
-    try {
-      const response = await axios.get<{ data: { content: string } }>(`/plugins/file/${filePath}`)
-      return response.data.data.content
-    } catch (error) {
-      console.error(`获取插件文件 ${filePath} 内容失败:`, error)
-      return null
-    }
+  getPluginFileContent: async (filePath: string): Promise<string> => {
+    const response = await axios.get<{ content: string }>(`/plugin-editor/file/${filePath}`)
+    return response.data.content
   },
 
-  // 保存插件文件
   savePluginFile: async (filePath: string, content: string): Promise<boolean> => {
-    try {
-      await axios.post(`/plugins/file/${filePath}`, content, {
-        headers: {
-          'Content-Type': 'text/plain',
-        },
-      })
-      return true
-    } catch (error) {
-      console.error(`保存插件文件 ${filePath} 失败:`, error)
-      return false
-    }
+    const response = await axios.post<ActionResponse>(`/plugin-editor/file/${filePath}`, content, {
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+    })
+    return response.data.ok
   },
 
-  // 删除插件文件
   deletePluginFile: async (filePath: string): Promise<boolean> => {
-    try {
-      await axios.delete(`/plugins/files/${filePath}`)
-      return true
-    } catch (error) {
-      console.error(`删除插件文件 ${filePath} 失败:`, error)
-      return false
-    }
+    const response = await axios.delete<ActionResponse>(`/plugin-editor/files/${filePath}`)
+    return response.data.ok
   },
 
-  // 导出插件文件
   exportPluginFile: async (filePath: string): Promise<boolean> => {
-    try {
-      // 获取文件内容
-      const content = await pluginsApi.getPluginFileContent(filePath)
-      if (!content) {
-        throw new Error('无法获取文件内容')
-      }
-
-      // 创建一个下载链接
-      const blob = new Blob([content], { type: 'text/plain' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filePath.split('/').pop() || 'plugin_file.txt'
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-
-      return true
-    } catch (error) {
-      console.error(`导出插件文件 ${filePath} 失败:`, error)
-      return false
-    }
+    const content = await pluginsApi.getPluginFileContent(filePath)
+    const blob = new Blob([content], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filePath.split('/').pop() || 'plugin_file.txt'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    return true
   },
 
-  // 生成插件代码
   generatePluginCode: async (
     filePath: string,
     prompt: string,
     currentCode?: string
-  ): Promise<string | null> => {
-    try {
-      const response = await axios.post<{ data: { code: string } }>('/plugins/generate', {
-        file_path: filePath,
-        prompt,
-        current_code: currentCode,
-      })
-      return response.data.data.code
-    } catch (error) {
-      console.error('生成插件代码失败:', error)
-      return null
-    }
+  ): Promise<string> => {
+    const response = await axios.post<GeneratedCodeResponse>('/plugin-editor/generate', {
+      file_path: filePath,
+      prompt,
+      current_code: currentCode,
+    })
+    return response.data.code
   },
 
-  // 生成插件模板
-  generatePluginTemplate: async (name: string, description: string): Promise<string | null> => {
-    try {
-      const response = await axios.post<{ data: { template: string } }>('/plugins/template', {
-        name,
-        description,
-      })
-      return response.data.data.template
-    } catch (error) {
-      console.error('生成插件模板失败:', error)
-      return null
-    }
+  generatePluginTemplate: async (name: string, description: string): Promise<string> => {
+    const response = await axios.post<PluginTemplateResponse>('/plugin-editor/template', {
+      name,
+      description,
+    })
+    return response.data.template
   },
 
-  // 获取插件文档
-  getPluginDocs: async (
-    pluginId: string
-  ): Promise<{ docs: string | null; exists: boolean }> => {
-    try {
-      const response = await axios.get<{ data: { docs: string | null; exists: boolean } }>(
-        `/plugins/docs/${pluginId}`
-      )
-      return response.data.data
-    } catch (error) {
-      console.error(`获取插件 ${pluginId} 文档失败:`, error)
-      return { docs: null, exists: false }
-    }
+  getPluginDocs: async (pluginId: string): Promise<PluginDocsResponse> => {
+    const response = await axios.get<PluginDocsResponse>(`/plugins/docs/${pluginId}`)
+    return response.data
   },
 
-  // 应用生成的代码
   applyGeneratedCode: async (
     filePath: string,
     prompt: string,
     currentCode: string
-  ): Promise<string | null> => {
-    try {
-      const response = await axios.post<{ data: { code: string } }>(
-        '/plugins/apply',
-        {
-          file_path: filePath,
-          prompt,
-          current_code: currentCode,
-        },
-        {
-          timeout: 60000,
-        }
-      )
-      return response.data.data.code
-    } catch (error) {
-      console.error('应用生成代码失败:', error)
-      return null
-    }
+  ): Promise<string> => {
+    const response = await axios.post<GeneratedCodeResponse>(
+      '/plugin-editor/apply',
+      {
+        file_path: filePath,
+        prompt,
+        current_code: currentCode,
+      },
+      {
+        timeout: 60000,
+      }
+    )
+    return response.data.code
   },
 
-  // 获取插件数据列表
   getPluginData: async (pluginId: string): Promise<PluginData[]> => {
-    const response = await axios.get<{ data: PluginData[] }>(`/plugins/data/${pluginId}`)
-    return response.data.data
+    const response = await axios.get<PluginData[]>(`/plugins/data/${pluginId}`)
+    return response.data
   },
 
-  // 删除插件数据
-  deletePluginData: async (pluginId: string, dataId: number): Promise<void> => {
-    await axios.delete<{ data: void }>(`/plugins/data/${pluginId}/${dataId}`)
+  deletePluginData: async (pluginId: string, dataId: number): Promise<boolean> => {
+    const response = await axios.delete<ActionResponse>(`/plugins/data/${pluginId}/${dataId}`)
+    return response.data.ok
   },
 
-  async resetPluginData(pluginId: string) {
-    const res = await axios.delete(`/plugins/data/${pluginId}`)
-    return res.data
+  async resetPluginData(pluginId: string): Promise<boolean> {
+    const response = await axios.delete<ActionResponse>(`/plugins/data/${pluginId}`)
+    return response.data.ok
   },
 
-  // 获取模型组列表
   getModelGroups: async () => {
     const { unifiedConfigApi } = await import('./unified-config')
-  return unifiedConfigApi.getModelGroups()
+    return unifiedConfigApi.getModelGroups()
   },
 
-  // 删除云端插件
   removePackage: async (moduleName: string, clearData: boolean = false): Promise<boolean> => {
-    try {
-      await axios.delete(`/plugins/package/${moduleName}`, {
-        params: { clear_data: clearData }
-      })
-      return true
-    } catch (error) {
-      console.error(`删除云端插件 ${moduleName} 失败:`, error)
-      return false
-    }
+    const response = await axios.delete<ActionResponse>(`/plugins/package/${moduleName}`, {
+      params: { clear_data: clearData },
+    })
+    return response.data.ok
   },
 
-  // 更新云端插件
-  updatePackage: async (moduleName: string): Promise<{ success: boolean; errorMsg?: string }> => {
+  updatePackage: async (moduleName: string): Promise<ReloadResult> => {
     try {
-      const response = await axios.post(`/plugins/package/update/${moduleName}`)
-      // 检查返回的结果
-      if (response.data.code !== 200) {
-        return { success: false, errorMsg: response.data.msg || '更新失败' }
+      const response = await axios.post<ActionResponse>(`/plugins/package/update/${moduleName}`)
+      if (!response.data.ok) {
+        return { success: false, errorMsg: '更新失败' }
       }
       return { success: true }
     } catch (error: unknown) {
       const err = error as {
-        response?: {
-          data?: {
-            msg?: string
-            detail?: unknown
-          }
-        }
+        response?: { data?: { message?: string; detail?: unknown } }
         message?: string
       }
-
       const errorMsg =
-        err.response?.data?.msg ||
+        err.response?.data?.message ||
         (err.response?.data?.detail ? JSON.stringify(err.response.data.detail) : '') ||
         err.message ||
         '未知错误'
-      console.error(errorMsg)
       return { success: false, errorMsg }
     }
   },
 }
 
-// 为了支持直接导入这些方法，我们也单独导出它们
 export const getPlugins = pluginsApi.getPlugins
 export const getPluginDetail = pluginsApi.getPluginDetail
 export const togglePluginEnabled = pluginsApi.togglePluginEnabled
@@ -408,7 +298,7 @@ export const streamGenerateCode = (
   signal?: AbortSignal
 ) => {
   return createEventStream({
-    endpoint: '/plugins/generate/stream',
+    endpoint: '/plugin-editor/generate/stream',
     method: 'POST',
     body: {
       file_path: filePath,

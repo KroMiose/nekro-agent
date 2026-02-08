@@ -16,8 +16,6 @@ from nekro_agent.services.message_service import message_service
 from .cn_workday_service import cn_workday_service
 
 logger = get_sub_logger("timer")
-
-
 @dataclass(frozen=True, order=True)
 class _HeapItem:
     next_run_ts: float

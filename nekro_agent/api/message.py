@@ -1,3 +1,4 @@
+
 """消息相关 API
 
 此模块提供了与消息发送相关的 API 接口。
@@ -7,7 +8,7 @@ from typing import Optional
 
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.api.schemas import AgentCtx
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -20,6 +21,7 @@ from nekro_agent.tools.common_util import (
 )
 from nekro_agent.tools.path_convertor import convert_filename_to_sandbox_upload_path
 
+logger = get_sub_logger("api_bridge")
 __all__ = [
     "ChatMessage",
     "download_from_url",

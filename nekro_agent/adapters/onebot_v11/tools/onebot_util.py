@@ -1,8 +1,10 @@
 import json
 from typing import Tuple, Union, cast
 
+
 from nonebot.adapters import Bot
 from nonebot.adapters.onebot.v11 import (
+
     GroupIncreaseNoticeEvent,
     GroupMessageEvent,
     GroupUploadNoticeEvent,
@@ -11,12 +13,13 @@ from nonebot.adapters.onebot.v11 import (
 )
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.tools.common_util import limited_text_output
 
 
+logger = get_sub_logger("adapter.onebot_v11")
 async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatChannel) -> Tuple[str, int]:
     """生成合适的聊天消息内容(eg. 将cq at 解析为真实的名字)
 
@@ -69,6 +72,7 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
             except Exception as e:
                 logger.error(f"处理JSON卡片时发生意外错误: {e}", exc_info=True)
                 from nekro_agent.adapters.onebot_v11.tools.convertor import (
+
                     JSON_CARD_FALLBACK_TEXT,
                 )
                 msg += JSON_CARD_FALLBACK_TEXT

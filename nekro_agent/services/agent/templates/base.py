@@ -1,5 +1,4 @@
-from functools import wraps
-from typing import Any, Callable, Optional, Type, TypeVar
+from typing import Callable, Optional, Type, TypeVar
 
 from jinja2 import Environment, FileSystemLoader
 from pydantic import BaseModel, PrivateAttr

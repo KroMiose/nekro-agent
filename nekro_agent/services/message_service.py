@@ -10,7 +10,7 @@ import magic
 from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
 from nekro_agent.adapters.interface.schemas.platform import PlatformSendResponse
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
@@ -20,7 +20,7 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
-from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.tools.common_util import (
@@ -30,7 +30,7 @@ from nekro_agent.tools.common_util import (
     random_chat_check,
 )
 
-
+logger = get_sub_logger("message_pipeline")
 class MessageService:
     """消息服务类，处理所有类型的消息推送"""
 

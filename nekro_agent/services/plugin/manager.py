@@ -1,23 +1,18 @@
+
 """插件管理服务
 
 提供插件的管理相关功能，如获取插件列表、配置管理等。
 """
 
-import importlib
-import inspect
-import json
-import sys
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple
 
-from nekro_agent.core import logger
 from nekro_agent.core.config import CONFIG_PATH, config
 from nekro_agent.core.core_utils import ConfigBase
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.config_service import ConfigService
 from nekro_agent.services.plugin.collector import plugin_collector
-from nekro_agent.services.plugin.schema import SandboxMethodType
 
-
+logger = get_sub_logger("plugin_system")
 async def get_all_ext_meta_data() -> List[dict]:
     """获取所有已注册插件的元数据（包括加载成功和失败的插件）"""
     plugins = plugin_collector.get_all_plugins()

@@ -104,6 +104,24 @@ graph TD
     Output --> A3
 ```
 
+## 📘 API Docs & Response Format
+
+Enable `--docs` to access:
+
+- **Swagger UI**: http://localhost:8021/api/docs
+- **ReDoc**: http://localhost:8021/api/redoc
+
+APIs use standard HTTP status codes. Error responses are structured and honor `Accept-Language`:
+
+```json
+{
+  "error": "ValidationError",
+  "message": "Validation failed",
+  "detail": "field: error detail",
+  "data": null
+}
+```
+
 ## ⚙️ Demo
 
 Nekro Agent provides a powerful and intuitive visual interface for managing and monitoring all agent behaviors, as well as implementing various fine-grained agent behavior control strategies.

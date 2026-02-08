@@ -89,7 +89,9 @@
     "private": "Private Messages",
     "unknown": "Unknown Source"
   },
+  "title": "Common Settings",
   "common": {
+    "item": "Item",
     "invalidDate": "Invalid Date",
     "yes": "Yes",
     "no": "No",
@@ -188,6 +190,7 @@
     "dictCount": "Object ({{count}} items)",
     "invalidJson": "Invalid JSON",
     "addItem": "Add {{name}}",
+    "selectPreset": "Select Preset",
     "addNewItem": "Add new {{name}}",
     "modelTypes": {
       "chat": "Chat",

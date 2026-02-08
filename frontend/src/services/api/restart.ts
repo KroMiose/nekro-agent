@@ -1,9 +1,7 @@
 import axios from './axios'
 
 export interface RestartResponse {
-    code: number
-    msg: string
-    data?: any
+  ok: boolean
 }
 
 export const restartApi = {
