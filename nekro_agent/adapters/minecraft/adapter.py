@@ -125,7 +125,7 @@ class MinecraftConfig(BaseAdapterConfig):
         title="服务器列表",
         description="在这里配置你的 Minecraft 服务器（每个服务器可选择 V1/V2；未启用 V2 时可忽略 QUEQIAO_* 字段）",
         json_schema_extra=ExtraField(
-            is_need_restart= True,
+            is_need_restart=True,
         ).model_dump(),
     )
     MINECRAFT_WS_URLS: str = Field(
@@ -231,7 +231,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         """初始化适配器"""
         v2_servers = self._get_v2_servers()
         if v2_servers:
-            logger.info("Minecraft Adapter: 检测到 V2 服务器配置，正在初始化 WebSocket 连接...")
+            logger.info(
+                "Minecraft Adapter: 检测到 V2 服务器配置，正在初始化 WebSocket 连接..."
+            )
             self._running = True
             seen_names: set[str] = set()
             for server in v2_servers:
@@ -242,7 +244,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                     )
                     continue
                 seen_names.add(server.SERVER_NAME)
-                self._connect_tasks[server.SERVER_NAME] = self._create_connect_task(server)
+                self._connect_tasks[server.SERVER_NAME] = self._create_connect_task(
+                    server
+                )
 
         try:
             driver = nonebot.get_driver()
@@ -253,12 +257,18 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 "minecraft_access_token",
                 "",
             )
-            minecraft_server_rcon = getattr(driver.config, "minecraft_server_rcon", None)
+            minecraft_server_rcon = getattr(
+                driver.config, "minecraft_server_rcon", None
+            )
 
             # 检查配置项类型是否正确
             ws_urls_valid = isinstance(minecraft_ws_urls, dict) and minecraft_ws_urls
-            token_valid = isinstance(minecraft_access_token, str) and minecraft_access_token
-            rcon_valid = isinstance(minecraft_server_rcon, dict) and minecraft_server_rcon
+            token_valid = (
+                isinstance(minecraft_access_token, str) and minecraft_access_token
+            )
+            rcon_valid = (
+                isinstance(minecraft_server_rcon, dict) and minecraft_server_rcon
+            )
 
             if ws_urls_valid or (token_valid and rcon_valid):
                 from nonebot.adapters.minecraft import (
@@ -269,11 +279,15 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 from .matchers.notice import notice_manager
 
                 driver.register_adapter(MinecraftNoneBotAdapter)
-                logger.info(f"Minecraft 适配器 [{self.key}] 已加载 (Legacy/NineBot Mode)")
+                logger.info(
+                    f"Minecraft 适配器 [{self.key}] 已加载 (Legacy/NineBot Mode)"
+                )
                 register_matcher(self)
             else:
                 if not v2_servers:
-                    logger.warning("Minecraft 适配器 由于以下几个配置项错误未能加载 (V1)")
+                    logger.warning(
+                        "Minecraft 适配器 由于以下几个配置项错误未能加载 (V1)"
+                    )
                     if not ws_urls_valid:
                         logger.warning("- minecraft_ws_urls 应该是一个字典")
                     if not token_valid:
@@ -293,9 +307,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
         while self._running:
             try:
-                headers = {
-                    "x-self-name": server.QUEQIAO_CLIENT_NAME
-                }
+                headers = {"x-self-name": server.QUEQIAO_CLIENT_NAME}
                 if server.QUEQIAO_TOKEN:
                     headers["Authorization"] = f"Bearer {server.QUEQIAO_TOKEN}"
 
@@ -320,7 +332,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 )
             finally:
                 self._v2_ws.pop(server_name, None)
-            
+
             if self._running:
                 await asyncio.sleep(self._reconnect_interval)
 
@@ -328,7 +340,10 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         """Recv Loop for Queqiao"""
         # 延迟导入以避免循环依赖
         from nekro_agent.adapters.interface.collector import collect_message
-        from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType
+        from nekro_agent.schemas.chat_message import (
+            ChatMessageSegment,
+            ChatMessageSegmentType,
+        )
         from nekro_agent.adapters.interface.schemas.platform import PlatformMessage
 
         async for message in ws:
@@ -348,7 +363,6 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 )
 
                 platform_channel = PlatformChannel(
-                    platform_name=self.key,
                     channel_id=event.server_name,
                     channel_name=event.server_name,
                     channel_type=ChatType.GROUP,
@@ -372,8 +386,10 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                     is_tome=False,
                 )
 
-                await collect_message(self, platform_channel, platform_user, platform_message)
-                    
+                await collect_message(
+                    self, platform_channel, platform_user, platform_message
+                )
+
             except json.JSONDecodeError:
                 logger.warning(f"Queqiao V2 收到非 JSON 消息: {message}")
             except Exception as e:
@@ -382,7 +398,6 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     async def cleanup(self) -> None:
         """清理适配器"""
         if self._running:
-            import asyncio
             self._running = False
             for ws in list(self._v2_ws.values()):
                 try:
@@ -401,7 +416,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
     def _get_v2_servers(self) -> List[ServerConfig]:
         return [
-            server for server in self.config.SERVERS if server.SERVER_NAME and server.ENABLE_QUEQIAO_V2
+            server
+            for server in self.config.SERVERS
+            if server.SERVER_NAME and server.ENABLE_QUEQIAO_V2
         ]
 
     def _get_server_config(self, server_name: str) -> Optional[ServerConfig]:
@@ -453,7 +470,8 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         server_name = data.get("server_name") or (
             server_config.SERVER_NAME if server_config else "default"
         )
-        player = data.get("player") if isinstance(data.get("player"), dict) else {}
+        raw_player = data.get("player")
+        player: Dict[str, Any] = raw_player if isinstance(raw_player, dict) else {}
         sender_name = str(player.get("nickname") or player.get("name") or "Unknown")
         sender_id = str(player.get("uuid") or sender_name)
 
@@ -473,7 +491,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             is_self=self._resolve_v2_is_self(player, server_config),
         )
 
-    def _build_v2_message_components(self, request: PlatformSendRequest) -> List[Dict[str, Any]]:
+    def _build_v2_message_components(
+        self, request: PlatformSendRequest
+    ) -> List[Dict[str, Any]]:
         components: List[Dict[str, Any]] = []
         for seg in request.segments:
             if seg.type == PlatformSendSegmentType.TEXT:
@@ -485,6 +505,11 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
                 text = self._remove_at_mentions(f"@{nickname}")
                 if text:
                     components.append({"text": text})
+            else:
+                logger.debug(
+                    "Queqiao V2: 不支持的消息段类型 %s，已跳过",
+                    seg.type,
+                )
         return components
 
     async def _send_v2(
@@ -494,14 +519,18 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
     ) -> PlatformSendResponse:
         ws = self._v2_ws.get(server_config.SERVER_NAME)
         if not ws:
-            return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
+            return PlatformSendResponse(
+                success=False, error_message="Queqiao V2 未连接"
+            )
 
         try:
             from websockets.protocol import State
         except Exception:
             State = None
         if State is not None and ws.state != State.OPEN:
-            return PlatformSendResponse(success=False, error_message="Queqiao V2 未连接")
+            return PlatformSendResponse(
+                success=False, error_message="Queqiao V2 未连接"
+            )
 
         try:
             # raw JSON passthrough branch (existing behavior)
@@ -545,7 +574,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
     def _remove_at_mentions(self, text: str) -> str:
         """移除文本中的特定格式的 @ 提及 (例如 [@id:123;nickname:test@] 或 [@id:123@])"""
-        processed_text = re.sub(r"\[@(?:id:[^;@]+(?:;nickname:[^@]+)?|[^@\]]+)@\]", "", text)
+        processed_text = re.sub(
+            r"\[@(?:id:[^;@]+(?:;nickname:[^@]+)?|[^@\]]+)@\]", "", text
+        )
         # 将多个空格替换为单个空格，并去除首尾空格
         return re.sub(r"\\s+", " ", processed_text).strip()
 
@@ -576,15 +607,20 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
         except Exception as e:
             logger.error(f"发送消息时错误 ({chat_key}): {e}", exc_info=True)
 
-    async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
+    async def forward_message(
+        self, request: PlatformSendRequest
+    ) -> PlatformSendResponse:
         """推送消息到 Minecraft 协议端"""
         _, target = self.parse_chat_key(request.chat_key)
         server_config = self._get_server_config(target)
         use_v2 = bool(server_config and server_config.ENABLE_QUEQIAO_V2)
 
         if use_v2:
+            assert (
+                server_config is not None
+            )  # guaranteed by `bool(server_config and ...)`
             return await self._send_v2(request, server_config)
-                
+
         # Legacy/NoneBot Logic
         for seg in request.segments:
             if seg.type == PlatformSendSegmentType.TEXT:
@@ -593,7 +629,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
     async def get_self_info(self) -> PlatformUser:
         """获取自身信息"""
-        return PlatformUser(platform_name="Minecraft", user_id="MinecraftBot", user_name="MinecraftBot")
+        return PlatformUser(
+            platform_name="Minecraft", user_id="MinecraftBot", user_name="MinecraftBot"
+        )
 
     async def get_user_info(self, user_id: str, channel_id: str) -> PlatformUser:
         """获取用户(或者群聊用户)信息"""
@@ -601,7 +639,9 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
 
     async def get_channel_info(self, channel_id: str) -> PlatformChannel:
         """获取频道信息"""
-        return PlatformChannel(channel_id=channel_id, channel_name=channel_id, channel_type=ChatType.GROUP)
+        return PlatformChannel(
+            channel_id=channel_id, channel_name=channel_id, channel_type=ChatType.GROUP
+        )
 
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:  # noqa: ARG002
         """设置消息反应（可选实现）"""
