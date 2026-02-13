@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List
 
+
 from nonebot import on_command
 from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import MessageEvent
@@ -15,8 +16,9 @@ from nonebot.params import CommandArg
 
 from nekro_agent.core.config import ModelConfigGroup, config, reload_config, save_config
 from nekro_agent.core.database import reset_db
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import (
+
     PROMPT_ERROR_LOG_DIR,
     SANDBOX_PACKAGE_DIR,
     SANDBOX_PIP_CACHE_DIR,
@@ -40,6 +42,7 @@ from nekro_agent.tools.telemetry_util import generate_instance_id, is_running_in
 from .guard import command_guard, finish_with, reset_command_guard
 
 
+logger = get_sub_logger("adapter.onebot_v11")
 def _build_chat_params(model_group: ModelConfigGroup, stream_mode: bool, max_wait_time: int | None = None) -> Dict[str, Any]:
     """构建聊天参数"""
     return {

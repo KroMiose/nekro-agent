@@ -1,3 +1,4 @@
+
 """
 企业微信智能机器人消息加密解密工具
 
@@ -11,9 +12,10 @@ import struct
 
 from Crypto.Cipher import AES
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 
+logger = get_sub_logger("adapter.wxwork")
 class WxWorkBotCrypt:
     """企业微信智能机器人加解密类"""
 

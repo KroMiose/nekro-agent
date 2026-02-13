@@ -2,16 +2,18 @@ import time
 from datetime import datetime
 from typing import Any, Dict, Optional, Type
 
+
 from nonebot import on_notice
 from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
 from nonebot.matcher import Matcher
 
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
+
     get_chat_info_old,
     get_user_name,
 )
 from nekro_agent.adapters.utils import AdapterUtils
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
@@ -24,6 +26,7 @@ from nekro_agent.services.notice_service import (
 from nekro_agent.tools.time_util import format_duration
 
 
+logger = get_sub_logger("adapter.onebot_v11")
 class PokeNoticeHandler(BaseNoticeHandler):
     """戳一戳通知处理器"""
 

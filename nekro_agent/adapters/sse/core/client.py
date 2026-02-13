@@ -1,3 +1,4 @@
+
 """
 SSE 客户端管理器
 ==============
@@ -37,9 +38,10 @@ from nekro_agent.adapters.sse.sdk.models import (
     Event,
     HeartbeatData,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 
+logger = get_sub_logger("adapter.sse")
 class SseClient:
     """SSE 客户端
 

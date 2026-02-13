@@ -8,9 +8,8 @@ from typing import Dict, List, Optional, Tuple
 
 import weave
 
-from nekro_agent.core import logger
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
-from nekro_agent.core.config import config as core_config
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import PROMPT_ERROR_LOG_DIR, PROMPT_LOG_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_exec_code import ExecStopType
@@ -19,7 +18,6 @@ from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.sandbox.runner import limited_run_code
 
-from ..config_resolver import config_resolver
 from .creator import OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
@@ -37,6 +35,8 @@ from .templates.practice import (
 from .templates.system import SystemPrompt
 
 # 使用deque保存最近100条错误日志路径
+
+logger = get_sub_logger("agent_runtime")
 RECENT_ERR_LOGS = deque(maxlen=100)
 
 

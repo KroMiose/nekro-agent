@@ -1,3 +1,4 @@
+
 """
 企业微信智能机器人适配器路由模块
 
@@ -10,8 +11,9 @@ from typing import TYPE_CHECKING, Optional
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import PlainTextResponse, Response
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
+logger = get_sub_logger("adapter.wxwork")
 if TYPE_CHECKING:
     from .adapter import WxWorkAdapter
 

@@ -20,7 +20,7 @@ export interface CommunityStats {
 
 export const telemetryApi = {
   getCommunityStats: async (): Promise<CommunityStats> => {
-    const response = await axios.get<{ data: CommunityStats }>('/cloud/telemetry/community-stats')
-    return response.data.data
-  }
+    const response = await axios.get<CommunityStats>('/cloud/telemetry/community-stats')
+    return response.data
+  },
 }

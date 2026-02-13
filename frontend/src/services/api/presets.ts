@@ -19,17 +19,16 @@ export interface PresetDetail extends Preset {
   content: string
 }
 
-export interface ApiResponse<T> {
-  code: number
-  msg: string
-  data: T
+export interface PresetListResponse {
+  total: number
+  items: Preset[]
 }
 
-interface ShareResponse {
+export interface ShareResponse {
   remote_id: string
 }
 
-interface RefreshStatusResponse {
+export interface RefreshStatusResponse {
   updated_count: number
   total_cloud_presets: number
 }
@@ -37,6 +36,14 @@ interface RefreshStatusResponse {
 export interface TagInfo {
   tag: string
   count: number
+}
+
+export interface ActionResponse {
+  ok: boolean
+}
+
+export interface AvatarUploadResponse {
+  avatar: string
 }
 
 export const presetsApi = {
@@ -47,16 +54,14 @@ export const presetsApi = {
     tag?: string
     tags?: string
     remote_only?: boolean
-  }) => {
-    const response = await axios.get<{
-      data: { total: number; items: Preset[] }
-    }>('/presets/list', { params })
-    return response.data.data
+  }): Promise<PresetListResponse> => {
+    const response = await axios.get<PresetListResponse>('/presets/list', { params })
+    return response.data
   },
 
-  getDetail: async (id: number) => {
-    const response = await axios.get<{ data: PresetDetail }>(`/presets/${id}`)
-    return response.data.data
+  getDetail: async (id: number): Promise<PresetDetail> => {
+    const response = await axios.get<PresetDetail>(`/presets/${id}`)
+    return response.data
   },
 
   create: async (data: {
@@ -67,11 +72,8 @@ export const presetsApi = {
     description?: string
     tags?: string
     author?: string
-  }) => {
-    const response = await axios.post<{ code: number; msg: string; data: { id: number } }>(
-      '/presets',
-      data
-    )
+  }): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>('/presets', data)
     return response.data
   },
 
@@ -87,94 +89,58 @@ export const presetsApi = {
       author?: string
       remove_remote?: boolean
     }
-  ) => {
-    const response = await axios.put<{ code: number; msg: string }>(`/presets/${id}`, data)
+  ): Promise<ActionResponse> => {
+    const response = await axios.put<ActionResponse>(`/presets/${id}`, data)
     return response.data
   },
 
-  delete: async (id: number) => {
-    const response = await axios.delete<{ code: number; msg: string }>(`/presets/${id}`)
+  delete: async (id: number): Promise<ActionResponse> => {
+    const response = await axios.delete<ActionResponse>(`/presets/${id}`)
     return response.data
   },
 
-  sync: async (id: number) => {
-    try {
-      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync`)
-      return response.data
-    } catch (error) {
-      console.error('同步失败:', error)
-      throw error
-    }
+  sync: async (id: number): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/presets/${id}/sync`)
+    return response.data
   },
 
-  uploadAvatar: async (file: File) => {
+  uploadAvatar: async (file: File): Promise<AvatarUploadResponse> => {
     const formData = new FormData()
     formData.append('file', file)
-    const response = await axios.post<{ code: number; msg: string; data: { avatar: string } }>(
-      '/presets/upload-avatar',
-      formData,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      }
-    )
+    const response = await axios.post<AvatarUploadResponse>('/presets/upload-avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
     return response.data
   },
 
-  shareToCloud: async (id: number | string, is_sfw: boolean = true) => {
-    try {
-      const response = await axios.post<ApiResponse<ShareResponse>>(`/presets/${id}/share`, null, {
-        params: { is_sfw },
-      })
-      return response.data
-    } catch (error) {
-      console.error('共享人设失败:', error)
-      throw error
-    }
+  shareToCloud: async (id: number | string, is_sfw: boolean = true): Promise<ShareResponse> => {
+    const response = await axios.post<ShareResponse>(`/presets/${id}/share`, null, {
+      params: { is_sfw },
+    })
+    return response.data
   },
 
-  unshare: async (id: number) => {
-    try {
-      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/unshare`)
-      return response.data
-    } catch (error) {
-      console.error('撤回共享失败:', error)
-      throw error
-    }
+  unshare: async (id: number): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/presets/${id}/unshare`)
+    return response.data
   },
 
-  syncToCloud: async (id: number, is_sfw: boolean = true) => {
-    try {
-      const response = await axios.post<ApiResponse<null>>(`/presets/${id}/sync-to-cloud`, null, {
-        params: { is_sfw },
-      })
-      return response.data
-    } catch (error) {
-      console.error('同步到云端失败:', error)
-      throw error
-    }
+  syncToCloud: async (id: number, is_sfw: boolean = true): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/presets/${id}/sync-to-cloud`, null, {
+      params: { is_sfw },
+    })
+    return response.data
   },
 
-  refreshSharedStatus: async () => {
-    try {
-      const response = await axios.post<ApiResponse<RefreshStatusResponse>>(
-        '/presets/refresh-shared-status'
-      )
-      return response.data
-    } catch (error) {
-      console.error('刷新共享状态失败:', error)
-      throw error
-    }
+  refreshSharedStatus: async (): Promise<RefreshStatusResponse> => {
+    const response = await axios.post<RefreshStatusResponse>('/presets/refresh-shared-status')
+    return response.data
   },
 
   getTags: async (): Promise<TagInfo[]> => {
-    try {
-      const response = await axios.get<ApiResponse<TagInfo[]>>('/presets/tags')
-      return response.data.data
-    } catch (error) {
-      console.error('获取标签列表失败:', error)
-      throw error
-    }
+    const response = await axios.get<TagInfo[]>('/presets/tags')
+    return response.data
   },
 }

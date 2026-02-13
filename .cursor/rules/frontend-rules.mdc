@@ -15,6 +15,7 @@ alwaysApply: false
 * 前端页面必须尽可能使用 Material-UI 组件与 TailwindCSS 进行原子化样式开发
 * 涉及全局相关的样式/颜色/主题时，统一在 `frontend/src/theme` 中进行配置，不要在每个实现的地方硬编码颜色信息
 * API 调用统一放在 services/api 中
+* 统一通过 `axios` 拦截器处理错误与语言头，不要绕过封装直连请求
 
 # 主题相关
 
@@ -84,3 +85,8 @@ function MyComponent() {
 # 流式请求
 
 当你需要开发流式推送服务时，复用已经实现的包含鉴权的流式请求工具 [stream.ts](mdc:frontend/src/services/api/utils/stream.ts) ，应用示例: [logs.py](mdc:nekro_agent/routers/logs.py), [logs.ts](mdc:frontend/src/services/api/logs.ts)
+
+# i18n 约定
+
+* 公共文案使用 `common.*` 命名空间（含分页/通用状态）
+* 新增 key 时需同步 `zh-CN` 与 `en-US`

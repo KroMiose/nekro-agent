@@ -1,13 +1,6 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
 
-// 后端返回数据结构
-interface ApiResponse<T> {
-  code: number
-  msg: string
-  data: T
-}
-
 // 仪表盘概览数据接口
 export interface DashboardOverview {
   total_messages: number
@@ -58,8 +51,8 @@ export interface DistributionsResponse {
 export const dashboardApi = {
   // 获取概览数据
   getOverview: async (params: { time_range: string }): Promise<DashboardOverview> => {
-    const response = await axios.get<ApiResponse<DashboardOverview>>('/dashboard/overview', { params })
-    return response.data.data
+    const response = await axios.get<DashboardOverview>('/dashboard/overview', { params })
+    return response.data
   },
 
   // 获取趋势数据
@@ -68,8 +61,8 @@ export const dashboardApi = {
     time_range: string
     interval: string
   }): Promise<TrendDataPoint[]> => {
-    const response = await axios.get<ApiResponse<TrendDataPoint[]>>('/dashboard/trends', { params })
-    return response.data.data
+    const response = await axios.get<TrendDataPoint[]>('/dashboard/trends', { params })
+    return response.data
   },
 
   // 获取排名数据
@@ -78,16 +71,16 @@ export const dashboardApi = {
     time_range: string
     limit?: number
   }): Promise<RankingItem[]> => {
-    const response = await axios.get<ApiResponse<RankingItem[]>>('/dashboard/ranking', { params })
-    return response.data.data
+    const response = await axios.get<RankingItem[]>('/dashboard/ranking', { params })
+    return response.data
   },
 
   // 获取所有分布数据
   getDistributions: async (params: {
     time_range: string
   }): Promise<DistributionsResponse> => {
-    const response = await axios.get<ApiResponse<DistributionsResponse>>('/dashboard/distributions', { params })
-    return response.data.data
+    const response = await axios.get<DistributionsResponse>('/dashboard/distributions', { params })
+    return response.data
   },
 
   // 创建实时统计数据流
@@ -95,7 +88,7 @@ export const dashboardApi = {
     return createEventStream({
       endpoint: `/dashboard/stats/stream?granularity=${granularity}`,
       onMessage,
-      onError: (error) => console.error('仪表盘数据流错误:', error)
+      onError: () => undefined
     })
   }
 } 

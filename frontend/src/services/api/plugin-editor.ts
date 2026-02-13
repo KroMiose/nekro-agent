@@ -32,10 +32,9 @@ export const pluginEditorApi: PluginEditorApi = {
   // 获取插件文件列表
   getPluginFiles: async (): Promise<string[]> => {
     try {
-      const response = await axios.get<{ data: string[] }>('/plugin-editor/files')
-      return response.data.data
+      const response = await axios.get<string[]>('/plugin-editor/files')
+      return response.data
     } catch (error) {
-      console.error('获取插件文件列表失败:', error)
       return []
     }
   },
@@ -43,12 +42,9 @@ export const pluginEditorApi: PluginEditorApi = {
   // 获取插件文件内容
   getPluginFileContent: async (filePath: string): Promise<string | null> => {
     try {
-      const response = await axios.get<{ data: { content: string } }>(
-        `/plugin-editor/file/${filePath}`
-      )
-      return response.data.data.content
+      const response = await axios.get<{ content: string }>(`/plugin-editor/file/${filePath}`)
+      return response.data.content
     } catch (error) {
-      console.error(`获取插件文件 ${filePath} 内容失败:`, error)
       return null
     }
   },
@@ -56,14 +52,13 @@ export const pluginEditorApi: PluginEditorApi = {
   // 保存插件文件
   savePluginFile: async (filePath: string, content: string): Promise<boolean> => {
     try {
-      await axios.post(`/plugin-editor/file/${filePath}`, content, {
+      const response = await axios.post<{ ok: boolean }>(`/plugin-editor/file/${filePath}`, content, {
         headers: {
           'Content-Type': 'text/plain',
         },
       })
-      return true
+      return response.data.ok
     } catch (error) {
-      console.error(`保存插件文件 ${filePath} 失败:`, error)
       return false
     }
   },
@@ -71,10 +66,9 @@ export const pluginEditorApi: PluginEditorApi = {
   // 删除插件文件
   deletePluginFile: async (filePath: string): Promise<boolean> => {
     try {
-      await axios.delete(`/plugin-editor/files/${filePath}`)
-      return true
+      const response = await axios.delete<{ ok: boolean }>(`/plugin-editor/files/${filePath}`)
+      return response.data.ok
     } catch (error) {
-      console.error(`删除插件文件 ${filePath} 失败:`, error)
       return false
     }
   },
@@ -101,7 +95,6 @@ export const pluginEditorApi: PluginEditorApi = {
 
       return true
     } catch (error) {
-      console.error(`导出插件文件 ${filePath} 失败:`, error)
       return false
     }
   },
@@ -113,14 +106,13 @@ export const pluginEditorApi: PluginEditorApi = {
     currentCode?: string
   ): Promise<string | null> => {
     try {
-      const response = await axios.post<{ data: { code: string } }>('/plugin-editor/generate', {
+      const response = await axios.post<{ code: string }>('/plugin-editor/generate', {
         file_path: filePath,
         prompt,
         current_code: currentCode,
       })
-      return response.data.data.code
+      return response.data.code
     } catch (error) {
-      console.error('生成插件代码失败:', error)
       return null
     }
   },
@@ -132,7 +124,7 @@ export const pluginEditorApi: PluginEditorApi = {
     currentCode: string
   ): Promise<string | null> => {
     try {
-      const response = await axios.post<{ data: { code: string } }>(
+      const response = await axios.post<{ code: string }>(
         '/plugin-editor/apply',
         {
           file_path: filePath,
@@ -143,9 +135,8 @@ export const pluginEditorApi: PluginEditorApi = {
           timeout: 60000,
         }
       )
-      return response.data.data.code
+      return response.data.code
     } catch (error) {
-      console.error('应用生成代码失败:', error)
       return null
     }
   },
@@ -153,13 +144,12 @@ export const pluginEditorApi: PluginEditorApi = {
   // 生成插件模板
   generatePluginTemplate: async (name: string, description: string): Promise<string | null> => {
     try {
-      const response = await axios.post<{ data: { template: string } }>('/plugin-editor/template', {
+      const response = await axios.post<{ template: string }>('/plugin-editor/template', {
         name,
         description,
       })
-      return response.data.data.template
+      return response.data.template
     } catch (error) {
-      console.error('生成插件模板失败:', error)
       return null
     }
   },

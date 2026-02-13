@@ -3,9 +3,9 @@
 此模块提供了与定时器相关的 API 接口。
 """
 
-from typing import Dict, List, Optional
+from typing import List, Optional
 
-from nekro_agent.services.timer_service import TimerTask, timer_service
+from nekro_agent.services.timer.timer_service import TimerTask, timer_service
 
 __all__ = [
     "clear_timers",

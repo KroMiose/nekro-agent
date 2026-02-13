@@ -1,9 +1,9 @@
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.schemas.auth import StarCheckResponse
 
 from .client import get_client
 
-
+logger = get_sub_logger("cloud_api")
 async def check_official_repos_starred() -> StarCheckResponse:
     """检查用户是否已给官方GitHub仓库点亮Star
 

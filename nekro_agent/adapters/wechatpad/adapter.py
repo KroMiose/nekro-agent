@@ -4,8 +4,10 @@ import os
 import time
 from typing import Optional
 
+
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.schemas.platform import (
+
     ChatType,
     PlatformChannel,
     PlatformSendRequest,
@@ -13,7 +15,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .config import WeChatPadConfig
 from .http_client import WeChatPadClient
@@ -21,6 +23,7 @@ from .realtime_processor import MessageHandler, WeChatRealtimeProcessor
 from .routers import router
 
 
+logger = get_sub_logger("adapter.wechatpad")
 class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
     """WeChatPad 适配器"""
 
@@ -446,6 +449,7 @@ class WeChatPadAdapter(BaseAdapter[WeChatPadConfig]):
                     logger.error(f"实时消息处理器运行失败: {e}")
                     logger.error(f"错误类型: {type(e).__name__}")
                     import traceback
+
                     logger.error(f"堆栈跟踪: {traceback.format_exc()}")
                     logger.warning("实时消息处理器将不会自动重启，请检查配置和网络连接")
 

@@ -1,3 +1,4 @@
+
 """
 SSE 适配器
 =========
@@ -28,7 +29,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import ChatType
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
@@ -38,6 +39,7 @@ from .core.message import SseMessageConverter
 from .core.service import SseApiService
 
 
+logger = get_sub_logger("adapter.sse")
 class SSEConfig(BaseAdapterConfig):
     """SSE 适配器配置"""
 

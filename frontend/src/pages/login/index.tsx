@@ -71,6 +71,14 @@ export default function LoginPage() {
     }
   }, [])
 
+  useEffect(() => {
+    const message = sessionStorage.getItem('auth_error')
+    if (message) {
+      notification.error(message)
+      sessionStorage.removeItem('auth_error')
+    }
+  }, [notification])
+
   // 保存协议同意状态到localStorage
   const handleAgreeTermsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.checked
@@ -88,22 +96,16 @@ export default function LoginPage() {
       setLoading(true)
 
       // 登录获取token
-      console.log('Attempting login...')
       const loginRes = await authApi.login({ username, password })
-      console.log('Login successful:', loginRes)
 
       // 设置token
       setToken(loginRes.access_token)
-      console.log('Token set:', loginRes.access_token)
 
       // 获取用户信息
-      console.log('Fetching user info...')
       const userInfo = await authApi.getUserInfo()
-      console.log('User info received:', userInfo)
 
       // 设置用户信息
       setUserInfo(userInfo)
-      console.log('User info set, preparing to navigate...')
 
       // 提示登录成功
       notification.success(t('messages.loginSuccess'))
@@ -124,7 +126,7 @@ export default function LoginPage() {
             }
           )
         } catch (error) {
-          console.error('GitHub Star状态检查异常:', error)
+          // 忽略星标检查错误，不影响登录
         }
       }
 
@@ -133,9 +135,7 @@ export default function LoginPage() {
 
       // 跳转到首页
       navigate('/')
-      console.log('Navigation triggered')
     } catch (error) {
-      console.error('Login error:', error)
       if (error instanceof Error) {
         notification.error(error.message || t('errors.invalidCredentials'))
       } else {
@@ -607,7 +607,6 @@ export default function LoginPage() {
                   }
                   sx={{
                     mt: 1,
-                    mb: 0.5,
                     display: 'flex',
                     color: theme.palette.text.secondary,
                     '.MuiFormControlLabel-label': {
@@ -623,8 +622,7 @@ export default function LoginPage() {
                   disabled={loading || !username || !password || !agreeTerms}
                   sx={{
                     ...BUTTON_VARIANTS.primary.styles,
-                    mt: 3,
-                    mb: 2,
+                    mt: 2,
                     py: isMobile ? 1 : 1.5,
                     boxShadow: `0 8px 16px ${theme.palette.primary.main}30`,
                     background: UI_STYLES.GRADIENTS.BUTTON.PRIMARY,

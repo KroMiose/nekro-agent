@@ -1,3 +1,4 @@
+
 """
 企业微信智能机器人适配器
 
@@ -15,12 +16,13 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendResponse,
     PlatformUser,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .config import WxWorkConfig
 from .crypto import WxWorkBotCrypt
 
 
+logger = get_sub_logger("adapter.wxwork")
 class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
     """企业微信智能机器人适配器"""
 

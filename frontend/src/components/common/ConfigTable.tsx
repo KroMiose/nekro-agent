@@ -922,7 +922,8 @@ export default function ConfigTable({
         })
         setPresets(presetsResponse.items)
       } catch (error) {
-        console.error('Failed to load model data:', error)
+        const errorMessage = error instanceof Error ? error.message : t('messages.operationFailed')
+        notification.error(errorMessage)
       }
     }
     loadData()
@@ -1063,15 +1064,15 @@ export default function ConfigTable({
     setIsRestarting(true)
     try {
       const response = await restartApi.restartSystem()
-      if (response.code === 200) {
+      if (response.ok) {
         notification.success(t('configTable.restartSent'))
         setRestartDialogOpen(false)
       } else {
-        notification.error(response.msg || t('messages.operationFailed'))
+        notification.error(t('messages.operationFailed'))
       }
     } catch (error) {
-      console.error('Failed to restart system:', error)
-      notification.error(t('configTable.restartFailed'))
+      const errorMessage = error instanceof Error ? error.message : t('messages.operationFailed')
+      notification.error(`${t('configTable.restartFailed')}: ${errorMessage}`)
     } finally {
       setIsRestarting(false)
     }

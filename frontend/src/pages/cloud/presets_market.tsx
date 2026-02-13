@@ -409,8 +409,8 @@ export default function PresetsMarket() {
           fetchPresets(1, keyword)
         }
       } catch (error) {
-        console.error('Failed to fetch presets', error)
-        setError(t('presetsMarket.fetchFailed'))
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        setError(`${t('presetsMarket.fetchFailed')}: ${errorMessage}`)
       } finally {
         setLoading(false)
       }
@@ -461,23 +461,19 @@ export default function PresetsMarket() {
     try {
       setDownloadingId(confirmDialog.preset.remote_id)
       const response = await presetsMarketApi.downloadPreset(confirmDialog.preset.remote_id)
-
-      if (response.code === 200) {
+      if (response.ok) {
         enqueueSnackbar(t('presetsMarket.obtainSuccess'), { variant: 'success' })
-        // 更新本地状态
         setPresets(prev =>
           prev.map(p =>
             p.remote_id === confirmDialog.preset?.remote_id ? { ...p, is_local: true } : p
           )
         )
-      } else {
-        enqueueSnackbar(t('presetsMarket.obtainFailedWithReason', { reason: response.msg }), {
-          variant: 'error',
-        })
       }
     } catch (error) {
-      console.error('Obtain failed', error)
-      enqueueSnackbar(t('presetsMarket.obtainRetry'), { variant: 'error' })
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      enqueueSnackbar(t('presetsMarket.obtainFailedWithReason', { reason: errorMessage }), {
+        variant: 'error',
+      })
     } finally {
       setDownloadingId(null)
       setConfirmDialog({ open: false, preset: null })

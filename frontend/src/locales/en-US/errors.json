@@ -1,6 +1,7 @@
 {
   "networkError": "Network connection failed, please check your network settings",
   "unauthorized": "Unauthorized access",
+  "sessionExpired": "Session expired, please log in again",
   "forbidden": "Permission denied",
   "notFound": "Resource not found",
   "serverError": "Internal server error",
@@ -9,4 +10,3 @@
   "conflict": "Resource conflict",
   "tooManyRequests": "Too many requests, please try again later"
 }
-

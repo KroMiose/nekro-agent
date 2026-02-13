@@ -1,3 +1,4 @@
+
 """通用消息服务
 
 这个服务负责处理跨平台的消息发送逻辑，包含所有与具体协议端无关的通用处理。
@@ -17,8 +18,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
-from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.agent_message import (
     AgentMessageSegment,
     AgentMessageSegmentType,
@@ -30,7 +30,7 @@ from nekro_agent.tools.path_convertor import (
     is_url_path,
 )
 
-
+logger = get_sub_logger("message_pipeline")
 class UniversalChatService:
     """通用消息服务 - 处理跨平台的消息发送逻辑"""
 

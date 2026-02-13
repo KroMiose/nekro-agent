@@ -187,3 +187,6 @@ static
 
 # Related Repos
 nekro_agent_doc
+
+# .cursor Drafts
+.cursor/drafts

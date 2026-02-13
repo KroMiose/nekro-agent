@@ -20,7 +20,6 @@ import uuid
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydantic import BaseModel
-
 if TYPE_CHECKING:
     from nekro_agent.adapters.sse.adapter import SSEAdapter
 
@@ -39,9 +38,11 @@ from nekro_agent.adapters.sse.sdk.models import (
     SetMessageReactionResponse,
     UserInfo,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .client import SseClient, SseClientManager
+
+logger = get_sub_logger("adapter.sse")
 
 # 分块大小配置
 CHUNK_SIZE = 64 * 1024  # 64KB per chunk

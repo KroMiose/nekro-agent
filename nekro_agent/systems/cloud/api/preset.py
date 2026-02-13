@@ -1,7 +1,7 @@
 from typing import Dict, Optional, Union
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.schemas.preset import (
     BasicResponse,
     PresetCreate,
@@ -14,7 +14,7 @@ from nekro_agent.systems.cloud.schemas.preset import (
 
 from .client import get_client
 
-
+logger = get_sub_logger("cloud_api")
 async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
     """创建人设资源
 

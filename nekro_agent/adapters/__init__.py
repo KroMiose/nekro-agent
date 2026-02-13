@@ -3,10 +3,12 @@ from typing import Dict, Type
 
 from fastapi import APIRouter, FastAPI
 
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .interface.base import BaseAdapter
 
+
+logger = get_sub_logger("adapter.core")
 ADAPTER_DICT: Dict[str, str] = {
     "onebot_v11": "nekro_agent.adapters.onebot_v11.adapter.OnebotV11Adapter",
     "minecraft": "nekro_agent.adapters.minecraft.adapter.MinecraftAdapter",

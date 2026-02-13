@@ -117,7 +117,11 @@
     "invalidModuleName": "Cannot get valid module name",
     "reloadFailed": "Reload failed, please check backend logs",
     "updateFailed": "Update failed, please check backend logs",
-    "dataCopied": "Data value copied!"
+    "dataCopied": "Data value copied!",
+    "deleteFailed": "Delete failed",
+    "resetFailed": "Reset failed",
+    "refreshFailed": "Refresh failed",
+    "updateFailedWithMessage": "Update failed: {{message}}"
   },
   "list": {
     "title": "Plugin List",

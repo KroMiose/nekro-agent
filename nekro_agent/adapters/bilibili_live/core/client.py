@@ -2,12 +2,14 @@ import asyncio
 import json
 from typing import Any, Callable, Coroutine, Dict, List, Optional
 
+
 import aiohttp
 from pydantic import BaseModel, Field, ValidationError
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 
+logger = get_sub_logger("adapter.bilibili_live")
 class Danmaku(BaseModel):
     """弹幕消息"""
 

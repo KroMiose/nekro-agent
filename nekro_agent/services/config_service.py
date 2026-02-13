@@ -1,3 +1,4 @@
+
 """配置服务
 
 提供通用的配置管理功能，可以应用于系统配置和插件配置。
@@ -21,11 +22,12 @@ from typing import (
 
 from pydantic import BaseModel
 
-from nekro_agent.core import logger
 from nekro_agent.core.config import CHANNEL_CONFIG_DIR
 from nekro_agent.core.core_utils import ConfigBase, ConfigManager, ExtraField
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 
+logger = get_sub_logger("config_system")
 T = TypeVar("T", bound=ConfigBase)
 
 

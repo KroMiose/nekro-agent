@@ -1,11 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, TypedDict
 
-from nonebot.adapters.onebot.v11 import Bot, NoticeEvent
-
-from nekro_agent.core.config import config
 from nekro_agent.models.db_chat_channel import DBChatChannel
-from nekro_agent.schemas.chat_message import ChatType
 
 
 @dataclass

@@ -186,14 +186,12 @@ export default function PluginsEditorPage() {
     const loadFiles = async () => {
       isLoadingFilesRef.current = true
       try {
-        console.log('初始化加载文件列表')
         const files = await pluginEditorApi.getPluginFiles()
         setFiles(files)
 
         // 仅在第一次加载时自动选择第一个文件
         if (files.length > 0 && !selectedFile && !initializedRef.current) {
           const firstFile = files[0]
-          console.log('选择第一个文件:', firstFile)
           setSelectedFile(firstFile)
           prevSelectedFileRef.current = firstFile
 
@@ -206,7 +204,6 @@ export default function PluginsEditorPage() {
             setHasUnsavedChanges(false)
           } catch (error) {
             const errorMsg = error instanceof Error ? error.message : String(error)
-            console.error('加载初始文件内容失败:', errorMsg)
             notification.error(t('editor.messages.loadFileFailed') + ': ' + errorMsg)
           } finally {
             isLoadingContentRef.current = false
@@ -217,7 +214,6 @@ export default function PluginsEditorPage() {
         initializedRef.current = true
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
-        console.error('Failed to load file list:', err)
         setError(t('editor.messages.loadFileListFailed') + ': ' + errorMessage)
         notification.error(t('editor.messages.loadFileListFailed') + ': ' + errorMessage)
       } finally {
@@ -237,7 +233,6 @@ export default function PluginsEditorPage() {
     if (selectedFile === prevSelectedFileRef.current && code) return
 
     const loadFileContent = async () => {
-      console.log('加载文件内容:', selectedFile)
       isLoadingContentRef.current = true
       setIsLoading(true)
       prevSelectedFileRef.current = selectedFile
@@ -252,7 +247,6 @@ export default function PluginsEditorPage() {
         const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
         setError(t('editor.messages.loadContentFailed') + ': ' + errorMessage)
         notification.error(t('editor.messages.loadContentFailed') + ': ' + errorMessage)
-        console.error('Failed to load file content:', err)
       } finally {
         setIsLoading(false)
         isLoadingContentRef.current = false
@@ -350,13 +344,13 @@ export default function PluginsEditorPage() {
               setAbortController(null)
             }
           } catch (err) {
-            console.error('解析消息失败:', err)
+            notification.error(t('editor.messages.generateFailed'))
           }
         },
         error => {
           if (error.name !== 'AbortError') {
-            console.error('生成代码失败:', error)
-            notification.error(`生成代码失败: ${error.message}`)
+            const errorMessage = error instanceof Error ? error.message : t('editor.messages.unknownError')
+            notification.error(`${t('editor.messages.generateFailed')}: ${errorMessage}`)
           }
           setIsGenerating(false)
           setAbortController(null)
@@ -369,8 +363,8 @@ export default function PluginsEditorPage() {
         controller.abort()
       }
     } catch (err) {
-      console.error('启动代码生成失败:', err)
-      notification.error(t('editor.messages.startGenerateFailed'))
+      const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
+      notification.error(`${t('editor.messages.startGenerateFailed')}: ${errorMessage}`)
       setIsGenerating(false)
       setAbortController(null)
     }
@@ -502,7 +496,6 @@ export default function PluginsEditorPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
       notification.error(t('editor.messages.createFailed') + ': ' + errorMessage)
-      console.error('Failed to create extension:', err)
     } finally {
       setIsLoading(false)
       isLoadingContentRef.current = false
@@ -541,7 +534,8 @@ export default function PluginsEditorPage() {
               setOriginalCode(content || '')
               setHasUnsavedChanges(false)
             } catch (error) {
-              console.error('加载新文件内容失败:', error)
+              const errorMessage = error instanceof Error ? error.message : t('editor.messages.unknownError')
+              notification.error(t('editor.messages.loadContentFailed') + ': ' + errorMessage)
             } finally {
               isLoadingContentRef.current = false
             }
@@ -597,7 +591,6 @@ export default function PluginsEditorPage() {
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : t('editor.messages.unknownError')
       notification.error(errorMessage)
-      console.error('Failed to reload plugins:', err)
     } finally {
       setIsGenerating(false)
       isLoadingFilesRef.current = false // 恢复文件列表加载状态
@@ -1353,22 +1346,19 @@ export default function PluginsEditorPage() {
                           scrollElement.style.touchAction = 'pan-y'
                         }
                       }
-                    }
-                  } catch (error) {
-                    console.error('Monaco Editor mount error:', error)
-                    notification.error(t('editor.editorInitFailed'))
                   }
-                }}
-                onValidate={markers => {
-                  // 处理编辑器验证错误
-                  if (markers.length > 0) {
-                    const errors = markers.filter(marker => marker.severity === 8) // 只处理错误，不处理警告
-                    if (errors.length > 0) {
-                      console.warn('Monaco Editor validation errors:', errors)
-                    }
-                  }
-                }}
-              />
+                } catch (error) {
+                  notification.error(t('editor.editorInitFailed'))
+                }
+              }}
+              onValidate={markers => {
+                // 处理编辑器验证错误
+                if (markers.length > 0) {
+                  const errors = markers.filter(marker => marker.severity === 8) // 只处理错误，不处理警告
+                  void errors
+                }
+              }}
+            />
             </Box>
           </Paper>
 
@@ -1901,7 +1891,6 @@ export default function PluginsEditorPage() {
                           }
                         }
                       } catch (error) {
-                        console.error('Monaco Editor mount error:', error)
                         notification.error(t('editor.editorInitFailed'))
                       }
                     }}
@@ -1909,9 +1898,7 @@ export default function PluginsEditorPage() {
                       // 处理编辑器验证错误
                       if (markers.length > 0) {
                         const errors = markers.filter(marker => marker.severity === 8) // 只处理错误，不处理警告
-                        if (errors.length > 0) {
-                          console.warn('Monaco Editor validation errors:', errors)
-                        }
+                        void errors
                       }
                     }}
                   />

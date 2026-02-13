@@ -65,58 +65,33 @@ export const useGitHubStarStore = create<GitHubStarState>()((set, get) => ({
 
       // 调用API检查star状态
       const response = await cloudApi.auth.checkGitHubStars(force, clearCache)
+      const { allStarred, starredRepositories, unstarredRepositories } = response
+      const isStarred = Boolean(allStarred)
 
-      if (response.code === 200 && response.data) {
-        const { allStarred, starredRepositories, unstarredRepositories } = response.data
+      set({
+        allStarred: isStarred,
+        starredRepositories: starredRepositories || [],
+        unstarredRepositories: unstarredRepositories || [],
+        lastCheckTime: Date.now(),
+        checking: false,
+      })
 
-        // 强制将allStarred转换为布尔值，确保正确解析
-        const isStarred = Boolean(allStarred)
+      if (!isStarred && resetDefaults) {
+        useWallpaperStore.getState().resetWallpapers()
 
-        // 更新状态
-        set({
-          allStarred: isStarred,
-          starredRepositories: starredRepositories || [],
-          unstarredRepositories: unstarredRepositories || [],
-          lastCheckTime: Date.now(),
-          checking: false,
-        })
-
-        // 如果未star且需要重置默认设置
-        if (!isStarred && resetDefaults) {
-          // 重置壁纸
-          useWallpaperStore.getState().resetWallpapers()
-
-          // 重置主题为默认
-          const { setThemePreset } = useColorMode.getState()
-          setThemePreset('kolo')
-
-          // 直接调用updateTheme使主题变更立即生效
-          updateTheme('kolo')
-        }
-
-        // 执行相应的回调
-        if (isStarred) {
-          callbacks?.onStarred?.()
-        } else {
-          callbacks?.onNotStarred?.()
-        }
-
-        return isStarred
+        const { setThemePreset } = useColorMode.getState()
+        setThemePreset('kolo')
+        updateTheme('kolo')
       }
 
-      set({ checking: false })
-
-      // 显示错误通知
-      if (showNotification && notify) {
-        notify.showError?.('检查GitHub Star状态失败，请重试')
+      if (isStarred) {
+        callbacks?.onStarred?.()
+      } else {
+        callbacks?.onNotStarred?.()
       }
 
-      // 执行错误回调
-      callbacks?.onError?.(response)
-
-      return false
+      return isStarred
     } catch (error) {
-      console.error('[GitHubStar] 检查GitHub Star状态失败:', error)
       set({ checking: false })
 
       // 显示错误通知

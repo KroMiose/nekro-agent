@@ -1520,50 +1520,50 @@ Phase 4: 插件系统改造 ✅ 已完成
 
 统计: 插件总数 19 个，配置项总数 43 个，100% 完成国际化
 
-Phase 5: 认证授权模块改造 (预计 3-5 天)
-├── 5.1 改造 user 路由
-├── 5.2 替换 http_exception.py 中的预定义异常
-├── 5.3 更新 deps.py 中的权限检查
-├── 5.4 更新前端登录相关页面
-└── 5.5 验证认证流程正常
+Phase 5: 认证授权模块改造 ✅ 已完成
+├── 5.1 改造 user 路由 ✅
+├── 5.2 替换 http_exception.py 中的预定义异常 ✅
+├── 5.3 更新 deps.py 中的权限检查 ✅
+├── 5.4 更新前端登录相关页面 ✅
+└── 5.5 验证认证流程正常 ✅
 
 Phase 6: 全量核心路由改造 (预计 5-7 天)
-├── 6.1 改造 dashboard 路由
-├── 6.2 改造 chat_channel 路由
-├── 6.3 改造 presets 路由
-├── 6.4 改造 logs 路由
-├── 6.5 改造 sandbox 路由
-├── 6.6 改造 cloud/* 路由 (plugins_market, presets_market, auth, telemetry)
-├── 6.7 改造 common, restart, webhook 等其他核心路由
-├── 6.8 同步更新前端相关页面
-└── 6.9 全量功能验证
-    ⚠️ 注意: adapters 路由暂不改造
+├── 6.1 改造 dashboard 路由 ✅
+├── 6.2 改造 chat_channel 路由 ✅
+├── 6.3 改造 presets 路由 ✅
+├── 6.4 改造 logs 路由 ✅
+├── 6.5 改造 sandbox 路由 ✅
+├── 6.6 改造 cloud/* 路由 (plugins_market, presets_market, auth, telemetry) ✅
+├── 6.7 改造 common, restart, webhook 等其他核心路由 ✅
+├── 6.8 同步更新前端相关页面 ✅
+└── 6.9 全量功能验证 ⚠️（仅完成静态检查）
+    ✅ adapters 路由已完成改造
 
 Phase 7: 清理与文档 (预计 2-3 天)
-├── 7.1 删除 Ret 类及相关代码
-├── 7.2 运行迁移检查脚本确保无遗留
-├── 7.3 更新 API 文档
-├── 7.4 更新开发规范文档
-└── 7.5 完成迁移验收
+├── 7.1 删除 Ret 类及相关代码 ✅
+├── 7.2 运行迁移检查脚本确保无遗留 ✅
+├── 7.3 更新 API 文档 ✅
+├── 7.4 更新开发规范文档 ✅
+└── 7.5 完成迁移验收 ⚠️（仅完成静态检查）
 
 总计: 约 22-35 天
 ```
 
 ### 4.2 暂不改造内容（适配器层）
 
-以下内容涉及大量外部接口对接，改造风险较大，**本次暂不处理**：
+以下内容涉及大量外部接口对接，改造风险较大，**本次除 onebot_v11 外暂不处理**：
 
 | 适配器目录                         | 问题类型           | 风险说明                             |
 | ---------------------------------- | ------------------ | ------------------------------------ |
 | `nekro_agent/adapters/email/`      | HTTPException, pass | 邮箱协议对接，稳定性优先             |
-| `nekro_agent/adapters/onebot_v11/` | HTTPException       | QQ 机器人核心功能，需单独测试        |
+| `nekro_agent/adapters/onebot_v11/` | HTTPException       | QQ 机器人核心功能，已完成改造        |
 | `nekro_agent/adapters/sse/`        | HTTPException       | 实时通信，错误处理逻辑特殊           |
 | `nekro_agent/adapters/telegram/`   | -                   | 外部 API 对接                        |
 | `nekro_agent/adapters/discord/`    | -                   | 外部 API 对接                        |
 | `nekro_agent/adapters/wechatpad/`  | -                   | 微信协议对接，高风险                 |
 | `nekro_agent/adapters/minecraft/`  | -                   | 游戏服务器对接                       |
 
-**后续计划**: 待核心系统改造稳定后，可按适配器逐个进行改造和测试。
+**后续计划**: 待核心系统改造稳定后，可按剩余适配器逐个进行改造和测试。
 
 ### 4.3 每阶段详细任务
 
@@ -1945,24 +1945,24 @@ if (import.meta.env.DEV) {
 
 | 文件路径                                      | Ret 调用数 | 说明         | 改造状态 |
 | --------------------------------------------- | ---------- | ------------ | -------- |
-| `nekro_agent/routers/presets.py`              | 42         | 人设管理     | ✅ 待改造 |
-| `nekro_agent/routers/cloud/plugins_market.py` | 38         | 云端插件市场 | ✅ 待改造 |
-| `nekro_agent/routers/config.py`               | 32         | 配置管理     | ✅ 待改造 |
-| `nekro_agent/routers/plugins.py`              | 31         | 插件管理     | ✅ 待改造 |
-| `nekro_agent/routers/plugin_editor.py`        | 26         | 插件编辑器   | ✅ 待改造 |
-| `nekro_agent/routers/space_cleanup.py`        | 23         | 空间清理     | ✅ 待改造 |
-| `nekro_agent/routers/user_manager.py`         | 15         | 用户管理     | ✅ 待改造 |
-| `nekro_agent/routers/adapters.py`             | 14         | 适配器管理   | ✅ 待改造 |
-| `nekro_agent/routers/chat_channel.py`         | 11         | 聊天频道     | ✅ 待改造 |
-| `nekro_agent/routers/cloud/presets_market.py` | 10         | 人设市场     | ✅ 待改造 |
-| `nekro_agent/routers/common.py`               | 8          | 通用接口     | ✅ 待改造 |
-| `nekro_agent/routers/user.py`                 | 7          | 用户认证     | ✅ 待改造 |
-| `nekro_agent/routers/dashboard.py`            | 5          | 仪表盘       | ✅ 待改造 |
-| `nekro_agent/routers/restart.py`              | 4          | 重启接口     | ✅ 待改造 |
-| `nekro_agent/routers/cloud/auth.py`           | 3          | 云端认证     | ✅ 待改造 |
-| `nekro_agent/routers/logs.py`                 | 2          | 日志接口     | ✅ 待改造 |
-| `nekro_agent/routers/sandbox.py`              | 2          | 沙箱接口     | ✅ 待改造 |
-| `nekro_agent/routers/cloud/telemetry.py`      | 2          | 遥测接口     | ✅ 待改造 |
+| `nekro_agent/routers/presets.py`              | 42         | 人设管理     | ✅ 已改造 |
+| `nekro_agent/routers/cloud/plugins_market.py` | 38         | 云端插件市场 | ✅ 已改造 |
+| `nekro_agent/routers/config.py`               | 32         | 配置管理     | ✅ 已改造 |
+| `nekro_agent/routers/plugins.py`              | 31         | 插件管理     | ✅ 已改造 |
+| `nekro_agent/routers/plugin_editor.py`        | 26         | 插件编辑器   | ✅ 已改造 |
+| `nekro_agent/routers/space_cleanup.py`        | 23         | 空间清理     | ✅ 已改造 |
+| `nekro_agent/routers/user_manager.py`         | 15         | 用户管理     | ✅ 已改造 |
+| `nekro_agent/routers/adapters.py`             | 14         | 适配器管理   | ✅ 已改造 |
+| `nekro_agent/routers/chat_channel.py`         | 11         | 聊天频道     | ✅ 已改造 |
+| `nekro_agent/routers/cloud/presets_market.py` | 10         | 人设市场     | ✅ 已改造 |
+| `nekro_agent/routers/common.py`               | 8          | 通用接口     | ✅ 已改造 |
+| `nekro_agent/routers/user.py`                 | 7          | 用户认证     | ✅ 已改造 |
+| `nekro_agent/routers/dashboard.py`            | 5          | 仪表盘       | ✅ 已改造 |
+| `nekro_agent/routers/restart.py`              | 4          | 重启接口     | ✅ 已改造 |
+| `nekro_agent/routers/cloud/auth.py`           | 3          | 云端认证     | ✅ 已改造 |
+| `nekro_agent/routers/logs.py`                 | 2          | 日志接口     | ✅ 已改造 |
+| `nekro_agent/routers/sandbox.py`              | 2          | 沙箱接口     | ✅ 已改造 |
+| `nekro_agent/routers/cloud/telemetry.py`      | 2          | 遥测接口     | ✅ 已改造 |
 
 #### 后端适配器文件（⏸️ 暂不改造）
 

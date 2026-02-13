@@ -45,9 +45,10 @@ config.DATA_DIR
 位置: [logger.py](mdc:nekro_agent/core/logger.py)
 
 ```python
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 # 记录日志
+logger = get_sub_logger("subsystem")
 logger.info("操作信息")
 logger.error("错误信息")
 ```
@@ -58,6 +59,11 @@ logger.error("错误信息")
 - 任何与外部系统交互的数据第一时间转化为 Pydantic 模型，尽可能不使用 `dict[key]` 来获取数据
 - 遵循 RUFF 代码规范
 - 异步优先原则，禁止使用同步阻塞
+- 路由层禁止宽泛 `try/except`，仅捕获特定异常；其他异常交由全局异常处理器
+- 路由层禁止 `logger.exception`，统一由全局异常处理器记录堆栈
+- 业务错误使用 `AppError` 体系（`nekro_agent/schemas/errors.py`），禁止使用旧的 `Ret` 返回结构
+- API 返回使用标准 HTTP 状态码，错误响应由全局处理器统一结构化并支持 i18n（Accept-Language）
+- 认证系统当前仅支持 `admin` 登录，普通用户登录逻辑暂停使用（避免访问历史遗留用户表）
 
 # 扩展相关
 

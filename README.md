@@ -107,6 +107,24 @@ graph TD
     Output --> A3
 ```
 
+## 📘 API 文档与响应规范
+
+启用 `--docs` 参数后可访问：
+
+- **Swagger UI**: http://localhost:8021/api/docs
+- **ReDoc**: http://localhost:8021/api/redoc
+
+API 使用标准 HTTP 状态码，错误响应为结构化格式并支持 `Accept-Language`：
+
+```json
+{
+  "error": "ValidationError",
+  "message": "参数校验失败",
+  "detail": "field: error detail",
+  "data": null
+}
+```
+
 ## ⚙️ 效果演示
 
 Nekro Agent 提供了强大而直观的可视化界面，方便您管理和监控 Agent 的所有行为，以及实现多种精细化的 Agent 行为策略控制等。

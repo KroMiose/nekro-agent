@@ -1,4 +1,6 @@
+
 #!/usr/bin/env python3
+
 """
 WeChatPad 实时消息处理器
 基于WebSocket实现实时消息接收和处理
@@ -25,7 +27,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformMessage,
     PlatformUser,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentImage,
@@ -35,6 +37,7 @@ from nekro_agent.schemas.chat_message import (
 
 from .config import WeChatPadConfig
 
+logger = get_sub_logger("adapter.wechatpad")
 if TYPE_CHECKING:
     from .adapter import WeChatPadAdapter
 

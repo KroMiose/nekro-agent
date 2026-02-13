@@ -82,12 +82,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
     return (
       <Box sx={{ display: 'flex' }}>
         {showFirstLastPageButtons && (
-          <Tooltip title={t('pagination.firstPage')}>
+          <Tooltip title={t('common.pagination.firstPage')}>
             <span>
               <IconButton
                 onClick={handleFirstPageButtonClick}
                 disabled={page === 0 || loading}
-                aria-label={t('pagination.firstPage')}
+                aria-label={t('common.pagination.firstPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <LastPageIcon /> : <FirstPageIcon />}
@@ -96,12 +96,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
           </Tooltip>
         )}
         
-        <Tooltip title={t('pagination.previousPage')}>
+        <Tooltip title={t('common.pagination.previousPage')}>
           <span>
             <IconButton
               onClick={handleBackButtonClick}
               disabled={page === 0 || loading}
-              aria-label={t('pagination.previousPage')}
+              aria-label={t('common.pagination.previousPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowRightIcon /> : <KeyboardArrowLeftIcon />}
@@ -109,12 +109,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
           </span>
         </Tooltip>
         
-        <Tooltip title={t('pagination.nextPage')}>
+        <Tooltip title={t('common.pagination.nextPage')}>
           <span>
             <IconButton
               onClick={handleNextButtonClick}
               disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
-              aria-label={t('pagination.nextPage')}
+              aria-label={t('common.pagination.nextPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowLeftIcon /> : <KeyboardArrowRightIcon />}
@@ -123,12 +123,12 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
         </Tooltip>
         
         {showFirstLastPageButtons && (
-          <Tooltip title={t('pagination.lastPage')}>
+          <Tooltip title={t('common.pagination.lastPage')}>
             <span>
               <IconButton
                 onClick={handleLastPageButtonClick}
                 disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
-                aria-label={t('pagination.lastPage')}
+                aria-label={t('common.pagination.lastPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <FirstPageIcon /> : <LastPageIcon />}

@@ -5,7 +5,7 @@ from collections import deque
 from datetime import datetime
 from pathlib import Path
 from types import TracebackType
-from typing import AsyncGenerator, Dict, List, Optional, Set
+from typing import Any, AsyncGenerator, Dict, List, Optional, Set
 
 from loguru import logger
 
@@ -25,11 +25,14 @@ def format_log_entry(record: Dict) -> Dict:
     # 记录日志来源
     log_sources.add(record["name"])
 
+    extra = record.get("extra") or {}
     return {
         "timestamp": datetime.fromtimestamp(record["time"].timestamp()).strftime("%Y-%m-%d %H:%M:%S"),
         "level": record["level"].name,
         "message": record["message"],
         "source": record["name"],
+        "subsystem": extra.get("subsystem"),
+        "plugin_key": extra.get("plugin_key"),
         "function": record["function"],
         "line": record["line"],
     }
@@ -63,6 +66,7 @@ def exception_handler(
 sys.excepthook = exception_handler
 
 # 立即配置日志处理器
+Path(APP_LOG_DIR).mkdir(parents=True, exist_ok=True)
 log_handlers = [
     {
         "sink": LogInterceptHandler(),
@@ -110,6 +114,8 @@ async def get_log_records(
     page_size: int = 100,
     source: Optional[str] = None,
     count_only: bool = False,
+    subsystem: Optional[str] = None,
+    plugin_key: Optional[str] = None,
 ) -> List[Dict] | int:
     """获取历史日志记录，默认返回最新的100条日志
 
@@ -118,12 +124,19 @@ async def get_log_records(
         page_size: 每页记录数
         source: 日志来源过滤
         count_only: 是否只返回计数
+        subsystem: 子系统过滤（来自 logger.bind(subsystem=...)）
+        plugin_key: 插件过滤（来自 logger.bind(plugin_key=...)）
 
     Returns:
         返回指定页的日志记录，按时间从新到旧排序
     """
     # 1. 转换 deque 到列表并过滤（此时是从旧到新的顺序）
-    filtered_logs = [log for log in log_records if not source or log["source"] == source]
+    filtered_logs = [
+        log
+        for log in log_records
+        if (not source or log["source"] == source) and (not subsystem or log.get("subsystem") == subsystem)
+        and (not plugin_key or log.get("plugin_key") == plugin_key)
+    ]
     # 如果只需要计数
     if count_only:
         return len(filtered_logs)
@@ -151,3 +164,22 @@ async def subscribe_logs() -> AsyncGenerator[str, None]:
             yield message
     finally:
         subscribers.remove(queue)
+
+
+def get_sub_logger(subsystem: str, log_name: Optional[str] = None, **extra: Any):
+    """获取带子系统标记的 logger（用于前端过滤）。
+
+    注意：
+    - 不会分流到独立日志文件（避免产生过多碎片日志）
+    - 仅通过 record.extra 打标，供内存日志/接口过滤
+    """
+    subsystem = str(subsystem).strip()
+    if not subsystem:
+        return logger
+    name = (log_name or subsystem).strip() or subsystem
+    bound = logger.bind(subsystem=subsystem, **extra)
+
+    def patch_record(record: Any) -> None:
+        record["name"] = name
+
+    return bound.patch(patch_record)

@@ -20,10 +20,24 @@ export interface ChatChannelDetail extends ChatChannel {
 
 export interface ChatMessage {
   id: number
-  sender_id: number
+  sender_id: string
   sender_name: string
   content: string
   create_time: string
+}
+
+export interface ChatChannelListResponse {
+  total: number
+  items: ChatChannel[]
+}
+
+export interface ChatMessageListResponse {
+  total: number
+  items: ChatMessage[]
+}
+
+export interface ActionResponse {
+  ok: boolean
 }
 
 export const chatChannelApi = {
@@ -33,33 +47,25 @@ export const chatChannelApi = {
     search?: string
     chat_type?: string
     is_active?: boolean
-  }) => {
-    const response = await axios.get<{
-      data: { total: number; items: ChatChannel[] }
-    }>('/chat-channel/list', { params })
-    return response.data.data
-  },
-
-  getDetail: async (chatKey: string) => {
-    const response = await axios.get<{ data: ChatChannelDetail }>(
-      `/chat-channel/detail/${chatKey}`,
-    )
-    return response.data.data
-  },
-
-  setActive: async (chatKey: string, isActive: boolean) => {
-    const response = await axios.post<{ code: number; msg: string }>(
-      `/chat-channel/${chatKey}/active`,
-      null,
-      { params: { is_active: isActive } },
-    )
+  }): Promise<ChatChannelListResponse> => {
+    const response = await axios.get<ChatChannelListResponse>('/chat-channel/list', { params })
     return response.data
   },
 
-  reset: async (chatKey: string) => {
-    const response = await axios.post<{ code: number; msg: string }>(
-      `/chat-channel/${chatKey}/reset`,
-    )
+  getDetail: async (chatKey: string): Promise<ChatChannelDetail> => {
+    const response = await axios.get<ChatChannelDetail>(`/chat-channel/detail/${chatKey}`)
+    return response.data
+  },
+
+  setActive: async (chatKey: string, isActive: boolean): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/active`, null, {
+      params: { is_active: isActive },
+    })
+    return response.data
+  },
+
+  reset: async (chatKey: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/reset`)
     return response.data
   },
 
@@ -67,25 +73,24 @@ export const chatChannelApi = {
     chat_key: string
     before_id?: number
     page_size?: number
-  }) => {
-    const response = await axios.get<{
-      data: { total: number; items: ChatMessage[] }
-    }>(`/chat-channel/${params.chat_key}/messages`, {
+  }): Promise<ChatMessageListResponse> => {
+    const response = await axios.get<ChatMessageListResponse>(
+      `/chat-channel/${params.chat_key}/messages`,
+      {
       params: { 
         before_id: params.before_id,
         page_size: params.page_size || 32,
       },
 
-    })
-    return response.data.data
+      }
+    )
+    return response.data
   },
 
-  setPreset: async (chatKey: string, presetId: number | null) => {
-    const response = await axios.post<{ code: number; msg: string }>(
-      `/chat-channel/${chatKey}/preset`,
-      null,
-      { params: { preset_id: presetId } },
-    )
+  setPreset: async (chatKey: string, presetId: number | null): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/preset`, null, {
+      params: { preset_id: presetId },
+    })
     return response.data
   },
 } 

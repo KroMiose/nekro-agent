@@ -1,9 +1,7 @@
 from typing import Any, Dict, Optional, Union
 
-from fastapi import HTTPException
-
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.schemas.plugin import (
     BasicResponse,
     PluginCreate,
@@ -16,7 +14,7 @@ from nekro_agent.systems.cloud.schemas.plugin import (
 
 from .client import get_client
 
-
+logger = get_sub_logger("cloud_api")
 async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
     """创建插件资源
 

@@ -1,3 +1,4 @@
+
 """插件路由管理器
 
 负责插件路由的动态挂载、卸载和热重载功能。
@@ -8,13 +9,12 @@ import inspect
 from functools import wraps
 from typing import Dict, List, Optional, Set
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request, Response
-from fastapi.routing import APIRoute
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.plugin.base import NekroPlugin
 
-
+logger = get_sub_logger("plugin_system")
 class PluginRouteMiddleware:
     """插件路由中间件
 

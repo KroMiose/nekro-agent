@@ -1,14 +1,15 @@
-from typing import Optional, Tuple
+from typing import Optional
 
 from pydantic import BaseModel
 from qdrant_client import AsyncQdrantClient
-from qdrant_client import models as qdrant_models
+
+from nekro_agent.core.logger import get_sub_logger
 
 from .args import Args
 from .config import config
-from .logger import logger
 from .os_env import OsEnv
 
+logger = get_sub_logger("vector_db")
 _qdrant_client: Optional[AsyncQdrantClient] = None
 
 

@@ -204,18 +204,11 @@ const PresetEditDialog = ({
     try {
       setLoading(true)
       const response = await presetsApi.uploadAvatar(file)
-      if (response.code === 200) {
-        setFormData(prev => ({
-          ...prev,
-          avatar: response.data.avatar,
-        }))
-        enqueueSnackbar(t('form.uploadSuccess'), { variant: 'success' })
-      } else {
-        setErrors(prev => ({
-          ...prev,
-          avatar: `${t('form.uploadFailed')}: ${response.msg}`,
-        }))
-      }
+      setFormData(prev => ({
+        ...prev,
+        avatar: response.avatar,
+      }))
+      enqueueSnackbar(t('form.uploadSuccess'), { variant: 'success' })
     } catch {
       setErrors(prev => ({
         ...prev,
@@ -263,7 +256,6 @@ const PresetEditDialog = ({
       })
       onClose()
     } catch (error) {
-      console.error('保存失败', error)
       // 显示通用错误
       setErrors(prev => ({
         ...prev,
@@ -286,7 +278,6 @@ const PresetEditDialog = ({
         })
         onClose()
       } catch (error) {
-        console.error('保存失败', error)
         // 显示通用错误
         setErrors(prev => ({
           ...prev,
@@ -630,7 +621,6 @@ const PresetCard = ({
           const data = await presetsApi.getDetail(preset.id)
           setDetailData(data)
         } catch (error) {
-          console.error('获取人设详情失败', error)
           showError(t('card.loadDetails'))
         } finally {
           setLoading(false)
@@ -646,32 +636,15 @@ const PresetCard = ({
       setShareLoading(true)
       // 移除过程提示
       const response = await presetsApi.shareToCloud(preset.id, isSfw)
-      if (response.code === 200) {
-        showSuccess(t('cloud.shareSuccess'))
-        setShowShareDialog(false)
-        // 更新本地状态
-        setPreset({
-          ...preset,
-          on_shared: true,
-          remote_id: response.data?.remote_id || String(preset.id),
-        })
-        await onRefreshList()
-      } else {
-        // 直接显示错误，只使用全局错误提示
-        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
-        showError(`${t('cloud.shareFailed')}: ${errorMsg}`)
-
-        // 如果是描述缺失错误，打开编辑对话框
-        if (response.msg && response.msg.includes('描述不能为空')) {
-          setTimeout(() => {
-            showError(t('cloud.addDescriptionFirst'))
-            onEdit()
-          }, 800)
-        }
-        setShowShareDialog(false)
-      }
+      showSuccess(t('cloud.shareSuccess'))
+      setShowShareDialog(false)
+      setPreset({
+        ...preset,
+        on_shared: true,
+        remote_id: response.remote_id || String(preset.id),
+      })
+      await onRefreshList()
     } catch (error) {
-      console.error('共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('cloud.shareFailed')}: ${errorMessage}`)
       setShowShareDialog(false)
@@ -685,24 +658,16 @@ const PresetCard = ({
     try {
       setShareLoading(true)
       // 移除过程提示
-      const response = await presetsApi.unshare(preset.id)
-      if (response.code === 200) {
-        showSuccess(t('cloud.revokeSuccess'))
-        setShowUnshareDialog(false)
-        // 更新本地状态
-        setPreset({
-          ...preset,
-          on_shared: false,
-          remote_id: null,
-        })
-        await onRefreshList()
-      } else {
-        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
-        showError(`${t('cloud.revokeFailed')}: ${errorMsg}`)
-        setShowUnshareDialog(false)
-      }
+      await presetsApi.unshare(preset.id)
+      showSuccess(t('cloud.revokeSuccess'))
+      setShowUnshareDialog(false)
+      setPreset({
+        ...preset,
+        on_shared: false,
+        remote_id: null,
+      })
+      await onRefreshList()
     } catch (error) {
-      console.error('撤回共享失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('cloud.revokeFailed')}: ${errorMessage}`)
       setShowUnshareDialog(false)
@@ -716,28 +681,11 @@ const PresetCard = ({
     try {
       setShareLoading(true)
       // 移除过程提示
-      const response = await presetsApi.syncToCloud(preset.id, isSfw)
-      if (response.code === 200) {
-        // 优先显示服务器返回的详细信息，如果没有则显示通用信息
-        showSuccess(response.msg || t('cloud.syncSuccess'))
-        setShowSyncToCloudDialog(false)
-        await onRefreshList()
-      } else {
-        // 直接显示错误，同时使用全局错误提示
-        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
-        showError(`${t('cloud.syncFailed')}: ${errorMsg}`)
-
-        // 如果是描述缺失错误，打开编辑对话框
-        if (response.msg && response.msg.includes('描述不能为空')) {
-          setTimeout(() => {
-            showError(t('cloud.addDescriptionFirst'))
-            onEdit()
-          }, 800)
-        }
-        setShowSyncToCloudDialog(false)
-      }
+      await presetsApi.syncToCloud(preset.id, isSfw)
+      showSuccess(t('cloud.syncSuccess'))
+      setShowSyncToCloudDialog(false)
+      await onRefreshList()
     } catch (error) {
-      console.error('同步失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('cloud.syncFailed')}: ${errorMessage}`)
       setShowSyncToCloudDialog(false)
@@ -788,8 +736,6 @@ const PresetCard = ({
               setSyncLoading(true)
               try {
                 await onSync(preset.id)
-              } catch (error) {
-                console.error('同步按钮错误:', error)
               } finally {
                 setSyncLoading(false)
               }
@@ -1059,13 +1005,11 @@ const PresetCard = ({
                 color="primary"
                 onClick={async () => {
                   setSyncLoading(true)
-                  try {
-                    await onSync(preset.id)
-                  } catch (error) {
-                    console.error('同步按钮错误:', error)
-                  } finally {
-                    setSyncLoading(false)
-                  }
+                try {
+                  await onSync(preset.id)
+                } finally {
+                  setSyncLoading(false)
+                }
                 }}
                 disabled={syncLoading}
               >
@@ -1464,7 +1408,6 @@ export default function PresetsPage() {
   // 统一使用 notistack 的通知系统
   const showError = useCallback(
     (message: string) => {
-      console.error(message)
       enqueueSnackbar(message, { variant: 'error', autoHideDuration: 5000 })
     },
     [enqueueSnackbar]
@@ -1473,7 +1416,6 @@ export default function PresetsPage() {
   // 统一使用 notistack 的通知系统
   const showSuccess = useCallback(
     (message: string) => {
-      console.log(message)
       enqueueSnackbar(message, { variant: 'success', autoHideDuration: 3000 })
     },
     [enqueueSnackbar]
@@ -1496,7 +1438,6 @@ export default function PresetsPage() {
         setPage(1)
       }
     } catch (error) {
-      console.error('获取人设列表失败', error)
       showError(t('list.fetchFailed'))
     } finally {
       setLoading(false)
@@ -1513,7 +1454,6 @@ export default function PresetsPage() {
       const tags = await presetsApi.getTags()
       setAvailableTags(tags)
     } catch (error) {
-      console.error('获取标签失败', error)
       showError(t('list.fetchTagsFailed'))
     }
   }, [showError, t])
@@ -1554,30 +1494,24 @@ export default function PresetsPage() {
       setEditingPreset(detailData)
       setEditDialog(true)
     } catch (error) {
-      console.error('获取人设详情失败', error)
       showError(t('card.loadDetails'))
     }
   }
 
   const handleSave = async (data: PresetFormData) => {
-    console.log('主页面handleSave被调用，数据:', data)
     try {
       if (editingPreset) {
-        console.log('更新现有人设:', editingPreset.id)
         showSuccess(t('list.updating'))
         await presetsApi.update(editingPreset.id, data)
         showSuccess(t('messages.updateSuccess', { ns: 'common' }))
       } else {
-        console.log('创建新人设')
         showSuccess(t('list.creating'))
-        const result = await presetsApi.create(data)
-        console.log('创建人设API响应:', result)
+        await presetsApi.create(data)
         showSuccess(t('messages.createSuccess', { ns: 'common' }))
       }
       fetchData()
       fetchAvailableTags() // 刷新标签列表
     } catch (error) {
-      console.error('保存失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('messages.saveFailed', { ns: 'common' })}: ${errorMessage}`)
       throw error // 传递错误以便上层组件处理
@@ -1601,7 +1535,6 @@ export default function PresetsPage() {
         setExpandedId(null)
       }
     } catch (error) {
-      console.error('删除失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('messages.deleteFailed', { ns: 'common' })}: ${errorMessage}`)
     } finally {
@@ -1611,24 +1544,14 @@ export default function PresetsPage() {
 
   const handleSyncClick = async (id: number): Promise<void> => {
     try {
-      const response = await presetsApi.sync(id)
-      if (response.code === 200) {
-        // 优先显示服务器返回的详细信息，如果没有则显示通用成功信息
-        showSuccess(response.msg || t('cloud.syncSuccess'))
-        // 强制刷新数据
-        await fetchData()
-        // 如果当前有展开的详情，也需要刷新
-        if (expandedId === id) {
-          setExpandedId(null) // 先收起
-          setTimeout(() => setExpandedId(id), 100) // 再展开以刷新详情
-        }
-      } else {
-        const errorMsg = response.msg || t('common.unknownError', { ns: 'common' })
-        showError(`${t('cloud.syncFailed')}: ${errorMsg}`)
-        throw new Error(errorMsg)
+      await presetsApi.sync(id)
+      showSuccess(t('cloud.syncSuccess'))
+      await fetchData()
+      if (expandedId === id) {
+        setExpandedId(null)
+        setTimeout(() => setExpandedId(id), 100)
       }
     } catch (error) {
-      console.error('同步失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('cloud.syncFailed')}: ${errorMessage}`)
       throw error
@@ -1641,23 +1564,15 @@ export default function PresetsPage() {
       setRefreshingShared(true)
       showSuccess(t('cloud.refreshingStatus'))
       const response = await presetsApi.refreshSharedStatus()
-      if (response.code === 200) {
-        showSuccess(response.msg || t('cloud.refreshStatusSuccess'))
-        if (response.data) {
-          showSuccess(
-            t('cloud.refreshStatusDetails', {
-              updated: response.data.updated_count,
-              total: response.data.total_cloud_presets,
-            })
-          )
-        }
-        // 刷新人设列表
-        await fetchData()
-      } else {
-        showError(`${t('cloud.refreshFailed')}: ${response.msg}`)
-      }
+      showSuccess(t('cloud.refreshStatusSuccess'))
+      showSuccess(
+        t('cloud.refreshStatusDetails', {
+          updated: response.updated_count,
+          total: response.total_cloud_presets,
+        })
+      )
+      await fetchData()
     } catch (error) {
-      console.error('刷新共享状态失败', error)
       const errorMessage = error instanceof Error ? error.message : String(error)
       showError(`${t('cloud.refreshFailed')}: ${errorMessage}`)
     } finally {

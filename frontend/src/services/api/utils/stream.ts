@@ -52,11 +52,16 @@ export const createEventStream = (options: StreamOptions) => {
         onMessage(ev.data)
       },
       onerror(err: Error) {
-        console.error('EventSource error:', err)
+        if (signal?.aborted || controller.signal.aborted) return
         if (onError) onError(err)
-        throw err // 重试连接
+        controller.abort()
+        return
       },
-    }).catch(console.error)
+    }).catch(err => {
+      if (onError && err instanceof Error) {
+        onError(err)
+      }
+    })
 
     // 返回取消函数
     return () => {
@@ -65,7 +70,6 @@ export const createEventStream = (options: StreamOptions) => {
       }
     }
   } catch (error) {
-    console.error('构造 URL 失败:', error)
     throw new Error('无法连接到流式服务')
   }
 }

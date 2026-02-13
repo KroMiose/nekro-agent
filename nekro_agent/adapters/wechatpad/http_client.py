@@ -1,12 +1,14 @@
 from typing import Any, Optional
 
+
 import httpx
 
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .config import WeChatPadConfig
 
 
+logger = get_sub_logger("adapter.wechatpad")
 class WeChatPadClient:
     """用于与 WeChatPadPro API 交互的客户端"""
 

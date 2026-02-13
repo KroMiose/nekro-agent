@@ -1,4 +1,3 @@
-from types import ModuleType
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from nonebot.adapters.onebot.v11 import Bot as OneBotV11Bot

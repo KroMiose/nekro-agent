@@ -1,19 +1,22 @@
 from typing import TYPE_CHECKING, Any
 
+
 from fastapi import APIRouter, Request, Response
 
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
+
     PlatformChannel,
     PlatformMessage,
     PlatformUser,
 )
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import ChatMessageSegment, ChatMessageSegmentType, ChatType
 
 from .schemas import MessageType, WeChatPadMessageEvent
 
+logger = get_sub_logger("adapter.wechatpad")
 if TYPE_CHECKING:
     from .adapter import WeChatPadAdapter
 

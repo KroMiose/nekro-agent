@@ -202,10 +202,9 @@ export const registerHoudiniPaints = () => {
         css.paintWorklet.addModule(
           'data:application/javascript;base64,cmVnaXN0ZXJQYWludCgnbm9pc2UtZ3JhZGllbnQnLCBjbGFzcyB7CiAgc3RhdGljIGdldCBpbnB1dFByb3BlcnRpZXMoKSB7IHJldHVybiBbJy0tbm9pc2Utb3BhY2l0eSddOyB9CiAgcGFpbnQoY3R4LCBnZW9tLCBwcm9wZXJ0aWVzKSB7CiAgICBjb25zdCBub2lzZU9wYWNpdHkgPSBwcm9wZXJ0aWVzLmdldCgnLS1ub2lzZS1vcGFjaXR5JykgfHwgMC4wNTsKICAgIGNvbnN0IHdpZHRoID0gZ2VvbS53aWR0aDsKICAgIGNvbnN0IGhlaWdodCA9IGdlb20uaGVpZ2h0OwogICAgZm9yIChsZXQgeCA9IDA7IHggPCB3aWR0aDsgeCsrKSB7CiAgICAgIGZvciAobGV0IHkgPSAwOyB5IDwgaGVpZ2h0OyB5KyspIHsKICAgICAgICBpZiAoTWF0aC5yYW5kb20oKSA8IDAuMSkgewogICAgICAgICAgY3R4LmZpbGxTdHlsZSA9IGByZ2JhKDI1NSwgMjU1LCAyNTUsICR7TWF0aC5yYW5kb20oKSAqIG5vaXNlT3BhY2l0eX0pYDsKICAgICAgICAgIGN0eC5maWxsUmVjdCh4LCB5LCAxLCAxKTsKICAgICAgICB9CiAgICAgIH0KICAgIH0KICB9Cn0pOw=='
         );
-        console.log('Noise gradient paint worklet registered');
       }
     } catch (e) {
-      console.warn('Could not register CSS Houdini paint worklets', e);
+      // 忽略不支持 CSS Houdini 的浏览器
     }
   }
 }

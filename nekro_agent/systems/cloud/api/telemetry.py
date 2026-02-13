@@ -1,5 +1,4 @@
 import asyncio
-import json
 import random
 import time
 from datetime import datetime
@@ -8,13 +7,15 @@ from typing import Any, Dict, Optional
 import httpx
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.systems.cloud.collector import prepare_telemetry_data
 from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
 from nekro_agent.systems.cloud.schemas.telemetry import TelemetryData, TelemetryResponse
 
 # 内存缓存
+
+logger = get_sub_logger("cloud_api")
 _CACHE: Dict[str, Dict[str, Any]] = {"community_stats": {"data": None, "expires_at": 0}}
 
 

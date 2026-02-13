@@ -4,7 +4,6 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
-from nekro_agent.core.config import config
 from nekro_agent.core.logger import logger
 from nekro_agent.core.os_env import SANDBOX_SHARED_HOST_DIR, USER_UPLOAD_DIR
 

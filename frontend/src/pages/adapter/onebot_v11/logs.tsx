@@ -69,7 +69,6 @@ export default function OneBotV11LogsPage() {
 
   // 实时日志订阅 - 参考原版简单逻辑
   useEffect(() => {
-    console.log('Starting real-time log subscription...')
     let cleanup: (() => void) | undefined
 
     const connect = () => {
@@ -84,7 +83,9 @@ export default function OneBotV11LogsPage() {
             setIsReconnecting(false)
           },
           error => {
-            console.error('EventSource error:', error)
+            notification.error(
+              error instanceof Error ? error.message : t('logs.connectFailed')
+            )
             setIsReconnecting(true)
             // 5秒后尝试重连
             setTimeout(() => {
@@ -93,22 +94,25 @@ export default function OneBotV11LogsPage() {
           }
         )
       } catch (error) {
-        console.error('Failed to create EventSource:', error)
         notification.error(error instanceof Error ? error.message : t('logs.connectFailed'))
         setIsReconnecting(true)
       }
     }
 
     // 初始化日志
-    oneBotV11Api.getContainerLogs(500).then(logs => {
-      setLogs(logs || [])
-      setWebuiToken(extractWebuiToken(logs || []))
-    })
+    oneBotV11Api
+      .getContainerLogs(500)
+      .then(logs => {
+        setLogs(logs || [])
+        setWebuiToken(extractWebuiToken(logs || []))
+      })
+      .catch(error => {
+        notification.error(error instanceof Error ? error.message : t('logs.connectFailed'))
+      })
 
     connect()
 
     return () => {
-      console.log('Closing real-time log subscription...')
       cleanup?.()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,13 +157,17 @@ export default function OneBotV11LogsPage() {
                 setLogs(logs || [])
                 setWebuiToken(extractWebuiToken(logs || []))
               } catch (error) {
-                console.error('Failed to fetch initial logs:', error)
+                notification.error(
+                  error instanceof Error ? error.message : t('logs.connectFailed')
+                )
               }
             }, 2000)
           }
           lastStartTime = status.started_at
         } catch (error) {
-          console.error('Failed to check status:', error)
+          notification.error(
+            error instanceof Error ? error.message : t('logs.connectFailed')
+          )
         }
       }, 2000)
 
@@ -172,9 +180,8 @@ export default function OneBotV11LogsPage() {
         }
       }, 30000)
     } catch (error) {
-      console.error('Failed to restart:', error)
       setIsRestarting(false)
-      notification.error(t('logs.restartFailed'))
+      notification.error(error instanceof Error ? error.message : t('logs.restartFailed'))
     }
   }
 

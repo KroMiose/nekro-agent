@@ -1,22 +1,46 @@
 import asyncio
 import json
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Union
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
-from tortoise.functions import Avg, Count
 
-from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatType
-from nekro_agent.schemas.message import Ret
 from nekro_agent.services.user.deps import get_current_active_user
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
+
+
+class DashboardOverview(BaseModel):
+    total_messages: int
+    active_sessions: int
+    unique_users: int
+    total_sandbox_calls: int
+    success_calls: int
+    failed_calls: int
+    success_rate: float
+
+
+class DistributionItem(BaseModel):
+    label: str
+    value: int
+    percentage: float
+
+
+class DistributionsResponse(BaseModel):
+    stop_type: List[DistributionItem]
+    message_type: List[DistributionItem]
+
+
+class RankingItem(BaseModel):
+    id: str
+    name: str
+    value: int
 
 
 async def get_time_range(time_range: str = "day") -> datetime:
@@ -35,7 +59,7 @@ async def get_time_range(time_range: str = "day") -> datetime:
 async def get_dashboard_overview(
     time_range: str = "day",
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> DashboardOverview:
     start_time = await get_time_range(time_range)
 
     total_messages = await DBChatMessage.filter(create_time__gte=start_time).count()
@@ -52,17 +76,14 @@ async def get_dashboard_overview(
     failed_calls = total_sandbox_calls - success_calls
     success_rate = round(success_calls / total_sandbox_calls * 100, 2) if total_sandbox_calls > 0 else 0
 
-    return Ret.success(
-        msg="获取成功",
-        data={
-            "total_messages": total_messages,
-            "active_sessions": active_sessions,
-            "unique_users": len(unique_users),
-            "total_sandbox_calls": total_sandbox_calls,
-            "success_calls": success_calls,
-            "failed_calls": failed_calls,
-            "success_rate": success_rate,
-        },
+    return DashboardOverview(
+        total_messages=total_messages,
+        active_sessions=active_sessions,
+        unique_users=len(unique_users),
+        total_sandbox_calls=total_sandbox_calls,
+        success_calls=success_calls,
+        failed_calls=failed_calls,
+        success_rate=success_rate,
     )
 
 
@@ -72,18 +93,13 @@ async def get_trends(
     time_range: str = "day",
     interval: str = "hour",
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> List[Dict[str, Union[str, int, float]]]:
     """获取趋势数据"""
-    # 计算时间范围
     now = datetime.now()
     if time_range == "day":
         start_time = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        if interval == "hour":
-            intervals = 24
-            delta = timedelta(hours=1)
-        else:
-            intervals = 24
-            delta = timedelta(hours=1)
+        intervals = 24
+        delta = timedelta(hours=1)
     elif time_range == "week":
         start_time = now - timedelta(days=now.weekday())
         start_time = start_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -106,18 +122,14 @@ async def get_trends(
         intervals = 24
         delta = timedelta(hours=1)
 
-    # 解析请求的指标
     metrics_list = metrics.split(",")
-
-    # 准备结果数据
-    result = []
+    result: List[Dict[str, Union[str, int, float]]] = []
     current_time = start_time
 
     for _ in range(intervals):
         next_time = current_time + delta
         data_point: Dict[str, Union[str, int, float]] = {"timestamp": current_time.isoformat()}
 
-        # 查询各指标数据
         if "messages" in metrics_list:
             messages_count = await DBChatMessage.filter(create_time__gte=current_time, create_time__lt=next_time).count()
             data_point["messages"] = messages_count
@@ -147,10 +159,7 @@ async def get_trends(
         result.append(data_point)
         current_time = next_time
 
-    return Ret.success(
-        msg="获取成功",
-        data=result,
-    )
+    return result
 
 
 @router.get("/ranking", summary="获取排名数据")
@@ -159,16 +168,16 @@ async def get_ranking(
     time_range: str = "day",
     limit: int = 10,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> List[RankingItem]:
     start_time = await get_time_range(time_range)
 
     if ranking_type == "users":
         execs = await DBExecCode.filter(
             create_time__gte=start_time,
-            trigger_user_id__not_in=["0", "-1", ""],  # 过滤掉系统触发的执行
+            trigger_user_id__not_in=["0", "-1", ""],
         ).all()
 
-        user_counts = {}
+        user_counts: Dict[str, Dict[str, Union[str, int]]] = {}
         for _exec in execs:
             user_id = _exec.trigger_user_id
             user_name = _exec.trigger_user_name
@@ -180,19 +189,12 @@ async def get_ranking(
                     "value": 0,
                 }
 
-            user_counts[user_id]["value"] += 1
+            user_counts[user_id]["value"] = int(user_counts[user_id]["value"]) + 1
 
-        result = sorted(user_counts.values(), key=lambda x: x["value"], reverse=True)[:limit]
+        result = sorted(user_counts.values(), key=lambda x: int(x["value"]), reverse=True)[:limit]
+        return [RankingItem(id=str(item["id"]), name=str(item["name"]), value=int(item["value"])) for item in result]
 
-        return Ret.success(
-            msg="获取成功",
-            data=result,
-        )
-
-    return Ret.success(
-        msg="获取成功",
-        data=[],
-    )
+    return []
 
 
 @router.get("/stats/stream", summary="获取实时统计数据流")
@@ -201,121 +203,100 @@ async def get_stats_stream(
     _current_user: DBUser = Depends(get_current_active_user),
 ):
     async def generate():
-        try:
-            # 初始化计数器
-            last_message_count = await DBChatMessage.all().count()
-            last_sandbox_count = await DBExecCode.all().count()
-            last_success_count = await DBExecCode.filter(success=True).all().count()
+        last_message_count = await DBChatMessage.all().count()
+        last_sandbox_count = await DBExecCode.all().count()
+        last_success_count = await DBExecCode.filter(success=True).all().count()
 
-            # 计算开始时间（当前时间减去50个粒度单位）
-            start_time = datetime.now() - timedelta(minutes=granularity * 50)
+        start_time = datetime.now() - timedelta(minutes=granularity * 50)
+        current_time = start_time.replace(
+            minute=(start_time.minute // granularity) * granularity,
+            second=0,
+            microsecond=0,
+        )
 
-            # 对齐到粒度的整点时间
-            current_time = start_time.replace(
-                minute=(start_time.minute // granularity) * granularity,
-                second=0,
-                microsecond=0,
+        while current_time < datetime.now():
+            next_time = current_time + timedelta(minutes=granularity)
+
+            messages = await DBChatMessage.filter(
+                create_time__gte=current_time,
+                create_time__lt=next_time,
+            ).count()
+
+            sandbox_calls = await DBExecCode.filter(
+                create_time__gte=current_time,
+                create_time__lt=next_time,
+            ).count()
+
+            success_calls = await DBExecCode.filter(
+                create_time__gte=current_time,
+                create_time__lt=next_time,
+                success=True,
+            ).count()
+
+            execs = await DBExecCode.filter(
+                create_time__gte=current_time,
+                create_time__lt=next_time,
+            ).all()
+
+            avg_exec_time = sum(_exec.exec_time_ms for _exec in execs) / len(execs) if execs else 0
+
+            yield json.dumps(
+                {
+                    "timestamp": current_time.isoformat(),
+                    "recent_messages": messages,
+                    "recent_sandbox_calls": sandbox_calls,
+                    "recent_success_calls": success_calls,
+                    "recent_avg_exec_time": round(avg_exec_time, 2),
+                },
+            )
+            await asyncio.sleep(0.01)
+
+            current_time = next_time
+
+        now = datetime.now()
+        next_aligned_time = now.replace(
+            minute=((now.minute // granularity) * granularity + granularity) % 60,
+            second=0,
+            microsecond=0,
+        )
+        if next_aligned_time.minute < now.minute:
+            next_aligned_time = next_aligned_time.replace(hour=next_aligned_time.hour + 1)
+
+        while True:
+            wait_seconds = (next_aligned_time - datetime.now()).total_seconds()
+            if wait_seconds > 0:
+                await asyncio.sleep(wait_seconds)
+
+            current_message_count = await DBChatMessage.all().count()
+            current_sandbox_count = await DBExecCode.all().count()
+            current_success_count = await DBExecCode.filter(success=True).all().count()
+
+            recent_messages = current_message_count - last_message_count
+            recent_sandbox_calls = current_sandbox_count - last_sandbox_count
+            recent_success_calls = current_success_count - last_success_count
+
+            recent_execs = await DBExecCode.filter(
+                create_time__gte=datetime.now() - timedelta(minutes=granularity),
+            ).all()
+            recent_avg_exec_time = (
+                sum(_exec.exec_time_ms for _exec in recent_execs) / len(recent_execs) if recent_execs else 0
             )
 
-            # 发送历史数据（最多50个数据点）
-            while current_time < datetime.now():
-                next_time = current_time + timedelta(minutes=granularity)
+            last_message_count = current_message_count
+            last_sandbox_count = current_sandbox_count
+            last_success_count = current_success_count
 
-                # 查询该时间段内的数据
-                messages = await DBChatMessage.filter(
-                    create_time__gte=current_time,
-                    create_time__lt=next_time,
-                ).count()
-
-                sandbox_calls = await DBExecCode.filter(
-                    create_time__gte=current_time,
-                    create_time__lt=next_time,
-                ).count()
-
-                success_calls = await DBExecCode.filter(
-                    create_time__gte=current_time,
-                    create_time__lt=next_time,
-                    success=True,
-                ).count()
-
-                execs = await DBExecCode.filter(
-                    create_time__gte=current_time,
-                    create_time__lt=next_time,
-                ).all()
-
-                avg_exec_time = sum(_exec.exec_time_ms for _exec in execs) / len(execs) if execs else 0
-
-                # 发送数据（即使没有活动也发送，以保持图表连续性）
-                yield json.dumps(
-                    {
-                        "timestamp": current_time.isoformat(),
-                        "recent_messages": messages,
-                        "recent_sandbox_calls": sandbox_calls,
-                        "recent_success_calls": success_calls,
-                        "recent_avg_exec_time": round(avg_exec_time, 2),
-                    },
-                )
-                await asyncio.sleep(0.01)  # 短暂延迟，避免一次性发送太多数据
-
-                current_time = next_time
-
-            # 计算下一个对齐的时间点
-            now = datetime.now()
-            next_aligned_time = now.replace(
-                minute=((now.minute // granularity) * granularity + granularity) % 60,
-                second=0,
-                microsecond=0,
+            yield json.dumps(
+                {
+                    "timestamp": next_aligned_time.isoformat(),
+                    "recent_messages": recent_messages,
+                    "recent_sandbox_calls": recent_sandbox_calls,
+                    "recent_success_calls": recent_success_calls,
+                    "recent_avg_exec_time": round(recent_avg_exec_time, 2),
+                },
             )
-            # 如果下一个对齐时间的分钟小于当前分钟，说明跨小时了
-            if next_aligned_time.minute < now.minute:
-                next_aligned_time = next_aligned_time.replace(hour=next_aligned_time.hour + 1)
 
-            # 实时监控循环
-            while True:
-                # 等待到下一个对齐的时间点
-                wait_seconds = (next_aligned_time - datetime.now()).total_seconds()
-                if wait_seconds > 0:
-                    await asyncio.sleep(wait_seconds)
-
-                # 查询从上次发送到现在的数据
-                current_message_count = await DBChatMessage.all().count()
-                current_sandbox_count = await DBExecCode.all().count()
-                current_success_count = await DBExecCode.filter(success=True).all().count()
-
-                recent_messages = current_message_count - last_message_count
-                recent_sandbox_calls = current_sandbox_count - last_sandbox_count
-                recent_success_calls = current_success_count - last_success_count
-
-                # 查询最近一个粒度时间内的平均执行时间
-                recent_execs = await DBExecCode.filter(
-                    create_time__gte=datetime.now() - timedelta(minutes=granularity),
-                ).all()
-                recent_avg_exec_time = (
-                    sum(_exec.exec_time_ms for _exec in recent_execs) / len(recent_execs) if recent_execs else 0
-                )
-
-                # 更新计数器
-                last_message_count = current_message_count
-                last_sandbox_count = current_sandbox_count
-                last_success_count = current_success_count
-
-                # 发送数据
-                yield json.dumps(
-                    {
-                        "timestamp": next_aligned_time.isoformat(),
-                        "recent_messages": recent_messages,
-                        "recent_sandbox_calls": recent_sandbox_calls,
-                        "recent_success_calls": recent_success_calls,
-                        "recent_avg_exec_time": round(recent_avg_exec_time, 2),
-                    },
-                )
-
-                # 计算下一个对齐的时间点
-                next_aligned_time = next_aligned_time + timedelta(minutes=granularity)
-
-        except Exception as e:
-            print(f"Stream error: {e}")
-            yield json.dumps({"error": str(e)})
+            next_aligned_time = next_aligned_time + timedelta(minutes=granularity)
 
     return EventSourceResponse(generate())
 
@@ -324,26 +305,26 @@ async def get_stats_stream(
 async def get_distributions(
     time_range: str = "day",
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Ret:
+) -> DistributionsResponse:
     start_time = await get_time_range(time_range)
 
     total_execs = await DBExecCode.filter(create_time__gte=start_time).count()
-    stop_type_data = []
+    stop_type_data: List[DistributionItem] = []
 
     if total_execs > 0:
         for stop_type in ExecStopType:
             count = await DBExecCode.filter(create_time__gte=start_time, stop_type=stop_type).count()
             if count > 0:
                 stop_type_data.append(
-                    {
-                        "label": stop_type.value,
-                        "value": count,
-                        "percentage": round(count / total_execs * 100, 2),
-                    },
+                    DistributionItem(
+                        label=str(stop_type.value),
+                        value=count,
+                        percentage=round(count / total_execs * 100, 2),
+                    ),
                 )
 
     total_messages = await DBChatMessage.filter(create_time__gte=start_time).count()
-    message_type_data = []
+    message_type_data: List[DistributionItem] = []
 
     if total_messages > 0:
         group_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type=ChatType.GROUP).count()
@@ -351,27 +332,24 @@ async def get_distributions(
         unknown_count = await DBChatMessage.filter(create_time__gte=start_time, chat_type=ChatType.UNKNOWN).count()
 
         message_type_data = [
-            {
-                "label": "群聊消息",
-                "value": group_count,
-                "percentage": round(group_count / total_messages * 100, 2),
-            },
-            {
-                "label": "私聊消息",
-                "value": private_count,
-                "percentage": round(private_count / total_messages * 100, 2),
-            },
-            {
-                "label": "未知来源",
-                "value": unknown_count,
-                "percentage": round(unknown_count / total_messages * 100, 2),
-            },
+            DistributionItem(
+                label="群聊消息",
+                value=group_count,
+                percentage=round(group_count / total_messages * 100, 2),
+            ),
+            DistributionItem(
+                label="私聊消息",
+                value=private_count,
+                percentage=round(private_count / total_messages * 100, 2),
+            ),
+            DistributionItem(
+                label="未知来源",
+                value=unknown_count,
+                percentage=round(unknown_count / total_messages * 100, 2),
+            ),
         ]
 
-    return Ret.success(
-        msg="获取成功",
-        data={
-            "stop_type": stop_type_data,
-            "message_type": message_type_data,
-        },
+    return DistributionsResponse(
+        stop_type=stop_type_data,
+        message_type=message_type_data,
     )

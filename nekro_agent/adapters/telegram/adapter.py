@@ -1,3 +1,4 @@
+
 """
 Telegram 适配器实现
 """
@@ -20,11 +21,12 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendSegmentType,
     PlatformUser,
 )
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .config import TelegramConfig
 from .message_processor import MessageProcessor
 
+logger = get_sub_logger("adapter.telegram")
 if TYPE_CHECKING:
     from fastapi import APIRouter
 

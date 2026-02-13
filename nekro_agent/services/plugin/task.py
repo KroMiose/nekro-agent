@@ -1,3 +1,4 @@
+
 """异步任务框架
 
 提供统一的异步任务暂停/恢复机制，支持多种触发方式恢复任务。
@@ -29,8 +30,9 @@ from typing import (
 
 from pydantic import BaseModel, Field
 
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
+logger = get_sub_logger("plugin_system")
 if TYPE_CHECKING:
     from nekro_agent.services.plugin.base import NekroPlugin
 

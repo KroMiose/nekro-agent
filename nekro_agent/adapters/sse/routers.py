@@ -1,3 +1,4 @@
+
 """
 SSE 路由模块
 ==========
@@ -13,7 +14,7 @@ from fastapi import APIRouter, Body, Header, HTTPException, Request
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 
 from .commands import (
     _command_handlers,
@@ -23,6 +24,8 @@ from .commands import (
 from .core.client import SseClient, SseClientManager, sse_stream
 
 # 全局客户端管理器 - 将由 mount_adapter_router 初始化
+
+logger = get_sub_logger("adapter.sse")
 client_manager: Optional[SseClientManager] = None
 
 

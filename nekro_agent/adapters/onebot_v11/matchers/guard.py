@@ -1,19 +1,22 @@
 from typing import NoReturn, Tuple, Union
 
+
 from nonebot.adapters import Bot, Message
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
 from nonebot.matcher import Matcher
 
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
+
     get_chat_info_old,
     get_user_name,
 )
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
 
+logger = get_sub_logger("adapter.onebot_v11")
 async def finish_with(matcher: Matcher, message: str) -> NoReturn:
     await matcher.finish(message=f"{config.AI_COMMAND_OUTPUT_PREFIX} {message}".strip())
 

@@ -1,3 +1,4 @@
+
 """
 SSE 消息转换器
 ===========
@@ -35,9 +36,10 @@ from nekro_agent.adapters.sse.sdk.models import (
 from nekro_agent.adapters.sse.tools.at_parser import SegAt, parse_at_from_text
 from nekro_agent.adapters.sse.tools.common import get_file_base64, get_file_info
 from nekro_agent.adapters.utils import adapter_utils
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import (
+
     ChatMessageSegment,
     ChatMessageSegmentAt,
     ChatMessageSegmentFile,
@@ -46,6 +48,7 @@ from nekro_agent.schemas.chat_message import (
 )
 
 
+logger = get_sub_logger("adapter.sse")
 class SseMessageConverter:
     """SSE 消息转换器
 

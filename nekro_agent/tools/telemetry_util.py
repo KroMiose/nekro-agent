@@ -100,7 +100,7 @@ def generate_instance_id() -> str:
                 computer_id = f.read()
         elif platform.system() == "Darwin":  # macOS
             computer_id = os.popen('ioreg -rd1 -c IOPlatformExpertDevice | grep -i "UUID" | cut -c27-62').read()
-    except:
+    except Exception:
         computer_id = str(uuid.getnode())  # 使用网卡MAC地址的整数表示作为备选
 
     # 组合所有信息

@@ -1,2 +1,2 @@
-from .config import config
-from .logger import logger
+from .config import config  # noqa: F401
+from .logger import logger  # noqa: F401

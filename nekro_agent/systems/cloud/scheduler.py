@@ -2,10 +2,10 @@ import asyncio
 import random
 from datetime import datetime, timedelta
 
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 
-
+logger = get_sub_logger("cloud_api")
 async def telemetry_task():
     """遥测任务 - 定时收集和上报遥测数据"""
     while True:

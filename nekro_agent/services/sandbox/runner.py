@@ -10,7 +10,7 @@ import aiodocker
 from aiodocker.docker import DockerContainer
 
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import (
     SANDBOX_PACKAGE_DIR,
     SANDBOX_PIP_CACHE_DIR,
@@ -29,6 +29,8 @@ from nekro_agent.tools.common_util import limited_text_output
 from .ext_caller import CODE_PREAMBLE, get_api_caller_code
 
 # 主机共享目录
+
+logger = get_sub_logger("sandbox_runtime")
 HOST_SHARED_DIR = (
     Path(SANDBOX_SHARED_HOST_DIR) if SANDBOX_SHARED_HOST_DIR.startswith("/") else Path(SANDBOX_SHARED_HOST_DIR).resolve()
 )

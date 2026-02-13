@@ -140,6 +140,7 @@
     }
   },
   "theme": {
+    "title": "Theme",
     "mode": {
       "title": "Theme Mode",
       "light": "Light Mode",

@@ -1,17 +1,15 @@
+
 """插件生成器
 
 负责生成插件代码和模板。
 """
 
-import asyncio
-import contextlib
-from typing import AsyncGenerator, List, Optional
+from typing import AsyncGenerator, Optional
 
-from nekro_agent.core import logger
 from nekro_agent.core.config import config
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.agent.creator import OpenAIChatMessage
 from nekro_agent.services.agent.openai import (
-    OpenAIStreamChunk,
     gen_openai_chat_response,
     gen_openai_chat_stream,
 )
@@ -22,7 +20,7 @@ from nekro_agent.services.agent.templates.generator import (
     GeneratorUserPrompt,
 )
 
-
+logger = get_sub_logger("plugin_system")
 def _build_model_params(model_group: str) -> dict:
     """构建模型参数
 

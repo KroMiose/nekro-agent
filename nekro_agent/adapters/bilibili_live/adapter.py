@@ -3,10 +3,12 @@ import hashlib
 import re
 from typing import Dict, List, Optional, Type
 
+
 from jinja2 import Environment, FileSystemLoader
 from pydantic import Field
 
 from nekro_agent.adapters.bilibili_live.templates.practice import (
+
     PracticePrompt_question_1,
     PracticePrompt_question_2,
     PracticePrompt_response_1,
@@ -25,7 +27,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendResponse,
     PlatformUser,
 )
-from nekro_agent.core import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.config import config
 from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.schemas.chat_message import (
@@ -43,6 +45,7 @@ from nekro_agent.tools.common_util import (
 from .core.client import BilibiliWebSocketClient, Danmaku
 
 
+logger = get_sub_logger("adapter.bilibili_live")
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
     ENABLE: bool = Field(

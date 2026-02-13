@@ -237,8 +237,8 @@ export default function TelemetryStats() {
         setStats(data)
         setError(null)
       } catch (err) {
-        console.error('Failed to fetch telemetry stats', err)
-        setError(t('telemetry.fetchFailed'))
+        const errorMessage = err instanceof Error ? err.message : String(err)
+        setError(`${t('telemetry.fetchFailed')}: ${errorMessage}`)
       } finally {
         setLoading(false)
       }

@@ -3,7 +3,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Tuple, Union
 
+
 from nonebot.adapters.onebot.v11 import (
+
     Bot,
     GroupMessageEvent,
     GroupUploadNoticeEvent,
@@ -14,10 +16,11 @@ from nonebot.adapters.onebot.v11 import (
 from nekro_agent.adapters.interface.base import BaseAdapter
 from nekro_agent.adapters.onebot_v11.tools.onebot_util import get_user_group_card_name
 from nekro_agent.core.config import config
-from nekro_agent.core.logger import logger
+from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import NAPCAT_TEMPFILE_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import (
+
     ChatMessageSegment,
     ChatMessageSegmentAt,
     ChatMessageSegmentFile,
@@ -28,6 +31,8 @@ from nekro_agent.schemas.chat_message import (
 )
 
 # JSON卡片处理常量
+
+logger = get_sub_logger("adapter.onebot_v11")
 JSON_CARD_FALLBACK_TEXT = "[JSON卡片]"  # i18n: JSON Card fallback placeholder
 
 
