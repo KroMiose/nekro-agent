@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from typing import Any, Dict, Optional
 
+from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.collector import prepare_telemetry_data
 from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
@@ -26,7 +27,8 @@ async def _send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryRespon
     Returns:
         TelemetryResponse: 响应结果
     """
-    async with get_client(require_auth=True) as client:
+    has_api_key = bool(config.NEKRO_CLOUD_API_KEY)
+    async with get_client(require_auth=has_api_key) as client:
         response = await client.post(
             url="/api/telemetry",
             json=telemetry_data.model_dump(mode="json", exclude_none=True),
