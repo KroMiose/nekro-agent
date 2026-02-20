@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -25,7 +25,7 @@ import {
   List as ListIcon,
   Info as InfoIcon,
 } from '@mui/icons-material'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
@@ -46,6 +46,7 @@ export default function ChatChannelPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
+  const queryClient = useQueryClient()
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
@@ -78,93 +79,37 @@ export default function ChatChannelPage() {
           // 删除频道
           newItems.splice(idx, 1)
         } else if (event_type === 'created' && idx < 0) {
-          // 新建频道：仅当匹配当前搜索/筛选条件时才插入到当前列表
-          const matchesSearch =
-            !search ||
-            !event.channel_name ||
-            event.channel_name.toLowerCase().includes(String(search).toLowerCase())
-
-          const matchesIsActive =
-            typeof isActive !== 'boolean' || (event.is_active ?? true) === isActive
-
-          const matchesChatType = !chatType || chatType === ''
-
-          if (matchesSearch && matchesIsActive && matchesChatType) {
-            // 确认通过当前过滤条件后再添加到列表顶部
-            newItems.unshift({
-              id: 0,
-              chat_key,
-              channel_name: event.channel_name,
-              is_active: event.is_active ?? true,
-              chat_type: '',
-              message_count: 0,
-              create_time: new Date().toISOString(),
-              update_time: new Date().toISOString(),
-              last_message_time: null,
-            })
-          }
+          // 新建频道（添加到列表顶部）
+          newItems.unshift({
+            id: 0,
+            chat_key,
+            channel_name: event.channel_name,
+            is_active: event.is_active ?? true,
+            chat_type: '',
+            message_count: 0,
+            create_time: new Date().toISOString(),
+            update_time: new Date().toISOString(),
+            last_message_time: null,
+          })
         } else if ((event_type === 'updated' || event_type === 'activated' || event_type === 'deactivated')) {
           if (idx >= 0) {
-            const newIsActive = event_type === 'activated' ? true : event_type === 'deactivated' ? false : (event.is_active ?? undefined)
-            const newChannelName = event.channel_name ?? undefined
+            // 从原位置移除，创建新对象（保持不可变性）
+            const channel = { ...newItems[idx] }
+            newItems.splice(idx, 1)
 
-            // 检查更新后是否仍符合过滤条件
-            const checkIsActive = newIsActive !== undefined ? newIsActive : newItems[idx].is_active
-            const checkChannelName = newChannelName !== undefined ? newChannelName : newItems[idx].channel_name
-
-            const matchesSearch =
-              !search ||
-              !checkChannelName ||
-              checkChannelName.toLowerCase().includes(String(search).toLowerCase())
-
-            const matchesIsActive =
-              typeof isActive !== 'boolean' || checkIsActive === isActive
-
-            if (!matchesSearch || !matchesIsActive) {
-              // 不符合筛选条件，从列表移除
-              newItems.splice(idx, 1)
-            } else {
-              // 符合条件，更新后移到顶部
-              const channel = { ...newItems[idx] }
-              newItems.splice(idx, 1)
-
-              if (newChannelName !== undefined) {
-                channel.channel_name = newChannelName
-              }
-              if (newIsActive !== undefined) {
-                channel.is_active = newIsActive
-              }
-              channel.update_time = new Date().toISOString()
-              channel.last_message_time = new Date().toISOString()
-
-              newItems.unshift(channel)
+            // 更新频道信息
+            if (event.channel_name !== null) {
+              channel.channel_name = event.channel_name
             }
-          } else {
-            // 频道不在当前列表，检查是否应该添加
-            const matchesSearch =
-              !search ||
-              !event.channel_name ||
-              event.channel_name.toLowerCase().includes(String(search).toLowerCase())
-
-            const newIsActive = event_type === 'activated' ? true : event_type === 'deactivated' ? false : (event.is_active ?? true)
-            const matchesIsActive =
-              typeof isActive !== 'boolean' || newIsActive === isActive
-
-            const matchesChatType = !chatType || chatType === ''
-
-            if (matchesSearch && matchesIsActive && matchesChatType) {
-              newItems.unshift({
-                id: 0,
-                chat_key,
-                channel_name: event.channel_name,
-                is_active: newIsActive,
-                chat_type: '',
-                message_count: 0,
-                create_time: new Date().toISOString(),
-                update_time: new Date().toISOString(),
-                last_message_time: null,
-              })
+            if (event.is_active !== null) {
+              channel.is_active = event.is_active
             }
+            // 更新时间戳
+            channel.update_time = new Date().toISOString()
+            channel.last_message_time = new Date().toISOString()
+
+            // 移到列表顶部（最新活动的频道）
+            newItems.unshift(channel)
           }
         }
 

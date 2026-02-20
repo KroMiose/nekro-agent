@@ -20,8 +20,10 @@ from nekro_agent.schemas.agent_message import (
     AgentMessageSegmentType,
     convert_agent_message_to_prompt,
 )
-from nekro_agent.schemas.chat_message import ChatMessage
+from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.signal import MsgSignal
+from nekro_agent.services.channel_broadcaster import channel_broadcaster
+from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.tools.common_util import (
     check_content_trigger,
@@ -31,6 +33,8 @@ from nekro_agent.tools.common_util import (
 )
 
 logger = get_sub_logger("message_pipeline")
+
+
 class MessageService:
     """消息服务类，处理所有类型的消息推送"""
 
@@ -208,6 +212,17 @@ class MessageService:
             send_timestamp=int(time.time()),  # 使用处理后的时间戳
         )
 
+        # 广播消息到所有订阅者
+        await message_broadcaster.publish(message.chat_key, message)
+
+        # 同时广播频道更新事件，使频道列表实时更新（新消息会将频道移到最上面）
+        await channel_broadcaster.publish_update(
+            event_type="updated",
+            chat_key=message.chat_key,
+            channel_name=db_chat_channel.channel_name,
+            is_active=db_chat_channel.is_active,
+        )
+
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
 
         # 检查是否需要触发回复
@@ -295,12 +310,14 @@ class MessageService:
                     for match in matches:
                         # 添加标记前的文本
                         if match.start() > last_end:
-                            text_before = text[last_end:match.start()]
+                            text_before = text[last_end : match.start()]
                             if text_before.strip():
-                                content_data.append({
-                                    "type": "text",
-                                    "text": text_before,
-                                })
+                                content_data.append(
+                                    {
+                                        "type": "text",
+                                        "text": text_before,
+                                    }
+                                )
 
                         # 从用户管理里查询昵称
                         qq_id = match.group(1)
@@ -310,12 +327,14 @@ class MessageService:
                         )
 
                         nickname = user.username if user else f"User_{qq_id}"
-                        content_data.append({
-                            "type": "at",
-                            "text": f"@{nickname}",
-                            "target_platform_userid": qq_id,
-                            "target_nickname": nickname,
-                        })
+                        content_data.append(
+                            {
+                                "type": "at",
+                                "text": f"@{nickname}",
+                                "target_platform_userid": qq_id,
+                                "target_nickname": nickname,
+                            }
+                        )
 
                         last_end = match.end()
 
@@ -323,10 +342,12 @@ class MessageService:
                     if last_end < len(text):
                         text_after = text[last_end:]
                         if text_after.strip():
-                            content_data.append({
-                                "type": "text",
-                                "text": text_after,
-                            })
+                            content_data.append(
+                                {
+                                    "type": "text",
+                                    "text": text_after,
+                                }
+                            )
                 else:
                     # 没有 AI 标记，直接添加
                     content_data.append(
@@ -353,6 +374,34 @@ class MessageService:
             raw_cq_code="",
             ext_data=json.dumps(PlatformMessageExt(ref_msg_id=ref_msg_id or "").model_dump(), ensure_ascii=False),
             send_timestamp=int(time.time()),
+        )
+
+        # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
+        broadcast_message = ChatMessage(
+            message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
+            sender_id="-1",
+            sender_name=preset.name,
+            sender_nickname=preset.name,
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid=(await adapter.get_self_info()).user_id,
+            is_tome=0,
+            is_recalled=False,
+            chat_key=chat_key,
+            chat_type=ChatType((await DBChatChannel.get_channel(chat_key=chat_key)).chat_type),
+            content_text=content_text,
+            content_data=[],
+            raw_cq_code="",
+            ext_data={},
+            send_timestamp=int(time.time()),
+        )
+        await message_broadcaster.publish(chat_key, broadcast_message)
+
+        # 同时广播频道更新事件，使频道列表实时更新
+        await channel_broadcaster.publish_update(
+            event_type="updated",
+            chat_key=chat_key,
+            channel_name=db_chat_channel.channel_name,
+            is_active=db_chat_channel.is_active,
         )
 
     async def push_system_message(
@@ -394,6 +443,34 @@ class MessageService:
             raw_cq_code="",
             ext_data={},
             send_timestamp=int(time.time()),
+        )
+
+        # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
+        broadcast_message = ChatMessage(
+            message_id="",
+            sender_id="-1",
+            sender_name="SYSTEM",
+            sender_nickname="SYSTEM",
+            adapter_key=db_chat_channel.adapter_key,
+            platform_userid="0",
+            is_tome=1 if trigger_agent else 0,
+            is_recalled=False,
+            chat_key=chat_key,
+            chat_type=ChatType(db_chat_channel.chat_type),
+            content_text=content_text,
+            content_data=[],
+            raw_cq_code="",
+            ext_data={},
+            send_timestamp=int(time.time()),
+        )
+        await message_broadcaster.publish(chat_key, broadcast_message)
+
+        # 同时广播频道更新事件，使频道列表实时更新
+        await channel_broadcaster.publish_update(
+            event_type="updated",
+            chat_key=chat_key,
+            channel_name=db_chat_channel.channel_name,
+            is_active=db_chat_channel.is_active,
         )
 
         if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:

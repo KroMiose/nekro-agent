@@ -1,10 +1,8 @@
-import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import json5
 from fastapi import APIRouter, Depends, File, Form, UploadFile
-from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
@@ -156,6 +154,45 @@ async def get_chat_channel_list(
     return ChatChannelListResponse(
         total=len(channels),
         items=result,
+    )
+
+
+@router.get("/list/stream", summary="获取聊天频道列表实时流")
+@require_role(Role.Admin)
+async def stream_chat_channel_list(
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    """获取聊天频道列表的实时更新流，使用 Server-Sent Events (SSE)
+
+    Returns:
+        StreamingResponse: SSE 流，每条频道事件作为一个数据
+
+    Events:
+        - created: 新频道创建
+        - updated: 频道信息更新
+        - deleted: 频道被删除
+        - activated: 频道被激活
+        - deactivated: 频道被停用
+    """
+    import json
+
+    from fastapi.responses import StreamingResponse
+
+    from nekro_agent.services.channel_broadcaster import channel_broadcaster
+
+    async def event_generator():
+        """生成 SSE 事件流"""
+        async for event in channel_broadcaster.subscribe():
+            # 以 SSE 事件格式发送
+            yield f"data: {json.dumps(event.model_dump())}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )
 
 
@@ -352,6 +389,34 @@ async def get_chat_channel_users(
     return ChatChannelUsersResponse(total=len(items), items=items)
 
 
+class PokeRequest(BaseModel):
+    target_user_id: str
+
+
+@router.post("/{chat_key}/poke", summary="发送戳一戳")
+@require_role(Role.Admin)
+async def send_poke(
+    chat_key: str,
+    req: PokeRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    """双击头像触发戳一戳"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+
+    try:
+        adapter = get_adapter(channel.adapter_key)
+    except KeyError:
+        return ActionResponse(ok=False)
+
+    if not hasattr(adapter, "send_poke"):
+        return ActionResponse(ok=False)
+
+    ok = await adapter.send_poke(chat_key, req.target_user_id)
+    return ActionResponse(ok=ok)
+
+
 class SendMessageRequest(BaseModel):
     message: str
 
@@ -478,6 +543,10 @@ async def stream_chat_channel_messages(
     Raises:
         NotFoundError: 当频道不存在时
     """
+    import json
+
+    from fastapi.responses import StreamingResponse
+
     from nekro_agent.services.message_broadcaster import message_broadcaster
 
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
@@ -508,13 +577,6 @@ async def stream_chat_channel_messages(
                                 content_data.append(str(item))
 
                 # 构建消息字典格式，用于SSE发送
-                from datetime import datetime
-
-                create_time = (
-                    datetime.fromtimestamp(message.send_timestamp).strftime("%Y-%m-%d %H:%M:%S")
-                    if hasattr(message, 'send_timestamp') and message.send_timestamp
-                    else ""
-                )
                 message_dict = {
                     "id": 0,  # 实时消息没有数据库ID
                     "sender_id": str(message.sender_id),
@@ -524,7 +586,7 @@ async def stream_chat_channel_messages(
                     "content": message.content_text,
                     "content_data": content_data,
                     "chat_key": message.chat_key,
-                    "create_time": create_time,
+                    "create_time": "",  # 前端可使用当前时间
                     "message_id": message.message_id or "",
                     "ref_msg_id": getattr(message, "ref_msg_id", "") or "",
                 }
