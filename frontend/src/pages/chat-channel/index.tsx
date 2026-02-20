@@ -60,6 +60,126 @@ export default function ChatChannelPage() {
       }),
   })
 
+  // 实时频道列表更新订阅 (SSE)
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+
+    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => {
+      const { event_type, chat_key } = event
+
+      // 更新频道列表缓存
+      queryClient.setQueryData(['chat-channels', search, chatType, isActive, page, pageSize], (oldData: any) => {
+        if (!oldData?.items) return oldData
+
+        let newItems = [...oldData.items]
+        const idx = newItems.findIndex((ch: any) => ch.chat_key === chat_key)
+
+        if (event_type === 'deleted' && idx >= 0) {
+          // 删除频道
+          newItems.splice(idx, 1)
+        } else if (event_type === 'created' && idx < 0) {
+          // 新建频道：仅当匹配当前搜索/筛选条件时才插入到当前列表
+          const matchesSearch =
+            !search ||
+            !event.channel_name ||
+            event.channel_name.toLowerCase().includes(String(search).toLowerCase())
+
+          const matchesIsActive =
+            typeof isActive !== 'boolean' || (event.is_active ?? true) === isActive
+
+          const matchesChatType = !chatType || chatType === ''
+
+          if (matchesSearch && matchesIsActive && matchesChatType) {
+            // 确认通过当前过滤条件后再添加到列表顶部
+            newItems.unshift({
+              id: 0,
+              chat_key,
+              channel_name: event.channel_name,
+              is_active: event.is_active ?? true,
+              chat_type: '',
+              message_count: 0,
+              create_time: new Date().toISOString(),
+              update_time: new Date().toISOString(),
+              last_message_time: null,
+            })
+          }
+        } else if ((event_type === 'updated' || event_type === 'activated' || event_type === 'deactivated')) {
+          if (idx >= 0) {
+            const newIsActive = event_type === 'activated' ? true : event_type === 'deactivated' ? false : (event.is_active ?? undefined)
+            const newChannelName = event.channel_name ?? undefined
+
+            // 检查更新后是否仍符合过滤条件
+            const checkIsActive = newIsActive !== undefined ? newIsActive : newItems[idx].is_active
+            const checkChannelName = newChannelName !== undefined ? newChannelName : newItems[idx].channel_name
+
+            const matchesSearch =
+              !search ||
+              !checkChannelName ||
+              checkChannelName.toLowerCase().includes(String(search).toLowerCase())
+
+            const matchesIsActive =
+              typeof isActive !== 'boolean' || checkIsActive === isActive
+
+            if (!matchesSearch || !matchesIsActive) {
+              // 不符合筛选条件，从列表移除
+              newItems.splice(idx, 1)
+            } else {
+              // 符合条件，更新后移到顶部
+              const channel = { ...newItems[idx] }
+              newItems.splice(idx, 1)
+
+              if (newChannelName !== undefined) {
+                channel.channel_name = newChannelName
+              }
+              if (newIsActive !== undefined) {
+                channel.is_active = newIsActive
+              }
+              channel.update_time = new Date().toISOString()
+              channel.last_message_time = new Date().toISOString()
+
+              newItems.unshift(channel)
+            }
+          } else {
+            // 频道不在当前列表，检查是否应该添加
+            const matchesSearch =
+              !search ||
+              !event.channel_name ||
+              event.channel_name.toLowerCase().includes(String(search).toLowerCase())
+
+            const newIsActive = event_type === 'activated' ? true : event_type === 'deactivated' ? false : (event.is_active ?? true)
+            const matchesIsActive =
+              typeof isActive !== 'boolean' || newIsActive === isActive
+
+            const matchesChatType = !chatType || chatType === ''
+
+            if (matchesSearch && matchesIsActive && matchesChatType) {
+              newItems.unshift({
+                id: 0,
+                chat_key,
+                channel_name: event.channel_name,
+                is_active: newIsActive,
+                chat_type: '',
+                message_count: 0,
+                create_time: new Date().toISOString(),
+                update_time: new Date().toISOString(),
+                last_message_time: null,
+              })
+            }
+          }
+        }
+
+        return { ...oldData, items: newItems }
+      })
+    }
+
+    // 订阅频道列表更新
+    cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
+      console.error('Channel stream error:', error)
+    })
+
+    return () => cleanup?.()
+  }, [queryClient, search, chatType, isActive, page, pageSize])
+
   // 处理搜索
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(event.target.value)
