@@ -20,6 +20,8 @@ import {
   List,
   ListItem,
   ListItemButton,
+  ListItemText,
+  Collapse,
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material'
@@ -27,6 +29,7 @@ import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
 import CloseIcon from '@mui/icons-material/Close'
 import ReplyIcon from '@mui/icons-material/Reply'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import PictureAsPdfIcon from '@mui/icons-material/PictureAsPdf'
 import DescriptionIcon from '@mui/icons-material/Description'
 import AudioFileIcon from '@mui/icons-material/AudioFile'
@@ -34,8 +37,9 @@ import VideoFileIcon from '@mui/icons-material/VideoFile'
 import FolderZipIcon from '@mui/icons-material/FolderZip'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { chatChannelApi, ChatMessage, ChatMessageSegment } from '../../../../services/api/chat-channel'
+import { chatChannelApi, ChatMessage, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
+import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
 
 // 防抖函数
 function debounce<T extends (...args: unknown[]) => unknown>(
@@ -89,6 +93,24 @@ function nameToColor(name: string): string {
   const hue = Math.abs(hash) % 360
   return `hsl(${hue}, 55%, 55%)`
 }
+
+/** 聊天气泡内 Markdown 紧凑样式 */
+const chatMarkdownSx = {
+  '& p': { m: 0, lineHeight: 1.6, color: 'text.primary' },
+  '& p + p': { mt: 0.5 },
+  '& h1, & h2, & h3, & h4, & h5, & h6': {
+    mt: 1, mb: 0.5, fontSize: '14px', fontWeight: 600, borderBottom: 'none', pb: 0,
+  },
+  '& ul, & ol': { my: 0.5, pl: 2.5 },
+  '& li': { mb: 0, lineHeight: 1.6 },
+  '& pre': { my: 0.5, p: 1, fontSize: '12px' },
+  '& blockquote': { my: 0.5, py: 0.5, px: 1.5 },
+  '& table': { mb: 0.5 },
+  '& hr': { my: 1 },
+  fontSize: '13.5px',
+  wordBreak: 'break-word',
+  overflowWrap: 'break-word',
+} as const
 
 /** 从 local_path 提取文件名 */
 function extractFileName(localPath: string): string {
@@ -346,6 +368,143 @@ function JsonCardComponent({
 }
 
 /** 渲染消息内容（支持图文混排） */
+/** 合并转发消息可折叠卡片（类QQ样式） */
+function ForwardMessageCard({
+  forwardContent,
+  isDark,
+  chatKey,
+}: {
+  forwardContent: ForwardMessageItem[]
+  isDark: boolean
+  chatKey: string
+}) {
+  const theme = useTheme()
+  const [open, setOpen] = useState(false)
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null)
+  const previewItems = forwardContent.slice(0, 3)
+  const totalCount = forwardContent.length
+
+  return (
+    <>
+    <Box
+      sx={{
+        my: 0.5,
+        borderRadius: '8px',
+        border: `1px solid ${theme.palette.divider}`,
+        bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+        overflow: 'hidden',
+        maxWidth: 320,
+      }}
+    >
+      {/* 预览区（折叠时显示前3条，图片用[图片]占位） */}
+      <Box
+        onClick={() => setOpen(!open)}
+        sx={{
+          p: 1,
+          pl: 1.5,
+          cursor: 'pointer',
+          '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' },
+          transition: 'background 0.15s',
+        }}
+      >
+        {!open && previewItems.map((item, i) => (
+          <Typography key={i} variant="body2" noWrap sx={{ fontSize: '12px', lineHeight: 1.5, color: theme.palette.text.primary }}>
+            <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>{item.sender}:</Box>
+            {item.content}
+          </Typography>
+        ))}
+        {open && (
+          <Typography variant="caption" sx={{ fontWeight: 600, color: theme.palette.text.secondary }}>
+            [合并转发消息]
+          </Typography>
+        )}
+      </Box>
+
+      {/* 展开的完整内容（图片可点击预览） */}
+      <Collapse in={open}>
+        <Box sx={{ px: 1.5, pb: 1, maxHeight: 400, overflowY: 'auto' }}>
+          {forwardContent.map((item, i) => (
+            <Box key={i} sx={{ mb: 0.5 }}>
+              <Typography variant="body2" component="div" sx={{ fontSize: '12px', lineHeight: 1.6, color: theme.palette.text.primary }}>
+                <Box component="span" sx={{ fontWeight: 600, mr: 0.5 }}>{item.sender}:</Box>
+                {item.forward_content && item.forward_content.length > 0 ? null : item.content}
+              </Typography>
+              {/* 嵌套合并转发 */}
+              {item.forward_content && item.forward_content.length > 0 && (
+                <ForwardMessageCard
+                  forwardContent={item.forward_content}
+                  isDark={isDark}
+                  chatKey={chatKey}
+                />
+              )}
+              {item.images.length > 0 && item.images.map((fileName, j) => {
+                const src = `/api/common/uploads/${encodeURIComponent(chatKey)}/${encodeURIComponent(fileName)}`
+                return (
+                  <Box key={j} sx={{ my: 0.5 }}>
+                    <img
+                      src={src}
+                      alt={fileName}
+                      onClick={(e) => { e.stopPropagation(); setPreviewSrc(src) }}
+                      style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, cursor: 'pointer', display: 'block' }}
+                      loading="lazy"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  </Box>
+                )
+              })}
+            </Box>
+          ))}
+        </Box>
+      </Collapse>
+
+      {/* 底部栏 */}
+      <Box
+        onClick={() => setOpen(!open)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          px: 1.5,
+          py: 0.5,
+          borderTop: `1px solid ${theme.palette.divider}`,
+          cursor: 'pointer',
+          '&:hover': { bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' },
+        }}
+      >
+        <Typography variant="caption" sx={{ color: theme.palette.text.disabled, fontSize: '11px' }}>
+          {open ? '收起' : `查看${totalCount}条转发消息`}
+        </Typography>
+        <ExpandMoreIcon
+          sx={{
+            fontSize: 16,
+            color: theme.palette.text.disabled,
+            transform: open ? 'rotate(180deg)' : 'none',
+            transition: 'transform 0.2s',
+          }}
+        />
+      </Box>
+    </Box>
+
+    {/* 图片预览弹窗 */}
+    {previewSrc && (
+      <Dialog
+        open
+        onClose={() => setPreviewSrc(null)}
+        maxWidth={false}
+        PaperProps={{ sx: { bgcolor: 'transparent', boxShadow: 'none', maxWidth: '90vw', maxHeight: '90vh' } }}
+      >
+        <img
+          src={previewSrc}
+          alt="preview"
+          onClick={() => setPreviewSrc(null)}
+          style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', cursor: 'pointer', borderRadius: 4 }}
+        />
+      </Dialog>
+    )}
+    </>
+  )
+}
+
 function MessageContent({
   message,
   noContentText,
@@ -360,26 +519,17 @@ function MessageContent({
 
   // 没有 content_data 时回退到纯文本
   if (segments.length === 0) {
-    return (
-      <>
+    if (!message.content) {
+      return (
         <Typography
           variant="body2"
-          sx={{
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            overflowWrap: 'break-word',
-            fontSize: '13.5px',
-            lineHeight: 1.6,
-            color: message.content
-              ? theme.palette.text.primary
-              : theme.palette.text.disabled,
-            fontStyle: message.content ? 'normal' : 'italic',
-          }}
+          sx={{ fontSize: '13.5px', color: theme.palette.text.disabled, fontStyle: 'italic' }}
         >
-          {message.content || noContentText}
+          {noContentText}
         </Typography>
-      </>
-    )
+      )
+    }
+    return <MarkdownRenderer sx={chatMarkdownSx}>{message.content}</MarkdownRenderer>
   }
 
   return (
@@ -442,24 +592,56 @@ function MessageContent({
           )
         }
 
-        // text：渲染文本
-        if (seg.text) {
+        if (seg.type === 'forward' && seg.forward_content) {
           return (
-            <Typography
+            <ForwardMessageCard
               key={i}
-              variant="body2"
-              component="span"
+              forwardContent={seg.forward_content}
+              isDark={theme.palette.mode === 'dark'}
+              chatKey={message.chat_key}
+            />
+          )
+        }
+
+        if (seg.type === 'poke') {
+          return (
+            <Box
+              key={i}
               sx={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word',
-                fontSize: '13.5px',
-                lineHeight: 1.6,
-                color: theme.palette.text.primary,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                py: 0.5,
               }}
             >
+              {seg.action_img_url && (
+                <img
+                  src={seg.action_img_url}
+                  alt="poke"
+                  style={{ width: 48, height: 48, objectFit: 'contain' }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              )}
+              <Typography
+                variant="body2"
+                sx={{
+                  fontSize: '13px',
+                  color: theme.palette.text.secondary,
+                  fontStyle: 'italic',
+                }}
+              >
+                {seg.text || message.content}
+              </Typography>
+            </Box>
+          )
+        }
+
+        // text：渲染文本（支持 Markdown）
+        if (seg.text) {
+          return (
+            <MarkdownRenderer key={i} sx={chatMarkdownSx}>
               {seg.text}
-            </Typography>
+            </MarkdownRenderer>
           )
         }
 
@@ -571,6 +753,39 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     },
   })
 
+  // 实时消息流订阅 (SSE)
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+
+    const handleNewMessage = (message: ChatMessage) => {
+      // 将消息添加到 React Query 缓存的最后一页
+      queryClient.setQueryData(['chat-messages', chatKey], (oldData: any) => {
+        if (!oldData?.pages) return oldData
+
+        const newPages = [...oldData.pages]
+        const lastPage = { ...newPages[newPages.length - 1] }
+        lastPage.items = [...lastPage.items, message]
+        newPages[newPages.length - 1] = lastPage
+
+        return { ...oldData, pages: newPages }
+      })
+
+      // 如果用户在底部，自动滚动到最新消息
+      if (autoScroll) {
+        setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100)
+      }
+    }
+
+    // 仅在启用 AI_ALWAYS_INCLUDE_MSG_ID 功能时订阅
+    if (aiAlwaysIncludeMsgId && chatKey) {
+      cleanup = chatChannelApi.streamMessages(chatKey, handleNewMessage, (error) => {
+        console.error('Message stream error:', error)
+      })
+    }
+
+    return () => cleanup?.()
+  }, [chatKey, aiAlwaysIncludeMsgId, queryClient, autoScroll])
+
   // 自动滚动到底部（仅初始加载时）
   useEffect(() => {
     if (!isLoading && initialLoad && messagesEndRef.current) {
@@ -663,6 +878,20 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     }
   }, [inputValue, attachedFile, sending, chatKey, senderType, queryClient, t])
 
+  // 戳一戳
+  const handlePoke = useCallback(async (targetUserId: string) => {
+    try {
+      const res = await chatChannelApi.sendPoke(chatKey, targetUserId)
+      if (res.ok) {
+        setSnack({ open: true, message: t('messageHistory.pokeSent'), severity: 'success' })
+      } else {
+        setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+      }
+    } catch {
+      setSnack({ open: true, message: t('messageHistory.pokeFailed'), severity: 'error' })
+    }
+  }, [chatKey, t])
+
   // 回车发送（IME 输入法确认时不触发）
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -721,7 +950,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   )
 
   // 选择用户
-  const handleSelectUser = (userid: string, _nickname: string) => {
+  const handleSelectUser = (userid: string, nickname: string) => {
     const atIndex = inputValue.lastIndexOf('@')
     const before = inputValue.slice(0, atIndex)
     const newValue = `${before}[@id:${userid}@] `
@@ -732,15 +961,11 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
     setTimeout(() => inputRef.current?.focus(), 0)
   }
 
-  // 按时间正序排列消息，过滤掉 SYSTEM 内部消息（agent 方法返回等）
-  const allMessages = useMemo(
-    () =>
-      data?.pages
-        .flatMap(page => page.items)
-        .filter(msg => msg.sender_name !== 'SYSTEM')
-        .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || [],
-    [data?.pages],
-  )
+  // 按时间正序排列消息
+  const allMessages =
+    data?.pages
+      .flatMap(page => page.items)
+      .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || []
 
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找
   const messageByMsgId = useMemo(() => {
@@ -806,14 +1031,123 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
         ) : (
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             {allMessages.map((message, index) => {
-              const isBot = message.sender_id === BOT_SENDER_ID
+              const isBot = message.sender_id === BOT_SENDER_ID && message.sender_name !== 'SYSTEM'
+              const isSystem = message.sender_name === 'SYSTEM'
               const prevMsg = index > 0 ? allMessages[index - 1] : null
               const showDivider = prevMsg && needTimeDivider(prevMsg, message)
-              // 同一发送者连续消息合并头像
+              // 同一发送者连续消息合并头像（需同时匹配 sender_id 和 sender_name，避免 SYSTEM 与 Bot 合并）
               const isContinuation =
                 prevMsg &&
                 !showDivider &&
-                prevMsg.sender_id === message.sender_id
+                prevMsg.sender_id === message.sender_id &&
+                prevMsg.sender_name === message.sender_name
+
+              // 系统消息居中渲染
+              if (isSystem) {
+                return (
+                  <Box key={message.id} data-message-id={message.message_id || undefined}>
+                    {showDivider && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5, my: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: theme.palette.text.disabled,
+                            fontSize: '11px',
+                            background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                            px: 1.5, py: 0.3, borderRadius: '10px',
+                          }}
+                        >
+                          {message.create_time}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        py: 1,
+                        my: 0.5,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        component="div"
+                        sx={{
+                          fontSize: '12px',
+                          color: theme.palette.text.secondary,
+                          fontStyle: 'italic',
+                          px: 1.5,
+                          py: 0.5,
+                          borderRadius: '4px',
+                          bgcolor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)'}`,
+                          maxWidth: '80%',
+                          wordBreak: 'break-word',
+                        }}
+                      >
+                        {message.content
+                          ? <MarkdownRenderer sx={{ ...chatMarkdownSx, fontSize: '12px', '& p': { m: 0, lineHeight: 1.5 } }}>{message.content}</MarkdownRenderer>
+                          : message.sender_nickname
+                        }
+                      </Typography>
+                    </Box>
+                  </Box>
+                )
+              }
+
+              // 戳一戳消息居中渲染
+              const pokeSegment = message.content_data?.find(seg => seg.type === 'poke')
+              if (pokeSegment) {
+                return (
+                  <Box key={message.id} data-message-id={message.message_id || undefined}>
+                    {showDivider && (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 1.5, my: 0.5 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            color: theme.palette.text.disabled,
+                            fontSize: '11px',
+                            background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                            px: 1.5, py: 0.3, borderRadius: '10px',
+                          }}
+                        >
+                          {message.create_time}
+                        </Typography>
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        py: 0.5,
+                        my: 0.3,
+                      }}
+                    >
+                      {pokeSegment.action_img_url && (
+                        <img
+                          src={pokeSegment.action_img_url}
+                          alt="poke"
+                          style={{ width: 40, height: 40, objectFit: 'contain' }}
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                        />
+                      )}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontSize: '12px',
+                          color: theme.palette.text.disabled,
+                          fontStyle: 'italic',
+                        }}
+                      >
+                        {pokeSegment.text || message.content}
+                      </Typography>
+                    </Box>
+                  </Box>
+                )
+              }
 
               return (
                 <Box key={message.id} data-message-id={message.message_id || undefined}>
@@ -843,78 +1177,6 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                     </Box>
                   )}
 
-                  {/* 引用消息预览 */}
-                  {aiAlwaysIncludeMsgId && message.ref_msg_id && (() => {
-                    const refMsg = messageByMsgId.get(message.ref_msg_id)
-                    return (
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: isBot ? 'row-reverse' : 'row',
-                          px: 1,
-                          mt: 0.5,
-                          mb: -0.3,
-                        }}
-                      >
-                        {/* 头像占位对齐 */}
-                        <Box sx={{ width: 36, flexShrink: 0 }} />
-                        <Box
-                          onClick={() => refMsg ? scrollToMessage(message.ref_msg_id!) : undefined}
-                          sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 0.5,
-                            maxWidth: '70%',
-                            ml: isBot ? 0 : 1,
-                            mr: isBot ? 1 : 0,
-                            pl: 1,
-                            pr: 1.5,
-                            py: 0.3,
-                            borderLeft: `2.5px solid ${theme.palette.primary.main}`,
-                            borderRadius: '0 6px 6px 0',
-                            bgcolor: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
-                            cursor: refMsg ? 'pointer' : 'default',
-                            transition: 'background 0.15s',
-                            '&:hover': refMsg ? {
-                              bgcolor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-                            } : {},
-                          }}
-                        >
-                          <ReplyIcon sx={{ fontSize: 14, color: theme.palette.text.disabled, transform: 'scaleX(-1)' }} />
-                          {refMsg ? (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontSize: '11.5px',
-                                color: theme.palette.text.secondary,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                lineHeight: 1.4,
-                              }}
-                            >
-                              <Box component="span" sx={{ fontWeight: 600, color: theme.palette.text.primary, mr: 0.5 }}>
-                                {refMsg.sender_nickname || refMsg.sender_name}
-                              </Box>
-                              {refMsg.content || '...'}
-                            </Typography>
-                          ) : (
-                            <Typography
-                              variant="caption"
-                              sx={{
-                                fontSize: '11.5px',
-                                color: theme.palette.text.disabled,
-                                fontStyle: 'italic',
-                              }}
-                            >
-                              {t('messageHistory.quotedMessage')}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Box>
-                    )
-                  })()}
-
                   {/* 气泡布局 */}
                   <Box
                       sx={{
@@ -933,6 +1195,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                       ) : (
                         <Avatar
                           src={getAvatarUrl(message.platform_userid)}
+                          onDoubleClick={!isBot && message.platform_userid ? () => handlePoke(message.platform_userid) : undefined}
                           sx={{
                             width: 36,
                             height: 36,
@@ -943,6 +1206,11 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                               ? theme.palette.primary.main
                               : nameToColor(message.sender_name),
                             mt: 0.3,
+                            cursor: !isBot && message.platform_userid ? 'pointer' : 'default',
+                            transition: 'transform 0.15s',
+                            '&:active': !isBot && message.platform_userid ? {
+                              transform: 'scale(0.9)',
+                            } : {},
                           }}
                         >
                           {message.sender_name?.[0] ?? '?'}
@@ -1027,6 +1295,96 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                             },
                           }}
                         >
+                          {/* 引用消息 - QQ风格内嵌气泡 */}
+                          {aiAlwaysIncludeMsgId && message.ref_msg_id && (() => {
+                            const refMsg = messageByMsgId.get(message.ref_msg_id)
+                            return (
+                              <Box
+                                onClick={() => refMsg ? scrollToMessage(message.ref_msg_id!) : undefined}
+                                sx={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  width: '100%',
+                                  mb: 0.6,
+                                  pl: 1,
+                                  pr: 0.5,
+                                  py: 0.5,
+                                  borderLeft: `2px solid ${theme.palette.primary.main}`,
+                                  borderRadius: '2px',
+                                  bgcolor: isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.04)',
+                                  cursor: refMsg ? 'pointer' : 'default',
+                                  transition: 'background 0.15s',
+                                  boxSizing: 'border-box',
+                                  overflow: 'hidden',
+                                  '&:hover': refMsg ? {
+                                    bgcolor: isDark ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.07)',
+                                  } : {},
+                                }}
+                              >
+                                <ReplyIcon sx={{ fontSize: 13, color: theme.palette.text.disabled, transform: 'scaleX(-1)', flexShrink: 0 }} />
+                                {refMsg ? (
+                                  <Typography
+                                    component="div"
+                                    variant="caption"
+                                    sx={{
+                                      fontSize: '11px',
+                                      color: theme.palette.text.secondary,
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      lineHeight: 1.4,
+                                      minWidth: 0,
+                                    }}
+                                  >
+                                    <Box component="span" sx={{ fontWeight: 600, fontSize: '11px', color: theme.palette.text.primary, mr: 0.5 }}>
+                                      {refMsg.sender_nickname || refMsg.sender_name}
+                                    </Box>
+                                    {(refMsg.content_data && refMsg.content_data.length > 0)
+                                      ? refMsg.content_data.map((seg, idx) => {
+                                          if (seg.type === 'at') {
+                                            return (
+                                              <Box
+                                                key={idx}
+                                                component="span"
+                                                sx={{
+                                                  color: theme.palette.primary.main,
+                                                  fontWeight: 600,
+                                                }}
+                                              >
+                                                @{seg.target_nickname || 'User'}
+                                              </Box>
+                                            )
+                                          }
+                                          if (seg.type === 'text') {
+                                            return <span key={idx}>{seg.text}</span>
+                                          }
+                                          if (seg.type === 'image') {
+                                            return <span key={idx} style={{ color: theme.palette.text.disabled }}>[图片]</span>
+                                          }
+                                          if (seg.type === 'file' || seg.type === 'voice' || seg.type === 'video') {
+                                            return <span key={idx} style={{ color: theme.palette.text.disabled }}>[{seg.type === 'voice' ? '语音' : seg.type === 'video' ? '视频' : '文件'}]</span>
+                                          }
+                                          return null
+                                        })
+                                      : (refMsg.content || '...')
+                                    }
+                                  </Typography>
+                                ) : (
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      fontSize: '11px',
+                                      color: theme.palette.text.disabled,
+                                      fontStyle: 'italic',
+                                    }}
+                                  >
+                                    {t('messageHistory.quotedMessage')}
+                                  </Typography>
+                                )}
+                              </Box>
+                            )
+                          })()}
                           <MessageContent
                             message={message}
                             noContentText={t('messageHistory.noContent')}
@@ -1139,11 +1497,18 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
           <ToggleButton value="system">{t('messageHistory.senderSystem')}</ToggleButton>
           <ToggleButton value="none">{t('messageHistory.senderNone')}</ToggleButton>
         </ToggleButtonGroup>
-        {senderType === 'none' && (
-          <Typography variant="caption" sx={{ color: theme.palette.warning.main, fontSize: '11px' }}>
-            {t('messageHistory.senderNoneHint')}
-          </Typography>
-        )}
+        <Typography variant="caption" sx={{
+          color: senderType === 'none' ? theme.palette.warning.main : theme.palette.text.secondary,
+          fontSize: '11px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minWidth: 0,
+        }}>
+          {senderType === 'bot' && t('messageHistory.senderBotHint')}
+          {senderType === 'system' && t('messageHistory.senderSystemHint')}
+          {senderType === 'none' && t('messageHistory.senderNoneHint')}
+        </Typography>
       </Box>
       <Box
         sx={{
