@@ -101,7 +101,8 @@ export interface ConfigItem {
   enable_toggle?: string
   overridable?: boolean
   is_need_restart?: boolean
-  
+  category?: string
+
   // i18n 扩展字段（可选，与后端 ExtraField 对应）
   i18n_title?: I18nDict
   i18n_description?: I18nDict

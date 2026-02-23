@@ -45,10 +45,12 @@ def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
     extra_field_names = list(ExtraField.model_fields.keys())
     # 添加运行时动态字段，这些字段不在 ExtraField 模型中定义但需要被提取
     extra_field_names.append("enable_toggle")
-    
+
     for extra_field in extra_field_names:
-        if field_json_schema_extra.get(extra_field):
-            extra_data[extra_field] = field_json_schema_extra.get(extra_field)
+        value = field_json_schema_extra.get(extra_field)
+        # category 字段即使为空也应该被包含
+        if extra_field == "category" or value:
+            extra_data[extra_field] = value
     return extra_data
 
 

@@ -61,6 +61,7 @@ class CoreConfig(ConfigBase):
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
         ),
         json_schema_extra=ExtraField(
+            category="云服务",
             i18n_title=i18n_text(
                 zh_CN="启用 NekroAI 云服务",
                 en_US="Enable NekroAI Cloud Service",
@@ -76,6 +77,7 @@ class CoreConfig(ConfigBase):
         title="NekroAI 云服务 API Key",
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(
+            category="云服务",
             is_secret=True,
             placeholder="nk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
             i18n_title=i18n_text(
@@ -99,6 +101,7 @@ class CoreConfig(ConfigBase):
         title="应用日志级别",
         description="应用日志级别，需要重启应用后生效",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="应用日志级别",
                 en_US="Application Log Level",
@@ -114,6 +117,7 @@ class CoreConfig(ConfigBase):
         title="管理员列表",
         description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="管理员列表",
                 en_US="Administrator List",
@@ -129,6 +133,7 @@ class CoreConfig(ConfigBase):
         title="允许管理员登陆 WebUI",
         description="启用后可使用管理员账号登陆 WebUI，登陆后请及时在 个人中心 修改密码",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="允许管理员登陆 WebUI",
                 en_US="Allow Administrators Login to WebUI",
@@ -143,6 +148,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="聊天调试模式",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="聊天调试模式",
                 en_US="Chat Debug Mode",
@@ -153,6 +159,7 @@ class CoreConfig(ConfigBase):
         default="",
         title="管理频道",
         json_schema_extra=ExtraField(
+            category="应用设置",
             is_secret=True,
             placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
             i18n_title=i18n_text(
@@ -165,6 +172,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="保存聊天提示词生成日志",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="保存聊天提示词生成日志",
                 en_US="Save Chat Prompt Generation Log",
@@ -175,6 +183,7 @@ class CoreConfig(ConfigBase):
         default=10,
         title="上传文件大小限制 (MB)",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="上传文件大小限制 (MB)",
                 en_US="Upload File Size Limit (MB)",
@@ -185,6 +194,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="启用未授权命令反馈",
         json_schema_extra=ExtraField(
+            category="应用设置",
             i18n_title=i18n_text(
                 zh_CN="启用未授权命令反馈",
                 en_US="Enable Unauthorized Command Feedback",
@@ -195,6 +205,7 @@ class CoreConfig(ConfigBase):
         default="",
         title="默认代理",
         json_schema_extra=ExtraField(
+            category="网络设置",
             placeholder="例: http://127.0.0.1:7890",
             i18n_title=i18n_text(
                 zh_CN="默认代理",
@@ -254,6 +265,7 @@ class CoreConfig(ConfigBase):
         default="default",
         title="使用的主模型组",
         json_schema_extra=ExtraField(
+            category="模型配置",
             ref_model_groups=True,
             required=True,
             model_type="chat",
@@ -273,6 +285,7 @@ class CoreConfig(ConfigBase):
         default="default",
         title="调试/Agent 迁移模型组",
         json_schema_extra=ExtraField(
+            category="模型配置",
             ref_model_groups=True,
             model_type="chat",
             overridable=True,
@@ -291,6 +304,7 @@ class CoreConfig(ConfigBase):
         default="default",
         title="备用模型组",
         json_schema_extra=ExtraField(
+            category="模型配置",
             ref_model_groups=True,
             model_type="chat",
             overridable=True,
@@ -311,6 +325,7 @@ class CoreConfig(ConfigBase):
         default="可洛喵",
         title="默认聊天人设名",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             i18n_title=i18n_text(
                 zh_CN="默认聊天人设名",
                 en_US="Default Chat Preset Name",
@@ -325,6 +340,7 @@ class CoreConfig(ConfigBase):
         ),
         title="默认聊天人设详情",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             is_textarea=True,
             i18n_title=i18n_text(
                 zh_CN="默认聊天人设详情",
@@ -336,6 +352,7 @@ class CoreConfig(ConfigBase):
         default=60 * 30,
         title="对话上下文过期时间 (秒)",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="对话上下文过期时间 (秒)",
@@ -352,6 +369,7 @@ class CoreConfig(ConfigBase):
         default=32,
         title="对话上下文最大条数",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="对话上下文最大条数",
@@ -369,6 +387,7 @@ class CoreConfig(ConfigBase):
         title="代码执行调试 / Agent 迭代最大次数",
         description="执行代码过程出错或者产生 Agent 反馈时，进行迭代调用允许的最大次数，增大该值可能略微增加调试成功概率，过大会造成响应时间增加、Token 消耗增加等",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="代码执行调试 / Agent 迭代最大次数",
@@ -385,6 +404,7 @@ class CoreConfig(ConfigBase):
         title="模型 API 调用重试次数",
         description="模型组调用失败后重试次数，重试的最后一次将使用备用模型组",
         json_schema_extra=ExtraField(
+            category="聊天配置",
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="模型 API 调用重试次数",

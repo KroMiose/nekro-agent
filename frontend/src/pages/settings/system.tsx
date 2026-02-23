@@ -1,14 +1,16 @@
-import { useState, useEffect } from 'react'
-import { Box } from '@mui/material'
+import { useState, useEffect, useMemo } from 'react'
+import { Box, Tabs, Tab } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
+import type { ConfigItem } from '../../components/common/ConfigTable'
 
 export default function SettingsPage() {
   const location = useLocation()
   const [searchText, setSearchText] = useState<string>('')
+  const [activeTab, setActiveTab] = useState<string>('all')
   const { t } = useTranslation('settings')
 
   // 从URL中获取搜索参数
@@ -33,6 +35,41 @@ export default function SettingsPage() {
     queryFn: () => configService.getConfigList('system'),
   })
 
+  // 获取所有分类，按出现顺序保留
+  const categories = useMemo(() => {
+    const seen = new Set<string>()
+    const result: string[] = []
+    configs.forEach((config: ConfigItem) => {
+      const category = config.category || '其他'
+      if (!seen.has(category)) {
+        seen.add(category)
+        result.push(category)
+      }
+    })
+    return result
+  }, [configs])
+
+  // 按分类过滤配置
+  const configsByCategory = useMemo(() => {
+    const grouped: Record<string, ConfigItem[]> = {}
+    configs.forEach((config: ConfigItem) => {
+      const category = config.category || '其他'
+      if (!grouped[category]) {
+        grouped[category] = []
+      }
+      grouped[category].push(config)
+    })
+    return grouped
+  }, [configs])
+
+  // 根据当前选中的分类过滤配置
+  const displayConfigs = useMemo(() => {
+    if (activeTab === 'all') {
+      return configs
+    }
+    return configsByCategory[activeTab] || []
+  }, [activeTab, configs, configsByCategory])
+
   const handleSearchChange = (text: string) => {
     setSearchText(text)
   }
@@ -51,10 +88,32 @@ export default function SettingsPage() {
         p: 2,
       }}
     >
+      {/* 分类选项卡 */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+        <Tabs
+          value={activeTab}
+          onChange={(_, newValue) => setActiveTab(newValue)}
+          variant="scrollable"
+          scrollButtons="auto"
+          sx={{
+            '& .MuiTab-root': {
+              textTransform: 'none',
+              minWidth: 100,
+              fontSize: '0.95rem',
+            },
+          }}
+        >
+          <Tab label={t('settings.allCategories') || '全部'} value="all" />
+          {categories.map((category) => (
+            <Tab key={category} label={category} value={category} />
+          ))}
+        </Tabs>
+      </Box>
+
       <ConfigTable
         configKey="system"
         configService={configService}
-        configs={configs}
+        configs={displayConfigs}
         loading={isLoading}
         searchText={searchText}
         onSearchChange={handleSearchChange}
