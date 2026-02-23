@@ -103,7 +103,7 @@ export default function SettingsPage() {
             },
           }}
         >
-          <Tab label={t('settings.allCategories') || '全部'} value="all" />
+          <Tab label="全部" value="all" />
           {categories.map((category) => (
             <Tab key={category} label={category} value={category} />
           ))}
