@@ -1,14 +1,9 @@
 import hashlib
-import time
-from typing import Optional, Union
+from typing import Optional
 
 from nonebot import on_message
-from nonebot.adapters.minecraft import Bot, Event
-from nonebot.adapters.minecraft.event.base import (
-    BaseChatEvent,
-    BaseDeathEvent,
-    BasePlayerCommandEvent,
-)
+from nonebot.adapters.minecraft import Bot
+from nonebot.adapters.minecraft.event import MessageEvent
 from nonebot.matcher import Matcher
 
 from nekro_agent.adapters.interface import (
@@ -18,7 +13,7 @@ from nekro_agent.adapters.interface import (
     PlatformUser,
     collect_message,
 )
-from nekro_agent.core import config, logger
+from nekro_agent.core import logger
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentType,
@@ -28,7 +23,7 @@ from nekro_agent.schemas.chat_message import (
 
 def register_matcher(adapter: BaseAdapter):
     @on_message(priority=999, block=False).handle()
-    async def _(_matcher: Matcher, event: Union[BaseChatEvent, BasePlayerCommandEvent, BaseDeathEvent], _bot: Bot):
+    async def _(_matcher: Matcher, event: MessageEvent, _bot: Bot):
         """Minecraft 消息收集与预处理"""
 
         plt_channel: PlatformChannel = PlatformChannel(
@@ -48,14 +43,14 @@ def register_matcher(adapter: BaseAdapter):
             user_avatar="",
         )
 
-        msg_list = []
-        plain_text_content = event.message.extract_plain_text()
-        msg_list.append(
+        message = event.get_message()
+        plain_text_content = message.extract_plain_text()
+        msg_list = [
             ChatMessageSegment(
                 type=ChatMessageSegmentType.TEXT,
                 text=plain_text_content,
             ),
-        )
+        ]
         logger.info(f"Minecraft Message:{plain_text_content}")
         msg_id_from_event = event.message_id
         if msg_id_from_event and msg_id_from_event.strip():
@@ -69,7 +64,7 @@ def register_matcher(adapter: BaseAdapter):
             sender_name=sender_name,
             sender_nickname=sender_name,
             content_data=msg_list,
-            content_text=event.message.extract_plain_text(),
+            content_text=plain_text_content,
             is_tome=False,
             timestamp=int(event.timestamp),
         )
