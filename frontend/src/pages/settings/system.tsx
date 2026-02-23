@@ -25,13 +25,13 @@ export default function SettingsPage() {
     queryFn: () => configService.getConfigList('system'),
   })
 
-  // 获取所有分类，按出现顺序保留
+  // 获取所有分类，按出现顺序保留（过滤空分类）
   const categories = useMemo(() => {
     const seen = new Set<string>()
     const result: string[] = []
     configs.forEach((config: ConfigItem) => {
-      const category = config.category || '其他'
-      if (!seen.has(category)) {
+      const category = config.category
+      if (category && !seen.has(category)) {
         seen.add(category)
         result.push(category)
       }
@@ -64,11 +64,13 @@ export default function SettingsPage() {
   const configsByCategory = useMemo(() => {
     const grouped: Record<string, ConfigItem[]> = {}
     configs.forEach((config: ConfigItem) => {
-      const category = config.category || '其他'
-      if (!grouped[category]) {
-        grouped[category] = []
+      const category = config.category
+      if (category) {
+        if (!grouped[category]) {
+          grouped[category] = []
+        }
+        grouped[category].push(config)
       }
-      grouped[category].push(config)
     })
     return grouped
   }, [configs])
