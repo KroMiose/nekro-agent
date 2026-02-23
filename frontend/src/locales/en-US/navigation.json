@@ -20,7 +20,11 @@
     "theme": "Theme",
     "spaceCleanup": "Space Cleanup",
     "profile": "Profile",
-    "defaultTitle": "Admin Panel"
+    "defaultTitle": "Admin Panel",
+    "workspace": "Workspace",
+    "workspaceList": "Workspace Management",
+    "skillsLibrary": "Skills Dictionary",
+    "ccModels": "CC Model Config"
   },
   "footer": {
     "copyright": "All rights reserved",

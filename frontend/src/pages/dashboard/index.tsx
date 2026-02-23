@@ -94,7 +94,7 @@ const DashboardContent: React.FC = () => {
           return updated
         }
       })
-    } catch (error) {
+    } catch (_error) {
       notificationRef.current.error(tRef.current('messages.operationFailed', { ns: 'common' }))
     }
   }, [])
@@ -122,7 +122,6 @@ const DashboardContent: React.FC = () => {
     return () => {
       if (cancelStream) cancelStream()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handleRealTimeData, granularity])
 
   // 处理粒度变更

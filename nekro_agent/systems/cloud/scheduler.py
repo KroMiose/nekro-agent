@@ -6,6 +6,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 
 logger = get_sub_logger("cloud_api")
+
 async def telemetry_task():
     """遥测任务 - 定时收集和上报遥测数据"""
     while True:
@@ -39,7 +40,7 @@ async def telemetry_task():
                 next_hour = now.replace(hour=now.hour + 1, minute=0, second=0, microsecond=0)
                 wait_seconds = (next_hour - now).total_seconds()
 
-            logger.debug(f"等待到下一个整点触发遥测: {next_hour}, 等待 {wait_seconds} 秒")
+            # logger.debug(f"等待到下一个整点触发遥测: {next_hour}, 等待 {wait_seconds} 秒")
             await asyncio.sleep(wait_seconds)
 
         except Exception as e:

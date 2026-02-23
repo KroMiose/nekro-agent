@@ -1,0 +1,349 @@
+{
+  "status": {
+    "active": "Running",
+    "stopped": "Stopped",
+    "failed": "Error",
+    "deleting": "Deleting"
+  },
+  "policy": {
+    "agent": "Agent",
+    "relaxed": "Relaxed",
+    "strict": "Strict"
+  },
+  "statusChip": {
+    "active": "Claude Code Sandbox"
+  },
+  "list": {
+    "sectionTitle": "CC Workspaces",
+    "total": "{{count}} total",
+    "createBtn": "Create Workspace",
+    "loadError": "Failed to load workspaces: {{message}}",
+    "statCards": {
+      "total": "All Workspaces",
+      "active": "Running",
+      "stopped": "Stopped",
+      "failed": "Error"
+    },
+    "empty": {
+      "title": "No Workspaces",
+      "hint": "Click \"Create Workspace\" to get started"
+    }
+  },
+  "card": {
+    "noDescription": "No description",
+    "defaultImage": "Default Image",
+    "image": "Image",
+    "container": "Container",
+    "createdAt": "Created",
+    "enter": "Enter",
+    "delete": "Delete"
+  },
+  "createDialog": {
+    "title": "Create Workspace",
+    "nameLabel": "Workspace Name",
+    "descLabel": "Description",
+    "policyLabel": "Runtime Policy",
+    "policyAgent": "Agent (Proxy Mode)",
+    "policyRelaxed": "Relaxed (No Restrictions)",
+    "policyStrict": "Strict (Read-only)",
+    "randomNameTooltip": "Generate Random Name",
+    "cancel": "Cancel",
+    "create": "Create",
+    "nameRequired": "Workspace name is required",
+    "createSuccess": "Workspace \"{{name}}\" created successfully",
+    "createFailed": "Create failed: {{message}}"
+  },
+  "deleteDialog": {
+    "title": "Confirm Delete",
+    "content": "Are you sure you want to delete workspace {{name}}? This action cannot be undone.",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleteSuccess": "Workspace deleted",
+    "deleteFailed": "Delete failed: {{message}}"
+  },
+  "detail": {
+    "header": {
+      "backTooltip": "Back to List",
+      "ccWorking": "CC Working",
+      "viewSandboxTooltip": "View Sandbox"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "sandbox": "Sandbox",
+      "comm": "Comm",
+      "memory": "Memory",
+      "extensions": "Extensions",
+      "config": "Config"
+    },
+    "overview": {
+      "noDescription": "No description",
+      "statCards": {
+        "channels": "Bound Channels",
+        "skills": "Enabled Skills",
+        "mcp": "MCP Services",
+        "comm": "Comm Records"
+      },
+      "suffixes": {
+        "count": "",
+        "messages": ""
+      },
+      "sections": {
+        "basicInfo": "Workspace Info",
+        "sandboxStatus": "Sandbox Status"
+      },
+      "manage": "Manage",
+      "infoRows": {
+        "id": "ID",
+        "policy": "Policy",
+        "image": "Sandbox Image",
+        "createdAt": "Created",
+        "updatedAt": "Updated",
+        "containerName": "Container",
+        "hostPort": "Host Port",
+        "sessionId": "Session ID",
+        "modelGroup": "Model Group",
+        "lastHeartbeat": "Last Heartbeat"
+      },
+      "defaultImage": "Default Image",
+      "notConfigured": "Not configured",
+      "loading": "Loading…",
+      "defaultTag": "(default)",
+      "tooltips": {
+        "switchConfig": "Switch in Config tab",
+        "managePresets": "Manage Model Presets"
+      },
+      "channels": {
+        "title": "Bound Channels",
+        "searchPlaceholder": "Search and select a channel",
+        "noOptions": "No channels",
+        "bound": "Bound",
+        "bind": "Bind",
+        "noChannels": "No bound channels. Bind a channel to enable CC sandbox for those sessions.",
+        "channelHint": "Bind channels to provide CC sandbox capability for those sessions",
+        "disabled": "Disabled",
+        "unbindTooltip": "Unbind",
+        "bindSuccess": "Channel bound",
+        "bindFailed": "Bind failed: {{message}}",
+        "unbindSuccess": "Channel unbound",
+        "unbindFailed": "Unbind failed: {{message}}"
+      }
+    },
+    "sandbox": {
+      "title": "Sandbox Container",
+      "transitioning": "Processing, please wait...",
+      "buttons": {
+        "start": "Start",
+        "starting": "Starting",
+        "stop": "Stop",
+        "stopping": "Stopping",
+        "restart": "Restart",
+        "restarting": "Restarting",
+        "rebuild": "Rebuild",
+        "resetSession": "Reset Session"
+      },
+      "statusRows": {
+        "containerName": "Container",
+        "hostPort": "Host Port",
+        "sessionId": "Session ID"
+      },
+      "logError": "Sandbox Error: ",
+      "notifications": {
+        "startSuccess": "Sandbox started",
+        "startFailed": "Start failed: {{message}}",
+        "stopSuccess": "Sandbox stopped",
+        "stopFailed": "Stop failed: {{message}}",
+        "restartSuccess": "Sandbox restarted",
+        "restartFailed": "Restart failed: {{message}}",
+        "rebuildSuccess": "Container rebuilding...",
+        "rebuildFailed": "Rebuild failed: {{message}}",
+        "resetSessionSuccess": "Session reset",
+        "resetSessionFailed": "Reset failed: {{message}}"
+      },
+      "rebuildDialog": {
+        "title": "Confirm Rebuild",
+        "content": "Rebuilding will destroy the current container and recreate it. All running state will be lost. Continue?",
+        "cancel": "Cancel",
+        "rebuild": "Rebuild"
+      },
+      "logs": {
+        "title": "Container Logs",
+        "clearTooltip": "Clear",
+        "waiting": "Waiting for log output...",
+        "disconnected": "[Log stream disconnected]",
+        "lines": "{{count}} lines"
+      },
+      "terminal": {
+        "title": "Sandbox Terminal",
+        "connected": "Connected",
+        "connecting": "Connecting...",
+        "disconnected": "Disconnected",
+        "notRunning": "Sandbox not running",
+        "connect": "Connect",
+        "reconnect": "Reconnect",
+        "startFirst": "Please start the sandbox to use the terminal",
+        "wsConnected": "Connected",
+        "wsDisconnected": "[Connection closed]",
+        "wsError": "[Connection error]"
+      }
+    },
+    "memory": {
+      "treeTitle": "Memory Files",
+      "contentTitle": "Edit Memory File",
+      "toggleTitleTooltip_title": "Switch to title view",
+      "toggleFileTooltip_filename": "Switch to filename view",
+      "refreshTooltip": "Refresh",
+      "newFileTooltip": "New Memory File",
+      "emptyHint": "No memory files",
+      "editorHint": "Select a file on the left to edit, or click \"+\" to create a new memory file",
+      "metadata": {
+        "title": "Title",
+        "shared": "Shared with NA",
+        "yes": "Yes",
+        "no": "No",
+        "category": "Category",
+        "tags": "Tags",
+        "tags": "Tags",
+        "sharedToNA": "Shared with NA"
+      },
+      "charCount": "{{count}}/600 chars",
+      "buttons": {
+        "save": "Save",
+        "delete": "Delete",
+        "cancel": "Cancel",
+        "resetMemory": "Reset Memory",
+        "confirmClear": "Confirm Clear",
+        "create": "Create"
+      },
+      "notifications": {
+        "saveSuccess": "Memory file saved",
+        "saveFailed": "Save failed",
+        "deleteSuccess": "Memory file deleted",
+        "deleteFailed": "Delete failed",
+        "resetSuccess": "Memory cleared",
+        "resetFailed": "Reset failed",
+        "createSuccess": "Memory file created",
+        "createFailed": "Create failed"
+      },
+      "newFileDialog": {
+        "title": "New Memory File",
+        "categoryLabel": "Category",
+        "fileNameLabel": "File Name (without .md)",
+        "fileNamePlaceholder": "e.g. python-style",
+        "willCreate": "Will create: {{path}}",
+        "cancel": "Cancel",
+        "create": "Create"
+      },
+      "deleteDialog": {
+        "title": "Confirm Delete",
+        "content": "Are you sure you want to delete memory file {{path}}? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "resetDialog": {
+        "title": "⚠ Reset Memory",
+        "warning": "This will permanently delete all memory files for this workspace and cannot be recovered!",
+        "content": "After clearing memory, the CC sandbox will lose all learned user preferences, task records, and knowledge. The workspace will start fresh.",
+        "hint": "Recommended when: workspace behavior is abnormal, or you need to fully reset the CC sandbox.",
+        "cancel": "Cancel",
+        "confirm": "Confirm Clear"
+      }
+    },
+    "extensions": {
+      "skillsTitle": "Skills ({{total}} available, {{enabled}} enabled)",
+      "skillsEmpty": "Skills library is empty. Please upload skill files in the \"Skills\" management page first.",
+      "skillsSave": "Save",
+      "skillsSaveSuccess": "Skills saved",
+      "skillsSaveFailed": "Save failed: {{message}}",
+      "readmeNoContent": "No README available",
+      "mcpTitle": "MCP Config",
+      "mcpSave": "Save",
+      "mcpSaveSuccess": "MCP config saved",
+      "mcpSaveFailed": "Save failed: {{message}}",
+      "mcpJsonError": "Invalid JSON",
+      "mcpJsonErrorFix": "Please fix JSON errors first"
+    },
+    "comm": {
+      "loadMoreHint": "Scroll up to load more",
+      "noRecords": "No comm records",
+      "noRecordsHint": "Records will appear here in real time when NA sends tasks to CC",
+      "inputPlaceholderMac": "Enter prompt (↩ send, ⇧↩ newline)",
+      "inputPlaceholderWin": "Enter prompt (Enter to send, Shift+Enter for newline)",
+      "sendWarning": "This sends directly to the CC sandbox; CC responses will not be processed by the NA Agent",
+      "sendTooltip": "Send",
+      "msgTypes": {
+        "USER_TO_CC": "User → CC",
+        "SYSTEM": "System"
+      },
+      "expandArgs": "View full args",
+      "collapseArgs": "Collapse args",
+      "execFailed": "Exec failed",
+      "execDone": "Exec done",
+      "collapse": "Collapse",
+      "expand": "Expand ({{chars}} chars)",
+      "notifications": {
+        "sendFailed": "Send failed: {{message}}"
+      }
+    },
+    "config": {
+      "sections": {
+        "basic": "Basic Settings",
+        "skills": "Skills",
+        "mcp": "MCP Config",
+        "ccModel": "CC Model Config",
+        "envVars": "Environment Variables",
+        "danger": "Danger Zone"
+      },
+      "fields": {
+        "name": "Workspace Name",
+        "desc": "Description",
+        "policy": "Runtime Policy",
+        "image": "Sandbox Image",
+        "imageHint": "Leave blank to use default image",
+        "imageHelperText": "Leave blank to use the system default image with :latest tag",
+        "ccModel": "Select CC Model Preset",
+        "modelHelperText": "The selected preset's environment config will be injected into the sandbox",
+        "generatedConfig": "Generated Inject Config"
+      },
+      "policyOptions": {
+        "agent": "Agent — Explicit tool whitelist, interactive tools disabled",
+        "relaxed": "Relaxed — No tool-level restrictions",
+        "strict": "Strict — No file write / command exec / network"
+      },
+      "ccModelDefault": "(default)",
+      "envVars": {
+        "hint": "Variables are injected into the sandbox process on each CC conversation, and synced to the CLAUDE.md environment section (only key and description are exposed, not the value)",
+        "key": "Variable Name",
+        "value": "Value",
+        "description": "Description",
+        "add": "Add Variable",
+        "remove": "Remove"
+      },
+      "dangerDesc": "Deleting this workspace will also stop the sandbox container and remove all configuration. This action cannot be undone.",
+      "deleteBtn": "Delete This Workspace",
+      "buttons": {
+        "save": "Save",
+        "saving": "Saving",
+        "delete": "Delete",
+        "deleting": "Deleting"
+      },
+      "notifications": {
+        "saveSuccess": "Settings saved",
+        "saveFailed": "Save failed: {{message}}",
+        "deleteSuccess": "Workspace deleted",
+        "deleteFailed": "Delete failed: {{message}}",
+        "ccPresetSuccess": "CC model preset updated",
+        "ccPresetFailed": "Set failed: {{message}}",
+        "envVarsSaveSuccess": "Environment variables saved",
+        "envVarsSaveFailed": "Save failed: {{message}}"
+      },
+      "invalidId": "Invalid workspace ID",
+      "loadFailed": "Load failed: {{message}}",
+      "deleteDialog": {
+        "title": "Confirm Delete Workspace",
+        "content": "Are you sure you want to delete workspace {{name}}? This action cannot be undone.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      }
+    }
+  }
+}

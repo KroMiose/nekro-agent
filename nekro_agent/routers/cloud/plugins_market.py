@@ -42,8 +42,8 @@ class CloudPlugin(BaseModel):
     githubUrl: Optional[str] = None
     cloneUrl: Optional[str] = None
     licenseType: Optional[str] = None
-    created_at: str = Field(alias="createdAt")
-    updated_at: str = Field(alias="updatedAt")
+    created_at: Optional[str] = Field(None, alias="createdAt")
+    updated_at: Optional[str] = Field(None, alias="updatedAt")
     is_local: bool
     version: Optional[str] = None
     can_update: Optional[bool] = None

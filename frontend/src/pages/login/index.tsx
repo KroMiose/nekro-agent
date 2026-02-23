@@ -125,7 +125,7 @@ export default function LoginPage() {
               onError: () => {},
             }
           )
-        } catch (error) {
+        } catch (_error) {
           // 忽略星标检查错误，不影响登录
         }
       }

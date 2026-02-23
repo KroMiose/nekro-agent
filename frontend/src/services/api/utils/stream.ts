@@ -54,8 +54,7 @@ export const createEventStream = (options: StreamOptions) => {
       onerror(err: Error) {
         if (signal?.aborted || controller.signal.aborted) return
         if (onError) onError(err)
-        controller.abort()
-        return
+        // 不调用 controller.abort()，让 fetchEventSource 自动重连
       },
     }).catch(err => {
       if (onError && err instanceof Error) {
@@ -69,7 +68,7 @@ export const createEventStream = (options: StreamOptions) => {
         controller.abort()
       }
     }
-  } catch (error) {
+  } catch (_error) {
     throw new Error('无法连接到流式服务')
   }
 }

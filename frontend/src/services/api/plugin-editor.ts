@@ -34,7 +34,7 @@ export const pluginEditorApi: PluginEditorApi = {
     try {
       const response = await axios.get<string[]>('/plugin-editor/files')
       return response.data
-    } catch (error) {
+    } catch (_error) {
       return []
     }
   },
@@ -44,7 +44,7 @@ export const pluginEditorApi: PluginEditorApi = {
     try {
       const response = await axios.get<{ content: string }>(`/plugin-editor/file/${filePath}`)
       return response.data.content
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -58,7 +58,7 @@ export const pluginEditorApi: PluginEditorApi = {
         },
       })
       return response.data.ok
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },
@@ -68,7 +68,7 @@ export const pluginEditorApi: PluginEditorApi = {
     try {
       const response = await axios.delete<{ ok: boolean }>(`/plugin-editor/files/${filePath}`)
       return response.data.ok
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },
@@ -94,7 +94,7 @@ export const pluginEditorApi: PluginEditorApi = {
       URL.revokeObjectURL(url)
 
       return true
-    } catch (error) {
+    } catch (_error) {
       return false
     }
   },
@@ -112,7 +112,7 @@ export const pluginEditorApi: PluginEditorApi = {
         current_code: currentCode,
       })
       return response.data.code
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -136,7 +136,7 @@ export const pluginEditorApi: PluginEditorApi = {
         }
       )
       return response.data.code
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },
@@ -149,7 +149,7 @@ export const pluginEditorApi: PluginEditorApi = {
         description,
       })
       return response.data.template
-    } catch (error) {
+    } catch (_error) {
       return null
     }
   },

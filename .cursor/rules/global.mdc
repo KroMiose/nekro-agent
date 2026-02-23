@@ -8,6 +8,7 @@ alwaysApply: true
 - Nekro Agent 是面向多平台的 Agent 系统，前后端一体，核心 API 使用标准 HTTP 状态码与统一错误结构
 - 认证系统当前仅支持 `admin` 登录（用户表历史遗留，普通用户登录功能暂停使用）
 - 日志系统支持子系统过滤（`subsystem`），方便按模块观测
+- 数据库迁移已切换到 Aerich，废弃自动 `generate_schemas` 与重置命令
 
 # 开发规范
 

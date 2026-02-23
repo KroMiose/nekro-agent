@@ -20,7 +20,6 @@ import {
   List,
   ListItem,
   ListItemButton,
-  ListItemText,
   ToggleButtonGroup,
   ToggleButton,
 } from '@mui/material'
@@ -722,7 +721,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   )
 
   // 选择用户
-  const handleSelectUser = (userid: string, nickname: string) => {
+  const handleSelectUser = (userid: string, _nickname: string) => {
     const atIndex = inputValue.lastIndexOf('@')
     const before = inputValue.slice(0, atIndex)
     const newValue = `${before}[@id:${userid}@] `
@@ -734,11 +733,14 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   }
 
   // 按时间正序排列消息，过滤掉 SYSTEM 内部消息（agent 方法返回等）
-  const allMessages =
-    data?.pages
-      .flatMap(page => page.items)
-      .filter(msg => msg.sender_name !== 'SYSTEM')
-      .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || []
+  const allMessages = useMemo(
+    () =>
+      data?.pages
+        .flatMap(page => page.items)
+        .filter(msg => msg.sender_name !== 'SYSTEM')
+        .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || [],
+    [data?.pages],
+  )
 
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找
   const messageByMsgId = useMemo(() => {

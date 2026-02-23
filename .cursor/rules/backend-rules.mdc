@@ -64,6 +64,10 @@ logger.error("错误信息")
 - 业务错误使用 `AppError` 体系（`nekro_agent/schemas/errors.py`），禁止使用旧的 `Ret` 返回结构
 - API 返回使用标准 HTTP 状态码，错误响应由全局处理器统一结构化并支持 i18n（Accept-Language）
 - 认证系统当前仅支持 `admin` 登录，普通用户登录逻辑暂停使用（避免访问历史遗留用户表）
+- 数据库迁移使用 Aerich：新部署执行 `poe db-init`，升级执行 `poe db-migrate`
+- 数据库变更标准流程：修改模型 → `aerich migrate --name <desc>` → 提交 `migrations/models/*.py` → 部署后执行 `poe db-migrate`（或自动迁移）
+- 禁止调用 `generate_schemas()` 与 `nekro_db_reset`，避免破坏已部署数据
+- 应用启动默认自动迁移（`AUTO_DB_MIGRATE=true`），可通过环境变量关闭
 
 # 扩展相关
 

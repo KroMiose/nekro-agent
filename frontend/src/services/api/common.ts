@@ -61,7 +61,7 @@ export const checkWallpaperAccessible = async (url: string): Promise<boolean> =>
           const valid = response.ok
           accessibilityCache[url] = { valid, timestamp: now }
           resolve(valid)
-        } catch (error) {
+        } catch (_error) {
           if (cached && cached.valid) {
             resolve(true)
           } else {
@@ -73,7 +73,7 @@ export const checkWallpaperAccessible = async (url: string): Promise<boolean> =>
 
       img.src = url
     })
-  } catch (error) {
+  } catch (_error) {
     if (cached && cached.valid) {
       return true
     }

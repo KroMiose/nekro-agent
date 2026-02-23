@@ -1,6 +1,6 @@
 [project]
 name = "nekro-agent"
-version = "2.2.1"
+version = "2.3.0"
 description = "更智能、更优雅的代理执行 AI"
 authors = [{name = "KroMiose", email = "li_xiangff@163.com"}]
 readme = "README.md"
@@ -55,6 +55,7 @@ dependencies = [
     "python-telegram-bot>=22.4,<23.0",
     "croniter>=6.0.0",
     "chinesecalendar>=1.11.0",
+    "aerich>=0.9.2",
 ]
 
 [project.optional-dependencies]
@@ -147,6 +148,12 @@ extend-exclude = [
 select = ["E", "F", "I"]
 ignore = ["E501", "E701"]
 
+# Aerich 配置
+[tool.aerich]
+tortoise_orm = "nekro_agent.core.tortoise_config.TORTOISE_ORM"
+location = "./migrations"
+src_folder = "./"
+
 # ============================================================================
 # Poe 任务配置
 # ============================================================================
@@ -177,7 +184,7 @@ cmd = "bot --load-test"
 
 [tool.poe.tasks.typecheck]
 help = "运行类型检查"
-cmd = "basedpyright ."
+cmd = "basedpyright nekro_agent"
 
 [tool.poe.tasks.check]
 help = "运行所有检查"
@@ -219,11 +226,11 @@ cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit'"
 
 [tool.poe.tasks.frontend-lint]
 help = "运行前端 lint"
-cmd = "bash -c 'cd frontend && pnpm exec eslint src/ --ext ts,tsx --max-warnings 0'"
+cmd = "bash -c 'cd frontend && pnpm exec eslint src/ --max-warnings 0'"
 
 [tool.poe.tasks.frontend-check]
-help = "运行前端检查"
-cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm build'"
+help = "运行前端检查（typecheck + lint + build）"
+cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint src/ --max-warnings 0 && pnpm build'"
 
 [tool.poe.tasks.frontend-preview]
 help = "预览前端构建"
@@ -245,6 +252,27 @@ cmd = "uv lock"
 [tool.poe.tasks.update]
 help = "更新所有依赖到最新兼容版本"
 cmd = "uv lock --upgrade"
+
+# 数据库迁移
+[tool.poe.tasks.db-init]
+help = "初始化数据库迁移（新部署仅需执行一次）"
+cmd = "aerich init-db --safe"
+envfile = ".env.dev"
+
+[tool.poe.tasks.db-revision]
+help = "生成数据库迁移文件（用法：poe db-revision <migration_name>）"
+cmd = "aerich migrate --name ${name}"
+envfile = ".env.dev"
+
+  [[tool.poe.tasks.db-revision.args]]
+  name = "name"
+  positional = true
+  help = "迁移名称（英文，如 add_workspace_table）"
+
+[tool.poe.tasks.db-migrate]
+help = "执行数据库迁移（升级版本时执行）"
+cmd = "python scripts/db_migrate.py"
+envfile = ".env.dev"
 
 # 清理
 [tool.poe.tasks.clean]

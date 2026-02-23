@@ -317,7 +317,7 @@ export default function LogsPage() {
               if (sourceMatch) {
                 logQueue.current.push(log)
               }
-            } catch (error) {
+            } catch (_error) {
               const now = Date.now()
               if (now - lastParseErrorAt.current > 5000) {
                 lastParseErrorAt.current = now
@@ -325,13 +325,13 @@ export default function LogsPage() {
               }
             }
           },
-          error => {
+          _error => {
             notification.error(t('errors.stream'))
             setIsDisconnected(true)
           }
         )
         setIsDisconnected(false)
-      } catch (error) {
+      } catch (_error) {
         notification.error(t('errors.connect'))
         setIsDisconnected(true)
       }
@@ -343,6 +343,7 @@ export default function LogsPage() {
       cleanup?.()
       clearInterval(intervalId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.source])
 
   const handleDownloadLogs = () => {
@@ -356,7 +357,7 @@ export default function LogsPage() {
         lines,
         source: filters.source || undefined,
       })
-    } catch (error) {
+    } catch (_error) {
       notification.error(t('download.failed'))
     }
     setDownloadConfirmOpen(false)

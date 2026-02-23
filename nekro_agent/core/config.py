@@ -763,6 +763,58 @@ class CoreConfig(ConfigBase):
         ).model_dump(),
     )
 
+    """CC Workspace 配置"""
+    CC_SANDBOX_IMAGE: str = Field(
+        default="nekro-cc-sandbox",
+        title="CC 沙盒镜像名称",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒镜像名称", en_US="CC Sandbox Image Name"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_IMAGE_TAG: str = Field(
+        default="latest",
+        title="CC 沙盒镜像标签",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒镜像标签", en_US="CC Sandbox Image Tag"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_INTERNAL_PORT: int = Field(
+        default=7021,
+        title="CC 沙盒容器内部端口",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒容器内部端口", en_US="CC Sandbox Internal Port"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_PORT_RANGE_START: int = Field(
+        default=40000,
+        title="CC 沙盒宿主机端口段起始",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒端口段起始", en_US="CC Sandbox Port Range Start"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_PORT_RANGE_END: int = Field(
+        default=49999,
+        title="CC 沙盒宿主机端口段结束",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒端口段结束", en_US="CC Sandbox Port Range End"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_DOCKER_NETWORK: str = Field(
+        default="",
+        title="CC 沙盒 Docker 网络名称",
+        description="留空则使用默认 bridge 网络，填入 docker network 名称可与 NA 容器共享网络（推荐 Docker 部署时配置）",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒 Docker 网络", en_US="CC Sandbox Docker Network"),
+        ).model_dump(),
+    )
+    CC_SANDBOX_STARTUP_TIMEOUT: int = Field(
+        default=120,
+        title="CC 沙盒启动超时（秒）",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n_text(zh_CN="CC 沙盒启动超时（秒）", en_US="CC Sandbox Startup Timeout (s)"),
+        ).model_dump(),
+    )
+
     """邮件通知配置"""
     MAIL_ENABLED: bool = Field(
         default=False,

@@ -1,9 +1,10 @@
+from __future__ import annotations
+
 import asyncio
 import json
 from typing import Any, Callable, Coroutine, Dict, List, Optional
 
-
-import aiohttp
+import websockets
 from pydantic import BaseModel, Field, ValidationError
 
 from nekro_agent.core.logger import get_sub_logger
@@ -40,9 +41,8 @@ class BilibiliWebSocketClient:
         self._danmaku_url = f"{self._base_url}/ws/danmaku"
         self._animate_url = f"{self._base_url}/ws/animate_control"
 
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._danmaku_ws: Optional[aiohttp.ClientWebSocketResponse] = None
-        self._animate_ws: Optional[aiohttp.ClientWebSocketResponse] = None
+        self._danmaku_ws: Optional[websockets.WebSocketClientProtocol] = None
+        self._animate_ws: Optional[websockets.WebSocketClientProtocol] = None
 
         self._main_tasks: List[asyncio.Task] = []
         self._is_closing = False
@@ -53,7 +53,6 @@ class BilibiliWebSocketClient:
 
     async def start_with_auto_reconnect(self) -> None:
         """启动客户端并保持自动重连"""
-        self._session = aiohttp.ClientSession()
         self._is_closing = False
 
         danmaku_task = asyncio.create_task(
@@ -69,7 +68,7 @@ class BilibiliWebSocketClient:
     async def _connection_loop(
         self,
         url: str,
-        on_connect: Callable[[aiohttp.ClientWebSocketResponse], Coroutine[Any, Any, None]],
+        on_connect: Callable[[websockets.WebSocketClientProtocol], Coroutine[Any, Any, None]],
         name: str,
     ) -> None:
         """通用连接循环，包含重连逻辑"""
@@ -77,20 +76,20 @@ class BilibiliWebSocketClient:
         while not self._is_closing:
             try:
                 logger.info(f"正在连接到 {name} WebSocket: {url}")
-                if not self._session or self._session.closed:
-                    self._session = aiohttp.ClientSession()
-
-                async with self._session.ws_connect(url, heartbeat=30) as ws:
+                async with websockets.connect(url, ping_interval=30, ping_timeout=30) as ws:
                     logger.info(f"{name} WebSocket 连接成功: {url}")
                     backoff_delay = 1 
                     await on_connect(ws)
-            except aiohttp.ClientConnectorError as e:
+            except (OSError, websockets.exceptions.WebSocketException) as e:
                 logger.warning(f"{name} WebSocket 连接失败: {e}")
-            except aiohttp.WSServerHandshakeError as e:
-                logger.warning(f"{name} WebSocket握手失败: {e}")
             except Exception as e:
                 logger.error(f"{name} WebSocket 循环遇到未知错误: {e}", exc_info=True)
             finally:
+                if name == "Danmaku":
+                    self._danmaku_ws = None
+                elif name == "Animate":
+                    self._animate_ws = None
+
                 # Fail any pending requests on this connection
                 if name == "Animate" and self._pending_animate_future and not self._pending_animate_future.done():
                     self._pending_animate_future.set_exception(ConnectionError(f"{name} WebSocket disconnected"))
@@ -100,53 +99,75 @@ class BilibiliWebSocketClient:
                     await asyncio.sleep(backoff_delay)
                     backoff_delay = min(backoff_delay * 2, 60)  
 
-    async def _on_danmaku_connect(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+    async def _on_danmaku_connect(self, ws: websockets.WebSocketClientProtocol) -> None:
         self._danmaku_ws = ws
         await self._danmaku_receiver(ws)
 
-    async def _on_animate_connect(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+    async def _on_animate_connect(self, ws: websockets.WebSocketClientProtocol) -> None:
         self._animate_ws = ws
         await self._animate_receiver(ws)
 
-    async def _danmaku_receiver(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+    async def _danmaku_receiver(self, ws: websockets.WebSocketClientProtocol) -> None:
         """接收并处理弹幕消息"""
-        async for msg in ws:
-            if self._is_closing:
-                break
-            if msg.type == aiohttp.WSMsgType.TEXT:
+        try:
+            async for raw in ws:
+                if self._is_closing:
+                    break
+                if isinstance(raw, bytes):
+                    try:
+                        raw = raw.decode("utf-8", errors="ignore")
+                    except Exception:
+                        logger.warning("收到无法解码的弹幕二进制消息")
+                        continue
                 try:
-                    # 心跳 pong 不需要处理, aiohttp 会自动处理
-                    danmaku = Danmaku.model_validate_json(msg.data)
+                    # ping/pong 由 websockets 自动处理
+                    danmaku = Danmaku.model_validate_json(raw)
                     await self._danmaku_handler(self, danmaku)
                 except ValidationError as e:
-                    logger.warning(f"解析弹幕消息失败: {e}, 原始数据: {msg.data}")
+                    logger.warning(f"解析弹幕消息失败: {e}, 原始数据: {raw}")
                 except Exception as e:
                     logger.error(f"处理弹幕消息时发生错误: {e}", exc_info=True)
-            elif msg.type == aiohttp.WSMsgType.ERROR:
-                logger.error(f"Danmaku WebSocket 出现错误: {ws.exception()}")
-                break
+        except asyncio.CancelledError:
+            raise
+        except websockets.exceptions.ConnectionClosed as e:
+            if not self._is_closing:
+                logger.warning(f"Danmaku WebSocket 连接已关闭: {e}")
+        except Exception as e:
+            logger.error(f"Danmaku WebSocket 接收循环异常: {e}", exc_info=True)
         logger.info("Danmaku WebSocket 接收循环结束.")
 
-    async def _animate_receiver(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+    async def _animate_receiver(self, ws: websockets.WebSocketClientProtocol) -> None:
         """接收并处理 animate control 的响应"""
-        async for msg in ws:
-            if self._is_closing:
-                break
-            if msg.type == aiohttp.WSMsgType.TEXT:
-                logger.info(f"收到 Animate 消息: {msg.data}")
+        try:
+            async for raw in ws:
+                if self._is_closing:
+                    break
+                if isinstance(raw, bytes):
+                    try:
+                        raw = raw.decode("utf-8", errors="ignore")
+                    except Exception:
+                        logger.warning("收到无法解码的 Animate 二进制消息")
+                        continue
+                logger.info(f"收到 Animate 消息: {raw}")
                 if self._pending_animate_future and not self._pending_animate_future.done():
                     try:
-                        data = json.loads(msg.data)
+                        data = json.loads(raw)
                         self._pending_animate_future.set_result(data)
                     except json.JSONDecodeError as e:
                         self._pending_animate_future.set_exception(e)
                 else:
-                    logger.warning(f"收到未请求的 Animate 消息: {msg.data}")
-            elif msg.type == aiohttp.WSMsgType.ERROR:
-                logger.error(f"Animate WebSocket 出现错误: {ws.exception()}")
-                if self._pending_animate_future and not self._pending_animate_future.done():
-                    self._pending_animate_future.set_exception(ws.exception() or ConnectionError("Animate WebSocket disconnected"))
-                break
+                    logger.warning(f"收到未请求的 Animate 消息: {raw}")
+        except asyncio.CancelledError:
+            raise
+        except websockets.exceptions.ConnectionClosed as e:
+            if self._pending_animate_future and not self._pending_animate_future.done():
+                self._pending_animate_future.set_exception(e)
+            if not self._is_closing:
+                logger.warning(f"Animate WebSocket 连接已关闭: {e}")
+        except Exception as e:
+            if self._pending_animate_future and not self._pending_animate_future.done():
+                self._pending_animate_future.set_exception(e)
+            logger.error(f"Animate WebSocket 接收循环异常: {e}", exc_info=True)
         logger.info("Animate WebSocket 接收循环结束.")
 
     async def send_animate_command(self, command: Dict[str, Any]) -> Dict[str, Any]:
@@ -163,7 +184,7 @@ class BilibiliWebSocketClient:
 
             try:
                 logger.info(f"发送 Animate 命令: {command}")
-                await self._animate_ws.send_json(command)
+                await self._animate_ws.send(json.dumps(command))
                 return await asyncio.wait_for(self._pending_animate_future, timeout=30.0)
             except asyncio.TimeoutError:
                 raise TimeoutError("Animate command timed out.") from None
@@ -185,10 +206,6 @@ class BilibiliWebSocketClient:
             await self._danmaku_ws.close()
         if self._animate_ws:
             await self._animate_ws.close()
-
-        # Wait for session to close gracefully
-        if self._session:
-            await self._session.close()
 
         if self._main_tasks:
             await asyncio.gather(*self._main_tasks, return_exceptions=True)

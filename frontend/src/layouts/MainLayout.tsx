@@ -368,8 +368,15 @@ export default function MainLayout() {
                         }
                       }}
                       selected={Boolean(
-                        location.pathname === child.path ||
-                          location.pathname.startsWith(child.path + '/')
+                        (location.pathname === child.path ||
+                          location.pathname.startsWith(child.path + '/')) &&
+                          !item.children.some(
+                            sibling =>
+                              sibling.path !== child.path &&
+                              (location.pathname === sibling.path ||
+                                location.pathname.startsWith(sibling.path + '/')) &&
+                              sibling.path.length > child.path.length
+                          )
                       )}
                       sx={{
                         pl: 4,

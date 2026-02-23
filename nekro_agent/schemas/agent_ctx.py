@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from nekro_agent.adapters.interface import BaseAdapter
     from nekro_agent.models.db_chat_channel import DBChatChannel
     from nekro_agent.models.db_user import DBUser
+    from nekro_agent.models.db_workspace import DBWorkspace
 
 
 class WebhookRequest(BaseModel):
@@ -200,6 +201,33 @@ class AgentCtx(BaseModel):
         if self._db_chat_channel is None:
             raise ValueError("未找到关联的数据库聊天频道")
         return await self._db_chat_channel.get_effective_config()
+
+    async def get_bound_workspace(self) -> Optional["DBWorkspace"]:
+        """
+        获取当前频道绑定的 CC Workspace 实例。
+
+        如果 `_db_chat_channel` 未预填充，会自动通过 `chat_key` 从数据库查询。
+        频道未绑定工作区或工作区不存在时返回 `None`。
+
+        Example:
+            >>> workspace = await _ctx.get_bound_workspace()
+            >>> if workspace:
+            ...     logger.info(f"当前频道绑定的工作区: {workspace.name}")
+        """
+        from nekro_agent.models.db_chat_channel import DBChatChannel
+        from nekro_agent.models.db_workspace import DBWorkspace
+
+        db_channel = self._db_chat_channel
+        if db_channel is None:
+            if not self.from_chat_key:
+                return None
+            db_channel = await DBChatChannel.get_or_none(chat_key=self.from_chat_key)
+            if db_channel is None:
+                return None
+        workspace_id = db_channel.workspace_id
+        if not workspace_id:
+            return None
+        return await DBWorkspace.get_or_none(id=workspace_id)
 
     async def get_onebot_v11_bot(self) -> OneBotV11Bot:
         """

@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: '/webui/', // 配置为webui路径，与后端静态文件挂载路径一致
+    base: '/webui', // 配置为webui路径，与后端静态文件挂载路径一致
     optimizeDeps: {
       include: ['@monaco-editor/react'], // 预构建Monaco Editor
     },
@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: backendUrl,
           changeOrigin: true,
+          ws: true,
         },
         // 插件路由代理 - 用于访问插件的 Web 界面和 API
         '/plugins': {
