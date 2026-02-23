@@ -49,7 +49,7 @@ export default function SettingsPage() {
     if (categories.length > 0 && (!activeTab || !categories.includes(activeTab))) {
       setActiveTab(categories[0])
     }
-  }, [categories])
+  }, [categories, activeTab])
 
   // 从URL中获取搜索参数
   useEffect(() => {
