@@ -270,6 +270,8 @@
       "inputPlaceholderWin": "Enter prompt (Enter to send, Shift+Enter for newline)",
       "sendWarning": "This sends directly to the CC sandbox; CC responses will not be processed by the NA Agent",
       "sendTooltip": "Send",
+      "ccRunning": "CC is processing, please wait for the reply before sending…",
+      "ccRunningIndicator": "CC is working",
       "msgTypes": {
         "USER_TO_CC": "User → CC",
         "SYSTEM": "System"

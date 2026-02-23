@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
   Button,
@@ -61,6 +61,18 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
   const [input, setInput] = useState(prefill ?? '')
   const [sending, setSending] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+
+  // CC 工作状态推断：从消息流最后一条消息判断 CC 是否还在处理中
+  // USER_TO_CC / NA_TO_CC / TOOL_CALL / TOOL_RESULT 出现在最后 → CC 还在工作
+  // CC_TO_NA / SYSTEM 出现在最后 → CC 已完成
+  const ccRunning = useMemo(() => {
+    if (messages.length === 0) return false
+    const last = messages[messages.length - 1]
+    if (last.direction === 'CC_TO_NA' || last.direction === 'SYSTEM') return false
+    // 10 分钟内的未完成消息才视为"正在工作"，防止历史异常消息误触
+    const msgTime = new Date(last.create_time).getTime()
+    return Date.now() - msgTime < 10 * 60 * 1000
+  }, [messages])
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef(true)
@@ -432,6 +444,25 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
         <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.68rem', mb: 0.5, display: 'block' }}>
           {t('detail.comm.sendWarning')}
         </Typography>
+        {/* CC 工作状态指示条 */}
+        {ccRunning && (
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.75,
+            mb: 0.5,
+            py: 0.5,
+            px: 1,
+            bgcolor: alpha(theme.palette.info.main, 0.08),
+            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+            borderRadius: 1,
+          }}>
+            <CircularProgress size={11} thickness={5} sx={{ color: 'info.main', flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ color: 'info.main', fontSize: '0.72rem' }}>
+              {t('detail.comm.ccRunning')}
+            </Typography>
+          </Box>
+        )}
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
           <TextField
             value={input}
@@ -447,14 +478,14 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
             maxRows={5}
             fullWidth
             size="small"
-            disabled={sending}
+            disabled={sending || ccRunning}
           />
-          <Tooltip title={t('detail.comm.sendTooltip')}>
+          <Tooltip title={ccRunning ? t('detail.comm.ccRunning') : t('detail.comm.sendTooltip')}>
             <span>
               <IconButton
                 color="primary"
                 onClick={handleSend}
-                disabled={sending || !input.trim()}
+                disabled={sending || ccRunning || !input.trim()}
                 size="medium"
               >
                 {sending ? <CircularProgress size={20} /> : <SendIcon />}

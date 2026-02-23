@@ -40,7 +40,7 @@ import {
   Sync as SyncIcon,
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   workspaceApi,
   skillsLibraryApi,
@@ -65,6 +65,7 @@ export default function ExtensionsTab({
   const theme = useTheme()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const queryClient = useQueryClient()
 
   // ── 已部署技能列表（本地状态）──
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
@@ -130,6 +131,7 @@ export default function ExtensionsTab({
     setSyncing(true)
     try {
       await workspaceApi.updateWorkspaceSkills(workspace.id, selectedSkills)
+      await queryClient.invalidateQueries({ queryKey: ['workspace-skills', workspace.id] })
       notification.success('已同步到沙盒')
     } catch (err) {
       notification.error(`同步失败：${(err as Error).message}`)

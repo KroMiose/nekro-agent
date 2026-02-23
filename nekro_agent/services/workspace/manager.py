@@ -173,9 +173,10 @@ updated: "YYYY-MM-DD"
         """（重新）生成并写入 CLAUDE.md，不触发完整 init_workspace_dir。
         适用于 metadata 变更（env_vars / runtime_policy 等）后的即时刷新。"""
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
-        if not ws_dir.exists():
+        default_dir = ws_dir / "default"
+        if not default_dir.exists():
             return  # 目录尚未初始化，跳过
-        claude_md_path = ws_dir / "CLAUDE.md"
+        claude_md_path = default_dir / "CLAUDE.md"
         claude_md_path.write_text(WorkspaceService._generate_claude_md_content(workspace), encoding="utf-8")
         logger.debug(f"刷新 CLAUDE.md: {claude_md_path}")
 
@@ -435,8 +436,10 @@ updated: "YYYY-MM-DD"
         # 确保容器内的 appuser 有写入权限（bind mount 跨越用户边界时宿主机 owner 可能不匹配）
         claude_home.chmod(0o777)
 
-        # 写入 CLAUDE.md（CC 通过目录遍历自动读取，每次容器创建/重建时刷新）
-        claude_md_path = ws_dir / "CLAUDE.md"
+        # 写入 CLAUDE.md 到 CC 工作目录（/workspace/default/CLAUDE.md）
+        # 注意：不能放在 /workspace/CLAUDE.md，否则当 /workspace/default/ 成为 git 根目录时
+        # Claude Code 会停止向上遍历，导致 CLAUDE.md 被忽略
+        claude_md_path = ws_dir / "default" / "CLAUDE.md"
         claude_md_path.write_text(WorkspaceService._generate_claude_md_content(workspace), encoding="utf-8")
         logger.debug(f"写入 CLAUDE.md: {claude_md_path}")
 

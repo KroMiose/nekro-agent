@@ -19,17 +19,16 @@
 """
 
 import json
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 from nonebot.adapters.minecraft import Bot, Message, MessageSegment
-from nonebot.adapters.minecraft.model import (
-    BaseComponent,
+from nonebot.adapters.minecraft.models import (
     ClickAction,
     ClickEvent,
+    Color,
+    Component,
     HoverAction,
     HoverEvent,
-    TextColor,
-    TextComponent,
 )
 
 from nekro_agent.adapters.minecraft.core.bot import get_bot
@@ -80,136 +79,25 @@ plugin = NekroPlugin(
 )
 
 
-def _llm_segment_dict_to_text_component(segment_dict: Dict[str, Any]) -> TextComponent:
-    """
-    将 LLM 输出的单个富文本段字典转换为 Minecraft TextComponent。
-    主要用于构建 HoverEvent.text 中的组件。
+def _llm_segment_dict_to_component(segment_dict: Dict[str, Any]) -> Component:
+    """将 LLM 输出的单个富文本段字典转换为 Minecraft Component。
+
+    仅支持颜色和字形样式（粗体、斜体、下划线、删除线、混淆）。
     """
     text = segment_dict.get("text", "")
     component_data: Dict[str, Any] = {"text": text}
 
     if "color" in segment_dict:
         try:
-            component_data["color"] = TextColor(str(segment_dict["color"]).lower())
+            component_data["color"] = Color(str(segment_dict["color"]).lower())
         except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的悬停文本颜色: {segment_dict['color']}",
-            )
+            logger.warning(f"[MinecraftUtils] 无效的文本颜色: {segment_dict['color']}")
 
     for style_attr in ["bold", "italic", "underlined", "strikethrough", "obfuscated"]:
         if style_attr in segment_dict:
             component_data[style_attr] = segment_dict[style_attr]
 
-    if "insertion" in segment_dict:
-        component_data["insertion"] = segment_dict["insertion"]
-
-    click_action_str = segment_dict.get("click_event_action")
-    click_value = segment_dict.get("click_event_value")
-    if click_action_str and click_value:
-        try:
-            action = ClickAction(str(click_action_str).lower())
-            component_data["click_event"] = ClickEvent(
-                action=action,
-                value=str(click_value),
-            )
-        except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的悬停点击事件动作: {click_action_str}",
-            )
-
-    hover_action_str = segment_dict.get("hover_event_action")
-    if hover_action_str:
-        try:
-            hover_action = HoverAction(str(hover_action_str).lower())
-            if hover_action == HoverAction.SHOW_TEXT:
-                hover_text_segments_data = segment_dict.get("hover_event_text_segments")
-                if isinstance(hover_text_segments_data, list):
-                    nested_hover_components: List[BaseComponent] = [
-                        _llm_segment_dict_to_text_component(s) for s in hover_text_segments_data
-                    ]
-                    component_data["hover_event"] = HoverEvent(
-                        action=hover_action,
-                        text=nested_hover_components,
-                    )
-                else:
-                    logger.warning(
-                        "[MinecraftUtils] hover_event_text_segments 在悬停事件中缺失或非列表",
-                    )
-            # TODO: 支持其他 HoverAction (show_item, show_entity) 如果需要
-        except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的悬停事件动作: {hover_action_str}",
-            )
-    return TextComponent(**{k: v for k, v in component_data.items() if v is not None})
-
-
-def _llm_segment_to_mc_message_segment(
-    segment_dict: Dict[str, Any],
-) -> Optional[MessageSegment]:
-    """
-    将 LLM 输出的单个富文本段字典转换为 Minecraft MessageSegment。
-    """
-    text = segment_dict.get("text")
-    if text is None:  # 每个段必须有文本
-        logger.warning("[MinecraftUtils] 富文本段缺少 'text' 键。")
-        return None
-
-    segment_args: Dict[str, Any] = {}
-
-    if "color" in segment_dict:
-        try:
-            segment_args["color"] = TextColor(str(segment_dict["color"]).lower())
-        except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的文本颜色: {segment_dict['color']}",
-            )
-
-    for style_attr in ["bold", "italic", "underlined", "strikethrough", "obfuscated"]:
-        if style_attr in segment_dict:
-            segment_args[style_attr] = segment_dict[style_attr]
-
-    if "insertion" in segment_dict:
-        segment_args["insertion"] = segment_dict["insertion"]
-
-    click_action_str = segment_dict.get("click_event_action")
-    click_value = segment_dict.get("click_event_value")
-    if click_action_str and click_value:
-        try:
-            action = ClickAction(str(click_action_str).lower())
-            segment_args["click_event"] = ClickEvent(
-                action=action,
-                value=str(click_value),
-            )
-        except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的点击事件动作: {click_action_str}",
-            )
-
-    hover_action_str = segment_dict.get("hover_event_action")
-    if hover_action_str:
-        try:
-            hover_action = HoverAction(str(hover_action_str).lower())
-            if hover_action == HoverAction.SHOW_TEXT:
-                hover_text_segments_data = segment_dict.get("hover_event_text_segments")
-                if isinstance(hover_text_segments_data, list):
-                    hover_components: List[BaseComponent] = [
-                        _llm_segment_dict_to_text_component(s_dict) for s_dict in hover_text_segments_data
-                    ]
-                    segment_args["hover_event"] = HoverEvent(
-                        action=hover_action,
-                        text=hover_components,
-                    )
-                else:
-                    logger.warning(
-                        "[MinecraftUtils] hover_event_text_segments 缺失或非列表",
-                    )
-            # TODO: 支持其他 HoverAction (show_item, show_entity) 如果需要
-        except ValueError:
-            logger.warning(
-                f"[MinecraftUtils] 无效的悬停事件动作: {hover_action_str}",
-            )
-
-    return MessageSegment.text(str(text), **segment_args)
+    return Component(**{k: v for k, v in component_data.items() if v is not None})
 
 
 @plugin.mount_sandbox_method(
@@ -223,79 +111,34 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
     Args:
         chat_key (str): Minecraft 服务器的频道标识 (例如 'minecraft-servername')。
         rich_text_json (str): 一个 JSON 字符串，表示一个消息段(segment)的列表。
-            每个 segment 都是一个 JSON 对象，用于描述一段具有特定样式的文本及其交互行为。
+            每个 segment 都是一个 JSON 对象，用于描述一段具有特定样式的文本。
 
     富文本 Segment JSON 对象支持的键:
         - `text` (str, 必选): 该段的文本内容。
-        - `color` (str, 可选): 文本颜色。有效值是 TextColor 枚举的小写形式，例如:
+        - `color` (str, 可选): 文本颜色。有效值:
           `"black"`, `"dark_blue"`, `"dark_green"`, `"dark_aqua"`, `"dark_red"`,
           `"dark_purple"`, `"gold"`, `"gray"`, `"dark_gray"`, `"blue"`, `"green"`,
           `"aqua"`, `"red"`, `"light_purple"`, `"yellow"`, `"white"`.
-          默认为服务器的默认文本颜色。
-        - `bold` (bool, 可选): 文本是否加粗。默认为 `false`。
-        - `italic` (bool, 可选): 文本是否斜体。默认为 `false`。
-        - `underlined` (bool, 可选): 文本是否有下划线。默认为 `false`。
-        - `strikethrough` (bool, 可选): 文本是否有删除线。默认为 `false`。
-        - `obfuscated` (bool, 可选): 文本是否混淆显示 (随机字符)。默认为 `false`。
-        - `insertion` (str, 可选): 当玩家在聊天中点击这段文本时，插入到玩家聊天输入框的文本。
-        - `click_event_action` (str, 可选): 点击事件的动作。必须与 `click_event_value` 一起使用。
-          有效值 (ClickAction 枚举的小写形式):
-            - `"open_url"`: 打开一个 URL。
-            - `"open_file"`: 打开一个文件 (通常在客户端上，不推荐用于服务器消息)。
-            - `"run_command"`: 以玩家身份执行一条命令。
-            - `"suggest_command"`: 在玩家聊天输入框中建议一条命令 (玩家需手动发送)。
-            - `"change_page"`: (仅用于书本中) 改变书本的页面。
-            - `"copy_to_clipboard"`: 将指定文本复制到玩家的剪贴板。
-        - `click_event_value` (str, 可选): 点击事件的值。根据 `click_event_action` 的不同而不同:
-            - 对于 `"open_url"`, `"suggest_command"`, `"copy_to_clipboard"`: 对应的 URL、命令字符串或要复制的文本。
-            - 对于 `"run_command"`: 要执行的命令 (通常需要以 `/` 开头)。
-            - 对于 `"change_page"`: 页码。
-        - `hover_event_action` (str, 可选): 鼠标悬停事件的动作。目前主要支持 `"show_text"`。
-          必须与 `hover_event_text_segments` 一起使用。
-          有效值 (HoverAction 枚举的小写形式):
-            - `"show_text"`: 悬停时显示一段富文本。
-            - `"show_item"`: (暂未完全支持通过此JSON格式配置) 悬停时显示物品信息。
-            - `"show_entity"`: (暂未完全支持通过此JSON格式配置) 悬停时显示实体信息。
-        - `hover_event_text_segments` (List[Dict], 可选): 当 `hover_event_action` 为 `"show_text"` 时使用。
-          它本身是一个消息段 (segment) 对象的列表 (与顶层结构相同，但不建议嵌套过深的悬停事件)，
-          用于定义鼠标悬停时显示的富文本内容。
+        - `bold` (bool, 可选): 文本是否加粗。
+        - `italic` (bool, 可选): 文本是否斜体。
+        - `underlined` (bool, 可选): 文本是否有下划线。
+        - `strikethrough` (bool, 可选): 文本是否有删除线。
+        - `obfuscated` (bool, 可选): 文本是否混淆显示 (随机字符)。
 
     示例 JSON 字符串:
     ```json
     [
         {"text": "欢迎来到 "},
         {"text": "我的世界!", "color": "gold", "bold": true},
-        {
-            "text": " 点击这里访问官网",
-            "color": "aqua",
-            "underlined": true,
-            "click_event_action": "open_url",
-            "click_event_value": "https://www.minecraft.net"
-        },
-        {
-            "text": " 或 ",
-            "color": "gray"
-        },
-        {
-            "text": "执行命令",
-            "color": "light_purple",
-            "italic": true,
-            "click_event_action": "suggest_command",
-            "click_event_value": "/help",
-            "hover_event_action": "show_text",
-            "hover_event_text_segments": [
-                {"text": "点击后会在你的聊天框输入 ", "color": "yellow"},
-                {"text": "/help", "color": "red", "bold": true}
-            ]
-        }
+        {"text": " 这是绿色斜体", "color": "green", "italic": true},
+        {"text": " 这是红色下划线", "color": "red", "underlined": true}
     ]
     ```
-    注意: JSON 字符串在作为参数传递时，内部的双引号需要被正确转义，例如在Python字符串中表示为 `\"`。
     示例参数: `rich_text_json='[{"text": "你好", "color": "red"}, {"text": " 世界!", "bold": true}]'`
     """
 
-    def _parse_and_validate_segments(json_str: str) -> List[MessageSegment]:
-        """解析并验证富文本JSON字符串，返回MessageSegment列表。"""
+    def _parse_and_validate_components(json_str: str) -> List[Component]:
+        """解析并验证富文本JSON字符串，返回Component列表。"""
         try:
             segments_data = json.loads(json_str)
         except json.JSONDecodeError as e:
@@ -305,20 +148,19 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
         if not isinstance(segments_data, list):
             raise ValueError("富文本 JSON 解析后必须是一个列表。")  # noqa: TRY004
 
-        parsed_message_segments: List[MessageSegment] = []
+        parsed_components: List[Component] = []
         for seg_dict in segments_data:
             if isinstance(seg_dict, dict):
-                mc_segment = _llm_segment_to_mc_message_segment(seg_dict)
-                if mc_segment:
-                    parsed_message_segments.append(mc_segment)
+                component = _llm_segment_dict_to_component(seg_dict)
+                parsed_components.append(component)
             else:
                 logger.warning(
                     f"[MinecraftUtils] 富文本列表中的元素不是字典: {seg_dict}",
                 )
 
-        if not parsed_message_segments:
+        if not parsed_components:
             raise ValueError("没有可发送的有效富文本段。")
-        return parsed_message_segments
+        return parsed_components
 
     if not isinstance(chat_key, str) or not chat_key.startswith("minecraft-"):
         raise ValueError("chat_key 无效，必须是 'minecraft-servername' 格式。")
@@ -330,25 +172,23 @@ async def send_rich_text(_ctx: AgentCtx, chat_key: str, rich_text_json: str):
         raise ConnectionError(f"未能找到或连接到 Minecraft 服务器: {chat_key}")
 
     try:
-        message_segments = _parse_and_validate_segments(rich_text_json)
+        components = _parse_and_validate_components(rich_text_json)
 
         channel = await DBChatChannel.get_channel(chat_key)
         preset = await channel.get_preset()
 
-        plain_text_parts = []
-        for seg in message_segments:  # message_segments 是 _parse_and_validate_segments 的结果
-            if hasattr(seg, "data") and isinstance(seg.data, dict) and "text" in seg.data:
-                plain_text_parts.append(str(seg.data["text"]))
+        plain_text_parts = [c.text for c in components if c.text]
         plain_text_content = "".join(plain_text_parts)
 
         await message_service.push_bot_message(
             chat_key=chat_key,
-            agent_messages=plain_text_content,  # 使用提取的纯文本
+            agent_messages=plain_text_content,
             db_chat_channel=channel,
         )
-        message_segments.insert(0, MessageSegment.text(f"<{preset.name}>", color=TextColor.GREEN))
-        message_to_send = Message(message_segments)
-        await bot.send_msg(message=message_to_send)
+        prefix_component = Component(text=f"<{preset.name}>", color=Color.green)
+        # 以单根组件 + extra 数组格式发送（标准 tellraw 格式）
+        root_segment = MessageSegment.text(text="", extra=[prefix_component] + components)
+        await bot.send_msg(message=root_segment)
         logger.info(f"Minecraft 富文本消息已发送到 {chat_key}")
     except ValueError as e:
         logger.error(f"处理富文本消息失败: {e}", exc_info=True)
@@ -411,19 +251,14 @@ async def execute_rcon_commands(
         # 以字符串形式返回错误，因为这是 Agent 类型方法
         return f"错误：未能找到或连接到 Minecraft 服务器: {chat_key}"
 
-    if not bot.rcon:
-        return f"错误：Minecraft 服务器 {chat_key} 未配置或未连接 RCON。"
-
     results_log: List[str] = []  # 用于记录每个命令的文本结果或错误
 
     for command in commands:
         try:
-            response = await bot.call_api("send_rcon_cmd", command=command)
+            response = await bot.send_rcon_command(command=command)
 
             response_msg = ""
-            if isinstance(response, tuple) and len(response) > 0 and isinstance(response[0], str):
-                response_msg = response[0].strip()
-            elif isinstance(response, str):
+            if isinstance(response, str):
                 response_msg = response.strip()
 
             is_error = response_msg and any(response_msg.startswith(prefix) for prefix in RCON_ERROR_PREFIXES)

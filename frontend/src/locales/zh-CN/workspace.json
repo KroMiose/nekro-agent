@@ -270,6 +270,8 @@
       "inputPlaceholderWin": "输入提示词（Enter 发送，Shift+Enter 换行）",
       "sendWarning": "此操作直接发送给 CC 沙盒，CC 的响应不会经过 NA Agent 处理",
       "sendTooltip": "发送",
+      "ccRunning": "CC 正在处理中，请等待回复完成后再发送…",
+      "ccRunningIndicator": "CC 正在工作",
       "msgTypes": {
         "USER_TO_CC": "用户 → CC",
         "SYSTEM": "系统"
