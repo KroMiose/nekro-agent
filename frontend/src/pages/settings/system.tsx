@@ -89,7 +89,7 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, flexShrink: 0 }}>
         <Tabs
           value={activeTab}
           onChange={(_, newValue) => setActiveTab(newValue)}
@@ -110,18 +110,20 @@ export default function SettingsPage() {
         </Tabs>
       </Box>
 
-      <ConfigTable
-        configKey="system"
-        configService={configService}
-        configs={displayConfigs}
-        loading={isLoading}
-        searchText={searchText}
-        onSearchChange={handleSearchChange}
-        onRefresh={handleRefresh}
-        showSearchBar={true}
-        showToolbar={true}
-        emptyMessage={t('system.emptyMessage')}
-      />
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+        <ConfigTable
+          configKey="system"
+          configService={configService}
+          configs={displayConfigs}
+          loading={isLoading}
+          searchText={searchText}
+          onSearchChange={handleSearchChange}
+          onRefresh={handleRefresh}
+          showSearchBar={true}
+          showToolbar={true}
+          emptyMessage={t('system.emptyMessage')}
+        />
+      </Box>
     </Box>
   )
 }
