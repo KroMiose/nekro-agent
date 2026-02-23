@@ -47,10 +47,9 @@ def _extract_extra_fields(field_json_schema_extra: dict) -> dict:
     extra_field_names.append("enable_toggle")
 
     for extra_field in extra_field_names:
-        value = field_json_schema_extra.get(extra_field)
-        # category 字段即使为空也应该被包含
-        if extra_field == "category" or value:
-            extra_data[extra_field] = value
+        # 仅当字段实际存在于 json_schema_extra 中时才提取
+        if extra_field in field_json_schema_extra:
+            extra_data[extra_field] = field_json_schema_extra[extra_field]
     return extra_data
 
 

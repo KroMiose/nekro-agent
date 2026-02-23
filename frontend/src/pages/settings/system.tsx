@@ -25,18 +25,27 @@ export default function SettingsPage() {
     queryFn: () => configService.getConfigList('system'),
   })
 
-  // 获取所有分类，按出现顺序保留（过滤空分类）
-  const categories = useMemo(() => {
+  // 按分类组织配置，同时提取分类列表
+  const { categories, configsByCategory } = useMemo(() => {
     const seen = new Set<string>()
-    const result: string[] = []
+    const cats: string[] = []
+    const grouped: Record<string, ConfigItem[]> = {}
+
     configs.forEach((config: ConfigItem) => {
       const category = config.category
-      if (category && !seen.has(category)) {
-        seen.add(category)
-        result.push(category)
+      if (category) {
+        if (!seen.has(category)) {
+          seen.add(category)
+          cats.push(category)
+        }
+        if (!grouped[category]) {
+          grouped[category] = []
+        }
+        grouped[category].push(config)
       }
     })
-    return result
+
+    return { categories: cats, configsByCategory: grouped }
   }, [configs])
 
   // 初始化 activeTab，默认为第一个分类
@@ -59,21 +68,6 @@ export default function SettingsPage() {
       setSearchText(searchParamValue)
     }
   }, [location.search])
-
-  // 按分类过滤配置
-  const configsByCategory = useMemo(() => {
-    const grouped: Record<string, ConfigItem[]> = {}
-    configs.forEach((config: ConfigItem) => {
-      const category = config.category
-      if (category) {
-        if (!grouped[category]) {
-          grouped[category] = []
-        }
-        grouped[category].push(config)
-      }
-    })
-    return grouped
-  }, [configs])
 
   // 根据当前选中的分类过滤配置
   const displayConfigs = useMemo(() => {
@@ -101,7 +95,7 @@ export default function SettingsPage() {
       {/* 分类选项卡 */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, flexShrink: 0 }}>
         <Tabs
-          value={activeTab}
+          value={categories.length > 0 ? activeTab : false}
           onChange={(_, newValue) => setActiveTab(newValue)}
           variant="scrollable"
           scrollButtons="auto"
