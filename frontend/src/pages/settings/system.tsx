@@ -10,17 +10,7 @@ import type { ConfigItem } from '../../components/common/ConfigTable'
 export default function SettingsPage() {
   const location = useLocation()
   const [searchText, setSearchText] = useState<string>('')
-  const [activeTab, setActiveTab] = useState<string>('all')
   const { t } = useTranslation('settings')
-
-  // 从URL中获取搜索参数
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search)
-    const searchParamValue = searchParams.get('search')
-    if (searchParamValue) {
-      setSearchText(searchParamValue)
-    }
-  }, [location.search])
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -49,6 +39,27 @@ export default function SettingsPage() {
     return result
   }, [configs])
 
+  // 初始化 activeTab，默认为第一个分类
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    return categories[0] || ''
+  })
+
+  // 当分类列表更新时，确保 activeTab 有效
+  useEffect(() => {
+    if (categories.length > 0 && (!activeTab || !categories.includes(activeTab))) {
+      setActiveTab(categories[0])
+    }
+  }, [categories])
+
+  // 从URL中获取搜索参数
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search)
+    const searchParamValue = searchParams.get('search')
+    if (searchParamValue) {
+      setSearchText(searchParamValue)
+    }
+  }, [location.search])
+
   // 按分类过滤配置
   const configsByCategory = useMemo(() => {
     const grouped: Record<string, ConfigItem[]> = {}
@@ -64,11 +75,8 @@ export default function SettingsPage() {
 
   // 根据当前选中的分类过滤配置
   const displayConfigs = useMemo(() => {
-    if (activeTab === 'all') {
-      return configs
-    }
     return configsByCategory[activeTab] || []
-  }, [activeTab, configs, configsByCategory])
+  }, [activeTab, configsByCategory])
 
   const handleSearchChange = (text: string) => {
     setSearchText(text)
@@ -103,7 +111,6 @@ export default function SettingsPage() {
             },
           }}
         >
-          <Tab label="全部" value="all" />
           {categories.map((category) => (
             <Tab key={category} label={category} value={category} />
           ))}
