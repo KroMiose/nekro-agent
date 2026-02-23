@@ -92,6 +92,16 @@
   "messageHistory": {
     "noMessages": "暂无消息记录",
     "noContent": "[无文本内容]",
-    "scrollToBottom": "回到底部"
+    "scrollToBottom": "回到底部",
+    "inputPlaceholder": "输入消息...",
+    "send": "发送",
+    "sendSuccess": "消息已发送",
+    "sendFailed": "发送失败",
+    "quotedMessage": "引用消息",
+    "senderType": "发送身份",
+    "senderBot": "机器人",
+    "senderSystem": "SYSTEM",
+    "senderNone": "静默",
+    "senderNoneHint": "以机器人身份发送，自动添加命令输出前缀，不会进入上下文也不会在聊天中显示"
   }
 }

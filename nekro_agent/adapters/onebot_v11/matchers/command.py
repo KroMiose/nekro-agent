@@ -15,7 +15,6 @@ from nonebot.matcher import Matcher
 from nonebot.params import CommandArg
 
 from nekro_agent.core.config import ModelConfigGroup, config, reload_config, save_config
-from nekro_agent.core.database import reset_db
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import (
 
@@ -1087,34 +1086,3 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     outputs = os.popen(cmd_content).read()
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
 
-
-DB_RESET_LATEST_TRIGGER_TIME: float = 0
-
-
-@on_command("nekro_db_reset", aliases={"nekro-db-reset"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    global DB_RESET_LATEST_TRIGGER_TIME
-
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher, require_advanced_command=True)
-    args = cmd_content.split(" ")
-
-    if time.time() - DB_RESET_LATEST_TRIGGER_TIME > 60:
-        DB_RESET_LATEST_TRIGGER_TIME = time.time()
-        await finish_with(
-            matcher,
-            message="正在准备执行数据库重置操作！确认继续重置请在 1 分钟内再次使用本命令并使用 `-y` 参数确认",
-        )
-        return
-
-    if "-y" in args:
-        args.remove("-y")
-        if len(args) > 1:
-            await finish_with(matcher, message="参数不合法")
-        if len(args) == 1:
-            await reset_db(args[0])
-            await finish_with(matcher, message=f"数据表 `{args[0]}` 重置完成")
-        else:
-            await reset_db()
-            await finish_with(matcher, message="数据库重置完成")
-    else:
-        await finish_with(matcher, message="请使用 `-y` 参数确认重置数据库")

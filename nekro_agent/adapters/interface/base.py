@@ -169,6 +169,11 @@ class BaseAdapter(ABC, Generic[TConfig]):
         """获取频道信息"""
         raise NotImplementedError
 
+    @property
+    def supports_webui_send(self) -> bool:
+        """是否支持从 WebUI 发送消息（默认不支持，适配器可按需覆盖）"""
+        return False
+
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:  # noqa: ARG002
         """设置消息反应（可选实现）
 

@@ -255,31 +255,86 @@ class MessageService:
                 # 使用magic库检测文件MIME类型
                 file_path = Path(msg.content)
                 if file_path.exists():
-                    mime_type = magic.from_buffer(file_path.read_bytes(), mime=True)
-                    if mime_type.startswith("image/"):
-                        # 复制文件到uploads目录
-                        local_path, file_name = await copy_to_upload_dir(
-                            str(file_path),
-                            file_name=file_path.name,
-                            from_chat_key=chat_key,
-                        )
+                    mime_type = magic.from_file(str(file_path), mime=True)
+                    # 复制文件到uploads目录
+                    local_path, file_name = await copy_to_upload_dir(
+                        str(file_path),
+                        file_name=file_path.name,
+                        from_chat_key=chat_key,
+                    )
 
+                    if mime_type.startswith("image/"):
                         content_data.append(
                             {
                                 "type": "image",
                                 "text": "",
                                 "file_name": file_name,
-                                "local_path": local_path,  # 使用复制后的路径
+                                "local_path": local_path,
+                                "remote_url": "",
+                            },
+                        )
+                    else:
+                        content_data.append(
+                            {
+                                "type": "file",
+                                "text": f"[File: {file_name}]",
+                                "file_name": file_name,
+                                "local_path": local_path,
                                 "remote_url": "",
                             },
                         )
             elif msg.type == AgentMessageSegmentType.TEXT:
-                content_data.append(
-                    {
-                        "type": "text",
-                        "text": msg.content,
-                    },
-                )
+                # 处理 AI 生成的 @提及 [@id:qq_id@]
+                text = msg.content
+                ai_marker_pattern = r'\[@id:(\d+)@\]'
+                matches = list(re.finditer(ai_marker_pattern, text))
+
+                if matches:
+                    # 有 AI 标记，需要解析并替换
+                    last_end = 0
+                    for match in matches:
+                        # 添加标记前的文本
+                        if match.start() > last_end:
+                            text_before = text[last_end:match.start()]
+                            if text_before.strip():
+                                content_data.append({
+                                    "type": "text",
+                                    "text": text_before,
+                                })
+
+                        # 从用户管理里查询昵称
+                        qq_id = match.group(1)
+                        user = await DBUser.get_by_union_id(
+                            adapter_key=db_chat_channel.adapter_key,
+                            platform_userid=qq_id,
+                        )
+
+                        nickname = user.username if user else f"User_{qq_id}"
+                        content_data.append({
+                            "type": "at",
+                            "text": f"@{nickname}",
+                            "target_platform_userid": qq_id,
+                            "target_nickname": nickname,
+                        })
+
+                        last_end = match.end()
+
+                    # 添加最后的文本
+                    if last_end < len(text):
+                        text_after = text[last_end:]
+                        if text_after.strip():
+                            content_data.append({
+                                "type": "text",
+                                "text": text_after,
+                            })
+                else:
+                    # 没有 AI 标记，直接添加
+                    content_data.append(
+                        {
+                            "type": "text",
+                            "text": text,
+                        },
+                    )
 
         adapter = adapter_utils.get_adapter(db_chat_channel.adapter_key)
         await DBChatMessage.create(

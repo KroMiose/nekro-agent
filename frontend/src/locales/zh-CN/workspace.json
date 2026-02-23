@@ -1,0 +1,349 @@
+{
+  "status": {
+    "active": "运行中",
+    "stopped": "已停止",
+    "failed": "错误",
+    "deleting": "删除中"
+  },
+  "policy": {
+    "agent": "Agent",
+    "relaxed": "宽松",
+    "strict": "严格"
+  },
+  "statusChip": {
+    "active": "Claude Code 沙盒"
+  },
+  "list": {
+    "sectionTitle": "CC 工作区",
+    "total": "共 {{count}} 个",
+    "createBtn": "创建工作区",
+    "loadError": "加载工作区列表失败：{{message}}",
+    "statCards": {
+      "total": "全部工作区",
+      "active": "运行中",
+      "stopped": "已停止",
+      "failed": "异常"
+    },
+    "empty": {
+      "title": "暂无工作区",
+      "hint": "点击「创建工作区」开始使用"
+    }
+  },
+  "card": {
+    "noDescription": "暂无描述",
+    "defaultImage": "默认镜像",
+    "image": "镜像",
+    "container": "容器",
+    "createdAt": "创建",
+    "enter": "进入",
+    "delete": "删除"
+  },
+  "createDialog": {
+    "title": "创建工作区",
+    "nameLabel": "工作区名称",
+    "descLabel": "描述",
+    "policyLabel": "运行策略",
+    "policyAgent": "Agent（代理模式）",
+    "policyRelaxed": "Relaxed（宽松模式）",
+    "policyStrict": "Strict（严格模式）",
+    "randomNameTooltip": "随机生成名称",
+    "cancel": "取消",
+    "create": "创建",
+    "nameRequired": "工作区名称不能为空",
+    "createSuccess": "工作区 \"{{name}}\" 创建成功",
+    "createFailed": "创建失败：{{message}}"
+  },
+  "deleteDialog": {
+    "title": "确认删除",
+    "content": "确定要删除工作区 {{name}} 吗？此操作不可撤销。",
+    "cancel": "取消",
+    "delete": "删除",
+    "deleteSuccess": "工作区已删除",
+    "deleteFailed": "删除失败：{{message}}"
+  },
+  "detail": {
+    "header": {
+      "backTooltip": "返回列表",
+      "ccWorking": "CC 执行中",
+      "viewSandboxTooltip": "查看沙盒容器"
+    },
+    "tabs": {
+      "overview": "概览",
+      "sandbox": "沙盒容器",
+      "comm": "沙盒通讯",
+      "memory": "记忆库",
+      "extensions": "扩展能力",
+      "config": "配置"
+    },
+    "overview": {
+      "noDescription": "暂无描述",
+      "statCards": {
+        "channels": "绑定频道",
+        "skills": "已启用技能",
+        "mcp": "MCP 服务",
+        "comm": "通讯记录"
+      },
+      "suffixes": {
+        "count": "个",
+        "messages": "条"
+      },
+      "sections": {
+        "basicInfo": "工作区基本信息",
+        "sandboxStatus": "沙盒运行状态"
+      },
+      "manage": "管理",
+      "infoRows": {
+        "id": "ID",
+        "policy": "运行策略",
+        "image": "沙盒镜像",
+        "createdAt": "创建时间",
+        "updatedAt": "更新时间",
+        "containerName": "容器名称",
+        "hostPort": "主机端口",
+        "sessionId": "Session ID",
+        "modelGroup": "模型组",
+        "lastHeartbeat": "最近心跳"
+      },
+      "defaultImage": "默认镜像",
+      "notConfigured": "未配置",
+      "loading": "加载中…",
+      "defaultTag": "(默认)",
+      "tooltips": {
+        "switchConfig": "在配置页切换",
+        "managePresets": "管理模型预设"
+      },
+      "channels": {
+        "title": "绑定频道",
+        "searchPlaceholder": "搜索并选择频道",
+        "noOptions": "暂无频道",
+        "bound": "已绑定",
+        "bind": "绑定",
+        "noChannels": "暂无绑定频道。选择并绑定频道后，该工作区将为这些会话提供 CC 沙盒能力。",
+        "channelHint": "绑定频道后，该工作区将为这些会话提供 CC 沙盒能力",
+        "disabled": "已禁用",
+        "unbindTooltip": "解绑",
+        "bindSuccess": "频道已绑定",
+        "bindFailed": "绑定失败：{{message}}",
+        "unbindSuccess": "频道已解绑",
+        "unbindFailed": "解绑失败：{{message}}"
+      }
+    },
+    "sandbox": {
+      "title": "沙盒容器",
+      "transitioning": "操作中，请稍候...",
+      "buttons": {
+        "start": "启动",
+        "starting": "启动中",
+        "stop": "停止",
+        "stopping": "停止中",
+        "restart": "重启",
+        "restarting": "重启中",
+        "rebuild": "重建",
+        "resetSession": "重置会话"
+      },
+      "statusRows": {
+        "containerName": "容器名称",
+        "hostPort": "主机端口",
+        "sessionId": "Session ID"
+      },
+      "logError": "沙盒错误：",
+      "notifications": {
+        "startSuccess": "沙盒已启动",
+        "startFailed": "启动失败：{{message}}",
+        "stopSuccess": "沙盒已停止",
+        "stopFailed": "停止失败：{{message}}",
+        "restartSuccess": "沙盒已重启",
+        "restartFailed": "重启失败：{{message}}",
+        "rebuildSuccess": "容器重建中...",
+        "rebuildFailed": "重建失败：{{message}}",
+        "resetSessionSuccess": "会话已重置",
+        "resetSessionFailed": "重置失败：{{message}}"
+      },
+      "rebuildDialog": {
+        "title": "确认重建容器",
+        "content": "重建会销毁当前容器并重新创建，已有运行状态将丢失。确定继续？",
+        "cancel": "取消",
+        "rebuild": "重建"
+      },
+      "logs": {
+        "title": "容器日志",
+        "clearTooltip": "清空",
+        "waiting": "等待日志输出...",
+        "disconnected": "[日志流连接中断]",
+        "lines": "{{count}} 行"
+      },
+      "terminal": {
+        "title": "沙盒终端",
+        "connected": "已连接",
+        "connecting": "连接中...",
+        "disconnected": "未连接",
+        "notRunning": "沙盒未运行",
+        "connect": "连接",
+        "reconnect": "重连",
+        "startFirst": "请先启动沙盒以使用终端",
+        "wsConnected": "已连接",
+        "wsDisconnected": "[连接已断开]",
+        "wsError": "[连接错误]"
+      }
+    },
+    "memory": {
+      "treeTitle": "记忆文件",
+      "contentTitle": "编辑记忆文件",
+      "toggleTitleTooltip_title": "切换为标题显示",
+      "toggleFileTooltip_filename": "切换为文件名显示",
+      "refreshTooltip": "刷新",
+      "newFileTooltip": "新建记忆文件",
+      "emptyHint": "暂无记忆文件",
+      "editorHint": "选择左侧文件进行编辑，或点击「+」新建记忆文件",
+      "metadata": {
+        "title": "标题",
+        "shared": "共享给 NA",
+        "yes": "是",
+        "no": "否",
+        "category": "分类",
+        "tags": "标签",
+        "tags": "标签",
+        "sharedToNA": "已共享给 NA"
+      },
+      "charCount": "{{count}}/600 字",
+      "buttons": {
+        "save": "保存",
+        "delete": "删除",
+        "cancel": "取消",
+        "resetMemory": "重置记忆库",
+        "confirmClear": "确认清空",
+        "create": "创建"
+      },
+      "notifications": {
+        "saveSuccess": "记忆文件已保存",
+        "saveFailed": "保存失败",
+        "deleteSuccess": "记忆文件已删除",
+        "deleteFailed": "删除失败",
+        "resetSuccess": "记忆库已清空",
+        "resetFailed": "重置失败",
+        "createSuccess": "记忆文件已创建",
+        "createFailed": "创建失败"
+      },
+      "newFileDialog": {
+        "title": "新建记忆文件",
+        "categoryLabel": "分类",
+        "fileNameLabel": "文件名（不含 .md）",
+        "fileNamePlaceholder": "例如：python-style",
+        "willCreate": "将创建：{{path}}",
+        "cancel": "取消",
+        "create": "创建"
+      },
+      "deleteDialog": {
+        "title": "确认删除",
+        "content": "确定要删除记忆文件 {{path}} 吗？此操作不可撤销。",
+        "cancel": "取消",
+        "delete": "删除"
+      },
+      "resetDialog": {
+        "title": "⚠ 重置记忆库",
+        "warning": "此操作将永久删除该工作区的所有记忆文件，且无法恢复！",
+        "content": "清空记忆库后，CC 沙盒将失去所有学习到的用户偏好、任务记录和知识积累。该工作区将从零开始重建记忆。",
+        "hint": "建议在以下情况使用：工作区行为异常、需要彻底重置 CC 沙盒人格。",
+        "cancel": "取消",
+        "confirm": "确认清空"
+      }
+    },
+    "extensions": {
+      "skillsTitle": "Skills（{{total}} 个可用，{{enabled}} 个已启用）",
+      "skillsEmpty": "Skills 库为空，请先在「Skills」管理页上传 Skill 文件。",
+      "skillsSave": "保存",
+      "skillsSaveSuccess": "Skills 已保存",
+      "skillsSaveFailed": "保存失败：{{message}}",
+      "readmeNoContent": "暂无 README",
+      "mcpTitle": "MCP 配置",
+      "mcpSave": "保存",
+      "mcpSaveSuccess": "MCP 配置已保存",
+      "mcpSaveFailed": "保存失败：{{message}}",
+      "mcpJsonError": "JSON 格式错误",
+      "mcpJsonErrorFix": "请先修复 JSON 格式错误"
+    },
+    "comm": {
+      "loadMoreHint": "向上滚动加载更多",
+      "noRecords": "暂无通讯记录",
+      "noRecordsHint": "NA 向 CC 发送任务时，记录将实时出现在此处",
+      "inputPlaceholderMac": "输入提示词（↩ 发送，⇧↩ 换行）",
+      "inputPlaceholderWin": "输入提示词（Enter 发送，Shift+Enter 换行）",
+      "sendWarning": "此操作直接发送给 CC 沙盒，CC 的响应不会经过 NA Agent 处理",
+      "sendTooltip": "发送",
+      "msgTypes": {
+        "USER_TO_CC": "用户 → CC",
+        "SYSTEM": "系统"
+      },
+      "expandArgs": "查看完整参数",
+      "collapseArgs": "收起参数",
+      "execFailed": "执行失败",
+      "execDone": "执行完成",
+      "collapse": "收起",
+      "expand": "展开（共 {{chars}} 字符）",
+      "notifications": {
+        "sendFailed": "发送失败：{{message}}"
+      }
+    },
+    "config": {
+      "sections": {
+        "basic": "基本设置",
+        "skills": "Skills",
+        "mcp": "MCP 配置",
+        "ccModel": "CC 模型配置",
+        "envVars": "环境变量",
+        "danger": "危险操作"
+      },
+      "fields": {
+        "name": "工作区名称",
+        "desc": "描述",
+        "policy": "运行策略",
+        "image": "沙盒镜像",
+        "imageHint": "留空使用默认镜像",
+        "imageHelperText": "留空时使用系统配置的默认镜像，版本固定为 :latest",
+        "ccModel": "选择 CC 模型预设",
+        "modelHelperText": "选择后将注入对应的环境配置到沙盒",
+        "generatedConfig": "生成的注入配置"
+      },
+      "policyOptions": {
+        "agent": "Agent — 明确工具白名单，禁用交互型工具",
+        "relaxed": "Relaxed — 宽松，无工具层面限制",
+        "strict": "Strict — 严格，禁用写文件/执行命令/网络"
+      },
+      "ccModelDefault": "(默认)",
+      "envVars": {
+        "hint": "变量将在每次与 CC 对话时注入到沙盒进程，并同步到 CLAUDE.md 环境感知章节（仅展示变量名和说明，不暴露值）",
+        "key": "变量名",
+        "value": "值",
+        "description": "说明",
+        "add": "添加变量",
+        "remove": "删除"
+      },
+      "dangerDesc": "删除工作区将同时停止沙盒容器并清除所有配置，此操作不可撤销。",
+      "deleteBtn": "删除此工作区",
+      "buttons": {
+        "save": "保存",
+        "saving": "保存中",
+        "delete": "删除",
+        "deleting": "删除中"
+      },
+      "notifications": {
+        "saveSuccess": "设置已保存",
+        "saveFailed": "保存失败：{{message}}",
+        "deleteSuccess": "工作区已删除",
+        "deleteFailed": "删除失败：{{message}}",
+        "ccPresetSuccess": "CC 模型预设已更新",
+        "ccPresetFailed": "设置失败：{{message}}",
+        "envVarsSaveSuccess": "环境变量已保存",
+        "envVarsSaveFailed": "保存失败：{{message}}"
+      },
+      "invalidId": "无效的工作区 ID",
+      "loadFailed": "加载失败：{{message}}",
+      "deleteDialog": {
+        "title": "确认删除工作区",
+        "content": "确定要删除工作区 {{name}} 吗？此操作不可撤销。",
+        "cancel": "取消",
+        "delete": "删除"
+      }
+    }
+  }
+}

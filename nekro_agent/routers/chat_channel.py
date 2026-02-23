@@ -1,17 +1,27 @@
-from typing import List, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends
+import json5
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
+from nekro_agent.adapters import get_adapter
+from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.core.os_env import USER_UPLOAD_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.errors import NotFoundError
+from nekro_agent.services.config_resolver import config_resolver
+from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/chat-channel", tags=["ChatChannel"])
+
+logger = get_sub_logger("chat_channel_api")
 
 
 class ChatChannelItem(BaseModel):
@@ -35,14 +45,22 @@ class ChatChannelDetail(ChatChannelItem):
     unique_users: int
     conversation_start_time: str
     preset_id: Optional[int]
+    can_send: bool = False
+    ai_always_include_msg_id: bool = False
 
 
 class ChatMessage(BaseModel):
     id: int
     sender_id: str
     sender_name: str
+    sender_nickname: str
+    platform_userid: str
     content: str
+    content_data: List[Dict[str, Any]]
+    chat_key: str
     create_time: str
+    message_id: str = ""
+    ref_msg_id: str = ""
 
 
 class ChatMessageListResponse(BaseModel):
@@ -128,9 +146,7 @@ async def get_chat_channel_list(
                 create_time=channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
                 update_time=channel.update_time.strftime("%Y-%m-%d %H:%M:%S"),
                 last_message_time=(
-                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S")
-                    if info["last_message_time"] is not None
-                    else None
+                    info["last_message_time"].strftime("%Y-%m-%d %H:%M:%S") if info["last_message_time"] is not None else None
                 ),
             ),
         )
@@ -154,6 +170,22 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
     last_message_time = last_message.create_time if last_message else None
     unique_users = await DBChatMessage.filter(chat_key=chat_key).distinct().values_list("sender_id", flat=True)
 
+    # 检测适配器是否支持 WebUI 发送
+    can_send = False
+    try:
+        adapter = get_adapter(channel.adapter_key)
+        can_send = adapter.supports_webui_send
+    except Exception:
+        pass
+
+    # 获取频道有效配置
+    ai_always_include_msg_id = False
+    try:
+        effective_config = await config_resolver.get_effective_config(chat_key)
+        ai_always_include_msg_id = effective_config.AI_ALWAYS_INCLUDE_MSG_ID
+    except Exception:
+        pass
+
     return ChatChannelDetail(
         id=channel.id,
         chat_key=channel.chat_key,
@@ -167,6 +199,8 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
         last_message_time=last_message_time.strftime("%Y-%m-%d %H:%M:%S") if last_message_time else None,
         conversation_start_time=channel.conversation_start_time.strftime("%Y-%m-%d %H:%M:%S"),
         preset_id=channel.preset_id,
+        can_send=can_send,
+        ai_always_include_msg_id=ai_always_include_msg_id,
     )
 
 
@@ -221,19 +255,41 @@ async def get_chat_channel_messages(
     total = await query.count()
     messages = await query.order_by("-id").limit(page_size)
 
-    return ChatMessageListResponse(
-        total=total,
-        items=[
-            ChatMessage(
-                id=msg.id,
-                sender_id=str(msg.sender_id),
-                sender_name=msg.sender_name,
-                content=msg.content_text,
-                create_time=msg.create_time.strftime("%Y-%m-%d %H:%M:%S"),
+    def _parse_content_data(raw: str) -> List[Dict[str, Any]]:
+        try:
+            return json5.loads(raw) if raw else []
+        except Exception:
+            return []
+
+    def _safe_ref_msg_id(msg: DBChatMessage) -> str:
+        try:
+            return msg.ext_data_obj.ref_msg_id or ""
+        except (AttributeError, KeyError, ValueError) as e:
+            logger.debug(f"Failed to parse ref_msg_id for msg {msg.id}: {e}")
+            return ""
+
+    items: List[ChatMessage] = []
+    for msg in messages:
+        try:
+            items.append(
+                ChatMessage(
+                    id=msg.id,
+                    sender_id=str(msg.sender_id),
+                    sender_name=msg.sender_name,
+                    sender_nickname=msg.sender_nickname or msg.sender_name,
+                    platform_userid=msg.platform_userid or "",
+                    content=msg.content_text,
+                    content_data=_parse_content_data(msg.content_data),
+                    chat_key=msg.chat_key,
+                    create_time=msg.create_time.strftime("%Y-%m-%d %H:%M:%S"),
+                    message_id=getattr(msg, "message_id", "") or "",
+                    ref_msg_id=_safe_ref_msg_id(msg),
+                )
             )
-            for msg in messages
-        ],
-    )
+        except Exception:
+            logger.warning(f"构建消息响应失败, msg_id={msg.id}, 跳过")
+
+    return ChatMessageListResponse(total=total, items=items)
 
 
 @router.post("/{chat_key}/preset", summary="设置聊天频道人设")
@@ -250,3 +306,154 @@ async def set_chat_channel_preset(
 
     await channel.set_preset(preset_id)
     return ActionResponse(ok=True)
+
+
+class ChatChannelUser(BaseModel):
+    """聊天频道用户"""
+
+    platform_userid: str
+    nickname: str
+
+
+class ChatChannelUsersResponse(BaseModel):
+    """聊天频道用户列表"""
+
+    total: int
+    items: List[ChatChannelUser]
+
+
+@router.get("/{chat_key}/users", summary="获取聊天频道用户列表")
+async def get_chat_channel_users(
+    chat_key: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ChatChannelUsersResponse:
+    """获取聊天频道内的所有用户（按昵称）"""
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+
+    # 从消息表查询该频道的所有独特用户
+    messages = await DBChatMessage.filter(chat_key=chat_key).distinct().values_list('platform_userid', 'sender_nickname')
+
+    # 去重并排序
+    users_dict: Dict[str, str] = {}
+    for userid, nickname in messages:
+        if userid and userid != '-1' and nickname and nickname != 'SYSTEM':
+            users_dict[userid] = nickname
+
+    # 按昵称排序
+    items = [
+        ChatChannelUser(platform_userid=uid, nickname=nickname)
+        for uid, nickname in sorted(users_dict.items(), key=lambda x: x[1])
+    ]
+
+    return ChatChannelUsersResponse(total=len(items), items=items)
+
+
+class SendMessageRequest(BaseModel):
+    message: str
+
+
+class SendMessageResponse(BaseModel):
+    ok: bool = True
+    error: str = ""
+
+
+@router.post("/{chat_key}/send", summary="向聊天频道发送消息")
+@require_role(Role.Admin)
+async def send_message_to_channel(
+    chat_key: str,
+    message: str = Form(default=""),
+    file: Optional[UploadFile] = File(default=None),
+    sender_type: str = Form(default="bot"),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> SendMessageResponse:
+    """从 WebUI 向聊天频道发送消息（支持文本和/或文件）
+
+    sender_type:
+        - bot: 以机器人身份发送（默认）
+        - system: 以 SYSTEM 身份发送，类似节日祝福触发
+        - none: 消息带 ≡NA≡ 前缀，不进入上下文
+    """
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+
+    # system 类型不需要适配器转发，直接写入数据库
+    if sender_type == "system":
+        text = message.strip()
+        if not text:
+            return SendMessageResponse(ok=False, error="SYSTEM 消息内容不能为空")
+        try:
+            await message_service.push_system_message(
+                chat_key=chat_key,
+                agent_messages=text,
+                trigger_agent=True,
+                db_chat_channel=channel,
+            )
+            return SendMessageResponse(ok=True)
+        except Exception as e:
+            logger.error(f"WebUI 发送 SYSTEM 消息到 {chat_key} 失败: {e}")
+            return SendMessageResponse(ok=False, error=str(e))
+
+    # bot / none 类型需要适配器转发
+    try:
+        adapter = get_adapter(channel.adapter_key)
+        if not adapter.supports_webui_send:
+            return SendMessageResponse(ok=False, error="当前适配器不支持从 WebUI 发送消息")
+    except KeyError:
+        return SendMessageResponse(ok=False, error="适配器未加载")
+
+    text = message.strip()
+
+    # none 类型：添加命令输出前缀，确保不进入上下文
+    if sender_type == "none" and text:
+        effective_config = await config_resolver.get_effective_config(chat_key)
+        text = f"{effective_config.AI_COMMAND_OUTPUT_PREFIX}{text}"
+
+    if not text and not file:
+        return SendMessageResponse(ok=False, error="消息内容不能为空")
+
+    try:
+        from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+
+        segments: list[AgentMessageSegment] = []
+
+        # 文本段
+        if text:
+            segments.append(AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content=text))
+
+        # 文件段
+        is_file_mode = False
+        if file and file.filename:
+            safe_chat_key = Path(chat_key).name
+            safe_filename = Path(file.filename).name
+            upload_dir = Path(USER_UPLOAD_DIR) / safe_chat_key
+            upload_dir.mkdir(parents=True, exist_ok=True)
+            save_path = upload_dir / safe_filename
+            # 分块写入，避免大文件一次性占满内存；同时检查文件大小上限
+            max_upload_size = 100 * 1024 * 1024  # 100 MB
+            total_size = 0
+            with save_path.open("wb") as f:
+                while chunk := await file.read(1024 * 1024):
+                    total_size += len(chunk)
+                    if total_size > max_upload_size:
+                        save_path.unlink(missing_ok=True)
+                        return SendMessageResponse(ok=False, error="文件大小超过 100MB 限制")
+                    f.write(chunk)
+            # 使用沙盒风格路径（/app/uploads/filename），让 _preprocess_messages 的 convert_to_host_path 正确转换
+            segments.append(AgentMessageSegment(type=AgentMessageSegmentType.FILE, content=f"/app/uploads/{safe_filename}"))
+            # 非图片文件使用 FILE 模式发送
+            is_file_mode = not (file.content_type or "").startswith("image/")
+
+        await universal_chat_service.send_agent_message(
+            chat_key=chat_key,
+            messages=segments,
+            adapter=adapter,
+            record=sender_type != "none",
+            file_mode=is_file_mode,
+        )
+        return SendMessageResponse(ok=True)
+    except Exception as e:
+        logger.error(f"WebUI 发送消息到 {chat_key} 失败: {e}")
+        return SendMessageResponse(ok=False, error=str(e))

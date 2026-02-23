@@ -620,7 +620,7 @@ const PresetCard = ({
           setLoading(true)
           const data = await presetsApi.getDetail(preset.id)
           setDetailData(data)
-        } catch (error) {
+        } catch (_error) {
           showError(t('card.loadDetails'))
         } finally {
           setLoading(false)
@@ -1437,7 +1437,7 @@ export default function PresetsPage() {
       if (data.items.length === 0 && data.total > 0 && page > 1) {
         setPage(1)
       }
-    } catch (error) {
+    } catch (_error) {
       showError(t('list.fetchFailed'))
     } finally {
       setLoading(false)
@@ -1453,7 +1453,7 @@ export default function PresetsPage() {
     try {
       const tags = await presetsApi.getTags()
       setAvailableTags(tags)
-    } catch (error) {
+    } catch (_error) {
       showError(t('list.fetchTagsFailed'))
     }
   }, [showError, t])
@@ -1493,7 +1493,7 @@ export default function PresetsPage() {
       const detailData = await presetsApi.getDetail(preset.id)
       setEditingPreset(detailData)
       setEditDialog(true)
-    } catch (error) {
+    } catch (_error) {
       showError(t('card.loadDetails'))
     }
   }

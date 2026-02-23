@@ -72,6 +72,10 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         )
 
     @property
+    def supports_webui_send(self) -> bool:
+        return True
+
+    @property
     def chat_key_rules(self) -> List[str]:
         return [
             "群聊: `onebot_v11-group_123456` (123456为群号)",

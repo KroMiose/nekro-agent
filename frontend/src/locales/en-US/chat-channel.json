@@ -92,6 +92,16 @@
   "messageHistory": {
     "noMessages": "No message history",
     "noContent": "[No text content]",
-    "scrollToBottom": "Scroll to bottom"
+    "scrollToBottom": "Scroll to bottom",
+    "inputPlaceholder": "Type a message...",
+    "send": "Send",
+    "sendSuccess": "Message sent",
+    "sendFailed": "Failed to send",
+    "quotedMessage": "Quoted message",
+    "senderType": "Sender",
+    "senderBot": "Bot",
+    "senderSystem": "SYSTEM",
+    "senderNone": "Silent",
+    "senderNoneHint": "Sent as bot with command output prefix. Won't enter context or be displayed in chat."
   }
 }

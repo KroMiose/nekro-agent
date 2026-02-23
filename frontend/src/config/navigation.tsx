@@ -14,6 +14,7 @@ import {
   Palette as PaletteIcon,
   Hub as HubIcon,
   CleaningServices as CleaningServicesIcon,
+  Workspaces as WorkspacesIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
@@ -121,6 +122,35 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <TerminalIcon />,
   },
   {
+    key: 'workspace',
+    text: t('menu.workspace'),
+    translationKey: 'menu.workspace',
+    icon: <WorkspacesIcon />,
+    children: [
+      {
+        path: '/workspace',
+        text: t('menu.workspaceList'),
+        translationKey: 'menu.workspaceList',
+        icon: <WorkspacesIcon />,
+        parent: 'workspace',
+      },
+      {
+        path: '/workspace/skills',
+        text: t('menu.skillsLibrary'),
+        translationKey: 'menu.skillsLibrary',
+        icon: <ExtensionIcon />,
+        parent: 'workspace',
+      },
+      {
+        path: '/workspace/cc-models',
+        text: t('menu.ccModels'),
+        translationKey: 'menu.ccModels',
+        icon: <StorageIcon />,
+        parent: 'workspace',
+      },
+    ],
+  },
+  {
     path: '/sandbox-logs',
     text: t('menu.sandboxLogs'),
     translationKey: 'menu.sandboxLogs',
@@ -210,12 +240,15 @@ export const getCurrentPageFromConfigs = (pathname: string) => {
   const allPages = getPageConfigs().flatMap(config =>
     'children' in config ? config.children : [config]
   )
-  // 查找匹配的页面
-  return allPages.find(
+  // 最长路径优先匹配：避免短路径（如 /workspace）在访问长路径（如 /workspace/skills）时也高亮
+  const matches = allPages.filter(
     page =>
       'path' in page &&
-      (page.path === pathname || (pathname.startsWith(page.path) && page.path !== '/'))
+      (page.path === pathname || pathname.startsWith((page as PageConfig).path + '/'))
   )
+  return matches.sort(
+    (a, b) => ((b as PageConfig).path?.length ?? 0) - ((a as PageConfig).path?.length ?? 0)
+  )[0]
 }
 
 // 获取当前页面标题的工具函数

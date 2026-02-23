@@ -224,7 +224,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
         )}
         {currentTab === 2 && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
-            <MessageHistory chatKey={chatKey} />
+            <MessageHistory chatKey={chatKey} canSend={channel?.can_send ?? false} aiAlwaysIncludeMsgId={channel?.ai_always_include_msg_id ?? false} />
           </Card>
         )}
       </Box>

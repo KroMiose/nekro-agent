@@ -444,6 +444,7 @@ const PluginDetailDialog = ({
           setLoadingRepo(false)
         })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, plugin])
 
   if (!plugin) return null
@@ -1132,7 +1133,7 @@ const CreatePluginDialog = ({
           return newErrors
         })
       }
-    } catch (error) {
+    } catch (_error) {
       setErrors(prev => ({
         ...prev,
         icon: '图标处理失败，请重试',
@@ -1823,7 +1824,7 @@ export default function PluginsMarket() {
             return newErrors
           })
         }
-      } catch (error) {
+      } catch (_error) {
         setErrors(prev => ({
           ...prev,
           icon: '图标处理失败，请重试',

@@ -343,7 +343,7 @@ export default function PluginsEditorPage() {
               setIsGenerating(false)
               setAbortController(null)
             }
-          } catch (err) {
+          } catch (_err) {
             notification.error(t('editor.messages.generateFailed'))
           }
         },
@@ -1347,7 +1347,7 @@ export default function PluginsEditorPage() {
                         }
                       }
                   }
-                } catch (error) {
+                } catch (_error) {
                   notification.error(t('editor.editorInitFailed'))
                 }
               }}
@@ -1890,7 +1890,7 @@ export default function PluginsEditorPage() {
                             }
                           }
                         }
-                      } catch (error) {
+                      } catch (_error) {
                         notification.error(t('editor.editorInitFailed'))
                       }
                     }}

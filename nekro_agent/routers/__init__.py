@@ -18,6 +18,7 @@ from nekro_agent.services.user.util import user_login
 from nekro_agent.tools.common_util import get_app_version
 
 from .adapters import router as adapters_router
+from .cc_model_presets import router as cc_model_presets_router
 from .chat_channel import router as chat_channel_router
 from .cloud.auth import router as cloud_auth_router
 from .cloud.plugins_market import router as plugins_market_router
@@ -33,10 +34,12 @@ from .presets import router as presets_router
 from .restart import router as restart_router
 from .rpc import router as exec_router
 from .sandbox import router as sandbox_router
+from .skills import router as skills_router
 from .space_cleanup import router as space_cleanup_router
 from .user import router as user_router
 from .user_manager import router as user_manager_router
 from .webhook import router as webhook_router
+from .workspaces import router as workspaces_router
 
 # 注意：插件路由现在通过插件路由管理器动态挂载，支持热重载
 # 不再使用静态路由挂载方式
@@ -81,6 +84,9 @@ def mount_api_routes(app: FastAPI):
     api.include_router(adapters_router)
     api.include_router(common_router)
     api.include_router(space_cleanup_router)
+    api.include_router(workspaces_router)
+    api.include_router(skills_router)
+    api.include_router(cc_model_presets_router)
 
     api.include_router(load_adapters_api())
 

@@ -238,7 +238,7 @@ async def send_msg_text(_ctx: AgentCtx, chat_key: str, message_text: str, ref_ms
     Args:
         chat_key (str): 聊天频道标识
         message_text (str): 消息内容
-        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`)
+        ref_msg_id (Optional[str]): 引用消息 ID (部分适配器可用，参考 `Reference_Message`，若需要引用时传递，不需要在 `message_text` 中重复说明被引用消息!)
 
     Example:
         # Send some valid message

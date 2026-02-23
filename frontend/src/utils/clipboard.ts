@@ -58,7 +58,7 @@ export async function copyText(text: string): Promise<boolean> {
     setTimeout(() => {
       try {
         document.body.removeChild(div)
-      } catch (e) {
+      } catch (_e) {
         // 忽略
       }
     }, 10)

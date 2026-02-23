@@ -84,7 +84,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
         search: search || undefined,
       })
       setPresets(response.items)
-    } catch (error) {
+    } catch (_error) {
       enqueueSnackbar(t('basicInfo.fetchPresetsFailed'), { variant: 'error' })
     } finally {
       setLoading(false)
@@ -114,7 +114,7 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
 
       // 刷新聊天频道详情
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', channel.chat_key] })
-    } catch (error) {
+    } catch (_error) {
       enqueueSnackbar(t('basicInfo.setPresetFailed'), { variant: 'error' })
     } finally {
       setLoading(false)

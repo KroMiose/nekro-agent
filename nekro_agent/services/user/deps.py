@@ -1,9 +1,10 @@
 from typing import Optional
 
-from fastapi import Depends, Request
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
+from starlette.requests import HTTPConnection
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
@@ -20,7 +21,7 @@ logger = get_sub_logger("auth")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/token")
 
 
-async def get_current_user(request: Request, token: Optional[str] = None) -> DBUser:
+async def get_current_user(request: HTTPConnection, token: Optional[str] = None) -> DBUser:
     """
     Get current user from token.
     """

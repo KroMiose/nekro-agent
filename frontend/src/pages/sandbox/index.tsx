@@ -600,7 +600,7 @@ export default function SandboxPage() {
                   if (log.extra_data) {
                     try {
                       extraData = JSON.parse(log.extra_data)
-                    } catch (e) {
+                    } catch (_e) {
                       extraData = null
                     }
                   }

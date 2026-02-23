@@ -41,6 +41,7 @@ class DBChatChannel(Model):
 
     chat_key = fields.CharField(max_length=64, index=True, description="全局聊天频道唯一标识")
     conversation_start_time = fields.DatetimeField(auto_now_add=True, description="对话起始时间")
+    workspace_id = fields.IntField(null=True, description="关联工作区 ID")
 
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")

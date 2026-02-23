@@ -10,6 +10,7 @@ from nekro_agent.adapters import cleanup_adapters, init_adapters
 from nekro_agent.core.args import Args
 from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
+from nekro_agent.core.db_migration import run_db_migrations
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.festival_service import festival_service
@@ -34,85 +35,94 @@ if config.WEAVE_ENABLED:
     except Exception as e:
         logger.error(f"Weave 服务连接失败: {e}")
 
-# 在应用启动前挂载中间件和主路由
-# 这是确保应用生命周期正确的唯一方法
-app = get_app()
-mount_middlewares(app)
-mount_api_routes(app)
+def _try_get_driver():
+    try:
+        return get_driver()
+    except ValueError:
+        return None
 
 
-@get_driver().on_startup
-async def on_startup():
-    # 启动时不再挂载主路由，它们已在启动前挂载完毕
+_driver = _try_get_driver()
+
+if _driver is not None:
+    # 在应用启动前挂载中间件和主路由
+    # 这是确保应用生命周期正确的唯一方法
     app = get_app()
-
-    # 初始化数据库、适配器和插件
-    await init_db()
-    await init_adapters(app)
-    await init_plugins()
-
-    # 初始化插件路由管理器并挂载插件路由
-    try:
-        from nekro_agent.services.plugin.collector import plugin_collector
-        from nekro_agent.services.plugin.router_manager import plugin_router_manager
-
-        # 绑定FastAPI应用实例到路由管理器
-        plugin_router_manager.set_app(app)
-
-        # 挂载所有启用的插件路由
-        plugins_with_router = plugin_collector.get_plugins_with_router()
-        success_count = 0
-        for plugin in plugins_with_router:
-            if plugin_router_manager.mount_plugin_router(plugin):
-                success_count += 1
-
-        logger.info(f"插件路由热挂载完成，成功挂载 {success_count} 个插件的路由")
-
-    except Exception as e:
-        logger.exception(f"初始化插件路由管理器失败: {e}")
-
-    await timer_service.start()
-    logger.info("Timer service initialized")
-
-    await recurring_timer_service.start()
-    logger.info("Recurring timer service initialized")
-
-    # 初始化节日提醒
-    await festival_service.init_festivals()
-    logger.info("Festival service initialized")
-
-    # 遥测任务
-    start_telemetry_task()
+    mount_middlewares(app)
+    mount_api_routes(app)
 
 
-@get_driver().on_shutdown
-async def on_shutdown():
-    await recurring_timer_service.stop()
-    await timer_service.stop()
-    await cleanup_adapters(get_app())
+if _driver is not None:
+    @_driver.on_startup
+    async def on_startup():
+        # 启动时不再挂载主路由，它们已在启动前挂载完毕
+        app = get_app()
 
-    try:
-        from nekro_agent.services.plugin.collector import plugin_collector
+        # 初始化数据库、适配器和插件
+        await init_db()
+        await run_db_migrations()
+        await init_adapters(app)
+        await init_plugins()
 
-        await plugin_collector.cleanup_all_plugins()
-    except Exception as e:
-        logger.exception(f"清理插件时发生错误: {e}")
+        # 初始化插件路由管理器并挂载插件路由
+        try:
+            from nekro_agent.services.plugin.collector import plugin_collector
+            from nekro_agent.services.plugin.router_manager import plugin_router_manager
 
-    logger.info("Timer service stopped")
+            # 绑定FastAPI应用实例到路由管理器
+            plugin_router_manager.set_app(app)
 
+            # 挂载所有启用的插件路由
+            plugins_with_router = plugin_collector.get_plugins_with_router()
+            success_count = 0
+            for plugin in plugins_with_router:
+                if plugin_router_manager.mount_plugin_router(plugin):
+                    success_count += 1
 
-@get_driver().on_bot_connect
-async def on_bot_connect(bot: Bot):
-    adapter: str = bot.adapter.get_name()
-    bot_id: str = bot.self_id
-    await send_bot_status_email(adapter, bot_id, True)
+            logger.info(f"插件路由热挂载完成，成功挂载 {success_count} 个插件的路由")
 
+        except Exception as e:
+            logger.exception(f"初始化插件路由管理器失败: {e}")
 
-@get_driver().on_bot_disconnect
-async def on_bot_disconnect(bot: Bot):
-    adapter: str = bot.adapter.get_name()
-    bot_id: str = bot.self_id
-    await send_bot_status_email(adapter, bot_id, False)
+        await timer_service.start()
+        logger.info("Timer service initialized")
+
+        await recurring_timer_service.start()
+        logger.info("Recurring timer service initialized")
+
+        # 初始化节日提醒
+        await festival_service.init_festivals()
+        logger.info("Festival service initialized")
+
+        # 遥测任务
+        start_telemetry_task()
+
+    @_driver.on_shutdown
+    async def on_shutdown():
+        await recurring_timer_service.stop()
+        await timer_service.stop()
+        await cleanup_adapters(get_app())
+
+        try:
+            from nekro_agent.services.plugin.collector import plugin_collector
+
+            await plugin_collector.cleanup_all_plugins()
+        except Exception as e:
+            logger.exception(f"清理插件时发生错误: {e}")
+
+        logger.info("Timer service stopped")
+
+    @_driver.on_bot_connect
+    async def on_bot_connect(bot: Bot):
+        adapter: str = bot.adapter.get_name()
+        bot_id: str = bot.self_id
+        await send_bot_status_email(adapter, bot_id, True)
+
+    @_driver.on_bot_disconnect
+    async def on_bot_disconnect(bot: Bot):
+        adapter: str = bot.adapter.get_name()
+        bot_id: str = bot.self_id
+        await send_bot_status_email(adapter, bot_id, False)
 
 
 __plugin_meta__ = PluginMetadata(
@@ -125,7 +135,7 @@ __plugin_meta__ = PluginMetadata(
     config=_Config,
 )
 
-global_config = get_driver().config  # 我觉得这玩意可以删掉 没人用
+global_config = _driver.config if _driver is not None else None  # 我觉得这玩意可以删掉 没人用
 
 
 # 启动 Api 服务进程

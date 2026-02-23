@@ -140,6 +140,27 @@ const router = createHashRouter([
         path: 'cloud/plugins-market',
         element: lazyLoad(() => import('../pages/cloud/plugins_market')),
       },
+      {
+        path: 'workspace',
+        children: [
+          {
+            index: true,
+            element: lazyLoad(() => import('../pages/workspace')),
+          },
+          {
+            path: 'skills',
+            element: lazyLoad(() => import('../pages/workspace/skills')),
+          },
+          {
+            path: 'cc-models',
+            element: lazyLoad(() => import('../pages/workspace/cc-models')),
+          },
+          {
+            path: ':id',
+            element: lazyLoad(() => import('../pages/workspace/detail')),
+          },
+        ],
+      },
     ],
   },
   {

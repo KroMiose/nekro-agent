@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.core.os_env import WALLPAPER_DIR
+from nekro_agent.core.os_env import USER_UPLOAD_DIR, WALLPAPER_DIR
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import AppFileNotFoundError, InvalidFileTypeError
 from nekro_agent.services.user.deps import get_current_active_user
@@ -111,3 +111,40 @@ async def get_wallpaper(filename: str):
     headers = {"Cache-Control": "public, max-age=604800", "ETag": f'"{filename}"'}
 
     return FileResponse(filepath, headers=headers, media_type=f"image/{filepath.suffix.lstrip('.')}" )
+
+
+UPLOAD_PATH = Path(USER_UPLOAD_DIR)
+
+
+@router.get("/uploads/{chat_key}/{filename}")
+async def get_upload_file(
+    chat_key: str,
+    filename: str,
+):
+    """获取聊天上传文件（无需鉴权，供 img 标签等直接访问）"""
+    # 防止路径穿越
+    safe_chat_key = Path(chat_key).name
+    safe_filename = Path(filename).name
+    filepath = UPLOAD_PATH / safe_chat_key / safe_filename
+
+    if not filepath.exists() or not filepath.is_file():
+        raise AppFileNotFoundError(filename=filename)
+
+    # 根据后缀推断 media type
+    suffix = filepath.suffix.lower().lstrip(".")
+    media_map = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "gif": "image/gif",
+        "webp": "image/webp",
+        "mp4": "video/mp4",
+        "pdf": "application/pdf",
+    }
+    media_type = media_map.get(suffix, "application/octet-stream")
+
+    headers = {"Cache-Control": "public, max-age=86400", "ETag": f'"{safe_filename}"'}
+    # 非已知媒体类型强制下载，防止浏览器执行未知内容
+    if media_type == "application/octet-stream":
+        headers["Content-Disposition"] = f'attachment; filename="{safe_filename}"'
+    return FileResponse(filepath, headers=headers, media_type=media_type)

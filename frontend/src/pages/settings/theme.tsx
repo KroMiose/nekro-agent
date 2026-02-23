@@ -449,7 +449,7 @@ export default function ThemeConfigPage() {
       setLoading(true)
       const wallpapers = await commonApi.getWallpapers()
       setWallpapers(wallpapers)
-    } catch (error) {
+    } catch (_error) {
       notification.error(t('theme.wallpaper.messages.fetchFailed'))
     } finally {
       setLoading(false)
@@ -576,7 +576,7 @@ export default function ThemeConfigPage() {
           setMainWallpaper(null)
         }
       }
-    } catch (error) {
+    } catch (_error) {
       notification.error(t('theme.wallpaper.messages.applyFailed'))
     }
   }
@@ -608,7 +608,7 @@ export default function ThemeConfigPage() {
       if (previewWallpaper?.id === wallpaperId) {
         setPreviewWallpaper(null)
       }
-    } catch (error) {
+    } catch (_error) {
       notification.error(t('theme.wallpaper.messages.deleteFail'))
     }
   }
@@ -676,7 +676,7 @@ export default function ThemeConfigPage() {
             })
           }
         }
-      } catch (error) {
+      } catch (_error) {
         // 忽略读取失败，保持默认主题
       }
 
@@ -803,7 +803,7 @@ export default function ThemeConfigPage() {
 
       // 更新选中状态
       setSelectedPresetId(presetId)
-    } catch (error) {
+    } catch (_error) {
       notification.error(t('theme.colors.messages.applyFailed'))
     }
   }
@@ -1010,7 +1010,7 @@ export default function ThemeConfigPage() {
             // 为未star用户应用默认主题
             setThemePreset('kolo')
           }}
-          onError={error => {
+          onError={_error => {
             notification.error(t('theme.star.checkFailed'))
           }}
           searchParam="NEKRO_CLOUD"

@@ -78,8 +78,10 @@ class OsEnvTypes:
         return float(OsEnvTypes._use_env(key, default))
 
     @staticmethod
-    def Bool(key: str) -> bool:
-        return str(OsEnvTypes._use_env(key, "false")).lower() == "true"
+    def Bool(key: str, default: Union[bool, Callable[[], bool]] = False) -> bool:
+        if callable(default):
+            default = default()
+        return str(OsEnvTypes._use_env(key, default)).lower() == "true"
 
 
 class ExtraField(BaseModel):

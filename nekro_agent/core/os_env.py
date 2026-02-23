@@ -61,6 +61,9 @@ class OsEnv:
     """OPENAPI 配置"""
     ENABLE_OPENAPI_DOCS: bool = OsEnvTypes.Bool("ENABLE_OPENAPI_DOCS")
 
+    """数据库迁移"""
+    AUTO_DB_MIGRATE: bool = OsEnvTypes.Bool("AUTO_DB_MIGRATE", default=True)
+
 
 APP_SYSTEM_DIR: str = OsEnv.DATA_DIR + "/system"  # 系统目录
 USER_UPLOAD_DIR: str = OsEnv.DATA_DIR + "/uploads"  # 用户资源上传目录
@@ -77,6 +80,9 @@ PACKAGES_DIR: str = OsEnv.DATA_DIR + "/plugins/packages"  # 云端插件目录
 NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"  # NapCat 临时文件目录
 NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"  # NapCat OneBot 适配器目录
 WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"  # 壁纸目录
+WORKSPACE_ROOT_DIR: str = OsEnv.DATA_DIR + "/workspaces"  # cc-sandbox 工作区根目录
+SKILLS_DIR: str = OsEnv.DATA_DIR + "/skills"  # 全局用户 skill 资源库目录
+BUILTIN_SKILLS_SOURCE_DIR: str = str(Path(__file__).parent.parent / "builtin_skills")  # 内置 skill 源目录
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 
 # =============================================================================

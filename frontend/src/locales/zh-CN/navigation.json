@@ -20,7 +20,11 @@
     "theme": "调色盘",
     "spaceCleanup": "空间回收",
     "profile": "个人中心",
-    "defaultTitle": "管理面板"
+    "defaultTitle": "管理面板",
+    "workspace": "工作区",
+    "workspaceList": "工作区管理",
+    "skillsLibrary": "技能字典",
+    "ccModels": "CC 模型配置"
   },
   "footer": {
     "copyright": "版权所有",
