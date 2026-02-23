@@ -61,7 +61,7 @@ class CoreConfig(ConfigBase):
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
         ),
         json_schema_extra=ExtraField(
-            category="云服务",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="启用 NekroAI 云服务",
                 en_US="Enable NekroAI Cloud Service",
@@ -77,7 +77,7 @@ class CoreConfig(ConfigBase):
         title="NekroAI 云服务 API Key",
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(
-            category="云服务",
+            category="云服务与基础",
             is_secret=True,
             placeholder="nk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
             i18n_title=i18n_text(
@@ -101,7 +101,7 @@ class CoreConfig(ConfigBase):
         title="应用日志级别",
         description="应用日志级别，需要重启应用后生效",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="应用日志级别",
                 en_US="Application Log Level",
@@ -117,7 +117,7 @@ class CoreConfig(ConfigBase):
         title="管理员列表",
         description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="管理员列表",
                 en_US="Administrator List",
@@ -133,7 +133,7 @@ class CoreConfig(ConfigBase):
         title="允许管理员登陆 WebUI",
         description="启用后可使用管理员账号登陆 WebUI，登陆后请及时在 个人中心 修改密码",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="允许管理员登陆 WebUI",
                 en_US="Allow Administrators Login to WebUI",
@@ -148,7 +148,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="聊天调试模式",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="聊天调试模式",
                 en_US="Chat Debug Mode",
@@ -159,7 +159,7 @@ class CoreConfig(ConfigBase):
         default="",
         title="管理频道",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             is_secret=True,
             placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
             i18n_title=i18n_text(
@@ -172,7 +172,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="保存聊天提示词生成日志",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="保存聊天提示词生成日志",
                 en_US="Save Chat Prompt Generation Log",
@@ -183,7 +183,7 @@ class CoreConfig(ConfigBase):
         default=10,
         title="上传文件大小限制 (MB)",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="上传文件大小限制 (MB)",
                 en_US="Upload File Size Limit (MB)",
@@ -194,7 +194,7 @@ class CoreConfig(ConfigBase):
         default=False,
         title="启用未授权命令反馈",
         json_schema_extra=ExtraField(
-            category="应用设置",
+            category="云服务与基础",
             i18n_title=i18n_text(
                 zh_CN="启用未授权命令反馈",
                 en_US="Enable Unauthorized Command Feedback",
@@ -205,7 +205,7 @@ class CoreConfig(ConfigBase):
         default="",
         title="默认代理",
         json_schema_extra=ExtraField(
-            category="网络设置",
+            category="其他",
             placeholder="例: http://127.0.0.1:7890",
             i18n_title=i18n_text(
                 zh_CN="默认代理",
