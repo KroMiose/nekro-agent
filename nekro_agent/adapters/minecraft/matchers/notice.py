@@ -1,5 +1,4 @@
 import time
-from datetime import datetime
 from typing import Any, Dict, Optional, Type
 
 
@@ -19,41 +18,37 @@ from nekro_agent.services.notice_service import (
     NoticeConfig,
     NoticeResult,
 )
-from nekro_agent.tools.time_util import format_duration
 
 
 logger = get_sub_logger("adapter.minecraft")
-class PlayerJoinNoticeHandler(BaseNoticeHandler):
-    """玩家加入通知处理器"""
+MINECRAFT_NOTICE_SUB_TYPES = frozenset({
+    "player_join",
+    "player_quit",
+    "player_death",
+    "player_achievement",
+})
+
+
+class MinecraftNoticeHandler(BaseNoticeHandler):
+    """Minecraft 通用通知处理器
+
+    利用事件自身的 get_event_description() 格式化消息，
+    统一处理加入、退出、死亡、成就等通知事件。
+    """
 
     def get_notice_config(self) -> NoticeConfig:
         return NoticeConfig(force_tome=True, use_system_sender=True)
 
     def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
-        if event_dict["sub_type"] != "join":
+        if event_dict.get("sub_type") not in MINECRAFT_NOTICE_SUB_TYPES:
             return None
         return {
             "user_id": str(event_dict["player"].nickname),
         }
 
     async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
-        return f"(玩家 {info['user_id']} 加入了服务器)"
+        return f"({info['event_description']})"
 
-class PlayerQuitNoticeHandler(BaseNoticeHandler):
-    """玩家离开通知处理器"""
-
-    def get_notice_config(self) -> NoticeConfig:
-        return NoticeConfig(force_tome=True, use_system_sender=True)
-
-    def match(self, _db_chat_channel: DBChatChannel, event_dict: Dict[str, Any]) -> Optional[Dict[str, str]]:
-        if event_dict["sub_type"] != "quit":
-            return None
-        return {
-            "user_id": str(event_dict["player"].nickname),
-        }
-
-    async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
-        return f"(玩家 {info['user_id']} 离开了服务器)"
 
 class NoticeHandlerManager:
     """通知处理器管理器"""
@@ -80,6 +75,7 @@ class NoticeHandlerManager:
 
         for handler in self._handlers:
             if info := handler.match(db_chat_channel, event_dict):
+                info["event_description"] = event.get_event_description()
                 return NoticeResult(
                     handler=handler,
                     info=info,
@@ -92,8 +88,7 @@ class NoticeHandlerManager:
 
 notice_manager = NoticeHandlerManager()
 
-notice_manager.register(PlayerJoinNoticeHandler())
-notice_manager.register(PlayerQuitNoticeHandler())
+notice_manager.register(MinecraftNoticeHandler())
 
 """通用通知匹配器"""
 notice_matcher: Type[Matcher] = on_notice(priority=99999, block=False)

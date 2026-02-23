@@ -1,13 +1,11 @@
 import json
-import os
 import re
 from typing import Dict, List, Optional, Type
 
 
 import nonebot
-from fastapi import APIRouter
 from nonebot.adapters.minecraft import Bot, Message, MessageSegment
-from nonebot.adapters.minecraft.model import ClickEvent, HoverEvent, TextColor
+from nonebot.adapters.minecraft.models import Color, Component
 from pydantic import BaseModel, Field, model_validator
 
 from nekro_agent.adapters.interface.base import (
@@ -42,21 +40,6 @@ class ServerConfig(BaseModel):
         default="",
         title="服务器WebSocket地址",
         description="服务器WebSocket地址",
-    )
-    IS_SERVER_RCON: bool = Field(
-        default=False,
-        title="是否启用RCON",
-        description="是否启用RCON",
-    )
-    SERVER_RCON_PORT: int = Field(
-        default=25575,
-        title="服务器RCON端口",
-        description="服务器RCON端口",
-    )
-    SERVER_RCON_PASSWORD: str = Field(
-        default="",
-        title="服务器RCON密码",
-        description="服务器RCON密码",
     )
 
 
@@ -134,12 +117,6 @@ class MinecraftConfig(BaseAdapterConfig):
                 continue
             if server.SERVER_WS_URL:
                 ws_urls[server.SERVER_NAME] = [server.SERVER_WS_URL]
-            if server.IS_SERVER_RCON:
-                rcon_config[server.SERVER_NAME] = {
-                    "enable_rcon": server.IS_SERVER_RCON,
-                    "rcon_port": server.SERVER_RCON_PORT,
-                    "rcon_password": server.SERVER_RCON_PASSWORD,
-                }
         self.MINECRAFT_WS_URLS = json.dumps(ws_urls)
         self.MINECRAFT_SERVER_RCON = json.dumps(rcon_config)
 
@@ -242,12 +219,11 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             channel = await DBChatChannel.get_channel(chat_key)
             preset = await channel.get_preset()
 
-            message_to_send = Message(
-                [
-                    MessageSegment.text(f"<{preset.name}>", color=TextColor.GREEN),
-                    MessageSegment.text(
-                        cleaned_text,
-                    ),
+            message_to_send = MessageSegment.text(
+                text="",
+                extra=[
+                    Component(text=f"<{preset.name}>", color=Color.green),
+                    Component(text=cleaned_text),
                 ],
             )
             await bot_instance.send_msg(message=message_to_send)
