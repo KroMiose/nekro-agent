@@ -1,7 +1,8 @@
 import asyncio
 import random
 import secrets
-from typing import Set
+from pathlib import Path
+from typing import Optional, Set
 
 import aiodocker
 import httpx
@@ -15,6 +16,45 @@ from nekro_agent.services.workspace.manager import WorkspaceService
 logger = get_sub_logger("workspace_container")
 
 CONTAINER_WORKSPACE_PATH = "/workspace"  # 容器内工作区挂载路径
+
+_resolved_nekro_network: str = ""  # 模块级缓存，避免每次创建容器都重复探测
+
+
+async def _resolve_nekro_network(docker: aiodocker.Docker) -> str:
+    """解析 NA 所在的 nekro_network 网络名。
+
+    优先使用 INSTANCE_NAME 环境变量拼接；
+    若 INSTANCE_NAME 为空（docker-compose 未透传），则通过 Docker API
+    自动探测当前容器所连接的以 'nekro_network' 结尾的网络名。
+    结果缓存于模块变量，同一进程内只探测一次。
+    """
+    global _resolved_nekro_network
+    if _resolved_nekro_network:
+        return _resolved_nekro_network
+
+    # 优先：INSTANCE_NAME 已设置，直接拼接（与 docker-compose 命名规则一致）
+    if OsEnv.INSTANCE_NAME:
+        _resolved_nekro_network = f"{OsEnv.INSTANCE_NAME}nekro_network"
+        return _resolved_nekro_network
+
+    # Fallback：通过 Docker API 探测当前容器实际所属的 nekro_network
+    try:
+        container_id = Path("/etc/hostname").read_text().strip()
+        self_container = await docker.containers.get(container_id)
+        info = await self_container.show()
+        networks: dict = info.get("NetworkSettings", {}).get("Networks", {})
+        for network_name in networks:
+            if network_name.endswith("nekro_network"):
+                _resolved_nekro_network = network_name
+                logger.info(f"[网络自动探测] 已发现 nekro_network: {network_name!r}")
+                return _resolved_nekro_network
+    except Exception as e:
+        logger.warning(f"[网络自动探测] Docker API 探测失败，回退至默认网络名: {e}")
+
+    # 最终兜底：无前缀的默认名
+    _resolved_nekro_network = "nekro_network"
+    logger.warning("[网络自动探测] 未找到匹配网络，使用默认值: nekro_network")
+    return _resolved_nekro_network
 
 
 def _generate_container_name() -> str:
@@ -109,7 +149,7 @@ class SandboxContainerManager:
             }
 
             # Docker 网络配置：生产环境（RUN_IN_DOCKER）自动加入 NA 所在网络
-            docker_network = f"{OsEnv.INSTANCE_NAME}nekro_network" if OsEnv.RUN_IN_DOCKER else ""
+            docker_network = await _resolve_nekro_network(docker) if OsEnv.RUN_IN_DOCKER else ""
             if docker_network:
                 container_config["HostConfig"]["NetworkMode"] = docker_network
 
