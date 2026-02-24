@@ -18,6 +18,7 @@
 
 import asyncio
 import json
+import re
 import secrets
 import shutil
 from pathlib import Path
@@ -59,6 +60,33 @@ async def _check_sandbox_image_exists(image: str) -> bool:
         return False
     finally:
         await docker.close()
+
+
+# ---------------------------------------------------------------------------
+# 文件内容风险扫描
+# ---------------------------------------------------------------------------
+
+# 敏感凭据正则集合
+_SENSITIVE_PATTERNS: List[tuple] = [
+    ("私钥/证书", re.compile(r"-----BEGIN\s(?:RSA |EC |OPENSSH |PGP )?PRIVATE KEY-----")),
+    ("AWS Access Key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("GitHub Token", re.compile(r"\b(?:ghp|ghs|gho|ghu|github_pat)_[A-Za-z0-9_]{20,}\b")),
+    ("通用 API Key 赋值", re.compile(
+        r"""(?i)(?:api[_-]?key|secret[_-]?key|access[_-]?token|auth[_-]?token)\s*[=:]\s*['"]?[A-Za-z0-9+/._\-]{20,}['"]?"""
+    )),
+    ("高熵 Bearer Token", re.compile(r"\bBearer\s+[A-Za-z0-9+/._\-]{30,}\b")),
+]
+
+_SCAN_SIZE_LIMIT = 512 * 1024  # 只扫描前 512 KB，避免大文件卡顿
+
+
+def _scan_sensitive_content(content: str) -> List[str]:
+    """扫描文本内容，返回命中的风险类型列表（去重）。"""
+    hits: List[str] = []
+    for label, pattern in _SENSITIVE_PATTERNS:
+        if pattern.search(content):
+            hits.append(label)
+    return hits
 
 
 # ---------------------------------------------------------------------------
@@ -451,6 +479,46 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
 
 
 @plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "开启/关闭当前频道的 CC Workspace 自动创建权限",
+    description=(
+        "控制当前频道是否允许 NA 通过 create_and_bind_workspace 自动创建 CC Workspace。"
+        "默认关闭，须由管理员手动开启。"
+        "enable=True 开启自动创建，enable=False 关闭。"
+    ),
+)
+async def toggle_cc_auto_workspace(_ctx: schemas.AgentCtx, enable: bool) -> str:
+    """Enable or disable automatic CC Workspace creation for the current channel.
+
+    This is an admin-level control. By default, NA cannot auto-create a workspace
+    for a channel. An operator must explicitly enable this permission first.
+
+    Args:
+        enable (bool): True to allow auto-creation, False to disallow.
+
+    Returns:
+        str: Confirmation of the new permission state.
+
+    Example:
+        ```python
+        toggle_cc_auto_workspace(True)   # 开启本频道自动创建权限
+        toggle_cc_auto_workspace(False)  # 关闭
+        ```
+    """
+    chat_key = _ctx.from_chat_key
+    await plugin.store.set(chat_key=chat_key, store_key="enable_auto_workspace", value="true" if enable else "false")
+    if enable:
+        return (
+            "[CC Workspace] 已开启当前频道的工作区自动创建权限。\n"
+            "NA 现在可以通过 `create_and_bind_workspace` 为本频道自动创建并绑定工作区。"
+        )
+    return (
+        "[CC Workspace] 已关闭当前频道的工作区自动创建权限。\n"
+        "NA 将无法在本频道自动创建新工作区，现有绑定关系不受影响。"
+    )
+
+
+@plugin.mount_sandbox_method(
     SandboxMethodType.AGENT,
     "创建并绑定 CC Workspace",
     description=(
@@ -485,6 +553,15 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
         ```
     """
     chat_key = _ctx.from_chat_key
+
+    # 频道级权限检查：需管理员提前通过 toggle_cc_auto_workspace 开启
+    auto_ws_enabled = await plugin.store.get(chat_key=chat_key, store_key="enable_auto_workspace")
+    if auto_ws_enabled != "true":
+        return (
+            "[CC Workspace] 当前频道尚未开启工作区自动创建权限。\n"
+            "如需使用 CC Workspace，请管理员在本频道执行 `toggle_cc_auto_workspace(enable=True)` 开启后重试，"
+            "或直接在工作区管理页面手动创建并绑定工作区。"
+        )
 
     # 当前频道已绑定工作区时，不允许重复创建
     existing = await _ctx.get_bound_workspace()
@@ -1062,6 +1139,26 @@ async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, d
     try:
         shutil.copy2(str(src_path), str(target_host_path))
         logger.info(f"[cc_workspace] download_file_from_cc: {src_path} → {target_host_path}")
+
+        # 内容风险扫描：对可读文本文件进行敏感凭据检测
+        try:
+            raw = target_host_path.read_bytes()
+            text = raw[:_SCAN_SIZE_LIMIT].decode("utf-8", errors="ignore")
+            hits = _scan_sensitive_content(text)
+            if hits:
+                risk_list = "、".join(hits)
+                logger.warning(
+                    f"[cc_workspace] download_file_from_cc 风险扫描命中: {target_name} → {risk_list}"
+                )
+                return (
+                    f"[CC Workspace] ⚠️ 文件下载已拦截 — 内容风险扫描发现潜在敏感信息。\n"
+                    f"命中类型：{risk_list}\n"
+                    f"文件名：{target_name}\n"
+                    f"如确认文件内容安全，请先在 CC Workspace 中对文件进行脱敏处理后再下载。"
+                )
+        except Exception as scan_err:
+            logger.warning(f"[cc_workspace] download_file_from_cc 风险扫描异常（跳过）: {scan_err}")
+
         sandbox_path = _ctx.fs.forward_file(target_host_path)
         return str(sandbox_path)
     except Exception as e:
@@ -1086,14 +1183,15 @@ async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
 
     # 状态1：未绑定工作区
     if workspace is None:
-        return [create_and_bind_workspace]
+        return [toggle_cc_auto_workspace, create_and_bind_workspace]
 
     # 状态2：有工作区但沙盒未运行
     if workspace.status != "active":
-        return [start_cc_sandbox]
+        return [toggle_cc_auto_workspace, start_cc_sandbox]
 
     # 状态3：沙盒正常运行
     return [
+        toggle_cc_auto_workspace,
         delegate_to_cc,
         cancel_cc_task,
         get_cc_context,
