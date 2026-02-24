@@ -2,31 +2,63 @@
 
 提供以下能力：
 - **prompt 注入**：在主 Agent 系统提示词中注入当前频道绑定的 CC Workspace 状态
-- **delegate_to_cc**（TOOL 类型）：异步委托任务给 CC Workspace 执行，完成后自动将结果推送回主 Agent
-- **cancel_cc_task**（TOOL 类型）：取消正在后台运行的 CC 委托任务
-- **get_cc_task_status**（TOOL 类型）：查询当前频道 CC 委托任务的执行进度
-- **get_cc_status**（TOOL 类型）：查询 CC Sandbox 工作区实时状态
-- **upload_file_to_cc**（TOOL 类型）：将主沙盒文件上传/共享至 CC Workspace 数据目录
+- **create_and_bind_workspace**（AGENT 类型）：为当前频道创建 CC Workspace 并自动绑定
+- **start_cc_sandbox**（AGENT 类型）：启动绑定工作区的 CC 沙盒容器
+- **delegate_to_cc**（BEHAVIOR 类型）：异步委托任务给 CC Workspace 执行，完成后自动将结果推送回主 Agent
+- **cancel_cc_task**（BEHAVIOR 类型）：取消正在后台运行的 CC 委托任务
+- **get_cc_context**（AGENT 类型）：查询当前频道 CC 协作上下文（任务状态 + 原始任务摘要 + 通讯历史）
+- **upload_file_to_cc**（BEHAVIOR 类型）：将主沙盒文件上传/共享至 CC Workspace 数据目录
 - **download_file_from_cc**（TOOL 类型）：将 CC Workspace 数据目录中的文件引入主沙盒
+
+方法可见性根据工作区状态动态调整（三态）：
+- 未绑定工作区：仅展示 create_and_bind_workspace
+- 已绑定但沙盒未运行：仅展示 start_cc_sandbox
+- 正常运行：展示所有工作方法，屏蔽创建/启动方法
 """
 
 import asyncio
+import json
+import secrets
 import shutil
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import AsyncGenerator, List
+
+import aiodocker
 
 from nekro_agent.api import schemas
 from nekro_agent.api.plugin import SandboxMethodType
+from nekro_agent.core.config import config as app_config
 from nekro_agent.core.logger import logger
+from nekro_agent.models.db_workspace import DBWorkspace
+from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.plugin.task import AsyncTaskHandle, TaskCtl
 from nekro_agent.services.plugin.task import task as task_api
+from nekro_agent.services.workspace import comm_broadcast
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
+from nekro_agent.services.workspace.container import SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 from .plugin import plugin
 
 _TASK_TYPE = "cc_delegate"
+
+
+# ---------------------------------------------------------------------------
+# 内部辅助
+# ---------------------------------------------------------------------------
+
+
+async def _check_sandbox_image_exists(image: str) -> bool:
+    """检查本地 Docker 是否已缓存指定镜像。"""
+    docker = aiodocker.Docker()
+    try:
+        await docker.images.get(image)
+        return True
+    except Exception:
+        return False
+    finally:
+        await docker.close()
 
 
 # ---------------------------------------------------------------------------
@@ -44,11 +76,6 @@ async def recover_pending_cc_results() -> None:
     2. 调用 CC sandbox GET /pending-results（消费语义，取回后自动删除）
     3. 对每条结果：写入 CC_TO_NA 通讯日志、广播到 SSE、推送系统消息并触发 NA Agent
     """
-    from nekro_agent.models.db_workspace import DBWorkspace
-    from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
-    from nekro_agent.services.message_service import message_service
-    from nekro_agent.services.workspace import comm_broadcast
-
     try:
         active_workspaces = await DBWorkspace.filter(status="active")
     except Exception as e:
@@ -136,8 +163,6 @@ async def _cc_delegate_task(
     task_prompt: str,
 ) -> AsyncGenerator[TaskCtl, None]:
     """后台通过 SSE 流式与 CC Sandbox 通信，完成后向主 Agent 推送结果"""
-    from nekro_agent.models.db_workspace import DBWorkspace
-
     workspace = await DBWorkspace.get_or_none(id=workspace_id)
     if workspace is None:
         yield TaskCtl.fail(f"工作区 {workspace_id} 不存在")
@@ -157,9 +182,6 @@ async def _cc_delegate_task(
 
     # 持久化 NA_TO_CC 日志并广播（失败不阻断主流程）
     try:
-        from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
-        from nekro_agent.services.workspace import comm_broadcast
-
         _na_log = await DBWorkspaceCommLog.create(
             workspace_id=workspace_id,
             direction="NA_TO_CC",
@@ -211,16 +233,12 @@ async def _cc_delegate_task(
                 item_type = item.get("type")
                 if item_type in ("tool_call", "tool_result"):
                     try:
-                        import json as _json
-                        from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
-                        from nekro_agent.services.workspace import comm_broadcast
-
                         direction = "TOOL_CALL" if item_type == "tool_call" else "TOOL_RESULT"
                         _tool_log = await DBWorkspaceCommLog.create(
                             workspace_id=workspace_id,
                             direction=direction,
                             source_chat_key=handle.task_id,
-                            content=_json.dumps(item, ensure_ascii=False),
+                            content=json.dumps(item, ensure_ascii=False),
                             task_id=f"cc_delegate:{handle.task_id}",
                         )
                         await comm_broadcast.publish(workspace_id, {
@@ -246,9 +264,6 @@ async def _cc_delegate_task(
 
         # 持久化 CC_TO_NA 日志并广播（失败不阻断主流程）
         try:
-            from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
-            from nekro_agent.services.workspace import comm_broadcast
-
             _cc_log = await DBWorkspaceCommLog.create(
                 workspace_id=workspace_id,
                 direction="CC_TO_NA",
@@ -302,16 +317,39 @@ async def _cc_delegate_task(
 async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     """向主 Agent 系统提示词注入当前频道绑定的 CC Workspace 信息"""
     workspace = await _ctx.get_bound_workspace()
-    if workspace is None:
-        return ""
 
-    # 工作区未运行时只注入基础信息，不尝试连接 CC
+    # ── 状态1：未绑定工作区 ──────────────────────────────────────────────────
+    if workspace is None:
+        return (
+            "[CC Workspace]\n"
+            "当前频道未绑定任何 CC Workspace。\n"
+            "CC Workspace 是一个独立的 Claude Code 沙盒，支持持久化执行代码、处理文件、运行命令和使用各种工具。\n"
+            "可通过 `create_and_bind_workspace` 自动创建并绑定工作区到当前频道（绑定后需再调用 `start_cc_sandbox` 启动容器）。\n"
+            "如果用户有特殊需求（如指定镜像、运行策略），建议引导用户到工作区管理页面手动创建后再绑定。\n"
+        )
+
+    # ── 状态2：已绑定工作区，但沙盒未运行 ──────────────────────────────────
     if workspace.status != "active":
+        status_label = {
+            "stopped": "已停止",
+            "failed": "启动失败",
+            "deleting": "删除中",
+        }.get(workspace.status, workspace.status)
+        last_error_hint = f"\n上次错误: {workspace.last_error}" if workspace.last_error else ""
+        user_action_hint = (
+            "上次错误可能需要用户介入处理（如镜像缺失、配置错误等），请告知用户查看工作区管理页面。"
+            if workspace.last_error
+            else "可通过 `start_cc_sandbox` 启动沙盒容器。"
+        )
         return (
             f"[CC Workspace]\n"
             f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
-            f"状态: {workspace.status}（未运行，CC 能力暂不可用）\n"
+            f"运行策略: {workspace.runtime_policy}\n"
+            f"状态: {status_label}（沙盒未运行）{last_error_hint}\n"
+            f"{user_action_hint}\n"
         )
+
+    # ── 状态3：工作区正常运行 ────────────────────────────────────────────────
 
     client = CCSandboxClient(workspace)
 
@@ -356,7 +394,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
                     f"\n[CC 委托任务执行中] 已运行 {elapsed:.0f}s\n"
                     f"任务: {preview_str}\n"
                     f"完成后结果将自动推回本会话。可通过 `cancel_cc_task` 取消，"
-                    f"或通过 `get_cc_task_status` 查询进度。\n"
+                    f"或通过 `get_cc_context` 查询完整上下文（含原始任务和通讯历史）。\n"
                 )
             elif is_running:
                 # 本频道任务在排队，工作区被其他频道占用
@@ -376,14 +414,14 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             # NA 任务在跑但 CC 队列为空（任务刚提交/CC 侧尚未入队）
             task_hint = (
                 "\n[CC 委托任务已提交，等待 CC 侧接收...]\n"
-                "完成后结果将自动推回本会话。可通过 `get_cc_task_status` 查询进度，或通过 `cancel_cc_task` 取消。\n"
+                "完成后结果将自动推回本会话。可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。\n"
             )
     except Exception:
         # 无法查询 CC 队列时，仅依赖 NA 侧状态
         if is_running:
             task_hint = (
                 "\n[当前有 CC 委托任务正在后台执行中，完成后结果将自动回传。"
-                "可通过 `get_cc_task_status` 查询进度，或通过 `cancel_cc_task` 取消。]\n"
+                "可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。]\n"
             )
 
     return (
@@ -396,7 +434,14 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"{task_hint}"
         f"可通过 `delegate_to_cc` 将复杂的编程/工具任务**异步**委托给 CC Sandbox 后台执行（完成后自动回传），"
         f"通过 `upload_file_to_cc` / `download_file_from_cc` 与 CC Workspace 传递文件，"
-        f"通过 `get_cc_status` 查询工作区详细状态。\n"
+        f"通过 `get_cc_context` 查询工作区协作上下文（任务状态 + 原始任务 + 通讯历史）。\n"
+        f"\n"
+        f"[CC 协作注意事项]\n"
+        f"- CC 是工作区的**第一手知识持有者**，你（NA）无法主动读取 CC 工作区的文件和代码，不了解工作区实际状态\n"
+        f"- 委托任务时请描述**目标和背景**，而不是具体实现步骤——不要在任务中假设工作区存在特定文件路径、函数名或代码行\n"
+        f"- 如果用户提到具体的文件/函数/路径，应以「用户提及，请自行核实」的方式传达，而非断言其存在\n"
+        f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托新任务\n"
+        f"- 绝对不要根据对工作区的主观臆测，向 CC 下达精细化的代码修改指令（如'将第X行改为...'）\n"
     )
 
 
@@ -405,7 +450,171 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
 # ---------------------------------------------------------------------------
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "异步委托任务给 CC Workspace（claude-code 沙盒）后台执行")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.AGENT,
+    "创建并绑定 CC Workspace",
+    description=(
+        "为当前会话创建专属的 CC Workspace 沙盒环境并自动绑定。"
+        "创建后需调用 start_cc_sandbox 启动容器才能开始使用。"
+        "如果用户有特殊需求（自定义镜像、运行策略等），建议引导其在工作区管理页面手动创建。"
+    ),
+)
+async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str = "") -> str:
+    """Create a new CC Workspace and bind it to the current channel.
+
+    This sets up a dedicated Claude Code sandbox environment for this channel.
+    After creation, call `start_cc_sandbox` to launch the sandbox container.
+
+    If the user has special requirements (custom image, specific runtime policy, etc.),
+    inform them to create the workspace manually in the workspace management page instead.
+
+    Args:
+        workspace_name (str): Name for the new workspace. Leave empty to auto-generate.
+            If a workspace with the same name already exists, a numeric suffix is added.
+
+    Returns:
+        str: Result message with workspace info and next steps.
+
+    Example:
+        ```python
+        # Auto-generate a name
+        create_and_bind_workspace()
+
+        # Or provide a descriptive name based on user's intent
+        create_and_bind_workspace("data-analysis")
+        ```
+    """
+    chat_key = _ctx.from_chat_key
+
+    # 当前频道已绑定工作区时，不允许重复创建
+    existing = await _ctx.get_bound_workspace()
+    if existing is not None:
+        return (
+            f"[CC Workspace] 当前频道已绑定工作区 '{existing.name}'（ID: {existing.id}，状态: {existing.status}）。\n"
+            f"如果沙盒未运行，请调用 `start_cc_sandbox` 启动容器。"
+        )
+
+    # 生成唯一工作区名称
+    base_name = workspace_name.strip() or f"workspace-{secrets.token_hex(3)}"
+    final_name = base_name
+    counter = 1
+    while await DBWorkspace.get_or_none(name=final_name):
+        final_name = f"{base_name}-{counter}"
+        counter += 1
+
+    # 创建工作区 DB 记录
+    try:
+        ws = await DBWorkspace.create(
+            name=final_name,
+            description=f"由 NA 自动为频道 {chat_key} 创建",
+            runtime_policy="agent",
+        )
+    except Exception as e:
+        logger.error(f"[cc_workspace] 创建工作区失败: {e}")
+        return f"[CC Workspace] 创建工作区失败：{e}"
+
+    # 绑定到当前频道
+    try:
+        await WorkspaceService.bind_channel(ws, chat_key)
+    except Exception as e:
+        logger.error(f"[cc_workspace] 绑定工作区到频道失败: {e}")
+        try:
+            await ws.delete()
+        except Exception:
+            pass
+        return f"[CC Workspace] 工作区创建成功但绑定到当前频道失败：{e}"
+
+    logger.info(f"[cc_workspace] 已创建并绑定工作区: {final_name}（ID: {ws.id}），chat_key={chat_key}")
+    return (
+        f"[CC Workspace] 工作区已创建并绑定到当前频道。\n"
+        f"工作区名称: {final_name}（ID: {ws.id}）\n"
+        f"运行策略: agent\n"
+        f"下一步：调用 `start_cc_sandbox` 启动沙盒容器，即可开始使用 CC Workspace。"
+    )
+
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.AGENT,
+    "启动 CC 沙盒容器",
+    description=(
+        "启动绑定工作区的 CC 沙盒 Docker 容器，并等待健康检查通过（最长等待约 60 秒）。"
+        "若本地缺少镜像，会返回 docker pull 命令供用户执行。"
+        "容器运行后即可通过 delegate_to_cc 委托任务。"
+    ),
+)
+async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
+    """Start the CC sandbox container for the bound workspace.
+
+    This launches a Docker container running the CC sandbox (claude-code sandbox).
+    The method first checks if the sandbox Docker image is available locally.
+    If the image is missing, it returns a `docker pull` command for the user to run.
+
+    This is a blocking operation that waits for the container health check to pass
+    (up to the configured startup timeout, typically 60 seconds).
+
+    Returns:
+        str: Success message, or error/guidance information.
+
+    Example:
+        ```python
+        start_cc_sandbox()
+        ```
+    """
+    workspace = await _ctx.get_bound_workspace()
+    if workspace is None:
+        return "[CC Workspace] 当前频道未绑定工作区，请先调用 `create_and_bind_workspace` 创建工作区。"
+
+    if workspace.status == "active":
+        return (
+            f"[CC Workspace] 工作区 '{workspace.name}' 的沙盒已在运行中，无需重复启动。\n"
+            f"可通过 `delegate_to_cc` 直接委托任务。"
+        )
+
+    # 确定镜像名称并检查本地是否存在
+    image_name = workspace.sandbox_image or app_config.CC_SANDBOX_IMAGE
+    image_tag = workspace.sandbox_version or app_config.CC_SANDBOX_IMAGE_TAG
+    image = f"{image_name}:{image_tag}"
+
+    image_exists = await _check_sandbox_image_exists(image)
+    if not image_exists:
+        return (
+            f"[CC Workspace] 本地未找到沙盒镜像 `{image}`，无法启动容器。\n"
+            f"请通知用户在宿主机（或 NA 容器内）执行以下命令拉取镜像：\n"
+            f"```\ndocker pull {image}\n```\n"
+            f"拉取完成后，重新调用 `start_cc_sandbox` 即可启动。"
+        )
+
+    # 启动容器（等待健康检查通过）
+    try:
+        await SandboxContainerManager.create_and_start(workspace)
+        logger.info(f"[cc_workspace] 沙盒已启动: workspace={workspace.name}（ID: {workspace.id}）")
+        return (
+            f"[CC Workspace] 沙盒已成功启动！\n"
+            f"工作区: {workspace.name}（ID: {workspace.id}）\n"
+            f"现在可以通过 `delegate_to_cc` 向 CC Workspace 委托编程任务了。"
+        )
+    except RuntimeError as e:
+        logger.error(f"[cc_workspace] 启动沙盒失败: {e}")
+        return (
+            f"[CC Workspace] 沙盒启动失败：{e}\n"
+            f"可能原因：容器健康检查超时，或镜像/配置异常。\n"
+            f"建议告知用户检查 Docker 日志，或在工作区管理页面查看详细错误信息。"
+        )
+    except Exception as e:
+        logger.error(f"[cc_workspace] 启动沙盒异常: {e}")
+        return f"[CC Workspace] 启动沙盒时发生意外错误：{e}"
+
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "委托任务给 CC Workspace 后台执行",
+    description=(
+        "将编程、文件处理、命令执行等复杂任务异步委托给 CC Workspace（claude-code 沙盒）后台运行，"
+        "完成后自动将结果推送回本会话并触发 NA 继续响应。"
+        "task_prompt 应描述目标和背景，而非假设具体文件路径或代码细节——CC 会自行探索工作区。"
+        "每个频道同时只能有一个 CC 任务在运行。"
+    ),
+)
 async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
     """Delegate a task to the bound CC Workspace (claude-code sandbox) asynchronously.
 
@@ -419,19 +628,37 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
     **Note**: Only one CC task can run per channel at a time. Use `cancel_cc_task` to
     cancel the current task before starting a new one.
 
+    **IMPORTANT — How to write task_prompt correctly**:
+    CC has DIRECT access to the workspace and knows its actual file structure and code state.
+    YOU (NA) do NOT have this knowledge. Therefore:
+    - Describe the GOAL and CONTEXT, NOT step-by-step implementation instructions
+    - Do NOT assume specific file paths, function names, or line numbers in the workspace
+    - If the user mentioned a specific path/function, pass it as "user mentioned X, please verify it exists"
+    - Let CC explore the workspace and decide how to implement — do NOT micromanage
+    - If CC's response contains "[需要澄清]" questions, relay them to the user before delegating again
+
     Args:
-        task_prompt (str): Detailed description of the task for CC Sandbox to perform. Be as
-            specific as possible — include expected inputs, outputs, file paths, and constraints.
+        task_prompt (str): Goal-oriented description of what needs to be accomplished.
+            Include the user's intent, relevant background, and any constraints.
+            Do NOT include assumed implementation details about the workspace internals.
 
     Returns:
         str: Confirmation that the task has been started asynchronously (NOT the final result —
              the result will come back automatically when execution is complete).
 
-    Example:
+    Example (CORRECT — goal-oriented):
         ```python
         delegate_to_cc(
-            "请读取 ./data/report.csv，计算每列的均值，并将结果保存到 ./data/summary.json"
+            "用户希望分析项目中的数据文件并生成统计报告。"
+            "用户提到文件可能在 data/ 目录下（请自行确认）。"
+            "请探索工作区，找到相关数据文件，计算统计摘要，并将结果保存到工作区。"
         )
+        ```
+
+    Example (WRONG — do NOT do this, NA doesn't actually know this):
+        ```python
+        # 错误示范：假设了不确定存在的路径和代码细节
+        delegate_to_cc("请修改 ./src/utils.py 第42行的 calculate() 函数，将参数 n 改为 count")
         ```
     """
     workspace = await _ctx.get_bound_workspace()
@@ -454,24 +681,35 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
             f"或使用 `cancel_cc_task` 取消后再委托新任务。"
         )
 
-    # on_terminal 为同步回调，在任务终态时将结果异步推送给主 Agent
-    def on_terminal(ctl: TaskCtl) -> None:
+    # 持久化 task_prompt，供结果回传时提醒 NA 本次任务的原始目标
+    await plugin.store.set(chat_key=chat_key, store_key="last_cc_task_prompt", value=task_prompt)
+
+    # on_terminal 异步辅助：在任务终态时读取存储的原始提示词并推送给主 Agent
+    async def _push_result(ctl: TaskCtl) -> None:
+        stored_prompt = await plugin.store.get(chat_key=chat_key, store_key="last_cc_task_prompt") or ""
+        if stored_prompt:
+            prompt_preview = stored_prompt[:300] + ("..." if len(stored_prompt) > 300 else "")
+            task_ctx_section = f"\n\n[本次委托给 CC 的原始任务摘要]\n{prompt_preview}"
+        else:
+            task_ctx_section = ""
+
         if ctl.signal.value == "success":
-            notify_msg = ctl.message  # "[CC Workspace 执行结果]\n..."
+            notify_msg = f"{ctl.message}{task_ctx_section}"
         elif ctl.signal.value == "fail":
-            notify_msg = f"[CC Workspace] CC 任务执行失败: {ctl.message}"
+            notify_msg = f"[CC Workspace] CC 任务执行失败: {ctl.message}{task_ctx_section}"
         elif ctl.signal.value == "cancel":
-            notify_msg = f"[CC Workspace] CC 任务已被取消: {ctl.message}"
+            notify_msg = f"[CC Workspace] CC 任务已被取消: {ctl.message}{task_ctx_section}"
         else:
             return
 
-        asyncio.create_task(
-            message_service.push_system_message(
-                chat_key=chat_key,
-                agent_messages=notify_msg,
-                trigger_agent=True,
-            )
+        await message_service.push_system_message(
+            chat_key=chat_key,
+            agent_messages=notify_msg,
+            trigger_agent=True,
         )
+
+    def on_terminal(ctl: TaskCtl) -> None:
+        asyncio.create_task(_push_result(ctl))
 
     try:
         await task_api.start(
@@ -495,7 +733,15 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
         return f"[CC Workspace] 启动任务失败: {e}"
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "取消当前频道正在后台执行的 CC Workspace 委托任务")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "取消本频道的 CC 委托任务",
+    description=(
+        "取消本频道正在后台运行的 CC 委托任务。"
+        "同时尝试终止 CC 沙盒中对应的运行进程（若当前正在执行本频道任务）。"
+        "若任务已完成，取消操作无效。"
+    ),
+)
 async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
     """Cancel the currently running CC Workspace delegation task for this channel.
 
@@ -541,83 +787,125 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
     return "[CC Workspace] 取消任务失败，任务可能已结束。"
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "查询当前频道 CC Workspace 委托任务的执行状态")
-async def get_cc_task_status(_ctx: schemas.AgentCtx) -> str:
-    """Get the execution status of the CC Workspace delegation task for this channel.
+@plugin.mount_sandbox_method(
+    SandboxMethodType.AGENT,
+    "查询 CC 协作上下文",
+    description=(
+        "查询本频道当前 CC 任务的完整协作上下文，包含：当前任务执行状态及最新进度、"
+        "上次委托给 CC 的原始任务摘要（防止长对话中忘记任务目标）、"
+        "近期 NA↔CC 主消息通讯记录（最近 6 条）、CC 容器健康状态。"
+        "适用于长时任务中途想了解 CC 工作情况，或 CC 回传结果后需要回忆原始委托内容时。"
+    ),
+)
+async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
+    """Get the full CC collaboration context for this channel.
+
+    Use this to recall what task was delegated to CC, understand CC's current work
+    situation, and review recent NA↔CC communication history.
+
+    This is especially valuable in long sessions where the original delegation may
+    have scrolled out of context — it brings together:
+    - Current task execution state (NA-side AsyncTask status)
+    - The original task prompt that was delegated to CC
+    - Recent NA↔CC message exchange (last 6 entries)
+    - CC container health check
 
     Returns:
-        str: Task status report including signal, progress, and latest message.
+        str: Comprehensive CC collaboration context.
 
     Example:
         ```python
-        status = get_cc_task_status()
-        ```
-    """
-    task_id = _ctx.from_chat_key
-    is_running = task_api.is_running(_TASK_TYPE, task_id)
-    state = task_api.get_state(_TASK_TYPE, task_id)
-
-    if not is_running and state is None:
-        return "[CC Workspace] 当前频道没有 CC 委托任务记录。"
-
-    status_label = "运行中" if is_running else "已结束"
-    if state:
-        signal_map = {"progress": "执行中", "success": "已完成", "fail": "失败", "cancel": "已取消"}
-        signal_label = signal_map.get(state.signal.value, state.signal.value)
-        preview = state.message[:300] + "..." if len(state.message) > 300 else state.message
-        return (
-            f"[CC Workspace 任务状态]\n"
-            f"状态: {status_label}（{signal_label}）\n"
-            f"最新进度: {preview}"
-        )
-    return f"[CC Workspace 任务状态]\n状态: {status_label}"
-
-
-@plugin.mount_sandbox_method(SandboxMethodType.AGENT, "查询 CC Workspace 实时状态")
-async def get_cc_status(_ctx: schemas.AgentCtx) -> str:
-    """Get the real-time status of the bound CC Workspace.
-
-    Returns workspace name, container status, available tools, and last heartbeat time.
-
-    Returns:
-        str: A formatted status report of the CC Workspace.
-
-    Example:
-        ```python
-        status = get_cc_status()
-        print(status)
+        context = get_cc_context()
         ```
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
         return "[CC Workspace] 当前频道未绑定任何 CC Workspace。"
 
-    client = CCSandboxClient(workspace)
-    healthy = await client.health_check()
-    status_info = await client.get_sandbox_status()
-    tools_list: list[str] = []
+    chat_key = _ctx.from_chat_key
+    task_id = chat_key
+
+    # ── NA 侧任务状态 ─────────────────────────────────────────────────────────
+    is_running = task_api.is_running(_TASK_TYPE, task_id)
+    state = task_api.get_state(_TASK_TYPE, task_id)
+
+    signal_map = {"progress": "进行中", "success": "已完成 ✓", "fail": "失败 ✗", "cancel": "已取消"}
+    if is_running:
+        task_status_line = "任务状态: 执行中 ▶"
+        if state:
+            latest_preview = state.message[:200] + ("..." if len(state.message) > 200 else "")
+            task_status_line += f"\n最新进度: {latest_preview}"
+    elif state is not None:
+        task_status_line = f"任务状态: {signal_map.get(state.signal.value, state.signal.value)}"
+        if state.message:
+            latest_preview = state.message[:200] + ("..." if len(state.message) > 200 else "")
+            task_status_line += f"\n最终消息摘要: {latest_preview}"
+    else:
+        task_status_line = "任务状态: 无活跃任务记录"
+
+    # ── 原始委托任务摘要（从 plugin.store 读取） ──────────────────────────────
+    stored_prompt = await plugin.store.get(chat_key=chat_key, store_key="last_cc_task_prompt") or ""
+    prompt_section = ""
+    if stored_prompt.strip():
+        preview = stored_prompt[:500] + ("..." if len(stored_prompt) > 500 else "")
+        prompt_section = f"\n[上次委托给 CC 的原始任务]\n{preview}\n"
+
+    # ── CC 容器健康检查 ───────────────────────────────────────────────────────
+    if workspace.status == "active":
+        client = CCSandboxClient(workspace)
+        try:
+            healthy = await client.health_check()
+            health_line = "CC 容器健康: ✓ 正常" if healthy else "CC 容器健康: ✗ 不可达（容器可能已异常退出）"
+        except Exception:
+            health_line = "CC 容器健康: ✗ 查询失败"
+    else:
+        health_line = f"CC 容器状态: {workspace.status}（未运行）"
+
+    # ── 近期 NA↔CC 通讯日志（排除工具调用细节，聚焦主消息） ──────────────────
+    comm_section = ""
     try:
-        tools_list = await client.get_tools()
+        logs = await DBWorkspaceCommLog.filter(
+            workspace_id=workspace.id,
+            direction__in=["NA_TO_CC", "CC_TO_NA"],
+            source_chat_key=chat_key,
+        ).order_by("-create_time").limit(6).all()
+
+        if logs:
+            lines = []
+            for log in reversed(logs):
+                role = "NA→CC" if log.direction == "NA_TO_CC" else "CC→NA"
+                content = log.content
+                # 去除 NA_TO_CC 时自动注入的 [任务来源频道: ...] 前缀
+                if log.direction == "NA_TO_CC" and content.startswith("[任务来源频道:"):
+                    nl = content.find("\n\n")
+                    if nl != -1:
+                        content = content[nl + 2:]
+                preview = content[:200] + ("..." if len(content) > 200 else "")
+                time_str = log.create_time.strftime("%m-%d %H:%M")
+                lines.append(f"[{time_str}] {role}: {preview}")
+            comm_section = "\n[近期 NA↔CC 通讯记录（最近 6 条）]\n" + "\n---\n".join(lines) + "\n"
     except Exception:
         pass
 
-    tools_str = ", ".join(tools_list) if tools_list else "（暂无）"
-    ws_status = status_info.get("status", workspace.status)
-    heartbeat = str(workspace.last_heartbeat) if workspace.last_heartbeat else "N/A"
-
     return (
-        f"[CC Workspace 状态]\n"
+        f"[CC Workspace 协作上下文]\n"
         f"工作区: {workspace.name}（ID: {workspace.id}）\n"
-        f"容器状态: {workspace.status} | CC 应用状态: {ws_status}\n"
-        f"健康检查: {'✓ 正常' if healthy else '✗ 不可达'}\n"
-        f"运行策略: {workspace.runtime_policy}\n"
-        f"可用工具: {tools_str}\n"
-        f"最近心跳: {heartbeat}\n"
-        f"最近错误: {workspace.last_error or '无'}"
+        f"{task_status_line}\n"
+        f"{health_line}\n"
+        f"{prompt_section}"
+        f"{comm_section}"
     )
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "强制取消 CC Workspace 中当前正在运行的任务（来自任意频道）")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "强制取消 CC Workspace 当前运行任务",
+    description=(
+        "强制终止 CC Workspace 中当前正在运行的任务，无论该任务来自哪个频道。"
+        "操作不可逆，被中断的任务结果将丢失，对应频道会收到取消通知。"
+        "仅在工作区被长时间占用、需要抢占执行时使用。"
+    ),
+)
 async def force_cancel_cc_workspace(_ctx: schemas.AgentCtx) -> str:
     """Force-cancel the currently running task in the bound CC Workspace.
 
@@ -656,7 +944,15 @@ async def force_cancel_cc_workspace(_ctx: schemas.AgentCtx) -> str:
     return "[CC Workspace] 取消失败，任务可能已经执行完毕。"
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.BEHAVIOR, "将主沙盒文件上传/共享至 CC Workspace 数据目录")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "上传文件到 CC Workspace",
+    description=(
+        "将主沙盒中的文件复制到 CC Workspace 的 data/ 目录，供 CC 沙盒直接通过文件系统访问。"
+        "CC 可通过绝对路径 /workspace/default/data/<文件名> 读取该文件。"
+        "适用于需要将用户提供的数据文件交给 CC 处理的场景。"
+    ),
+)
 async def upload_file_to_cc(_ctx: schemas.AgentCtx, sandbox_file_path: str, dest_name: str = "") -> str:
     """Copy a file from the current sandbox into the bound CC Workspace data directory.
 
@@ -710,7 +1006,14 @@ async def upload_file_to_cc(_ctx: schemas.AgentCtx, sandbox_file_path: str, dest
         return f"[CC Workspace] 文件上传失败: {e}"
 
 
-@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "从 CC Workspace 数据目录下载文件到主沙盒共享目录")
+@plugin.mount_sandbox_method(
+    SandboxMethodType.TOOL,
+    "从 CC Workspace 下载文件",
+    description=(
+        "将 CC Workspace data/ 目录中的文件复制到主沙盒共享目录，返回沙盒内可访问的文件路径。"
+        "适用于 CC 生成了结果文件（如报告、图表、数据集）需要在主沙盒中进一步处理或发送给用户的场景。"
+    ),
+)
 async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, dest_name: str = "") -> str:
     """Copy a file from the CC Workspace data directory into the current sandbox's shared directory.
 
@@ -764,3 +1067,37 @@ async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, d
     except Exception as e:
         logger.error(f"[cc_workspace] download_file_from_cc 失败: {e}")
         return f"[CC Workspace] 文件下载失败: {e}"
+
+
+# ---------------------------------------------------------------------------
+# 动态方法可见性控制（三态）
+# ---------------------------------------------------------------------------
+
+
+@plugin.mount_collect_methods()
+async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
+    """根据当前频道的工作区状态，动态决定哪些 CC 方法对 NA 可见。
+
+    状态1 - 未绑定工作区：仅展示 create_and_bind_workspace
+    状态2 - 已绑定但沙盒未运行：仅展示 start_cc_sandbox
+    状态3 - 沙盒正常运行：展示所有工作方法，隐藏创建/启动方法
+    """
+    workspace = await ctx.get_bound_workspace()
+
+    # 状态1：未绑定工作区
+    if workspace is None:
+        return [create_and_bind_workspace]
+
+    # 状态2：有工作区但沙盒未运行
+    if workspace.status != "active":
+        return [start_cc_sandbox]
+
+    # 状态3：沙盒正常运行
+    return [
+        delegate_to_cc,
+        cancel_cc_task,
+        get_cc_context,
+        force_cancel_cc_workspace,
+        upload_file_to_cc,
+        download_file_from_cc,
+    ]
