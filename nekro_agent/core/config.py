@@ -999,18 +999,7 @@ class CoreConfig(ConfigBase):
             i18n_title=i18n_text(zh_CN="CC 沙盒端口段结束", en_US="CC Sandbox Port Range End"),
         ).model_dump(),
     )
-    CC_SANDBOX_DOCKER_NETWORK: str = Field(
-        default="",
-        title="CC 沙盒 Docker 网络名称",
-        description="留空则使用默认 bridge 网络，填入 docker network 名称可与 NA 容器共享网络（推荐 Docker 部署时配置）",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(
-                zh_CN="沙盒配置",
-                en_US="Sandbox Configuration",
-            ),
-            i18n_title=i18n_text(zh_CN="CC 沙盒 Docker 网络", en_US="CC Sandbox Docker Network"),
-        ).model_dump(),
-    )
+
     CC_SANDBOX_STARTUP_TIMEOUT: int = Field(
         default=120,
         title="CC 沙盒启动超时（秒）",
