@@ -7,7 +7,8 @@
     "spaceCleanup": "Space Cleanup"
   },
   "system": {
-    "emptyMessage": "No system configurations available"
+    "emptyMessage": "No system configurations available",
+    "otherCategory": "Other"
   },
   "modelGroup": {
     "title": "Model Group Management",

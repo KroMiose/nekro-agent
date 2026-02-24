@@ -7,7 +7,8 @@
     "spaceCleanup": "空间回收"
   },
   "system": {
-    "emptyMessage": "暂无系统配置项"
+    "emptyMessage": "暂无系统配置项",
+    "otherCategory": "其他"
   },
   "modelGroup": {
     "title": "模型组管理",

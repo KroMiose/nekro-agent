@@ -27,15 +27,18 @@ export default function SettingsPage() {
     queryFn: () => configService.getConfigList('system'),
   })
 
-  // 从配置项中提取本地化的分类名称
+  // 从配置项中提取本地化的分类名称，无分类时 fallback 到"其他"
   const resolveCategory = (config: ConfigItem): string => {
     if (config.i18n_category && typeof config.i18n_category === 'object') {
-      return getLocalizedText(config.i18n_category, config.category || '', i18n.language)
+      return (
+        getLocalizedText(config.i18n_category, config.category || '', i18n.language) ||
+        t('system.otherCategory', '其他')
+      )
     }
-    if (typeof config.i18n_category === 'string') {
+    if (typeof config.i18n_category === 'string' && config.i18n_category) {
       return config.i18n_category
     }
-    return config.category || ''
+    return config.category || t('system.otherCategory', '其他')
   }
 
   // 按分类组织配置，同时提取分类列表
@@ -46,16 +49,14 @@ export default function SettingsPage() {
 
     configs.forEach((config: ConfigItem) => {
       const category = resolveCategory(config)
-      if (category) {
-        if (!seen.has(category)) {
-          seen.add(category)
-          cats.push(category)
-        }
-        if (!grouped[category]) {
-          grouped[category] = []
-        }
-        grouped[category].push(config)
+      if (!seen.has(category)) {
+        seen.add(category)
+        cats.push(category)
       }
+      if (!grouped[category]) {
+        grouped[category] = []
+      }
+      grouped[category].push(config)
     })
 
     return { categories: cats, configsByCategory: grouped }
