@@ -61,7 +61,10 @@ class CoreConfig(ConfigBase):
             "敏感数据将经过不可逆摘要处理后仅用于统计分析，收集过程实现逻辑均公开开源，不包含任何具体用户/聊天/频道/代码执行等隐私信息！"
         ),
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用 NekroAI 云服务",
                 en_US="Enable NekroAI Cloud Service",
@@ -77,7 +80,10 @@ class CoreConfig(ConfigBase):
         title="NekroAI 云服务 API Key",
         description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             is_secret=True,
             placeholder="nk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
             i18n_title=i18n_text(
@@ -101,7 +107,10 @@ class CoreConfig(ConfigBase):
         title="应用日志级别",
         description="应用日志级别，需要重启应用后生效",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="应用日志级别",
                 en_US="Application Log Level",
@@ -117,7 +126,10 @@ class CoreConfig(ConfigBase):
         title="管理员列表",
         description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="管理员列表",
                 en_US="Administrator List",
@@ -133,7 +145,10 @@ class CoreConfig(ConfigBase):
         title="允许管理员登陆 WebUI",
         description="启用后可使用管理员账号登陆 WebUI，登陆后请及时在 个人中心 修改密码",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="允许管理员登陆 WebUI",
                 en_US="Allow Administrators Login to WebUI",
@@ -148,7 +163,10 @@ class CoreConfig(ConfigBase):
         default=False,
         title="聊天调试模式",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="聊天调试模式",
                 en_US="Chat Debug Mode",
@@ -159,7 +177,10 @@ class CoreConfig(ConfigBase):
         default="",
         title="管理频道",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             is_secret=True,
             placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
             i18n_title=i18n_text(
@@ -172,7 +193,10 @@ class CoreConfig(ConfigBase):
         default=False,
         title="保存聊天提示词生成日志",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="保存聊天提示词生成日志",
                 en_US="Save Chat Prompt Generation Log",
@@ -183,7 +207,10 @@ class CoreConfig(ConfigBase):
         default=10,
         title="上传文件大小限制 (MB)",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="上传文件大小限制 (MB)",
                 en_US="Upload File Size Limit (MB)",
@@ -194,7 +221,10 @@ class CoreConfig(ConfigBase):
         default=False,
         title="启用未授权命令反馈",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用未授权命令反馈",
                 en_US="Enable Unauthorized Command Feedback",
@@ -205,7 +235,10 @@ class CoreConfig(ConfigBase):
         default="",
         title="默认代理",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             placeholder="例: http://127.0.0.1:7890",
             i18n_title=i18n_text(
                 zh_CN="默认代理",
@@ -265,7 +298,10 @@ class CoreConfig(ConfigBase):
         default="default",
         title="使用的主模型组",
         json_schema_extra=ExtraField(
-            category="模型配置",
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
             ref_model_groups=True,
             required=True,
             model_type="chat",
@@ -285,7 +321,10 @@ class CoreConfig(ConfigBase):
         default="default",
         title="调试/Agent 迁移模型组",
         json_schema_extra=ExtraField(
-            category="模型配置",
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
             ref_model_groups=True,
             model_type="chat",
             overridable=True,
@@ -304,7 +343,10 @@ class CoreConfig(ConfigBase):
         default="default",
         title="备用模型组",
         json_schema_extra=ExtraField(
-            category="模型配置",
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
             ref_model_groups=True,
             model_type="chat",
             overridable=True,
@@ -325,7 +367,10 @@ class CoreConfig(ConfigBase):
         default="可洛喵",
         title="默认聊天人设名",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="默认聊天人设名",
                 en_US="Default Chat Preset Name",
@@ -340,7 +385,10 @@ class CoreConfig(ConfigBase):
         ),
         title="默认聊天人设详情",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             is_textarea=True,
             i18n_title=i18n_text(
                 zh_CN="默认聊天人设详情",
@@ -352,7 +400,10 @@ class CoreConfig(ConfigBase):
         default=60 * 30,
         title="对话上下文过期时间 (秒)",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="对话上下文过期时间 (秒)",
@@ -369,7 +420,10 @@ class CoreConfig(ConfigBase):
         default=32,
         title="对话上下文最大条数",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="对话上下文最大条数",
@@ -387,7 +441,10 @@ class CoreConfig(ConfigBase):
         title="代码执行调试 / Agent 迭代最大次数",
         description="执行代码过程出错或者产生 Agent 反馈时，进行迭代调用允许的最大次数，增大该值可能略微增加调试成功概率，过大会造成响应时间增加、Token 消耗增加等",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="代码执行调试 / Agent 迭代最大次数",
@@ -404,7 +461,10 @@ class CoreConfig(ConfigBase):
         title="模型 API 调用重试次数",
         description="模型组调用失败后重试次数，重试的最后一次将使用备用模型组",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="模型 API 调用重试次数",
@@ -421,7 +481,10 @@ class CoreConfig(ConfigBase):
         title="防抖等待时长 (秒)",
         description="收到触发消息时延迟指定时长再开始回复流程，防抖等待时长中继续收到的消息只会触发最后一条",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="防抖等待时长 (秒)",
@@ -437,7 +500,10 @@ class CoreConfig(ConfigBase):
         default=180,
         title="AI 对话内容生成超时时间 (秒)",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="AI 对话内容生成超时时间 (秒)",
@@ -455,7 +521,10 @@ class CoreConfig(ConfigBase):
         title="忽略的消息前缀",
         description="带有这些前缀的消息不会被参考或者触发",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             sub_item_name="前缀",
             i18n_title=i18n_text(
                 zh_CN="忽略的消息前缀",
@@ -472,7 +541,10 @@ class CoreConfig(ConfigBase):
         title="命令输出前缀",
         description="命令输出前缀，用于标识命令输出",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="命令输出前缀",
@@ -488,7 +560,10 @@ class CoreConfig(ConfigBase):
         default=0.0,
         title="随机回复概率",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="随机回复概率",
@@ -506,7 +581,10 @@ class CoreConfig(ConfigBase):
         title="触发正则表达式",
         description="触发正则表达式，当消息匹配到正则表达式时，会触发 AI 回复",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             sub_item_name="表达式",
             i18n_title=i18n_text(
                 zh_CN="触发正则表达式",
@@ -523,7 +601,10 @@ class CoreConfig(ConfigBase):
         title="忽略正则表达式",
         description="忽略正则表达式，当消息匹配到正则表达式时，不会触发 AI 回复",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             sub_item_name="表达式",
             i18n_title=i18n_text(
                 zh_CN="忽略正则表达式",
@@ -540,7 +621,10 @@ class CoreConfig(ConfigBase):
         title="AI 响应预处理丢弃正则表达式",
         description="使用正则表达式匹配 AI 预响应结果，丢弃匹配到的内容段再执行后续思维链解析、代码解析等内容",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             sub_item_name="表达式",
             i18n_title=i18n_text(
                 zh_CN="AI 响应预处理丢弃正则表达式",
@@ -556,7 +640,10 @@ class CoreConfig(ConfigBase):
         default=768,
         title="单条消息最大长度 (字符)",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="单条消息最大长度 (字符)",
@@ -573,7 +660,10 @@ class CoreConfig(ConfigBase):
         default=5120,
         title="聊天上下文最大长度 (字符)",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="聊天上下文最大长度 (字符)",
@@ -590,7 +680,10 @@ class CoreConfig(ConfigBase):
         default=5,
         title="视觉参考图片数量限制",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="视觉参考图片数量限制",
                 en_US="Vision Image Count Limit",
@@ -601,7 +694,10 @@ class CoreConfig(ConfigBase):
         default=1024,
         title="视觉图片大小限制 (KB)",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="视觉图片大小限制 (KB)",
@@ -619,7 +715,10 @@ class CoreConfig(ConfigBase):
         title="聊天上下文系统消息通知窗口大小",
         description="聊天上下文系统消息通知窗口大小，超出该大小的系统消息不会被参考",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="聊天上下文系统消息通知窗口大小",
@@ -636,7 +735,10 @@ class CoreConfig(ConfigBase):
         title="聊天上下文系统消息通知条数限制",
         description="聊天上下文系统消息通知条数限制，超出该条数不会被参考",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="聊天上下文系统消息通知条数限制",
@@ -653,7 +755,10 @@ class CoreConfig(ConfigBase):
         title="始终呈现所有消息的 ID",
         description="启用后上下文中将始终呈现所有消息的 ID，这将占用额外的上下文长度，但允许 AI 在回复时更灵活地引用消息或使用插件对特定消息进行处理",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="始终呈现所有消息的 ID",
@@ -670,7 +775,10 @@ class CoreConfig(ConfigBase):
         title="显示远程资源 URL",
         description="启用后若资源远程 URL 可用，将在上下文中追加提供远程 URL 供 AI 参考使用",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="显示远程资源 URL",
@@ -686,7 +794,10 @@ class CoreConfig(ConfigBase):
         default=False,
         title="启用流式请求",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="启用流式请求",
@@ -705,7 +816,10 @@ class CoreConfig(ConfigBase):
         default=True,
         title="新群聊默认启用聊天",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="新群聊默认启用聊天",
                 en_US="Enable Chat for New Groups by Default",
@@ -716,7 +830,10 @@ class CoreConfig(ConfigBase):
         default=True,
         title="新私聊默认启用聊天",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="新私聊默认启用聊天",
                 en_US="Enable Chat for New Private Chats by Default",
@@ -728,7 +845,10 @@ class CoreConfig(ConfigBase):
         title="启用失败 LLM 反馈",
         description="启用后 AI 调用 LLM 失败时会发送反馈",
         json_schema_extra=ExtraField(
-            category="聊天配置",
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
             overridable=True,
             i18n_title=i18n_text(
                 zh_CN="启用失败 LLM 反馈",
@@ -746,7 +866,10 @@ class CoreConfig(ConfigBase):
         default="kromiose/nekro-agent-sandbox",
         title="沙盒镜像名称",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="沙盒镜像名称",
                 en_US="Sandbox Image Name",
@@ -758,7 +881,10 @@ class CoreConfig(ConfigBase):
         title="沙盒超时时间 (秒)",
         description="每个沙盒容器最长运行时间，超过该时间沙盒容器会被强制停止",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="沙盒超时时间 (秒)",
                 en_US="Sandbox Timeout (seconds)",
@@ -773,7 +899,10 @@ class CoreConfig(ConfigBase):
         default=4,
         title="最大并发沙盒数",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="最大并发沙盒数",
                 en_US="Max Concurrent Sandboxes",
@@ -784,7 +913,10 @@ class CoreConfig(ConfigBase):
         default=f"http://host.docker.internal:{OsEnv.EXPOSE_PORT}/api",
         title="沙盒访问 Nekro API 地址",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="沙盒访问 Nekro API 地址",
                 en_US="Sandbox Nekro API URL",
@@ -796,7 +928,10 @@ class CoreConfig(ConfigBase):
         title="协议端挂载 NA 数据目录",
         description="该目录用于 NA 向 OneBot 协议端上传资源文件时，指定文件访问的路径使用，请确保协议端能通过该目录访问到 NA 的应用数据，如果协议端运行在 Docker 容器中则需要将此目录挂载到容器中对应位置",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="协议端挂载 NA 数据目录",
                 en_US="OneBot Server NA Data Mount Directory",
@@ -813,7 +948,10 @@ class CoreConfig(ConfigBase):
         default="nekro-cc-sandbox",
         title="CC 沙盒镜像名称",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒镜像名称", en_US="CC Sandbox Image Name"),
         ).model_dump(),
     )
@@ -821,7 +959,10 @@ class CoreConfig(ConfigBase):
         default="latest",
         title="CC 沙盒镜像标签",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒镜像标签", en_US="CC Sandbox Image Tag"),
         ).model_dump(),
     )
@@ -829,7 +970,10 @@ class CoreConfig(ConfigBase):
         default=7021,
         title="CC 沙盒容器内部端口",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒容器内部端口", en_US="CC Sandbox Internal Port"),
         ).model_dump(),
     )
@@ -837,7 +981,10 @@ class CoreConfig(ConfigBase):
         default=40000,
         title="CC 沙盒宿主机端口段起始",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒端口段起始", en_US="CC Sandbox Port Range Start"),
         ).model_dump(),
     )
@@ -845,7 +992,10 @@ class CoreConfig(ConfigBase):
         default=49999,
         title="CC 沙盒宿主机端口段结束",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒端口段结束", en_US="CC Sandbox Port Range End"),
         ).model_dump(),
     )
@@ -854,7 +1004,10 @@ class CoreConfig(ConfigBase):
         title="CC 沙盒 Docker 网络名称",
         description="留空则使用默认 bridge 网络，填入 docker network 名称可与 NA 容器共享网络（推荐 Docker 部署时配置）",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒 Docker 网络", en_US="CC Sandbox Docker Network"),
         ).model_dump(),
     )
@@ -862,7 +1015,10 @@ class CoreConfig(ConfigBase):
         default=120,
         title="CC 沙盒启动超时（秒）",
         json_schema_extra=ExtraField(
-            category="沙盒配置",
+            i18n_category=i18n_text(
+                zh_CN="沙盒配置",
+                en_US="Sandbox Configuration",
+            ),
             i18n_title=i18n_text(zh_CN="CC 沙盒启动超时（秒）", en_US="CC Sandbox Startup Timeout (s)"),
         ).model_dump(),
     )
@@ -873,7 +1029,10 @@ class CoreConfig(ConfigBase):
         title="启用运行状态邮件通知",
         description="启用后 Bot 上下线时会发送邮件通知",
         json_schema_extra=ExtraField(
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用运行状态邮件通知",
                 en_US="Enable Runtime Status Email Notification",
@@ -889,7 +1048,10 @@ class CoreConfig(ConfigBase):
         title="邮件通知账号",
         json_schema_extra=ExtraField(
             is_secret=True,
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="邮件通知账号",
                 en_US="Email Notification Account",
@@ -906,7 +1068,10 @@ class CoreConfig(ConfigBase):
         title="邮件通知密码/授权码",
         json_schema_extra=ExtraField(
             is_secret=True,
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="邮件通知密码/授权码",
                 en_US="Email Password/Authorization Code",
@@ -922,7 +1087,10 @@ class CoreConfig(ConfigBase):
         default=[],
         title="邮件通知目标",
         json_schema_extra=ExtraField(
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             sub_item_name="目标邮箱",
             i18n_title=i18n_text(
                 zh_CN="邮件通知目标",
@@ -935,7 +1103,10 @@ class CoreConfig(ConfigBase):
         title="邮件通知 SMTP 服务器",
         description="邮件服务器的 SMTP 地址",
         json_schema_extra=ExtraField(
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="邮件通知 SMTP 服务器",
                 en_US="Email SMTP Server",
@@ -951,7 +1122,10 @@ class CoreConfig(ConfigBase):
         title="邮件通知 SMTP 端口",
         description="SMTP服务器端口, 一般为 587 或 465",
         json_schema_extra=ExtraField(
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="邮件通知 SMTP 端口",
                 en_US="Email SMTP Port",
@@ -966,7 +1140,10 @@ class CoreConfig(ConfigBase):
         default=True,
         title="邮件通知启用 TLS 加密",
         json_schema_extra=ExtraField(
-            category="邮件通知",
+            i18n_category=i18n_text(
+                zh_CN="邮件通知",
+                en_US="Email Notification",
+            ),
             i18n_title=i18n_text(
                 zh_CN="邮件通知启用 TLS 加密",
                 en_US="Enable TLS Encryption for Email",
@@ -979,7 +1156,10 @@ class CoreConfig(ConfigBase):
         default="default",
         title="插件代码生成模型组",
         json_schema_extra=ExtraField(
-            category="模型配置",
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
             ref_model_groups=True,
             model_type="chat",
             i18n_title=i18n_text(
@@ -997,7 +1177,10 @@ class CoreConfig(ConfigBase):
         default="default",
         title="插件代码应用模型组",
         json_schema_extra=ExtraField(
-            category="模型配置",
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
             ref_model_groups=True,
             model_type="chat",
             i18n_title=i18n_text(
@@ -1016,7 +1199,10 @@ class CoreConfig(ConfigBase):
         title="更新/克隆插件时使用代理",
         description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
         json_schema_extra=ExtraField(
-            category="插件配置",
+            i18n_category=i18n_text(
+                zh_CN="插件配置",
+                en_US="Plugin Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="更新/克隆插件时使用代理",
                 en_US="Use Proxy for Plugin Update/Clone",
@@ -1032,7 +1218,10 @@ class CoreConfig(ConfigBase):
         title="动态安装插件依赖时使用代理",
         description="是否在动态安装插件依赖时使用 `DEFAULT_PROXY` 配置的代理",
         json_schema_extra=ExtraField(
-            category="插件配置",
+            i18n_category=i18n_text(
+                zh_CN="插件配置",
+                en_US="Plugin Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="动态安装插件依赖时使用代理",
                 en_US="Use Proxy for Dynamic Plugin Installation",
@@ -1054,7 +1243,10 @@ class CoreConfig(ConfigBase):
         title="动态插件依赖安装镜像源",
         description="动态安装插件依赖时使用的 PyPI 镜像源地址",
         json_schema_extra=ExtraField(
-            category="插件配置",
+            i18n_category=i18n_text(
+                zh_CN="插件配置",
+                en_US="Plugin Configuration",
+            ),
             i18n_title=i18n_text(
                 zh_CN="动态插件依赖安装镜像源",
                 en_US="Dynamic Plugin Dependency Installation Mirror",
@@ -1110,7 +1302,10 @@ class CoreConfig(ConfigBase):
         default=False,
         title="启用 Weave 追踪",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用 Weave 追踪",
                 en_US="Enable Weave Tracing",
@@ -1121,7 +1316,10 @@ class CoreConfig(ConfigBase):
         default="nekro-agent",
         title="Weave 项目名称",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="Weave 项目名称",
                 en_US="Weave Project Name",
@@ -1135,7 +1333,10 @@ class CoreConfig(ConfigBase):
         title="启用节日祝福提醒",
         description="启用后会在节日时自动向所有活跃聊天发送祝福",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用节日祝福提醒",
                 en_US="Enable Festival Greeting Reminder",
@@ -1151,7 +1352,10 @@ class CoreConfig(ConfigBase):
         title="启用高级管理命令",
         description="启用后可以执行包含危险操作的管理员高级命令，请谨慎使用",
         json_schema_extra=ExtraField(
-            category="基础设置",
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
             i18n_title=i18n_text(
                 zh_CN="启用高级管理命令",
                 en_US="Enable Advanced Admin Commands",

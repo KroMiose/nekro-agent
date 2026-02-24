@@ -106,6 +106,7 @@ export interface ConfigItem {
   // i18n 扩展字段（可选，与后端 ExtraField 对应）
   i18n_title?: I18nDict
   i18n_description?: I18nDict
+  i18n_category?: string
 }
 
 export interface ModelGroupConfig {
@@ -888,6 +889,16 @@ export default function ConfigTable({
         : undefined
     },
     [i18n.language]
+  )
+
+  const getConfigCategory = useCallback(
+    (config: ConfigItem) => {
+      const categoryKey = config.i18n_category || config.category || ''
+      if (!categoryKey) return ''
+      // 尝试从翻译文件中获取分类名称，如果不存在则使用原始值
+      return t(`configTable.configCategories.${categoryKey}`, categoryKey)
+    },
+    [t]
   )
 
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
@@ -1738,7 +1749,16 @@ export default function ConfigTable({
                       </Stack>
                     </TableCell>
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
-                      <Stack spacing={1} direction="row" alignItems="center">
+                      <Stack spacing={1} direction="row" alignItems="center" flexWrap="wrap">
+                        {getConfigCategory(config) && (
+                          <Chip
+                            label={getConfigCategory(config)}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ ...CHIP_VARIANTS.base(isSmall) }}
+                          />
+                        )}
                         {config.overridable && configKey === 'system' && (
                           <Chip
                             label={t('configTable.overridable')}

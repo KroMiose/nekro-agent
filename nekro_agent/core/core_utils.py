@@ -159,7 +159,7 @@ class ExtraField(BaseModel):
         title="多人设引用标识",
         description="设置为True时，表示该字段支持选择多个人设，值为人设ID列表",
     )
-    category: str = Field(
+    i18n_category: str = Field(
         default="",
         title="配置项分类",
         description="用于在前端UI中分类显示配置项，例如'云服务'、'应用设置'等",
