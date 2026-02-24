@@ -71,7 +71,7 @@ class ConfigItem(BaseModel):
     is_need_restart: Optional[bool] = None
     i18n_title: Optional[Dict[str, str]] = None
     i18n_description: Optional[Dict[str, str]] = None
-    i18n_category: Optional[str] = None
+    i18n_category: Optional[Dict[str, str]] = None
 
 
 class ModelTypeOption(BaseModel):

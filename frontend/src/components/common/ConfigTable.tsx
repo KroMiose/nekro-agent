@@ -106,7 +106,7 @@ export interface ConfigItem {
   // i18n 扩展字段（可选，与后端 ExtraField 对应）
   i18n_title?: I18nDict
   i18n_description?: I18nDict
-  i18n_category?: string
+  i18n_category?: I18nDict
 }
 
 export interface ModelGroupConfig {
@@ -893,12 +893,13 @@ export default function ConfigTable({
 
   const getConfigCategory = useCallback(
     (config: ConfigItem) => {
-      const categoryKey = config.i18n_category || config.category || ''
-      if (!categoryKey) return ''
-      // 尝试从翻译文件中获取分类名称，如果不存在则使用原始值
-      return t(`configTable.configCategories.${categoryKey}`, categoryKey)
+      // 优先使用后端返回的 i18n_category（多语言），fallback 到 category（单语言）
+      if (config.i18n_category) {
+        return getLocalizedText(config.i18n_category, config.category || '', i18n.language)
+      }
+      return config.category || ''
     },
-    [t]
+    [i18n.language]
   )
 
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
