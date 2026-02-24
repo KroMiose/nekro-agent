@@ -73,6 +73,7 @@
       "comm": "沙盒通讯",
       "memory": "记忆库",
       "extensions": "扩展能力",
+      "prompt": "提示词",
       "config": "配置"
     },
     "overview": {
@@ -286,6 +287,20 @@
       "expand": "展开（共 {{chars}} 字符）",
       "notifications": {
         "sendFailed": "发送失败：{{message}}"
+      }
+    },
+    "prompt": {
+      "systemPromptTitle": "系统提示词（只读）",
+      "systemPromptHint": "点击展开查看注入到 CC 沙盒的完整 CLAUDE.md 内容",
+      "expandTooltip": "展开预览",
+      "collapseTooltip": "收起预览",
+      "extraTitle": "自定义追加提示词",
+      "extraHint": "追加内容将附加在 CLAUDE.md 末尾，在每次对话时生效",
+      "extraPlaceholder": "在此输入自定义指令，例如：\n\n## 个性化偏好\n\n- 代码注释使用中文\n- 优先使用 Python 解决问题",
+      "saveBtn": "保存",
+      "notifications": {
+        "saveSuccess": "自定义提示词已保存",
+        "saveFailed": "保存失败：{{message}}"
       }
     },
     "config": {

@@ -511,10 +511,33 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
     if not task_api.is_running(_TASK_TYPE, task_id):
         return "[CC Workspace] 当前没有正在运行的 CC 委托任务。"
 
+    # 先取消 NA 侧异步任务
     cancelled = await task_api.cancel(_TASK_TYPE, task_id)
+
+    # 同时强制终止 CC 侧正在运行的进程（仅当 current_task 属于本频道时）
+    cc_cancelled = False
+    workspace = await _ctx.get_bound_workspace()
+    if workspace is not None and workspace.status == "active":
+        try:
+            client = CCSandboxClient(workspace)
+            queue_status = await client.get_workspace_queue(workspace_id="default")
+            current_task = queue_status.get("current_task")
+            if current_task and current_task.get("source_chat_key") == task_id:
+                cc_cancelled = await client.force_cancel_current_task(workspace_id="default")
+                if cc_cancelled:
+                    logger.info(f"[cc_workspace] 已强制终止 CC 侧进程，chat_key={task_id}")
+                else:
+                    logger.warning(f"[cc_workspace] CC 侧进程终止失败，chat_key={task_id}")
+        except Exception as e:
+            logger.warning(f"[cc_workspace] 取消 CC 侧进程失败（不影响 NA 侧取消）: {e}")
+
     if cancelled:
+        cc_hint = (
+            "（CC 沙盒进程已同步终止）" if cc_cancelled
+            else "（NA 侧已取消，CC 沙盒进程可能仍在后台运行，可用 `force_cancel_cc_workspace` 手动终止）"
+        )
         logger.info(f"[cc_workspace] 已取消 CC 任务，chat_key={task_id}")
-        return "[CC Workspace] CC 委托任务已成功取消。"
+        return f"[CC Workspace] CC 委托任务已成功取消 {cc_hint}。"
     return "[CC Workspace] 取消任务失败，任务可能已结束。"
 
 

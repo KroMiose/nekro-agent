@@ -112,3 +112,12 @@ class WorkspaceEnvVarsResponse(BaseModel):
 
 class WorkspaceEnvVarsUpdate(BaseModel):
     env_vars: List[WorkspaceEnvVar]
+
+
+class ClaudeMdResponse(BaseModel):
+    content: str
+    extra: str
+
+
+class ClaudeMdExtraUpdate(BaseModel):
+    extra: str

@@ -24,6 +24,8 @@ from nekro_agent.schemas.errors import (
 )
 from nekro_agent.schemas.workspace import (
     ChannelBindRequest,
+    ClaudeMdExtraUpdate,
+    ClaudeMdResponse,
     CommHistoryResponse,
     CommLogEntry,
     CommSendBody,
@@ -550,6 +552,43 @@ async def update_workspace_env_vars(
     ws.metadata = metadata
     await ws.save(update_fields=["metadata", "update_time"])
     # 即时刷新 CLAUDE.md（bind mount，CC 下次对话时直接读到最新内容）
+    WorkspaceService.update_claude_md(ws)
+    return ActionOkResponse(ok=True)
+
+
+# ─────────────────────────────────────────────────────────────
+# CLAUDE.md 查看与自定义追加
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get("/{workspace_id}/claude-md", summary="获取 CLAUDE.md 内容及自定义追加", response_model=ClaudeMdResponse)
+@require_role(Role.Admin)
+async def get_claude_md(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ClaudeMdResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    content = WorkspaceService._generate_claude_md_content(ws)
+    extra: str = (ws.metadata or {}).get("claude_md_extra") or ""
+    return ClaudeMdResponse(content=content, extra=extra)
+
+
+@router.put("/{workspace_id}/claude-md-extra", summary="更新自定义追加提示词", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_claude_md_extra(
+    workspace_id: int,
+    body: ClaudeMdExtraUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    metadata = dict(ws.metadata or {})
+    metadata["claude_md_extra"] = body.extra
+    ws.metadata = metadata
+    await ws.save(update_fields=["metadata", "update_time"])
     WorkspaceService.update_claude_md(ws)
     return ActionOkResponse(ok=True)
 

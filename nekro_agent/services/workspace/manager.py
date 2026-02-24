@@ -130,7 +130,7 @@ updated: "YYYY-MM-DD"
 5. **任务来源**：每条任务消息头部可能包含 `[任务来源频道: <chat_key>]` 标记，标识该任务来自哪个 NA 会话频道。在多频道共用同一工作区场景下，可利用此信息在记忆文件中区分不同频道的任务背景。
 
 {env_vars_section}
-"""
+{extra_section}"""
 
     @staticmethod
     def get_memory_root(workspace_id: int) -> "Path":
@@ -162,10 +162,13 @@ updated: "YYYY-MM-DD"
         """生成工作区 CLAUDE.md 的完整内容。"""
         env_vars: List[Dict[str, Any]] = workspace.metadata.get("env_vars", [])
         env_vars_section = WorkspaceService._generate_env_vars_section(env_vars)
+        raw_extra = (workspace.metadata.get("claude_md_extra") or "").strip()
+        extra_section = f"## 自定义附加指令\n\n{raw_extra}" if raw_extra else ""
         return (
             WorkspaceService._CLAUDE_MD_TEMPLATE
             .replace("{runtime_policy}", workspace.runtime_policy or "agent")
             .replace("{env_vars_section}", env_vars_section)
+            .replace("{extra_section}", extra_section)
         )
 
     @staticmethod

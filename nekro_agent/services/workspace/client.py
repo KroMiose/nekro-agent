@@ -18,6 +18,13 @@ class CCSandboxClient:
     def __init__(self, workspace: DBWorkspace, timeout: float = 300.0) -> None:
         self._base_url = workspace.api_endpoint
         self._timeout = timeout
+        # 连接/写入超时短（死容器快速失败），读取超时长（支持长任务流式传输）
+        self._stream_timeout = httpx.Timeout(
+            connect=15.0,
+            read=self._timeout,
+            write=15.0,
+            pool=15.0,
+        )
 
     async def health_check(self) -> bool:
         try:
@@ -60,7 +67,7 @@ class CCSandboxClient:
         on_queued: Callable[[dict], Awaitable[None]] | None = None,
         env_vars: "dict[str, str] | None" = None,
     ) -> AsyncGenerator[str | dict, None]:
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(timeout=self._stream_timeout) as client:
             async with client.stream(
                 "POST",
                 f"{self._base_url}/api/v1/message/stream",
