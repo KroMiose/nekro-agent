@@ -61,6 +61,139 @@
     "deleteSuccess": "工作区已删除",
     "deleteFailed": "删除失败：{{message}}"
   },
+  "ccModels": {
+    "infoAlert": "管理 Claude Code (CC) 沙盒使用的模型预设配置，在工作区配置页中选择预设以生成注入配置。",
+    "createBtn": "新建预设",
+    "table": {
+      "headers": {
+        "name": "预设名称",
+        "desc": "描述",
+        "type": "类型",
+        "model": "模型",
+        "baseUrl": "Base URL",
+        "actions": "操作"
+      },
+      "empty": "暂无预设，点击「新建预设」添加",
+      "defaultChip": "默认",
+      "typePreset": "预设",
+      "typeManual": "手动",
+      "multiModel": "(多模型)",
+      "tooltips": {
+        "edit": "编辑",
+        "delete": "删除",
+        "defaultCannotDelete": "默认预设不可删除"
+      }
+    },
+    "dialog": {
+      "titleCreate": "新建 CC 模型预设",
+      "titleEdit": "编辑 CC 模型预设",
+      "name": "预设名称",
+      "nameReadonly": "名称创建后不可修改",
+      "desc": "描述",
+      "sectionApi": "API 配置",
+      "timeout": "超时 (ms)",
+      "sectionModel": "模型配置",
+      "modelType": "模型类型",
+      "modelTypePreset": "预设模式（使用预设名称）",
+      "modelTypeManual": "手动模式（分别指定各角色模型）",
+      "presetModel": "预设模型",
+      "presetModelHint": "model 字段值",
+      "emptyMeans": "留空则不设置",
+      "sectionEnv": "自定义附加变量",
+      "envAdd": "添加",
+      "envEmpty": "暂无自定义变量，点击「添加」新增键值对",
+      "sectionPreview": "生成的配置 JSON 预览",
+      "cancel": "取消",
+      "save": "保存",
+      "create": "创建"
+    },
+    "deleteDialog": {
+      "title": "确认删除预设",
+      "content": "确定要删除预设 {{name}} 吗？此操作不可撤销。",
+      "cancel": "取消",
+      "delete": "删除"
+    },
+    "notifications": {
+      "created": "预设已创建",
+      "createFailed": "创建失败：{{message}}",
+      "saved": "预设已保存",
+      "saveFailed": "保存失败：{{message}}",
+      "deleted": "预设已删除",
+      "deleteFailed": "删除失败：{{message}}"
+    }
+  },
+  "skills": {
+    "tabs": {
+      "user": "用户技能库",
+      "builtin": "内置技能",
+      "builtinWithCount": "内置技能（{{count}}）"
+    },
+    "stats": {
+      "filtered": "{{filtered}} / {{total}} 个技能",
+      "total": "共 {{total}} 个技能"
+    },
+    "search": {
+      "placeholder": "搜索技能..."
+    },
+    "toolbar": {
+      "treeView": "目录树视图",
+      "flatView": "平铺视图",
+      "refresh": "刷新",
+      "uploadTooltip": "上传 Skill（.zip 格式）",
+      "uploadBtn": "上传 ZIP",
+      "addBtn": "添加 Skill"
+    },
+    "empty": {
+      "title": "Skills 库为空",
+      "hint": "点击「添加 Skill」从 git 仓库克隆，或「上传 ZIP」添加本地包",
+      "noBuiltin": "暂无内置技能",
+      "noMatch": "没有匹配的技能"
+    },
+    "content": {
+      "noContent": "暂无内容",
+      "allowedTools": "允许工具:",
+      "loading": "加载中..."
+    },
+    "nodeRow": {
+      "pullTooltip": "拉取更新",
+      "deleteTooltip": "删除"
+    },
+    "card": {
+      "collapseTooltip": "收起",
+      "viewTooltip": "查看 SKILL.md"
+    },
+    "error": {
+      "loadFailed": "加载 Skills 库失败：{{message}}"
+    },
+    "cloneDialog": {
+      "title": "添加 Skill",
+      "urlLabel": "Git 仓库地址",
+      "dirLabel": "保存目录名",
+      "dirHintSaving": "将保存到：skills/{{dir}}",
+      "dirHintAuto": "自动生成自仓库名，可手动修改",
+      "cancel": "取消",
+      "cloneBtn": "克隆",
+      "cloning": "克隆中..."
+    },
+    "deleteDialog": {
+      "title": "确认删除",
+      "content": "确定要删除 {{name}} 吗？此操作不可撤销，目录下的所有文件将被永久删除。",
+      "cancel": "取消",
+      "delete": "删除"
+    },
+    "notifications": {
+      "deleted": "Skill 已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "cloned": "已克隆到 {{dir}}",
+      "cloneFailed": "克隆失败：{{message}}",
+      "uploaded": "Skill 上传成功",
+      "uploadFailed": "上传失败：{{message}}",
+      "pullSuccess": "更新完成：{{output}}",
+      "pullUpToDate": "已是最新",
+      "pullFailed": "更新失败：{{message}}",
+      "invalidFile": "请选择 .zip 格式的文件"
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "返回列表",
@@ -205,7 +338,6 @@
         "no": "否",
         "category": "分类",
         "tags": "标签",
-        "tags": "标签",
         "sharedToNA": "已共享给 NA"
       },
       "charCount": "{{count}}/600 字",
@@ -263,7 +395,76 @@
       "mcpSaveSuccess": "MCP 配置已保存",
       "mcpSaveFailed": "保存失败：{{message}}",
       "mcpJsonError": "JSON 格式错误",
-      "mcpJsonErrorFix": "请先修复 JSON 格式错误"
+      "mcpJsonErrorFix": "请先修复 JSON 格式错误",
+      "skillsCardTitle": "扩展技能",
+      "syncBtn": "同步到沙盒",
+      "addSkillBtn": "添加技能",
+      "deployedLabel": "已部署（{{count}}）",
+      "deployedEmpty": "暂未部署任何技能，点击「添加技能」从内置或技能库中挑选",
+      "skillChipBuiltin": "内置",
+      "skillChipUser": "技能库",
+      "skillChipPending": "待同步",
+      "removeTooltip": "从已部署列表移除（点击「同步到沙盒」生效）",
+      "ccCreatedLabel": "CC 创建（{{count}}）",
+      "ccCreatedEmpty": "暂无动态技能",
+      "skillChipCC": "CC创建",
+      "editSkillTooltip": "编辑 SKILL.md",
+      "promoteTooltip": "晋升为技能库",
+      "deleteTooltip": "删除",
+      "refreshDynamicTooltip": "刷新动态技能列表",
+      "ccDesignBtn": "让 CC 设计新技能",
+      "mcpFormatHint": "支持 JSONC 格式（// 和 /* */ 注释），保存时自动转换为 JSON",
+      "fillTemplateTooltip": "填充常用 MCP 服务配置模板（会覆盖现有内容）",
+      "fillTemplateBtn": "填充模板",
+      "addSkillDialog": {
+        "title": "添加技能",
+        "searchPlaceholder": "搜索技能名称或描述…",
+        "filterAll": "全部",
+        "filterBuiltin": "内置",
+        "filterUser": "技能库",
+        "allAdded": "所有技能均已添加",
+        "noMatch": "无匹配结果",
+        "selectedCount": "已选 {{count}} 个",
+        "cancel": "取消",
+        "addBtn": "添加到列表"
+      },
+      "ccDesignDialog": {
+        "title": "让 CC 设计新技能",
+        "info": "点击确认后将跳转到「沙盒通讯」页，并预填充设计提示词。\n你可以在输入框中补充具体需求后再发送，与 CC 逐步交互打磨技能。",
+        "desc": "CC 会使用 skill-creator 技能指导，将设计好的技能保存在动态技能目录中，你可以随时从扩展能力页面查看、编辑或晋升。",
+        "cancel": "取消",
+        "confirmBtn": "前往沙盒通讯"
+      },
+      "editDynamicDialog": {
+        "title": "编辑动态技能 {{name}}",
+        "contentLabel": "SKILL.md 内容",
+        "cancel": "取消",
+        "save": "保存"
+      },
+      "deleteDynamicDialog": {
+        "title": "确认删除",
+        "content": "确定要删除动态技能 {{name}} 吗？此操作不可恢复。",
+        "cancel": "取消",
+        "delete": "删除"
+      },
+      "mcpTemplateDialog": {
+        "title": "填充 MCP 配置模板",
+        "warning": "此操作会覆盖现有 MCP 配置内容，请确认已备份或无需保留现有配置。",
+        "desc": "模板中包含常用 MCP 服务（Filesystem、GitHub、Brave Search、Fetch、Memory、PostgreSQL）的 JSONC 示例，默认均已注释，按需取消注释并填写参数即可。",
+        "cancel": "取消",
+        "confirm": "确认填充"
+      },
+      "notifications": {
+        "syncSuccess": "已同步到沙盒",
+        "syncFailed": "同步失败：{{message}}",
+        "deleteDynamicSuccess": "动态技能 {{name}} 已删除",
+        "deleteDynamicFailed": "删除失败：{{message}}",
+        "promoteSuccess": "动态技能 {{name}} 已晋升为用户技能",
+        "promoteFailed": "晋升失败：{{message}}",
+        "saveDynamicSuccess": "动态技能 {{name}} 已保存",
+        "saveDynamicFailed": "保存失败：{{message}}",
+        "loadContentFailed": "加载技能内容失败：{{message}}"
+      }
     },
     "comm": {
       "loadMoreHint": "向上滚动加载更多",

@@ -35,6 +35,7 @@ import {
   RemoveCircleOutline as RemoveIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { ccModelPresetApi, CCModelPresetInfo, CCModelPresetCreate } from '../../services/api/cc-model-preset'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
@@ -124,25 +125,26 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
   const [form, setForm] = useState<PresetFormState>(DEFAULT_FORM)
   const [showToken, setShowToken] = useState(false)
   const notification = useNotification()
+  const { t } = useTranslation('workspace')
 
   const createMutation = useMutation({
     mutationFn: (body: CCModelPresetCreate) => ccModelPresetApi.create(body),
     onSuccess: () => {
-      notification.success('预设已创建')
+      notification.success(t('ccModels.notifications.created'))
       onSuccess()
       onClose()
     },
-    onError: (err: Error) => notification.error(`创建失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('ccModels.notifications.createFailed', { message: err.message })),
   })
 
   const updateMutation = useMutation({
     mutationFn: (body: CCModelPresetCreate) => ccModelPresetApi.update(initial!.id, body),
     onSuccess: () => {
-      notification.success('预设已保存')
+      notification.success(t('ccModels.notifications.saved'))
       onSuccess()
       onClose()
     },
-    onError: (err: Error) => notification.error(`保存失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('ccModels.notifications.saveFailed', { message: err.message })),
   })
 
   useEffect(() => {
@@ -210,12 +212,12 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
 
   return (
     <Dialog open={open} onClose={() => !isPending && onClose()} maxWidth="md" fullWidth>
-      <DialogTitle>{initial ? '编辑 CC 模型预设' : '新建 CC 模型预设'}</DialogTitle>
+      <DialogTitle>{initial ? t('ccModels.dialog.titleEdit') : t('ccModels.dialog.titleCreate')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {/* 基本信息 */}
           <TextField
-            label="预设名称"
+            label={t('ccModels.dialog.name')}
             value={form.name}
             onChange={e => setForm(prev => ({ ...prev, name: e.target.value }))}
             fullWidth
@@ -223,10 +225,10 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
             size="small"
             autoComplete="off"
             disabled={!!initial}
-            helperText={initial ? '名称创建后不可修改' : ''}
+            helperText={initial ? t('ccModels.dialog.nameReadonly') : ''}
           />
           <TextField
-            label="描述"
+            label={t('ccModels.dialog.desc')}
             value={form.description}
             onChange={e => setForm(prev => ({ ...prev, description: e.target.value }))}
             fullWidth
@@ -238,7 +240,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
 
           {/* 通用 API 配置 */}
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mt: 1 }}>
-            API 配置
+            {t('ccModels.dialog.sectionApi')}
           </Typography>
           <TextField
             label="Base URL"
@@ -277,7 +279,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
             }}
           />
           <TextField
-            label="超时 (ms)"
+            label={t('ccModels.dialog.timeout')}
             value={form.api_timeout_ms}
             onChange={e => setForm(prev => ({ ...prev, api_timeout_ms: e.target.value }))}
             size="small"
@@ -288,29 +290,29 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
 
           {/* 模型类型 */}
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mt: 1 }}>
-            模型配置
+            {t('ccModels.dialog.sectionModel')}
           </Typography>
           <TextField
-            label="模型类型"
+            label={t('ccModels.dialog.modelType')}
             select
             value={form.model_type}
             onChange={e => setForm(prev => ({ ...prev, model_type: e.target.value as 'preset' | 'manual' }))}
             size="small"
             fullWidth
           >
-            <MenuItem value="preset">预设模式（使用预设名称）</MenuItem>
-            <MenuItem value="manual">手动模式（分别指定各角色模型）</MenuItem>
+            <MenuItem value="preset">{t('ccModels.dialog.modelTypePreset')}</MenuItem>
+            <MenuItem value="manual">{t('ccModels.dialog.modelTypeManual')}</MenuItem>
           </TextField>
 
           {form.model_type === 'preset' ? (
             <TextField
-              label="预设模型"
+              label={t('ccModels.dialog.presetModel')}
               select
               value={form.preset_model}
               onChange={e => setForm(prev => ({ ...prev, preset_model: e.target.value }))}
               size="small"
               fullWidth
-              helperText="model 字段值"
+              helperText={t('ccModels.dialog.presetModelHint')}
             >
               <MenuItem value="opus">opus</MenuItem>
               <MenuItem value="sonnet">sonnet</MenuItem>
@@ -325,7 +327,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                 size="small"
                 fullWidth
                 autoComplete="off"
-                placeholder="留空则不设置"
+                placeholder={t('ccModels.dialog.emptyMeans')}
               />
               <TextField
                 label="ANTHROPIC_SMALL_FAST_MODEL"
@@ -334,7 +336,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                 size="small"
                 fullWidth
                 autoComplete="off"
-                placeholder="留空则不设置"
+                placeholder={t('ccModels.dialog.emptyMeans')}
               />
               <TextField
                 label="ANTHROPIC_DEFAULT_SONNET_MODEL"
@@ -343,7 +345,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                 size="small"
                 fullWidth
                 autoComplete="off"
-                placeholder="留空则不设置"
+                placeholder={t('ccModels.dialog.emptyMeans')}
               />
               <TextField
                 label="ANTHROPIC_DEFAULT_OPUS_MODEL"
@@ -352,7 +354,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                 size="small"
                 fullWidth
                 autoComplete="off"
-                placeholder="留空则不设置"
+                placeholder={t('ccModels.dialog.emptyMeans')}
               />
               <TextField
                 label="ANTHROPIC_DEFAULT_HAIKU_MODEL"
@@ -361,7 +363,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                 size="small"
                 fullWidth
                 autoComplete="off"
-                placeholder="留空则不设置"
+                placeholder={t('ccModels.dialog.emptyMeans')}
               />
             </Stack>
           )}
@@ -369,15 +371,15 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
           {/* 自定义附加变量 */}
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-              自定义附加变量
+              {t('ccModels.dialog.sectionEnv')}
             </Typography>
             <Button size="small" startIcon={<AddIcon />} onClick={addEnvPair} sx={{ minWidth: 0 }}>
-              添加
+              {t('ccModels.dialog.envAdd')}
             </Button>
           </Box>
           {form.extra_env.length === 0 ? (
             <Typography variant="caption" color="text.disabled" sx={{ pl: 0.5 }}>
-              暂无自定义变量，点击"添加"新增键值对
+              {t('ccModels.dialog.envEmpty')}
             </Typography>
           ) : (
             <Stack spacing={1}>
@@ -411,7 +413,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
 
           {/* 配置预览 */}
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mt: 1 }}>
-            生成的配置 JSON 预览
+            {t('ccModels.dialog.sectionPreview')}
           </Typography>
           <TextField
             fullWidth
@@ -431,14 +433,14 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={isPending}>
-          取消
+          {t('ccModels.dialog.cancel')}
         </Button>
         <Button
           variant="contained"
           onClick={handleSubmit}
           disabled={isPending || !form.name.trim()}
         >
-          {isPending ? <CircularProgress size={18} /> : initial ? '保存' : '创建'}
+          {isPending ? <CircularProgress size={18} /> : initial ? t('ccModels.dialog.save') : t('ccModels.dialog.create')}
         </Button>
       </DialogActions>
     </Dialog>
@@ -448,6 +450,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
 export default function CCModelsPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const { t } = useTranslation('workspace')
 
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<CCModelPresetInfo | undefined>(undefined)
@@ -461,11 +464,11 @@ export default function CCModelsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => ccModelPresetApi.delete(id),
     onSuccess: () => {
-      notification.success('预设已删除')
+      notification.success(t('ccModels.notifications.deleted'))
       queryClient.invalidateQueries({ queryKey: ['cc-model-presets'] })
       setDeleteTarget(null)
     },
-    onError: (err: Error) => notification.error(`删除失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('ccModels.notifications.deleteFailed', { message: err.message })),
   })
 
   const handleAdd = () => {
@@ -505,7 +508,7 @@ export default function CCModelsPage() {
         }}
       >
         <Alert severity="info" sx={{ flex: 1 }}>
-          管理 Claude Code (CC) 沙盒使用的模型预设配置，在工作区配置页中选择预设以生成注入配置。
+          {t('ccModels.infoAlert')}
         </Alert>
         <Button
           variant="contained"
@@ -513,7 +516,7 @@ export default function CCModelsPage() {
           onClick={handleAdd}
           sx={{ minWidth: 140, minHeight: 40, flexShrink: 0 }}
         >
-          新建预设
+          {t('ccModels.createBtn')}
         </Button>
       </Box>
 
@@ -540,22 +543,22 @@ export default function CCModelsPage() {
             <TableHead>
               <TableRow>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  预设名称
+                  {t('ccModels.table.headers.name')}
                 </TableCell>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  描述
+                  {t('ccModels.table.headers.desc')}
                 </TableCell>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  类型
+                  {t('ccModels.table.headers.type')}
                 </TableCell>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  模型
+                  {t('ccModels.table.headers.model')}
                 </TableCell>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   Base URL
                 </TableCell>
                 <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  操作
+                  {t('ccModels.table.headers.actions')}
                 </TableCell>
               </TableRow>
             </TableHead>
@@ -569,7 +572,7 @@ export default function CCModelsPage() {
               ) : presets.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
-                    暂无预设，点击"新建预设"添加
+                    {t('ccModels.table.empty')}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -579,7 +582,7 @@ export default function CCModelsPage() {
                       <Stack direction="row" alignItems="center" spacing={0.5}>
                         <Typography variant="subtitle2">{preset.name}</Typography>
                         {preset.is_default && (
-                          <Chip label="默认" size="small" color="primary" sx={{ height: 18, fontSize: '0.68rem' }} />
+                          <Chip label={t('ccModels.table.defaultChip')} size="small" color="primary" sx={{ height: 18, fontSize: '0.68rem' }} />
                         )}
                       </Stack>
                     </TableCell>
@@ -594,7 +597,7 @@ export default function CCModelsPage() {
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Chip
-                        label={preset.model_type === 'preset' ? '预设' : '手动'}
+                        label={preset.model_type === 'preset' ? t('ccModels.table.typePreset') : t('ccModels.table.typeManual')}
                         size="small"
                         color={preset.model_type === 'preset' ? 'primary' : 'secondary'}
                         variant="outlined"
@@ -605,7 +608,7 @@ export default function CCModelsPage() {
                       <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
                         {preset.model_type === 'preset'
                           ? preset.preset_model
-                          : preset.anthropic_model || '(多模型)'}
+                          : preset.anthropic_model || t('ccModels.table.multiModel')}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}>
@@ -627,7 +630,7 @@ export default function CCModelsPage() {
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Stack direction="row" spacing={0.5}>
-                        <Tooltip title="编辑" arrow>
+                        <Tooltip title={t('ccModels.table.tooltips.edit')} arrow>
                           <IconButton
                             size="small"
                             color="warning"
@@ -636,7 +639,7 @@ export default function CCModelsPage() {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={preset.is_default ? '默认预设不可删除' : '删除'} arrow>
+                        <Tooltip title={preset.is_default ? t('ccModels.table.tooltips.defaultCannotDelete') : t('ccModels.table.tooltips.delete')} arrow>
                           <span>
                             <IconButton
                               size="small"
@@ -673,15 +676,15 @@ export default function CCModelsPage() {
         maxWidth="xs"
         fullWidth
       >
-        <DialogTitle>确认删除预设</DialogTitle>
+        <DialogTitle>{t('ccModels.deleteDialog.title')}</DialogTitle>
         <DialogContent>
           <Typography>
-            确定要删除预设 <strong>{deleteTarget?.name}</strong> 吗？此操作不可撤销。
+            {t('ccModels.deleteDialog.content', { name: deleteTarget?.name })}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
-            取消
+            {t('ccModels.deleteDialog.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -689,7 +692,7 @@ export default function CCModelsPage() {
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? <CircularProgress size={18} /> : '删除'}
+            {deleteMutation.isPending ? <CircularProgress size={18} /> : t('ccModels.deleteDialog.delete')}
           </Button>
         </DialogActions>
       </Dialog>

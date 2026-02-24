@@ -132,9 +132,9 @@ export default function ExtensionsTab({
     try {
       await workspaceApi.updateWorkspaceSkills(workspace.id, selectedSkills)
       await queryClient.invalidateQueries({ queryKey: ['workspace-skills', workspace.id] })
-      notification.success('已同步到沙盒')
+      notification.success(t('detail.extensions.notifications.syncSuccess'))
     } catch (err) {
-      notification.error(`同步失败：${(err as Error).message}`)
+      notification.error(t('detail.extensions.notifications.syncFailed', { message: (err as Error).message }))
     } finally {
       setSyncing(false)
     }
@@ -213,11 +213,11 @@ export default function ExtensionsTab({
     setDeletingDynamic(deleteConfirmDynamic)
     try {
       await dynamicSkillApi.delete(workspace.id, deleteConfirmDynamic)
-      notification.success(`动态技能 ${deleteConfirmDynamic} 已删除`)
+      notification.success(t('detail.extensions.notifications.deleteDynamicSuccess', { name: deleteConfirmDynamic }))
       setDeleteConfirmDynamic(null)
       refreshDynamicSkills()
     } catch (err) {
-      notification.error(`删除失败：${(err as Error).message}`)
+      notification.error(t('detail.extensions.notifications.deleteDynamicFailed', { message: (err as Error).message }))
     } finally {
       setDeletingDynamic(null)
     }
@@ -227,10 +227,10 @@ export default function ExtensionsTab({
     setPromotingDynamic(dirName)
     try {
       await dynamicSkillApi.promote(workspace.id, dirName)
-      notification.success(`动态技能 ${dirName} 已晋升为用户技能`)
+      notification.success(t('detail.extensions.notifications.promoteSuccess', { name: dirName }))
       refreshDynamicSkills()
     } catch (err) {
-      notification.error(`晋升失败：${(err as Error).message}`)
+      notification.error(t('detail.extensions.notifications.promoteFailed', { message: (err as Error).message }))
     } finally {
       setPromotingDynamic(null)
     }
@@ -243,7 +243,7 @@ export default function ExtensionsTab({
       const data = await dynamicSkillApi.get(workspace.id, item.dir_name)
       setEditContent(data.content)
     } catch (err) {
-      notification.error(`加载技能内容失败：${(err as Error).message}`)
+      notification.error(t('detail.extensions.notifications.loadContentFailed', { message: (err as Error).message }))
     }
   }
 
@@ -252,11 +252,11 @@ export default function ExtensionsTab({
     setSavingDynamic(true)
     try {
       await dynamicSkillApi.put(workspace.id, editDynamic.dir_name, editContent)
-      notification.success(`动态技能 ${editDynamic.dir_name} 已保存`)
+      notification.success(t('detail.extensions.notifications.saveDynamicSuccess', { name: editDynamic.dir_name }))
       setEditDynamic(null)
       refreshDynamicSkills()
     } catch (err) {
-      notification.error(`保存失败：${(err as Error).message}`)
+      notification.error(t('detail.extensions.notifications.saveDynamicFailed', { message: (err as Error).message }))
     } finally {
       setSavingDynamic(false)
     }
@@ -421,7 +421,7 @@ export default function ExtensionsTab({
           {/* 标题行 */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-              扩展技能
+              {t('detail.extensions.skillsCardTitle')}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Button
@@ -431,7 +431,7 @@ export default function ExtensionsTab({
               onClick={handleSync}
               disabled={syncing}
             >
-              同步到沙盒
+              {t('detail.extensions.syncBtn')}
             </Button>
             <Button
               size="small"
@@ -439,17 +439,17 @@ export default function ExtensionsTab({
               startIcon={<AddIcon sx={{ fontSize: 14 }} />}
               onClick={handleOpenAddDialog}
             >
-              添加技能
+              {t('detail.extensions.addSkillBtn')}
             </Button>
           </Box>
 
           {/* 已部署列表 */}
           <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block', fontWeight: 500 }}>
-            已部署（{selectedSkills.length}）
+            {t('detail.extensions.deployedLabel', { count: selectedSkills.length })}
           </Typography>
           {selectedSkillsDetail.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: 'italic' }}>
-              暂未部署任何技能，点击「添加技能」从内置或技能库中挑选
+              {t('detail.extensions.deployedEmpty')}
             </Typography>
           ) : (
             <Stack spacing={0.5} sx={{ mb: 2 }}>
@@ -465,7 +465,7 @@ export default function ExtensionsTab({
                   }}
                 >
                   <Chip
-                    label={skill.source === 'builtin' ? '内置' : '技能库'}
+                    label={skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin') : t('detail.extensions.skillChipUser')}
                     size="small"
                     color={skill.source === 'builtin' ? 'primary' : 'success'}
                     variant="outlined"
@@ -473,7 +473,7 @@ export default function ExtensionsTab({
                   />
                   {skill.isPending && (
                     <Chip
-                      label="待同步"
+                      label={t('detail.extensions.skillChipPending')}
                       size="small"
                       color="warning"
                       sx={{ fontSize: '0.65rem', height: 20, flexShrink: 0 }}
@@ -489,7 +489,7 @@ export default function ExtensionsTab({
                       </Typography>
                     )}
                   </Box>
-                  <Tooltip title="从已部署列表移除（点击「同步到沙盒」生效）">
+                  <Tooltip title={t('detail.extensions.removeTooltip')}>
                     <IconButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 15 }} />
                     </IconButton>
@@ -502,10 +502,10 @@ export default function ExtensionsTab({
           {/* CC 创建技能区 */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 0.75 }}>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>
-              CC 创建（{dynamicSkills.length}）
+              {t('detail.extensions.ccCreatedLabel', { count: dynamicSkills.length })}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Tooltip title="刷新动态技能列表">
+            <Tooltip title={t('detail.extensions.refreshDynamicTooltip')}>
               <IconButton size="small" onClick={refreshDynamicSkills}>
                 <RefreshIcon sx={{ fontSize: 14 }} />
               </IconButton>
@@ -513,14 +513,14 @@ export default function ExtensionsTab({
           </Box>
           {dynamicSkills.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-              暂无动态技能
+              {t('detail.extensions.ccCreatedEmpty')}
             </Typography>
           ) : (
             <Stack spacing={0.5}>
               {dynamicSkills.map(skill => (
                 <Box key={skill.dir_name} sx={{ ...ROW_SX, borderColor: 'divider' }}>
                   <Chip
-                    label="CC创建"
+                    label={t('detail.extensions.skillChipCC')}
                     size="small"
                     color="secondary"
                     variant="outlined"
@@ -537,12 +537,12 @@ export default function ExtensionsTab({
                     )}
                   </Box>
                   <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                    <Tooltip title="编辑 SKILL.md">
+                    <Tooltip title={t('detail.extensions.editSkillTooltip')}>
                       <IconButton size="small" onClick={() => handleEditDynamic(skill)}>
                         <EditIcon sx={{ fontSize: 15 }} />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="晋升为技能库">
+                    <Tooltip title={t('detail.extensions.promoteTooltip')}>
                       <span>
                         <IconButton
                           size="small"
@@ -558,7 +558,7 @@ export default function ExtensionsTab({
                         </IconButton>
                       </span>
                     </Tooltip>
-                    <Tooltip title="删除">
+                    <Tooltip title={t('detail.extensions.deleteTooltip')}>
                       <span>
                         <IconButton
                           size="small"
@@ -587,7 +587,7 @@ export default function ExtensionsTab({
             startIcon={<ExtensionIcon />}
             onClick={() => setCcDesignOpen(true)}
           >
-            让 CC 设计新技能
+            {t('detail.extensions.ccDesignBtn')}
           </Button>
         </CardContent>
       </Card>
@@ -599,13 +599,13 @@ export default function ExtensionsTab({
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
               {t('detail.extensions.mcpTitle')}
             </Typography>
-            <Tooltip title="填充常用 MCP 服务配置模板（会覆盖现有内容）">
+            <Tooltip title={t('detail.extensions.fillTemplateTooltip')}>
               <Button
                 size="small"
                 variant="outlined"
                 onClick={() => setMcpTemplateOpen(true)}
               >
-                填充模板
+                {t('detail.extensions.fillTemplateBtn')}
               </Button>
             </Tooltip>
             <Button
@@ -647,20 +647,20 @@ export default function ExtensionsTab({
             />
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            支持 JSONC 格式（// 和 /* */ 注释），保存时自动转换为 JSON
+            {t('detail.extensions.mcpFormatHint')}
           </Typography>
         </CardContent>
       </Card>
 
       {/* 添加技能 对话框 */}
       <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>添加技能</DialogTitle>
+        <DialogTitle>{t('detail.extensions.addSkillDialog.title')}</DialogTitle>
         <DialogContent sx={{ pt: '12px !important', pb: 0 }}>
           <Box sx={{ display: 'flex', gap: 1, mb: 1, alignItems: 'center' }}>
             <TextField
               fullWidth
               size="small"
-              placeholder="搜索技能名称或描述…"
+              placeholder={t('detail.extensions.addSkillDialog.searchPlaceholder')}
               value={addSearch}
               onChange={e => setAddSearch(e.target.value)}
               InputProps={{
@@ -678,14 +678,14 @@ export default function ExtensionsTab({
               onChange={(_, v: SourceFilter | null) => { if (v !== null) setSourceFilter(v) }}
               sx={{ flexShrink: 0 }}
             >
-              <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>全部</ToggleButton>
-              <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>内置</ToggleButton>
-              <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>技能库</ToggleButton>
+              <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterAll')}</ToggleButton>
+              <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterBuiltin')}</ToggleButton>
+              <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterUser')}</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           {filteredAvailable.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
-              {availableToAdd.length === 0 ? '所有技能均已添加' : '无匹配结果'}
+              {availableToAdd.length === 0 ? t('detail.extensions.addSkillDialog.allAdded') : t('detail.extensions.addSkillDialog.noMatch')}
             </Typography>
           ) : (
             <List dense sx={{ maxHeight: 360, overflow: 'auto' }}>
@@ -709,7 +709,7 @@ export default function ExtensionsTab({
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Chip
-                          label={skill.source === 'builtin' ? '内置' : '技能库'}
+                          label={skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin') : t('detail.extensions.skillChipUser')}
                           size="small"
                           color={skill.source === 'builtin' ? 'primary' : 'success'}
                           variant="outlined"
@@ -729,31 +729,30 @@ export default function ExtensionsTab({
         </DialogContent>
         <DialogActions>
           <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1, pl: 2 }}>
-            已选 {addSelected.size} 个
+            {t('detail.extensions.addSkillDialog.selectedCount', { count: addSelected.size })}
           </Typography>
-          <Button onClick={() => setAddDialogOpen(false)}>取消</Button>
+          <Button onClick={() => setAddDialogOpen(false)}>{t('detail.extensions.addSkillDialog.cancel')}</Button>
           <Button variant="contained" onClick={handleConfirmAdd} disabled={addSelected.size === 0}>
-            添加到列表
+            {t('detail.extensions.addSkillDialog.addBtn')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* 让 CC 设计新技能 对话框 */}
       <Dialog open={ccDesignOpen} onClose={() => setCcDesignOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>让 CC 设计新技能</DialogTitle>
+        <DialogTitle>{t('detail.extensions.ccDesignDialog.title')}</DialogTitle>
         <DialogContent sx={{ pt: '16px !important' }}>
           <Alert severity="info" sx={{ mb: 2 }}>
-            点击确认后将跳转到「沙盒通讯」页，并预填充设计提示词。<br />
-            你可以在输入框中补充具体需求后再发送，与 CC 逐步交互打磨技能。
+            <Box sx={{ whiteSpace: 'pre-line' }}>{t('detail.extensions.ccDesignDialog.info')}</Box>
           </Alert>
           <Typography variant="body2" color="text.secondary">
-            CC 会使用 skill-creator 技能指导，将设计好的技能保存在动态技能目录中，你可以随时从扩展能力页面查看、编辑或晋升。
+            {t('detail.extensions.ccDesignDialog.desc')}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCcDesignOpen(false)}>取消</Button>
+          <Button onClick={() => setCcDesignOpen(false)}>{t('detail.extensions.ccDesignDialog.cancel')}</Button>
           <Button variant="contained" startIcon={<ExtensionIcon />} onClick={handleCCDesignConfirm}>
-            前往沙盒通讯
+            {t('detail.extensions.ccDesignDialog.confirmBtn')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -765,14 +764,14 @@ export default function ExtensionsTab({
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>编辑动态技能 {editDynamic?.dir_name}</DialogTitle>
+        <DialogTitle>{t('detail.extensions.editDynamicDialog.title', { name: editDynamic?.dir_name })}</DialogTitle>
         <DialogContent sx={{ pt: '16px !important' }}>
           <TextField
             fullWidth
             multiline
             minRows={16}
             size="small"
-            label="SKILL.md 内容"
+            label={t('detail.extensions.editDynamicDialog.contentLabel')}
             value={editContent}
             onChange={e => setEditContent(e.target.value)}
             disabled={savingDynamic}
@@ -781,7 +780,7 @@ export default function ExtensionsTab({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setEditDynamic(null)} disabled={savingDynamic}>
-            取消
+            {t('detail.extensions.editDynamicDialog.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -789,7 +788,7 @@ export default function ExtensionsTab({
             disabled={savingDynamic}
             startIcon={savingDynamic ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
           >
-            保存
+            {t('detail.extensions.editDynamicDialog.save')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -800,15 +799,15 @@ export default function ExtensionsTab({
         onClose={() => !deletingDynamic && setDeleteConfirmDynamic(null)}
         maxWidth="xs"
       >
-        <DialogTitle>确认删除</DialogTitle>
+        <DialogTitle>{t('detail.extensions.deleteDynamicDialog.title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            确定要删除动态技能 <strong>{deleteConfirmDynamic}</strong> 吗？此操作不可恢复。
+            {t('detail.extensions.deleteDynamicDialog.content', { name: deleteConfirmDynamic })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteConfirmDynamic(null)} disabled={!!deletingDynamic}>
-            取消
+            {t('detail.extensions.deleteDynamicDialog.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -816,26 +815,26 @@ export default function ExtensionsTab({
             onClick={confirmDeleteDynamic}
             disabled={!!deletingDynamic}
           >
-            {deletingDynamic ? <CircularProgress size={20} /> : '删除'}
+            {deletingDynamic ? <CircularProgress size={20} /> : t('detail.extensions.deleteDynamicDialog.delete')}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* MCP 模板确认对话框 */}
       <Dialog open={mcpTemplateOpen} onClose={() => setMcpTemplateOpen(false)} maxWidth="xs">
-        <DialogTitle>填充 MCP 配置模板</DialogTitle>
+        <DialogTitle>{t('detail.extensions.mcpTemplateDialog.title')}</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 1.5 }}>
-            此操作会覆盖现有 MCP 配置内容，请确认已备份或无需保留现有配置。
+            {t('detail.extensions.mcpTemplateDialog.warning')}
           </Alert>
           <DialogContentText>
-            模板中包含常用 MCP 服务（Filesystem、GitHub、Brave Search、Fetch、Memory、PostgreSQL）的 JSONC 示例，默认均已注释，按需取消注释并填写参数即可。
+            {t('detail.extensions.mcpTemplateDialog.desc')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setMcpTemplateOpen(false)}>取消</Button>
+          <Button onClick={() => setMcpTemplateOpen(false)}>{t('detail.extensions.mcpTemplateDialog.cancel')}</Button>
           <Button variant="contained" color="warning" onClick={handleApplyTemplate}>
-            确认填充
+            {t('detail.extensions.mcpTemplateDialog.confirm')}
           </Button>
         </DialogActions>
       </Dialog>

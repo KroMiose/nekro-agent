@@ -44,6 +44,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { skillsLibraryApi, builtinSkillApi, SkillTreeNode, SkillItem } from '../../services/api/workspace'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../theme/variants'
@@ -108,6 +109,7 @@ function parseSkillMd(raw: string): SkillMdData {
 }
 
 function SkillContentPanel({ raw }: { raw: string }) {
+  const { t } = useTranslation('workspace')
   const { frontmatter, body } = useMemo(() => parseSkillMd(raw), [raw])
   const allowedTools =
     frontmatter['allowed-tools']
@@ -142,7 +144,7 @@ function SkillContentPanel({ raw }: { raw: string }) {
             {allowedTools.length > 0 && (
               <>
                 <Typography variant="caption" color="text.disabled" sx={{ mx: 0.25 }}>
-                  允许工具:
+                  {t('skills.content.allowedTools')}
                 </Typography>
                 {allowedTools.map(tool => (
                   <Chip
@@ -181,7 +183,7 @@ function SkillContentPanel({ raw }: { raw: string }) {
         </Box>
       ) : !hasMeta ? (
         <Box sx={{ px: 2, py: 1.5 }}>
-          <Typography variant="caption" color="text.disabled">暂无内容</Typography>
+          <Typography variant="caption" color="text.disabled">{t('skills.content.noContent')}</Typography>
         </Box>
       ) : null}
     </Box>
@@ -219,6 +221,7 @@ function SkillNodeRow({
   onDelete,
   onPull,
 }: SkillNodeRowProps) {
+  const { t } = useTranslation('workspace')
   const INDENT = 20
   const isTreeExpanded = expandedNodes.has(node.path)
   const isContentExpanded = expandedContent === node.path
@@ -338,7 +341,7 @@ function SkillNodeRow({
           onClick={e => e.stopPropagation()}
         >
           {node.type === 'repo' && (
-            <Tooltip title="拉取更新">
+            <Tooltip title={t('skills.nodeRow.pullTooltip')}>
               <span>
                 <IconButton size="small" color="primary" onClick={() => onPull(node.path)} disabled={isPulling}>
                   {isPulling ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
@@ -347,7 +350,7 @@ function SkillNodeRow({
             </Tooltip>
           )}
           {isTopLevel && (
-            <Tooltip title="删除">
+            <Tooltip title={t('skills.nodeRow.deleteTooltip')}>
               <IconButton size="small" color="error" onClick={() => onDelete(node.name)}>
                 <DeleteIcon sx={{ fontSize: 14 }} />
               </IconButton>
@@ -371,7 +374,7 @@ function SkillNodeRow({
             {contentCache[node.path] === undefined ? (
               <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1 }}>
                 <CircularProgress size={14} />
-                <Typography variant="caption" color="text.secondary">加载中...</Typography>
+                <Typography variant="caption" color="text.secondary">{t('skills.content.loading')}</Typography>
               </Box>
             ) : (
               <SkillContentPanel raw={contentCache[node.path] || ''} />
@@ -421,6 +424,7 @@ interface SkillCardProps {
 }
 
 function SkillCard({ node, isTopLevel, expandedContent, contentCache, onDelete, onToggleContent }: SkillCardProps) {
+  const { t } = useTranslation('workspace')
   const isContentExpanded = expandedContent === node.path
 
   return (
@@ -456,13 +460,13 @@ function SkillCard({ node, isTopLevel, expandedContent, contentCache, onDelete, 
         </Box>
         <Stack direction="row" spacing={0.5} onClick={e => e.stopPropagation()}>
           {isTopLevel && (
-            <Tooltip title="删除">
+            <Tooltip title={t('skills.nodeRow.deleteTooltip')}>
               <IconButton size="small" color="error" onClick={() => onDelete(node.name)}>
                 <DeleteIcon fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
-          <Tooltip title={isContentExpanded ? '收起' : '查看 SKILL.md'}>
+          <Tooltip title={isContentExpanded ? t('skills.card.collapseTooltip') : t('skills.card.viewTooltip')}>
             <IconButton size="small" onClick={() => onToggleContent(node)}>
               <ArticleIcon fontSize="small" />
             </IconButton>
@@ -493,6 +497,7 @@ function SkillCard({ node, isTopLevel, expandedContent, contentCache, onDelete, 
 export default function SkillsLibraryPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const { t } = useTranslation('workspace')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 页面 Tab
@@ -647,10 +652,10 @@ export default function SkillsLibraryPage() {
     mutationFn: (name: string) => skillsLibraryApi.delete(name),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills-tree'] })
-      notification.success('Skill 已删除')
+      notification.success(t('skills.notifications.deleted'))
       setDeleteTarget(null)
     },
-    onError: (err: Error) => notification.error(`删除失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('skills.notifications.deleteFailed', { message: err.message })),
   })
 
   // Pull 更新
@@ -658,10 +663,10 @@ export default function SkillsLibraryPage() {
     setPullingPath(path)
     try {
       const output = await skillsLibraryApi.pull(path)
-      notification.success(output ? `更新完成：${output.slice(0, 120)}` : '已是最新')
+      notification.success(output ? t('skills.notifications.pullSuccess', { output: output.slice(0, 120) }) : t('skills.notifications.pullUpToDate'))
       queryClient.invalidateQueries({ queryKey: ['skills-tree'] })
     } catch (err) {
-      notification.error(`更新失败：${(err as Error).message}`)
+      notification.error(t('skills.notifications.pullFailed', { message: (err as Error).message }))
     } finally {
       setPullingPath(null)
     }
@@ -672,13 +677,13 @@ export default function SkillsLibraryPage() {
     mutationFn: () => skillsLibraryApi.clone(cloneUrl.trim(), cloneTargetDir.trim()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills-tree'] })
-      notification.success(`已克隆到 ${cloneTargetDir}`)
+      notification.success(t('skills.notifications.cloned', { dir: cloneTargetDir }))
       setCloneDialogOpen(false)
       setCloneUrl('')
       setCloneTargetDir('')
       setCloneUrlTouched(false)
     },
-    onError: (err: Error) => notification.error(`克隆失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('skills.notifications.cloneFailed', { message: err.message })),
   })
 
   // Upload (保留 zip 支持)
@@ -686,16 +691,16 @@ export default function SkillsLibraryPage() {
     mutationFn: (file: File) => skillsLibraryApi.upload(file),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['skills-tree'] })
-      notification.success('Skill 上传成功')
+      notification.success(t('skills.notifications.uploaded'))
     },
-    onError: (err: Error) => notification.error(`上传失败：${err.message}`),
+    onError: (err: Error) => notification.error(t('skills.notifications.uploadFailed', { message: err.message })),
   })
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.name.endsWith('.zip')) {
-      notification.warning('请选择 .zip 格式的文件')
+      notification.warning(t('skills.notifications.invalidFile'))
       return
     }
     uploadMutation.mutate(file)
@@ -725,8 +730,8 @@ export default function SkillsLibraryPage() {
           onChange={(_, v) => setPageTab(v)}
           sx={{ minHeight: 40, borderBottom: 1, borderColor: 'divider' }}
         >
-          <Tab label="用户技能库" sx={{ minHeight: 40, py: 0.75 }} />
-          <Tab label={`内置技能${builtinSkills.length > 0 ? `（${builtinSkills.length}）` : ''}`} sx={{ minHeight: 40, py: 0.75 }} />
+          <Tab label={t('skills.tabs.user')} sx={{ minHeight: 40, py: 0.75 }} />
+          <Tab label={builtinSkills.length > 0 ? t('skills.tabs.builtinWithCount', { count: builtinSkills.length }) : t('skills.tabs.builtin')} sx={{ minHeight: 40, py: 0.75 }} />
         </Tabs>
 
         <Box sx={{ flexGrow: 1 }} />
@@ -737,20 +742,20 @@ export default function SkillsLibraryPage() {
           <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0, mr: 0.5 }}>
             {pageTab === 0 && !isLoading && !error && (
               isSearching
-                ? `${filteredSkills.length} / ${allSkills.length} 个技能`
-                : `共 ${allSkills.length} 个技能`
+                ? t('skills.stats.filtered', { filtered: filteredSkills.length, total: allSkills.length })
+                : t('skills.stats.total', { total: allSkills.length })
             )}
             {pageTab === 1 && !builtinLoading && (
               isSearching
-                ? `${filteredBuiltinSkills.length} / ${builtinSkills.length} 个技能`
-                : `共 ${builtinSkills.length} 个技能`
+                ? t('skills.stats.filtered', { filtered: filteredBuiltinSkills.length, total: builtinSkills.length })
+                : t('skills.stats.total', { total: builtinSkills.length })
             )}
           </Typography>
 
           {/* 搜索 */}
           <TextField
             size="small"
-            placeholder="搜索技能..."
+            placeholder={t('skills.search.placeholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             sx={{ width: 180 }}
@@ -778,19 +783,19 @@ export default function SkillsLibraryPage() {
             size="small"
           >
             <ToggleButton value="tree" aria-label="目录树">
-              <Tooltip title="目录树视图">
+              <Tooltip title={t('skills.toolbar.treeView')}>
                 <TreeViewIcon fontSize="small" />
               </Tooltip>
             </ToggleButton>
             <ToggleButton value="flat" aria-label="平铺视图">
-              <Tooltip title="平铺视图">
+              <Tooltip title={t('skills.toolbar.flatView')}>
                 <GridViewIcon fontSize="small" />
               </Tooltip>
             </ToggleButton>
           </ToggleButtonGroup>
 
           {/* 刷新 */}
-          <Tooltip title="刷新">
+          <Tooltip title={t('skills.toolbar.refresh')}>
             <IconButton
               onClick={() => pageTab === 0 ? refetch() : refetchBuiltin()}
               disabled={pageTab === 0 ? isLoading : builtinLoading}
@@ -810,7 +815,7 @@ export default function SkillsLibraryPage() {
                 style={{ display: 'none' }}
                 onChange={handleFileChange}
               />
-              <Tooltip title="上传 Skill（.zip 格式）">
+              <Tooltip title={t('skills.toolbar.uploadTooltip')}>
                 <Button
                   variant="outlined"
                   startIcon={
@@ -820,7 +825,7 @@ export default function SkillsLibraryPage() {
                   disabled={uploadMutation.isPending}
                   size="small"
                 >
-                  上传 ZIP
+                  {t('skills.toolbar.uploadBtn')}
                 </Button>
               </Tooltip>
 
@@ -831,7 +836,7 @@ export default function SkillsLibraryPage() {
                 onClick={() => setCloneDialogOpen(true)}
                 size="small"
               >
-                添加 Skill
+                {t('skills.toolbar.addBtn')}
               </Button>
             </>
           )}
@@ -848,7 +853,7 @@ export default function SkillsLibraryPage() {
           ) : builtinNodes.length === 0 ? (
             <Box sx={{ textAlign: 'center', pt: 8 }}>
               <Typography color="text.secondary">
-                {isSearching ? '没有匹配的技能' : '暂无内置技能'}
+                {isSearching ? t('skills.empty.noMatch') : t('skills.empty.noBuiltin')}
               </Typography>
             </Box>
           ) : viewMode === 'flat' ? (
@@ -898,7 +903,7 @@ export default function SkillsLibraryPage() {
       {/* 错误提示 */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          加载 Skills 库失败：{(error as Error).message}
+          {t('skills.error.loadFailed', { message: (error as Error).message })}
         </Alert>
       )}
 
@@ -921,17 +926,17 @@ export default function SkillsLibraryPage() {
         >
           <ExtensionIcon sx={{ fontSize: 64, opacity: 0.3 }} />
           <Typography variant="h6" color="text.secondary">
-            Skills 库为空
+            {t('skills.empty.title')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            点击"添加 Skill"从 git 仓库克隆，或"上传 ZIP"添加本地包
+            {t('skills.empty.hint')}
           </Typography>
         </Box>
       ) : isSearching || viewMode === 'flat' ? (
         /* 平铺视图 / 搜索结果 */
         filteredSkills.length === 0 ? (
           <Box sx={{ textAlign: 'center', pt: 8 }}>
-            <Typography color="text.secondary">没有匹配的技能</Typography>
+            <Typography color="text.secondary">{t('skills.empty.noMatch')}</Typography>
           </Box>
         ) : (
           <Box
@@ -985,11 +990,11 @@ export default function SkillsLibraryPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>添加 Skill</DialogTitle>
+        <DialogTitle>{t('skills.cloneDialog.title')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2.5} sx={{ mt: 1 }}>
             <TextField
-              label="Git 仓库地址"
+              label={t('skills.cloneDialog.urlLabel')}
               placeholder="https://github.com/user/my-skill.git"
               value={cloneUrl}
               onChange={e => handleCloneUrlChange(e.target.value)}
@@ -998,11 +1003,11 @@ export default function SkillsLibraryPage() {
               disabled={cloneMutation.isPending}
             />
             <TextField
-              label="保存目录名"
+              label={t('skills.cloneDialog.dirLabel')}
               helperText={
                 cloneTargetDir
-                  ? `将保存到：skills/${cloneTargetDir}`
-                  : '自动生成自仓库名，可手动修改'
+                  ? t('skills.cloneDialog.dirHintSaving', { dir: cloneTargetDir })
+                  : t('skills.cloneDialog.dirHintAuto')
               }
               value={cloneTargetDir}
               onChange={e => {
@@ -1024,7 +1029,7 @@ export default function SkillsLibraryPage() {
             }}
             disabled={cloneMutation.isPending}
           >
-            取消
+            {t('skills.cloneDialog.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -1032,7 +1037,7 @@ export default function SkillsLibraryPage() {
             disabled={cloneMutation.isPending || !cloneUrl.trim() || !cloneTargetDir.trim()}
             startIcon={cloneMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
           >
-            {cloneMutation.isPending ? '克隆中...' : '克隆'}
+            {cloneMutation.isPending ? t('skills.cloneDialog.cloning') : t('skills.cloneDialog.cloneBtn')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1042,10 +1047,10 @@ export default function SkillsLibraryPage() {
         open={!!deleteTarget}
         onClose={() => !deleteMutation.isPending && setDeleteTarget(null)}
       >
-        <DialogTitle>确认删除</DialogTitle>
+        <DialogTitle>{t('skills.deleteDialog.title')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            确定要删除 <strong>{deleteTarget}</strong> 吗？此操作不可撤销，目录下的所有文件将被永久删除。
+            {t('skills.deleteDialog.content', { name: deleteTarget })}
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
@@ -1053,7 +1058,7 @@ export default function SkillsLibraryPage() {
             onClick={() => setDeleteTarget(null)}
             disabled={deleteMutation.isPending}
           >
-            取消
+            {t('skills.deleteDialog.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -1061,7 +1066,7 @@ export default function SkillsLibraryPage() {
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? <CircularProgress size={20} /> : '删除'}
+            {deleteMutation.isPending ? <CircularProgress size={20} /> : t('skills.deleteDialog.delete')}
           </Button>
         </DialogActions>
       </Dialog>

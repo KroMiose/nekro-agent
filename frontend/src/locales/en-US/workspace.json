@@ -61,6 +61,139 @@
     "deleteSuccess": "Workspace deleted",
     "deleteFailed": "Delete failed: {{message}}"
   },
+  "ccModels": {
+    "infoAlert": "Manage model preset configurations used by Claude Code (CC) sandbox. Select a preset in the workspace config page to generate the inject config.",
+    "createBtn": "New Preset",
+    "table": {
+      "headers": {
+        "name": "Preset Name",
+        "desc": "Description",
+        "type": "Type",
+        "model": "Model",
+        "baseUrl": "Base URL",
+        "actions": "Actions"
+      },
+      "empty": "No presets yet. Click \"New Preset\" to add one.",
+      "defaultChip": "Default",
+      "typePreset": "Preset",
+      "typeManual": "Manual",
+      "multiModel": "(multi-model)",
+      "tooltips": {
+        "edit": "Edit",
+        "delete": "Delete",
+        "defaultCannotDelete": "Default preset cannot be deleted"
+      }
+    },
+    "dialog": {
+      "titleCreate": "New CC Model Preset",
+      "titleEdit": "Edit CC Model Preset",
+      "name": "Preset Name",
+      "nameReadonly": "Name cannot be changed after creation",
+      "desc": "Description",
+      "sectionApi": "API Config",
+      "timeout": "Timeout (ms)",
+      "sectionModel": "Model Config",
+      "modelType": "Model Type",
+      "modelTypePreset": "Preset mode (use preset name)",
+      "modelTypeManual": "Manual mode (specify each role model)",
+      "presetModel": "Preset Model",
+      "presetModelHint": "model field value",
+      "emptyMeans": "Leave blank to not set",
+      "sectionEnv": "Custom Extra Variables",
+      "envAdd": "Add",
+      "envEmpty": "No custom variables. Click \"Add\" to add key-value pairs.",
+      "sectionPreview": "Generated Config JSON Preview",
+      "cancel": "Cancel",
+      "save": "Save",
+      "create": "Create"
+    },
+    "deleteDialog": {
+      "title": "Confirm Delete Preset",
+      "content": "Are you sure you want to delete preset {{name}}? This action cannot be undone.",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "notifications": {
+      "created": "Preset created",
+      "createFailed": "Create failed: {{message}}",
+      "saved": "Preset saved",
+      "saveFailed": "Save failed: {{message}}",
+      "deleted": "Preset deleted",
+      "deleteFailed": "Delete failed: {{message}}"
+    }
+  },
+  "skills": {
+    "tabs": {
+      "user": "User Skills",
+      "builtin": "Built-in Skills",
+      "builtinWithCount": "Built-in Skills ({{count}})"
+    },
+    "stats": {
+      "filtered": "{{filtered}} / {{total}} skills",
+      "total": "{{total}} skills total"
+    },
+    "search": {
+      "placeholder": "Search skills..."
+    },
+    "toolbar": {
+      "treeView": "Tree View",
+      "flatView": "Flat View",
+      "refresh": "Refresh",
+      "uploadTooltip": "Upload Skill (.zip format)",
+      "uploadBtn": "Upload ZIP",
+      "addBtn": "Add Skill"
+    },
+    "empty": {
+      "title": "Skills library is empty",
+      "hint": "Click \"Add Skill\" to clone from a git repo, or \"Upload ZIP\" to add a local package",
+      "noBuiltin": "No built-in skills",
+      "noMatch": "No matching skills"
+    },
+    "content": {
+      "noContent": "No content",
+      "allowedTools": "Allowed tools:",
+      "loading": "Loading..."
+    },
+    "nodeRow": {
+      "pullTooltip": "Pull updates",
+      "deleteTooltip": "Delete"
+    },
+    "card": {
+      "collapseTooltip": "Collapse",
+      "viewTooltip": "View SKILL.md"
+    },
+    "error": {
+      "loadFailed": "Failed to load skills library: {{message}}"
+    },
+    "cloneDialog": {
+      "title": "Add Skill",
+      "urlLabel": "Git Repository URL",
+      "dirLabel": "Save Directory Name",
+      "dirHintSaving": "Will be saved to: skills/{{dir}}",
+      "dirHintAuto": "Auto-generated from repo name, can be changed",
+      "cancel": "Cancel",
+      "cloneBtn": "Clone",
+      "cloning": "Cloning..."
+    },
+    "deleteDialog": {
+      "title": "Confirm Delete",
+      "content": "Are you sure you want to delete {{name}}? This action cannot be undone and all files in the directory will be permanently deleted.",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
+    "notifications": {
+      "deleted": "Skill deleted",
+      "deleteFailed": "Delete failed: {{message}}",
+      "cloned": "Cloned to {{dir}}",
+      "cloneFailed": "Clone failed: {{message}}",
+      "uploaded": "Skill uploaded successfully",
+      "uploadFailed": "Upload failed: {{message}}",
+      "pullSuccess": "Updated: {{output}}",
+      "pullUpToDate": "Already up to date",
+      "pullFailed": "Update failed: {{message}}",
+      "invalidFile": "Please select a .zip file"
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "Back to List",
@@ -205,7 +338,6 @@
         "no": "No",
         "category": "Category",
         "tags": "Tags",
-        "tags": "Tags",
         "sharedToNA": "Shared with NA"
       },
       "charCount": "{{count}}/600 chars",
@@ -263,7 +395,76 @@
       "mcpSaveSuccess": "MCP config saved",
       "mcpSaveFailed": "Save failed: {{message}}",
       "mcpJsonError": "Invalid JSON",
-      "mcpJsonErrorFix": "Please fix JSON errors first"
+      "mcpJsonErrorFix": "Please fix JSON errors first",
+      "skillsCardTitle": "Extensions",
+      "syncBtn": "Sync to Sandbox",
+      "addSkillBtn": "Add Skill",
+      "deployedLabel": "Deployed ({{count}})",
+      "deployedEmpty": "No skills deployed yet. Click \"Add Skill\" to select from built-in or library.",
+      "skillChipBuiltin": "Built-in",
+      "skillChipUser": "Library",
+      "skillChipPending": "Pending",
+      "removeTooltip": "Remove from deployed list (click \"Sync to Sandbox\" to apply)",
+      "ccCreatedLabel": "CC Created ({{count}})",
+      "ccCreatedEmpty": "No dynamic skills",
+      "skillChipCC": "CC-created",
+      "editSkillTooltip": "Edit SKILL.md",
+      "promoteTooltip": "Promote to library",
+      "deleteTooltip": "Delete",
+      "refreshDynamicTooltip": "Refresh dynamic skills list",
+      "ccDesignBtn": "Let CC Design a New Skill",
+      "mcpFormatHint": "Supports JSONC format (// and /* */ comments), automatically converted to JSON on save",
+      "fillTemplateTooltip": "Fill with common MCP service config template (will overwrite existing content)",
+      "fillTemplateBtn": "Fill Template",
+      "addSkillDialog": {
+        "title": "Add Skill",
+        "searchPlaceholder": "Search skill name or description…",
+        "filterAll": "All",
+        "filterBuiltin": "Built-in",
+        "filterUser": "Library",
+        "allAdded": "All skills already added",
+        "noMatch": "No matching results",
+        "selectedCount": "{{count}} selected",
+        "cancel": "Cancel",
+        "addBtn": "Add to List"
+      },
+      "ccDesignDialog": {
+        "title": "Let CC Design a New Skill",
+        "info": "Clicking confirm will navigate to the Comm tab and pre-fill a design prompt.\nYou can add your specific requirements in the input box before sending.",
+        "desc": "CC will use the skill-creator guide to save the designed skill in the dynamic skills directory. You can view, edit, or promote it anytime from the Extensions tab.",
+        "cancel": "Cancel",
+        "confirmBtn": "Go to Comm"
+      },
+      "editDynamicDialog": {
+        "title": "Edit Dynamic Skill {{name}}",
+        "contentLabel": "SKILL.md Content",
+        "cancel": "Cancel",
+        "save": "Save"
+      },
+      "deleteDynamicDialog": {
+        "title": "Confirm Delete",
+        "content": "Are you sure you want to delete dynamic skill {{name}}? This action cannot be recovered.",
+        "cancel": "Cancel",
+        "delete": "Delete"
+      },
+      "mcpTemplateDialog": {
+        "title": "Fill MCP Config Template",
+        "warning": "This will overwrite the existing MCP config. Please confirm you have a backup or don't need to keep the current config.",
+        "desc": "The template includes JSONC examples for common MCP services (Filesystem, GitHub, Brave Search, Fetch, Memory, PostgreSQL), all commented out by default. Uncomment and fill in parameters as needed.",
+        "cancel": "Cancel",
+        "confirm": "Apply Template"
+      },
+      "notifications": {
+        "syncSuccess": "Synced to sandbox",
+        "syncFailed": "Sync failed: {{message}}",
+        "deleteDynamicSuccess": "Dynamic skill {{name}} deleted",
+        "deleteDynamicFailed": "Delete failed: {{message}}",
+        "promoteSuccess": "Dynamic skill {{name}} promoted to library",
+        "promoteFailed": "Promote failed: {{message}}",
+        "saveDynamicSuccess": "Dynamic skill {{name}} saved",
+        "saveDynamicFailed": "Save failed: {{message}}",
+        "loadContentFailed": "Failed to load skill content: {{message}}"
+      }
     },
     "comm": {
       "loadMoreHint": "Scroll up to load more",
