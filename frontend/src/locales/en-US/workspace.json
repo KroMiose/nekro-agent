@@ -73,6 +73,7 @@
       "comm": "Comm",
       "memory": "Memory",
       "extensions": "Extensions",
+      "prompt": "Prompt",
       "config": "Config"
     },
     "overview": {
@@ -101,6 +102,8 @@
         "containerName": "Container",
         "hostPort": "Host Port",
         "sessionId": "Session ID",
+        "ccVersion": "Sandbox Version",
+        "claudeCodeVersion": "Claude Code",
         "modelGroup": "Model Group",
         "lastHeartbeat": "Last Heartbeat"
       },
@@ -284,6 +287,20 @@
       "expand": "Expand ({{chars}} chars)",
       "notifications": {
         "sendFailed": "Send failed: {{message}}"
+      }
+    },
+    "prompt": {
+      "systemPromptTitle": "System Prompt (Read-only)",
+      "systemPromptHint": "Click to expand and view the full CLAUDE.md content injected into the CC sandbox",
+      "expandTooltip": "Expand preview",
+      "collapseTooltip": "Collapse preview",
+      "extraTitle": "Custom Append Prompt",
+      "extraHint": "Appended to the end of CLAUDE.md and takes effect on each conversation",
+      "extraPlaceholder": "Enter custom instructions here, e.g.:\n\n## Personal Preferences\n\n- Use English for all code comments\n- Prefer Python for problem solving",
+      "saveBtn": "Save",
+      "notifications": {
+        "saveSuccess": "Custom prompt saved",
+        "saveFailed": "Save failed: {{message}}"
       }
     },
     "config": {

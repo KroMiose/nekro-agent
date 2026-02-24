@@ -24,6 +24,8 @@ from nekro_agent.schemas.errors import (
 )
 from nekro_agent.schemas.workspace import (
     ChannelBindRequest,
+    ClaudeMdExtraUpdate,
+    ClaudeMdResponse,
     CommHistoryResponse,
     CommLogEntry,
     CommSendBody,
@@ -351,12 +353,20 @@ async def get_sandbox_status(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
 
     sandbox_info: Dict[str, Any] = {}
+    cc_version: Optional[str] = None
+    claude_code_version: Optional[str] = None
     if ws.status == "active":
         client = CCSandboxClient(ws)
         try:
             sandbox_info = await client.get_sandbox_status()
         except Exception as e:
             logger.debug(f"获取沙盒状态失败（容器可能未就绪）: {ws.container_name}: {e}")
+        try:
+            versions = await client.get_sandbox_versions()
+            cc_version = versions.get("cc_version")
+            claude_code_version = versions.get("claude_code_version")
+        except Exception as e:
+            logger.debug(f"获取沙盒版本失败: {ws.container_name}: {e}")
 
     return SandboxStatus(
         workspace_id=ws.id,
@@ -366,6 +376,8 @@ async def get_sandbox_status(
         host_port=ws.host_port,
         session_id=sandbox_info.get("session_id"),
         tools=sandbox_info.get("tools"),
+        cc_version=cc_version,
+        claude_code_version=claude_code_version,
     )
 
 
@@ -545,6 +557,43 @@ async def update_workspace_env_vars(
 
 
 # ─────────────────────────────────────────────────────────────
+# CLAUDE.md 查看与自定义追加
+# ─────────────────────────────────────────────────────────────
+
+
+@router.get("/{workspace_id}/claude-md", summary="获取 CLAUDE.md 内容及自定义追加", response_model=ClaudeMdResponse)
+@require_role(Role.Admin)
+async def get_claude_md(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ClaudeMdResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    content = WorkspaceService._generate_claude_md_content(ws)
+    extra: str = (ws.metadata or {}).get("claude_md_extra") or ""
+    return ClaudeMdResponse(content=content, extra=extra)
+
+
+@router.put("/{workspace_id}/claude-md-extra", summary="更新自定义追加提示词", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_claude_md_extra(
+    workspace_id: int,
+    body: ClaudeMdExtraUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    metadata = dict(ws.metadata or {})
+    metadata["claude_md_extra"] = body.extra
+    ws.metadata = metadata
+    await ws.save(update_fields=["metadata", "update_time"])
+    WorkspaceService.update_claude_md(ws)
+    return ActionOkResponse(ok=True)
+
+
+# ─────────────────────────────────────────────────────────────
 # 动态 Skill 管理
 # ─────────────────────────────────────────────────────────────
 
@@ -703,6 +752,15 @@ async def set_workspace_cc_preset(
     metadata["cc_model_preset_id"] = body.cc_model_preset_id
     ws.metadata = metadata
     await ws.save(update_fields=["metadata", "update_time"])
+
+    # 解析预设并立刻刷新磁盘配置文件，使运行中的容器下一条消息即可生效（无需重建）
+    from nekro_agent.core.cc_model_presets import cc_presets_store
+
+    cc_preset = cc_presets_store.get_by_id(body.cc_model_preset_id) if body.cc_model_preset_id else None
+    if cc_preset is None:
+        cc_preset = cc_presets_store.get_default()
+    WorkspaceService.update_workspace_settings(ws, cc_preset)
+
     return {"ok": True}
 
 

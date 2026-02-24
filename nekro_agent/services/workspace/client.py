@@ -18,6 +18,13 @@ class CCSandboxClient:
     def __init__(self, workspace: DBWorkspace, timeout: float = 300.0) -> None:
         self._base_url = workspace.api_endpoint
         self._timeout = timeout
+        # 连接/写入超时短（死容器快速失败），读取超时长（支持长任务流式传输）
+        self._stream_timeout = httpx.Timeout(
+            connect=15.0,
+            read=self._timeout,
+            write=15.0,
+            pool=15.0,
+        )
 
     async def health_check(self) -> bool:
         try:
@@ -60,7 +67,7 @@ class CCSandboxClient:
         on_queued: Callable[[dict], Awaitable[None]] | None = None,
         env_vars: "dict[str, str] | None" = None,
     ) -> AsyncGenerator[str | dict, None]:
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
+        async with httpx.AsyncClient(timeout=self._stream_timeout) as client:
             async with client.stream(
                 "POST",
                 f"{self._base_url}/api/v1/message/stream",
@@ -120,6 +127,32 @@ class CCSandboxClient:
                 return dict(resp.json())
             return {}
 
+    async def get_cc_version(self) -> str:
+        """从 /api/v1/status 获取沙盒版本号。"""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{self._base_url}/api/v1/status")
+                if resp.status_code == 200:
+                    return str(resp.json().get("version") or "unknown")
+        except Exception:
+            pass
+        return "unknown"
+
+    async def get_sandbox_versions(self) -> "dict[str, str | None]":
+        """从 /api/v1/status 一次获取沙盒版本与 Claude Code CLI 版本。"""
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(f"{self._base_url}/api/v1/status")
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return {
+                        "cc_version": str(data.get("version") or "unknown"),
+                        "claude_code_version": data.get("claude_version") or None,
+                    }
+        except Exception:
+            pass
+        return {"cc_version": None, "claude_code_version": None}
+
     async def get_workspace_queue(self, workspace_id: str = "default") -> dict:
         """获取工作区任务队列状态（当前任务 + 等待列表）。"""
         try:
@@ -141,3 +174,21 @@ class CCSandboxClient:
         except Exception:
             pass
         return False
+
+    async def get_pending_results(self, workspace_id: str = "default") -> list[dict]:
+        """取出并消费指定工作区的所有待投递结果（消费后从 CC 暂存区移除）。
+
+        用于 NA 重启后恢复 CC 在断线期间完成的任务结果。
+        返回 list[dict]，每条包含: id, workspace_id, source_chat_key, result, created_at, expires_at
+        """
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(
+                    f"{self._base_url}/api/v1/workspaces/{workspace_id}/pending-results"
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    return list(data.get("results") or [])
+        except Exception:
+            pass
+        return []

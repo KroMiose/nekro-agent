@@ -945,7 +945,7 @@ class CoreConfig(ConfigBase):
 
     """CC Workspace 配置"""
     CC_SANDBOX_IMAGE: str = Field(
-        default="nekro-cc-sandbox",
+        default="kromiose/nekro-cc-sandbox",
         title="CC 沙盒镜像名称",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
@@ -999,7 +999,6 @@ class CoreConfig(ConfigBase):
             i18n_title=i18n_text(zh_CN="CC 沙盒端口段结束", en_US="CC Sandbox Port Range End"),
         ).model_dump(),
     )
-
     CC_SANDBOX_STARTUP_TIMEOUT: int = Field(
         default=120,
         title="CC 沙盒启动超时（秒）",

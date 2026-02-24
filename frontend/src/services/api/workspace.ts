@@ -31,6 +31,8 @@ export interface SandboxStatus {
   host_port: number | null
   session_id: string | null
   tools: string[] | null
+  cc_version: string | null
+  claude_code_version: string | null
 }
 
 export interface SkillItem {
@@ -219,6 +221,16 @@ export const workspaceApi = {
 
   updateEnvVars: async (id: number, envVars: WorkspaceEnvVar[]): Promise<void> => {
     await axios.put(`/workspaces/${id}/env-vars`, { env_vars: envVars })
+  },
+
+  // CLAUDE.md
+  getClaudeMd: async (id: number): Promise<{ content: string; extra: string }> => {
+    const response = await axios.get<{ content: string; extra: string }>(`/workspaces/${id}/claude-md`)
+    return response.data
+  },
+
+  updateClaudeMdExtra: async (id: number, extra: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/claude-md-extra`, { extra })
   },
 }
 

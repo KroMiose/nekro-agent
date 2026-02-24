@@ -1,6 +1,8 @@
 import asyncio
+import os
 import random
 import secrets
+from pathlib import Path
 from typing import Set
 
 import aiodocker
@@ -8,12 +10,27 @@ import httpx
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 logger = get_sub_logger("workspace_container")
 
 CONTAINER_WORKSPACE_PATH = "/workspace"  # 容器内工作区挂载路径
+
+
+def _get_host_timezone() -> str:
+    """获取宿主机时区标识，用于注入容器。优先读 TZ 环境变量，再读 /etc/timezone，最终 fallback UTC。"""
+    tz = os.environ.get("TZ", "").strip()
+    if tz:
+        return tz
+    try:
+        tz = Path("/etc/timezone").read_text().strip()
+        if tz:
+            return tz
+    except Exception:
+        pass
+    return "UTC"
 
 
 def _generate_container_name() -> str:
@@ -82,13 +99,18 @@ class SandboxContainerManager:
             image_tag = workspace.sandbox_version or config.CC_SANDBOX_IMAGE_TAG
             image = f"{image_name}:{image_tag}"
 
+            host_tz = _get_host_timezone()
+            binds = [
+                f"{ws_host_dir}:{CONTAINER_WORKSPACE_PATH}:rw",
+                f"{claude_home_host_dir}:/home/appuser/.claude:rw",
+            ]
+            if Path("/etc/localtime").exists():
+                binds.append("/etc/localtime:/etc/localtime:ro")
+
             container_config: dict = {
                 "Image": image,
                 "HostConfig": {
-                    "Binds": [
-                        f"{ws_host_dir}:{CONTAINER_WORKSPACE_PATH}:rw",
-                        f"{claude_home_host_dir}:/home/appuser/.claude:rw",
-                    ],
+                    "Binds": binds,
                     "PortBindings": {
                         f"{config.CC_SANDBOX_INTERNAL_PORT}/tcp": [
                             {"HostIp": "0.0.0.0", "HostPort": str(host_port)}
@@ -103,13 +125,15 @@ class SandboxContainerManager:
                     "SKIP_PERMISSIONS=true",
                     f"PORT={config.CC_SANDBOX_INTERNAL_PORT}",
                     "HOST=0.0.0.0",
+                    f"TZ={host_tz}",
                 ],
                 "ExposedPorts": {f"{config.CC_SANDBOX_INTERNAL_PORT}/tcp": {}},
             }
 
-            # Docker 网络配置
-            if config.CC_SANDBOX_DOCKER_NETWORK:
-                container_config["HostConfig"]["NetworkMode"] = config.CC_SANDBOX_DOCKER_NETWORK
+            # Docker 网络配置：生产环境（RUN_IN_DOCKER）自动加入 NA 所在网络
+            docker_network = f"{OsEnv.INSTANCE_NAME}nekro_network" if OsEnv.RUN_IN_DOCKER else ""
+            if docker_network:
+                container_config["HostConfig"]["NetworkMode"] = docker_network
 
             container = await docker.containers.create_or_replace(
                 name=container_name,

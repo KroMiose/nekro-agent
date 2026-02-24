@@ -130,7 +130,7 @@ updated: "YYYY-MM-DD"
 5. **任务来源**：每条任务消息头部可能包含 `[任务来源频道: <chat_key>]` 标记，标识该任务来自哪个 NA 会话频道。在多频道共用同一工作区场景下，可利用此信息在记忆文件中区分不同频道的任务背景。
 
 {env_vars_section}
-"""
+{extra_section}"""
 
     @staticmethod
     def get_memory_root(workspace_id: int) -> "Path":
@@ -162,10 +162,13 @@ updated: "YYYY-MM-DD"
         """生成工作区 CLAUDE.md 的完整内容。"""
         env_vars: List[Dict[str, Any]] = workspace.metadata.get("env_vars", [])
         env_vars_section = WorkspaceService._generate_env_vars_section(env_vars)
+        raw_extra = (workspace.metadata.get("claude_md_extra") or "").strip()
+        extra_section = f"## 自定义附加指令\n\n{raw_extra}" if raw_extra else ""
         return (
             WorkspaceService._CLAUDE_MD_TEMPLATE
             .replace("{runtime_policy}", workspace.runtime_policy or "agent")
             .replace("{env_vars_section}", env_vars_section)
+            .replace("{extra_section}", extra_section)
         )
 
     @staticmethod
@@ -179,6 +182,55 @@ updated: "YYYY-MM-DD"
         claude_md_path = default_dir / "CLAUDE.md"
         claude_md_path.write_text(WorkspaceService._generate_claude_md_content(workspace), encoding="utf-8")
         logger.debug(f"刷新 CLAUDE.md: {claude_md_path}")
+
+    @staticmethod
+    def update_workspace_settings(
+        workspace: "DBWorkspace",
+        cc_preset: Optional["CCModelPresetItem"] = None,
+    ) -> None:
+        """更新工作区 settings.json 和 .claude/settings.json，使模型预设变更立即生效无需重建容器。
+
+        CC sandbox 的 ClaudeRuntime 每次 spawn 子进程时动态读取 settings.json，
+        因此写入新文件后下一条消息即可使用新的模型配置。
+        """
+        ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
+        if not ws_dir.exists():
+            return  # 工作区目录尚未初始化，容器首次启动时 init_workspace_dir 会完整写入
+
+        api_key = cc_preset.auth_token if cc_preset else ""
+        base_url = cc_preset.base_url if cc_preset else ""
+        if cc_preset:
+            model = cc_preset.anthropic_model if cc_preset.model_type == "manual" else ""
+        else:
+            model = ""
+        timeout_ms = int(cc_preset.api_timeout_ms) if cc_preset and cc_preset.api_timeout_ms else 300000
+
+        settings: Dict[str, Any] = {
+            "provider": "anthropic",
+            "providers": {
+                "anthropic": {
+                    "name": "Anthropic",
+                    "base_url": base_url,
+                    "auth_token": api_key,
+                    "model": model,
+                }
+            },
+            "active_provider": "anthropic",
+            "timeout_ms": timeout_ms,
+        }
+        settings_path = ws_dir / "settings.json"
+        settings_path.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
+        logger.debug(f"热更新 settings.json: {settings_path}")
+
+        if cc_preset:
+            claude_dir = ws_dir / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            claude_settings_path = claude_dir / "settings.json"
+            claude_settings_path.write_text(
+                json.dumps(cc_preset.to_config_json(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.debug(f"热更新 .claude/settings.json: {claude_settings_path}")
 
     @staticmethod
     def _parse_frontmatter(raw: str) -> "tuple[Dict[str, Any], str]":
