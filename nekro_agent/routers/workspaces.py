@@ -713,6 +713,15 @@ async def set_workspace_cc_preset(
     metadata["cc_model_preset_id"] = body.cc_model_preset_id
     ws.metadata = metadata
     await ws.save(update_fields=["metadata", "update_time"])
+
+    # 解析预设并立刻刷新磁盘配置文件，使运行中的容器下一条消息即可生效（无需重建）
+    from nekro_agent.core.cc_model_presets import cc_presets_store
+
+    cc_preset = cc_presets_store.get_by_id(body.cc_model_preset_id) if body.cc_model_preset_id else None
+    if cc_preset is None:
+        cc_preset = cc_presets_store.get_default()
+    WorkspaceService.update_workspace_settings(ws, cc_preset)
+
     return {"ok": True}
 
 

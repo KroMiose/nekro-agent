@@ -181,6 +181,55 @@ updated: "YYYY-MM-DD"
         logger.debug(f"刷新 CLAUDE.md: {claude_md_path}")
 
     @staticmethod
+    def update_workspace_settings(
+        workspace: "DBWorkspace",
+        cc_preset: Optional["CCModelPresetItem"] = None,
+    ) -> None:
+        """更新工作区 settings.json 和 .claude/settings.json，使模型预设变更立即生效无需重建容器。
+
+        CC sandbox 的 ClaudeRuntime 每次 spawn 子进程时动态读取 settings.json，
+        因此写入新文件后下一条消息即可使用新的模型配置。
+        """
+        ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
+        if not ws_dir.exists():
+            return  # 工作区目录尚未初始化，容器首次启动时 init_workspace_dir 会完整写入
+
+        api_key = cc_preset.auth_token if cc_preset else ""
+        base_url = cc_preset.base_url if cc_preset else ""
+        if cc_preset:
+            model = cc_preset.anthropic_model if cc_preset.model_type == "manual" else ""
+        else:
+            model = ""
+        timeout_ms = int(cc_preset.api_timeout_ms) if cc_preset and cc_preset.api_timeout_ms else 300000
+
+        settings: Dict[str, Any] = {
+            "provider": "anthropic",
+            "providers": {
+                "anthropic": {
+                    "name": "Anthropic",
+                    "base_url": base_url,
+                    "auth_token": api_key,
+                    "model": model,
+                }
+            },
+            "active_provider": "anthropic",
+            "timeout_ms": timeout_ms,
+        }
+        settings_path = ws_dir / "settings.json"
+        settings_path.write_text(json.dumps(settings, indent=2, ensure_ascii=False), encoding="utf-8")
+        logger.debug(f"热更新 settings.json: {settings_path}")
+
+        if cc_preset:
+            claude_dir = ws_dir / ".claude"
+            claude_dir.mkdir(exist_ok=True)
+            claude_settings_path = claude_dir / "settings.json"
+            claude_settings_path.write_text(
+                json.dumps(cc_preset.to_config_json(), indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            logger.debug(f"热更新 .claude/settings.json: {claude_settings_path}")
+
+    @staticmethod
     def _parse_frontmatter(raw: str) -> "tuple[Dict[str, Any], str]":
         """解析 YAML frontmatter，返回 (meta_dict, body)。不依赖 pyyaml，使用行解析。"""
         if raw.startswith("---"):
