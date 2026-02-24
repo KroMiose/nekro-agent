@@ -47,17 +47,27 @@ export default function SettingsPage() {
     const cats: string[] = []
     const grouped: Record<string, ConfigItem[]> = {}
 
+    const otherLabel = t('system.otherCategory', '其他')
+
     configs.forEach((config: ConfigItem) => {
       const category = resolveCategory(config)
       if (!seen.has(category)) {
         seen.add(category)
-        cats.push(category)
+        // "其他"分类放到最后
+        if (category !== otherLabel) {
+          cats.push(category)
+        }
       }
       if (!grouped[category]) {
         grouped[category] = []
       }
       grouped[category].push(config)
     })
+
+    // "其他"分类有内容时才追加到末尾
+    if (grouped[otherLabel]?.length) {
+      cats.push(otherLabel)
+    }
 
     return { categories: cats, configsByCategory: grouped }
     // eslint-disable-next-line react-hooks/exhaustive-deps
