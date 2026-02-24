@@ -5,12 +5,14 @@ import { useLocation } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
+import { getLocalizedText } from '../../services/api/types'
 import type { ConfigItem } from '../../components/common/ConfigTable'
 
 export default function SettingsPage() {
   const location = useLocation()
   const [searchText, setSearchText] = useState<string>('')
   const { t } = useTranslation('settings')
+  const { i18n } = useTranslation()
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -25,6 +27,17 @@ export default function SettingsPage() {
     queryFn: () => configService.getConfigList('system'),
   })
 
+  // 从配置项中提取本地化的分类名称
+  const resolveCategory = (config: ConfigItem): string => {
+    if (config.i18n_category && typeof config.i18n_category === 'object') {
+      return getLocalizedText(config.i18n_category, config.category || '', i18n.language)
+    }
+    if (typeof config.i18n_category === 'string') {
+      return config.i18n_category
+    }
+    return config.category || ''
+  }
+
   // 按分类组织配置，同时提取分类列表
   const { categories, configsByCategory } = useMemo(() => {
     const seen = new Set<string>()
@@ -32,7 +45,7 @@ export default function SettingsPage() {
     const grouped: Record<string, ConfigItem[]> = {}
 
     configs.forEach((config: ConfigItem) => {
-      const category = config.category
+      const category = resolveCategory(config)
       if (category) {
         if (!seen.has(category)) {
           seen.add(category)
@@ -46,7 +59,8 @@ export default function SettingsPage() {
     })
 
     return { categories: cats, configsByCategory: grouped }
-  }, [configs])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configs, i18n.language])
 
   // 初始化 activeTab，默认为第一个分类
   const [activeTab, setActiveTab] = useState<string>(() => {
