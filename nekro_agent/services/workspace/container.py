@@ -1,4 +1,5 @@
 import asyncio
+import re
 import random
 import secrets
 from pathlib import Path
@@ -18,6 +19,8 @@ logger = get_sub_logger("workspace_container")
 CONTAINER_WORKSPACE_PATH = "/workspace"  # 容器内工作区挂载路径
 
 _resolved_nekro_network: str = ""  # 模块级缓存，避免每次创建容器都重复探测
+_resolve_network_lock: asyncio.Lock = asyncio.Lock()  # 并发保护，确保只探测一次
+_CONTAINER_ID_RE = re.compile(r"^[0-9a-f]{64}$")  # Docker 容器 ID 格式：64 位十六进制
 
 
 async def _resolve_nekro_network(docker: aiodocker.Docker) -> str:
@@ -26,35 +29,50 @@ async def _resolve_nekro_network(docker: aiodocker.Docker) -> str:
     优先使用 INSTANCE_NAME 环境变量拼接；
     若 INSTANCE_NAME 为空（docker-compose 未透传），则通过 Docker API
     自动探测当前容器所连接的以 'nekro_network' 结尾的网络名。
-    结果缓存于模块变量，同一进程内只探测一次。
+    结果缓存于模块变量，同一进程内只探测一次；并发调用由 asyncio.Lock 保护。
     """
     global _resolved_nekro_network
+
+    # 快速路径：已缓存则直接返回（无需持锁）
     if _resolved_nekro_network:
         return _resolved_nekro_network
 
-    # 优先：INSTANCE_NAME 已设置，直接拼接（与 docker-compose 命名规则一致）
-    if OsEnv.INSTANCE_NAME:
-        _resolved_nekro_network = f"{OsEnv.INSTANCE_NAME}nekro_network"
+    async with _resolve_network_lock:
+        # 持锁后再次检查，避免多个等待者重复探测
+        if _resolved_nekro_network:
+            return _resolved_nekro_network
+
+        # 优先：INSTANCE_NAME 已设置，直接拼接（与 docker-compose 命名规则一致）
+        if OsEnv.INSTANCE_NAME:
+            _resolved_nekro_network = f"{OsEnv.INSTANCE_NAME}nekro_network"
+            return _resolved_nekro_network
+
+        # Fallback：通过 Docker API 探测当前容器实际所属的 nekro_network
+        try:
+            container_id = Path("/etc/hostname").read_text().strip()
+            if not _CONTAINER_ID_RE.match(container_id):
+                logger.warning(
+                    f"[网络自动探测] /etc/hostname 内容 {container_id!r} 不是有效容器 ID（非 64 位十六进制），跳过 Docker inspect"
+                )
+            else:
+                self_container = await docker.containers.get(container_id)
+                info = await self_container.show()
+                networks: dict = info.get("NetworkSettings", {}).get("Networks", {})
+                for network_name in networks:
+                    if network_name.endswith("nekro_network"):
+                        _resolved_nekro_network = network_name
+                        logger.info(f"[网络自动探测] 已发现 nekro_network: {network_name!r}")
+                        return _resolved_nekro_network
+        except Exception as e:
+            logger.warning(
+                f"[网络自动探测] Docker API 探测失败，回退至默认网络名: {e}",
+                exc_info=True,
+            )
+
+        # 最终兜底：无前缀的默认名
+        _resolved_nekro_network = "nekro_network"
+        logger.warning("[网络自动探测] 未找到匹配网络，使用默认值: nekro_network")
         return _resolved_nekro_network
-
-    # Fallback：通过 Docker API 探测当前容器实际所属的 nekro_network
-    try:
-        container_id = Path("/etc/hostname").read_text().strip()
-        self_container = await docker.containers.get(container_id)
-        info = await self_container.show()
-        networks: dict = info.get("NetworkSettings", {}).get("Networks", {})
-        for network_name in networks:
-            if network_name.endswith("nekro_network"):
-                _resolved_nekro_network = network_name
-                logger.info(f"[网络自动探测] 已发现 nekro_network: {network_name!r}")
-                return _resolved_nekro_network
-    except Exception as e:
-        logger.warning(f"[网络自动探测] Docker API 探测失败，回退至默认网络名: {e}")
-
-    # 最终兜底：无前缀的默认名
-    _resolved_nekro_network = "nekro_network"
-    logger.warning("[网络自动探测] 未找到匹配网络，使用默认值: nekro_network")
-    return _resolved_nekro_network
 
 
 def _generate_container_name() -> str:
