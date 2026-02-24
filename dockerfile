@@ -73,6 +73,7 @@ RUN uv sync --frozen --no-dev
 # 复制应用代码
 COPY nekro_agent ./nekro_agent
 COPY plugins ./plugins
+COPY migrations ./migrations
 COPY .env.prod ./
 
 # 从前端构建产物复制静态文件
