@@ -101,10 +101,12 @@ export interface ConfigItem {
   enable_toggle?: string
   overridable?: boolean
   is_need_restart?: boolean
-  
+  category?: string
+
   // i18n 扩展字段（可选，与后端 ExtraField 对应）
   i18n_title?: I18nDict
   i18n_description?: I18nDict
+  i18n_category?: I18nDict
 }
 
 export interface ModelGroupConfig {
@@ -885,6 +887,21 @@ export default function ConfigTable({
       return config.description
         ? getLocalizedText(config.i18n_description, config.description, i18n.language)
         : undefined
+    },
+    [i18n.language]
+  )
+
+  const getConfigCategory = useCallback(
+    (config: ConfigItem) => {
+      // 优先使用后端返回的 i18n_category（多语言），fallback 到 category（单语言）
+      if (config.i18n_category && typeof config.i18n_category === 'object') {
+        return getLocalizedText(config.i18n_category as I18nDict, config.category || '', i18n.language)
+      }
+      // fallback：如果 i18n_category 是字符串（兼容旧格式），直接使用
+      if (typeof config.i18n_category === 'string') {
+        return config.i18n_category
+      }
+      return config.category || ''
     },
     [i18n.language]
   )
@@ -1737,7 +1754,16 @@ export default function ConfigTable({
                       </Stack>
                     </TableCell>
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
-                      <Stack spacing={1} direction="row" alignItems="center">
+                      <Stack spacing={1} direction="row" alignItems="center" flexWrap="wrap">
+                        {getConfigCategory(config) && (
+                          <Chip
+                            label={getConfigCategory(config)}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ ...CHIP_VARIANTS.base(isSmall) }}
+                          />
+                        )}
                         {config.overridable && configKey === 'system' && (
                           <Chip
                             label={t('configTable.overridable')}

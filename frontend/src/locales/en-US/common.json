@@ -231,7 +231,13 @@
     "resetConfirmContent": "Resetting config will lose all unsaved changes. Continue?",
     "saveWarningTitle": "Save Warning",
     "saveWarningContent": "The following required fields are empty. Continue saving?",
-    "saveWarningContentSimple": "Continue saving?"
+    "saveWarningContentSimple": "Continue saving?",
+    "configCategories": {
+      "基础设置": "Basic Settings",
+      "云服务": "Cloud Services",
+      "模型配置": "Model Configuration",
+      "系统": "System"
+    }
   },
   "locale": {
     "toggleTooltip": "Switch Language / 切换语言",

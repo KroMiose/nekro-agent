@@ -232,7 +232,13 @@
     "resetConfirmContent": "重置配置将丢失所有未保存的修改，是否继续？",
     "saveWarningTitle": "保存警告",
     "saveWarningContent": "以下必填项未填写，是否仍要继续保存？",
-    "saveWarningContentSimple": "是否仍要继续保存？"
+    "saveWarningContentSimple": "是否仍要继续保存？",
+    "configCategories": {
+      "基础设置": "基础设置",
+      "云服务": "云服务",
+      "模型配置": "模型配置",
+      "系统": "系统"
+    }
   },
   "locale": {
     "toggleTooltip": "切换语言 / Switch Language",
