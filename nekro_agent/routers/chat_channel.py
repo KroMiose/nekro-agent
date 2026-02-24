@@ -578,7 +578,7 @@ async def stream_chat_channel_messages(
 
                 # 构建消息字典格式，用于SSE发送
                 message_dict = {
-                    "id": 0,  # 实时消息没有数据库ID
+                    "id": getattr(message, 'message_id', '') or str(hash(message.message_id + str(message.send_timestamp))),  # 使用 message_id 作为稳定唯一值
                     "sender_id": str(message.sender_id),
                     "sender_name": message.sender_name,
                     "sender_nickname": message.sender_nickname or message.sender_name,

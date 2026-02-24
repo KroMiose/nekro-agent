@@ -97,16 +97,14 @@ export default function ChatChannelPage() {
             const channel = { ...newItems[idx] }
             newItems.splice(idx, 1)
 
-            // 更新频道信息
-            if (event.channel_name !== null) {
-              channel.channel_name = event.channel_name
-            }
-            if (event.is_active !== null) {
-              channel.is_active = event.is_active
-            }
-            // 更新时间戳
-            channel.update_time = new Date().toISOString()
-            channel.last_message_time = new Date().toISOString()
+              if (newChannelName != null) {
+                channel.channel_name = newChannelName
+              }
+              if (newIsActive != null) {
+                channel.is_active = newIsActive
+              }
+              channel.update_time = new Date().toISOString()
+              channel.last_message_time = new Date().toISOString()
 
             // 移到列表顶部（最新活动的频道）
             newItems.unshift(channel)
