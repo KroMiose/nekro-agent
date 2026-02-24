@@ -1,3 +1,4 @@
+import asyncio
 import logging
 
 import weave
@@ -96,6 +97,20 @@ if _driver is not None:
 
         # 遥测任务
         start_telemetry_task()
+
+        # 延迟恢复：等待所有服务和插件就绪后，取回 CC 在 NA 断线期间完成的任务结果
+        async def _recover_cc_pending() -> None:
+            await asyncio.sleep(5)  # 等待 message_service、频道路由等完全就绪
+            try:
+                from builtin.cc_workspace.main import recover_pending_cc_results
+
+                await recover_pending_cc_results()
+            except ImportError:
+                pass  # cc_workspace 插件未加载，跳过
+            except Exception as e:
+                logger.error(f"[cc_workspace] CC 待投递结果恢复任务失败: {e}")
+
+        asyncio.create_task(_recover_cc_pending())
 
     @_driver.on_shutdown
     async def on_shutdown():

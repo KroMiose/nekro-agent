@@ -101,6 +101,8 @@
         "containerName": "Container",
         "hostPort": "Host Port",
         "sessionId": "Session ID",
+        "ccVersion": "Sandbox Version",
+        "claudeCodeVersion": "Claude Code",
         "modelGroup": "Model Group",
         "lastHeartbeat": "Last Heartbeat"
       },

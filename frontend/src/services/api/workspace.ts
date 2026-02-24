@@ -31,6 +31,8 @@ export interface SandboxStatus {
   host_port: number | null
   session_id: string | null
   tools: string[] | null
+  cc_version: string | null
+  claude_code_version: string | null
 }
 
 export interface SkillItem {

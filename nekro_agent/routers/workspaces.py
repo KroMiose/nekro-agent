@@ -351,12 +351,20 @@ async def get_sandbox_status(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
 
     sandbox_info: Dict[str, Any] = {}
+    cc_version: Optional[str] = None
+    claude_code_version: Optional[str] = None
     if ws.status == "active":
         client = CCSandboxClient(ws)
         try:
             sandbox_info = await client.get_sandbox_status()
         except Exception as e:
             logger.debug(f"获取沙盒状态失败（容器可能未就绪）: {ws.container_name}: {e}")
+        try:
+            versions = await client.get_sandbox_versions()
+            cc_version = versions.get("cc_version")
+            claude_code_version = versions.get("claude_code_version")
+        except Exception as e:
+            logger.debug(f"获取沙盒版本失败: {ws.container_name}: {e}")
 
     return SandboxStatus(
         workspace_id=ws.id,
@@ -366,6 +374,8 @@ async def get_sandbox_status(
         host_port=ws.host_port,
         session_id=sandbox_info.get("session_id"),
         tools=sandbox_info.get("tools"),
+        cc_version=cc_version,
+        claude_code_version=claude_code_version,
     )
 
 

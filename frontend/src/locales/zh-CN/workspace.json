@@ -101,6 +101,8 @@
         "containerName": "容器名称",
         "hostPort": "主机端口",
         "sessionId": "Session ID",
+        "ccVersion": "沙盒版本",
+        "claudeCodeVersion": "Claude Code",
         "modelGroup": "模型组",
         "lastHeartbeat": "最近心跳"
       },

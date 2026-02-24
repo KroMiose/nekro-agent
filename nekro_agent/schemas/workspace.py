@@ -52,6 +52,8 @@ class SandboxStatus(BaseModel):
     host_port: Optional[int]
     session_id: Optional[str] = None
     tools: Optional[List[str]] = None
+    cc_version: Optional[str] = None
+    claude_code_version: Optional[str] = None
 
 
 class ToolsResponse(BaseModel):

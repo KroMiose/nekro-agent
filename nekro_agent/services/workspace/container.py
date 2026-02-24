@@ -8,6 +8,7 @@ import httpx
 
 from nekro_agent.core.config import config
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.services.workspace.manager import WorkspaceService
 
@@ -107,9 +108,10 @@ class SandboxContainerManager:
                 "ExposedPorts": {f"{config.CC_SANDBOX_INTERNAL_PORT}/tcp": {}},
             }
 
-            # Docker 网络配置
-            if config.CC_SANDBOX_DOCKER_NETWORK:
-                container_config["HostConfig"]["NetworkMode"] = config.CC_SANDBOX_DOCKER_NETWORK
+            # Docker 网络配置：生产环境（RUN_IN_DOCKER）自动加入 NA 所在网络
+            docker_network = f"{OsEnv.INSTANCE_NAME}nekro_network" if OsEnv.RUN_IN_DOCKER else ""
+            if docker_network:
+                container_config["HostConfig"]["NetworkMode"] = docker_network
 
             container = await docker.containers.create_or_replace(
                 name=container_name,

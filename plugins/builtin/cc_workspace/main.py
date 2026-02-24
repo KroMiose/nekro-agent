@@ -30,6 +30,101 @@ _TASK_TYPE = "cc_delegate"
 
 
 # ---------------------------------------------------------------------------
+# NA 重启后恢复 CC 待投递结果
+# ---------------------------------------------------------------------------
+
+
+async def recover_pending_cc_results() -> None:
+    """NA 启动时扫描所有 active 工作区，取回 CC 在断线期间完成的任务结果。
+
+    调用方：nekro_agent/__init__.py on_startup（在 init_plugins 之后）。
+
+    恢复逻辑：
+    1. 遍历所有状态为 active 的工作区
+    2. 调用 CC sandbox GET /pending-results（消费语义，取回后自动删除）
+    3. 对每条结果：写入 CC_TO_NA 通讯日志、广播到 SSE、推送系统消息并触发 NA Agent
+    """
+    from nekro_agent.models.db_workspace import DBWorkspace
+    from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
+    from nekro_agent.services.message_service import message_service
+    from nekro_agent.services.workspace import comm_broadcast
+
+    try:
+        active_workspaces = await DBWorkspace.filter(status="active")
+    except Exception as e:
+        logger.warning(f"[cc_workspace] 恢复检查：获取工作区列表失败: {e}")
+        return
+
+    for workspace in active_workspaces:
+        client = CCSandboxClient(workspace)
+        try:
+            pending = await client.get_pending_results(workspace_id="default")
+        except Exception as e:
+            logger.debug(f"[cc_workspace] 恢复检查：工作区 {workspace.id} 查询失败: {e}")
+            continue
+
+        if not pending:
+            continue
+
+        logger.info(
+            f"[cc_workspace] 发现 {len(pending)} 条待投递结果，工作区: {workspace.name}（ID: {workspace.id}）"
+        )
+
+        for item in pending:
+            source_chat_key: str = item.get("source_chat_key", "")
+            result: str = item.get("result", "")
+            result_id: str = item.get("id", "")
+
+            if not source_chat_key or not result.strip():
+                logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
+                continue
+
+            # 写入 CC_TO_NA 通讯日志
+            try:
+                cc_log = await DBWorkspaceCommLog.create(
+                    workspace_id=workspace.id,
+                    direction="CC_TO_NA",
+                    source_chat_key=source_chat_key,
+                    content=result,
+                    is_streaming=False,
+                    task_id=f"cc_delegate:{source_chat_key}",
+                )
+                await comm_broadcast.publish(workspace.id, {
+                    "id": cc_log.id,
+                    "workspace_id": cc_log.workspace_id,
+                    "direction": cc_log.direction,
+                    "source_chat_key": cc_log.source_chat_key,
+                    "content": cc_log.content,
+                    "is_streaming": cc_log.is_streaming,
+                    "task_id": cc_log.task_id,
+                    "create_time": cc_log.create_time.isoformat(),
+                })
+            except Exception as e:
+                logger.warning(f"[cc_workspace] 恢复：写入通讯日志失败 (id={result_id!r}): {e}")
+
+            # 推送系统消息并触发 NA Agent
+            try:
+                notify_msg = (
+                    f"[CC Workspace 恢复结果] NA 服务重启前，CC 已完成一个委托任务，"
+                    f"结果如下（来自工作区: {workspace.name}）：\n\n"
+                    f"[CC Workspace 执行结果]\n{result}"
+                )
+                await message_service.push_system_message(
+                    chat_key=source_chat_key,
+                    agent_messages=notify_msg,
+                    trigger_agent=True,
+                )
+                logger.info(
+                    f"[cc_workspace] 恢复成功：已推送到 chat_key={source_chat_key!r}，"
+                    f"workspace={workspace.id}，chars={len(result)}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"[cc_workspace] 恢复：推送消息失败 (chat_key={source_chat_key!r}): {e}"
+                )
+
+
+# ---------------------------------------------------------------------------
 # 异步任务：后台执行 CC 委托
 # ---------------------------------------------------------------------------
 

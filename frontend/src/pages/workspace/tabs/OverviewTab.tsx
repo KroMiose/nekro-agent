@@ -362,6 +362,8 @@ export default function OverviewTab({
               <InfoRow label={t('detail.overview.infoRows.containerName')} value={containerName ?? '—'} mono />
               <InfoRow label={t('detail.overview.infoRows.hostPort')} value={hostPort ? String(hostPort) : '—'} mono />
               <InfoRow label={t('detail.overview.infoRows.sessionId')} value={sandboxStatus?.session_id ?? '—'} mono />
+              <InfoRow label={t('detail.overview.infoRows.ccVersion')} value={sandboxStatus?.cc_version ?? '—'} mono />
+              <InfoRow label={t('detail.overview.infoRows.claudeCodeVersion')} value={sandboxStatus?.claude_code_version ?? '—'} mono />
               <InfoRow label={t('detail.overview.infoRows.modelGroup')}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                   <Typography
