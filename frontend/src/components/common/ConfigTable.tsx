@@ -894,8 +894,12 @@ export default function ConfigTable({
   const getConfigCategory = useCallback(
     (config: ConfigItem) => {
       // 优先使用后端返回的 i18n_category（多语言），fallback 到 category（单语言）
-      if (config.i18n_category) {
-        return getLocalizedText(config.i18n_category, config.category || '', i18n.language)
+      if (config.i18n_category && typeof config.i18n_category === 'object') {
+        return getLocalizedText(config.i18n_category as I18nDict, config.category || '', i18n.language)
+      }
+      // fallback：如果 i18n_category 是字符串（兼容旧格式），直接使用
+      if (typeof config.i18n_category === 'string') {
+        return config.i18n_category
       }
       return config.category || ''
     },
