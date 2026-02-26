@@ -135,10 +135,17 @@ class DBChatChannel(Model):
 
     async def get_preset(self) -> Union[DBPreset, DefaultPreset]:
         """获取人设"""
+        # 先尝试频道自身的 preset_id
         preset = await DBPreset.get_or_none(id=self.preset_id)
-        if not preset:
-            return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
-        return preset
+        if preset:
+            return preset
+        # 再尝试系统默认人设 ID
+        if config.AI_CHAT_DEFAULT_PRESET_ID is not None:
+            default_preset = await DBPreset.get_or_none(id=config.AI_CHAT_DEFAULT_PRESET_ID)
+            if default_preset:
+                return default_preset
+        # 最终回退到旧配置（兼容性保留）
+        return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
 
     @property
     def adapter(self) -> "BaseAdapter":

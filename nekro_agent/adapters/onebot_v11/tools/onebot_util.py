@@ -76,6 +76,8 @@ async def gen_chat_text(event: MessageEvent, bot: Bot, db_chat_channel: DBChatCh
                     JSON_CARD_FALLBACK_TEXT,
                 )
                 msg += JSON_CARD_FALLBACK_TEXT
+        elif seg.type == "forward":
+            msg += "[合并转发消息]"
     return msg, is_tome
 
 

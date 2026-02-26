@@ -1086,3 +1086,94 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     outputs = os.popen(cmd_content).read()
     await finish_with(matcher, message=f"命令 `{cmd_content}` 输出: \n{outputs or '<Empty>'}")
 
+
+# ==================== 配额管理命令 ====================
+
+
+@on_command("quota", priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """查看当前频道的配额状态"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    from nekro_agent.services.quota_service import quota_service
+
+    daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
+    if daily_limit <= 0:
+        await finish_with(matcher, message="当前未启用每日配额限制")
+        return
+
+    boost = quota_service.get_boost(chat_key)
+    effective_limit = daily_limit + boost
+
+    # 查询今日已回复数
+    today_start = time.time() - (time.time() % 86400)
+    daily_count = await DBChatMessage.filter(
+        chat_key=chat_key,
+        sender_id=-1,
+        send_timestamp__gte=int(today_start),
+    ).exclude(sender_name="SYSTEM").count()
+
+    lines = [
+        f"频道: {chat_key}",
+        f"每日限额: {daily_limit}",
+    ]
+    if boost > 0:
+        lines.append(f"临时提升: +{boost}")
+    lines.append(f"有效限额: {effective_limit}")
+    lines.append(f"今日已用: {daily_count}")
+    lines.append(f"今日剩余: {max(0, effective_limit - daily_count)}")
+
+    if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
+        hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
+        hour_start = time.time() - (time.time() % 3600)
+        hourly_count = await DBChatMessage.filter(
+            chat_key=chat_key,
+            sender_id=-1,
+            send_timestamp__gte=int(hour_start),
+        ).exclude(sender_name="SYSTEM").count()
+        lines.append(f"小时限额: {hourly_limit}")
+        lines.append(f"本小时已用: {hourly_count}")
+
+    await finish_with(matcher, message="\n".join(lines))
+
+
+@on_command("quota_boost", aliases={"quota-boost"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """临时提升当日配额"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not cmd_content or not cmd_content.lstrip("-").isdigit():
+        await finish_with(matcher, message="用法: /quota_boost <数字>  (如 /quota_boost 10)")
+        return
+
+    from nekro_agent.services.quota_service import quota_service
+
+    amount = int(cmd_content)
+    new_total = quota_service.add_boost(chat_key, amount)
+    await finish_with(matcher, message=f"频道 {chat_key} 今日临时配额提升 +{amount}，当前总提升: {new_total}")
+
+
+@on_command("quota_reset", aliases={"quota-reset"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """重置频道配额提升"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    from nekro_agent.services.quota_service import quota_service
+
+    quota_service.clear_boost(chat_key)
+    await finish_with(matcher, message=f"频道 {chat_key} 的临时配额提升已清除，恢复默认限额")
+
+
+@on_command("stop", aliases={"stop-stream"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """终止当前频道正在进行的回复流程"""
+    username, cmd_content, chat_key, chat_type = await reset_command_guard(event, bot, arg, matcher)
+
+    target_chat_key = cmd_content if cmd_content and event.get_user_id() in config.SUPER_USERS else chat_key
+
+    cancelled = await message_service.cancel_agent_task(target_chat_key)
+    if cancelled:
+        await finish_with(matcher, message="已终止当前回复流程")
+    else:
+        await finish_with(matcher, message="当前没有正在进行的回复流程")
+

@@ -65,6 +65,12 @@ if _driver is not None:
         await init_adapters(app)
         await init_plugins()
 
+        # 初始化默认人设（需要在数据库和迁移完成后执行）
+        from nekro_agent.services.preset_service import init_default_preset
+
+        await init_default_preset()
+        logger.info("Default preset initialized")
+
         # 初始化插件路由管理器并挂载插件路由
         try:
             from nekro_agent.services.plugin.collector import plugin_collector

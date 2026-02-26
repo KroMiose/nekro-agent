@@ -25,6 +25,7 @@ from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
+from nekro_agent.services.quota_service import quota_service
 from nekro_agent.tools.common_util import (
     check_content_trigger,
     check_forbidden_message,
@@ -43,6 +44,28 @@ class MessageService:
         self.running_tasks: Dict[str, asyncio.Task] = {}  # 记录每个频道正在执行的agent任务
         self.debounce_timers: Dict[str, float] = {}  # 记录每个频道的防抖计时器
         self.pending_messages: Dict[str, ChatMessage] = {}  # 记录每个频道待处理的最新消息
+
+    async def cancel_agent_task(self, chat_key: str) -> bool:
+        """取消指定频道正在执行的 agent 任务
+
+        Args:
+            chat_key: 频道标识
+
+        Returns:
+            bool: 是否成功取消了任务
+        """
+        cancelled = False
+
+        # 取消正在执行的任务
+        if chat_key in self.running_tasks and not self.running_tasks[chat_key].done():
+            self.running_tasks[chat_key].cancel()
+            cancelled = True
+
+        # 清理待处理消息和防抖计时器
+        self.pending_messages.pop(chat_key, None)
+        self.debounce_timers.pop(chat_key, None)
+
+        return cancelled
 
     async def _message_validation_check(self, message: ChatMessage) -> bool:
         """消息校验"""
@@ -243,6 +266,42 @@ class MessageService:
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
+
+            # 配额检查
+            daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
+            if daily_limit > 0:
+                boost = quota_service.get_boost(message.chat_key)
+                effective_limit = daily_limit + boost
+
+                # 查询今日已回复数
+                today_start = time.time() - (time.time() % 86400)  # UTC 当天零点
+                daily_count = await DBChatMessage.filter(
+                    chat_key=message.chat_key,
+                    sender_id=-1,
+                    send_timestamp__gte=int(today_start),
+                ).exclude(sender_name="SYSTEM").count()
+
+                if daily_count >= effective_limit:
+                    logger.info(
+                        f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
+                    )
+                    return
+
+                # 每小时限额检查
+                if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
+                    hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
+                    hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
+                    hourly_count = await DBChatMessage.filter(
+                        chat_key=message.chat_key,
+                        sender_id=-1,
+                        send_timestamp__gte=int(hour_start),
+                    ).exclude(sender_name="SYSTEM").count()
+
+                    if hourly_count >= hourly_limit:
+                        logger.info(
+                            f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
+                        )
+                        return
 
             await self.schedule_agent_task(message=message, ctx=ctx)
 

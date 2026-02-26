@@ -362,7 +362,12 @@ class AgentCtx(BaseModel):
             # 返回默认人设，使用当前聊天频道的默认人设逻辑
             if self._db_chat_channel:
                 return await self._db_chat_channel.get_preset()
-            # 如果没有聊天频道上下文，返回系统默认人设
+            # 如果没有聊天频道上下文，尝试系统默认人设
+            if config.AI_CHAT_DEFAULT_PRESET_ID is not None:
+                default_preset = await DBPreset.get_or_none(id=config.AI_CHAT_DEFAULT_PRESET_ID)
+                if default_preset:
+                    return default_preset
+            # 最终回退到旧配置
 
             from nekro_agent.models.db_chat_channel import DefaultPreset
 
@@ -379,6 +384,11 @@ class AgentCtx(BaseModel):
         # 如果指定的人设不存在，也返回默认人设
         if self._db_chat_channel:
             return await self._db_chat_channel.get_preset()
+        # 尝试系统默认人设
+        if config.AI_CHAT_DEFAULT_PRESET_ID is not None:
+            default_preset = await DBPreset.get_or_none(id=config.AI_CHAT_DEFAULT_PRESET_ID)
+            if default_preset:
+                return default_preset
 
         from nekro_agent.models.db_chat_channel import DefaultPreset
 

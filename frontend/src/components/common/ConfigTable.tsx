@@ -93,6 +93,7 @@ export interface ConfigItem {
   is_textarea?: boolean
   ref_model_groups?: boolean
   ref_presets?: boolean
+  ref_presets_no_default?: boolean
   ref_presets_multiple?: boolean
   is_hidden?: boolean
   required?: boolean
@@ -1346,9 +1347,10 @@ export default function ConfigTable({
 
     if (config.ref_presets) {
       // 对于人设选择器，rawValue 应该是数字字符串或 "-1"
-      const numericValue = rawValue === '' ? '-1' : rawValue
-      const selectedPreset = numericValue !== '-1' ? presetMap[numericValue] : null
-      const isInvalidValue = Boolean(numericValue !== '-1' && !selectedPreset)
+      const noDefault = config.ref_presets_no_default
+      const numericValue = rawValue === '' ? (noDefault ? '' : '-1') : rawValue
+      const selectedPreset = numericValue !== '-1' && numericValue !== '' ? presetMap[numericValue] : null
+      const isInvalidValue = Boolean(numericValue !== '-1' && numericValue !== '' && !selectedPreset)
 
       return (
         <Box sx={{ width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -1366,9 +1368,11 @@ export default function ConfigTable({
               displayEmpty: true,
             }}
           >
-            <MenuItem value="-1">
-              <em>{t('configTable.defaultPreset')}</em>
-            </MenuItem>
+            {!noDefault && (
+              <MenuItem value="-1">
+                <em>{t('configTable.defaultPreset')}</em>
+              </MenuItem>
+            )}
             {presets.map(preset => (
               <MenuItem key={preset.id} value={preset.id.toString()}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>

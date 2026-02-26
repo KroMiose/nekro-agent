@@ -24,6 +24,7 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentAt,
     ChatMessageSegmentFile,
+    ChatMessageSegmentForward,
     ChatMessageSegmentImage,
     ChatMessageSegmentJsonCard,
     ChatMessageSegmentType,
@@ -34,6 +35,211 @@ from nekro_agent.schemas.chat_message import (
 
 logger = get_sub_logger("adapter.onebot_v11")
 JSON_CARD_FALLBACK_TEXT = "[JSON卡片]"  # i18n: JSON Card fallback placeholder
+FORWARD_FALLBACK_TEXT = "[合并转发消息]"  # i18n: Forward message fallback placeholder
+MAX_FORWARD_DEPTH = 3  # 合并转发最大递归深度
+
+
+async def _parse_forward_nodes(
+    nodes: list,
+    bot: Bot,
+    chat_key: str,
+    depth: int = 0,
+) -> Tuple[str, List[dict]]:
+    """从内联节点列表解析合并转发（不调用 API）
+
+    用于 NapCat 内层转发消息，其内容已内联在 forward 段的 data.content 中。
+    """
+    if depth >= MAX_FORWARD_DEPTH:
+        return "[嵌套转发消息，层级过深]", []
+
+    text_lines: List[str] = ["[合并转发消息]"]
+    forward_content: List[dict] = []
+
+    for node in nodes:
+        node_data = node if isinstance(node, dict) else {}
+        if node_data.get("type") == "node":
+            node_data = node_data.get("data", {}) or {}
+
+        sender = node_data.get("sender", {}) or {}
+        nickname = sender.get("nickname") or sender.get("card") or node_data.get("nickname") or "未知"
+        content = node_data.get("content") or node_data.get("message") or []
+        if isinstance(content, str):
+            try:
+                content = json.loads(content)
+            except Exception:
+                content = []
+
+        text_parts: List[str] = []
+        images: List[str] = []
+
+        for seg in content:
+            seg_data = seg if isinstance(seg, dict) else {}
+            seg_type = seg_data.get("type", "")
+            data = seg_data.get("data", {}) or {}
+
+            if seg_type == "text":
+                text_parts.append(data.get("text", ""))
+            elif seg_type == "image":
+                text_parts.append("[图片]")
+                url = data.get("url", "")
+                if url:
+                    try:
+                        img_seg = await ChatMessageSegmentImage.create_from_url(
+                            url=url, from_chat_key=chat_key,
+                        )
+                        images.append(img_seg.file_name)
+                    except Exception as e:
+                        logger.debug(f"嵌套转发图片下载失败: {e}")
+            elif seg_type == "forward":
+                inline = data.get("content") or data.get("message")
+                if inline:
+                    if isinstance(inline, str):
+                        try:
+                            inline = json.loads(inline)
+                        except Exception:
+                            inline = None
+                    if inline:
+                        n_text, n_content = await _parse_forward_nodes(
+                            nodes=inline, bot=bot, chat_key=chat_key, depth=depth + 1,
+                        )
+                        text_parts.append(n_text)
+                        forward_content.append({
+                            "sender": nickname, "content": "[合并转发消息]",
+                            "images": [], "forward_content": n_content,
+                        })
+                        continue
+                text_parts.append("[合并转发消息]")
+            elif seg_type == "at":
+                text_parts.append(f"@{data.get('qq', '')}")
+            elif seg_type == "face":
+                text_parts.append("[表情]")
+
+        line_text = "".join(text_parts).strip()
+        if line_text:
+            text_lines.append(f"{nickname}: {line_text}")
+            forward_content.append({"sender": nickname, "content": line_text, "images": images})
+
+    return "\n".join(text_lines), forward_content
+
+
+async def _parse_forward_message(
+    bot: Bot,
+    forward_id: str,
+    chat_key: str,
+    depth: int = 0,
+) -> Tuple[str, List[dict]]:
+    """递归解析合并转发消息
+
+    Args:
+        bot: Bot 实例
+        forward_id: 合并转发消息的 resId
+        chat_key: 聊天频道标识（用于图片存储）
+        depth: 当前递归深度
+
+    Returns:
+        (AI用纯文本, 结构化消息列表)
+    """
+    if depth >= MAX_FORWARD_DEPTH:
+        return "[嵌套转发消息，层级过深]", []
+
+    try:
+        result = await bot.call_api("get_forward_msg", message_id=forward_id)
+    except Exception as e:
+        logger.warning(f"获取合并转发消息失败: {e}")
+        return FORWARD_FALLBACK_TEXT, []
+
+    # NapCat 返回格式兼容
+    if isinstance(result, dict):
+        messages = result.get("messages") or result.get("message") or []
+    else:
+        messages = getattr(result, "messages", None) or getattr(result, "message", [])
+
+    if not messages:
+        return "[空的合并转发消息]", []
+
+    text_lines: List[str] = ["[合并转发消息]"]
+    forward_content: List[dict] = []
+
+    for node in messages:
+        node_data = node if isinstance(node, dict) else (node.dict() if hasattr(node, "dict") else {})
+        sender = node_data.get("sender", {}) or {}
+        nickname = sender.get("nickname") or sender.get("card") or "未知"
+        content = node_data.get("content") or node_data.get("message") or []
+
+        text_parts: List[str] = []
+        images: List[str] = []
+
+        for seg in content:
+            seg_data = seg if isinstance(seg, dict) else (seg.dict() if hasattr(seg, "dict") else {})
+            seg_type = seg_data.get("type", "")
+            data = seg_data.get("data", {}) or {}
+
+            if seg_type == "text":
+                text_parts.append(data.get("text", ""))
+            elif seg_type == "image":
+                text_parts.append("[图片]")
+                url = data.get("url", "")
+                if url:
+                    try:
+                        img_seg = await ChatMessageSegmentImage.create_from_url(
+                            url=url,
+                            from_chat_key=chat_key,
+                        )
+                        images.append(img_seg.file_name)
+                    except Exception as e:
+                        logger.debug(f"转发消息中图片下载失败: {e}")
+            elif seg_type == "forward":
+                nested_id = data.get("id", "")
+                # 优先从内联 content 解析嵌套转发（NapCat 内层消息无法二次获取）
+                inline_content = data.get("content") or data.get("message")
+                if inline_content and isinstance(inline_content, (list, str)):
+                    if isinstance(inline_content, str):
+                        try:
+                            inline_content = json.loads(inline_content)
+                        except Exception:
+                            inline_content = None
+                    if inline_content:
+                        nested_text, nested_content = await _parse_forward_nodes(
+                            nodes=inline_content,
+                            bot=bot,
+                            chat_key=chat_key,
+                            depth=depth + 1,
+                        )
+                        text_parts.append(nested_text)
+                        forward_content.append({
+                            "sender": nickname,
+                            "content": "[合并转发消息]",
+                            "images": [],
+                            "forward_content": nested_content,
+                        })
+                        continue
+                # 回退：尝试 API 获取（顶层转发可用，内层会失败）
+                if nested_id:
+                    nested_text, nested_content = await _parse_forward_message(
+                        bot=bot,
+                        forward_id=nested_id,
+                        chat_key=chat_key,
+                        depth=depth + 1,
+                    )
+                    text_parts.append(nested_text)
+                    forward_content.append({
+                        "sender": nickname,
+                        "content": "[合并转发消息]",
+                        "images": [],
+                        "forward_content": nested_content,
+                    })
+            elif seg_type == "at":
+                qq = data.get("qq", "")
+                text_parts.append(f"@{qq}")
+            elif seg_type == "face":
+                text_parts.append("[表情]")
+
+        line_text = "".join(text_parts).strip()
+        if line_text:
+            text_lines.append(f"{nickname}: {line_text}")
+            forward_content.append({"sender": nickname, "content": line_text, "images": images})
+
+    return "\n".join(text_lines), forward_content
 
 
 @dataclass
@@ -443,6 +649,31 @@ async def convert_chat_message(
             else:
                 logger.warning(f"OneBot file message without url or file: {seg}")
                 continue
+
+        elif seg.type == "forward":
+            forward_id = seg.data.get("id", "")
+            if forward_id:
+                try:
+                    forward_text, forward_content = await _parse_forward_message(
+                        bot=bot,
+                        forward_id=forward_id,
+                        chat_key=db_chat_channel.chat_key,
+                    )
+                    ret_list.append(
+                        ChatMessageSegmentForward(
+                            type=ChatMessageSegmentType.FORWARD,
+                            text=forward_text,
+                            forward_content=forward_content,
+                        ),
+                    )
+                except Exception as e:
+                    logger.warning(f"合并转发消息解析失败: {e}")
+                    ret_list.append(
+                        ChatMessageSegment(
+                            type=ChatMessageSegmentType.TEXT,
+                            text=FORWARD_FALLBACK_TEXT,
+                        ),
+                    )
 
         elif seg.type == "json":
             try:
