@@ -570,6 +570,13 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
             "reset <chat_key?>: 清空指定聊天的聊天记录\n"
             "na_on <chat_key?>/<*>: 开启指定聊天的聊天功能\n"
             "na_off <chat_key?>/<*>: 关闭指定聊天的聊天功能\n"
+            "stop-stream <chat_key?>: 终止当前频道正在进行的回复流程\n"
+            "\n====== [配额管理] ======\n"
+            "quota: 查看当前频道配额状态\n"
+            "quota_set <数字>: 设置频道每日配额限制 (0=无限制，重启有效)\n"
+            "quota_boost <数字>: 临时提升当日配额 (当日有效)\n"
+            "quota_reset: 清除临时配额提升\n"
+            "quota_whitelist [add/remove <用户ID>]: 管理配额用户白名单\n"
             "\n====== [插件系统] ======\n"
             "na_plugins: 查看当前已加载的插件及其详细信息\n"
             "plugin_info <name/key>: 查看指定插件的详细信息\n"
@@ -1097,42 +1104,62 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     from nekro_agent.services.quota_service import quota_service
 
-    daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
-    if daily_limit <= 0:
-        await finish_with(matcher, message="当前未启用每日配额限制")
-        return
+    db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+    effective_config = await db_chat_channel.get_effective_config()
+    daily_limit = effective_config.AI_CHAT_DAILY_REPLY_LIMIT
 
     boost = quota_service.get_boost(chat_key)
     effective_limit = daily_limit + boost
 
-    # 查询今日已回复数
+    # 查询今日数据
     today_start = time.time() - (time.time() % 86400)
-    daily_count = await DBChatMessage.filter(
+    daily_bot_count = await DBChatMessage.filter(
         chat_key=chat_key,
         sender_id=-1,
         send_timestamp__gte=int(today_start),
     ).exclude(sender_name="SYSTEM").count()
+    daily_total_count = await DBChatMessage.filter(
+        chat_key=chat_key,
+        send_timestamp__gte=int(today_start),
+    ).count()
 
-    lines = [
-        f"频道: {chat_key}",
-        f"每日限额: {daily_limit}",
-    ]
-    if boost > 0:
-        lines.append(f"临时提升: +{boost}")
-    lines.append(f"有效限额: {effective_limit}")
-    lines.append(f"今日已用: {daily_count}")
-    lines.append(f"今日剩余: {max(0, effective_limit - daily_count)}")
+    # 会话上下文
+    session_msg_count = await DBChatMessage.filter(
+        chat_key=chat_key,
+        send_timestamp__gte=int(db_chat_channel.conversation_start_time.timestamp()),
+    ).count()
+    context_max_length = effective_config.AI_CHAT_CONTEXT_MAX_LENGTH
 
-    if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
-        hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
-        hour_start = time.time() - (time.time() % 3600)
-        hourly_count = await DBChatMessage.filter(
-            chat_key=chat_key,
-            sender_id=-1,
-            send_timestamp__gte=int(hour_start),
-        ).exclude(sender_name="SYSTEM").count()
-        lines.append(f"小时限额: {hourly_limit}")
-        lines.append(f"本小时已用: {hourly_count}")
+    # 配额信息
+    lines = [f"[频道配额状态] {chat_key}", ""]
+    lines.append("===== 每日回复配额 =====")
+    lines.append(f"今日 Bot 回复: {daily_bot_count}")
+    lines.append(f"今日总消息数: {daily_total_count}")
+
+    if effective_limit <= 0:
+        lines.append("配置限额: 无限制")
+    else:
+        lines.append(f"配置限额: {daily_limit}")
+        if boost > 0:
+            lines.append(f"临时提升: +{boost}")
+            lines.append(f"有效限额: {effective_limit}")
+        lines.append(f"今日剩余: {max(0, effective_limit - daily_bot_count)}")
+
+        if effective_config.AI_CHAT_ENABLE_HOURLY_LIMIT:
+            hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
+            hour_start = time.time() - (time.time() % 3600)
+            hourly_count = await DBChatMessage.filter(
+                chat_key=chat_key,
+                sender_id=-1,
+                send_timestamp__gte=int(hour_start),
+            ).exclude(sender_name="SYSTEM").count()
+            lines.append(f"小时限额: {hourly_limit}")
+            lines.append(f"本小时已用: {hourly_count}")
+
+    lines.append("")
+    lines.append("===== 会话上下文 =====")
+    lines.append(f"当前会话消息数: {session_msg_count}")
+    lines.append(f"上下文最大条数: {context_max_length}")
 
     await finish_with(matcher, message="\n".join(lines))
 
@@ -1162,6 +1189,91 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
 
     quota_service.clear_boost(chat_key)
     await finish_with(matcher, message=f"频道 {chat_key} 的临时配额提升已清除，恢复默认限额")
+
+
+@on_command("quota_set", aliases={"quota-set"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """设置频道每日配额限制（写入频道配置，重启后仍有效）"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    if not cmd_content or not cmd_content.lstrip("-").isdigit():
+        await finish_with(matcher, message="用法: /quota_set <数字>  (如 /quota_set 50，0 表示不限制)")
+        return
+
+    from nekro_agent.services.config_service import UnifiedConfigService
+
+    amount = int(cmd_content)
+    config_key = f"channel_config_{chat_key}"
+    # 启用频道级覆盖开关
+    success, msg = UnifiedConfigService.set_config_value(config_key, "enable_AI_CHAT_DAILY_REPLY_LIMIT", "true")
+    if not success:
+        await finish_with(matcher, message=f"设置失败: {msg}")
+        return
+    # 设置覆盖值
+    success, msg = UnifiedConfigService.set_config_value(config_key, "AI_CHAT_DAILY_REPLY_LIMIT", str(amount))
+    if not success:
+        await finish_with(matcher, message=f"设置失败: {msg}")
+        return
+    success, msg = UnifiedConfigService.save_config(config_key)
+    if not success:
+        await finish_with(matcher, message=f"保存失败: {msg}")
+        return
+    # 清除频道配置缓存，使新配置立即生效
+    db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+    db_chat_channel._effective_config = None
+    display = "无限制" if amount <= 0 else str(amount)
+    await finish_with(matcher, message=f"频道 {chat_key} 的每日配额限制已设置为 {display}，重启后仍有效")
+
+
+@on_command("quota_whitelist", aliases={"quota-whitelist"}, priority=5, block=True).handle()
+async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
+    """管理配额用户白名单（仅SUPER_USERS）"""
+    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+
+    parts = cmd_content.strip().split() if cmd_content else []
+
+    # 查看白名单
+    if not parts or parts[0] == "":
+        user_whitelist = config.AI_CHAT_QUOTA_WHITELIST_USERS
+        lines = ["配额用户白名单:"]
+        if user_whitelist:
+            for u in user_whitelist:
+                lines.append(f"  - {u}")
+        else:
+            lines.append("  (空)")
+        await finish_with(matcher, message="\n".join(lines))
+        return
+
+    cmd = parts[0]
+
+    # 添加用户到白名单
+    if cmd == "add" and len(parts) >= 2:
+        user_id = parts[1]
+        if user_id not in config.AI_CHAT_QUOTA_WHITELIST_USERS:
+            config.AI_CHAT_QUOTA_WHITELIST_USERS.append(user_id)
+            save_config()
+            await finish_with(matcher, message=f"已将用户 {user_id} 添加到配额白名单")
+        else:
+            await finish_with(matcher, message=f"用户 {user_id} 已在白名单中")
+        return
+
+    # 从白名单移除用户
+    if cmd == "remove" and len(parts) >= 2:
+        user_id = parts[1]
+        if user_id in config.AI_CHAT_QUOTA_WHITELIST_USERS:
+            config.AI_CHAT_QUOTA_WHITELIST_USERS.remove(user_id)
+            save_config()
+            await finish_with(matcher, message=f"已将用户 {user_id} 从配额白名单移除")
+        else:
+            await finish_with(matcher, message=f"用户 {user_id} 不在白名单中")
+        return
+
+    await finish_with(matcher, message=(
+        "用法:\n"
+        "  /quota_whitelist                — 查看当前用户白名单\n"
+        "  /quota_whitelist add <用户ID>   — 添加用户到白名单\n"
+        "  /quota_whitelist remove <用户ID> — 从白名单移除用户"
+    ))
 
 
 @on_command("stop", aliases={"stop-stream"}, priority=5, block=True).handle()

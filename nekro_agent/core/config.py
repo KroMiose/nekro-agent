@@ -626,6 +626,30 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    AI_CHAT_QUOTA_WHITELIST_USERS: List[str] = Field(
+        default=[],
+        title="配额白名单用户",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="聊天配置", en_US="Chat Configuration"),
+            i18n_title=i18n_text(zh_CN="配额白名单用户", en_US="Quota Whitelist Users"),
+            i18n_description=i18n_text(
+                zh_CN="列表中的用户（sender_id）发送的消息不受每日/每小时配额限制",
+                en_US="Messages from users (sender_id) in this list bypass quota limits",
+            ),
+        ).model_dump(),
+    )
+    AI_CHAT_QUOTA_SUPER_USERS_EXEMPT: bool = Field(
+        default=True,
+        title="管理员不受配额限制",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="聊天配置", en_US="Chat Configuration"),
+            i18n_title=i18n_text(zh_CN="管理员不受配额限制", en_US="Super Users Exempt from Quota"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，SUPER_USERS 中的管理员发送的消息不受配额限制",
+                en_US="When enabled, messages from SUPER_USERS bypass quota limits",
+            ),
+        ).model_dump(),
+    )
     AI_CHAT_RANDOM_REPLY_PROBABILITY: float = Field(
         default=0.0,
         title="随机回复概率",

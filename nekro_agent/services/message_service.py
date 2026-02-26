@@ -267,41 +267,48 @@ class MessageService:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
 
-            # 配额检查
-            daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
-            if daily_limit > 0:
-                boost = quota_service.get_boost(message.chat_key)
-                effective_limit = daily_limit + boost
+            # 配额豁免检查（用户白名单/管理员）
+            _is_quota_exempt = (
+                message.sender_id in config.AI_CHAT_QUOTA_WHITELIST_USERS
+                or (config.AI_CHAT_QUOTA_SUPER_USERS_EXEMPT and message.sender_id in config.SUPER_USERS)
+            )
 
-                # 查询今日已回复数
-                today_start = time.time() - (time.time() % 86400)  # UTC 当天零点
-                daily_count = await DBChatMessage.filter(
-                    chat_key=message.chat_key,
-                    sender_id=-1,
-                    send_timestamp__gte=int(today_start),
-                ).exclude(sender_name="SYSTEM").count()
+            if not _is_quota_exempt:
+                # 配额检查
+                daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
+                if daily_limit > 0:
+                    boost = quota_service.get_boost(message.chat_key)
+                    effective_limit = daily_limit + boost
 
-                if daily_count >= effective_limit:
-                    logger.info(
-                        f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
-                    )
-                    return
-
-                # 每小时限额检查
-                if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
-                    hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
-                    hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
-                    hourly_count = await DBChatMessage.filter(
+                    # 查询今日已回复数
+                    today_start = time.time() - (time.time() % 86400)  # UTC 当天零点
+                    daily_count = await DBChatMessage.filter(
                         chat_key=message.chat_key,
                         sender_id=-1,
-                        send_timestamp__gte=int(hour_start),
+                        send_timestamp__gte=int(today_start),
                     ).exclude(sender_name="SYSTEM").count()
 
-                    if hourly_count >= hourly_limit:
+                    if daily_count >= effective_limit:
                         logger.info(
-                            f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
+                            f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
                         )
                         return
+
+                    # 每小时限额检查
+                    if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
+                        hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
+                        hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
+                        hourly_count = await DBChatMessage.filter(
+                            chat_key=message.chat_key,
+                            sender_id=-1,
+                            send_timestamp__gte=int(hour_start),
+                        ).exclude(sender_name="SYSTEM").count()
+
+                        if hourly_count >= hourly_limit:
+                            logger.info(
+                                f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
+                            )
+                            return
 
             await self.schedule_agent_task(message=message, ctx=ctx)
 
