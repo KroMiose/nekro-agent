@@ -1388,20 +1388,21 @@ class CoreConfig(ConfigBase):
     """其他功能"""
     ENABLE_FESTIVAL_REMINDER: bool = Field(
         default=True,
-        title="启用节日祝福提醒",
-        description="启用后会在节日时自动向所有活跃聊天发送祝福",
+        title="启用节日祝福提醒 (已弃用)",
+        description="已弃用，请使用节日祝福插件的配置代替",
         json_schema_extra=ExtraField(
+            is_hidden=True,
             i18n_category=i18n_text(
                 zh_CN="基础设置",
                 en_US="Basic Settings",
             ),
             i18n_title=i18n_text(
-                zh_CN="启用节日祝福提醒",
-                en_US="Enable Festival Greeting Reminder",
+                zh_CN="启用节日祝福提醒 (已弃用)",
+                en_US="Enable Festival Greeting Reminder (Deprecated)",
             ),
             i18n_description=i18n_text(
-                zh_CN="启用后会在节日时自动向所有活跃聊天发送祝福",
-                en_US="Automatically send greetings to all active chats on festivals",
+                zh_CN="已弃用，请使用节日祝福插件的配置代替",
+                en_US="Deprecated, please use the Festival Greeting plugin settings instead",
             ),
         ).model_dump(),
     )
