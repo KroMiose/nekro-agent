@@ -2,7 +2,7 @@ import time
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nekro_agent.tools.common_util import (
     copy_to_upload_dir,
@@ -144,7 +144,7 @@ class ChatMessageSegmentForward(ChatMessageSegment):
     ]
     """
 
-    forward_content: List[Dict[str, Any]] = []
+    forward_content: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class ChatMessageSegmentJsonCard(ChatMessageSegment):

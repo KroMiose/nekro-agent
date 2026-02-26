@@ -60,6 +60,7 @@ class MessageService:
         if chat_key in self.running_tasks and not self.running_tasks[chat_key].done():
             self.running_tasks[chat_key].cancel()
             cancelled = True
+        self.running_tasks.pop(chat_key, None)
 
         # 清理待处理消息和防抖计时器
         self.pending_messages.pop(chat_key, None)
@@ -274,8 +275,9 @@ class MessageService:
             )
 
             if not _is_quota_exempt:
-                # 配额检查
-                daily_limit = config.AI_CHAT_DAILY_REPLY_LIMIT
+                # 配额检查（使用频道级 effective config）
+                effective_config = await db_chat_channel.get_effective_config()
+                daily_limit = effective_config.AI_CHAT_DAILY_REPLY_LIMIT
                 if daily_limit > 0:
                     boost = quota_service.get_boost(message.chat_key)
                     effective_limit = daily_limit + boost
@@ -295,7 +297,7 @@ class MessageService:
                         return
 
                     # 每小时限额检查
-                    if config.AI_CHAT_ENABLE_HOURLY_LIMIT:
+                    if effective_config.AI_CHAT_ENABLE_HOURLY_LIMIT:
                         hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
                         hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
                         hourly_count = await DBChatMessage.filter(

@@ -1170,14 +1170,18 @@ async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = Comm
     username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
 
     if not cmd_content or not cmd_content.lstrip("-").isdigit():
-        await finish_with(matcher, message="用法: /quota_boost <数字>  (如 /quota_boost 10)")
+        await finish_with(matcher, message="用法: /quota_boost <数字>  (正数增加，负数减少，如 /quota_boost 10)")
         return
 
     from nekro_agent.services.quota_service import quota_service
 
     amount = int(cmd_content)
     new_total = quota_service.add_boost(chat_key, amount)
-    await finish_with(matcher, message=f"频道 {chat_key} 今日临时配额提升 +{amount}，当前总提升: {new_total}")
+    if new_total < 0:
+        new_total = 0
+        quota_service.set_boost(chat_key, 0)
+    sign = "+" if amount >= 0 else ""
+    await finish_with(matcher, message=f"频道 {chat_key} 今日临时配额调整 {sign}{amount}，当前总提升: {new_total}")
 
 
 @on_command("quota_reset", aliases={"quota-reset"}, priority=5, block=True).handle()

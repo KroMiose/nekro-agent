@@ -98,6 +98,8 @@ async def _parse_forward_nodes(
                             inline = json.loads(inline)
                         except Exception:
                             inline = None
+                    if inline and not isinstance(inline, list):
+                        inline = None
                     if inline:
                         n_text, n_content = await _parse_forward_nodes(
                             nodes=inline, bot=bot, chat_key=chat_key, depth=depth + 1,
