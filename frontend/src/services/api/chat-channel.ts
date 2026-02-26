@@ -1,4 +1,5 @@
 import axios from './axios'
+import { createEventStream } from './utils/stream'
 
 export interface ActionResponse {
   ok: boolean
@@ -27,7 +28,7 @@ export interface ChatChannelDetail extends ChatChannel {
 }
 
 export interface ChatMessageSegment {
-  type: 'text' | 'image' | 'file' | 'voice' | 'video' | 'at' | 'json_card'
+  type: 'text' | 'image' | 'file' | 'voice' | 'video' | 'at' | 'json_card' | 'poke' | 'forward'
   text: string
   // file / image / voice / video
   file_name?: string
@@ -44,6 +45,20 @@ export interface ChatMessageSegment {
   card_preview?: string
   card_url?: string
   share_from_nick?: string
+  // forward
+  forward_content?: ForwardMessageItem[]
+  // poke
+  action_img_url?: string
+  poke_style?: string
+  poke_style_suffix?: string
+  target_id?: string
+}
+
+export interface ForwardMessageItem {
+  sender: string
+  content: string
+  images: string[]
+  forward_content?: ForwardMessageItem[]
 }
 
 export interface ChatMessage {
@@ -152,5 +167,55 @@ export const chatChannelApi = {
   getUsers: async (chatKey: string): Promise<ChatChannelUsersResponse> => {
     const response = await axios.get<ChatChannelUsersResponse>(`/chat-channel/${chatKey}/users`)
     return response.data
+  },
+
+  sendPoke: async (chatKey: string, targetUserId: string): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/poke`, {
+      target_user_id: targetUserId,
+    })
+    return response.data
+  },
+
+  streamMessages: (chatKey: string, onMessage: (msg: ChatMessage) => void, onError?: (error: Error) => void): (() => void) => {
+    /**
+     * Subscribe to real-time messages for a chat channel using SSE
+     * @param chatKey - The chat channel key
+     * @param onMessage - Callback when a new message is received
+     * @param onError - Optional error callback
+     * @returns Cleanup function to unsubscribe
+     */
+    return createEventStream({
+      endpoint: `/chat-channel/${chatKey}/stream`,
+      onMessage: (data: string) => {
+        try {
+          const message = JSON.parse(data) as ChatMessage
+          onMessage(message)
+        } catch (error) {
+          console.error('Failed to parse message:', error)
+        }
+      },
+      onError,
+    })
+  },
+
+  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => void, onError?: (error: Error) => void): (() => void) => {
+    /**
+     * Subscribe to real-time channel list updates using SSE
+     * @param onMessage - Callback when a channel event is received (created, updated, deleted, activated, deactivated)
+     * @param onError - Optional error callback
+     * @returns Cleanup function to unsubscribe
+     */
+    return createEventStream({
+      endpoint: '/chat-channel/list/stream',
+      onMessage: (data: string) => {
+        try {
+          const event = JSON.parse(data)
+          onMessage(event)
+        } catch (error) {
+          console.error('Failed to parse channel event:', error)
+        }
+      },
+      onError,
+    })
   },
 } 

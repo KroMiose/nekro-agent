@@ -100,8 +100,10 @@
     "quotedMessage": "引用消息",
     "senderType": "发送身份",
     "senderBot": "机器人",
-    "senderSystem": "SYSTEM",
+    "senderSystem": "内部系统",
     "senderNone": "静默",
-    "senderNoneHint": "以机器人身份发送，自动添加命令输出前缀，不会进入上下文也不会在聊天中显示"
+    "senderBotHint": "以机器人的身份直接发送，消息在目标频道可见 · AI上下文可见 · UI可见",
+    "senderSystemHint": "以内部系统通知身份发送，消息在目标频道不可见 · AI上下文可见 · UI可见",
+    "senderNoneHint": "以AI感知静默方式发送，只对目标频道中的用户可见 · AI上下文不可见 · UI不可见"
   }
 }

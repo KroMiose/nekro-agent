@@ -100,8 +100,10 @@
     "quotedMessage": "Quoted message",
     "senderType": "Sender",
     "senderBot": "Bot",
-    "senderSystem": "SYSTEM",
+    "senderSystem": "Internal",
     "senderNone": "Silent",
-    "senderNoneHint": "Sent as bot with command output prefix. Won't enter context or be displayed in chat."
+    "senderBotHint": "Send as bot directly. Visible in target channel · AI context visible · UI visible",
+    "senderSystemHint": "Send as internal system notification. Hidden from target channel · AI context visible · UI visible",
+    "senderNoneHint": "Send silently without AI awareness. Only visible to users in target channel · AI context hidden · UI hidden"
   }
 }

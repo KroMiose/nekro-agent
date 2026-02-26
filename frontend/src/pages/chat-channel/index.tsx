@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
@@ -25,7 +25,7 @@ import {
   List as ListIcon,
   Info as InfoIcon,
 } from '@mui/icons-material'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
@@ -46,6 +46,7 @@ export default function ChatChannelPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
+  const queryClient = useQueryClient()
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
@@ -59,6 +60,68 @@ export default function ChatChannelPage() {
         is_active: isActive === '' ? undefined : isActive === 'true',
       }),
   })
+
+  // 实时频道列表更新订阅 (SSE)
+  useEffect(() => {
+    let cleanup: (() => void) | undefined
+
+    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => {
+      const { event_type, chat_key } = event
+
+      // 更新频道列表缓存
+      queryClient.setQueryData(['chat-channels', search, chatType, isActive, page, pageSize], (oldData: any) => {
+        if (!oldData?.items) return oldData
+
+        let newItems = [...oldData.items]
+        const idx = newItems.findIndex((ch: any) => ch.chat_key === chat_key)
+
+        if (event_type === 'deleted' && idx >= 0) {
+          // 删除频道
+          newItems.splice(idx, 1)
+        } else if (event_type === 'created' && idx < 0) {
+          // 新建频道（添加到列表顶部）
+          newItems.unshift({
+            id: 0,
+            chat_key,
+            channel_name: event.channel_name,
+            is_active: event.is_active ?? true,
+            chat_type: '',
+            message_count: 0,
+            create_time: new Date().toISOString(),
+            update_time: new Date().toISOString(),
+            last_message_time: null,
+          })
+        } else if ((event_type === 'updated' || event_type === 'activated' || event_type === 'deactivated')) {
+          if (idx >= 0) {
+            // 从原位置移除，创建新对象（保持不可变性）
+            const channel = { ...newItems[idx] }
+            newItems.splice(idx, 1)
+
+              if (newChannelName != null) {
+                channel.channel_name = newChannelName
+              }
+              if (newIsActive != null) {
+                channel.is_active = newIsActive
+              }
+              channel.update_time = new Date().toISOString()
+              channel.last_message_time = new Date().toISOString()
+
+            // 移到列表顶部（最新活动的频道）
+            newItems.unshift(channel)
+          }
+        }
+
+        return { ...oldData, items: newItems }
+      })
+    }
+
+    // 订阅频道列表更新
+    cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
+      console.error('Channel stream error:', error)
+    })
+
+    return () => cleanup?.()
+  }, [queryClient, search, chatType, isActive, page, pageSize])
 
   // 处理搜索
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
