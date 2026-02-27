@@ -365,7 +365,7 @@ class CoreConfig(ConfigBase):
     """聊天配置"""
     AI_CHAT_DEFAULT_PRESET_ID: Optional[int] = Field(
         default=None,
-        title="默认人设 ID",
+        title="默认人设",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="聊天配置",
@@ -374,12 +374,12 @@ class CoreConfig(ConfigBase):
             ref_presets=True,
             ref_presets_no_default=True,
             i18n_title=i18n_text(
-                zh_CN="默认人设 ID",
-                en_US="Default Preset ID",
+                zh_CN="默认人设",
+                en_US="Default Preset",
             ),
             i18n_description=i18n_text(
-                zh_CN="从人设管理中选取的默认人设 ID，为空时使用系统内置默认人设",
-                en_US="Default preset ID from preset management, uses built-in default if empty",
+                zh_CN="为空时使用系统内置默认人设",
+                en_US="Uses built-in default preset if empty",
             ),
         ).model_dump(),
     )
@@ -592,8 +592,8 @@ class CoreConfig(ConfigBase):
         description="每个频道每日 AI 回复数量上限，0 表示不限制",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="回复配额",
+                en_US="Reply Quota",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -612,8 +612,8 @@ class CoreConfig(ConfigBase):
         description="启用后将根据每日限额自动计算每小时回复上限，使回复更均匀分布",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="回复配额",
+                en_US="Reply Quota",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -630,7 +630,7 @@ class CoreConfig(ConfigBase):
         default=[],
         title="配额白名单用户",
         json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="聊天配置", en_US="Chat Configuration"),
+            i18n_category=i18n_text(zh_CN="回复配额", en_US="Reply Quota"),
             i18n_title=i18n_text(zh_CN="配额白名单用户", en_US="Quota Whitelist Users"),
             i18n_description=i18n_text(
                 zh_CN="列表中的用户（sender_id）发送的消息不受每日/每小时配额限制",
@@ -642,7 +642,7 @@ class CoreConfig(ConfigBase):
         default=True,
         title="管理员不受配额限制",
         json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="聊天配置", en_US="Chat Configuration"),
+            i18n_category=i18n_text(zh_CN="回复配额", en_US="Reply Quota"),
             i18n_title=i18n_text(zh_CN="管理员不受配额限制", en_US="Super Users Exempt from Quota"),
             i18n_description=i18n_text(
                 zh_CN="启用后，SUPER_USERS 中的管理员发送的消息不受配额限制",
