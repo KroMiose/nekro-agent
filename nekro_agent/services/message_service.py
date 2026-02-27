@@ -56,15 +56,12 @@ class MessageService:
         """
         cancelled = False
 
-        # 取消正在执行的任务
+        # 仅取消正在执行的任务，不清理待处理消息队列
+        # 这样排队中尚未触发的 @ 消息仍会正常处理
         if chat_key in self.running_tasks and not self.running_tasks[chat_key].done():
             self.running_tasks[chat_key].cancel()
             cancelled = True
         self.running_tasks.pop(chat_key, None)
-
-        # 清理待处理消息和防抖计时器
-        self.pending_messages.pop(chat_key, None)
-        self.debounce_timers.pop(chat_key, None)
 
         return cancelled
 
