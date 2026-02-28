@@ -154,6 +154,11 @@ class ExtraField(BaseModel):
         title="人设引用标识",
         description="设置为True时，表示该字段需要从系统中已配置的人设中选择，值为人设ID",
     )
+    ref_presets_no_default: bool = Field(
+        default=False,
+        title="人设引用无默认选项",
+        description="设置为True时，人设选择器不显示'默认人设'选项，仅显示已有人设列表",
+    )
     ref_presets_multiple: bool = Field(
         default=False,
         title="多人设引用标识",

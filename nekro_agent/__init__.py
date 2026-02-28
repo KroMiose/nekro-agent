@@ -14,7 +14,6 @@ from nekro_agent.core.database import init_db
 from nekro_agent.core.db_migration import run_db_migrations
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_api_routes, mount_middlewares
-from nekro_agent.services.festival_service import festival_service
 from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.timer.recurring_timer_service import recurring_timer_service
@@ -65,6 +64,12 @@ if _driver is not None:
         await init_adapters(app)
         await init_plugins()
 
+        # 初始化默认人设（需要在数据库和迁移完成后执行）
+        from nekro_agent.services.preset_service import init_default_preset
+
+        await init_default_preset()
+        logger.info("Default preset initialized")
+
         # 初始化插件路由管理器并挂载插件路由
         try:
             from nekro_agent.services.plugin.collector import plugin_collector
@@ -90,10 +95,6 @@ if _driver is not None:
 
         await recurring_timer_service.start()
         logger.info("Recurring timer service initialized")
-
-        # 初始化节日提醒
-        await festival_service.init_festivals()
-        logger.info("Festival service initialized")
 
         # 遥测任务
         start_telemetry_task()

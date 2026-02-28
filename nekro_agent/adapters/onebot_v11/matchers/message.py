@@ -28,6 +28,7 @@ from nekro_agent.adapters.onebot_v11.tools.onebot_util import (
 from nekro_agent.core import config, logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.schemas.chat_message import ChatMessageSegmentForward
 
 
 def register_matcher(adapter: BaseAdapter):
@@ -71,6 +72,12 @@ def register_matcher(adapter: BaseAdapter):
             db_chat_channel=db_chat_channel,
         )
         content_text, is_tome = await gen_chat_text(event=event, bot=bot, db_chat_channel=db_chat_channel)
+
+        # 合并转发消息：使用 FORWARD 段的完整文本替代 gen_chat_text 的简略占位
+        for seg in content_data:
+            if isinstance(seg, ChatMessageSegmentForward):
+                content_text = seg.text
+                break
 
         ignored_prefixes = (
             [config.AI_COMMAND_OUTPUT_PREFIX, *config.AI_IGNORED_PREFIXES]

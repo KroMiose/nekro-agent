@@ -2,7 +2,7 @@ import time
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from nekro_agent.tools.common_util import (
     copy_to_upload_dir,
@@ -27,6 +27,7 @@ class ChatMessageSegmentType(Enum):
     REFERENCE = "reference"
     AT = "at"
     JSON_CARD = "json_card"
+    FORWARD = "forward"
 
 
 class ChatMessageSegment(BaseModel):
@@ -133,6 +134,19 @@ class ChatMessageSegmentImage(ChatMessageSegmentFile):
         return ChatMessageSegmentType.IMAGE
 
 
+class ChatMessageSegmentForward(ChatMessageSegment):
+    """合并转发消息段
+
+    forward_content 结构:
+    [
+        {"sender": "昵称", "content": "文本内容(图片位置用[图片]占位)", "images": ["filename1.jpg"]},
+        {"sender": "昵称", "content": "[合并转发消息]", "images": [], "forward_content": [...]},  # 嵌套
+    ]
+    """
+
+    forward_content: List[Dict[str, Any]] = Field(default_factory=list)
+
+
 class ChatMessageSegmentJsonCard(ChatMessageSegment):
     """聊天消息段 JSON卡片"""
 
@@ -163,6 +177,8 @@ def segment_from_dict(data: Dict) -> ChatMessageSegment:
         return ChatMessageSegmentAt.model_validate(data)
     if segment_type == ChatMessageSegmentType.JSON_CARD:
         return ChatMessageSegmentJsonCard.model_validate(data)
+    if segment_type == ChatMessageSegmentType.FORWARD:
+        return ChatMessageSegmentForward.model_validate(data)
     raise ValueError(f"Unsupported segment type: {segment_type}")
 
 
