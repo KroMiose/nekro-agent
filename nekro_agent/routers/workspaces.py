@@ -6,6 +6,7 @@ import pty
 import struct
 import subprocess
 import termios
+from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
 import aiodocker
@@ -1174,6 +1175,22 @@ async def user_send_to_cc(
     # 2. fire-and-forget：CC 通信在后台 Task 完成，HTTP 请求立即返回
     #    所有后续事件（TOOL_CALL、TOOL_RESULT、CC_TO_NA、SYSTEM 错误）均通过 SSE 推送
     async def _cc_task() -> None:
+        async def _status(running: bool) -> None:
+            try:
+                await comm_broadcast.publish(workspace_id, {
+                    "id": 0,
+                    "workspace_id": workspace_id,
+                    "direction": "CC_STATUS",
+                    "source_chat_key": "",
+                    "content": json.dumps({"running": running}),
+                    "is_streaming": False,
+                    "task_id": None,
+                    "create_time": datetime.now(timezone.utc).isoformat(),
+                })
+            except Exception:
+                pass
+
+        await _status(True)
         client = CCSandboxClient(ws)
         chunks: List[str] = []
         try:
@@ -1203,6 +1220,7 @@ async def user_send_to_cc(
                 content=f"[错误] CC 返回错误: {e}",
             )
             await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await _status(False)
             return
         except Exception as e:
             err_log = await DBWorkspaceCommLog.create(
@@ -1212,6 +1230,7 @@ async def user_send_to_cc(
                 content=f"[错误] 任务异常: {e}",
             )
             await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await _status(False)
             return
 
         full_result = "".join(chunks)
@@ -1222,7 +1241,98 @@ async def user_send_to_cc(
             content=full_result,
         )
         await comm_broadcast.publish(workspace_id, _comm_log_to_dict(reply_log))
+        await _status(False)
 
     asyncio.create_task(_cc_task())
     return {"ok": True}
+
+
+@router.get("/{workspace_id}/comm/queue", summary="查询 CC 工作区当前任务队列状态")
+@require_role(Role.Admin)
+async def get_comm_queue(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> dict:
+    """代理 CC 沙盒的真实队列状态，供前端判断 CC 是否真正在处理任务。
+
+    返回字段：
+    - current_task: 当前正在执行的任务（None 表示 CC 空闲）
+    - queued_tasks: 等待队列
+    - queue_length: 等待数量
+    """
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    if ws.status != "active":
+        return {"current_task": None, "queued_tasks": [], "queue_length": 0}
+    try:
+        client = CCSandboxClient(ws)
+        return await client.get_workspace_queue(workspace_id="default")
+    except Exception:
+        return {"current_task": None, "queued_tasks": [], "queue_length": 0}
+
+
+@router.delete("/{workspace_id}/comm/queue/current", summary="强制中止 CC 工作区当前任务")
+@require_role(Role.Admin)
+async def force_cancel_comm_task(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> dict:
+    """向 CC 沙盒发送 SIGKILL 终止当前运行任务，并向 CommTab 广播系统通知。
+
+    适用于 CC 任务卡死或用户需要手动中断的场景。
+    CC 进程被杀后会触发 SSE error 事件，NA 侧 _cc_delegate_task 会捕获并终止。
+    """
+    from nekro_agent.services.workspace import comm_broadcast
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    if ws.status != "active":
+        raise ValidationError(reason="工作区未运行，无法执行取消操作")
+
+    client = CCSandboxClient(ws)
+
+    # 先查当前任务，记录来源频道
+    try:
+        queue_info = await client.get_workspace_queue(workspace_id="default")
+        current = queue_info.get("current_task")
+        source_chat_key = (current or {}).get("source_chat_key", "__user__")
+    except Exception:
+        source_chat_key = "__user__"
+
+    cancelled = await client.force_cancel_current_task(workspace_id="default")
+
+    # 向 CommTab 广播 SYSTEM 通知，让前端状态及时复位
+    try:
+        from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
+        notice = "[强制中止] 用户通过管理界面手动中止了 CC 当前任务。"
+        notice_log = await DBWorkspaceCommLog.create(
+            workspace_id=workspace_id,
+            direction="SYSTEM",
+            source_chat_key=source_chat_key,
+            content=notice,
+            is_streaming=False,
+        )
+        await comm_broadcast.publish(workspace_id, _comm_log_to_dict(notice_log))
+    except Exception as e:
+        logger.warning(f"广播强制中止通知失败: {e}")
+
+    # 广播 CC_STATUS False，驱动前端状态指示条立即隐藏
+    # （_cc_delegate_task 的 except 路径也会广播，此处确保后台任务场景下也能及时更新）
+    try:
+        await comm_broadcast.publish(workspace_id, {
+            "id": 0,
+            "workspace_id": workspace_id,
+            "direction": "CC_STATUS",
+            "source_chat_key": "",
+            "content": json.dumps({"running": False}),
+            "is_streaming": False,
+            "task_id": None,
+            "create_time": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as e:
+        logger.warning(f"广播 CC_STATUS false 失败: {e}")
+
+    return {"cancelled": cancelled, "workspace_id": workspace_id}
 

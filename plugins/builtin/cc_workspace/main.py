@@ -20,6 +20,7 @@ import asyncio
 import json
 import secrets
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -39,9 +40,10 @@ from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxErro
 from nekro_agent.services.workspace.container import SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
 
-from .plugin import plugin
+from .plugin import cc_config, plugin
 
 _TASK_TYPE = "cc_delegate"
+_CC_DATA_TIMEOUT: float = 120.0  # 120s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
 
 
 # ---------------------------------------------------------------------------
@@ -62,93 +64,208 @@ async def _check_sandbox_image_exists(image: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# NA 重启后恢复 CC 待投递结果
+# NA 重启后恢复 CC 待投递结果 + 运行时后台监听器
 # ---------------------------------------------------------------------------
+
+# 全局 Watcher 任务句柄（模块级单例）
+_cc_result_watcher_task: "asyncio.Task[None] | None" = None
+
+_WATCHER_INTERVAL: int = 30  # 秒；CC 结果最大投递延迟 ≈ 此值
+
+
+async def _broadcast_error_comm_log(workspace_id: int, source_chat_key: str, content: str) -> None:
+    """将错误信息写入 SYSTEM 方向 CommLog 并广播，使前端 CommTab 可以实时看到错误详情。"""
+    try:
+        err_log = await DBWorkspaceCommLog.create(
+            workspace_id=workspace_id,
+            direction="SYSTEM",
+            source_chat_key=source_chat_key,
+            content=content,
+            is_streaming=False,
+            task_id=f"cc_delegate:{source_chat_key}",
+        )
+        await comm_broadcast.publish(workspace_id, {
+            "id": err_log.id,
+            "workspace_id": err_log.workspace_id,
+            "direction": err_log.direction,
+            "source_chat_key": err_log.source_chat_key,
+            "content": err_log.content,
+            "is_streaming": err_log.is_streaming,
+            "task_id": err_log.task_id,
+            "create_time": err_log.create_time.isoformat(),
+        })
+    except Exception as e:
+        logger.warning("[cc_workspace] 写入错误 CommLog 失败（不影响主流程）: %s", e)
+
+
+async def _broadcast_cc_status(workspace_id: int, running: bool) -> None:
+    """通过 SSE 广播 CC 任务运行状态变化（不写入 DB）。
+
+    前端 SSE handler 收到 direction='CC_STATUS' 后直接驱动状态指示条，
+    无需轮询 /comm/queue 接口。
+    """
+    try:
+        await comm_broadcast.publish(workspace_id, {
+            "id": 0,
+            "workspace_id": workspace_id,
+            "direction": "CC_STATUS",
+            "source_chat_key": "",
+            "content": json.dumps({"running": running}),
+            "is_streaming": False,
+            "task_id": None,
+            "create_time": datetime.now(timezone.utc).isoformat(),
+        })
+    except Exception as _e:
+        logger.warning("[cc_workspace] 广播 CC_STATUS 失败: %s", _e)
+
+
+async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, source: str) -> None:
+    """投递单条 CC 待处理结果：写通讯日志 + 广播 + 推送系统消息触发 Agent。
+
+    Args:
+        workspace: 工作区 ORM 对象
+        item:      CC /pending-results 返回的单条 dict
+        source:    投递来源标识（"startup" 或 "watcher"），仅用于日志/消息区分
+    """
+    source_chat_key: str = item.get("source_chat_key", "")
+    result: str = item.get("result", "")
+    result_id: str = item.get("id", "")
+
+    if not source_chat_key or not result.strip():
+        logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
+        return
+
+    # 写入 CC_TO_NA 通讯日志并广播
+    try:
+        cc_log = await DBWorkspaceCommLog.create(
+            workspace_id=workspace.id,
+            direction="CC_TO_NA",
+            source_chat_key=source_chat_key,
+            content=result,
+            is_streaming=False,
+            task_id=f"cc_delegate:{source_chat_key}",
+        )
+        await comm_broadcast.publish(workspace.id, {
+            "id": cc_log.id,
+            "workspace_id": cc_log.workspace_id,
+            "direction": cc_log.direction,
+            "source_chat_key": cc_log.source_chat_key,
+            "content": cc_log.content,
+            "is_streaming": cc_log.is_streaming,
+            "task_id": cc_log.task_id,
+            "create_time": cc_log.create_time.isoformat(),
+        })
+    except Exception as e:
+        logger.warning(f"[cc_workspace] 投递({source})：写入通讯日志失败 (id={result_id!r}): {e}")
+
+    # CC 后台任务完成，广播状态结束（对应 SSE 超时后 CC 继续运行的情况）
+    await _broadcast_cc_status(workspace.id, False)
+
+    # 推送系统消息并触发 NA Agent
+    try:
+        if source == "startup":
+            prefix = (
+                f"[CC Workspace 恢复结果] NA 服务重启前，CC 已完成一个委托任务，"
+                f"结果如下（来自工作区: {workspace.name}）：\n\n"
+            )
+        else:
+            prefix = (
+                f"[CC Workspace 后台结果] CC 已完成一个后台委托任务，"
+                f"结果如下（来自工作区: {workspace.name}）：\n\n"
+            )
+        notify_msg = prefix + f"[CC Workspace 执行结果]\n{result}"
+        await message_service.push_system_message(
+            chat_key=source_chat_key,
+            agent_messages=notify_msg,
+            trigger_agent=True,
+        )
+        logger.info(
+            f"[cc_workspace] 投递成功({source})：chat_key={source_chat_key!r}，"
+            f"workspace={workspace.id}，chars={len(result)}"
+        )
+    except Exception as e:
+        logger.error(
+            f"[cc_workspace] 投递({source})：推送消息失败 (chat_key={source_chat_key!r}): {e}"
+        )
+
+
+async def _cc_result_watcher_loop() -> None:
+    """后台轮询所有 active 工作区的待投递结果，保证 CC 任务结果不丢失。
+
+    设计说明：
+    - 每 _WATCHER_INTERVAL 秒轮询一次，CC 结果最大延迟 ≈ _WATCHER_INTERVAL 秒
+    - 消费语义：get_pending_results() 取回后 CC 侧自动删除，不会重复投递
+    - 与 SSE 实时通道互补：SSE 连通时结果即时到达；SSE 断开/超时时由此兜底
+    - 此循环在 NA 整个运行期内持续存在，不受单次 delegate_to_cc 调用影响
+    """
+    logger.info("[cc_workspace] 后台结果监听器已启动（轮询间隔: %ds）", _WATCHER_INTERVAL)
+    while True:
+        await asyncio.sleep(_WATCHER_INTERVAL)
+        try:
+            active_workspaces = await DBWorkspace.filter(status="active")
+        except Exception as e:
+            logger.debug(f"[cc_workspace] Watcher：获取工作区列表失败: {e}")
+            continue
+
+        for workspace in active_workspaces:
+            client = CCSandboxClient(workspace)
+            try:
+                pending = await client.get_pending_results(workspace_id="default")
+            except Exception as e:
+                logger.debug(f"[cc_workspace] Watcher：工作区 {workspace.id} 查询失败: {e}")
+                continue
+
+            if not pending:
+                continue
+
+            logger.info(
+                f"[cc_workspace] Watcher 发现 {len(pending)} 条待投递结果，"
+                f"工作区: {workspace.name}（ID: {workspace.id}）"
+            )
+            for item in pending:
+                await _deliver_pending_result(workspace, item, source="watcher")
 
 
 async def recover_pending_cc_results() -> None:
-    """NA 启动时扫描所有 active 工作区，取回 CC 在断线期间完成的任务结果。
+    """NA 启动时扫描所有 active 工作区，取回 CC 在断线期间完成的任务结果，
+    并启动后台 Watcher 保证运行期间结果不丢失。
 
     调用方：nekro_agent/__init__.py on_startup（在 init_plugins 之后）。
 
-    恢复逻辑：
+    流程：
     1. 遍历所有状态为 active 的工作区
     2. 调用 CC sandbox GET /pending-results（消费语义，取回后自动删除）
     3. 对每条结果：写入 CC_TO_NA 通讯日志、广播到 SSE、推送系统消息并触发 NA Agent
+    4. 启动后台 Watcher（_cc_result_watcher_loop），持续轮询保障结果不丢失
     """
+    global _cc_result_watcher_task
+
     try:
         active_workspaces = await DBWorkspace.filter(status="active")
     except Exception as e:
         logger.warning(f"[cc_workspace] 恢复检查：获取工作区列表失败: {e}")
-        return
-
-    for workspace in active_workspaces:
-        client = CCSandboxClient(workspace)
-        try:
-            pending = await client.get_pending_results(workspace_id="default")
-        except Exception as e:
-            logger.debug(f"[cc_workspace] 恢复检查：工作区 {workspace.id} 查询失败: {e}")
-            continue
-
-        if not pending:
-            continue
-
-        logger.info(
-            f"[cc_workspace] 发现 {len(pending)} 条待投递结果，工作区: {workspace.name}（ID: {workspace.id}）"
-        )
-
-        for item in pending:
-            source_chat_key: str = item.get("source_chat_key", "")
-            result: str = item.get("result", "")
-            result_id: str = item.get("id", "")
-
-            if not source_chat_key or not result.strip():
-                logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
+    else:
+        for workspace in active_workspaces:
+            client = CCSandboxClient(workspace)
+            try:
+                pending = await client.get_pending_results(workspace_id="default")
+            except Exception as e:
+                logger.debug(f"[cc_workspace] 恢复检查：工作区 {workspace.id} 查询失败: {e}")
                 continue
 
-            # 写入 CC_TO_NA 通讯日志
-            try:
-                cc_log = await DBWorkspaceCommLog.create(
-                    workspace_id=workspace.id,
-                    direction="CC_TO_NA",
-                    source_chat_key=source_chat_key,
-                    content=result,
-                    is_streaming=False,
-                    task_id=f"cc_delegate:{source_chat_key}",
-                )
-                await comm_broadcast.publish(workspace.id, {
-                    "id": cc_log.id,
-                    "workspace_id": cc_log.workspace_id,
-                    "direction": cc_log.direction,
-                    "source_chat_key": cc_log.source_chat_key,
-                    "content": cc_log.content,
-                    "is_streaming": cc_log.is_streaming,
-                    "task_id": cc_log.task_id,
-                    "create_time": cc_log.create_time.isoformat(),
-                })
-            except Exception as e:
-                logger.warning(f"[cc_workspace] 恢复：写入通讯日志失败 (id={result_id!r}): {e}")
+            if not pending:
+                continue
 
-            # 推送系统消息并触发 NA Agent
-            try:
-                notify_msg = (
-                    f"[CC Workspace 恢复结果] NA 服务重启前，CC 已完成一个委托任务，"
-                    f"结果如下（来自工作区: {workspace.name}）：\n\n"
-                    f"[CC Workspace 执行结果]\n{result}"
-                )
-                await message_service.push_system_message(
-                    chat_key=source_chat_key,
-                    agent_messages=notify_msg,
-                    trigger_agent=True,
-                )
-                logger.info(
-                    f"[cc_workspace] 恢复成功：已推送到 chat_key={source_chat_key!r}，"
-                    f"workspace={workspace.id}，chars={len(result)}"
-                )
-            except Exception as e:
-                logger.error(
-                    f"[cc_workspace] 恢复：推送消息失败 (chat_key={source_chat_key!r}): {e}"
-                )
+            logger.info(
+                f"[cc_workspace] 发现 {len(pending)} 条待投递结果，工作区: {workspace.name}（ID: {workspace.id}）"
+            )
+            for item in pending:
+                await _deliver_pending_result(workspace, item, source="startup")
+
+    # 启动后台 Watcher（幂等：已运行则跳过）
+    if _cc_result_watcher_task is None or _cc_result_watcher_task.done():
+        _cc_result_watcher_task = asyncio.create_task(_cc_result_watcher_loop())
+        logger.info("[cc_workspace] 后台结果监听器已创建")
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +319,9 @@ async def _cc_delegate_task(
     except Exception:
         pass
 
+    # 广播 CC 任务开始状态（SSE 驱动前端状态指示条，避免轮询）
+    await _broadcast_cc_status(workspace_id, True)
+
     try:
         yield TaskCtl.report_progress("CC Sandbox 任务已开始执行...", percent=0)
 
@@ -219,10 +339,75 @@ async def _cc_delegate_task(
             for item in (workspace.metadata or {}).get("env_vars", [])
             if item.get("key") and item.get("value")
         }
-        async for item in client.stream_message(enriched_prompt, source_chat_key=handle.task_id, on_queued=_on_queued, env_vars=_env_vars or None):
+        # 使用 asyncio.wait_for 保护每次 __anext__() 等待：
+        # _CC_DATA_TIMEOUT 仅在"无任何 data: 事件"时触发，keep-alive (": ping") 不计入，
+        # 避免 CC 一直发 keep-alive 导致 httpx read timeout 永远无法触发的永久挂死问题。
+        _stream = client.stream_message(
+            enriched_prompt,
+            source_chat_key=handle.task_id,
+            on_queued=_on_queued,
+            env_vars=_env_vars or None,
+        )
+        while True:
+            try:
+                item = await asyncio.wait_for(_stream.__anext__(), timeout=_CC_DATA_TIMEOUT)
+            except StopAsyncIteration:
+                break
+            except asyncio.TimeoutError:
+                try:
+                    await asyncio.wait_for(_stream.aclose(), timeout=5.0)
+                except Exception:
+                    pass
+                logger.warning(
+                    "[cc_workspace] SSE 数据超时（%ds 无有效响应），"
+                    "CC 任务已转入后台继续执行，等待后台监听器投递结果。"
+                    " workspace=%d chat_key=%r",
+                    int(_CC_DATA_TIMEOUT),
+                    workspace_id,
+                    handle.task_id,
+                )
+                # 写入 SYSTEM 方向 CommLog，CommTab 收到后可复位"执行中"状态
+                _timeout_notice = (
+                    f"[CC 任务已转入后台] {_CC_DATA_TIMEOUT:.0f}s 内未收到新数据，"
+                    "NA 已释放等待连接。CC 仍在后台继续运行，结果将在完成后自动推送。"
+                )
+                try:
+                    _sys_log = await DBWorkspaceCommLog.create(
+                        workspace_id=workspace_id,
+                        direction="SYSTEM",
+                        source_chat_key=handle.task_id,
+                        content=_timeout_notice,
+                        is_streaming=False,
+                        task_id=f"cc_delegate:{handle.task_id}",
+                    )
+                    await comm_broadcast.publish(workspace_id, {
+                        "id": _sys_log.id,
+                        "workspace_id": _sys_log.workspace_id,
+                        "direction": _sys_log.direction,
+                        "source_chat_key": _sys_log.source_chat_key,
+                        "content": _sys_log.content,
+                        "is_streaming": _sys_log.is_streaming,
+                        "task_id": _sys_log.task_id,
+                        "create_time": _sys_log.create_time.isoformat(),
+                    })
+                except Exception as _e:
+                    logger.warning("[cc_workspace] 写入超时 SYSTEM CommLog 失败: %s", _e)
+                yield TaskCtl.success(
+                    f"CC Sandbox {_CC_DATA_TIMEOUT:.0f}s 内无新数据（CC 可能正在排队等待执行）。\n"
+                    "CC 任务已转入后台继续运行——结果将在 CC 完成后自动推送到本频道，请耐心等待。\n"
+                    "如需强制取消 CC 当前任务，请调用 force_cancel_cc_workspace。"
+                )
+                return
+
             if handle.is_cancelled:
+                try:
+                    await asyncio.wait_for(_stream.aclose(), timeout=5.0)
+                except Exception:
+                    pass
+                await _broadcast_cc_status(workspace_id, False)
                 yield TaskCtl.cancel("任务被用户取消")
                 return
+
             # 检查并 flush 排队消息
             while _queued_messages:
                 msg = _queued_messages.pop(0)
@@ -285,15 +470,31 @@ async def _cc_delegate_task(
         except Exception:
             pass
 
-        # 检测未登录状态
-        if "not logged in" in full_result.lower() or "/login" in full_result.lower():
+        # CC 已完成回复，任务将在此后 success/fail 结束，广播状态结束
+        await _broadcast_cc_status(workspace_id, False)
+
+        # 检测未登录状态：仅当响应内容极短（<300字符）且明确含有 auth 错误关键词时才判定
+        # 不能用 "/login" 等宽泛字符串，CC 输出的正常内容（URL、路径等）会误触
+        _result_lower = full_result.lower().strip()
+        _is_auth_error = len(_result_lower) < 300 and (
+            "not logged in" in _result_lower
+            or _result_lower.startswith("error: not authenticated")
+            or _result_lower.startswith("authentication required")
+        )
+        if _is_auth_error:
             logger.warning(f"[cc_workspace] CC Sandbox 未认证，workspace={workspace_id}")
+            await _broadcast_error_comm_log(
+                workspace_id, handle.task_id,
+                "[CC 错误] CC Sandbox 未认证，无法执行任务。\n"
+                "请在工作区「配置」页面关联有效的 CC 模型预设（需包含 auth_token），然后重建容器使配置生效。"
+            )
             yield TaskCtl.fail(
                 "CC Sandbox 未认证。请在工作区「配置」页面关联有效的 CC 模型预设（需包含 auth_token），然后重建容器使配置生效。"
             )
             return
 
         if not full_result.strip():
+            await _broadcast_error_comm_log(workspace_id, handle.task_id, "[CC 错误] CC Sandbox 返回了空响应")
             yield TaskCtl.fail("CC Sandbox 返回了空响应")
             return
 
@@ -302,9 +503,13 @@ async def _cc_delegate_task(
 
     except CCSandboxError as e:
         logger.error(f"[cc_workspace] cc_delegate 流式执行失败: {e}")
+        await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Sandbox 执行失败: {e}")
+        await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Sandbox 执行失败: {e}")
     except Exception as e:
         logger.exception(f"[cc_workspace] cc_delegate 异常: {e}")
+        await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Workspace 发生意外错误: {e}")
+        await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Workspace 发生意外错误: {e}")
 
 
@@ -436,12 +641,18 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"通过 `upload_file_to_cc` / `download_file_from_cc` 与 CC Workspace 传递文件，"
         f"通过 `get_cc_context` 查询工作区协作上下文（任务状态 + 原始任务 + 通讯历史）。\n"
         f"\n"
-        f"[CC 协作注意事项]\n"
-        f"- CC 是工作区的**第一手知识持有者**，你（NA）无法主动读取 CC 工作区的文件和代码，不了解工作区实际状态\n"
-        f"- 委托任务时请描述**目标和背景**，而不是具体实现步骤——不要在任务中假设工作区存在特定文件路径、函数名或代码行\n"
-        f"- 如果用户提到具体的文件/函数/路径，应以「用户提及，请自行核实」的方式传达，而非断言其存在\n"
-        f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托新任务\n"
-        f"- 绝对不要根据对工作区的主观臆测，向 CC 下达精细化的代码修改指令（如'将第X行改为...'）\n"
+        f"[CC 协作注意事项 — 必须严格遵守]\n"
+        f"**CC 无法看到你与用户的对话。** CC 是一个独立运行的 AI 进程，无法访问本频道的任何聊天记录。"
+        f"`task_prompt` 是 CC 获取任务信息的**唯一来源**。因此：\n"
+        f"- **task_prompt 必须自包含**：将用户的完整意图、相关背景、技术要求、约束条件全部写入 task_prompt，"
+        f"不得假定 CC 已了解当前话题、前序讨论内容或用户曾经提到的任何信息\n"
+        f"- **原文引用关键信息**：对话中出现的具体错误信息、日志片段、用户描述的现象等，必须在 task_prompt 中原文引用，不要概括或省略\n"
+        f"- **你无法读取 CC 工作区**：CC 是工作区文件和代码的第一手知识持有者，你无法主动读取工作区内容，"
+        f"因此不要在指令中假设工作区存在特定文件路径、函数名或代码结构\n"
+        f"- **用户提及的路径需 CC 核实**：如果用户提到具体的文件/函数/路径，应以「用户提及了 X，请自行核实是否存在」的方式传达，而非断言其存在\n"
+        f"- **描述目标，而非步骤**：告诉 CC「做什么」和「为什么」，让 CC 自行探索工作区并决定实现方式，"
+        f"绝不要下达精细化的代码修改指令（如'将第X行改为...'）\n"
+        f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托\n"
     )
 
 
@@ -628,36 +839,55 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
     **Note**: Only one CC task can run per channel at a time. Use `cancel_cc_task` to
     cancel the current task before starting a new one.
 
-    **IMPORTANT — How to write task_prompt correctly**:
-    CC has DIRECT access to the workspace and knows its actual file structure and code state.
-    YOU (NA) do NOT have this knowledge. Therefore:
-    - Describe the GOAL and CONTEXT, NOT step-by-step implementation instructions
-    - Do NOT assume specific file paths, function names, or line numbers in the workspace
-    - If the user mentioned a specific path/function, pass it as "user mentioned X, please verify it exists"
-    - Let CC explore the workspace and decide how to implement — do NOT micromanage
-    - If CC's response contains "[需要澄清]" questions, relay them to the user before delegating again
+    **CRITICAL — CC cannot see your conversation.**
+    CC is a completely separate AI process. It has NO access to the chat history in this
+    channel. The `task_prompt` you provide is the ONLY information CC will receive.
+    You MUST write task_prompt as a **self-contained brief** that includes everything CC
+    needs to know:
+
+    1. **Include full context**: User's intent, relevant background, technical requirements,
+       and constraints — do NOT assume CC already knows the current topic or anything
+       discussed earlier in this conversation.
+    2. **Quote key details verbatim**: If the user provided error messages, log snippets,
+       specific requirements, or technical details, copy them into the task_prompt as-is.
+       Do NOT summarize or omit them.
+    3. **Do NOT assume workspace internals**: CC has direct access to the workspace files;
+       you do NOT. Never assume specific file paths, function names, or code structure.
+    4. **User-mentioned paths need verification**: If the user mentioned a file/function/path,
+       phrase it as "the user mentioned X — please verify it exists", not as a fact.
+    5. **Describe goals, not steps**: Tell CC WHAT to achieve and WHY, then let CC explore
+       the workspace and decide HOW. Never give line-level code edit instructions.
+    6. **Relay clarification requests**: If CC's response contains "[需要澄清]" questions,
+       relay them to the user before delegating again.
 
     Args:
-        task_prompt (str): Goal-oriented description of what needs to be accomplished.
-            Include the user's intent, relevant background, and any constraints.
-            Do NOT include assumed implementation details about the workspace internals.
+        task_prompt (str): A self-contained task description including the user's full
+            intent, all relevant context from the conversation, and any constraints.
+            This is the ONLY information CC will receive — nothing else is available to it.
 
     Returns:
         str: Confirmation that the task has been started asynchronously (NOT the final result —
              the result will come back automatically when execution is complete).
 
-    Example (CORRECT — goal-oriented):
+    Example (CORRECT — self-contained, goal-oriented):
         ```python
         delegate_to_cc(
-            "用户希望分析项目中的数据文件并生成统计报告。"
-            "用户提到文件可能在 data/ 目录下（请自行确认）。"
-            "请探索工作区，找到相关数据文件，计算统计摘要，并将结果保存到工作区。"
+            "用户希望在项目中添加一个用户注册功能。具体需求：支持邮箱+密码注册，"
+            "需要邮箱格式校验和密码强度检查（至少8位，含大小写和数字）。"
+            "用户提到项目使用 FastAPI + SQLAlchemy（请自行确认技术栈）。"
+            "请探索工作区了解项目结构后实现此功能。"
         )
         ```
 
-    Example (WRONG — do NOT do this, NA doesn't actually know this):
+    Example (WRONG — assumes CC knows the conversation context):
         ```python
-        # 错误示范：假设了不确定存在的路径和代码细节
+        # 错误：CC 不知道「用户刚才说的那个 bug」是什么
+        delegate_to_cc("修一下用户刚才说的那个 bug")
+        ```
+
+    Example (WRONG — assumes workspace internals):
+        ```python
+        # 错误：假设了不确定存在的路径和代码细节
         delegate_to_cc("请修改 ./src/utils.py 第42行的 calculate() 函数，将参数 n 改为 count")
         ```
     """
@@ -801,13 +1031,13 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
     """Get the full CC collaboration context for this channel.
 
     Use this to recall what task was delegated to CC, understand CC's current work
-    situation, and review recent NA↔CC communication history.
+    situation, and review recent communication history with CC.
 
     This is especially valuable in long sessions where the original delegation may
     have scrolled out of context — it brings together:
-    - Current task execution state (NA-side AsyncTask status)
+    - Current task execution state
     - The original task prompt that was delegated to CC
-    - Recent NA↔CC message exchange (last 6 entries)
+    - Recent message exchange with CC (last 6 entries)
     - CC container health check
 
     Returns:
@@ -1078,19 +1308,27 @@ async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, d
 async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
     """根据当前频道的工作区状态，动态决定哪些 CC 方法对 NA 可见。
 
-    状态1 - 未绑定工作区：仅展示 create_and_bind_workspace
-    状态2 - 已绑定但沙盒未运行：仅展示 start_cc_sandbox
+    状态1 - 未绑定工作区：
+      - ALLOW_AUTO_CREATE_WORKSPACE=True  → 展示 create_and_bind_workspace
+      - ALLOW_AUTO_CREATE_WORKSPACE=False → 返回空列表（AI 无法创建）
+    状态2 - 已绑定但沙盒未运行：
+      - ALLOW_AUTO_CREATE_WORKSPACE=True  → 展示 start_cc_sandbox
+      - ALLOW_AUTO_CREATE_WORKSPACE=False → 返回空列表（AI 无法启动）
     状态3 - 沙盒正常运行：展示所有工作方法，隐藏创建/启动方法
     """
     workspace = await ctx.get_bound_workspace()
 
     # 状态1：未绑定工作区
     if workspace is None:
-        return [create_and_bind_workspace]
+        if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+            return [create_and_bind_workspace]
+        return []
 
     # 状态2：有工作区但沙盒未运行
     if workspace.status != "active":
-        return [start_cc_sandbox]
+        if cc_config.ALLOW_AUTO_CREATE_WORKSPACE:
+            return [start_cc_sandbox]
+        return []
 
     # 状态3：沙盒正常运行
     return [

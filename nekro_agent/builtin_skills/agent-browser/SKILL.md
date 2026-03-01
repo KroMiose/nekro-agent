@@ -106,7 +106,7 @@ agent-browser --profile ~/.my-profile open myapp.com
 
 ## 最佳实践
 
-1. **始终用 `-i` 标志**：只获取交互元素，大幅减少 token 消耗
+1. **使用 `-i` 标志**：只获取交互元素，大幅减少 token 消耗
 2. **导航后重新快照**：click/fill 触发页面变化后必须重新 `snapshot`
 3. **用 `-s` 限定范围**：复杂页面只关注目标区域
 4. **优先用 `fill` 而非 `type`**：`fill` 先清空再输入，更适合表单

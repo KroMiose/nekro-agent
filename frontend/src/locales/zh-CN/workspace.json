@@ -476,6 +476,7 @@
       "sendTooltip": "发送",
       "ccRunning": "CC 正在处理中，请等待回复完成后再发送…",
       "ccRunningIndicator": "CC 正在工作",
+      "forceCancel": "强制中止当前 CC 任务",
       "msgTypes": {
         "USER_TO_CC": "用户 → CC",
         "SYSTEM": "系统"
@@ -487,7 +488,9 @@
       "collapse": "收起",
       "expand": "展开（共 {{chars}} 字符）",
       "notifications": {
-        "sendFailed": "发送失败：{{message}}"
+        "sendFailed": "发送失败：{{message}}",
+        "cancelSuccess": "已发送强制中止指令",
+        "cancelFailed": "强制中止失败：{{message}}"
       }
     },
     "prompt": {

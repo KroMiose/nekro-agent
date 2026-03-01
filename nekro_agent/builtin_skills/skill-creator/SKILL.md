@@ -1,6 +1,6 @@
 ---
 name: skill-creator
-description: 使用此技能创建新的 Claude Code 技能。根据用户或 NA 的需求，设计并保存自定义技能到 ~/.claude/skills/dynamic/ 目录，运行 /skill-creator 开始创建。
+description: 使用此技能创建新的 Claude Code 技能。根据用户或 NA 的需求，设计并保存自定义技能到 ~/.claude/skills/dynamic/ 目录
 version: 1.0.0
 allowed-tools: Read,Write,Bash
 ---
@@ -8,10 +8,6 @@ allowed-tools: Read,Write,Bash
 # 技能创建器
 
 此技能帮助你为 Claude Code 创建新的自定义技能。
-
-## 使用方法
-
-运行 `/skill-creator` 进入交互式技能创建工作流。
 
 ## 工作原理
 

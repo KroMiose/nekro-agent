@@ -476,6 +476,7 @@
       "sendTooltip": "Send",
       "ccRunning": "CC is processing, please wait for the reply before sending…",
       "ccRunningIndicator": "CC is working",
+      "forceCancel": "Force cancel current CC task",
       "msgTypes": {
         "USER_TO_CC": "User → CC",
         "SYSTEM": "System"
@@ -487,7 +488,9 @@
       "collapse": "Collapse",
       "expand": "Expand ({{chars}} chars)",
       "notifications": {
-        "sendFailed": "Send failed: {{message}}"
+        "sendFailed": "Send failed: {{message}}",
+        "cancelSuccess": "Force cancel command sent",
+        "cancelFailed": "Force cancel failed: {{message}}"
       }
     },
     "prompt": {

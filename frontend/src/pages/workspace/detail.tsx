@@ -90,49 +90,33 @@ export default function WorkspaceDetailPage() {
           : 10000,
   })
 
-  // ── CC 工作状态跟踪（SSE 实时 + 历史初始化） ─────────────────────
-  const [ccWorking, setCcWorking] = useState(false)
+  // ── CC 工作状态跟踪（SSE CC_STATUS 事件驱动，初始化查一次队列） ──────────
   const [ccCurrentTool, setCcCurrentTool] = useState<string | null>(null)
+  const [ccWorking, setCcWorking] = useState(false)
 
-  // 初始化：从历史记录判断当前是否有任务进行中
+  // 初始化：页面加载时查一次队列获取初始状态（不轮询）
+  const { data: commQueueStatus } = useQuery({
+    queryKey: ['workspace-comm-queue', workspaceId],
+    queryFn: () => commApi.getQueue(workspaceId),
+    enabled: !!workspace && workspace.status === 'active',
+  })
   useEffect(() => {
-    if (!workspace) return
-    commApi.getHistory(workspaceId, 30).then(r => {
-      const items = r.items
-      let lastNaIdx = -1
-      for (let i = items.length - 1; i >= 0; i--) {
-        if (items[i].direction === 'NA_TO_CC') { lastNaIdx = i; break }
-      }
-      if (lastNaIdx >= 0) {
-        let hasCcReply = false
-        for (let i = lastNaIdx + 1; i < items.length; i++) {
-          if (items[i].direction === 'CC_TO_NA') { hasCcReply = true; break }
-        }
-        if (!hasCcReply) {
-          setCcWorking(true)
-          // 查找最新 TOOL_CALL
-          for (let i = items.length - 1; i > lastNaIdx; i--) {
-            if (items[i].direction === 'TOOL_CALL') {
-              try { setCcCurrentTool(JSON.parse(items[i].content).name ?? null) } catch { /* */ }
-              break
-            }
-          }
-        }
-      }
-    }).catch(() => { /* ignore */ })
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId, workspace?.id])
+    if (commQueueStatus !== undefined) {
+      setCcWorking((commQueueStatus.current_task ?? null) !== null)
+    }
+  }, [commQueueStatus])
 
-  // 实时追踪
+  // CC 完成时清除工具名
+  useEffect(() => {
+    if (!ccWorking) setCcCurrentTool(null)
+  }, [ccWorking])
+
+  // SSE 驱动：CC_STATUS 更新运行状态，TOOL_CALL/TOOL_RESULT 追踪当前工具名
   useEffect(() => {
     if (!workspace) return
     return streamCommLog(workspaceId, entry => {
-      if (entry.direction === 'NA_TO_CC') {
-        setCcWorking(true)
-        setCcCurrentTool(null)
-      } else if (entry.direction === 'CC_TO_NA') {
-        setCcWorking(false)
-        setCcCurrentTool(null)
+      if (entry.direction === 'CC_STATUS') {
+        try { setCcWorking((JSON.parse(entry.content) as { running: boolean }).running) } catch { /* */ }
       } else if (entry.direction === 'TOOL_CALL') {
         try { setCcCurrentTool(JSON.parse(entry.content).name ?? null) } catch { /* */ }
       } else if (entry.direction === 'TOOL_RESULT') {
@@ -292,7 +276,7 @@ export default function WorkspaceDetailPage() {
               onSandboxMutate={handleSandboxMutate}
             />
           )}
-          {activeTab === 2 && <CommTab workspace={workspace} prefill={commPrefill} />}
+          {activeTab === 2 && <CommTab workspace={workspace} prefill={commPrefill} ccRunning={ccWorking} />}
           {activeTab === 3 && <MemoryTab workspace={workspace} />}
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
           {activeTab === 5 && <PromptTab workspace={workspace} />}

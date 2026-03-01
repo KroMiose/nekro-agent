@@ -454,7 +454,7 @@ export const getSandboxTerminalWsUrl = (id: number): string => {
 
 // ── 沙盒通讯日志 ────────────────────────────────────────────────────────────
 
-export type CommDirection = 'NA_TO_CC' | 'CC_TO_NA' | 'USER_TO_CC' | 'SYSTEM' | 'TOOL_CALL' | 'TOOL_RESULT'
+export type CommDirection = 'NA_TO_CC' | 'CC_TO_NA' | 'USER_TO_CC' | 'SYSTEM' | 'TOOL_CALL' | 'TOOL_RESULT' | 'CC_STATUS'
 
 export interface CommLogEntry {
   id: number
@@ -482,6 +482,18 @@ export const commApi = {
 
   sendToCC: async (wsId: number, content: string): Promise<{ ok: boolean; reply: string }> => {
     const r = await axios.post<{ ok: boolean; reply: string }>(`/workspaces/${wsId}/comm/send`, { content })
+    return r.data
+  },
+
+  getQueue: async (wsId: number): Promise<{ current_task: Record<string, unknown> | null; queue_length: number }> => {
+    const r = await axios.get<{ current_task: Record<string, unknown> | null; queue_length: number }>(
+      `/workspaces/${wsId}/comm/queue`,
+    )
+    return r.data
+  },
+
+  forceCancel: async (wsId: number): Promise<{ cancelled: boolean }> => {
+    const r = await axios.delete<{ cancelled: boolean }>(`/workspaces/${wsId}/comm/queue/current`)
     return r.data
   },
 }

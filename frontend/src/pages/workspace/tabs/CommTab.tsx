@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box,
   Button,
@@ -15,6 +15,7 @@ import {
   Send as SendIcon,
   CheckCircle as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
+  StopCircle as StopCircleIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -51,7 +52,7 @@ const COMM_BUBBLE_MD_SX = {
 const isMac = typeof navigator !== 'undefined' &&
   (/Mac/.test(navigator.platform) || /Macintosh/.test(navigator.userAgent))
 
-export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDetail; prefill?: string }) {
+export default function CommTab({ workspace, prefill, ccRunning }: { workspace: WorkspaceDetail; prefill?: string; ccRunning: boolean }) {
   const theme = useTheme()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
@@ -62,17 +63,8 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
   const [sending, setSending] = useState(false)
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
 
-  // CC 工作状态推断：从消息流最后一条消息判断 CC 是否还在处理中
-  // USER_TO_CC / NA_TO_CC / TOOL_CALL / TOOL_RESULT 出现在最后 → CC 还在工作
-  // CC_TO_NA / SYSTEM 出现在最后 → CC 已完成
-  const ccRunning = useMemo(() => {
-    if (messages.length === 0) return false
-    const last = messages[messages.length - 1]
-    if (last.direction === 'CC_TO_NA' || last.direction === 'SYSTEM') return false
-    // 10 分钟内的未完成消息才视为"正在工作"，防止历史异常消息误触
-    const msgTime = new Date(last.create_time).getTime()
-    return Date.now() - msgTime < 10 * 60 * 1000
-  }, [messages])
+  const [cancelling, setCancelling] = useState(false)
+
   const endRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const autoScrollRef = useRef(true)
@@ -124,11 +116,12 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
     setLoadingMore(false)
   }, [workspace.id, messages, hasMore, loadingMore])
 
-  // SSE 实时追加（id 去重）
+  // SSE 实时追加（id 去重；CC_STATUS 状态事件由 detail.tsx 处理，此处过滤不显示）
   useEffect(() => {
     const cancel = streamCommLog(
       workspace.id,
       (entry) => {
+        if (entry.direction === 'CC_STATUS') return
         setMessages(prev =>
           prev.some(m => m.id === entry.id) ? prev : [...prev, entry]
         )
@@ -161,6 +154,19 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
       notification.error(t('detail.comm.notifications.sendFailed', { message: (e as Error).message }))
     } finally {
       setSending(false)
+    }
+  }
+
+  const handleForceCancel = async () => {
+    if (cancelling) return
+    setCancelling(true)
+    try {
+      await commApi.forceCancel(workspace.id)
+      notification.success(t('detail.comm.notifications.cancelSuccess'))
+    } catch (e) {
+      notification.error(t('detail.comm.notifications.cancelFailed', { message: (e as Error).message }))
+    } finally {
+      setCancelling(false)
     }
   }
 
@@ -451,7 +457,7 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
             alignItems: 'center',
             gap: 0.75,
             mb: 0.5,
-            py: 0.5,
+            py: 0.25,
             px: 1,
             bgcolor: alpha(theme.palette.info.main, 0.08),
             border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
@@ -461,6 +467,20 @@ export default function CommTab({ workspace, prefill }: { workspace: WorkspaceDe
             <Typography variant="caption" sx={{ color: 'info.main', fontSize: '0.72rem' }}>
               {t('detail.comm.ccRunning')}
             </Typography>
+            <Tooltip title={t('detail.comm.forceCancel')}>
+              <span style={{ marginLeft: 'auto' }}>
+                <IconButton
+                  size="small"
+                  onClick={handleForceCancel}
+                  disabled={cancelling}
+                  sx={{ color: 'error.main', p: 0.25 }}
+                >
+                  {cancelling
+                    ? <CircularProgress size={14} sx={{ color: 'error.main' }} />
+                    : <StopCircleIcon sx={{ fontSize: 16 }} />}
+                </IconButton>
+              </span>
+            </Tooltip>
           </Box>
         )}
         <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
