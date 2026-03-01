@@ -128,4 +128,33 @@ async def get_agent_tools(
     return agent_tool_exporter.export_tools(chat_key)
 
 
+class ExecuteToolRequest(BaseModel):
+    command_name: str
+    chat_key: str
+    raw_args: str = ""
+    user_id: str = "agent"
+    username: str = "AI Agent"
+
+
+@router.post("/execute", summary="AI 调用命令")
+@require_role(Role.Admin)
+async def execute_command_tool(req: ExecuteToolRequest):
+    """AI Agent 调用命令并获取合并响应
+
+    将命令流式输出合并为单一响应:
+    - process_log: 所有中间消息拼接
+    - message: 最终状态消息
+    - data: 结构化数据
+    """
+    from nekro_agent.services.command.tool_export import agent_tool_exporter
+
+    return await agent_tool_exporter.execute_tool(
+        command_name=req.command_name,
+        chat_key=req.chat_key,
+        raw_args=req.raw_args,
+        user_id=req.user_id,
+        username=req.username,
+    )
+
+
 # endregion
