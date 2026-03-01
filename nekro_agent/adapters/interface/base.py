@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
+from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
 
 from fastapi import APIRouter
 from jinja2 import Environment
@@ -8,6 +8,9 @@ from nonebot import logger
 from pydantic import BaseModel, Field
 
 from nekro_agent.core.core_utils import ConfigBase
+
+if TYPE_CHECKING:
+    from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
@@ -43,6 +46,23 @@ class BaseAdapterConfig(ConfigBase):
         default=True,
         title="显示处理中表情反馈",
         description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+    )
+
+    # 命令系统配置
+    COMMAND_PREFIX: str = Field(
+        default="/",
+        title="命令前缀",
+        description="触发命令的前缀字符，如 / 或 !",
+    )
+    COMMAND_ENABLED: bool = Field(
+        default=True,
+        title="启用命令系统",
+        description="关闭后该适配器不再识别和处理命令",
+    )
+    COMMAND_UNAUTHORIZED_OUTPUT: bool = Field(
+        default=True,
+        title="权限不足提示",
+        description="权限不足时是否向用户输出提示信息",
     )
 
 
@@ -215,5 +235,93 @@ class BaseAdapter(ABC, Generic[TConfig]):
     def parse_channel_id(self, chat_key: str) -> str:
         """解析聊天标识中的频道ID"""
         return self.parse_chat_key(chat_key)[1]
+
+    # endregion
+
+    # region 命令系统
+
+    def detect_command(self, text: str) -> Optional[Tuple[str, str]]:
+        """检测文本是否为命令，返回 (command_name, raw_args) 或 None"""
+        prefix = self.config.COMMAND_PREFIX
+        if not text.startswith(prefix):
+            return None
+        content = text[len(prefix):]
+        parts = content.split(None, 1)
+        if not parts:
+            return None
+        return parts[0], parts[1] if len(parts) > 1 else ""
+
+    async def execute_command(
+        self,
+        chat_key: str,
+        user_id: str,
+        username: str,
+        command_name: str,
+        raw_args: str,
+        is_super_user: bool = False,
+        is_advanced_user: bool = False,
+    ) -> Optional[List["CommandResponse"]]:
+        """执行命令并消费流式输出 - 自动检查适配器级开关"""
+        from nekro_agent.services.command.registry import command_registry
+        from nekro_agent.services.command.schemas import (
+            CommandExecutionContext,
+            CommandRequest,
+            CommandResponse,
+            CommandResponseStatus,
+        )
+
+        if not self.config.COMMAND_ENABLED:
+            return None
+
+        context = CommandExecutionContext(
+            user_id=user_id,
+            chat_key=chat_key,
+            username=username,
+            adapter_key=self.key,
+            is_super_user=is_super_user,
+            is_advanced_user=is_advanced_user,
+        )
+        request = CommandRequest(context=context, command_name=command_name, raw_args=raw_args)
+
+        responses: List[CommandResponse] = []
+        async for response in command_registry.execute(request):
+            responses.append(response)
+            # 每个 message/wait 都可以即时发送给用户
+            if response.status == CommandResponseStatus.PROCESSING:
+                await self._send_command_message(chat_key, response.message)
+            elif response.status == CommandResponseStatus.WAITING:
+                await self._handle_command_wait(chat_key, user_id, response)
+        return responses
+
+    async def _send_command_message(self, chat_key: str, message: str) -> None:
+        """发送命令中间消息到频道（子类可覆盖实现平台特定的发送逻辑）"""
+        from nekro_agent.services.message_service import message_service
+
+        await message_service.push_system_message(
+            chat_key=chat_key,
+            agent_messages=message,
+        )
+
+    async def _handle_command_wait(self, chat_key: str, user_id: str, response: "CommandResponse") -> None:
+        """处理 wait 状态（注册 WaitSession）"""
+        from nekro_agent.services.command.wait_manager import wait_manager
+
+        if response.callback_cmd:
+            await wait_manager.create_session(
+                chat_key=chat_key,
+                user_id=user_id,
+                callback_cmd=response.callback_cmd,
+                context_data=response.context_data,
+                timeout=response.wait_timeout or 60.0,
+                on_timeout_message=response.on_timeout_message or "操作超时，已取消",
+            )
+
+    @property
+    def supports_command_completion(self) -> bool:
+        """是否支持命令补全（子类可覆盖）"""
+        return False
+
+    async def sync_commands(self, chat_key: Optional[str] = None) -> None:
+        """同步命令到平台（子类可覆盖实现 Slash Commands 等）"""
 
     # endregion

@@ -159,6 +159,25 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    COMMAND_ENABLED: bool = Field(
+        default=True,
+        title="全局命令开关",
+        description="全局关闭后所有适配器不再处理命令",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="全局命令开关",
+                en_US="Global Command Switch",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="全局关闭后所有适配器不再处理命令",
+                en_US="When disabled, all adapters will stop processing commands",
+            ),
+        ).model_dump(),
+    )
     DEBUG_IN_CHAT: bool = Field(
         default=False,
         title="聊天调试模式",

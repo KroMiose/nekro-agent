@@ -24,6 +24,7 @@ from .cloud.auth import router as cloud_auth_router
 from .cloud.plugins_market import router as plugins_market_router
 from .cloud.presets_market import router as presets_market_router
 from .cloud.telemetry import router as telemetry_router
+from .commands import router as commands_router
 from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
@@ -89,6 +90,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(skills_router)
     api.include_router(cc_model_presets_router)
     api.include_router(events_router)
+    api.include_router(commands_router)
 
     api.include_router(load_adapters_api())
 
