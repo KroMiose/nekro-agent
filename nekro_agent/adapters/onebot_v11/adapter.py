@@ -263,6 +263,36 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
         return PlatformChannel(channel_id=channel_id, channel_name=channel_name, channel_type=chat_type)
 
+    async def send_poke(self, chat_key: str, target_user_id: str) -> bool:
+        """发送戳一戳
+
+        Args:
+            chat_key: 聊天频道 key
+            target_user_id: 被戳用户的 platform_userid (QQ号)
+
+        Returns:
+            bool: 是否成功
+        """
+        try:
+            bot: Bot = get_bot()
+            db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+            chat_type = db_chat_channel.chat_type
+            uid = int(target_user_id)
+
+            if chat_type is ChatType.GROUP:
+                gid = int(db_chat_channel.channel_id.split("_")[1])
+                await bot.call_api("group_poke", group_id=gid, user_id=uid)
+            elif chat_type is ChatType.PRIVATE:
+                await bot.call_api("friend_poke", user_id=uid)
+            else:
+                logger.warning(f"不支持的聊天类型: {chat_type}")
+                return False
+        except Exception as e:
+            logger.error(f"发送戳一戳失败: {e}")
+            return False
+        else:
+            return True
+
     async def set_message_reaction(self, message_id: str, status: bool = True) -> bool:
         """设置消息反应（NoneBot 实现）
 

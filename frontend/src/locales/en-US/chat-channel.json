@@ -104,6 +104,8 @@
     "senderNone": "Silent",
     "senderBotHint": "Send as bot directly. Visible in target channel · AI context visible · UI visible",
     "senderSystemHint": "Send as internal system notification. Hidden from target channel · AI context visible · UI visible",
-    "senderNoneHint": "Send silently without AI awareness. Only visible to users in target channel · AI context hidden · UI hidden"
+    "senderNoneHint": "Send silently without AI awareness. Only visible to users in target channel · AI context hidden · UI hidden",
+    "pokeSent": "Poke sent",
+    "pokeFailed": "Failed to send poke"
   }
 }

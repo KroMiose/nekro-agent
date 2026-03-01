@@ -386,6 +386,17 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 channel_type=chat_type,
             )
 
+    def detect_command(self, text: str) -> Optional[Tuple[str, str]]:
+        """Telegram 命令检测 — 去掉 @botname 后缀"""
+        result = super().detect_command(text)
+        if result is None:
+            return None
+        command_name, raw_args = result
+        # Telegram 群聊命令格式: /help@botname → 去掉 @botname
+        if "@" in command_name:
+            command_name = command_name.split("@", 1)[0]
+        return command_name, raw_args
+
     def get_adapter_router(self) -> "APIRouter":
         """获取适配器路由"""
         from .routers import router

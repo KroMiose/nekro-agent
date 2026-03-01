@@ -130,10 +130,6 @@ async def _try_handle_command(
         command_name, raw_args = cmd_result
         logger.info(f"Command Detect: [{chat_key}] {platform_user.user_name}: /{command_name} {raw_args}")
 
-        # 处理中表情反馈
-        if adapter.config.SESSION_PROCESSING_WITH_EMOJI and platform_message.message_id:
-            await adapter.set_message_reaction(platform_message.message_id, status=True)
-
         await adapter.execute_command(
             chat_key=chat_key,
             user_id=platform_user.user_id,
@@ -143,10 +139,6 @@ async def _try_handle_command(
             is_super_user=is_super,
             is_advanced_user=is_advanced,
         )
-
-        # 取消处理中表情
-        if adapter.config.SESSION_PROCESSING_WITH_EMOJI and platform_message.message_id:
-            await adapter.set_message_reaction(platform_message.message_id, status=False)
 
         return True
 
