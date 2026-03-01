@@ -4,7 +4,7 @@ from nekro_agent.services.command.registry import command_registry
 
 from .chat import InspectCommand, ResetCommand, StopCommand
 from .config_cmd import ConfReloadCommand, ConfSaveCommand, ConfSetCommand, ConfShowCommand
-from .debug import CodeLogCommand, DebugOffCommand, DebugOnCommand, ExecCommand, SystemCommand
+from .debug import CodeLogCommand, DebugOffCommand, DebugOnCommand, ExecCommand, LogChatTestCommand, SystemCommand
 from .info import NaHelpCommand, NaInfoCommand
 from .model import ModelTestCommand
 from .ops import (
@@ -45,6 +45,7 @@ def register_built_in_commands() -> None:
         SystemCommand(),
         DebugOnCommand(),
         DebugOffCommand(),
+        LogChatTestCommand(),
         # 插件类
         NaPluginsCommand(),
         PluginInfoCommand(),

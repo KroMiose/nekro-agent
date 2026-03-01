@@ -1,6 +1,9 @@
 """内置命令 - 调试类: exec, code_log, system, debug_on, debug_off, log_chat_test"""
 
-from typing import Annotated
+import json
+import time
+from pathlib import Path
+from typing import Annotated, Any
 
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
@@ -161,3 +164,146 @@ class DebugOffCommand(BaseCommand):
             agent_messages="[Debug] Debug mode ended. Resume role-play and stop debug analysis. Ignore all debug context.",
         )
         return CmdCtl.success("提示词调试模式已关闭")
+
+
+class LogChatTestCommand(BaseCommand):
+    """使用错误日志中的对话测试 LLM 请求"""
+
+    @property
+    def metadata(self) -> CommandMetadata:
+        return CommandMetadata(
+            name="log_chat_test",
+            aliases=["log-chat-test"],
+            description="使用错误日志对话测试 LLM 请求",
+            usage="log_chat_test <索引/文件名> [-g <模型组>] [--stream]",
+            permission=CommandPermission.SUPER_USER,
+            category="调试",
+        )
+
+    async def execute(
+        self,
+        context: CommandExecutionContext,
+        args_str: Annotated[str, Arg("日志索引/文件名和参数", positional=True, greedy=True)] = "",
+    ) -> CommandResponse:
+        from nekro_agent.core.config import config
+        from nekro_agent.core.os_env import PROMPT_ERROR_LOG_DIR
+        from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
+        from nekro_agent.services.agent.run_agent import RECENT_ERR_LOGS
+
+        args = args_str.strip().split() if args_str else []
+        if not args:
+            return CmdCtl.failed("请指定要测试的日志索引或文件名")
+
+        log_identifier = args[0]
+        model_group_name = config.USE_MODEL_GROUP
+        use_stream_mode = False
+
+        i = 1
+        while i < len(args):
+            if args[i] == "-g" and i + 1 < len(args):
+                model_group_name = args[i + 1]
+                i += 2
+            elif args[i] in ("--stream", "-s"):
+                use_stream_mode = True
+                i += 1
+            else:
+                i += 1
+
+        if model_group_name not in config.MODEL_GROUPS:
+            return CmdCtl.failed(f"指定的模型组 '{model_group_name}' 不存在")
+
+        model_group = config.MODEL_GROUPS[model_group_name]
+
+        # 查找目标日志文件
+        log_path = None
+        try:
+            idx = int(log_identifier) - 1
+            logs = list(RECENT_ERR_LOGS)
+            if 0 <= idx < len(logs):
+                log_path = logs[idx]
+        except ValueError:
+            for p in RECENT_ERR_LOGS:
+                if log_identifier == p.name:
+                    log_path = p
+                    break
+            if not log_path:
+                direct_path = Path(PROMPT_ERROR_LOG_DIR) / log_identifier
+                if direct_path.exists() and direct_path.is_file():
+                    log_path = direct_path
+
+        if not log_path and not log_identifier.endswith(".json"):
+            direct_path = Path(PROMPT_ERROR_LOG_DIR) / f"{log_identifier}.json"
+            if direct_path.exists() and direct_path.is_file():
+                log_path = direct_path
+
+        if not log_path:
+            return CmdCtl.failed(
+                f"未找到指定的日志: {log_identifier}\n提示: 可以使用 log_err_list 命令查看最近的错误日志"
+            )
+
+        if not log_path.exists():
+            return CmdCtl.failed(f"日志文件不存在: {log_path.name}")
+
+        try:
+            log_content = log_path.read_text(encoding="utf-8")
+            log_data = json.loads(log_content)
+        except Exception as e:
+            return CmdCtl.failed(f"解析日志文件失败: {e}")
+
+        # 从日志中提取 messages
+        try:
+            messages: list[dict[str, Any]] = log_data["request"]["messages"]
+        except KeyError:
+            messages = log_data.get("messages", [])
+            if not messages:
+                return CmdCtl.failed(f"日志中未找到有效的对话内容: {log_path.name}")
+
+        # 发起测试请求
+        start_time = time.time()
+        try:
+            llm_response: OpenAIResponse = await gen_openai_chat_response(
+                messages=messages,
+                **_build_chat_params(model_group, use_stream_mode),
+            )
+            elapsed = time.time() - start_time
+            total_length = len(llm_response.response_content)
+            preview = (
+                llm_response.response_content[:64] + "..."
+                if total_length > 64
+                else llm_response.response_content
+            )
+
+            stream_info = "（流式模式）" if use_stream_mode else ""
+            return CmdCtl.success(
+                f"测试成功！{stream_info}\n"
+                f"模型: {model_group.CHAT_MODEL}\n"
+                f"耗时: {elapsed:.2f}s\n"
+                f"响应长度: {total_length} 字符\n"
+                f"响应预览:\n{preview}"
+            )
+        except Exception as e:
+            elapsed = time.time() - start_time
+            safe_error = str(e).replace(model_group.API_KEY, "[API_KEY]").replace(model_group.BASE_URL, "[BASE_URL]")
+            return CmdCtl.failed(
+                f"测试失败！\n"
+                f"模型: {model_group.CHAT_MODEL}\n"
+                f"耗时: {elapsed:.2f}s\n"
+                f"错误信息: {safe_error}"
+            )
+
+
+def _build_chat_params(model_group: Any, stream_mode: bool) -> dict[str, Any]:
+    """构建聊天参数"""
+    return {
+        "model": model_group.CHAT_MODEL,
+        "temperature": model_group.TEMPERATURE,
+        "top_p": model_group.TOP_P,
+        "top_k": model_group.TOP_K,
+        "frequency_penalty": model_group.FREQUENCY_PENALTY,
+        "presence_penalty": model_group.PRESENCE_PENALTY,
+        "extra_body": model_group.EXTRA_BODY,
+        "base_url": model_group.BASE_URL,
+        "api_key": model_group.API_KEY,
+        "stream_mode": stream_mode,
+        "proxy_url": model_group.CHAT_PROXY,
+    }
