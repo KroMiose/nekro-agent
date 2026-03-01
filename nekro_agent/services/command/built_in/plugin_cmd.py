@@ -16,7 +16,7 @@ class NaPluginsCommand(BaseCommand):
             name="na_plugins",
             aliases=["na-plugins", "nps"],
             description="列出所有已加载插件",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="插件",
         )
 
@@ -60,7 +60,7 @@ class PluginInfoCommand(BaseCommand):
             aliases=["plugin-info", "npi"],
             description="查询插件详情",
             usage="plugin_info <plugin_name/key>",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="插件",
         )
 
@@ -149,7 +149,7 @@ class ResetPluginCommand(BaseCommand):
             aliases=["reset-plugin"],
             description="重置插件配置",
             usage="reset_plugin <plugin_name/key>",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="插件",
         )
 

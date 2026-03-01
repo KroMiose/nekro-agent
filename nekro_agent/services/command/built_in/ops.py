@@ -20,7 +20,7 @@ class ClearSandboxCacheCommand(BaseCommand):
             name="clear_sandbox_cache",
             aliases=["clear-sandbox-cache", "na_csc", "na-csc"],
             description="清理沙盒环境缓存",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="运维",
         )
 
@@ -150,7 +150,7 @@ class InstanceIdCommand(BaseCommand):
             name="instance_id",
             aliases=["instance-id", "na_instance_id", "na-instance-id"],
             description="获取实例唯一 ID",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="运维",
         )
 
@@ -177,7 +177,7 @@ class GithubStarsCheckCommand(BaseCommand):
             name="github_stars_check",
             aliases=["github-stars-check"],
             description="检查 GitHub Star 状态",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="运维",
         )
 
@@ -212,7 +212,7 @@ class LogErrListCommand(BaseCommand):
             aliases=["log-err-list", "log_err_ls", "log-err-ls"],
             description="查看错误日志列表",
             usage="log_err_list [-p <页码>] [-s <每页数量>] [-a]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="运维",
         )
 

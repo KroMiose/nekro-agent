@@ -15,6 +15,7 @@ import {
   Hub as HubIcon,
   CleaningServices as CleaningServicesIcon,
   Workspaces as WorkspacesIcon,
+  ListAlt as ListAltIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
@@ -195,6 +196,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         text: t('menu.spaceCleanup'),
         translationKey: 'menu.spaceCleanup',
         icon: <CleaningServicesIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/commands',
+        text: t('menu.commands'),
+        translationKey: 'menu.commands',
+        icon: <ListAltIcon />,
         parent: 'settings',
       },
     ],

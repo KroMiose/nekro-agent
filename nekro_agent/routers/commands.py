@@ -2,9 +2,11 @@
 
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 
+from nekro_agent.models.db_user import DBUser
+from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
 router = APIRouter(prefix="/commands", tags=["Commands"])
@@ -37,6 +39,7 @@ class CommandStateResponse(BaseModel):
 @require_role(Role.Admin)
 async def list_commands(
     chat_key: Optional[str] = Query(None, description="频道标识，不传则返回系统级状态"),
+    _current_user: DBUser = Depends(get_current_active_user),
 ):
     """获取所有命令列表及其启用状态"""
     from nekro_agent.services.command.manager import command_manager
@@ -52,7 +55,10 @@ class SetCommandStateRequest(BaseModel):
 
 @router.post("/set-state", summary="设置命令状态")
 @require_role(Role.Admin)
-async def set_command_state(req: SetCommandStateRequest):
+async def set_command_state(
+    req: SetCommandStateRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
     """设置命令启用/禁用状态"""
     from nekro_agent.services.command.manager import command_manager
 
@@ -67,7 +73,10 @@ class ResetCommandStateRequest(BaseModel):
 
 @router.post("/reset-state", summary="重置命令状态")
 @require_role(Role.Admin)
-async def reset_command_state(req: ResetCommandStateRequest):
+async def reset_command_state(
+    req: ResetCommandStateRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
     """重置命令状态（回退到上级配置）"""
     from nekro_agent.services.command.manager import command_manager
 
@@ -81,7 +90,10 @@ class BatchSetCommandStateRequest(BaseModel):
 
 @router.post("/batch-set-state", summary="批量设置命令状态")
 @require_role(Role.Admin)
-async def batch_set_command_state(req: BatchSetCommandStateRequest):
+async def batch_set_command_state(
+    req: BatchSetCommandStateRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
     """批量设置命令状态"""
     from nekro_agent.services.command.manager import command_manager
 
@@ -138,7 +150,10 @@ class ExecuteToolRequest(BaseModel):
 
 @router.post("/execute", summary="AI 调用命令")
 @require_role(Role.Admin)
-async def execute_command_tool(req: ExecuteToolRequest):
+async def execute_command_tool(
+    req: ExecuteToolRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
     """AI Agent 调用命令并获取合并响应
 
     将命令流式输出合并为单一响应:

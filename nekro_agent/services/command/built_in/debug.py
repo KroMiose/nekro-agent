@@ -49,7 +49,7 @@ class CodeLogCommand(BaseCommand):
             aliases=["code-log"],
             description="查看代码执行记录",
             usage="code_log [index]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="调试",
         )
 
@@ -84,7 +84,7 @@ class SystemCommand(BaseCommand):
             name="system",
             description="添加系统消息",
             usage="system <message>",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="调试",
         )
 
@@ -113,7 +113,7 @@ class DebugOnCommand(BaseCommand):
             name="debug_on",
             aliases=["debug-on"],
             description="开启提示词调试模式",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="调试",
         )
 
@@ -149,7 +149,7 @@ class DebugOffCommand(BaseCommand):
             name="debug_off",
             aliases=["debug-off"],
             description="关闭提示词调试模式",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="调试",
         )
 

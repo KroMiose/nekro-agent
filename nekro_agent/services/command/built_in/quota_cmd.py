@@ -16,7 +16,7 @@ class QuotaCommand(BaseCommand):
         return CommandMetadata(
             name="quota",
             description="查看频道配额状态",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="配额",
         )
 
@@ -100,7 +100,7 @@ class QuotaBoostCommand(BaseCommand):
             aliases=["quota-boost"],
             description="临时提升当日配额",
             usage="quota_boost <数字>",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="配额",
         )
 
@@ -134,7 +134,7 @@ class QuotaResetCommand(BaseCommand):
             name="quota_reset",
             aliases=["quota-reset"],
             description="重置频道配额提升",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="配额",
         )
 

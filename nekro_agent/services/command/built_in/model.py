@@ -19,7 +19,7 @@ class ModelTestCommand(BaseCommand):
             aliases=["model-test"],
             description="测试模型连通性和响应速度",
             usage="model_test <model_name> [-g] [--stream] [--use-system]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="模型",
         )
 

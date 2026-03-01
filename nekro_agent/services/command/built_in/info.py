@@ -14,7 +14,7 @@ class NaInfoCommand(BaseCommand):
             name="na_info",
             aliases=["na-info"],
             description="查看系统信息",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="信息",
         )
 

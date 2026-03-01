@@ -16,7 +16,7 @@ class ResetCommand(BaseCommand):
             name="reset",
             description="重置对话上下文",
             usage="reset [chat_key]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="会话",
         )
 
@@ -58,7 +58,7 @@ class StopCommand(BaseCommand):
             aliases=["stop-stream"],
             description="停止当前回复流程",
             usage="stop [chat_key]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="会话",
         )
 
@@ -87,7 +87,7 @@ class InspectCommand(BaseCommand):
             name="inspect",
             description="查询频道信息",
             usage="inspect [chat_key]",
-            permission=CommandPermission.USER,
+            permission=CommandPermission.SUPER_USER,
             category="会话",
         )
 

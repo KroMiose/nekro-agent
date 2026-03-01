@@ -285,6 +285,51 @@
       "checkFailed": "Authorization check failed, please try again later"
     }
   },
+  "commands": {
+    "search": "Search commands...",
+    "total": "{{count}} commands",
+    "loading": "Loading...",
+    "empty": "No commands",
+    "rowsPerPage": "Per page",
+    "filters": {
+      "category": "Category",
+      "source": "Source",
+      "all": "All"
+    },
+    "sources": {
+      "builtIn": "Built-in"
+    },
+    "table": {
+      "name": "Name",
+      "description": "Description",
+      "category": "Category",
+      "source": "Source",
+      "permission": "Permission",
+      "enabled": "Enabled",
+      "actions": "Actions"
+    },
+    "detail": {
+      "namespace": "Namespace",
+      "usage": "Usage",
+      "aliases": "Aliases",
+      "params": "Parameters"
+    },
+    "actions": {
+      "reset": "Reset to default"
+    },
+    "permissions": {
+      "public": "Public",
+      "user": "User",
+      "advanced": "Advanced",
+      "super_user": "Super User"
+    },
+    "messages": {
+      "toggleSuccess": "Command state updated",
+      "toggleFailed": "Update failed",
+      "resetSuccess": "Command state reset",
+      "resetFailed": "Reset failed"
+    }
+  },
   "spaceCleanup": {
     "title": "Space Cleanup",
     "description": "Clean up disk space",
