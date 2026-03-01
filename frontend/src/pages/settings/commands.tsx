@@ -320,11 +320,20 @@ function CommandRow({
           />
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
-          <Chip
-            label={t(`commands.permissions.${cmd.permission}`, cmd.permission)}
-            size="small"
-            color={PERMISSION_COLORS[cmd.permission] || 'default'}
-          />
+          <Stack direction="row" spacing={0.5} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Chip
+              label={t(`commands.permissions.${cmd.permission}`, cmd.permission)}
+              size="small"
+              color={PERMISSION_COLORS[cmd.permission] || 'default'}
+            />
+            {cmd.permission === 'advanced' && (
+              <Chip
+                label={t('commands.permissions.super_user', '超级管理员')}
+                size="small"
+                color="error"
+              />
+            )}
+          </Stack>
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell} align="center">
           <Switch checked={cmd.enabled} onChange={onToggleEnabled} size="small" />
