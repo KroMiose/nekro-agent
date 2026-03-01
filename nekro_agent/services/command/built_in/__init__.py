@@ -3,7 +3,10 @@
 from nekro_agent.services.command.registry import command_registry
 
 from .chat import InspectCommand, ResetCommand, StopCommand
+from .config_cmd import ConfReloadCommand, ConfSaveCommand, ConfSetCommand, ConfShowCommand
+from .debug import CodeLogCommand, DebugOffCommand, DebugOnCommand, ExecCommand, SystemCommand
 from .info import NaHelpCommand, NaInfoCommand
+from .switch import NaOffCommand, NaOnCommand
 
 
 def register_built_in_commands() -> None:
@@ -16,6 +19,20 @@ def register_built_in_commands() -> None:
         # 信息类
         NaInfoCommand(),
         NaHelpCommand(),
+        # 开关类
+        NaOnCommand(),
+        NaOffCommand(),
+        # 配置类
+        ConfShowCommand(),
+        ConfSetCommand(),
+        ConfReloadCommand(),
+        ConfSaveCommand(),
+        # 调试类
+        ExecCommand(),
+        CodeLogCommand(),
+        SystemCommand(),
+        DebugOnCommand(),
+        DebugOffCommand(),
     ]
     for cmd in commands:
         command_registry.register(cmd)
