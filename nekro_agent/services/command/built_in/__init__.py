@@ -6,6 +6,18 @@ from .chat import InspectCommand, ResetCommand, StopCommand
 from .config_cmd import ConfReloadCommand, ConfSaveCommand, ConfSetCommand, ConfShowCommand
 from .debug import CodeLogCommand, DebugOffCommand, DebugOnCommand, ExecCommand, SystemCommand
 from .info import NaHelpCommand, NaInfoCommand
+from .model import ModelTestCommand
+from .ops import (
+    ClearSandboxCacheCommand,
+    DockerLogsCommand,
+    DockerRestartCommand,
+    GithubStarsCheckCommand,
+    InstanceIdCommand,
+    LogErrListCommand,
+    ShCommand,
+)
+from .plugin_cmd import NaPluginsCommand, PluginInfoCommand, ResetPluginCommand
+from .quota_cmd import QuotaBoostCommand, QuotaCommand, QuotaResetCommand, QuotaSetCommand, QuotaWhitelistCommand
 from .switch import NaOffCommand, NaOnCommand
 
 
@@ -33,6 +45,26 @@ def register_built_in_commands() -> None:
         SystemCommand(),
         DebugOnCommand(),
         DebugOffCommand(),
+        # 插件类
+        NaPluginsCommand(),
+        PluginInfoCommand(),
+        ResetPluginCommand(),
+        # 运维类
+        ClearSandboxCacheCommand(),
+        DockerRestartCommand(),
+        DockerLogsCommand(),
+        ShCommand(),
+        InstanceIdCommand(),
+        GithubStarsCheckCommand(),
+        LogErrListCommand(),
+        # 配额类
+        QuotaCommand(),
+        QuotaBoostCommand(),
+        QuotaResetCommand(),
+        QuotaSetCommand(),
+        QuotaWhitelistCommand(),
+        # 模型类
+        ModelTestCommand(),
     ]
     for cmd in commands:
         command_registry.register(cmd)
