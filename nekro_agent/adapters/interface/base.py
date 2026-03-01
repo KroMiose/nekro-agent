@@ -269,9 +269,13 @@ class BaseAdapter(ABC, Generic[TConfig]):
             CommandResponse,
             CommandResponseStatus,
         )
+        from nekro_agent.services.command.wait_manager import wait_manager
 
         if not self.config.COMMAND_ENABLED:
             return None
+
+        # 用户发送新命令时自动取消挂起的 wait
+        wait_manager.cancel(chat_key, user_id)
 
         context = CommandExecutionContext(
             user_id=user_id,
@@ -286,12 +290,54 @@ class BaseAdapter(ABC, Generic[TConfig]):
         responses: List[CommandResponse] = []
         async for response in command_registry.execute(request):
             responses.append(response)
-            # 每个 message/wait 都可以即时发送给用户
             if response.status == CommandResponseStatus.PROCESSING:
                 await self._send_command_message(chat_key, response.message)
             elif response.status == CommandResponseStatus.WAITING:
                 await self._handle_command_wait(chat_key, user_id, response)
+            elif response.status in (CommandResponseStatus.SUCCESS, CommandResponseStatus.ERROR):
+                await self._send_command_message(chat_key, response.message)
+            elif response.status == CommandResponseStatus.UNAUTHORIZED:
+                if self.config.COMMAND_UNAUTHORIZED_OUTPUT:
+                    await self._send_command_message(chat_key, response.message)
         return responses
+
+    async def try_handle_wait_input(
+        self,
+        chat_key: str,
+        user_id: str,
+        username: str,
+        text: str,
+        is_super_user: bool = False,
+        is_advanced_user: bool = False,
+    ) -> bool:
+        """检查并处理挂起的 wait 交互
+
+        当用户发送非命令消息时调用此方法，检查是否有匹配的 WaitSession。
+        若存在，将用户输入路由到 callback_cmd，并返回 True 表示已消费。
+
+        Returns:
+            True 表示消息已被 wait 消费，调用方应终止后续处理
+        """
+        from nekro_agent.services.command.wait_manager import wait_manager
+
+        session = wait_manager.try_consume(chat_key, user_id)
+        if not session:
+            return False
+
+        # 将 context_data 中的内容作为额外参数拼接到 raw_args
+        extra_args = " ".join(f'{k}:"{v}"' for k, v in session.context_data.items()) if session.context_data else ""
+        raw_args = f"{text} {extra_args}".strip() if extra_args else text
+
+        await self.execute_command(
+            chat_key=chat_key,
+            user_id=user_id,
+            username=username,
+            command_name=session.callback_cmd,
+            raw_args=raw_args,
+            is_super_user=is_super_user,
+            is_advanced_user=is_advanced_user,
+        )
+        return True
 
     async def _send_command_message(self, chat_key: str, message: str) -> None:
         """发送命令中间消息到频道（子类可覆盖实现平台特定的发送逻辑）"""
@@ -303,8 +349,15 @@ class BaseAdapter(ABC, Generic[TConfig]):
         )
 
     async def _handle_command_wait(self, chat_key: str, user_id: str, response: "CommandResponse") -> None:
-        """处理 wait 状态（注册 WaitSession）"""
+        """处理 wait 状态（发送提示消息并注册 WaitSession）"""
         from nekro_agent.services.command.wait_manager import wait_manager
+
+        # 发送 wait 提示消息（含可选项）
+        wait_msg = response.message
+        if response.wait_options:
+            options_str = " / ".join(response.wait_options)
+            wait_msg = f"{wait_msg}\n可选: {options_str}"
+        await self._send_command_message(chat_key, wait_msg)
 
         if response.callback_cmd:
             await wait_manager.create_session(
