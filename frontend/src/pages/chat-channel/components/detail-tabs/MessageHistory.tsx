@@ -516,6 +516,9 @@ function MessageContent({
 
   const segments = message.content_data || []
 
+  // 存在合并转发段时跳过纯文本段（NapCat 会同时发送转发卡片预览文本和完整转发内容，导致重复渲染）
+  const hasForward = segments.some(s => s.type === 'forward')
+
   // 没有 content_data 时回退到纯文本
   if (segments.length === 0) {
     if (!message.content) {
@@ -637,6 +640,8 @@ function MessageContent({
 
         // text：渲染文本（支持 Markdown）
         if (seg.text) {
+          // 存在 FORWARD 段时跳过纯文本段（避免转发卡片预览与完整内容重复）
+          if (hasForward && seg.type === 'text') return null
           return (
             <MarkdownRenderer key={i} sx={chatMarkdownSx}>
               {seg.text}

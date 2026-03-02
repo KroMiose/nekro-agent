@@ -340,13 +340,12 @@ class BaseAdapter(ABC, Generic[TConfig]):
         return True
 
     async def _send_command_message(self, chat_key: str, message: str) -> None:
-        """发送命令输出消息到频道"""
+        """发送命令输出消息到频道（自动添加命令输出前缀）"""
         from nekro_agent.services.chat.universal_chat_service import universal_chat_service
 
-        await universal_chat_service.send_agent_message(
+        await universal_chat_service.send_operation_message(
             chat_key=chat_key,
-            messages=message,
-            adapter=self,
+            message=message,
         )
 
     async def _handle_command_wait(self, chat_key: str, user_id: str, response: "CommandResponse") -> None:

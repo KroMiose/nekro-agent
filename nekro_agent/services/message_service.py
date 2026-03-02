@@ -291,6 +291,11 @@ class MessageService:
                         logger.info(
                             f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
                         )
+                        await self.push_system_message(
+                            chat_key=message.chat_key,
+                            agent_messages=f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额",
+                            db_chat_channel=db_chat_channel,
+                        )
                         return
 
                     # 每小时限额检查
@@ -306,6 +311,11 @@ class MessageService:
                         if hourly_count >= hourly_limit:
                             logger.info(
                                 f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
+                            )
+                            await self.push_system_message(
+                                chat_key=message.chat_key,
+                                agent_messages=f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试",
+                                db_chat_channel=db_chat_channel,
                             )
                             return
 
