@@ -94,7 +94,15 @@
     "operationFailedRetry": "操作失败，请重试",
     "operationFailedUnknown": "操作失败: 未知错误",
     "publishSuccess": "插件发布成功！",
-    "updateInfoSuccess": "插件信息更新成功！"
+    "updateInfoSuccess": "插件信息更新成功！",
+    "minNaVersion": "最低 NA 版本",
+    "maxNaVersion": "最高 NA 版本",
+    "minNaVersionRequired": "最低 NA 版本不能为空",
+    "versionFormatError": "版本号格式错误，应为 x.y.z",
+    "incompatibleVersion": "当前 NA 版本不兼容",
+    "requiresNaVersion": "需要 NA ≥ {{version}}",
+    "maxNaVersionLimit": "需要 NA < {{version}}",
+    "maxNaVersionHint": "不填代表无限制"
   },
   "telemetry": {
     "title": "社区统计",
