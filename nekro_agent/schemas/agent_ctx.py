@@ -367,13 +367,13 @@ class AgentCtx(BaseModel):
                 default_preset = await DBPreset.get_or_none(id=config.AI_CHAT_DEFAULT_PRESET_ID)
                 if default_preset:
                     return default_preset
-            # 最终回退到旧配置
+            # 最终回退到内置默认人设
 
             from nekro_agent.models.db_chat_channel import DefaultPreset
 
             return DefaultPreset(
-                name=config.AI_CHAT_PRESET_NAME,
-                content=config.AI_CHAT_PRESET_SETTING,
+                name="可洛喵",
+                content="你是可洛喵, 是一名非常可爱的二次元人类宅女和非常聪明厉害的技术宅.",
             )
 
         # 尝试获取指定的人设
@@ -393,8 +393,8 @@ class AgentCtx(BaseModel):
         from nekro_agent.models.db_chat_channel import DefaultPreset
 
         return DefaultPreset(
-            name=config.AI_CHAT_PRESET_NAME,
-            content=config.AI_CHAT_PRESET_SETTING,
+            name="可洛喵",
+            content="你是可洛喵, 是一名非常可爱的二次元人类宅女和非常聪明厉害的技术宅.",
         )
 
     async def set_preset(self, preset_id: Optional[int] = None) -> bool:

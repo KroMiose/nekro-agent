@@ -1380,7 +1380,7 @@ export default function ConfigTable({
                   <Typography variant="body2">{preset.title}</Typography>
                   {preset.is_remote && (
                     <Chip
-                      label={t('common.custom', { defaultValue: 'Cloud' })}
+                      label={t('configTable.cloudPreset')}
                       size="small"
                       color="primary"
                       variant="outlined"

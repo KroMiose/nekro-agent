@@ -144,8 +144,8 @@ class DBChatChannel(Model):
             default_preset = await DBPreset.get_or_none(id=config.AI_CHAT_DEFAULT_PRESET_ID)
             if default_preset:
                 return default_preset
-        # 最终回退到旧配置（兼容性保留）
-        return DefaultPreset(name=config.AI_CHAT_PRESET_NAME, content=config.AI_CHAT_PRESET_SETTING)
+        # 最终回退到内置默认人设
+        return DefaultPreset(name="可洛喵", content="你是可洛喵, 是一名非常可爱的二次元人类宅女和非常聪明厉害的技术宅.")
 
     @property
     def adapter(self) -> "BaseAdapter":
