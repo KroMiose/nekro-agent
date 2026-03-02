@@ -43,7 +43,7 @@ from nekro_agent.services.workspace.manager import WorkspaceService
 from .plugin import cc_config, plugin
 
 _TASK_TYPE = "cc_delegate"
-_CC_DATA_TIMEOUT: float = 120.0  # 120s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
+_CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
 
 
 # ---------------------------------------------------------------------------
@@ -130,18 +130,21 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
     source_chat_key: str = item.get("source_chat_key", "")
     result: str = item.get("result", "")
     result_id: str = item.get("id", "")
+    is_error: bool = item.get("is_error", False)
+    error_code: str = item.get("error_code", "")
 
     if not source_chat_key or not result.strip():
         logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
         return
 
-    # 写入 CC_TO_NA 通讯日志并广播
+    # 写入通讯日志并广播
     try:
+        direction = "SYSTEM" if is_error else "CC_TO_NA"
         cc_log = await DBWorkspaceCommLog.create(
             workspace_id=workspace.id,
-            direction="CC_TO_NA",
+            direction=direction,
             source_chat_key=source_chat_key,
-            content=result,
+            content=result if not is_error else f"[CC 错误] {result}",
             is_streaming=False,
             task_id=f"cc_delegate:{source_chat_key}",
         )
@@ -158,22 +161,33 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
     except Exception as e:
         logger.warning(f"[cc_workspace] 投递({source})：写入通讯日志失败 (id={result_id!r}): {e}")
 
-    # CC 后台任务完成，广播状态结束（对应 SSE 超时后 CC 继续运行的情况）
+    # CC 后台任务完成，广播状态结束
     await _broadcast_cc_status(workspace.id, False)
 
     # 推送系统消息并触发 NA Agent
     try:
-        if source == "startup":
-            prefix = (
+        if is_error:
+            # 错误结果：明确告知 Agent 这是一个错误，不要盲目重试
+            notify_msg = (
+                f"[CC Workspace 任务失败] CC 执行委托任务时遇到错误"
+                f"（来自工作区: {workspace.name}）。\n"
+                f"错误信息: {result}\n"
+                + (f"错误代码: {error_code}\n" if error_code else "")
+                + "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
+                "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试。"
+            )
+        elif source == "startup":
+            notify_msg = (
                 f"[CC Workspace 恢复结果] NA 服务重启前，CC 已完成一个委托任务，"
                 f"结果如下（来自工作区: {workspace.name}）：\n\n"
+                f"[CC Workspace 执行结果]\n{result}"
             )
         else:
-            prefix = (
+            notify_msg = (
                 f"[CC Workspace 后台结果] CC 已完成一个后台委托任务，"
                 f"结果如下（来自工作区: {workspace.name}）：\n\n"
+                f"[CC Workspace 执行结果]\n{result}"
             )
-        notify_msg = prefix + f"[CC Workspace 执行结果]\n{result}"
         await message_service.push_system_message(
             chat_key=source_chat_key,
             agent_messages=notify_msg,
@@ -324,6 +338,10 @@ async def _cc_delegate_task(
 
     try:
         yield TaskCtl.report_progress("CC Sandbox 任务已开始执行...", percent=0)
+        logger.info(
+            f"[cc_workspace] cc_delegate 开始: workspace={workspace_id} "
+            f"chat_key={handle.task_id!r} prompt_len={len(task_prompt)}"
+        )
 
         async def _on_queued(event: dict) -> None:
             current = event.get("current_task") or {}
@@ -354,22 +372,25 @@ async def _cc_delegate_task(
             except StopAsyncIteration:
                 break
             except asyncio.TimeoutError:
+                # 主动关闭 SSE 流
                 try:
                     await asyncio.wait_for(_stream.aclose(), timeout=5.0)
                 except Exception:
                     pass
+                # 主动中止 CC 侧任务——不再让 CC 在后台继续空转
+                try:
+                    await client.force_cancel_current_task(workspace_id="default")
+                except Exception:
+                    pass
                 logger.warning(
-                    "[cc_workspace] SSE 数据超时（%ds 无有效响应），"
-                    "CC 任务已转入后台继续执行，等待后台监听器投递结果。"
-                    " workspace=%d chat_key=%r",
-                    int(_CC_DATA_TIMEOUT),
-                    workspace_id,
-                    handle.task_id,
+                    f"[cc_workspace] SSE 数据超时（{int(_CC_DATA_TIMEOUT)}s 无有效响应），"
+                    f"已主动中止 CC 任务。workspace={workspace_id} chat_key={handle.task_id!r} "
+                    f"received_chunks={chunk_count} received_chars={sum(len(c) for c in chunks)}"
                 )
-                # 写入 SYSTEM 方向 CommLog，CommTab 收到后可复位"执行中"状态
+                # 写入 SYSTEM 方向 CommLog，前端 CommTab 可感知
                 _timeout_notice = (
-                    f"[CC 任务已转入后台] {_CC_DATA_TIMEOUT:.0f}s 内未收到新数据，"
-                    "NA 已释放等待连接。CC 仍在后台继续运行，结果将在完成后自动推送。"
+                    f"[CC 任务超时中止] {_CC_DATA_TIMEOUT:.0f}s 内未收到任何数据，"
+                    "NA 已主动中止该 CC 任务。这通常意味着 CC 模型服务不可用或网络异常。"
                 )
                 try:
                     _sys_log = await DBWorkspaceCommLog.create(
@@ -391,11 +412,12 @@ async def _cc_delegate_task(
                         "create_time": _sys_log.create_time.isoformat(),
                     })
                 except Exception as _e:
-                    logger.warning("[cc_workspace] 写入超时 SYSTEM CommLog 失败: %s", _e)
-                yield TaskCtl.success(
-                    f"CC Sandbox {_CC_DATA_TIMEOUT:.0f}s 内无新数据（CC 可能正在排队等待执行）。\n"
-                    "CC 任务已转入后台继续运行——结果将在 CC 完成后自动推送到本频道，请耐心等待。\n"
-                    "如需强制取消 CC 当前任务，请调用 force_cancel_cc_workspace。"
+                    logger.warning(f"[cc_workspace] 写入超时 SYSTEM CommLog 失败: {_e}")
+                await _broadcast_cc_status(workspace_id, False)
+                yield TaskCtl.fail(
+                    f"CC Sandbox 执行超时（{_CC_DATA_TIMEOUT:.0f}s 内无任何响应），任务已被中止。\n"
+                    "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
+                    "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试，连续重试只会浪费时间。"
                 )
                 return
 
@@ -502,12 +524,19 @@ async def _cc_delegate_task(
         yield TaskCtl.success(f"[CC Workspace 执行结果]\n{full_result}", data=full_result)
 
     except CCSandboxError as e:
-        logger.error(f"[cc_workspace] cc_delegate 流式执行失败: {e}")
+        logger.error(
+            f"[cc_workspace] cc_delegate 流式执行失败: {e} "
+            f"workspace={workspace_id} chat_key={handle.task_id!r} "
+            f"received_chunks={chunk_count} received_chars={sum(len(c) for c in chunks)}"
+        )
         await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Sandbox 执行失败: {e}")
         await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Sandbox 执行失败: {e}")
     except Exception as e:
-        logger.exception(f"[cc_workspace] cc_delegate 异常: {e}")
+        logger.exception(
+            f"[cc_workspace] cc_delegate 异常: {e} "
+            f"workspace={workspace_id} chat_key={handle.task_id!r}"
+        )
         await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Workspace 发生意外错误: {e}")
         await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Workspace 发生意外错误: {e}")
@@ -653,6 +682,18 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"- **描述目标，而非步骤**：告诉 CC「做什么」和「为什么」，让 CC 自行探索工作区并决定实现方式，"
         f"绝不要下达精细化的代码修改指令（如'将第X行改为...'）\n"
         f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托\n"
+        f"\n"
+        f"[CC 结果呈递 — 用户无法直接看到 CC 的工作过程和返回内容]\n"
+        f"**重要：用户看不到 CC Workspace 的工作过程、通讯记录和返回结果。**用户只能看到你在本频道发送的消息。"
+        f"因此当 CC 完成任务返回结果时，你必须以合适的方式向用户呈递结果，而不能简单地说「CC 已完成」或只给出极简摘要。"
+        f"根据任务性质，选择最合适的结果呈递方式：\n"
+        f"- **简单反馈**：对于简单操作（如文件创建、命令执行、配置修改等），简要告知结果和关键信息即可\n"
+        f"- **详细转述**：对于分析、调研、代码审查等知识密集型任务，应详细转述 CC 的发现和结论，保留关键细节\n"
+        f"- **文件传递**：对于生成报告、文档、代码文件等产出物，应通过 `download_file_from_cc` 提取文件并发送给用户。"
+        f"在委托任务时就应与 CC 约定好产出形式（如「请将分析结果写入 /workspace/default/outputs/xxx-report.md」）\n"
+        f"- **用户指定形式**：如果用户明确要求了结果形式（如「给我一份报告」「列出所有问题」），按用户要求呈递\n"
+        f"- **自动判断**：如果用户没有指定，根据上下文判断最合适的呈递方式——较长的分析结果考虑生成文件，"
+        f"简短的操作结果直接文本反馈，代码修改结果说明改了什么和为什么\n"
     )
 
 
@@ -859,6 +900,10 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
        the workspace and decide HOW. Never give line-level code edit instructions.
     6. **Relay clarification requests**: If CC's response contains "[需要澄清]" questions,
        relay them to the user before delegating again.
+    7. **Negotiate output format**: If the task produces substantial output (analysis, report,
+       documentation), instruct CC to write the result to a file (e.g., `//default/outputswxxx-orkspace/report.md`)
+       so you can retrieve it via `download_file_from_cc`. For short results, CC can return
+       them directly in its response text.
 
     Args:
         task_prompt (str): A self-contained task description including the user's full

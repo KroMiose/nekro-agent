@@ -96,6 +96,8 @@ def fix_raw_response(raw_response: str) -> str:
     raw_response = raw_response.replace("@[id:", "[@id:")
     # 修正 <At:[@id:123456@]>  -> [@id:123456@]
     raw_response = re.sub(r"<At:\[@id:(\d+)@\]>", r"[@id:\1@]", raw_response)
+    # 修正 <At:[@id:123456;nickname:Abc@]>  -> [@id:123456@]
+    raw_response = re.sub(r"<At:\[@id:(\d+);nickname[\=\:](.+);?@\]>", r"[@id:\1@]", raw_response)
     # 修正 [@id:123456] -> [@id:123456@]
     raw_response = re.sub(r"\[@id:(\d+)\]", r"[@id:\1@]", raw_response)
     # 修正 [@id:123456;nickname:Abc] -> [@id:123456@]
