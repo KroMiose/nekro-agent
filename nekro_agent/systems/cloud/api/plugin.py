@@ -54,7 +54,7 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
     try:
         async with get_client(require_auth=True) as client:
             response = await client.put(
-                url=str(PLUGIN_API+'/'+module_name),
+                url=f"{PLUGIN_API}/{module_name}",
                 json=updates,
             )
             response.raise_for_status()
@@ -77,7 +77,7 @@ async def delete_plugin(module_name: str) -> BasicResponse:
     try:
         async with get_client(require_auth=True) as client:
             response = await client.delete(
-                url=str(PLUGIN_API+'/'+module_name),
+                url=f"{PLUGIN_API}/{module_name}",
             )
             response.raise_for_status()
             logger.debug(f"删除插件资源响应数据: {response.json()}")
@@ -98,7 +98,7 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
     """
     try:
         async with get_client() as client:
-            response = await client.get(url=str(PLUGIN_API+'/'+module_name+''))
+            response = await client.get(url=f"{PLUGIN_API}/{module_name}")
             response.raise_for_status()
             data = response.json()
             logger.debug(f"获取插件详情响应数据: {data}")
@@ -159,7 +159,7 @@ async def list_user_plugins() -> UserPluginListResponse:
     """
     try:
         async with get_client(require_auth=True) as client:
-            response = await client.get(url=str(PLUGIN_API+"user"))
+            response = await client.get(url=f"{PLUGIN_API}/user")
             response.raise_for_status()
             return UserPluginListResponse(**response.json())
     except Exception as e:
@@ -178,7 +178,7 @@ async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
     """
     try:
         async with get_client() as client:
-            response = await client.get(url=str(PLUGIN_API+'/'+module_name+'/repo'))
+            response = await client.get(url=f"{PLUGIN_API}/{module_name}/repo")
             response.raise_for_status()
             data = response.json()
             return PluginRepoResponse(**data)
