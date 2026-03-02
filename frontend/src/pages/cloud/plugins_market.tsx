@@ -927,7 +927,7 @@ const PluginDetailDialog = ({
                 >
                   {!compatibility.compatible
                     ? t('pluginsMarket.incompatibleVersion')
-                    : '获取插件'}
+                    : t('pluginsMarket.obtain')}
                 </Button>
               )}
             </Box>
@@ -1037,7 +1037,7 @@ const PluginDetailDialog = ({
                 >
                   {!compatibility.compatible
                     ? t('pluginsMarket.incompatibleVersion')
-                    : '获取插件'}
+                    : t('pluginsMarket.obtain')}
                 </Button>
               )}
             </Box>

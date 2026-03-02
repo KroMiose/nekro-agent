@@ -42,6 +42,7 @@ def compare_semver(a: str, b: str) -> int:
     """比较两个语义化版本号
 
     按 major.minor.patch 逐段比较，不支持预发布标签。
+    格式异常的版本号视为无约束，返回 0。
 
     Args:
         a: 版本号字符串，如 "2.3.0"
@@ -51,10 +52,19 @@ def compare_semver(a: str, b: str) -> int:
         int: a < b 返回 -1，a == b 返回 0，a > b 返回 1
     """
     def parse(v: str) -> list[int]:
-        parts = v.strip().split(".")
-        return [int(p) for p in parts[:3]]
+        parts = [p for p in v.strip().split(".") if p]
+        result: list[int] = []
+        for p in parts[:3]:
+            if not p.isdigit():
+                raise ValueError(f"非法版本段: {p!r}")
+            result.append(int(p))
+        return result
 
-    pa, pb = parse(a), parse(b)
+    try:
+        pa, pb = parse(a), parse(b)
+    except (ValueError, AttributeError):
+        return 0
+
     # 补齐长度到 3 段
     while len(pa) < 3:
         pa.append(0)
