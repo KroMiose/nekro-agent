@@ -1,5 +1,6 @@
 import json
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
@@ -50,7 +51,7 @@ class WorkspaceService:
 | 目录 | 路径 | 说明 |
 |------|------|------|
 | 工作目录（cwd） | `/workspace/default/` | Claude Code 默认工作目录 |
-| 数据交换目录 | `/workspace/default/data/` | 与 NA 沙盒交换文件（NA 可读） |
+| 共享目录 | `/workspace/default/shared/` | 与 NA 交换文件（NA 实时感知目录内容，将产出物放在这里） |
 | 技能目录 | `~/.claude/skills/` | builtin 内置 / user 用户 / dynamic 动态 |
 | 记忆目录 | `/workspace/default/memory/` | 持久化记忆（你负责维护） |
 | 运行策略 | {runtime_policy} | 控制工具可用范围（agent/relaxed/strict） |
@@ -487,8 +488,8 @@ updated: "YYYY-MM-DD"
         # 同步 skills 目录
         await WorkspaceService.sync_skills(workspace)
 
-        # 创建 data 目录（CC 工作目录为 /workspace/default/，数据目录在 default/data/）
-        (ws_dir / "default" / "data").mkdir(parents=True, exist_ok=True)
+        # 创建 shared 目录（CC↔NA 文件共享目录，NA 实时感知）
+        (ws_dir / "default" / "shared").mkdir(parents=True, exist_ok=True)
 
         # 创建 .claude_home 目录（挂载到容器内 ~/.claude/，持久化 Claude Code 会话历史）
         claude_home = ws_dir / ".claude_home"
@@ -502,6 +503,55 @@ updated: "YYYY-MM-DD"
         claude_md_path = ws_dir / "default" / "CLAUDE.md"
         claude_md_path.write_text(WorkspaceService._generate_claude_md_content(workspace), encoding="utf-8")
         logger.debug(f"写入 CLAUDE.md: {claude_md_path}")
+
+    @staticmethod
+    def scan_shared_dir(workspace_id: int, max_files: int = 10) -> list[dict[str, str]]:
+        """扫描 CC 工作区共享目录，返回最近更新的文件列表。
+
+        Args:
+            workspace_id: 工作区 ID
+            max_files: 最多返回的文件数量
+
+        Returns:
+            按修改时间倒序排列的文件信息列表，每项包含 name, size_human, mtime_str, rel_path。
+        """
+        shared_dir = Path(WORKSPACE_ROOT_DIR) / str(workspace_id) / "default" / "shared"
+        if not shared_dir.is_dir():
+            return []
+
+        files: list[tuple[float, Path]] = []
+        for item in shared_dir.iterdir():
+            if item.is_file():
+                files.append((item.stat().st_mtime, item))
+            elif item.is_dir():
+                # 浅层递归：只扫描 1 级子目录
+                for sub_item in item.iterdir():
+                    if sub_item.is_file():
+                        files.append((sub_item.stat().st_mtime, sub_item))
+
+        # 按修改时间倒序
+        files.sort(key=lambda x: x[0], reverse=True)
+
+        result: list[dict[str, str]] = []
+        for mtime, fpath in files[:max_files]:
+            size = fpath.stat().st_size
+            if size < 1024:
+                size_human = f"{size}B"
+            elif size < 1024 * 1024:
+                size_human = f"{size / 1024:.1f}KB"
+            else:
+                size_human = f"{size / (1024 * 1024):.1f}MB"
+
+            mtime_dt = datetime.fromtimestamp(mtime, tz=timezone.utc).astimezone()
+            mtime_str = mtime_dt.strftime("%m-%d %H:%M")
+
+            result.append({
+                "name": fpath.name,
+                "size_human": size_human,
+                "mtime_str": mtime_str,
+                "rel_path": str(fpath.relative_to(shared_dir)),
+            })
+        return result
 
     @staticmethod
     def _read_skill_meta(skill_dir: Path) -> Optional[Dict[str, str]]:
