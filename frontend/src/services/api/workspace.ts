@@ -502,6 +502,7 @@ export const streamCommLog = (
   wsId: number,
   onMessage: (entry: CommLogEntry) => void,
   onError?: (err: Error) => void,
+  onReconnect?: () => void,
 ): (() => void) => {
   return createEventStream({
     endpoint: `/workspaces/${wsId}/comm/stream`,
@@ -513,5 +514,6 @@ export const streamCommLog = (
       }
     },
     onError,
+    onReconnect,
   })
 }

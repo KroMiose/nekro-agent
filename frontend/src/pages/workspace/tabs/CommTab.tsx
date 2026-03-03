@@ -117,6 +117,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
   }, [workspace.id, messages, hasMore, loadingMore])
 
   // SSE 实时追加（id 去重；CC_STATUS 状态事件由 detail.tsx 处理，此处过滤不显示）
+  // 重连时拉取最近历史消息，补偿断线期间丢失的事件
   useEffect(() => {
     const cancel = streamCommLog(
       workspace.id,
@@ -127,6 +128,20 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
         )
       },
       (err) => { console.error('comm stream error', err) },
+      () => {
+        // SSE 重连：拉取最近 20 条历史消息，利用 id 去重自动合并
+        commApi.getHistory(workspace.id, 20).then(r => {
+          if (r.items.length > 0) {
+            setMessages(prev => {
+              const existingIds = new Set(prev.map(m => m.id))
+              const newItems = r.items.filter(item => !existingIds.has(item.id))
+              if (newItems.length === 0) return prev
+              // 合并并按 id 排序保持时序
+              return [...prev, ...newItems].sort((a, b) => a.id - b.id)
+            })
+          }
+        }).catch(() => {})
+      },
     )
     return cancel
   }, [workspace.id])
