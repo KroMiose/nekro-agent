@@ -196,6 +196,9 @@ async def good_send(_ctx: AgentCtx, content: str) -> str:
 2. 用 TOOL 返回大量信息（应该用 AGENT）
 3. MULTIMODAL_AGENT 返回 string 而不是 Dict
 4. BEHAVIOR 不更新状态只返回信息（应该用 AGENT）
+5. **错误时返回字符串而非 raise 异常**（AI 无法触发修正）
+6. **返回自然语言描述而非纯数据**（AI 难以提取路径/ID 等关键信息）
+7. **TOOL 返回需要 AI 进一步处理的数据但标记为 BEHAVIOR**（如上传文件应返回路径供 AI 构建 prompt）
 
 ## 实用模式
 
@@ -453,9 +456,80 @@ async def good_prompt(_ctx: AgentCtx) -> str:
 
 ## 错误处理
 
+### 核心原则：必须 raise，禁止返回错误字符串
+
+**这是最重要的插件开发规则。** 当方法参数错误、前置条件不满足、或操作失败时，**必须 raise 异常**，**绝不能**返回包含错误描述的字符串。
+
+**原因：** AI 收到返回的字符串后无法区分「成功结果」和「错误描述」，会把错误信息当作正常结果转述给用户或传递给下游方法。只有 raise 异常才能触发 AI 的错误修正机制——AI 看到异常后会重新分析参数并尝试修正调用。
+
+```python
+# ❌ 严重错误：返回错误字符串 — AI 无法区分成功和失败
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "上传文件")
+async def bad_upload(_ctx: AgentCtx, path: str) -> str:
+    try:
+        host_path = _ctx.fs.get_file(path)
+    except Exception as e:
+        return f"无法解析路径: {e}"  # AI 会把这当作成功返回！
+    if not host_path.exists():
+        return f"文件不存在: {path}"  # AI 可能直接把这段话发送给用户
+    # ...
+    return f"文件已上传，路径: /workspace/shared/{host_path.name}"
+
+# ✅ 正确：raise 异常 — AI 收到错误后会尝试修正
+@plugin.mount_sandbox_method(SandboxMethodType.TOOL, "上传文件")
+async def good_upload(_ctx: AgentCtx, path: str) -> str:
+    try:
+        host_path = _ctx.fs.get_file(path)
+    except Exception as e:
+        raise ValueError(f"无法解析路径 '{path}': {e}，请使用沙盒路径如 /app/uploads/xxx") from e
+    if not host_path.exists():
+        raise ValueError(f"文件不存在: {path}")
+    # ...
+    return f"/workspace/shared/{host_path.name}"  # 只返回有用数据
+```
+
+### 返回值设计原则：只返回 AI 需要的数据
+
+返回值应该是 AI 后续操作需要的**纯数据**，而非面向用户的自然语言描述。
+
+```python
+# ❌ 错误：返回自然语言描述 — AI 难以提取有用信息
+async def bad_method(_ctx: AgentCtx, path: str) -> str:
+    # ...
+    return f"[插件名] 文件已上传至工作区数据目录。\nCC 可通过路径访问: /workspace/shared/{name}"
+
+# ✅ 正确：返回纯路径 — AI 可直接使用
+async def good_method(_ctx: AgentCtx, path: str) -> str:
+    # ...
+    return f"/workspace/shared/{name}"  # AI 可直接传给 delegate_to_cc
+```
+
+### TOOL 方法返回值 = AI 的操作素材
+
+TOOL 返回的字符串会直接进入 AI 的上下文。如果方法的结果是一个路径、ID、URL 等结构化数据，应该**直接返回该数据**，不要包裹在自然语言中。AI 可以自行组织语言告知用户。
+
+```python
+# 文件操作 → 返回路径
+async def upload_file(_ctx: AgentCtx, path: str) -> str:
+    # ...
+    return "/workspace/default/shared/result.csv"  # AI 用这个路径构建 delegate prompt
+
+# 查询操作 → 返回结构化结果
+async def search(_ctx: AgentCtx, query: str) -> str:
+    # ...
+    return f"找到 {count} 个结果:\n{formatted_results}"
+
+# 执行操作 → 返回简短确认
+async def delete_item(_ctx: AgentCtx, item_id: str) -> str:
+    # ...
+    return "ok"  # 简单操作只需确认
+```
+
+### 方法基础模板
+
 ```python
 async def robust_method(_ctx: AgentCtx, param: str) -> str:
-    # 参数验证
+    # 参数验证 — 必须 raise
     if not param or not param.strip():
         raise ValueError("参数不能为空")
 
@@ -463,10 +537,10 @@ async def robust_method(_ctx: AgentCtx, param: str) -> str:
         result = await operation(param)
         return result
     except ValueError as e:
-        raise ValueError(f"参数错误: {e}")
+        raise ValueError(f"参数错误: {e}") from e
     except Exception as e:
         core.logger.exception("操作失败")
-        raise Exception(f"执行失败: {e}")
+        raise Exception(f"执行失败: {e}") from e
 ```
 
 ## 配置选项
@@ -541,6 +615,8 @@ async def collect_available_methods(_ctx: AgentCtx) -> List:
 - [ ] `_ctx: AgentCtx` 参数在第一位
 - [ ] 文档字符串不暴露 `_ctx`
 - [ ] 选择正确的 SandboxMethodType
+- [ ] **错误/异常情况必须 raise，禁止返回错误字符串**
+- [ ] **TOOL 返回值是 AI 可直接使用的纯数据（路径/ID/结果），而非自然语言描述**
 - [ ] 异常处理完整
 - [ ] 实现清理方法
 - [ ] 参数验证

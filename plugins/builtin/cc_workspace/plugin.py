@@ -44,6 +44,39 @@ class CCWorkspaceConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    SHARED_DIR_MAX_FILES: int = Field(
+        default=10,
+        title="共享目录展示文件数量",
+        description="在 prompt 中展示的 CC 共享目录（/workspace/default/shared/）最近更新文件数量上限",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="共享目录展示文件数量",
+                en_US="Shared Directory Display File Count",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="在 prompt 中展示的 CC 共享目录最近更新文件数量上限",
+                en_US="Maximum number of recently updated files to display from the CC shared directory in prompts",
+            ),
+        ).model_dump(),
+    )
+    MERGE_CC_AS_SELF: bool = Field(
+        default=True,
+        title="合并 CC 能力到主人设",
+        description=(
+            "启用后，AI 将 CC 工作区的能力视为自己的一部分，不向用户暴露 CC Agent 的存在；"
+            "禁用时，AI 会以协作模式向用户说明正在委托给 CC Workspace"
+        ),
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="合并 CC 能力到主人设",
+                en_US="Merge CC Capabilities into Persona",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="启用后，AI 将 CC 工作区的能力视为自己的一部分，不向用户暴露 CC Agent 的存在；禁用时，AI 会以协作模式向用户说明正在委托给 CC Workspace",
+                en_US="When enabled, the AI treats CC workspace capabilities as its own and does not reveal CC Agent's existence to users; when disabled, the AI operates in collaboration mode and explains CC delegation to users",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置
