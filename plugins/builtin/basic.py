@@ -82,8 +82,8 @@ plugin = NekroPlugin(
         zh_CN="提供基础的聊天消息发送、图片/文件资源发送等基础功能",
         en_US="Provides basic chat messaging, image/file sending and other fundamental features",
     ),
-    # 开放给 telegram 使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram"],
+    # 开放给各适配器使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu"],
 )
 
 

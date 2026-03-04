@@ -416,6 +416,48 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
+  // 飞书适配器配置
+  feishu: {
+    key: 'feishu',
+    visual: {
+      displayName: 'names.feishu',
+      iconText: '飞书',
+      navIcon: <ChatIcon />,
+      description: '飞书开放平台适配器，通过 WebSocket 连接飞书机器人',
+      tags: ['飞书', 'Feishu', 'Lark', 'IM'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
   // // 企业微信智能机器人适配器配置
   // 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
   // 文档: https://developer.work.weixin.qq.com/document/path/101031
