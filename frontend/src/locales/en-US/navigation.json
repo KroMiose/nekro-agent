@@ -20,6 +20,8 @@
     "theme": "Theme",
     "spaceCleanup": "Space Cleanup",
     "commands": "Commands",
+    "commandSystem": "Command System",
+    "commandOutput": "Command Output",
     "profile": "Profile",
     "defaultTitle": "Admin Panel",
     "workspace": "Workspace",

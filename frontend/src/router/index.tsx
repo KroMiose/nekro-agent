@@ -129,6 +129,23 @@ const router = createHashRouter([
         ],
       },
       {
+        path: 'commands',
+        children: [
+          {
+            index: true,
+            element: <Navigate to="management" />,
+          },
+          {
+            path: 'management',
+            element: lazyLoad(() => import('../pages/settings/commands')),
+          },
+          {
+            path: 'output',
+            element: lazyLoad(() => import('../pages/commands/output')),
+          },
+        ],
+      },
+      {
         path: 'profile',
         element: lazyLoad(() => import('../pages/profile')),
       },

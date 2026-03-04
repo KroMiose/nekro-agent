@@ -1,4 +1,5 @@
 import axios from './axios'
+import { createEventStream } from './utils/stream'
 
 export interface CommandState {
   name: string
@@ -12,6 +13,14 @@ export interface CommandState {
   enabled: boolean
   has_channel_override: boolean
   params_schema?: Record<string, unknown>
+}
+
+export interface CommandOutputEvent {
+  chat_key: string
+  command_name: string
+  status: string
+  message: string
+  timestamp: number
 }
 
 export const commandsApi = {
@@ -44,5 +53,40 @@ export const commandsApi = {
   ): Promise<boolean> => {
     const response = await axios.post<{ ok: boolean }>('/commands/batch-set-state', { commands })
     return response.data.ok
+  },
+
+  streamCommandOutput: (
+    chatKey: string,
+    onMessage: (event: CommandOutputEvent) => void,
+    onError?: (error: Error) => void,
+  ): (() => void) => {
+    return createEventStream({
+      endpoint: `/commands/${chatKey}/output/stream`,
+      onMessage: (data: string) => {
+        try {
+          const event = JSON.parse(data) as CommandOutputEvent
+          onMessage(event)
+        } catch (error) {
+          console.error('Failed to parse command output event:', error)
+        }
+      },
+      onError,
+    })
+  },
+
+  webuiExecute: async (
+    commandName: string,
+    chatKey: string,
+    rawArgs: string = '',
+  ): Promise<{ ok: boolean; responses: Array<{ status: string; message: string }> }> => {
+    const response = await axios.post<{
+      ok: boolean
+      responses: Array<{ status: string; message: string }>
+    }>('/commands/webui-execute', {
+      command_name: commandName,
+      chat_key: chatKey,
+      raw_args: rawArgs,
+    })
+    return response.data
   },
 }
