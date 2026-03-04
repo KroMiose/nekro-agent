@@ -489,7 +489,10 @@ updated: "YYYY-MM-DD"
         await WorkspaceService.sync_skills(workspace)
 
         # 创建 shared 目录（CC↔NA 文件共享目录，NA 实时感知）
-        (ws_dir / "default" / "shared").mkdir(parents=True, exist_ok=True)
+        shared_dir = ws_dir / "default" / "shared"
+        shared_dir.mkdir(parents=True, exist_ok=True)
+        # 确保容器内的 appuser 有写入权限（bind mount 跨越用户边界时宿主机 owner 可能不匹配）
+        shared_dir.chmod(0o777)
 
         # 创建 .claude_home 目录（挂载到容器内 ~/.claude/，持久化 Claude Code 会话历史）
         claude_home = ws_dir / ".claude_home"

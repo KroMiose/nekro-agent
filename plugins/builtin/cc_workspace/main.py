@@ -674,7 +674,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     except Exception:
         pass
 
-    return (
+    result = (
         f"[CC Workspace]\n"
         f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
         f"运行策略: {workspace.runtime_policy}\n"

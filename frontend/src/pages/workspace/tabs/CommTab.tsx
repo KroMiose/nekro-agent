@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
   Button,
@@ -8,6 +8,7 @@ import {
   Tooltip,
   TextField,
   alpha,
+  Collapse,
 } from '@mui/material'
 import {
   Build as BuildIcon,
@@ -16,6 +17,8 @@ import {
   CheckCircle as CheckCircleIcon,
   ErrorOutline as ErrorOutlineIcon,
   StopCircle as StopCircleIcon,
+  HourglassBottom as HourglassIcon,
+  ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -52,6 +55,71 @@ const COMM_BUBBLE_MD_SX = {
 const isMac = typeof navigator !== 'undefined' &&
   (/Mac/.test(navigator.platform) || /Macintosh/.test(navigator.userAgent))
 
+// ── 工具调用聚合类型 ──────────────────────────────────────────────────
+interface ToolCallGroup {
+  toolUseId: string
+  callMsg: CommLogEntry
+  resultMsg: CommLogEntry | null
+  toolName: string
+  toolInput: Record<string, unknown>
+  description: string
+  primaryKey: string
+  primaryVal: string
+  resultContent: string
+  isError: boolean
+}
+
+// 从 TOOL_CALL 消息中提取显示信息
+const PRIMARY_PARAM_KEYS = ['command', 'file_path', 'pattern', 'url', 'query', 'prompt', 'notebook_path', 'path']
+
+function parseToolCall(msg: CommLogEntry): Omit<ToolCallGroup, 'resultMsg' | 'resultContent' | 'isError'> {
+  let toolName = '?'
+  let toolInput: Record<string, unknown> = {}
+  let toolUseId = ''
+  try {
+    const parsed = JSON.parse(msg.content)
+    toolName = parsed.name ?? '?'
+    toolInput = parsed.input ?? {}
+    toolUseId = parsed.tool_use_id ?? ''
+  } catch { /* ignore */ }
+
+  let primaryKey = ''
+  let primaryVal = ''
+  for (const k of PRIMARY_PARAM_KEYS) {
+    if (typeof toolInput[k] === 'string') { primaryKey = k; primaryVal = toolInput[k] as string; break }
+  }
+  if (!primaryKey && Object.keys(toolInput).length > 0) {
+    const firstKey = Object.keys(toolInput)[0]
+    if (firstKey !== 'description') {
+      primaryKey = firstKey
+      primaryVal = String(toolInput[firstKey])
+    }
+  }
+  const description = typeof toolInput['description'] === 'string' && toolInput['description']
+    ? (toolInput['description'] as string)
+    : ''
+
+  return { toolUseId, callMsg: msg, toolName, toolInput, description, primaryKey, primaryVal }
+}
+
+function parseToolResult(msg: CommLogEntry): { toolUseId: string; content: string; isError: boolean } {
+  let toolUseId = ''
+  let content = ''
+  let isError = false
+  try {
+    const parsed = JSON.parse(msg.content)
+    toolUseId = parsed.tool_use_id ?? ''
+    content = parsed.content ?? ''
+    isError = Boolean(parsed.is_error)
+  } catch { /* ignore */ }
+  return { toolUseId, content, isError }
+}
+
+// ── 聚合消息类型 ──────────────────────────────────────────────────────
+type DisplayItem =
+  | { type: 'message'; msg: CommLogEntry }
+  | { type: 'tool'; group: ToolCallGroup }
+
 export default function CommTab({ workspace, prefill, ccRunning }: { workspace: WorkspaceDetail; prefill?: string; ccRunning: boolean }) {
   const theme = useTheme()
   const notification = useNotification()
@@ -61,7 +129,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
   const [loadingMore, setLoadingMore] = useState(false)
   const [input, setInput] = useState(prefill ?? '')
   const [sending, setSending] = useState(false)
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set())
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const [cancelling, setCancelling] = useState(false)
 
@@ -136,7 +204,6 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
               const existingIds = new Set(prev.map(m => m.id))
               const newItems = r.items.filter(item => !existingIds.has(item.id))
               if (newItems.length === 0) return prev
-              // 合并并按 id 排序保持时序
               return [...prev, ...newItems].sort((a, b) => a.id - b.id)
             })
           }
@@ -146,12 +213,70 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     return cancel
   }, [workspace.id])
 
+  // ── 将原始消息聚合为 DisplayItem[] ──────────────────────────────────
+  const displayItems = useMemo<DisplayItem[]>(() => {
+    const items: DisplayItem[] = []
+    // tool_use_id → ToolCallGroup 索引
+    const toolMap = new Map<string, ToolCallGroup>()
+    // 已被合并的 TOOL_RESULT msg.id 集合（避免重复渲染）
+    const mergedResultIds = new Set<number>()
+
+    // 第一遍：收集所有 TOOL_CALL 并建立索引
+    for (const msg of messages) {
+      if (msg.direction === 'TOOL_CALL') {
+        const parsed = parseToolCall(msg)
+        if (parsed.toolUseId) {
+          toolMap.set(parsed.toolUseId, {
+            ...parsed,
+            resultMsg: null,
+            resultContent: '',
+            isError: false,
+          })
+        }
+      }
+    }
+
+    // 第二遍：匹配 TOOL_RESULT
+    for (const msg of messages) {
+      if (msg.direction === 'TOOL_RESULT') {
+        const parsed = parseToolResult(msg)
+        if (parsed.toolUseId && toolMap.has(parsed.toolUseId)) {
+          const group = toolMap.get(parsed.toolUseId)!
+          group.resultMsg = msg
+          group.resultContent = parsed.content
+          group.isError = parsed.isError
+          mergedResultIds.add(msg.id)
+        }
+      }
+    }
+
+    // 第三遍：构建显示列表
+    for (const msg of messages) {
+      if (msg.direction === 'TOOL_CALL') {
+        let toolUseId = ''
+        try { toolUseId = JSON.parse(msg.content).tool_use_id ?? '' } catch { /* ignore */ }
+        const group = toolUseId ? toolMap.get(toolUseId) : undefined
+        if (group) {
+          items.push({ type: 'tool', group })
+        } else {
+          items.push({ type: 'message', msg })
+        }
+      } else if (msg.direction === 'TOOL_RESULT' && mergedResultIds.has(msg.id)) {
+        // 已合并到 TOOL_CALL 卡片中，跳过
+        continue
+      } else {
+        items.push({ type: 'message', msg })
+      }
+    }
+
+    return items
+  }, [messages])
+
   // 新消息时如果用户在底部则自动滚动
   useEffect(() => {
     if (messages.length === 0) return
     const el = scrollRef.current
     if (!isInitializedRef.current) {
-      // 初次加载：瞬间跳到底部，避免 smooth 滚动触发 onScroll→loadMore
       if (el) el.scrollTop = el.scrollHeight
       isInitializedRef.current = true
     } else if (autoScrollRef.current) {
@@ -185,11 +310,11 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     }
   }
 
-  const toggleExpand = (id: number) => {
+  const toggleExpand = (key: string) => {
     setExpandedIds(prev => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
   }
@@ -219,15 +344,224 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     )
   }
 
+  const isLight = theme.palette.mode === 'light'
+  const tcColor = theme.palette.secondary.main
+
+  // ── 合并后的工具调用卡片 ───────────────────────────────────────────
+  const renderToolCard = (group: ToolCallGroup) => {
+    const { callMsg, resultMsg, toolName, toolInput, description, primaryKey, primaryVal, resultContent, isError } = group
+    const expandKey = `tool-${group.toolUseId}`
+    const expanded = expandedIds.has(expandKey)
+    const isDone = resultMsg !== null
+    const timeStr = new Date(callMsg.create_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+
+    // 计算耗时
+    let durationStr = ''
+    if (resultMsg) {
+      const callTime = new Date(callMsg.create_time).getTime()
+      const resultTime = new Date(resultMsg.create_time).getTime()
+      const seconds = (resultTime - callTime) / 1000
+      durationStr = seconds < 1 ? '<1s' : `${seconds.toFixed(1)}s`
+    }
+
+    // 状态颜色
+    const statusColor = !isDone
+      ? theme.palette.warning.main
+      : isError
+        ? theme.palette.error.main
+        : theme.palette.success.main
+
+    const borderColor = !isDone ? alpha(tcColor, 0.35) : alpha(statusColor, 0.45)
+
+    return (
+      <Box key={`tool-${callMsg.id}`} sx={{ mb: 0.4 }}>
+        {/* 摘要行 — 固定宽度范围，始终可见 */}
+        <Box
+          onClick={() => toggleExpand(expandKey)}
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.75,
+            minWidth: 180,
+            maxWidth: '80%',
+            px: 1.25,
+            py: 0.4,
+            cursor: 'pointer',
+            userSelect: 'none',
+            bgcolor: alpha(tcColor, isLight ? 0.08 : 0.12),
+            border: `1px solid ${alpha(tcColor, isLight ? 0.18 : 0.25)}`,
+            borderLeft: `3px solid ${borderColor}`,
+            borderRadius: 1.5,
+            '&:hover': { bgcolor: alpha(tcColor, isLight ? 0.13 : 0.18) },
+            transition: 'background-color 0.15s',
+          }}
+        >
+          {/* 状态图标 */}
+          {!isDone ? (
+            <HourglassIcon sx={{ fontSize: 13, color: 'warning.main', animation: 'spin 1.5s linear infinite', '@keyframes spin': { '100%': { transform: 'rotate(360deg)' } } }} />
+          ) : isError ? (
+            <ErrorOutlineIcon sx={{ fontSize: 13, color: 'error.main' }} />
+          ) : (
+            <CheckCircleIcon sx={{ fontSize: 13, color: 'success.main' }} />
+          )}
+
+          {/* 工具名 */}
+          <Typography variant="caption" sx={{ fontWeight: 700, color: tcColor, fontSize: '0.72rem', flexShrink: 0 }}>
+            {toolName}
+          </Typography>
+
+          {/* 描述摘要 */}
+          {(description || primaryVal) && (
+            <Typography
+              variant="caption"
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                color: 'text.secondary',
+                fontSize: '0.68rem',
+                fontStyle: description ? 'italic' : 'normal',
+                fontFamily: description ? 'inherit' : 'monospace',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {description || `${primaryKey}: ${primaryVal}`}
+            </Typography>
+          )}
+
+          {/* 耗时 / 执行中 */}
+          <Typography variant="caption" sx={{ color: statusColor, fontSize: '0.64rem', flexShrink: 0, fontWeight: 500 }}>
+            {!isDone ? t('detail.comm.toolRunning') : durationStr}
+          </Typography>
+
+          {/* 时间戳 */}
+          <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.62rem', flexShrink: 0 }}>
+            {timeStr}
+          </Typography>
+
+          {/* 展开箭头 */}
+          <ExpandMoreIcon sx={{
+            fontSize: 14,
+            color: 'text.disabled',
+            transition: 'transform 0.2s',
+            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+            flexShrink: 0,
+          }} />
+        </Box>
+
+        {/* 展开详情 — 独立区块 */}
+        <Collapse in={expanded} timeout={200}>
+          <Box sx={{
+            mt: 0.25,
+            ml: 1.5,
+            maxWidth: '88%',
+            bgcolor: alpha(tcColor, isLight ? 0.06 : 0.08),
+            border: `1px solid ${alpha(tcColor, isLight ? 0.15 : 0.20)}`,
+            borderRadius: 1,
+            px: 1.25,
+            py: 0.75,
+          }}>
+            {/* 输入参数 */}
+            {primaryVal && (
+              <Typography variant="caption" sx={{
+                display: 'block', fontFamily: 'monospace', color: 'text.secondary',
+                fontSize: '0.7rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all',
+                lineHeight: 1.4,
+              }}>
+                <Box component="span" sx={{ color: alpha(tcColor, 0.7) }}>{primaryKey}: </Box>
+                {primaryVal.slice(0, 500)}{primaryVal.length > 500 ? '…' : ''}
+              </Typography>
+            )}
+
+            {/* 完整参数 JSON（二级展开） */}
+            {Object.keys(toolInput).length > 1 && (
+              <>
+                <Button
+                  size="small" variant="text"
+                  onClick={(e) => { e.stopPropagation(); toggleExpand(`args-${group.toolUseId}`) }}
+                  sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: alpha(tcColor, 0.6) }}
+                >
+                  {expandedIds.has(`args-${group.toolUseId}`) ? t('detail.comm.collapseArgs') : t('detail.comm.expandArgs')}
+                </Button>
+                <Collapse in={expandedIds.has(`args-${group.toolUseId}`)} timeout={150}>
+                  <Box component="pre" sx={{
+                    fontSize: '0.66rem', mt: 0.5, mb: 0, p: 0.75,
+                    bgcolor: alpha(tcColor, isLight ? 0.10 : 0.12),
+                    borderRadius: 1, overflowX: 'auto', fontFamily: 'monospace',
+                    whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                  }}>
+                    {JSON.stringify(toolInput, null, 2)}
+                  </Box>
+                </Collapse>
+              </>
+            )}
+
+            {/* 执行结果 */}
+            {isDone && (
+              <Box sx={{ mt: primaryVal || Object.keys(toolInput).length > 1 ? 0.75 : 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.4 }}>
+                  {isError
+                    ? <ErrorOutlineIcon sx={{ fontSize: 11, color: 'error.main' }} />
+                    : <CheckCircleIcon sx={{ fontSize: 11, color: 'success.main' }} />}
+                  <Typography variant="caption" sx={{ color: isError ? 'error.main' : 'success.main', fontSize: '0.66rem', fontWeight: 500 }}>
+                    {isError ? t('detail.comm.execFailed') : t('detail.comm.execDone')}
+                  </Typography>
+                </Box>
+                {resultContent && (
+                  <>
+                    <Box sx={{
+                      bgcolor: alpha(isError ? theme.palette.error.main : theme.palette.success.main, isLight ? 0.08 : 0.12),
+                      borderRadius: 1,
+                      p: 0.75,
+                      maxHeight: expandedIds.has(`result-${group.toolUseId}`) ? 'none' : '120px',
+                      overflow: 'hidden',
+                      position: 'relative',
+                    }}>
+                      <MarkdownRenderer sx={{ ...COMM_BUBBLE_MD_SX, fontSize: '0.76rem', '& p': { ...COMM_BUBBLE_MD_SX['& p'], fontSize: '0.76rem' } }} enableHtml={false}>
+                        {expandedIds.has(`result-${group.toolUseId}`)
+                          ? resultContent
+                          : resultContent.slice(0, 600) + (resultContent.length > 600 ? '…' : '')}
+                      </MarkdownRenderer>
+                      {!expandedIds.has(`result-${group.toolUseId}`) && resultContent.length > 200 && (
+                        <Box sx={{
+                          position: 'absolute', bottom: 0, left: 0, right: 0, height: 32,
+                          background: isLight
+                            ? `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.95)})`
+                            : `linear-gradient(transparent, ${alpha(theme.palette.background.paper, 0.9)})`,
+                        }} />
+                      )}
+                    </Box>
+                    {resultContent.length > 200 && (
+                      <Button
+                        size="small" variant="text"
+                        onClick={(e) => { e.stopPropagation(); toggleExpand(`result-${group.toolUseId}`) }}
+                        sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: 'text.disabled' }}
+                      >
+                        {expandedIds.has(`result-${group.toolUseId}`)
+                          ? t('detail.comm.collapse')
+                          : t('detail.comm.expand', { chars: resultContent.length.toLocaleString() })}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </Box>
+            )}
+          </Box>
+        </Collapse>
+      </Box>
+    )
+  }
+
+  // ── 普通消息渲染 ────────────────────────────────────────────────────
   const renderMessage = (msg: CommLogEntry) => {
     const isRight = msg.direction === 'NA_TO_CC' || msg.direction === 'USER_TO_CC'
     const isSystem = msg.direction === 'SYSTEM'
     const MAX_LEN = 2000
     const isLong = msg.content.length > MAX_LEN
-    const expanded = expandedIds.has(msg.id)
+    const expanded = expandedIds.has(`msg-${msg.id}`)
     const displayContent = isLong && !expanded ? msg.content.slice(0, MAX_LEN) + '…' : msg.content
 
-    const isLight = theme.palette.mode === 'light'
     const dirColor: Record<string, string> = {
       NA_TO_CC: theme.palette.primary.main,
       CC_TO_NA: theme.palette.success.main,
@@ -245,77 +579,30 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     const label = dirLabel[msg.direction] ?? msg.direction
     const timeStr = new Date(msg.create_time).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 
-    // ── Tool call ──────────────────────────────────────────────
+    // 未匹配到 TOOL_CALL group 的独立 TOOL_CALL（不应发生，但作为 fallback）
     if (msg.direction === 'TOOL_CALL') {
       let toolName = '?'
-      let toolInput: Record<string, unknown> = {}
-      try {
-        const parsed = JSON.parse(msg.content)
-        toolName = parsed.name ?? '?'
-        toolInput = parsed.input ?? {}
-      } catch { /* ignore */ }
-
-      const tcColor = theme.palette.secondary.main
-      const primaryParamKeys = ['command', 'file_path', 'pattern', 'url', 'query', 'prompt', 'notebook_path', 'path']
-      let primaryKey = ''
-      let primaryVal = ''
-      for (const k of primaryParamKeys) {
-        if (typeof toolInput[k] === 'string') { primaryKey = k; primaryVal = toolInput[k] as string; break }
-      }
-      if (!primaryKey && Object.keys(toolInput).length > 0) {
-        const firstKey = Object.keys(toolInput)[0]
-        if (firstKey !== 'description') {
-          primaryKey = firstKey
-          primaryVal = String(toolInput[firstKey])
-        }
-      }
-      const description = typeof toolInput['description'] === 'string' && toolInput['description']
-        ? (toolInput['description'] as string)
-        : ''
-
+      try { toolName = JSON.parse(msg.content).name ?? '?' } catch { /* ignore */ }
       return (
-        <Box key={msg.id} sx={{ display: 'flex', justifyContent: 'flex-start', mb: 0.5 }}>
+        <Box key={msg.id} sx={{ display: 'flex', justifyContent: 'flex-start', mb: 0.4 }}>
           <Box sx={{
             maxWidth: '90%',
-            bgcolor: alpha(tcColor, isLight ? 0.1 : 0.05),
-            border: `1px solid ${alpha(tcColor, 0.18)}`,
-            borderLeft: `3px solid ${alpha(tcColor, 0.55)}`,
-            borderRadius: 1.5,
-            px: 1.5,
-            py: 0.75,
+            bgcolor: alpha(tcColor, isLight ? 0.08 : 0.12),
+            border: `1px solid ${alpha(tcColor, isLight ? 0.18 : 0.25)}`,
+            borderLeft: `3px solid ${alpha(tcColor, 0.35)}`,
+            borderRadius: 1.5, px: 1.25, py: 0.5,
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: (description || primaryVal) ? 0.4 : 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
               <BuildIcon sx={{ fontSize: 13, color: tcColor }} />
               <Typography variant="caption" sx={{ fontWeight: 700, color: tcColor, fontSize: '0.72rem' }}>{toolName}</Typography>
-              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem', ml: 'auto', flexShrink: 0 }}>{timeStr}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem', ml: 'auto' }}>{timeStr}</Typography>
             </Box>
-            {description && (
-              <Typography variant="caption" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.72rem', fontStyle: 'italic', mb: primaryVal ? 0.3 : 0, lineHeight: 1.4 }}>
-                {description}
-              </Typography>
-            )}
-            {primaryVal && (
-              <Typography variant="caption" sx={{ display: 'block', fontFamily: 'monospace', color: 'text.secondary', fontSize: '0.7rem', whiteSpace: 'pre-wrap', wordBreak: 'break-all', lineHeight: 1.4 }}>
-                <Box component="span" sx={{ color: alpha(tcColor, 0.7) }}>{primaryKey}: </Box>
-                {primaryVal.slice(0, 300)}{primaryVal.length > 300 ? '…' : ''}
-              </Typography>
-            )}
-            {expanded && Object.keys(toolInput).length > 0 && (
-              <Box component="pre" sx={{ fontSize: '0.68rem', mt: 0.5, mb: 0, p: 0.75, bgcolor: alpha(tcColor, isLight ? 0.08 : 0.04), borderRadius: 1, overflowX: 'auto', fontFamily: 'monospace', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {JSON.stringify(toolInput, null, 2)}
-              </Box>
-            )}
-            {Object.keys(toolInput).length > 0 && (
-              <Button size="small" variant="text" onClick={() => toggleExpand(msg.id)} sx={{ mt: 0.25, fontSize: '0.68rem', p: 0, minWidth: 0, color: alpha(tcColor, 0.7) }}>
-                {expanded ? t('detail.comm.collapseArgs') : t('detail.comm.expandArgs')}
-              </Button>
-            )}
           </Box>
         </Box>
       )
     }
 
-    // ── Tool result ────────────────────────────────────────────
+    // 未合并的独立 TOOL_RESULT fallback
     if (msg.direction === 'TOOL_RESULT') {
       let resultContent = ''
       let isError = false
@@ -324,42 +611,27 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
         resultContent = parsed.content ?? ''
         isError = Boolean(parsed.is_error)
       } catch { /* ignore */ }
-
-      const MAX_RESULT = 800
-      const trExpanded = expandedIds.has(msg.id)
-      const trLong = resultContent.length > MAX_RESULT
-      const displayResult = trLong && !trExpanded ? resultContent.slice(0, MAX_RESULT) + '…' : resultContent
       const trColor = isError ? theme.palette.error.main : theme.palette.success.main
-
       return (
-        <Box key={msg.id} sx={{ display: 'flex', justifyContent: 'flex-start', mb: 1 }}>
+        <Box key={msg.id} sx={{ display: 'flex', justifyContent: 'flex-start', mb: 0.4 }}>
           <Box sx={{
             maxWidth: '90%',
-            bgcolor: alpha(trColor, isLight ? 0.08 : 0.04),
-            border: `1px solid ${alpha(trColor, 0.18)}`,
-            borderLeft: `3px solid ${alpha(trColor, 0.45)}`,
-            borderRadius: 1.5,
-            px: 1.5,
-            py: 0.75,
+            bgcolor: alpha(trColor, isLight ? 0.08 : 0.12),
+            border: `1px solid ${alpha(trColor, isLight ? 0.18 : 0.25)}`,
+            borderLeft: `3px solid ${alpha(trColor, 0.35)}`,
+            borderRadius: 1.5, px: 1.25, py: 0.5,
           }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: displayResult ? 0.4 : 0 }}>
-              {isError
-                ? <ErrorOutlineIcon sx={{ fontSize: 13, color: 'error.main' }} />
-                : <CheckCircleIcon sx={{ fontSize: 13, color: 'success.main' }} />}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {isError ? <ErrorOutlineIcon sx={{ fontSize: 13, color: 'error.main' }} /> : <CheckCircleIcon sx={{ fontSize: 13, color: 'success.main' }} />}
               <Typography variant="caption" sx={{ color: isError ? 'error.main' : 'text.disabled', fontSize: '0.7rem' }}>
                 {isError ? t('detail.comm.execFailed') : t('detail.comm.execDone')}
               </Typography>
-              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem', ml: 'auto', flexShrink: 0 }}>{timeStr}</Typography>
+              <Typography variant="caption" sx={{ color: 'text.disabled', fontSize: '0.65rem', ml: 'auto' }}>{timeStr}</Typography>
             </Box>
-            {displayResult && (
-              <MarkdownRenderer sx={COMM_BUBBLE_MD_SX} enableHtml={false}>
-                {displayResult}
-              </MarkdownRenderer>
-            )}
-            {trLong && (
-              <Button size="small" variant="text" onClick={() => toggleExpand(msg.id)} sx={{ mt: 0.25, fontSize: '0.68rem', p: 0, minWidth: 0, color: 'text.disabled' }}>
-                {trExpanded ? t('detail.comm.collapse') : t('detail.comm.expand', { chars: resultContent.length.toLocaleString() })}
-              </Button>
+            {resultContent && (
+              <Typography variant="caption" sx={{ display: 'block', fontSize: '0.7rem', color: 'text.secondary', mt: 0.3, fontFamily: 'monospace' }}>
+                {resultContent.slice(0, 200)}{resultContent.length > 200 ? '…' : ''}
+              </Typography>
             )}
           </Box>
         </Box>
@@ -381,10 +653,18 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
         <Box
           sx={{
             maxWidth: '82%',
-            bgcolor: alpha(color, isLight ? 0.12 : 0.07),
-            border: `1px solid ${alpha(color, 0.22)}`,
-            borderRadius: 2,
-            p: 1.5,
+            background: isRight
+              ? (isLight ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.09)')
+              : (isLight ? `rgba(56, 139, 253, 0.08)` : `rgba(56, 139, 253, 0.18)`),
+            borderRadius: isRight ? '12px 2px 12px 12px' : '2px 12px 12px 12px',
+            px: 1.5,
+            py: 0.8,
+            transition: 'background 0.15s',
+            '&:hover': {
+              background: isRight
+                ? (isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.13)')
+                : (isLight ? `rgba(56, 139, 253, 0.13)` : `rgba(56, 139, 253, 0.25)`),
+            },
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75 }}>
@@ -405,7 +685,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             <Button
               size="small"
               variant="text"
-              onClick={() => toggleExpand(msg.id)}
+              onClick={() => toggleExpand(`msg-${msg.id}`)}
               sx={{ mt: 0.5, fontSize: '0.72rem', p: 0, minWidth: 0, color }}
             >
               {expanded ? t('detail.comm.collapse') : t('detail.comm.expand', { chars: msg.content.length.toLocaleString() })}
@@ -416,6 +696,12 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
     )
   }
 
+  // ── 渲染 DisplayItem ─────────────────────────────────────────────
+  const renderDisplayItem = (item: DisplayItem, _idx: number) => {
+    if (item.type === 'tool') return renderToolCard(item.group)
+    return renderMessage(item.msg)
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* 消息列表 */}
@@ -424,14 +710,11 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
         onScroll={() => {
           const el = scrollRef.current
           if (!el) return
-          // 距顶部 < 80px 时触发加载更多
           if (el.scrollTop < 80) loadMore()
-          // 检测用户是否在底部
           autoScrollRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120
         }}
-        sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 0.5, py: 1, ...SCROLLBAR_VARIANTS.thin.styles }}
+        sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 2, py: 1, ...SCROLLBAR_VARIANTS.thin.styles }}
       >
-        {/* 加载更多指示器 */}
         {hasMore && (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
             {loadingMore
@@ -440,19 +723,19 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             }
           </Box>
         )}
-        {messages.length === 0 ? (
+        {displayItems.length === 0 ? (
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1.5 }}>
             <ForumIcon sx={{ fontSize: 48, opacity: 0.15 }} />
             <Typography variant="body2" color="text.disabled">{t('detail.comm.noRecords')}</Typography>
             <Typography variant="caption" color="text.disabled">{t('detail.comm.noRecordsHint')}</Typography>
           </Box>
         ) : (
-          messages.map(renderMessage)
+          displayItems.map(renderDisplayItem)
         )}
         <div ref={endRef} />
       </Box>
 
-      {/* 手动发送区 */}
+      {/* 发送区 */}
       <Box
         sx={{
           flexShrink: 0,
@@ -462,24 +745,21 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
           px: 0.5,
         }}
       >
-        <Typography variant="caption" sx={{ color: 'warning.main', fontSize: '0.68rem', mb: 0.5, display: 'block' }}>
-          {t('detail.comm.sendWarning')}
-        </Typography>
-        {/* CC 工作状态指示条 */}
+        {/* CC 工作中：统一状态条（替代原先的警告+指示条双层设计） */}
         {ccRunning && (
           <Box sx={{
             display: 'flex',
             alignItems: 'center',
             gap: 0.75,
             mb: 0.5,
-            py: 0.25,
+            py: 0.4,
             px: 1,
-            bgcolor: alpha(theme.palette.info.main, 0.08),
-            border: `1px solid ${alpha(theme.palette.info.main, 0.2)}`,
+            bgcolor: alpha(theme.palette.success.main, 0.08),
+            border: `1px solid ${alpha(theme.palette.success.main, 0.2)}`,
             borderRadius: 1,
           }}>
-            <CircularProgress size={11} thickness={5} sx={{ color: 'info.main', flexShrink: 0 }} />
-            <Typography variant="caption" sx={{ color: 'info.main', fontSize: '0.72rem' }}>
+            <CircularProgress size={11} thickness={5} sx={{ color: 'success.main', flexShrink: 0 }} />
+            <Typography variant="caption" sx={{ color: 'success.main', fontSize: '0.72rem', fontWeight: 500 }}>
               {t('detail.comm.ccRunning')}
             </Typography>
             <Tooltip title={t('detail.comm.forceCancel')}>
@@ -508,12 +788,21 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                 handleSend()
               }
             }}
-            placeholder={isMac ? t('detail.comm.inputPlaceholderMac') : t('detail.comm.inputPlaceholderWin')}
+            placeholder={
+              ccRunning
+                ? t('detail.comm.ccRunning')
+                : (isMac ? t('detail.comm.inputPlaceholderMac') : t('detail.comm.inputPlaceholderWin'))
+            }
             multiline
             maxRows={5}
             fullWidth
             size="small"
             disabled={sending || ccRunning}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                fontSize: '0.85rem',
+              },
+            }}
           />
           <Tooltip title={ccRunning ? t('detail.comm.ccRunning') : t('detail.comm.sendTooltip')}>
             <span>

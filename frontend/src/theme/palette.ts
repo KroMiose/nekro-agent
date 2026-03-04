@@ -393,14 +393,14 @@ export function getMuiPaletteOptions(mode: PaletteMode, themeConfig: ThemeConfig
       paper: background.paper,
     },
     text: {
-      primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.92)' : 'rgba(0, 0, 0, 0.87)',
-      secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.68)' : 'rgba(0, 0, 0, 0.6)',
-      disabled: mode === 'dark' ? 'rgba(255, 255, 255, 0.48)' : 'rgba(0, 0, 0, 0.38)',
+      primary: mode === 'dark' ? 'rgba(255, 255, 255, 0.95)' : 'rgba(0, 0, 0, 0.87)',
+      secondary: mode === 'dark' ? 'rgba(255, 255, 255, 0.78)' : 'rgba(0, 0, 0, 0.6)',
+      disabled: mode === 'dark' ? 'rgba(255, 255, 255, 0.50)' : 'rgba(0, 0, 0, 0.38)',
     },
-    divider: mode === 'dark' ? 'rgba(255, 255, 255, 0.07)' : 'rgba(0, 0, 0, 0.12)',
+    divider: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.12)',
     action: {
-      active: mode === 'dark' ? 'rgba(255, 255, 255, 0.75)' : 'rgba(0, 0, 0, 0.6)',
-      hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.04)',
+      active: mode === 'dark' ? 'rgba(255, 255, 255, 0.80)' : 'rgba(0, 0, 0, 0.6)',
+      hover: mode === 'dark' ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.04)',
       selected:
         mode === 'dark'
           ? getAlphaColor(extendedPalette.primary.main, 0.18)

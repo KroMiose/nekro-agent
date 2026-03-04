@@ -286,7 +286,11 @@ export default function WorkspaceDetailPage() {
               onSandboxMutate={handleSandboxMutate}
             />
           )}
-          {activeTab === 2 && <CommTab workspace={workspace} prefill={commPrefill} ccRunning={ccWorking} />}
+          {activeTab === 2 && (
+            <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
+              <CommTab workspace={workspace} prefill={commPrefill} ccRunning={ccWorking} />
+            </Card>
+          )}
           {activeTab === 3 && <MemoryTab workspace={workspace} />}
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
           {activeTab === 5 && <PromptTab workspace={workspace} />}

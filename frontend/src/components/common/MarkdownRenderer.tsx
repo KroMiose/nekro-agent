@@ -47,7 +47,7 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
     marginBottom: theme.spacing(1),
   },
   '& p': {
-    color: theme.palette.text.secondary,
+    color: theme.palette.text.primary,
     lineHeight: 1.7,
     marginBottom: theme.spacing(2),
   },
@@ -69,15 +69,15 @@ const markdownStyles = (theme: Theme): SxProps<Theme> => ({
     lineHeight: 1.6,
   },
   '& code': {
-    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
-    color: theme.palette.mode === 'dark' ? '#ff6b6b' : '#d73a49',
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)',
+    color: theme.palette.mode === 'dark' ? '#f97583' : '#d73a49',
     padding: '2px 6px',
     borderRadius: '4px',
     fontFamily: 'Consolas, Monaco, "Courier New", monospace',
     fontSize: '0.875rem',
   },
   '& pre': {
-    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+    backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.25)' : 'rgba(0,0,0,0.04)',
     padding: theme.spacing(2),
     borderRadius: '8px',
     overflow: 'auto',
@@ -241,6 +241,7 @@ export default function MarkdownRenderer({
             style={mode === 'dark' ? vscDarkPlus : oneLight}
             language={match[1]}
             PreTag="div"
+            customStyle={{ background: 'transparent', margin: 0, padding: 0 }}
             {...props}
           >
             {String(children).replace(/\n$/, '')}
