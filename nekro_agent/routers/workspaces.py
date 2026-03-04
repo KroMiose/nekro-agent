@@ -418,6 +418,60 @@ async def reset_session(
         await client.reset_session(session_id)
     except CCSandboxError as e:
         raise OperationFailedError(operation="重置会话", detail=str(e)) from e
+
+    # 清理 NA 侧的对话上下文缓存，避免 Agent 误以为 CC 仍保留之前的会话记录
+    # 1. 写入 SYSTEM CommLog 标记会话已重置（让 get_cc_context 近期记录中包含此通知）
+    from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
+    from nekro_agent.services.workspace import comm_broadcast
+
+    try:
+        sys_log = await DBWorkspaceCommLog.create(
+            workspace_id=workspace_id,
+            direction="SYSTEM",
+            source_chat_key="",
+            content=(
+                "[会话重置] CC Workspace 的会话已被用户重置。"
+                "CC 不再保留此前任何对话记录和上下文，"
+                "后续委托请视为全新会话。"
+            ),
+            is_streaming=False,
+            task_id=None,
+        )
+        await comm_broadcast.publish(workspace_id, {
+            "id": sys_log.id,
+            "workspace_id": sys_log.workspace_id,
+            "direction": sys_log.direction,
+            "source_chat_key": sys_log.source_chat_key,
+            "content": sys_log.content,
+            "is_streaming": sys_log.is_streaming,
+            "task_id": sys_log.task_id,
+            "create_time": sys_log.create_time.isoformat(),
+        })
+    except Exception as e:
+        logger.warning(f"写入会话重置 CommLog 失败: {e}")
+
+    # 2. 清理所有绑定频道的 last_cc_task_prompt 缓存
+    from nekro_agent.models.db_chat_channel import DBChatChannel
+    from nekro_agent.models.db_plugin_data import DBPluginData
+
+    try:
+        bound_channels = await DBChatChannel.filter(workspace_id=workspace_id).all()
+        if bound_channels:
+            chat_keys = [ch.chat_key for ch in bound_channels]
+            # plugin_key 格式为 "author.module_name"，cc_workspace 插件的 key 是 "KroMiose.cc_workspace"
+            deleted_count = await DBPluginData.filter(
+                plugin_key="KroMiose.cc_workspace",
+                target_chat_key__in=chat_keys,
+                data_key="last_cc_task_prompt",
+            ).delete()
+            if deleted_count:
+                logger.info(
+                    f"会话重置：已清理 {deleted_count} 条 last_cc_task_prompt 缓存 "
+                    f"workspace_id={workspace_id}"
+                )
+    except Exception as e:
+        logger.warning(f"清理 last_cc_task_prompt 缓存失败: {e}")
+
     return ActionOkResponse(ok=True)
 
 

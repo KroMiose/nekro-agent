@@ -7,7 +7,7 @@ import {
   Tabs,
   Tab,
 } from '@mui/material'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   workspaceApi,
@@ -41,6 +41,7 @@ export default function WorkspaceDetailPage() {
   const navigate = useNavigate()
   const theme = useTheme()
   const { t } = useTranslation('workspace')
+  const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState(0)
   const [commPrefill, setCommPrefill] = useState('')
 
@@ -112,17 +113,26 @@ export default function WorkspaceDetailPage() {
   }, [ccWorking])
 
   // SSE 驱动：CC_STATUS 更新运行状态，TOOL_CALL/TOOL_RESULT 追踪当前工具名
+  // 重连时重新查询 queue 状态，避免断线期间丢失 CC_STATUS 事件
   useEffect(() => {
     if (!workspace) return
-    return streamCommLog(workspaceId, entry => {
-      if (entry.direction === 'CC_STATUS') {
-        try { setCcWorking((JSON.parse(entry.content) as { running: boolean }).running) } catch { /* */ }
-      } else if (entry.direction === 'TOOL_CALL') {
-        try { setCcCurrentTool(JSON.parse(entry.content).name ?? null) } catch { /* */ }
-      } else if (entry.direction === 'TOOL_RESULT') {
-        setCcCurrentTool(null)
-      }
-    })
+    return streamCommLog(
+      workspaceId,
+      entry => {
+        if (entry.direction === 'CC_STATUS') {
+          try { setCcWorking((JSON.parse(entry.content) as { running: boolean }).running) } catch { /* */ }
+        } else if (entry.direction === 'TOOL_CALL') {
+          try { setCcCurrentTool(JSON.parse(entry.content).name ?? null) } catch { /* */ }
+        } else if (entry.direction === 'TOOL_RESULT') {
+          setCcCurrentTool(null)
+        }
+      },
+      undefined,
+      () => {
+        // SSE 重连后：重新查询 queue 状态，补偿断线期间可能丢失的 CC_STATUS 事件
+        queryClient.invalidateQueries({ queryKey: ['workspace-comm-queue', workspaceId] })
+      },
+    )
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId, workspace?.id])
 
@@ -276,7 +286,11 @@ export default function WorkspaceDetailPage() {
               onSandboxMutate={handleSandboxMutate}
             />
           )}
-          {activeTab === 2 && <CommTab workspace={workspace} prefill={commPrefill} ccRunning={ccWorking} />}
+          {activeTab === 2 && (
+            <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
+              <CommTab workspace={workspace} prefill={commPrefill} ccRunning={ccWorking} />
+            </Card>
+          )}
           {activeTab === 3 && <MemoryTab workspace={workspace} />}
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
           {activeTab === 5 && <PromptTab workspace={workspace} />}

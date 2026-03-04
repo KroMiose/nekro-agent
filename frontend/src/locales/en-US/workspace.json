@@ -483,6 +483,7 @@
       },
       "expandArgs": "View full args",
       "collapseArgs": "Collapse args",
+      "toolRunning": "Running…",
       "execFailed": "Exec failed",
       "execDone": "Exec done",
       "collapse": "Collapse",

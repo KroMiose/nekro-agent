@@ -20,7 +20,6 @@ import {
   List,
   ListItem,
   ListItemButton,
-  ListItemText,
   Collapse,
   ToggleButtonGroup,
   ToggleButton,
@@ -950,7 +949,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   )
 
   // 选择用户
-  const handleSelectUser = (userid: string, nickname: string) => {
+  const handleSelectUser = (userid: string, _nickname: string) => {
     const atIndex = inputValue.lastIndexOf('@')
     const before = inputValue.slice(0, atIndex)
     const newValue = `${before}[@id:${userid}@] `
@@ -1268,10 +1267,10 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                             position: 'relative',
                             background: isBot
                               ? isDark
-                                ? 'rgba(56, 139, 253, 0.15)'
+                                ? 'rgba(56, 139, 253, 0.18)'
                                 : 'rgba(56, 139, 253, 0.08)'
                               : isDark
-                                ? 'rgba(255, 255, 255, 0.06)'
+                                ? 'rgba(255, 255, 255, 0.09)'
                                 : 'rgba(0, 0, 0, 0.04)',
                             borderRadius: isBot
                               ? isContinuation
@@ -1287,10 +1286,10 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                             '&:hover': {
                               background: isBot
                                 ? isDark
-                                  ? 'rgba(56, 139, 253, 0.22)'
+                                  ? 'rgba(56, 139, 253, 0.25)'
                                   : 'rgba(56, 139, 253, 0.13)'
                                 : isDark
-                                  ? 'rgba(255, 255, 255, 0.1)'
+                                  ? 'rgba(255, 255, 255, 0.13)'
                                   : 'rgba(0, 0, 0, 0.06)',
                             },
                           }}

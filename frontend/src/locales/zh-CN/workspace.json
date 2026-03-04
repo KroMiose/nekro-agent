@@ -483,6 +483,7 @@
       },
       "expandArgs": "查看完整参数",
       "collapseArgs": "收起参数",
+      "toolRunning": "执行中…",
       "execFailed": "执行失败",
       "execDone": "执行完成",
       "collapse": "收起",

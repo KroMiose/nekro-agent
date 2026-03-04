@@ -43,7 +43,7 @@ from nekro_agent.services.workspace.manager import WorkspaceService
 from .plugin import cc_config, plugin
 
 _TASK_TYPE = "cc_delegate"
-_CC_DATA_TIMEOUT: float = 120.0  # 120s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
+_CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
 
 
 # ---------------------------------------------------------------------------
@@ -130,18 +130,21 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
     source_chat_key: str = item.get("source_chat_key", "")
     result: str = item.get("result", "")
     result_id: str = item.get("id", "")
+    is_error: bool = item.get("is_error", False)
+    error_code: str = item.get("error_code", "")
 
     if not source_chat_key or not result.strip():
         logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
         return
 
-    # 写入 CC_TO_NA 通讯日志并广播
+    # 写入通讯日志并广播
     try:
+        direction = "SYSTEM" if is_error else "CC_TO_NA"
         cc_log = await DBWorkspaceCommLog.create(
             workspace_id=workspace.id,
-            direction="CC_TO_NA",
+            direction=direction,
             source_chat_key=source_chat_key,
-            content=result,
+            content=result if not is_error else f"[CC 错误] {result}",
             is_streaming=False,
             task_id=f"cc_delegate:{source_chat_key}",
         )
@@ -158,22 +161,33 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
     except Exception as e:
         logger.warning(f"[cc_workspace] 投递({source})：写入通讯日志失败 (id={result_id!r}): {e}")
 
-    # CC 后台任务完成，广播状态结束（对应 SSE 超时后 CC 继续运行的情况）
+    # CC 后台任务完成，广播状态结束
     await _broadcast_cc_status(workspace.id, False)
 
     # 推送系统消息并触发 NA Agent
     try:
-        if source == "startup":
-            prefix = (
+        if is_error:
+            # 错误结果：明确告知 Agent 这是一个错误，不要盲目重试
+            notify_msg = (
+                f"[CC Workspace 任务失败] CC 执行委托任务时遇到错误"
+                f"（来自工作区: {workspace.name}）。\n"
+                f"错误信息: {result}\n"
+                + (f"错误代码: {error_code}\n" if error_code else "")
+                + "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
+                "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试。"
+            )
+        elif source == "startup":
+            notify_msg = (
                 f"[CC Workspace 恢复结果] NA 服务重启前，CC 已完成一个委托任务，"
                 f"结果如下（来自工作区: {workspace.name}）：\n\n"
+                f"[CC Workspace 执行结果]\n{result}"
             )
         else:
-            prefix = (
+            notify_msg = (
                 f"[CC Workspace 后台结果] CC 已完成一个后台委托任务，"
                 f"结果如下（来自工作区: {workspace.name}）：\n\n"
+                f"[CC Workspace 执行结果]\n{result}"
             )
-        notify_msg = prefix + f"[CC Workspace 执行结果]\n{result}"
         await message_service.push_system_message(
             chat_key=source_chat_key,
             agent_messages=notify_msg,
@@ -324,6 +338,10 @@ async def _cc_delegate_task(
 
     try:
         yield TaskCtl.report_progress("CC Sandbox 任务已开始执行...", percent=0)
+        logger.info(
+            f"[cc_workspace] cc_delegate 开始: workspace={workspace_id} "
+            f"chat_key={handle.task_id!r} prompt_len={len(task_prompt)}"
+        )
 
         async def _on_queued(event: dict) -> None:
             current = event.get("current_task") or {}
@@ -354,22 +372,25 @@ async def _cc_delegate_task(
             except StopAsyncIteration:
                 break
             except asyncio.TimeoutError:
+                # 主动关闭 SSE 流
                 try:
                     await asyncio.wait_for(_stream.aclose(), timeout=5.0)
                 except Exception:
                     pass
+                # 主动中止 CC 侧任务——不再让 CC 在后台继续空转
+                try:
+                    await client.force_cancel_current_task(workspace_id="default")
+                except Exception:
+                    pass
                 logger.warning(
-                    "[cc_workspace] SSE 数据超时（%ds 无有效响应），"
-                    "CC 任务已转入后台继续执行，等待后台监听器投递结果。"
-                    " workspace=%d chat_key=%r",
-                    int(_CC_DATA_TIMEOUT),
-                    workspace_id,
-                    handle.task_id,
+                    f"[cc_workspace] SSE 数据超时（{int(_CC_DATA_TIMEOUT)}s 无有效响应），"
+                    f"已主动中止 CC 任务。workspace={workspace_id} chat_key={handle.task_id!r} "
+                    f"received_chunks={chunk_count} received_chars={sum(len(c) for c in chunks)}"
                 )
-                # 写入 SYSTEM 方向 CommLog，CommTab 收到后可复位"执行中"状态
+                # 写入 SYSTEM 方向 CommLog，前端 CommTab 可感知
                 _timeout_notice = (
-                    f"[CC 任务已转入后台] {_CC_DATA_TIMEOUT:.0f}s 内未收到新数据，"
-                    "NA 已释放等待连接。CC 仍在后台继续运行，结果将在完成后自动推送。"
+                    f"[CC 任务超时中止] {_CC_DATA_TIMEOUT:.0f}s 内未收到任何数据，"
+                    "NA 已主动中止该 CC 任务。这通常意味着 CC 模型服务不可用或网络异常。"
                 )
                 try:
                     _sys_log = await DBWorkspaceCommLog.create(
@@ -391,11 +412,12 @@ async def _cc_delegate_task(
                         "create_time": _sys_log.create_time.isoformat(),
                     })
                 except Exception as _e:
-                    logger.warning("[cc_workspace] 写入超时 SYSTEM CommLog 失败: %s", _e)
-                yield TaskCtl.success(
-                    f"CC Sandbox {_CC_DATA_TIMEOUT:.0f}s 内无新数据（CC 可能正在排队等待执行）。\n"
-                    "CC 任务已转入后台继续运行——结果将在 CC 完成后自动推送到本频道，请耐心等待。\n"
-                    "如需强制取消 CC 当前任务，请调用 force_cancel_cc_workspace。"
+                    logger.warning(f"[cc_workspace] 写入超时 SYSTEM CommLog 失败: {_e}")
+                await _broadcast_cc_status(workspace_id, False)
+                yield TaskCtl.fail(
+                    f"CC Sandbox 执行超时（{_CC_DATA_TIMEOUT:.0f}s 内无任何响应），任务已被中止。\n"
+                    "这通常表示 CC 模型服务暂时不可用（API 超时/网络异常/服务过载）。\n"
+                    "请告知用户 CC 当前不可用，建议稍后重试。不要立即自动重试，连续重试只会浪费时间。"
                 )
                 return
 
@@ -502,12 +524,19 @@ async def _cc_delegate_task(
         yield TaskCtl.success(f"[CC Workspace 执行结果]\n{full_result}", data=full_result)
 
     except CCSandboxError as e:
-        logger.error(f"[cc_workspace] cc_delegate 流式执行失败: {e}")
+        logger.error(
+            f"[cc_workspace] cc_delegate 流式执行失败: {e} "
+            f"workspace={workspace_id} chat_key={handle.task_id!r} "
+            f"received_chunks={chunk_count} received_chars={sum(len(c) for c in chunks)}"
+        )
         await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Sandbox 执行失败: {e}")
         await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Sandbox 执行失败: {e}")
     except Exception as e:
-        logger.exception(f"[cc_workspace] cc_delegate 异常: {e}")
+        logger.exception(
+            f"[cc_workspace] cc_delegate 异常: {e} "
+            f"workspace={workspace_id} chat_key={handle.task_id!r}"
+        )
         await _broadcast_error_comm_log(workspace_id, handle.task_id, f"[CC 错误] CC Workspace 发生意外错误: {e}")
         await _broadcast_cc_status(workspace_id, False)
         yield TaskCtl.fail(f"CC Workspace 发生意外错误: {e}")
@@ -629,7 +658,23 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
                 "可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。]\n"
             )
 
-    return (
+    # 扫描 shared 目录，注入最近更新的文件列表
+    shared_files_hint = ""
+    try:
+        shared_files = WorkspaceService.scan_shared_dir(
+            workspace.id, max_files=cc_config.SHARED_DIR_MAX_FILES
+        )
+        if shared_files:
+            lines = [f"  {f['rel_path']} ({f['size_human']}, {f['mtime_str']})" for f in shared_files]
+            shared_files_hint = (
+                "\n[CC 共享目录文件（/workspace/default/shared/）]\n"
+                + "\n".join(lines)
+                + "\n可通过 download_file_from_cc 下载这些文件或 CC 工作区内的任意文件。\n"
+            )
+    except Exception:
+        pass
+
+    result = (
         f"[CC Workspace]\n"
         f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
         f"运行策略: {workspace.runtime_policy}\n"
@@ -637,6 +682,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"{capability_hint}"
         f"{memory_hint}"
         f"{task_hint}"
+        f"{shared_files_hint}"
         f"可通过 `delegate_to_cc` 将复杂的编程/工具任务**异步**委托给 CC Sandbox 后台执行（完成后自动回传），"
         f"通过 `upload_file_to_cc` / `download_file_from_cc` 与 CC Workspace 传递文件，"
         f"通过 `get_cc_context` 查询工作区协作上下文（任务状态 + 原始任务 + 通讯历史）。\n"
@@ -653,7 +699,35 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"- **描述目标，而非步骤**：告诉 CC「做什么」和「为什么」，让 CC 自行探索工作区并决定实现方式，"
         f"绝不要下达精细化的代码修改指令（如'将第X行改为...'）\n"
         f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托\n"
+        f"\n"
+        f"[CC 结果呈递 — 用户无法直接看到 CC 的工作过程和返回内容]\n"
+        f"**重要：用户看不到 CC Workspace 的工作过程、通讯记录和返回结果。**用户只能看到你在本频道发送的消息。"
+        f"因此当 CC 完成任务返回结果时，你必须以合适的方式向用户呈递结果，而不能简单地说「CC 已完成」或只给出极简摘要。"
+        f"根据任务性质，选择最合适的结果呈递方式：\n"
+        f"- **简单反馈**：对于简单操作（如文件创建、命令执行、配置修改等），简要告知结果和关键信息即可\n"
+        f"- **详细转述**：对于分析、调研、代码审查等知识密集型任务，应详细转述 CC 的发现和结论，保留关键细节\n"
+        f"- **文件传递**：对于生成报告、文档、代码文件等产出物，应通过 `download_file_from_cc` 提取文件并发送给用户。"
+        f"在委托任务时就应与 CC 约定好产出形式（如「请将分析结果写入 /workspace/default/shared/xxx-report.md」）\n"
+        f"- **用户指定形式**：如果用户明确要求了结果形式（如「给我一份报告」「列出所有问题」），按用户要求呈递\n"
+        f"- **自动判断**：如果用户没有指定，根据上下文判断最合适的呈递方式——较长的分析结果考虑生成文件，"
+        f"简短的操作结果直接文本反馈，代码修改结果说明改了什么和为什么\n"
     )
+
+    # ── 人设融合模式：将 CC 能力合并到主人设 ──────────────────────────────────
+    if cc_config.MERGE_CC_AS_SELF:
+        result += (
+            "\n[角色融合 — 必须严格遵守]\n"
+            "**你不应向用户暴露 CC Workspace / CC Agent / CC 沙盒 等内部概念的存在。**"
+            "在用户视角中，你就是一个拥有代码编写、文件处理、命令执行等全能能力的 AI 助手。\n"
+            "具体要求：\n"
+            "- 当你使用 `delegate_to_cc` 执行编码/文件/命令任务时，对用户呈现为「我来做」「我正在处理」而非「我委托给 CC」\n"
+            "- 当任务在后台执行时，对用户说「我正在处理中，完成后会告诉你」而非「CC 正在执行」\n"
+            "- 当结果回传时，以第一人称呈递，如「我已经完成了...」而非「CC 返回了...」\n"
+            "- 不要提及「工作区」「沙盒」「容器」「委托」等技术术语\n"
+            "- 如果用户好奇你的能力，用自然的方式说明你可以编写代码、运行命令、处理文件等，无需解释背后机制\n"
+        )
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -700,8 +774,8 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
     # 当前频道已绑定工作区时，不允许重复创建
     existing = await _ctx.get_bound_workspace()
     if existing is not None:
-        return (
-            f"[CC Workspace] 当前频道已绑定工作区 '{existing.name}'（ID: {existing.id}，状态: {existing.status}）。\n"
+        raise ValueError(
+            f"当前频道已绑定工作区 '{existing.name}'（ID: {existing.id}，状态: {existing.status}）。"
             f"如果沙盒未运行，请调用 `start_cc_sandbox` 启动容器。"
         )
 
@@ -722,7 +796,7 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
         )
     except Exception as e:
         logger.error(f"[cc_workspace] 创建工作区失败: {e}")
-        return f"[CC Workspace] 创建工作区失败：{e}"
+        raise ValueError(f"创建工作区失败：{e}") from e
 
     # 绑定到当前频道
     try:
@@ -733,11 +807,11 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
             await ws.delete()
         except Exception:
             pass
-        return f"[CC Workspace] 工作区创建成功但绑定到当前频道失败：{e}"
+        raise ValueError(f"工作区创建成功但绑定到当前频道失败：{e}") from e
 
     logger.info(f"[cc_workspace] 已创建并绑定工作区: {final_name}（ID: {ws.id}），chat_key={chat_key}")
     return (
-        f"[CC Workspace] 工作区已创建并绑定到当前频道。\n"
+        f"工作区已创建并绑定到当前频道。\n"
         f"工作区名称: {final_name}（ID: {ws.id}）\n"
         f"运行策略: agent\n"
         f"下一步：调用 `start_cc_sandbox` 启动沙盒容器，即可开始使用 CC Workspace。"
@@ -773,12 +847,11 @@ async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定工作区，请先调用 `create_and_bind_workspace` 创建工作区。"
+        raise ValueError("当前频道未绑定工作区，请先调用 `create_and_bind_workspace` 创建工作区。")
 
     if workspace.status == "active":
-        return (
-            f"[CC Workspace] 工作区 '{workspace.name}' 的沙盒已在运行中，无需重复启动。\n"
-            f"可通过 `delegate_to_cc` 直接委托任务。"
+        raise ValueError(
+            f"工作区 '{workspace.name}' 的沙盒已在运行中，无需重复启动。可通过 `delegate_to_cc` 直接委托任务。"
         )
 
     # 确定镜像名称并检查本地是否存在
@@ -788,10 +861,10 @@ async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
 
     image_exists = await _check_sandbox_image_exists(image)
     if not image_exists:
-        return (
-            f"[CC Workspace] 本地未找到沙盒镜像 `{image}`，无法启动容器。\n"
+        raise ValueError(
+            f"本地未找到沙盒镜像 `{image}`，无法启动容器。\n"
             f"请通知用户在宿主机（或 NA 容器内）执行以下命令拉取镜像：\n"
-            f"```\ndocker pull {image}\n```\n"
+            f"docker pull {image}\n"
             f"拉取完成后，重新调用 `start_cc_sandbox` 即可启动。"
         )
 
@@ -800,20 +873,20 @@ async def start_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
         await SandboxContainerManager.create_and_start(workspace)
         logger.info(f"[cc_workspace] 沙盒已启动: workspace={workspace.name}（ID: {workspace.id}）")
         return (
-            f"[CC Workspace] 沙盒已成功启动！\n"
+            f"沙盒已成功启动！\n"
             f"工作区: {workspace.name}（ID: {workspace.id}）\n"
             f"现在可以通过 `delegate_to_cc` 向 CC Workspace 委托编程任务了。"
         )
     except RuntimeError as e:
         logger.error(f"[cc_workspace] 启动沙盒失败: {e}")
-        return (
-            f"[CC Workspace] 沙盒启动失败：{e}\n"
-            f"可能原因：容器健康检查超时，或镜像/配置异常。\n"
+        raise ValueError(
+            f"沙盒启动失败：{e}\n"
+            f"可能原因：容器健康检查超时，或镜像/配置异常。"
             f"建议告知用户检查 Docker 日志，或在工作区管理页面查看详细错误信息。"
-        )
+        ) from e
     except Exception as e:
         logger.error(f"[cc_workspace] 启动沙盒异常: {e}")
-        return f"[CC Workspace] 启动沙盒时发生意外错误：{e}"
+        raise ValueError(f"启动沙盒时发生意外错误：{e}") from e
 
 
 @plugin.mount_sandbox_method(
@@ -859,6 +932,10 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
        the workspace and decide HOW. Never give line-level code edit instructions.
     6. **Relay clarification requests**: If CC's response contains "[需要澄清]" questions,
        relay them to the user before delegating again.
+    7. **Negotiate output format**: If the task produces substantial output (analysis, report,
+       documentation), instruct CC to write the result to a file (e.g., `/workspace/default/shared/report.md`)
+       so you can retrieve it via `download_file_from_cc`. For short results, CC can return
+       them directly in its response text.
 
     Args:
         task_prompt (str): A self-contained task description including the user's full
@@ -893,22 +970,20 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定任何 CC Workspace，无法委托任务。请先在工作区管理页面绑定频道。"
+        raise ValueError("当前频道未绑定任何 CC Workspace，无法委托任务。请先在工作区管理页面绑定频道。")
 
     if workspace.status != "active":
-        return (
-            f"[CC Workspace] 工作区 '{workspace.name}' 当前状态为 {workspace.status}，"
-            f"无法接受任务。请先启动工作区后重试。"
+        raise ValueError(
+            f"工作区 '{workspace.name}' 当前状态为 {workspace.status}，无法接受任务。请先启动工作区后重试。"
         )
 
     chat_key = _ctx.from_chat_key
     task_id = chat_key  # 每个频道同时只允许一个 CC 任务
 
     if task_api.is_running(_TASK_TYPE, task_id):
-        return (
-            f"[CC Workspace] 当前频道已有 CC 任务在后台执行中。\n"
-            f"请等待当前任务完成（完成后结果将自动推回本会话），"
-            f"或使用 `cancel_cc_task` 取消后再委托新任务。"
+        raise ValueError(
+            "当前频道已有 CC 任务在后台执行中。"
+            "请等待当前任务完成，或使用 `cancel_cc_task` 取消后再委托新任务。"
         )
 
     # 持久化 task_prompt，供结果回传时提醒 NA 本次任务的原始目标
@@ -960,7 +1035,7 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
         )
     except ValueError as e:
         logger.error(f"[cc_workspace] 启动 CC 任务失败: {e}")
-        return f"[CC Workspace] 启动任务失败: {e}"
+        raise ValueError(f"启动 CC 任务失败: {e}") from e
 
 
 @plugin.mount_sandbox_method(
@@ -985,7 +1060,7 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
     """
     task_id = _ctx.from_chat_key
     if not task_api.is_running(_TASK_TYPE, task_id):
-        return "[CC Workspace] 当前没有正在运行的 CC 委托任务。"
+        raise ValueError("当前没有正在运行的 CC 委托任务。")
 
     # 先取消 NA 侧异步任务
     cancelled = await task_api.cancel(_TASK_TYPE, task_id)
@@ -1013,8 +1088,8 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
             else "（NA 侧已取消，CC 沙盒进程可能仍在后台运行，可用 `force_cancel_cc_workspace` 手动终止）"
         )
         logger.info(f"[cc_workspace] 已取消 CC 任务，chat_key={task_id}")
-        return f"[CC Workspace] CC 委托任务已成功取消 {cc_hint}。"
-    return "[CC Workspace] 取消任务失败，任务可能已结束。"
+        return f"CC 委托任务已成功取消 {cc_hint}。"
+    raise ValueError("取消任务失败，任务可能已结束。")
 
 
 @plugin.mount_sandbox_method(
@@ -1050,7 +1125,7 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定任何 CC Workspace。"
+        raise ValueError("当前频道未绑定任何 CC Workspace。")
 
     chat_key = _ctx.from_chat_key
     task_id = chat_key
@@ -1152,14 +1227,14 @@ async def force_cancel_cc_workspace(_ctx: schemas.AgentCtx) -> str:
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定任何 CC Workspace，无法取消任务。"
+        raise ValueError("当前频道未绑定任何 CC Workspace，无法取消任务。")
 
     client = CCSandboxClient(workspace)
     queue_status = await client.get_workspace_queue(workspace_id="default")
     current_task = queue_status.get("current_task")
 
     if not current_task:
-        return "[CC Workspace] 当前工作区没有正在运行的任务。"
+        raise ValueError("当前工作区没有正在运行的任务。")
 
     src = current_task.get("source_chat_key", "未知频道")
     elapsed = current_task.get("elapsed_seconds", 0)
@@ -1168,120 +1243,150 @@ async def force_cancel_cc_workspace(_ctx: schemas.AgentCtx) -> str:
     if cancelled:
         logger.info(f"[cc_workspace] force_cancel_cc_workspace: 已取消来自 {src} 的任务（workspace={workspace.id}）")
         return (
-            f"[CC Workspace] 已强制取消来自频道 `{src}` 的任务（已运行 {elapsed:.0f}s）。\n"
+            f"已强制取消来自频道 `{src}` 的任务（已运行 {elapsed:.0f}s）。\n"
             f"该任务的执行结果将会丢失，频道 `{src}` 的委托任务将收到取消通知。"
         )
-    return "[CC Workspace] 取消失败，任务可能已经执行完毕。"
+    raise ValueError("取消失败，任务可能已经执行完毕。")
 
 
 @plugin.mount_sandbox_method(
-    SandboxMethodType.BEHAVIOR,
+    SandboxMethodType.TOOL,
     "上传文件到 CC Workspace",
     description=(
-        "将主沙盒中的文件复制到 CC Workspace 的 data/ 目录，供 CC 沙盒直接通过文件系统访问。"
-        "CC 可通过绝对路径 /workspace/default/data/<文件名> 读取该文件。"
-        "适用于需要将用户提供的数据文件交给 CC 处理的场景。"
+        "将主沙盒中的文件复制到 CC Workspace 的 shared/ 目录，供 CC 沙盒直接通过文件系统访问。"
+        "返回 CC 容器内可访问的绝对路径（如 /workspace/default/shared/report.pdf），"
+        "可直接将此路径写入 delegate_to_cc 的 task_prompt 中告知 CC 文件位置。"
     ),
 )
 async def upload_file_to_cc(_ctx: schemas.AgentCtx, sandbox_file_path: str, dest_name: str = "") -> str:
-    """Copy a file from the current sandbox into the bound CC Workspace data directory.
+    """Copy a file from the current sandbox into the bound CC Workspace shared directory.
 
-    The file will be placed in the CC Workspace's `data/` directory so that CC Sandbox
-    can access it directly via its own file system.
+    Returns the CC-side absolute path that CC can use to access the file.
+    Use this path directly in your task_prompt when delegating tasks to CC.
 
     Args:
         sandbox_file_path (str): Path to the file inside the current sandbox
-            (e.g., `./output/result.csv` or `/home/user/shared/report.pdf`).
+            (e.g., `/app/uploads/result.csv` or `/app/shared/report.pdf`).
         dest_name (str): Optional destination filename. If empty, the original filename is kept.
 
     Returns:
-        str: Success message with the path CC Sandbox can use to access the file,
-             or an error message.
+        str: The CC-side absolute path (e.g., `/workspace/default/shared/result.csv`).
+
+    Raises:
+        ValueError: If the file path is invalid, file doesn't exist, or workspace is not bound.
 
     Example:
         ```python
-        upload_file_to_cc("./data/result.csv", "result.csv")
+        cc_path = upload_file_to_cc("/app/uploads/data.csv")
+        # cc_path = "/workspace/default/shared/data.csv"
+        # Use cc_path in delegate_to_cc task_prompt
+        delegate_to_cc(f"请分析文件 {cc_path} 中的数据...")
         ```
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定任何 CC Workspace，无法上传文件。"
+        raise ValueError("当前频道未绑定任何 CC Workspace，无法上传文件。请先绑定工作区。")
 
     try:
         host_path = _ctx.fs.get_file(sandbox_file_path)
     except Exception as e:
-        return f"[CC Workspace] 无法解析文件路径 '{sandbox_file_path}': {e}"
+        raise ValueError(
+            f"无法解析文件路径 '{sandbox_file_path}': {e}\n"
+            f"请确保路径是有效的沙盒路径（如 /app/uploads/xxx 或 /app/shared/xxx）。"
+        ) from e
 
     if not host_path.exists():
-        return f"[CC Workspace] 文件不存在: {sandbox_file_path}"
+        raise ValueError(f"文件不存在: {sandbox_file_path}")
 
     if not host_path.is_file():
-        return f"[CC Workspace] 路径不是文件: {sandbox_file_path}"
+        raise ValueError(f"路径不是文件: {sandbox_file_path}")
 
-    ws_data_dir = WorkspaceService.get_workspace_dir(workspace.id) / "default" / "data"
-    ws_data_dir.mkdir(parents=True, exist_ok=True)
+    ws_shared_dir = WorkspaceService.get_workspace_dir(workspace.id) / "default" / "shared"
+    ws_shared_dir.mkdir(parents=True, exist_ok=True)
 
     target_name = dest_name.strip() if dest_name.strip() else host_path.name
-    target_path = ws_data_dir / target_name
+    target_path = ws_shared_dir / target_name
 
     try:
         shutil.copy2(str(host_path), str(target_path))
-        logger.info(f"[cc_workspace] upload_file_to_cc: {host_path} → {target_path}")
-        return (
-            f"[CC Workspace] 文件已上传至工作区数据目录。\n"
-            f"CC Sandbox 可通过绝对路径访问: /workspace/default/data/{target_name}"
-        )
     except Exception as e:
         logger.error(f"[cc_workspace] upload_file_to_cc 失败: {e}")
-        return f"[CC Workspace] 文件上传失败: {e}"
+        raise ValueError(f"文件复制失败: {e}") from e
+
+    cc_path = f"/workspace/default/shared/{target_name}"
+    logger.info(f"[cc_workspace] upload_file_to_cc: {host_path} → {target_path} (cc_path={cc_path})")
+    return cc_path
 
 
 @plugin.mount_sandbox_method(
     SandboxMethodType.TOOL,
     "从 CC Workspace 下载文件",
     description=(
-        "将 CC Workspace data/ 目录中的文件复制到主沙盒共享目录，返回沙盒内可访问的文件路径。"
-        "适用于 CC 生成了结果文件（如报告、图表、数据集）需要在主沙盒中进一步处理或发送给用户的场景。"
+        "从 CC Workspace 工作区下载文件到主沙盒共享目录，返回沙盒内可访问的文件路径。"
+        "支持绝对路径（如 /workspace/default/shared/report.pdf）、相对路径（如 shared/report.pdf）"
+        "或纯文件名（如 report.pdf，将在 shared/ 目录中查找）。"
+        "适用于 CC 生成了结果文件需要在主沙盒中进一步处理或发送给用户的场景。"
     ),
 )
-async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, dest_name: str = "") -> str:
-    """Copy a file from the CC Workspace data directory into the current sandbox's shared directory.
+async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_file_path: str, dest_name: str = "") -> str:
+    """Download a file from anywhere in the CC Workspace into the current sandbox's shared directory.
 
-    After calling this, you can access the file in the sandbox at the returned path.
+    Supports three path formats:
+    - Absolute path: `/workspace/default/shared/report.pdf`
+    - Relative path: `shared/report.pdf` (relative to `/workspace/default/`)
+    - Filename only: `report.pdf` (searched in `shared/` directory)
 
     Args:
-        cc_data_filename (str): Filename (or relative path) inside the CC Workspace `data/` directory.
-            For example: `"result.json"` or `"output/report.pdf"`.
-        dest_name (str): Optional destination filename in the sandbox shared directory.
-            If empty, the original filename is kept.
+        cc_file_path (str): Path to the file inside the CC Workspace.
+        dest_name (str): Optional destination filename. If empty, the original filename is kept.
 
     Returns:
-        str: Sandbox-accessible path of the downloaded file, or an error message.
+        str: Sandbox-accessible path of the downloaded file (e.g., `/app/shared/report.pdf`).
+
+    Raises:
+        ValueError: If the workspace is not bound, the file doesn't exist, or the path is invalid.
 
     Example:
         ```python
-        path = download_file_from_cc("summary.json")
-        # Now use path to read the file in the sandbox
+        path = download_file_from_cc("shared/summary.json")
+        # path = "/app/shared/summary.json"
+        send_file(path)  # Send the file to the user
         ```
     """
     workspace = await _ctx.get_bound_workspace()
     if workspace is None:
-        return "[CC Workspace] 当前频道未绑定任何 CC Workspace，无法下载文件。"
+        raise ValueError("当前频道未绑定任何 CC Workspace，无法下载文件。请先绑定工作区。")
 
-    ws_data_dir = WorkspaceService.get_workspace_dir(workspace.id) / "default" / "data"
-    src_path = (ws_data_dir / cc_data_filename).resolve()
+    ws_root = WorkspaceService.get_workspace_dir(workspace.id) / "default"
+    cc_path = cc_file_path.strip()
 
-    # 安全检查：不允许路径穿越
+    if cc_path.startswith("/workspace/default/"):
+        rel = cc_path[len("/workspace/default/"):]
+        src_path = (ws_root / rel).resolve()
+    elif cc_path.startswith("/workspace/"):
+        rel = cc_path[len("/workspace/"):]
+        src_path = (WorkspaceService.get_workspace_dir(workspace.id) / rel).resolve()
+    elif "/" in cc_path or cc_path.startswith("./"):
+        src_path = (ws_root / cc_path).resolve()
+    else:
+        src_path = (ws_root / "shared" / cc_path).resolve()
+
+    # 安全检查：路径 resolve 后必须在 workspace 目录内
+    ws_base = WorkspaceService.get_workspace_dir(workspace.id).resolve()
     try:
-        src_path.relative_to(ws_data_dir.resolve())
-    except ValueError:
-        return f"[CC Workspace] 非法路径: {cc_data_filename}"
+        src_path.relative_to(ws_base)
+    except ValueError as e:
+        raise ValueError(f"非法路径（路径穿越）: {cc_file_path}") from e
 
     if not src_path.exists():
-        return f"[CC Workspace] CC Workspace 数据目录中不存在文件: {cc_data_filename}"
+        raise ValueError(
+            f"CC Workspace 中文件不存在: {cc_file_path}\n"
+            f"请检查路径是否正确。支持的格式：绝对路径 /workspace/default/...、"
+            f"相对路径 shared/...、或纯文件名（在 shared/ 中查找）。"
+        )
 
     if not src_path.is_file():
-        return f"[CC Workspace] 路径不是文件: {cc_data_filename}"
+        raise ValueError(f"路径不是文件: {cc_file_path}")
 
     shared_dir: Path = _ctx.fs.shared_path
     shared_dir.mkdir(parents=True, exist_ok=True)
@@ -1291,12 +1396,13 @@ async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_data_filename: str, d
 
     try:
         shutil.copy2(str(src_path), str(target_host_path))
-        logger.info(f"[cc_workspace] download_file_from_cc: {src_path} → {target_host_path}")
-        sandbox_path = _ctx.fs.forward_file(target_host_path)
-        return str(sandbox_path)
     except Exception as e:
         logger.error(f"[cc_workspace] download_file_from_cc 失败: {e}")
-        return f"[CC Workspace] 文件下载失败: {e}"
+        raise ValueError(f"文件复制失败: {e}") from e
+
+    logger.info(f"[cc_workspace] download_file_from_cc: {src_path} → {target_host_path}")
+    sandbox_path = _ctx.fs.forward_file(target_host_path)
+    return str(sandbox_path)
 
 
 # ---------------------------------------------------------------------------

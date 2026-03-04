@@ -425,13 +425,16 @@ async def gen_openai_chat_response(
                 res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    **gen_kwargs,
+                    **gen_kwargs,   
                     stream=True,
                 )
 
                 async for chunk in res_stream:
                     if not first_token_time:
                         first_token_time = time.time()
+                    if not chunk.choices or len(chunk.choices) == 0 or not chunk.choices[0].delta or not chunk.choices[0].delta.content:
+                        logger.exception(f"OpenAI流式生成过程中出错: 空响应块 {chunk}")
+                        continue
                     chunk_text: Optional[str] = chunk.choices[0].delta.content
                     if chunk_text:
                         output += f"{chunk_text}"

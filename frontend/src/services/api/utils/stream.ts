@@ -5,6 +5,8 @@ import { config } from '../../../config/env'
 export interface StreamOptions {
   onMessage: (data: string) => void
   onError?: (error: Error) => void
+  /** SSE 连接断开后自动重连成功时触发（首次连接不触发） */
+  onReconnect?: () => void
   endpoint: string
   baseUrl?: string
   method?: 'GET' | 'POST'
@@ -21,6 +23,7 @@ export const createEventStream = (options: StreamOptions) => {
   const {
     onMessage,
     onError,
+    onReconnect,
     endpoint,
     baseUrl = config.apiBaseUrl,
     method = 'GET',
@@ -36,6 +39,8 @@ export const createEventStream = (options: StreamOptions) => {
     throw new Error('未登录')
   }
 
+  let isFirstOpen = true
+
   try {
     // 创建 EventSource 连接
     fetchEventSource(`${baseUrl}${endpoint}`, {
@@ -48,6 +53,14 @@ export const createEventStream = (options: StreamOptions) => {
       },
       body: body ? JSON.stringify(body) : undefined,
       openWhenHidden: true,
+      async onopen() {
+        if (isFirstOpen) {
+          isFirstOpen = false
+        } else {
+          // 重连成功：通知调用方补发丢失的消息
+          onReconnect?.()
+        }
+      },
       onmessage(ev: EventSourceMessage) {
         onMessage(ev.data)
       },

@@ -67,6 +67,11 @@ class CCSandboxClient:
         on_queued: Callable[[dict], Awaitable[None]] | None = None,
         env_vars: "dict[str, str] | None" = None,
     ) -> AsyncGenerator[str | dict, None]:
+        logger.debug(
+            f"[cc_client] Opening SSE stream: base_url={self._base_url} "
+            f"workspace={workspace_id} source_chat_key={source_chat_key!r} "
+            f"content_len={len(content)} read_timeout={self._stream_timeout.read}"
+        )
         async with httpx.AsyncClient(timeout=self._stream_timeout) as client:
             async with client.stream(
                 "POST",
@@ -80,6 +85,7 @@ class CCSandboxClient:
                 },
             ) as resp:
                 resp.raise_for_status()
+                chunk_count = 0
                 async for line in resp.aiter_lines():
                     if not line.startswith("data:"):
                         continue
@@ -92,6 +98,7 @@ class CCSandboxClient:
                         continue
                     chunk_type = chunk.get("type")
                     if chunk_type == "chunk":
+                        chunk_count += 1
                         yield chunk.get("chunk", "")
                     elif chunk_type == "queued":
                         if on_queued is not None:
@@ -99,7 +106,16 @@ class CCSandboxClient:
                     elif chunk_type in ("tool_call", "tool_result"):
                         yield chunk
                     elif chunk_type == "error":
-                        raise CCSandboxError(chunk.get("message", "stream error"))
+                        err_msg = chunk.get("message", "stream error")
+                        logger.warning(
+                            f"[cc_client] SSE error event: {err_msg!r} "
+                            f"workspace={workspace_id} source_chat_key={source_chat_key!r}"
+                        )
+                        raise CCSandboxError(err_msg)
+                logger.debug(
+                    f"[cc_client] SSE stream closed normally: "
+                    f"workspace={workspace_id} chunks={chunk_count}"
+                )
 
     async def reset_session(self, workspace_id: str = "default") -> None:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -166,13 +182,17 @@ class CCSandboxClient:
 
     async def force_cancel_current_task(self, workspace_id: str = "default") -> bool:
         """强制取消工作区当前正在运行的任务。"""
+        logger.info(f"[cc_client] Requesting force cancel: workspace={workspace_id}")
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.delete(f"{self._base_url}/api/v1/workspaces/{workspace_id}/queue/current")
                 if resp.status_code == 200:
-                    return bool(resp.json().get("cancelled", False))
-        except Exception:
-            pass
+                    cancelled = bool(resp.json().get("cancelled", False))
+                    logger.info(f"[cc_client] Force cancel result: cancelled={cancelled} workspace={workspace_id}")
+                    return cancelled
+                logger.warning(f"[cc_client] Force cancel unexpected status: {resp.status_code} workspace={workspace_id}")
+        except Exception as e:
+            logger.warning(f"[cc_client] Force cancel failed: {e} workspace={workspace_id}")
         return False
 
     async def get_pending_results(self, workspace_id: str = "default") -> list[dict]:
