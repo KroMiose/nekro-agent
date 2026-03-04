@@ -323,6 +323,8 @@ export default function ChatChannelPage() {
                 backgroundColor: 'transparent',
                 backdropFilter: 'blur(20px)',
                 borderRight: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                flexDirection: 'column',
               },
             }}
           >
