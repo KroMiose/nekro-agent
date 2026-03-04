@@ -127,6 +127,98 @@ async def get_command_completions(
 # endregion
 
 
+# region 命令输出流
+
+
+@router.get("/{chat_key}/output/stream", summary="获取命令输出实时流")
+@require_role(Role.Admin)
+async def stream_command_output(
+    chat_key: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    """获取指定频道命令输出的实时流，使用 Server-Sent Events (SSE)
+
+    Args:
+        chat_key: 聊天频道唯一标识
+
+    Returns:
+        StreamingResponse: SSE 流，每条命令输出作为一个事件
+    """
+    import json
+
+    from fastapi.responses import StreamingResponse
+
+    from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
+
+    async def event_generator():
+        """生成 SSE 事件流"""
+        async for event in command_output_broadcaster.subscribe(chat_key):
+            yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+# endregion
+
+
+# region WebUI 命令执行
+
+
+class WebUIExecuteRequest(BaseModel):
+    command_name: str
+    chat_key: str
+    raw_args: str = ""
+
+
+class WebUIExecuteResponse(BaseModel):
+    ok: bool = True
+    responses: list[dict] = []
+
+
+@router.post("/webui-execute", summary="WebUI 执行命令（不转发到平台）")
+@require_role(Role.Admin)
+async def webui_execute_command(
+    req: WebUIExecuteRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+):
+    """从 WebUI 直接执行命令，结果仅通过 SSE 广播到 WebUI，不发送到聊天平台"""
+    from nekro_agent.services.command.registry import command_registry
+    from nekro_agent.services.command.schemas import CommandExecutionContext, CommandRequest
+    from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
+
+    context = CommandExecutionContext(
+        user_id=str(_current_user.id),
+        chat_key=req.chat_key,
+        username=_current_user.username,
+        adapter_key="webui",
+        is_super_user=True,
+        is_advanced_user=True,
+    )
+    request = CommandRequest(context=context, command_name=req.command_name, raw_args=req.raw_args)
+
+    results: list[dict] = []
+    async for response in command_registry.execute(request):
+        await command_output_broadcaster.publish(
+            chat_key=req.chat_key,
+            command_name=req.command_name,
+            status=response.status.value,
+            message=response.message,
+        )
+        results.append({"status": response.status.value, "message": response.message})
+
+    return WebUIExecuteResponse(ok=True, responses=results)
+
+
+# endregion
+
+
 # region Agent Tool-Use
 
 

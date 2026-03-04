@@ -162,3 +162,9 @@ class PluginCommandAdapter(BaseCommand):
 
     async def execute(self, context: CommandExecutionContext, **kwargs: Any):
         return await self._cmd.execute_func(context, **kwargs)
+
+    def _parse_args(self, raw_args: str) -> dict[str, Any]:
+        """根据原始插件函数的类型注解解析参数"""
+        from nekro_agent.services.command.parser import ArgumentParser
+
+        return ArgumentParser.parse(self._cmd.execute_func, raw_args)

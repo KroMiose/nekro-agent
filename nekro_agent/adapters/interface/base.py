@@ -287,6 +287,8 @@ class BaseAdapter(ABC, Generic[TConfig]):
         )
         request = CommandRequest(context=context, command_name=command_name, raw_args=raw_args)
 
+        from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
+
         responses: List[CommandResponse] = []
         async for response in command_registry.execute(request):
             responses.append(response)
@@ -299,6 +301,14 @@ class BaseAdapter(ABC, Generic[TConfig]):
             elif response.status == CommandResponseStatus.UNAUTHORIZED:
                 if self.config.COMMAND_UNAUTHORIZED_OUTPUT:
                     await self._send_command_message(chat_key, response.message)
+
+            # 广播到 WebUI（所有状态均广播，供管理员监控）
+            await command_output_broadcaster.publish(
+                chat_key=chat_key,
+                command_name=command_name,
+                status=response.status.value,
+                message=response.message,
+            )
         return responses
 
     async def try_handle_wait_input(
