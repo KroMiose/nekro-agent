@@ -643,18 +643,33 @@ const UserTable: React.FC<UserTableProps> = ({
               return (
                 <TableRow key={user.id} hover sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>{user.id}</TableCell>
-                  <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                    {user.username}
+                  <TableCell sx={{ ...UNIFIED_TABLE_STYLES.cell, maxWidth: 0 } as SxProps<Theme>}>
+                    <Tooltip title={user.username} placement="top">
+                      <Typography
+                        variant="body2"
+                        noWrap
+                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      >
+                        {user.username}
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Typography variant="body2" color="text.primary">
                       {user.adapter_key || '-'}
                     </Typography>
                   </TableCell>
-                  <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
-                    <Typography variant="body2" color="text.primary">
-                      {user.platform_userid || '-'}
-                    </Typography>
+                  <TableCell sx={{ ...UNIFIED_TABLE_STYLES.cell, maxWidth: 0 } as SxProps<Theme>}>
+                    <Tooltip title={user.platform_userid || '-'} placement="top">
+                      <Typography
+                        variant="body2"
+                        color="text.primary"
+                        noWrap
+                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      >
+                        {user.platform_userid || '-'}
+                      </Typography>
+                    </Tooltip>
                   </TableCell>
                   <TableCell sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Chip
