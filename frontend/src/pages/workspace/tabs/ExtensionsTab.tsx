@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Box,
   Button,
@@ -22,10 +22,13 @@ import {
   InputAdornment,
   List,
   ListItem,
+  ListItemButton,
   ListItemIcon,
   ListItemText,
   ToggleButtonGroup,
   ToggleButton,
+  Drawer,
+  alpha,
 } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import {
@@ -38,6 +41,14 @@ import {
   Search as SearchIcon,
   Edit as EditIcon,
   Sync as SyncIcon,
+  Close as CloseIcon,
+  Visibility as ViewIcon,
+  InsertDriveFileOutlined as FileIcon,
+  FolderOutlined as FolderIcon,
+  Description as SkillMdIcon,
+  Code as CodeIcon,
+  PreviewOutlined as PreviewIcon,
+  SystemUpdateAlt as UpdateIcon,
 } from '@mui/icons-material'
 import { Editor } from '@monaco-editor/react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -48,12 +59,93 @@ import {
   WorkspaceDetail,
   AllSkillItem,
   DynamicSkillItem,
+  DynamicSkillDirEntry,
 } from '../../../services/api/workspace'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
 
 type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
+
+const EXT_LANG_MAP: Record<string, string> = {
+  '.md': 'markdown', '.txt': 'plaintext', '.yaml': 'yaml', '.yml': 'yaml',
+  '.json': 'json', '.toml': 'toml', '.py': 'python', '.js': 'javascript',
+  '.ts': 'typescript', '.html': 'html', '.css': 'css', '.xml': 'xml',
+  '.sh': 'shell', '.bash': 'shell', '.cfg': 'ini', '.ini': 'ini',
+  '.conf': 'ini', '.env': 'shell', '.rst': 'restructuredtext', '.csv': 'plaintext',
+  '.log': 'plaintext', '.svg': 'xml',
+}
+
+function getMonacoLanguage(filename: string): string {
+  const lower = filename.toLowerCase()
+  const dotIdx = lower.lastIndexOf('.')
+  if (dotIdx >= 0) return EXT_LANG_MAP[lower.slice(dotIdx)] ?? 'plaintext'
+  return 'plaintext'
+}
+
+const TEXT_EXTS = ['.md', '.txt', '.yaml', '.yml', '.json', '.toml', '.cfg', '.ini', '.sh', '.bash', '.py', '.js', '.ts', '.html', '.css', '.xml', '.csv', '.env', '.conf', '.rst', '.log']
+
+function isTextFile(name: string): boolean {
+  const lower = name.toLowerCase()
+  return TEXT_EXTS.some(ext => lower.endsWith(ext)) || !lower.includes('.')
+}
+
+function parseSkillMd(raw: string): { frontmatter: Record<string, string>; body: string } {
+  const lines = raw.split('\n')
+  const frontmatter: Record<string, string> = {}
+  let body = raw
+  if (lines[0]?.trim() === '---') {
+    let endLine = -1
+    for (let i = 1; i < lines.length; i++) {
+      if (lines[i].trim() === '---') { endLine = i; break }
+      const colonIdx = lines[i].indexOf(':')
+      if (colonIdx > 0) {
+        const key = lines[i].slice(0, colonIdx).trim()
+        const value = lines[i].slice(colonIdx + 1).trim().replace(/^["']|["']$/g, '')
+        frontmatter[key] = value
+      }
+    }
+    if (endLine > 0) body = lines.slice(endLine + 1).join('\n').trimStart()
+  }
+  return { frontmatter, body }
+}
+
+function SkillPreviewPanel({ raw }: { raw: string }) {
+  const { t } = useTranslation('workspace')
+  const { frontmatter, body } = useMemo(() => parseSkillMd(raw), [raw])
+  const allowedTools = frontmatter['allowed-tools']?.split(',').map(s => s.trim()).filter(Boolean) ?? []
+  const fmDesc = frontmatter['description']
+  const otherFields = Object.entries(frontmatter).filter(([k]) => !['name', 'description', 'allowed-tools'].includes(k))
+
+  return (
+    <Box>
+      {Object.keys(frontmatter).length > 0 && (
+        <Box sx={{ px: 2.5, py: 1.5, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+          {allowedTools.length > 0 && (
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.75, mb: 0.5 }}>
+              <Typography variant="caption" color="text.secondary">{t('skills.content.allowedTools')}</Typography>
+              {allowedTools.map(tool => (
+                <Chip key={tool} label={tool} size="small" variant="outlined" sx={{ height: 20, fontSize: 11, borderColor: 'divider', color: 'text.secondary' }} />
+              ))}
+            </Box>
+          )}
+          {fmDesc && <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>{fmDesc}</Typography>}
+          {otherFields.map(([k, v]) => (
+            <Typography key={k} variant="caption" color="text.disabled" sx={{ display: 'block', mt: 0.25 }}>{k}: {v}</Typography>
+          ))}
+        </Box>
+      )}
+      {body ? (
+        <Box sx={{ px: 2.5, py: 2 }}><MarkdownRenderer>{body}</MarkdownRenderer></Box>
+      ) : (
+        <Box sx={{ px: 2.5, py: 2 }}>
+          <Typography variant="body2" color="text.disabled">{t('skills.content.noContent')}</Typography>
+        </Box>
+      )}
+    </Box>
+  )
+}
 
 export default function ExtensionsTab({
   workspace,
@@ -82,9 +174,20 @@ export default function ExtensionsTab({
   const [deletingDynamic, setDeletingDynamic] = useState<string | null>(null)
   const [promotingDynamic, setPromotingDynamic] = useState<string | null>(null)
   const [deleteConfirmDynamic, setDeleteConfirmDynamic] = useState<string | null>(null)
-  const [editDynamic, setEditDynamic] = useState<DynamicSkillItem | null>(null)
-  const [editContent, setEditContent] = useState('')
-  const [savingDynamic, setSavingDynamic] = useState(false)
+
+  // ── 动态技能详情 Drawer ──
+  const [drawerDynamic, setDrawerDynamic] = useState<DynamicSkillItem | null>(null)
+  const [drawerFiles, setDrawerFiles] = useState<DynamicSkillDirEntry[]>([])
+  const [drawerFilesLoading, setDrawerFilesLoading] = useState(false)
+  const [dynSelectedFile, setDynSelectedFile] = useState<string | null>(null)
+  const [dynFileContent, setDynFileContent] = useState<string | null>(null)
+  const [dynFileLoading, setDynFileLoading] = useState(false)
+  const [dynViewMode, setDynViewMode] = useState<'preview' | 'source'>('preview')
+  const [dynEditing, setDynEditing] = useState(false)
+  const [dynEditBuffer, setDynEditBuffer] = useState('')
+  const [dynDirty, setDynDirty] = useState(false)
+  const [dynSaving, setDynSaving] = useState(false)
+  const [dynUnsavedTarget, setDynUnsavedTarget] = useState<string | null>(null)
 
   // ── CC设计对话框 ──
   const [ccDesignOpen, setCcDesignOpen] = useState(false)
@@ -129,9 +232,9 @@ export default function ExtensionsTab({
     dynamicSkillApi.list(workspace.id).then(setDynamicSkills).catch(() => setDynamicSkills([]))
   }, [workspace.id])
 
-  const refreshDynamicSkills = () => {
+  const refreshDynamicSkills = useCallback(() => {
     dynamicSkillApi.list(workspace.id).then(setDynamicSkills).catch(() => setDynamicSkills([]))
-  }
+  }, [workspace.id])
 
   // ── 同步到沙盒 ──
   const handleSync = async () => {
@@ -219,6 +322,15 @@ export default function ExtensionsTab({
     [selectedSkills, allSkillsMap, serverSkills]
   )
 
+  // ── 判断动态技能是否已晋升到技能库 ──
+  const isPromotedToLibrary = useCallback(
+    (dirName: string) => {
+      const item = allSkillsMap[dirName]
+      return !!item && item.source === 'user'
+    },
+    [allSkillsMap],
+  )
+
   // ── 动态技能操作 ──
   const confirmDeleteDynamic = async () => {
     if (!deleteConfirmDynamic) return
@@ -235,12 +347,17 @@ export default function ExtensionsTab({
     }
   }
 
-  const handlePromoteDynamic = async (dirName: string) => {
+  const handlePromoteDynamic = async (dirName: string, force = false) => {
     setPromotingDynamic(dirName)
     try {
-      await dynamicSkillApi.promote(workspace.id, dirName)
-      notification.success(t('detail.extensions.notifications.promoteSuccess', { name: dirName }))
+      await dynamicSkillApi.promote(workspace.id, dirName, force)
+      notification.success(
+        force
+          ? t('detail.extensions.notifications.updateLibrarySuccess', { name: dirName })
+          : t('detail.extensions.notifications.promoteSuccess', { name: dirName }),
+      )
       refreshDynamicSkills()
+      queryClient.invalidateQueries({ queryKey: ['skills-all'] })
     } catch (err) {
       notification.error(t('detail.extensions.notifications.promoteFailed', { message: (err as Error).message }))
     } finally {
@@ -248,31 +365,110 @@ export default function ExtensionsTab({
     }
   }
 
-  const handleEditDynamic = async (item: DynamicSkillItem) => {
-    setEditDynamic(item)
-    setEditContent('')
-    try {
-      const data = await dynamicSkillApi.get(workspace.id, item.dir_name)
-      setEditContent(data.content)
-    } catch (err) {
-      notification.error(t('detail.extensions.notifications.loadContentFailed', { message: (err as Error).message }))
-    }
-  }
+  // ── 动态技能详情 Drawer ──
+  const loadDynFileContent = useCallback(
+    async (dirName: string, relPath: string) => {
+      setDynFileLoading(true)
+      setDynFileContent(null)
+      try {
+        const content = await dynamicSkillApi.getFile(workspace.id, dirName, relPath)
+        setDynFileContent(content)
+        setDynEditBuffer(content)
+        setDynDirty(false)
+      } catch {
+        setDynFileContent(null)
+      } finally {
+        setDynFileLoading(false)
+      }
+    },
+    [workspace.id],
+  )
 
-  const handleSaveDynamic = async () => {
-    if (!editDynamic) return
-    setSavingDynamic(true)
+  const selectDynFile = useCallback(
+    (dirName: string, relPath: string) => {
+      if (dynDirty) {
+        setDynUnsavedTarget(relPath)
+        return
+      }
+      setDynSelectedFile(relPath)
+      setDynEditing(false)
+      setDynViewMode('preview')
+      loadDynFileContent(dirName, relPath)
+    },
+    [dynDirty, loadDynFileContent],
+  )
+
+  const openDynDrawer = useCallback(
+    async (skill: DynamicSkillItem) => {
+      setDrawerDynamic(skill)
+      setDrawerFiles([])
+      setDynSelectedFile(null)
+      setDynFileContent(null)
+      setDynEditing(false)
+      setDynDirty(false)
+      setDynViewMode('preview')
+      setDrawerFilesLoading(true)
+      try {
+        const entries = await dynamicSkillApi.getDir(workspace.id, skill.dir_name)
+        setDrawerFiles(entries)
+        const skillMd = entries.find(e => e.type === 'file' && e.name === 'SKILL.md')
+        if (skillMd) {
+          setDynSelectedFile(skillMd.rel_path)
+          loadDynFileContent(skill.dir_name, skillMd.rel_path)
+        }
+      } catch {
+        setDrawerFiles([])
+      } finally {
+        setDrawerFilesLoading(false)
+      }
+    },
+    [workspace.id, loadDynFileContent],
+  )
+
+  const closeDynDrawer = useCallback(() => {
+    if (dynDirty) {
+      setDynUnsavedTarget('__close__')
+      return
+    }
+    setDrawerDynamic(null)
+    setDynSelectedFile(null)
+    setDynFileContent(null)
+    setDynEditing(false)
+    setDynDirty(false)
+  }, [dynDirty])
+
+  const handleDynSave = useCallback(async () => {
+    if (!drawerDynamic || !dynSelectedFile) return
+    setDynSaving(true)
     try {
-      await dynamicSkillApi.put(workspace.id, editDynamic.dir_name, editContent)
-      notification.success(t('detail.extensions.notifications.saveDynamicSuccess', { name: editDynamic.dir_name }))
-      setEditDynamic(null)
+      await dynamicSkillApi.saveFile(workspace.id, drawerDynamic.dir_name, dynSelectedFile, dynEditBuffer)
+      setDynFileContent(dynEditBuffer)
+      setDynDirty(false)
+      setDynEditing(false)
+      notification.success(t('detail.extensions.notifications.saveDynamicSuccess', { name: drawerDynamic.dir_name }))
       refreshDynamicSkills()
     } catch (err) {
       notification.error(t('detail.extensions.notifications.saveDynamicFailed', { message: (err as Error).message }))
     } finally {
-      setSavingDynamic(false)
+      setDynSaving(false)
     }
-  }
+  }, [drawerDynamic, dynSelectedFile, dynEditBuffer, workspace.id, notification, t, refreshDynamicSkills])
+
+  const handleDynDiscardAndSwitch = useCallback(() => {
+    const target = dynUnsavedTarget
+    setDynDirty(false)
+    setDynEditing(false)
+    setDynUnsavedTarget(null)
+    if (target === '__close__') {
+      setDrawerDynamic(null)
+      setDynSelectedFile(null)
+      setDynFileContent(null)
+    } else if (target && drawerDynamic) {
+      setDynSelectedFile(target)
+      setDynViewMode('preview')
+      loadDynFileContent(drawerDynamic.dir_name, target)
+    }
+  }, [dynUnsavedTarget, drawerDynamic, loadDynFileContent])
 
   // ── CC 设计跳转 ──
   const handleCCDesignConfirm = () => {
@@ -547,66 +743,97 @@ export default function ExtensionsTab({
             </Typography>
           ) : (
             <Stack spacing={0.5}>
-              {dynamicSkills.map(skill => (
-                <Box key={skill.dir_name} sx={{ ...ROW_SX, borderColor: 'divider' }}>
-                  <Chip
-                    label={t('detail.extensions.skillChipCC')}
-                    size="small"
-                    color="secondary"
-                    variant="outlined"
-                    sx={{ fontSize: '0.65rem', height: 20, flexShrink: 0 }}
-                  />
-                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                      {skill.name || skill.dir_name}
-                    </Typography>
-                    {skill.description && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        {skill.description}
-                      </Typography>
+              {dynamicSkills.map(skill => {
+                const promoted = isPromotedToLibrary(skill.dir_name)
+                return (
+                  <Box key={skill.dir_name} sx={{ ...ROW_SX, borderColor: promoted ? 'success.main' : 'divider' }}>
+                    <Chip
+                      label={t('detail.extensions.skillChipCC')}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                      sx={{ fontSize: '0.65rem', height: 20, flexShrink: 0 }}
+                    />
+                    {promoted && (
+                      <Chip
+                        label={t('detail.extensions.skillChipPromoted')}
+                        size="small"
+                        color="success"
+                        variant="outlined"
+                        sx={{ fontSize: '0.6rem', height: 18, flexShrink: 0 }}
+                      />
                     )}
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
-                    <Tooltip title={t('detail.extensions.editSkillTooltip')}>
-                      <IconButton size="small" onClick={() => handleEditDynamic(skill)}>
-                        <EditIcon sx={{ fontSize: 15 }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t('detail.extensions.promoteTooltip')}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          disabled={promotingDynamic === skill.dir_name}
-                          onClick={() => handlePromoteDynamic(skill.dir_name)}
-                        >
-                          {promotingDynamic === skill.dir_name ? (
-                            <CircularProgress size={14} />
-                          ) : (
-                            <ArrowForwardIcon sx={{ fontSize: 15 }} />
-                          )}
+                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                        {skill.name || skill.dir_name}
+                      </Typography>
+                      {skill.description && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                          {skill.description}
+                        </Typography>
+                      )}
+                    </Box>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                      <Tooltip title={t('detail.extensions.viewDetailTooltip')}>
+                        <IconButton size="small" onClick={() => openDynDrawer(skill)}>
+                          <ViewIcon sx={{ fontSize: 15 }} />
                         </IconButton>
-                      </span>
-                    </Tooltip>
-                    <Tooltip title={t('detail.extensions.deleteTooltip')}>
-                      <span>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          disabled={deletingDynamic === skill.dir_name}
-                          onClick={() => setDeleteConfirmDynamic(skill.dir_name)}
-                        >
-                          {deletingDynamic === skill.dir_name ? (
-                            <CircularProgress size={14} />
-                          ) : (
-                            <DeleteIcon sx={{ fontSize: 15 }} />
-                          )}
-                        </IconButton>
-                      </span>
-                    </Tooltip>
+                      </Tooltip>
+                      {promoted ? (
+                        <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="success"
+                              disabled={promotingDynamic === skill.dir_name}
+                              onClick={() => handlePromoteDynamic(skill.dir_name, true)}
+                            >
+                              {promotingDynamic === skill.dir_name ? (
+                                <CircularProgress size={14} />
+                              ) : (
+                                <UpdateIcon sx={{ fontSize: 15 }} />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title={t('detail.extensions.promoteTooltip')}>
+                          <span>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              disabled={promotingDynamic === skill.dir_name}
+                              onClick={() => handlePromoteDynamic(skill.dir_name)}
+                            >
+                              {promotingDynamic === skill.dir_name ? (
+                                <CircularProgress size={14} />
+                              ) : (
+                                <ArrowForwardIcon sx={{ fontSize: 15 }} />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      )}
+                      <Tooltip title={t('detail.extensions.deleteTooltip')}>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            disabled={deletingDynamic === skill.dir_name}
+                            onClick={() => setDeleteConfirmDynamic(skill.dir_name)}
+                          >
+                            {deletingDynamic === skill.dir_name ? (
+                              <CircularProgress size={14} />
+                            ) : (
+                              <DeleteIcon sx={{ fontSize: 15 }} />
+                            )}
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    </Box>
                   </Box>
-                </Box>
-              ))}
+                )
+              })}
             </Stack>
           )}
 
@@ -799,39 +1026,333 @@ export default function ExtensionsTab({
         </DialogActions>
       </Dialog>
 
-      {/* 编辑动态技能 对话框 */}
-      <Dialog
-        open={!!editDynamic}
-        onClose={() => !savingDynamic && setEditDynamic(null)}
-        maxWidth="md"
-        fullWidth
+      {/* 动态技能详情 Drawer */}
+      <Drawer
+        anchor="right"
+        open={!!drawerDynamic}
+        onClose={closeDynDrawer}
+        PaperProps={{
+          sx: {
+            width: { xs: '100%', sm: 720, md: 820 },
+            maxWidth: '100vw',
+            mt: { xs: '56px', sm: '64px' },
+            height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
+          },
+        }}
       >
-        <DialogTitle>{t('detail.extensions.editDynamicDialog.title', { name: editDynamic?.dir_name })}</DialogTitle>
-        <DialogContent sx={{ pt: '16px !important' }}>
-          <TextField
-            fullWidth
-            multiline
-            minRows={16}
-            size="small"
-            label={t('detail.extensions.editDynamicDialog.contentLabel')}
-            value={editContent}
-            onChange={e => setEditContent(e.target.value)}
-            disabled={savingDynamic}
-            inputProps={{ style: { fontFamily: '"SFMono-Regular", Consolas, monospace', fontSize: '0.82rem' } }}
-          />
+        {drawerDynamic && (
+          <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            {/* Drawer header */}
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
+                    {drawerDynamic.name || drawerDynamic.dir_name}
+                  </Typography>
+                  <Chip label={t('detail.extensions.skillChipCC')} size="small" color="secondary" variant="outlined" sx={{ fontSize: '0.65rem', height: 20 }} />
+                  {isPromotedToLibrary(drawerDynamic.dir_name) && (
+                    <Chip label={t('detail.extensions.skillChipPromoted')} size="small" color="success" variant="outlined" sx={{ fontSize: '0.6rem', height: 18 }} />
+                  )}
+                </Box>
+                {drawerDynamic.name && drawerDynamic.name !== drawerDynamic.dir_name && (
+                  <Typography variant="caption" color="text.disabled">{drawerDynamic.dir_name}</Typography>
+                )}
+                {drawerDynamic.description && (
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>{drawerDynamic.description}</Typography>
+                )}
+              </Box>
+              {isPromotedToLibrary(drawerDynamic.dir_name) ? (
+                <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="success"
+                      disabled={promotingDynamic === drawerDynamic.dir_name}
+                      onClick={() => handlePromoteDynamic(drawerDynamic.dir_name, true)}
+                    >
+                      {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <UpdateIcon fontSize="small" />}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              ) : (
+                <Tooltip title={t('detail.extensions.promoteTooltip')}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      disabled={promotingDynamic === drawerDynamic.dir_name}
+                      onClick={() => handlePromoteDynamic(drawerDynamic.dir_name)}
+                    >
+                      {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <ArrowForwardIcon fontSize="small" />}
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              )}
+              <IconButton size="small" onClick={closeDynDrawer}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+
+            {/* Drawer body: file tree + content pane */}
+            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              {/* Left: File tree */}
+              <Box
+                sx={{
+                  width: 200,
+                  minWidth: 200,
+                  borderRight: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'auto',
+                  bgcolor: (th) => alpha(th.palette.background.default, 0.5),
+                }}
+              >
+                <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {t('skills.drawer.files')}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    ({drawerFiles.filter(e => e.type === 'file').length})
+                  </Typography>
+                </Box>
+                {drawerFilesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <CircularProgress size={18} />
+                  </Box>
+                ) : drawerFiles.length === 0 ? (
+                  <Typography variant="caption" color="text.disabled" sx={{ px: 1.5 }}>
+                    {t('skills.drawer.emptyDir')}
+                  </Typography>
+                ) : (
+                  <List dense disablePadding sx={{ pb: 1 }}>
+                    {drawerFiles.map(entry => (
+                      <ListItemButton
+                        key={entry.rel_path}
+                        selected={dynSelectedFile === entry.rel_path}
+                        disabled={entry.type === 'dir'}
+                        onClick={() => {
+                          if (entry.type === 'file') selectDynFile(drawerDynamic.dir_name, entry.rel_path)
+                        }}
+                        sx={{
+                          pl: 1 + (entry.rel_path.split('/').length - 1) * 1.5,
+                          py: 0.25,
+                          minHeight: 30,
+                          '&.Mui-selected': { bgcolor: (th) => alpha(th.palette.primary.main, 0.12) },
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 24 }}>
+                          {entry.type === 'dir' ? (
+                            <FolderIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                          ) : entry.name === 'SKILL.md' ? (
+                            <SkillMdIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                          ) : (
+                            <FileIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={entry.name}
+                          primaryTypographyProps={{
+                            variant: 'caption',
+                            fontWeight: entry.name === 'SKILL.md' ? 600 : 400,
+                            noWrap: true,
+                            color: entry.type === 'dir' ? 'text.disabled' : 'text.primary',
+                          }}
+                        />
+                        {entry.type === 'file' && dynSelectedFile === entry.rel_path && dynDirty && (
+                          <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: 'warning.main', flexShrink: 0, ml: 0.5 }} />
+                        )}
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
+              </Box>
+
+              {/* Right: Content pane */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                {/* Content toolbar */}
+                {dynSelectedFile && (
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      py: 0.75,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: (th) => alpha(th.palette.background.default, 0.3),
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 500, flex: 1 }} noWrap>
+                      {dynSelectedFile}
+                    </Typography>
+
+                    {dynDirty && (
+                      <Chip label={t('skills.drawer.modified')} size="small" color="warning" sx={{ height: 18, fontSize: '0.6rem' }} />
+                    )}
+
+                    {isTextFile(dynSelectedFile) && (
+                      <ToggleButtonGroup
+                        size="small"
+                        value={dynEditing ? 'source' : dynViewMode}
+                        exclusive
+                        onChange={(_, v) => {
+                          if (v === 'source' || v === 'preview') {
+                            setDynViewMode(v)
+                            if (v === 'preview') setDynEditing(false)
+                          }
+                        }}
+                        disabled={dynEditing}
+                      >
+                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
+                          <Tooltip title={t('skills.drawer.preview')}><PreviewIcon sx={{ fontSize: 16 }} /></Tooltip>
+                        </ToggleButton>
+                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
+                          <Tooltip title={t('skills.drawer.source_code')}><CodeIcon sx={{ fontSize: 16 }} /></Tooltip>
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    )}
+
+                    {isTextFile(dynSelectedFile) && (
+                      dynEditing ? (
+                        <Stack direction="row" spacing={0.5}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={dynSaving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
+                            onClick={handleDynSave}
+                            disabled={dynSaving || !dynDirty}
+                            sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
+                          >
+                            {dynSaving ? t('skills.drawer.saving') : t('skills.drawer.save')}
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              setDynEditing(false)
+                              setDynEditBuffer(dynFileContent ?? '')
+                              setDynDirty(false)
+                              setDynViewMode('source')
+                            }}
+                            disabled={dynSaving}
+                            sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
+                          >
+                            {t('skills.drawer.cancel_edit')}
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Tooltip title={t('skills.drawer.edit')}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setDynEditing(true)
+                              setDynEditBuffer(dynFileContent ?? '')
+                              setDynDirty(false)
+                              setDynViewMode('source')
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )
+                    )}
+                  </Box>
+                )}
+
+                {/* Content body */}
+                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                  {!dynSelectedFile ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1 }}>
+                      <ExtensionIcon sx={{ fontSize: 48, opacity: 0.15 }} />
+                      <Typography variant="body2" color="text.disabled">{t('skills.drawer.noContent')}</Typography>
+                    </Box>
+                  ) : dynFileLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : !isTextFile(dynSelectedFile) ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Typography variant="body2" color="text.disabled">{t('skills.drawer.binaryFile')}</Typography>
+                    </Box>
+                  ) : dynEditing ? (
+                    <Editor
+                      key={`dyn-edit-${dynSelectedFile}`}
+                      height="100%"
+                      language={getMonacoLanguage(dynSelectedFile)}
+                      value={dynEditBuffer}
+                      onChange={v => {
+                        const val = v ?? ''
+                        setDynEditBuffer(val)
+                        setDynDirty(val !== (dynFileContent ?? ''))
+                      }}
+                      theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        lineNumbers: 'on',
+                        wordWrap: 'on',
+                        scrollBeyondLastLine: false,
+                        renderLineHighlight: 'none',
+                        automaticLayout: true,
+                      }}
+                    />
+                  ) : dynViewMode === 'source' ? (
+                    <Editor
+                      key={`dyn-readonly-${dynSelectedFile}`}
+                      height="100%"
+                      language={getMonacoLanguage(dynSelectedFile)}
+                      value={dynFileContent ?? ''}
+                      theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                      options={{
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        lineNumbers: 'on',
+                        wordWrap: 'on',
+                        scrollBeyondLastLine: false,
+                        renderLineHighlight: 'none',
+                        automaticLayout: true,
+                      }}
+                    />
+                  ) : (
+                    dynFileContent !== null && dynSelectedFile.toLowerCase().endsWith('.md') ? (
+                      <SkillPreviewPanel raw={dynFileContent} />
+                    ) : (
+                      <Editor
+                        key={`dyn-preview-${dynSelectedFile}`}
+                        height="100%"
+                        language={getMonacoLanguage(dynSelectedFile)}
+                        value={dynFileContent ?? ''}
+                        theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 13,
+                          lineNumbers: 'on',
+                          wordWrap: 'on',
+                          scrollBeyondLastLine: false,
+                          renderLineHighlight: 'none',
+                          automaticLayout: true,
+                        }}
+                      />
+                    )
+                  )}
+                </Box>
+              </Box>
+            </Box>
+          </Box>
+        )}
+      </Drawer>
+
+      {/* 动态技能未保存确认对话框 */}
+      <Dialog open={!!dynUnsavedTarget} onClose={() => setDynUnsavedTarget(null)}>
+        <DialogTitle>{t('skills.drawer.unsavedTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setEditDynamic(null)} disabled={savingDynamic}>
-            {t('detail.extensions.editDynamicDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleSaveDynamic}
-            disabled={savingDynamic}
-            startIcon={savingDynamic ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-          >
-            {t('detail.extensions.editDynamicDialog.save')}
-          </Button>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</Button>
+          <Button variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</Button>
         </DialogActions>
       </Dialog>
 

@@ -7,7 +7,7 @@ import struct
 import subprocess
 import termios
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, List, Optional
+from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
 import aiodocker
 from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
@@ -902,6 +902,122 @@ async def promote_dynamic_skill(
     except ValueError as e:
         raise ValidationError(reason=str(e)) from e
     return ActionOkResponse(ok=True, message=f"已晋升 '{dir_name}' 为全局用户 skill")
+
+
+# ── 动态 skill 目录/文件浏览 ──────────────────────────────────
+
+
+class DynamicSkillDirEntry(BaseModel):
+    name: str
+    rel_path: str
+    type: Literal["file", "dir"]
+    size: Optional[int] = None
+
+
+class DynamicSkillDirResponse(BaseModel):
+    entries: List[DynamicSkillDirEntry]
+
+
+class DynamicSkillFileBody(BaseModel):
+    rel_path: str
+    content: str
+
+
+def _list_dynamic_dir(root: Any, current: Any, max_depth: int = 5) -> List[DynamicSkillDirEntry]:
+    """递归列出目录内所有文件和子目录（跳过 .git 等隐藏目录）"""
+    entries: List[DynamicSkillDirEntry] = []
+    if max_depth <= 0:
+        return entries
+    try:
+        items = sorted(current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    except PermissionError:
+        return entries
+    for item in items:
+        if item.name.startswith("."):
+            continue
+        rel = str(item.relative_to(root))
+        if item.is_dir():
+            entries.append(DynamicSkillDirEntry(name=item.name, rel_path=rel, type="dir"))
+            entries.extend(_list_dynamic_dir(root, item, max_depth - 1))
+        elif item.is_file():
+            try:
+                size = item.stat().st_size
+            except OSError:
+                size = None
+            entries.append(DynamicSkillDirEntry(name=item.name, rel_path=rel, type="file", size=size))
+    return entries
+
+
+@router.get(
+    "/{workspace_id}/dynamic-skills/{dir_name}/dir",
+    summary="列出动态 skill 目录内所有文件",
+    response_model=DynamicSkillDirResponse,
+)
+@require_role(Role.Admin)
+async def list_dynamic_skill_dir(
+    workspace_id: int,
+    dir_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> DynamicSkillDirResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        raise NotFoundError(resource=f"动态 skill '{dir_name}'")
+    entries = await asyncio.to_thread(_list_dynamic_dir, skill_dir, skill_dir)
+    return DynamicSkillDirResponse(entries=entries)
+
+
+@router.get(
+    "/{workspace_id}/dynamic-skills/{dir_name}/file",
+    summary="读取动态 skill 目录内指定文件",
+    response_model=DynamicSkillContent,
+)
+@require_role(Role.Admin)
+async def get_dynamic_skill_file(
+    workspace_id: int,
+    dir_name: str,
+    rel_path: str = Query(..., description="相对于 skill 根目录的文件路径"),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> DynamicSkillContent:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    if ".." in rel_path.split("/"):
+        raise ValidationError(reason="路径不合法")
+    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
+    target = skill_dir / rel_path
+    if not target.exists() or not target.is_file():
+        raise NotFoundError(resource=f"文件 '{rel_path}'")
+    content = await asyncio.to_thread(target.read_text, "utf-8")
+    return DynamicSkillContent(dir_name=dir_name, content=content)
+
+
+@router.put(
+    "/{workspace_id}/dynamic-skills/{dir_name}/file",
+    summary="保存动态 skill 目录内指定文件",
+    response_model=ActionOkResponse,
+)
+@require_role(Role.Admin)
+async def save_dynamic_skill_file(
+    workspace_id: int,
+    dir_name: str,
+    body: DynamicSkillFileBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    if ".." in body.rel_path.split("/"):
+        raise ValidationError(reason="路径不合法")
+    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        raise NotFoundError(resource=f"动态 skill '{dir_name}'")
+    target = skill_dir / body.rel_path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    await asyncio.to_thread(target.write_text, body.content, "utf-8")
+    return ActionOkResponse(ok=True)
 
 
 # ─────────────────────────────────────────────────────────────

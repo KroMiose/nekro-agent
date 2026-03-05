@@ -405,6 +405,13 @@ export interface DynamicSkillContent {
   content: string
 }
 
+export interface DynamicSkillDirEntry {
+  name: string
+  rel_path: string
+  type: 'file' | 'dir'
+  size?: number | null
+}
+
 export const dynamicSkillApi = {
   list: async (workspaceId: number): Promise<DynamicSkillItem[]> => {
     const response = await axios.get<DynamicSkillListResponse>(`/workspaces/${workspaceId}/dynamic-skills`)
@@ -426,6 +433,22 @@ export const dynamicSkillApi = {
 
   promote: async (workspaceId: number, dirName: string, force = false): Promise<void> => {
     await axios.post(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/promote`, { force })
+  },
+
+  getDir: async (workspaceId: number, dirName: string): Promise<DynamicSkillDirEntry[]> => {
+    const response = await axios.get<{ entries: DynamicSkillDirEntry[] }>(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/dir`)
+    return response.data.entries
+  },
+
+  getFile: async (workspaceId: number, dirName: string, relPath: string): Promise<string> => {
+    const response = await axios.get<DynamicSkillContent>(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/file`, {
+      params: { rel_path: relPath },
+    })
+    return response.data.content
+  },
+
+  saveFile: async (workspaceId: number, dirName: string, relPath: string, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/file`, { rel_path: relPath, content })
   },
 }
 
