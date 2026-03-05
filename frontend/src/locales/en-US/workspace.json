@@ -161,6 +161,7 @@
     "pageDesc": "Manage skills available to Claude Code. Skills marked as auto-inject will be enabled automatically when creating new workspaces",
     "statBuiltin": "Built-in",
     "statUser": "User Skills",
+    "statRepo": "Repo Skills",
     "statAutoInject": "Auto-Inject",
     "search": {
       "placeholder": "Search skills by name or description..."
@@ -168,7 +169,8 @@
     "filter": {
       "all": "All",
       "builtin": "Built-in",
-      "user": "User"
+      "user": "User",
+      "repo": "Repo"
     },
     "toolbar": {
       "cardView": "Card View",
@@ -199,7 +201,8 @@
       "deleteTooltip": "Delete",
       "pullTooltip": "Pull Updates",
       "sourceBuiltin": "Built-in",
-      "sourceUser": "User"
+      "sourceUser": "User",
+      "sourceRepo": "Repo"
     },
     "drawer": {
       "title": "Skill Details",
@@ -207,6 +210,7 @@
       "source": "Source",
       "directory": "Directory",
       "autoInject": "Auto-Inject",
+      "syncToWorkspaces": "Sync this skill to all workspaces using it",
       "noContent": "No SKILL.md content",
       "files": "Files",
       "preview": "Preview",
@@ -260,7 +264,9 @@
       "pullFailed": "Update failed: {{message}}",
       "invalidFile": "Please select a .zip file",
       "autoInjectUpdated": "Auto-inject settings updated",
-      "autoInjectFailed": "Failed to update auto-inject: {{message}}"
+      "autoInjectFailed": "Failed to update auto-inject: {{message}}",
+      "syncSuccess": "Synced to {{count}} workspaces",
+      "syncFailed": "Sync failed: {{message}}"
     }
   },
   "detail": {
@@ -478,6 +484,7 @@
       "deployedEmpty": "No skills deployed yet. Click \"Add Skill\" to select from built-in or library.",
       "skillChipBuiltin": "Built-in",
       "skillChipUser": "Library",
+      "skillChipRepo": "Repo",
       "skillChipPending": "Pending",
       "skillChipAutoInject": "Auto-Inject",
       "removeTooltip": "Remove from deployed list (click \"Sync to Sandbox\" to apply)",
@@ -498,6 +505,7 @@
         "filterAll": "All",
         "filterBuiltin": "Built-in",
         "filterUser": "Library",
+        "filterRepo": "Repo",
         "allAdded": "All skills already added",
         "noMatch": "No matching results",
         "selectedCount": "{{count}} selected",

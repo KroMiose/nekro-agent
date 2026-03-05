@@ -81,7 +81,9 @@ NAPCAT_TEMPFILE_DIR: str = OsEnv.DATA_DIR + "/napcat_data/QQ/NapCat/temp"  # Nap
 NAPCAT_ONEBOT_ADAPTER_DIR: str = OsEnv.DATA_DIR + "/napcat_data/napcat"  # NapCat OneBot 适配器目录
 WALLPAPER_DIR: str = OsEnv.DATA_DIR + "/wallpapers"  # 壁纸目录
 WORKSPACE_ROOT_DIR: str = OsEnv.DATA_DIR + "/workspaces"  # cc-sandbox 工作区根目录
-SKILLS_DIR: str = OsEnv.DATA_DIR + "/skills"  # 全局用户 skill 资源库目录
+SKILLS_DIR: str = OsEnv.DATA_DIR + "/skills"  # 全局 skill 资源库根目录
+SKILLS_LOCAL_DIR: str = SKILLS_DIR + "/local"  # 独立技能（手动创建/上传/晋升）
+SKILLS_REPOS_DIR: str = SKILLS_DIR + "/repos"  # 订阅仓库（git clone）
 BUILTIN_SKILLS_SOURCE_DIR: str = str(Path(__file__).parent.parent / "builtin_skills")  # 内置 skill 源目录
 ONEBOT_ACCESS_TOKEN: str = os.getenv("ONEBOT_ACCESS_TOKEN", "")
 

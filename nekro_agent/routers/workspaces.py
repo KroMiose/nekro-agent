@@ -701,7 +701,7 @@ async def update_workspace_skills(
     return ActionOkResponse(ok=True)
 
 
-@router.post("/{workspace_id}/skills/{skill_name}/sync", summary="从全局库重新同步单个 skill", response_model=ActionOkResponse)
+@router.post("/{workspace_id}/skills/{skill_name:path}/sync", summary="从全局库重新同步单个 skill", response_model=ActionOkResponse)
 @require_role(Role.Admin)
 async def sync_workspace_skill(
     workspace_id: int,
@@ -711,7 +711,7 @@ async def sync_workspace_skill(
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    ok = await WorkspaceService.sync_single_user_skill(ws, skill_name)
+    ok = await WorkspaceService.sync_single_skill(ws, skill_name)
     if not ok:
         raise OperationFailedError(operation=f"同步技能 {skill_name}（未选中或源目录不存在）")
     return ActionOkResponse(ok=True)
@@ -881,20 +881,26 @@ async def delete_dynamic_skill(
     return ActionOkResponse(ok=True)
 
 
+class PromoteBody(BaseModel):
+    force: bool = False
+
+
 @router.post("/{workspace_id}/dynamic-skills/{dir_name}/promote", summary="晋升动态 skill 为全局用户 skill", response_model=ActionOkResponse)
 @require_role(Role.Admin)
 async def promote_dynamic_skill(
     workspace_id: int,
     dir_name: str,
+    body: Optional[PromoteBody] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
+    force = body.force if body else False
     try:
-        WorkspaceService.promote_dynamic_skill(workspace_id, dir_name)
+        WorkspaceService.promote_dynamic_skill(workspace_id, dir_name, force=force)
     except ValueError as e:
-        raise NotFoundError(resource=str(e)) from e
+        raise ValidationError(reason=str(e)) from e
     return ActionOkResponse(ok=True, message=f"已晋升 '{dir_name}' 为全局用户 skill")
 
 

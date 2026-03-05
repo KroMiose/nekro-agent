@@ -1,15 +1,16 @@
 import asyncio
 import io
+import json
 import shutil
 import zipfile
 from pathlib import Path
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Depends, File, Query, UploadFile
 from pydantic import BaseModel
 
 from nekro_agent.core.logger import logger
-from nekro_agent.core.os_env import SKILLS_DIR
+from nekro_agent.core.os_env import SKILLS_LOCAL_DIR, SKILLS_REPOS_DIR
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import (
     AppFileNotFoundError,
@@ -39,7 +40,8 @@ class AllSkillItem(BaseModel):
     name: str
     display_name: str
     description: str
-    source: Literal["builtin", "user"]
+    source: Literal["builtin", "user", "repo"]
+    repo_name: Optional[str] = None
 
 
 class AllSkillsResponse(BaseModel):
@@ -118,6 +120,36 @@ class PullResponse(BaseModel):
     output: str = ""
 
 
+# ── 仓库订阅 ──
+
+class RepoSubscribeRequest(BaseModel):
+    repo_url: str
+    repo_name: str  # 本地目录名
+
+
+class RepoMeta(BaseModel):
+    repo_name: str
+    repo_url: Optional[str] = None
+    repo_branch: Optional[str] = None
+    subscribed_at: Optional[str] = None
+    skill_count: int = 0
+
+
+class RepoListResponse(BaseModel):
+    repos: List[RepoMeta]
+
+
+# ── 同步到工作区 ──
+
+class SyncToWorkspacesRequest(BaseModel):
+    skill_id: str
+
+
+class SyncToWorkspacesResponse(BaseModel):
+    ok: bool = True
+    synced_count: int = 0
+
+
 # ─────────────────────────────────────────────────────────────
 # 辅助函数
 # ─────────────────────────────────────────────────────────────
@@ -171,6 +203,20 @@ def _parse_skill_meta(skill_dir: Path) -> Optional[Dict[str, str]]:
     except Exception as e:
         logger.warning(f"读取 SKILL.md 失败: {skill_dir.name}: {e}")
         return None
+
+
+def _parse_frontmatter_name(content: str) -> Optional[str]:
+    """从 SKILL.md 内容中提取 frontmatter 的 name 字段，不存在返回 None。"""
+    lines = content.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for line in lines[1:]:
+        if line.strip() == "---":
+            break
+        if line.startswith("name:") or line.startswith("name :"):
+            _, _, value = line.partition(":")
+            return value.strip().strip('"').strip("'") or None
+    return None
 
 
 async def _get_git_info(repo_dir: Path) -> tuple:
@@ -291,14 +337,14 @@ def _list_dir_entries(root: Path, current: Path, max_depth: int = 5) -> List[Ski
 
 
 async def _build_skill_tree() -> List[SkillTreeNode]:
-    """构建完整的技能库树，并填充 git 信息"""
-    global_skills_dir = Path(SKILLS_DIR)
-    global_skills_dir.mkdir(parents=True, exist_ok=True)
-    nodes = await asyncio.to_thread(_scan_directory_sync, global_skills_dir, global_skills_dir)
+    """构建完整的技能库树，并填充 git 信息。扫描 local/ 目录。"""
+    local_dir = Path(SKILLS_LOCAL_DIR)
+    local_dir.mkdir(parents=True, exist_ok=True)
+    nodes = await asyncio.to_thread(_scan_directory_sync, local_dir, local_dir)
 
     async def fill_git_info(node: SkillTreeNode) -> None:
         if node.type == "repo" and node.has_git:
-            node_dir = global_skills_dir / node.path
+            node_dir = local_dir / node.path
             repo_url, repo_branch = await _get_git_info(node_dir)
             node.repo_url = repo_url
             node.repo_branch = repo_branch
@@ -403,18 +449,23 @@ async def get_skills_tree(
 @router.get("/content", summary="读取 skill 内容文件", response_model=SkillReadmeResponse)
 @require_role(Role.Admin)
 async def get_skill_content(
-    path: str = Query(..., description="相对于 SKILLS_DIR 的路径"),
+    path: str = Query(..., description="相对于 local/ 的路径"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> SkillReadmeResponse:
-    global_skills_dir = Path(SKILLS_DIR)
     rel = path.strip("/")
     if not rel or ".." in rel.split("/"):
         raise ValidationError(reason="路径不合法")
-    node_dir = global_skills_dir / rel
-    if not node_dir.exists() or not node_dir.is_dir():
+    # 依次尝试 local/ 和 repos/
+    node_dir: Optional[Path] = None
+    for base in (Path(SKILLS_LOCAL_DIR), Path(SKILLS_REPOS_DIR)):
+        candidate = base / rel
+        if candidate.is_dir():
+            node_dir = candidate
+            break
+    if node_dir is None:
         raise NotFoundError(resource=f"skill '{rel}'")
-    for candidate in ("SKILL.md", "README.md", "README.txt", "readme.md", "readme.txt", "README"):
-        f = node_dir / candidate
+    for candidate_name in ("SKILL.md", "README.md", "README.txt", "readme.md", "readme.txt", "README"):
+        f = node_dir / candidate_name
         if f.exists():
             return SkillReadmeResponse(readme=f.read_text(encoding="utf-8"))
     raise AppFileNotFoundError(filename=f"{rel}/README")
@@ -423,16 +474,21 @@ async def get_skill_content(
 @router.get("/file", summary="读取 skill 目录内的指定文件", response_model=SkillReadmeResponse)
 @require_role(Role.Admin)
 async def get_skill_file(
-    path: str = Query(..., description="相对于 SKILLS_DIR 的文件路径，如 my-skill/install.md"),
+    path: str = Query(..., description="相对于 local/ 的文件路径，如 my-skill/install.md"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> SkillReadmeResponse:
-    global_skills_dir = Path(SKILLS_DIR)
     rel = path.strip("/")
     parts = rel.split("/")
     if not rel or ".." in parts or len(parts) < 2:
         raise ValidationError(reason="路径不合法")
-    target = global_skills_dir / rel
-    if not target.exists() or not target.is_file():
+    # 依次尝试 local/ 和 repos/
+    target: Optional[Path] = None
+    for base in (Path(SKILLS_LOCAL_DIR), Path(SKILLS_REPOS_DIR)):
+        candidate = base / rel
+        if candidate.is_file():
+            target = candidate
+            break
+    if target is None:
         raise NotFoundError(resource=f"file '{rel}'")
     return SkillReadmeResponse(readme=target.read_text(encoding="utf-8"))
 
@@ -440,19 +496,28 @@ async def get_skill_file(
 @router.get("/dir", summary="列出 skill 目录内所有文件", response_model=SkillDirResponse)
 @require_role(Role.Admin)
 async def list_skill_dir(
-    name: str = Query(..., description="skill 名称"),
-    source: Literal["builtin", "user"] = Query("user", description="skill 来源"),
+    name: str = Query(..., description="skill 名称（仓库技能用 repo/skill 格式）"),
+    source: Literal["builtin", "user", "repo"] = Query("user", description="skill 来源"),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> SkillDirResponse:
     from nekro_agent.core.os_env import BUILTIN_SKILLS_SOURCE_DIR
 
-    if ".." in name or "/" in name or "\\" in name or name.startswith("."):
+    if ".." in name or name.startswith("."):
         raise ValidationError(reason="skill 名称不合法")
 
     if source == "builtin":
+        if "/" in name or "\\" in name:
+            raise ValidationError(reason="内置 skill 名称不合法")
         skill_dir = Path(BUILTIN_SKILLS_SOURCE_DIR) / name
+    elif source == "repo":
+        # 仓库技能：name 格式为 repo_name/skill_name
+        if "\\" in name:
+            raise ValidationError(reason="路径不合法")
+        skill_dir = Path(SKILLS_REPOS_DIR) / name
     else:
-        skill_dir = Path(SKILLS_DIR) / name
+        if "/" in name or "\\" in name:
+            raise ValidationError(reason="用户 skill 名称不合法")
+        skill_dir = Path(SKILLS_LOCAL_DIR) / name
 
     if not skill_dir.exists() or not skill_dir.is_dir():
         raise NotFoundError(resource=f"skill '{name}'")
@@ -467,44 +532,49 @@ async def save_skill_file(
     body: SkillFileSaveRequest,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
-    global_skills_dir = Path(SKILLS_DIR)
+    local_dir = Path(SKILLS_LOCAL_DIR)
+    local_dir.mkdir(parents=True, exist_ok=True)
     rel = body.path.strip("/")
     parts = rel.split("/")
     if not rel or ".." in parts or len(parts) < 2:
         raise ValidationError(reason="路径不合法，需包含 skill 名和文件名")
 
-    target = (global_skills_dir / rel).resolve()
-    if not str(target).startswith(str(global_skills_dir.resolve())):
+    target = (local_dir / rel).resolve()
+    if not str(target).startswith(str(local_dir.resolve())):
         raise ValidationError(reason="路径不合法，不允许跳出 skills 目录")
+
+    # 一致性校验：如果保存的是 SKILL.md，检查 frontmatter name 与目录名是否一致
+    if parts[-1] == "SKILL.md":
+        skill_dir_name = parts[0]
+        meta = _parse_frontmatter_name(body.content)
+        if meta and meta != skill_dir_name:
+            raise ValidationError(
+                reason=f"SKILL.md 中的 name '{meta}' 与目录名 '{skill_dir_name}' 不一致，请修正"
+            )
 
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(body.content, encoding="utf-8")
     return ActionOkResponse(ok=True)
 
 
-@router.post("/clone", summary="从 git 仓库克隆 skill", response_model=CloneResponse)
+@router.post("/clone", summary="从 git 仓库克隆独立 skill 到 local/", response_model=CloneResponse)
 @require_role(Role.Admin)
 async def clone_skill_repo(
     body: CloneRequest,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> CloneResponse:
-    global_skills_dir = Path(SKILLS_DIR)
-    global_skills_dir.mkdir(parents=True, exist_ok=True)
+    local_dir = Path(SKILLS_LOCAL_DIR)
+    local_dir.mkdir(parents=True, exist_ok=True)
     target_name = body.target_dir.strip("/").strip()
     if not target_name or "/" in target_name or ".." in target_name or target_name.startswith("."):
         raise ValidationError(reason=f"目标目录名无效: {body.target_dir!r}")
-    target_dir = global_skills_dir / target_name
+    target_dir = local_dir / target_name
     if target_dir.exists():
         raise ValidationError(reason=f"目录已存在: {target_name}")
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git",
-            "clone",
-            "--depth=1",
-            body.repo_url,
-            str(target_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            "git", "clone", "--depth=1", body.repo_url, str(target_dir),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         if proc.returncode != 0:
@@ -516,31 +586,36 @@ async def clone_skill_repo(
         raise ValidationError(reason="克隆超时（120s）") from e
     except Exception as e:
         raise ValidationError(reason=f"克隆操作失败: {e}") from e
+
+    # 写入 .skill-origin.json
+    WorkspaceService._write_skill_origin(target_dir, origin="git", repo_url=body.repo_url)
     return CloneResponse(path=target_name, ok=True)
 
 
-@router.post("/pull", summary="更新 git 仓库", response_model=PullResponse)
+@router.post("/pull", summary="更新 git 仓库（local 或 repos）", response_model=PullResponse)
 @require_role(Role.Admin)
 async def pull_skill_repo(
     body: PullRequest,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> PullResponse:
-    global_skills_dir = Path(SKILLS_DIR)
     rel_path = body.path.strip("/")
     if not rel_path or ".." in rel_path.split("/"):
         raise ValidationError(reason=f"路径无效: {body.path!r}")
-    repo_dir = global_skills_dir / rel_path
-    if not repo_dir.exists() or not repo_dir.is_dir():
-        raise NotFoundError(resource=f"skill 目录 '{rel_path}'")
-    if not (repo_dir / ".git").is_dir():
-        raise ValidationError(reason=f"该目录不是 git 仓库: {rel_path}")
+
+    # 依次尝试 local/ 和 repos/ 下查找
+    repo_dir: Optional[Path] = None
+    for base in (Path(SKILLS_LOCAL_DIR), Path(SKILLS_REPOS_DIR)):
+        candidate = base / rel_path
+        if candidate.is_dir() and (candidate / ".git").is_dir():
+            repo_dir = candidate
+            break
+    if repo_dir is None:
+        raise NotFoundError(resource=f"git 仓库 '{rel_path}'")
+
     try:
         proc = await asyncio.create_subprocess_exec(
-            "git",
-            "pull",
-            cwd=str(repo_dir),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            "git", "pull", cwd=str(repo_dir),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
         output = (stdout + stderr).decode(errors="replace").strip()
@@ -555,7 +630,7 @@ async def pull_skill_repo(
     return PullResponse(ok=True, output=output)
 
 
-@router.get("/all", summary="列出所有可用技能候选（内置 + 用户库）", response_model=AllSkillsResponse)
+@router.get("/all", summary="列出所有可用技能候选（内置 + local + repos）", response_model=AllSkillsResponse)
 @require_role(Role.Admin)
 async def list_all_skills(
     _current_user: DBUser = Depends(get_current_active_user),
@@ -565,7 +640,8 @@ async def list_all_skills(
         name=s["name"],
         display_name=s["display_name"],
         description=s["description"],
-        source=s["source"],
+        source=s["source"],  # type: ignore[arg-type]
+        repo_name=s.get("repo_name"),
     ) for s in raw]
     return AllSkillsResponse(total=len(items), items=items)
 
@@ -592,7 +668,7 @@ async def update_auto_inject_skills(
     return ActionOkResponse(ok=True)
 
 
-@router.get("", summary="列出全局 skill 资源库（扁平列表）", response_model=SkillListResponse)
+@router.get("", summary="列出全局 skill 资源库（扁平列表，仅 local/）", response_model=SkillListResponse)
 @require_role(Role.Admin)
 async def list_skills(
     _current_user: DBUser = Depends(get_current_active_user),
@@ -602,7 +678,7 @@ async def list_skills(
     return SkillListResponse(total=len(items), items=items)
 
 
-@router.post("", summary="上传 skill（zip 包）", response_model=SkillUploadResponse)
+@router.post("", summary="上传 skill（zip 包）到 local/", response_model=SkillUploadResponse)
 @require_role(Role.Admin)
 async def upload_skill(
     file: UploadFile = File(...),
@@ -614,8 +690,8 @@ async def upload_skill(
     content = await file.read()
     if not zipfile.is_zipfile(io.BytesIO(content)):
         raise ValidationError(reason="上传的文件不是有效的 zip 压缩包")
-    global_skills_dir = Path(SKILLS_DIR)
-    global_skills_dir.mkdir(parents=True, exist_ok=True)
+    local_dir = Path(SKILLS_LOCAL_DIR)
+    local_dir.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(io.BytesIO(content)) as zf:
         names = zf.namelist()
         if not names:
@@ -626,34 +702,49 @@ async def upload_skill(
         skill_name = top_dirs.pop()
         if not skill_name or skill_name.startswith("."):
             raise ValidationError(reason=f"skill 名称无效: {skill_name}")
-        target_dir = global_skills_dir / skill_name
+
+        # 一致性校验：检查 zip 中 SKILL.md 的 frontmatter name
+        skill_md_entry = f"{skill_name}/SKILL.md"
+        if skill_md_entry in names:
+            with zf.open(skill_md_entry) as f:
+                md_content = f.read().decode("utf-8", errors="replace")
+                fm_name = _parse_frontmatter_name(md_content)
+                if fm_name and fm_name != skill_name:
+                    raise ValidationError(
+                        reason=f"SKILL.md 中的 name '{fm_name}' 与目录名 '{skill_name}' 不一致"
+                    )
+
+        target_dir = local_dir / skill_name
         if target_dir.exists():
             shutil.rmtree(target_dir)
         target_dir.mkdir(parents=True, exist_ok=True)
-        zf.extractall(global_skills_dir)
+        zf.extractall(local_dir)
+
+    # 写入 .skill-origin.json
+    WorkspaceService._write_skill_origin(local_dir / skill_name, origin="manual")
     return SkillUploadResponse(name=skill_name, ok=True)
 
 
-@router.delete("/{name}", summary="删除 skill", response_model=ActionOkResponse)
+@router.delete("/{name}", summary="删除 skill（local/）", response_model=ActionOkResponse)
 @require_role(Role.Admin)
 async def delete_skill(
     name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
-    skill_dir = Path(SKILLS_DIR) / name
+    skill_dir = Path(SKILLS_LOCAL_DIR) / name
     if not skill_dir.exists() or not skill_dir.is_dir():
         raise NotFoundError(resource=f"skill '{name}'")
     shutil.rmtree(skill_dir)
     return ActionOkResponse(ok=True)
 
 
-@router.get("/{name}/readme", summary="读取 skill README（顶层）", response_model=SkillReadmeResponse)
+@router.get("/{name}/readme", summary="读取 skill README（local/）", response_model=SkillReadmeResponse)
 @require_role(Role.Admin)
 async def get_skill_readme(
     name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> SkillReadmeResponse:
-    skill_dir = Path(SKILLS_DIR) / name
+    skill_dir = Path(SKILLS_LOCAL_DIR) / name
     if not skill_dir.exists() or not skill_dir.is_dir():
         raise NotFoundError(resource=f"skill '{name}'")
     for candidate in ("SKILL.md", "README.md", "README.txt", "readme.md", "readme.txt", "README"):
@@ -661,3 +752,145 @@ async def get_skill_readme(
         if readme_path.exists():
             return SkillReadmeResponse(readme=readme_path.read_text(encoding="utf-8"))
     raise AppFileNotFoundError(filename=f"{name}/README")
+
+
+# ── 仓库订阅 ──────────────────────────────────────────────────
+
+
+@router.get("/repos", summary="列出已订阅仓库", response_model=RepoListResponse)
+@require_role(Role.Admin)
+async def list_repos(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> RepoListResponse:
+    repos_dir = Path(SKILLS_REPOS_DIR)
+    repos_dir.mkdir(parents=True, exist_ok=True)
+    repos: List[RepoMeta] = []
+    for d in sorted(repos_dir.iterdir()):
+        if not d.is_dir() or d.name.startswith("."):
+            continue
+        meta_path = d / ".repo-meta.json"
+        meta_data: Dict[str, Any] = {}
+        if meta_path.exists():
+            try:
+                meta_data = json.loads(meta_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+        # 统计内部 skill 数量
+        skill_count = sum(1 for sd in d.iterdir() if sd.is_dir() and not sd.name.startswith(".") and (sd / "SKILL.md").exists())
+        repo_url_val = meta_data.get("repo_url")
+        repos.append(RepoMeta(
+            repo_name=d.name,
+            repo_url=repo_url_val if isinstance(repo_url_val, str) else None,
+            subscribed_at=meta_data.get("subscribed_at"),
+            skill_count=skill_count,
+        ))
+    return RepoListResponse(repos=repos)
+
+
+@router.post("/repos/subscribe", summary="订阅技能仓库（git clone 到 repos/）", response_model=CloneResponse)
+@require_role(Role.Admin)
+async def subscribe_repo(
+    body: RepoSubscribeRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> CloneResponse:
+    repos_dir = Path(SKILLS_REPOS_DIR)
+    repos_dir.mkdir(parents=True, exist_ok=True)
+    repo_name = body.repo_name.strip("/").strip()
+    if not repo_name or "/" in repo_name or ".." in repo_name or repo_name.startswith("."):
+        raise ValidationError(reason=f"仓库名无效: {body.repo_name!r}")
+    target_dir = repos_dir / repo_name
+    if target_dir.exists():
+        raise ValidationError(reason=f"仓库已存在: {repo_name}")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "clone", "--depth=1", body.repo_url, str(target_dir),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        if proc.returncode != 0:
+            err_msg = stderr.decode(errors="replace").strip()
+            raise ValidationError(reason=f"git clone 失败: {err_msg}")
+    except ValidationError:
+        raise
+    except asyncio.TimeoutError as e:
+        raise ValidationError(reason="克隆超时（120s）") from e
+    except Exception as e:
+        raise ValidationError(reason=f"克隆操作失败: {e}") from e
+
+    # 写入 .repo-meta.json
+    import datetime as _dt
+    meta = {
+        "repo_url": body.repo_url,
+        "community_id": None,
+        "community_slug": None,
+        "subscribed_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
+    }
+    (target_dir / ".repo-meta.json").write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+    return CloneResponse(path=repo_name, ok=True)
+
+
+@router.post("/repos/{repo_name}/pull", summary="更新订阅仓库（git pull）", response_model=PullResponse)
+@require_role(Role.Admin)
+async def pull_repo(
+    repo_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> PullResponse:
+    if ".." in repo_name or "/" in repo_name or repo_name.startswith("."):
+        raise ValidationError(reason="仓库名无效")
+    repo_dir = Path(SKILLS_REPOS_DIR) / repo_name
+    if not repo_dir.is_dir():
+        raise NotFoundError(resource=f"仓库 '{repo_name}'")
+    if not (repo_dir / ".git").is_dir():
+        raise ValidationError(reason=f"该目录不是 git 仓库: {repo_name}")
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "git", "pull", cwd=str(repo_dir),
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=120)
+        output = (stdout + stderr).decode(errors="replace").strip()
+        if proc.returncode != 0:
+            raise ValidationError(reason=f"git pull 失败: {output}")
+    except ValidationError:
+        raise
+    except asyncio.TimeoutError as e:
+        raise ValidationError(reason="更新超时（120s）") from e
+    except Exception as e:
+        raise ValidationError(reason=f"更新操作失败: {e}") from e
+
+    # 自动同步该仓库内所有技能到引用它们的工作区
+    synced = 0
+    for skill_dir in sorted(repo_dir.iterdir()):
+        if skill_dir.is_dir() and not skill_dir.name.startswith(".") and (skill_dir / "SKILL.md").exists():
+            skill_id = f"{repo_name}/{skill_dir.name}"
+            synced += await WorkspaceService.sync_skill_to_all_workspaces(skill_id)
+
+    return PullResponse(ok=True, output=f"{output}\n同步了 {synced} 个工作区" if synced else output)
+
+
+@router.delete("/repos/{repo_name}", summary="取消订阅仓库", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def unsubscribe_repo(
+    repo_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    if ".." in repo_name or "/" in repo_name or repo_name.startswith("."):
+        raise ValidationError(reason="仓库名无效")
+    repo_dir = Path(SKILLS_REPOS_DIR) / repo_name
+    if not repo_dir.is_dir():
+        raise NotFoundError(resource=f"仓库 '{repo_name}'")
+    shutil.rmtree(repo_dir)
+    return ActionOkResponse(ok=True)
+
+
+# ── 同步到工作区 ──────────────────────────────────────────────
+
+
+@router.post("/sync-to-workspaces", summary="同步技能到所有使用它的工作区", response_model=SyncToWorkspacesResponse)
+@require_role(Role.Admin)
+async def sync_skill_to_workspaces(
+    body: SyncToWorkspacesRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> SyncToWorkspacesResponse:
+    count = await WorkspaceService.sync_skill_to_all_workspaces(body.skill_id)
+    return SyncToWorkspacesResponse(ok=True, synced_count=count)

@@ -53,7 +53,7 @@ import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
 
-type SourceFilter = 'all' | 'builtin' | 'user'
+type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
 
 export default function ExtensionsTab({
   workspace,
@@ -472,14 +472,18 @@ export default function ExtensionsTab({
                     ...ROW_SX,
                     borderColor: skill.isPending
                       ? 'warning.main'
-                      : skill.source === 'builtin' ? 'primary.main' : 'success.main',
+                      : skill.source === 'builtin' ? 'primary.main' : skill.source === 'repo' ? 'secondary.main' : 'success.main',
                     bgcolor: skill.isPending ? 'warning.main' + '12' : 'action.selected',
                   }}
                 >
                   <Chip
-                    label={skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin') : t('detail.extensions.skillChipUser')}
+                    label={
+                      skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin')
+                        : skill.source === 'repo' ? t('detail.extensions.skillChipRepo')
+                          : t('detail.extensions.skillChipUser')
+                    }
                     size="small"
-                    color={skill.source === 'builtin' ? 'primary' : 'success'}
+                    color={skill.source === 'builtin' ? 'primary' : skill.source === 'repo' ? 'secondary' : 'success'}
                     variant="outlined"
                     sx={{ fontSize: '0.65rem', height: 20, flexShrink: 0 }}
                   />
@@ -707,6 +711,7 @@ export default function ExtensionsTab({
               <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterAll')}</ToggleButton>
               <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterBuiltin')}</ToggleButton>
               <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterUser')}</ToggleButton>
+              <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterRepo')}</ToggleButton>
             </ToggleButtonGroup>
           </Box>
           {filteredAvailable.length === 0 ? (
@@ -735,9 +740,13 @@ export default function ExtensionsTab({
                     primary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Chip
-                          label={skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin') : t('detail.extensions.skillChipUser')}
+                          label={
+                            skill.source === 'builtin' ? t('detail.extensions.skillChipBuiltin')
+                              : skill.source === 'repo' ? t('detail.extensions.skillChipRepo')
+                                : t('detail.extensions.skillChipUser')
+                          }
                           size="small"
-                          color={skill.source === 'builtin' ? 'primary' : 'success'}
+                          color={skill.source === 'builtin' ? 'primary' : skill.source === 'repo' ? 'secondary' : 'success'}
                           variant="outlined"
                           sx={{ fontSize: '0.6rem', height: 18 }}
                         />

@@ -161,6 +161,7 @@
     "pageDesc": "管理 Claude Code 可用的技能，标记自动注入的技能将在新建工作区时自动启用",
     "statBuiltin": "内置技能",
     "statUser": "用户技能",
+    "statRepo": "仓库技能",
     "statAutoInject": "自动注入",
     "search": {
       "placeholder": "搜索技能名称或描述..."
@@ -168,7 +169,8 @@
     "filter": {
       "all": "全部",
       "builtin": "内置",
-      "user": "用户"
+      "user": "用户",
+      "repo": "仓库"
     },
     "toolbar": {
       "cardView": "卡片视图",
@@ -199,7 +201,8 @@
       "deleteTooltip": "删除",
       "pullTooltip": "拉取更新",
       "sourceBuiltin": "内置",
-      "sourceUser": "用户"
+      "sourceUser": "用户",
+      "sourceRepo": "仓库"
     },
     "drawer": {
       "title": "技能详情",
@@ -207,6 +210,7 @@
       "source": "来源",
       "directory": "目录名",
       "autoInject": "自动注入",
+      "syncToWorkspaces": "同步此技能到所有引用它的工作区",
       "noContent": "暂无 SKILL.md 内容",
       "files": "文件",
       "preview": "预览",
@@ -260,7 +264,9 @@
       "pullFailed": "更新失败：{{message}}",
       "invalidFile": "请选择 .zip 格式的文件",
       "autoInjectUpdated": "自动注入设置已更新",
-      "autoInjectFailed": "自动注入设置失败：{{message}}"
+      "autoInjectFailed": "自动注入设置失败：{{message}}",
+      "syncSuccess": "已同步到 {{count}} 个工作区",
+      "syncFailed": "同步失败：{{message}}"
     }
   },
   "detail": {
@@ -478,6 +484,7 @@
       "deployedEmpty": "暂未部署任何技能，点击「添加技能」从内置或技能库中挑选",
       "skillChipBuiltin": "内置",
       "skillChipUser": "技能库",
+      "skillChipRepo": "仓库",
       "skillChipPending": "待同步",
       "skillChipAutoInject": "自动注入",
       "removeTooltip": "从已部署列表移除（点击「同步到沙盒」生效）",
@@ -498,6 +505,7 @@
         "filterAll": "全部",
         "filterBuiltin": "内置",
         "filterUser": "技能库",
+        "filterRepo": "仓库",
         "allAdded": "所有技能均已添加",
         "noMatch": "无匹配结果",
         "selectedCount": "已选 {{count}} 个",

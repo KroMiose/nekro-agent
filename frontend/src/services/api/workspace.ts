@@ -53,7 +53,8 @@ export interface AllSkillItem {
   name: string
   display_name: string
   description: string
-  source: 'builtin' | 'user'
+  source: 'builtin' | 'user' | 'repo'
+  repo_name?: string | null
 }
 
 export interface AllSkillsResponse {
@@ -339,7 +340,7 @@ export const skillsLibraryApi = {
     await axios.put('/skills/auto-inject', { skills })
   },
 
-  getDir: async (name: string, source: 'builtin' | 'user' = 'user'): Promise<SkillDirEntry[]> => {
+  getDir: async (name: string, source: 'builtin' | 'user' | 'repo' = 'user'): Promise<SkillDirEntry[]> => {
     const response = await axios.get<{ entries: SkillDirEntry[] }>('/skills/dir', {
       params: { name, source },
     })
@@ -348,6 +349,42 @@ export const skillsLibraryApi = {
 
   saveFile: async (path: string, content: string): Promise<void> => {
     await axios.put('/skills/file', { path, content })
+  },
+
+  syncToWorkspaces: async (skillId: string): Promise<{ synced_count: number }> => {
+    const response = await axios.post<{ ok: boolean; synced_count: number }>('/skills/sync-to-workspaces', {
+      skill_id: skillId,
+    })
+    return response.data
+  },
+}
+
+// 仓库订阅 API
+export interface RepoMeta {
+  repo_name: string
+  repo_url: string | null
+  repo_branch: string | null
+  subscribed_at: string | null
+  skill_count: number
+}
+
+export const repoApi = {
+  list: async (): Promise<RepoMeta[]> => {
+    const response = await axios.get<{ repos: RepoMeta[] }>('/skills/repos')
+    return response.data.repos
+  },
+
+  subscribe: async (repoUrl: string, repoName: string): Promise<void> => {
+    await axios.post('/skills/repos/subscribe', { repo_url: repoUrl, repo_name: repoName })
+  },
+
+  pull: async (repoName: string): Promise<string> => {
+    const response = await axios.post<{ ok: boolean; output: string }>(`/skills/repos/${encodeURIComponent(repoName)}/pull`)
+    return response.data.output
+  },
+
+  unsubscribe: async (repoName: string): Promise<void> => {
+    await axios.delete(`/skills/repos/${encodeURIComponent(repoName)}`)
   },
 }
 
@@ -387,8 +424,8 @@ export const dynamicSkillApi = {
     await axios.delete(`/workspaces/${workspaceId}/dynamic-skills/${dirName}`)
   },
 
-  promote: async (workspaceId: number, dirName: string): Promise<void> => {
-    await axios.post(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/promote`)
+  promote: async (workspaceId: number, dirName: string, force = false): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/dynamic-skills/${dirName}/promote`, { force })
   },
 }
 

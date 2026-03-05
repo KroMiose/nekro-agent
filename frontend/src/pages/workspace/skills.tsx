@@ -54,6 +54,8 @@ import {
   Save as SaveIcon,
   Code as CodeIcon,
   PreviewOutlined as PreviewIcon,
+  SyncOutlined as SyncIcon,
+  Inventory as RepoIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -74,10 +76,11 @@ interface UnifiedSkill {
   name: string
   displayName: string
   description: string
-  source: 'builtin' | 'user'
+  source: 'builtin' | 'user' | 'repo'
   hasGit: boolean
   repoUrl?: string
   treePath?: string
+  repoName?: string
 }
 
 interface SkillMdData {
@@ -85,7 +88,7 @@ interface SkillMdData {
   body: string
 }
 
-type SourceFilter = 'all' | 'builtin' | 'user'
+type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
 type ViewMode = 'card' | 'list'
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -298,6 +301,9 @@ export default function SkillsLibraryPage() {
   // Pull state
   const [pullingName, setPullingName] = useState<string | null>(null)
 
+  // Sync to workspaces state
+  const [syncingSkill, setSyncingSkill] = useState<string | null>(null)
+
   // ── Data fetching ──
 
   const { data: allSkillsRaw = [], isLoading: loadingAll, error: errorAll, refetch: refetchAll } = useQuery({
@@ -357,6 +363,7 @@ export default function SkillsLibraryPage() {
         hasGit: gitInfo?.hasGit ?? false,
         repoUrl: gitInfo?.repoUrl,
         treePath: gitInfo?.treePath,
+        repoName: s.repo_name ?? undefined,
       }
     })
   }, [allSkillsRaw, builtinSkills, treeData])
@@ -385,6 +392,7 @@ export default function SkillsLibraryPage() {
   const stats = useMemo(() => ({
     builtin: unifiedSkills.filter(s => s.source === 'builtin').length,
     user: unifiedSkills.filter(s => s.source === 'user').length,
+    repo: unifiedSkills.filter(s => s.source === 'repo').length,
     autoInject: autoInjectList.length,
   }), [unifiedSkills, autoInjectList])
 
@@ -427,6 +435,8 @@ export default function SkillsLibraryPage() {
         let content: string
         if (skill.source === 'builtin') {
           content = await builtinSkillApi.getFile(skill.name, relPath)
+        } else if (skill.source === 'repo') {
+          content = await skillsLibraryApi.getFile(`${skill.name}/${relPath}`)
         } else {
           content = await skillsLibraryApi.getFile(`${skill.name}/${relPath}`)
         }
@@ -467,7 +477,7 @@ export default function SkillsLibraryPage() {
       setDrawerViewMode('preview')
       setDrawerFilesLoading(true)
       try {
-        const entries = await skillsLibraryApi.getDir(skill.name, skill.source)
+        const entries = await skillsLibraryApi.getDir(skill.name, skill.source === 'repo' ? 'repo' : skill.source)
         setDrawerFiles(entries)
         const skillMd = entries.find(e => e.type === 'file' && e.name === 'SKILL.md')
         if (skillMd) {
@@ -602,6 +612,18 @@ export default function SkillsLibraryPage() {
     }
   }
 
+  const handleSyncToWorkspaces = async (skillId: string) => {
+    setSyncingSkill(skillId)
+    try {
+      const result = await skillsLibraryApi.syncToWorkspaces(skillId)
+      notification.success(t('skills.notifications.syncSuccess', { count: result.synced_count }))
+    } catch (err) {
+      notification.error(t('skills.notifications.syncFailed', { message: (err as Error).message }))
+    } finally {
+      setSyncingSkill(null)
+    }
+  }
+
   const handleRefresh = () => {
     refetchAll()
     refetchBuiltin()
@@ -617,6 +639,7 @@ export default function SkillsLibraryPage() {
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
         <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color="#5c6bc0" />
         <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color="#26a69a" />
+        <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color="#7e57c2" />
         <StatCard label={t('skills.statAutoInject')} value={stats.autoInject} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color="#ef6c00" />
       </Box>
 
@@ -655,6 +678,7 @@ export default function SkillsLibraryPage() {
           <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.all')}</ToggleButton>
           <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.builtin')}</ToggleButton>
           <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.user')}</ToggleButton>
+          <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.repo')}</ToggleButton>
         </ToggleButtonGroup>
 
         {/* View mode */}
@@ -754,9 +778,13 @@ export default function SkillsLibraryPage() {
                 {/* Top row: source chip + git icon */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   <Chip
-                    label={skill.source === 'builtin' ? t('skills.card.sourceBuiltin') : t('skills.card.sourceUser')}
+                    label={
+                      skill.source === 'builtin' ? t('skills.card.sourceBuiltin')
+                        : skill.source === 'repo' ? t('skills.card.sourceRepo')
+                          : t('skills.card.sourceUser')
+                    }
                     size="small"
-                    color={skill.source === 'builtin' ? 'primary' : 'success'}
+                    color={skill.source === 'builtin' ? 'primary' : skill.source === 'repo' ? 'secondary' : 'success'}
                     variant="outlined"
                     sx={{ fontSize: '0.7rem', height: 22 }}
                   />
@@ -772,6 +800,9 @@ export default function SkillsLibraryPage() {
                         fontWeight: 600,
                       }}
                     />
+                  )}
+                  {skill.repoName && (
+                    <Chip label={skill.repoName} size="small" variant="outlined" sx={{ fontSize: '0.6rem', height: 18, opacity: 0.7 }} />
                   )}
                   {skill.hasGit && (
                     <GitHubIcon sx={{ fontSize: 14, color: 'text.disabled', ml: 'auto' }} />
@@ -869,9 +900,13 @@ export default function SkillsLibraryPage() {
               >
                 {/* Source chip */}
                 <Chip
-                  label={skill.source === 'builtin' ? t('skills.card.sourceBuiltin') : t('skills.card.sourceUser')}
+                  label={
+                    skill.source === 'builtin' ? t('skills.card.sourceBuiltin')
+                      : skill.source === 'repo' ? t('skills.card.sourceRepo')
+                        : t('skills.card.sourceUser')
+                  }
                   size="small"
-                  color={skill.source === 'builtin' ? 'primary' : 'success'}
+                  color={skill.source === 'builtin' ? 'primary' : skill.source === 'repo' ? 'secondary' : 'success'}
                   variant="outlined"
                   sx={{ fontSize: '0.7rem', height: 22, width: 52, flexShrink: 0 }}
                 />
@@ -972,9 +1007,13 @@ export default function SkillsLibraryPage() {
                     {drawerSkill.displayName}
                   </Typography>
                   <Chip
-                    label={drawerSkill.source === 'builtin' ? t('skills.card.sourceBuiltin') : t('skills.card.sourceUser')}
+                    label={
+                      drawerSkill.source === 'builtin' ? t('skills.card.sourceBuiltin')
+                        : drawerSkill.source === 'repo' ? t('skills.card.sourceRepo')
+                          : t('skills.card.sourceUser')
+                    }
                     size="small"
-                    color={drawerSkill.source === 'builtin' ? 'primary' : 'success'}
+                    color={drawerSkill.source === 'builtin' ? 'primary' : drawerSkill.source === 'repo' ? 'secondary' : 'success'}
                     variant="outlined"
                     sx={{ fontSize: '0.65rem', height: 20 }}
                   />
@@ -993,6 +1032,17 @@ export default function SkillsLibraryPage() {
                   <Typography variant="caption" color="text.disabled">{drawerSkill.name}</Typography>
                 )}
               </Box>
+              <Tooltip title={t('skills.drawer.syncToWorkspaces')}>
+                <span>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleSyncToWorkspaces(drawerSkill.name)}
+                    disabled={syncingSkill === drawerSkill.name}
+                  >
+                    {syncingSkill === drawerSkill.name ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
+                  </IconButton>
+                </span>
+              </Tooltip>
               <Tooltip title={t('skills.drawer.autoInject')}>
                 <Switch
                   size="small"
@@ -1121,7 +1171,7 @@ export default function SkillsLibraryPage() {
                       />
                     )}
 
-                    {drawerSkill.source === 'builtin' && (
+                    {drawerSkill.source !== 'user' && (
                       <Chip
                         label={t('skills.drawer.readOnly')}
                         size="small"
