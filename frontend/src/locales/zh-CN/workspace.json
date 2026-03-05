@@ -207,7 +207,27 @@
       "source": "来源",
       "directory": "目录名",
       "autoInject": "自动注入",
-      "noContent": "暂无 SKILL.md 内容"
+      "noContent": "暂无 SKILL.md 内容",
+      "files": "文件",
+      "preview": "预览",
+      "source_code": "源码",
+      "edit": "编辑",
+      "save": "保存",
+      "saving": "保存中...",
+      "cancel_edit": "取消",
+      "readOnly": "只读",
+      "modified": "已修改",
+      "saveSuccess": "文件已保存",
+      "saveFailed": "保存失败：{{message}}",
+      "loadFailed": "加载文件失败",
+      "binaryFile": "二进制文件，无法预览",
+      "emptyDir": "空目录",
+      "unsavedConfirm": "当前文件已修改，确定放弃更改吗？",
+      "unsavedTitle": "未保存的更改",
+      "discard": "放弃",
+      "keepEditing": "继续编辑",
+      "skillMd": "SKILL.md（主文件）",
+      "fileCount": "{{count}} 个文件"
     },
     "error": {
       "loadFailed": "加载技能库失败：{{message}}"

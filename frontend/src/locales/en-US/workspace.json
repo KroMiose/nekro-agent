@@ -207,7 +207,27 @@
       "source": "Source",
       "directory": "Directory",
       "autoInject": "Auto-Inject",
-      "noContent": "No SKILL.md content"
+      "noContent": "No SKILL.md content",
+      "files": "Files",
+      "preview": "Preview",
+      "source_code": "Source",
+      "edit": "Edit",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel_edit": "Cancel",
+      "readOnly": "Read-only",
+      "modified": "Modified",
+      "saveSuccess": "File saved",
+      "saveFailed": "Save failed: {{message}}",
+      "loadFailed": "Failed to load file",
+      "binaryFile": "Binary file, cannot preview",
+      "emptyDir": "Empty directory",
+      "unsavedConfirm": "You have unsaved changes. Discard?",
+      "unsavedTitle": "Unsaved Changes",
+      "discard": "Discard",
+      "keepEditing": "Keep Editing",
+      "skillMd": "SKILL.md (main file)",
+      "fileCount": "{{count}} files"
     },
     "error": {
       "loadFailed": "Failed to load skills library: {{message}}"

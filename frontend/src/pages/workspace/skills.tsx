@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef, useCallback } from 'react'
+import { useTheme } from '@mui/material/styles'
+import { Editor } from '@monaco-editor/react'
 import {
   Box,
   Button,
@@ -23,6 +25,11 @@ import {
   Paper,
   Switch,
   Drawer,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  alpha,
 } from '@mui/material'
 import {
   Extension as ExtensionIcon,
@@ -40,10 +47,23 @@ import {
   Inventory2 as BuiltinIcon,
   FolderCopy as UserIcon,
   HelpOutline as HelpIcon,
+  InsertDriveFileOutlined as FileIcon,
+  FolderOutlined as FolderIcon,
+  Description as SkillMdIcon,
+  Edit as EditIcon,
+  Save as SaveIcon,
+  Code as CodeIcon,
+  PreviewOutlined as PreviewIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { skillsLibraryApi, builtinSkillApi, AllSkillItem, SkillItem } from '../../services/api/workspace'
+import {
+  skillsLibraryApi,
+  builtinSkillApi,
+  AllSkillItem,
+  SkillItem,
+  SkillDirEntry,
+} from '../../services/api/workspace'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../theme/variants'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
@@ -95,6 +115,24 @@ function parseSkillMd(raw: string): SkillMdData {
   }
 
   return { frontmatter, body }
+}
+
+const EXT_LANG_MAP: Record<string, string> = {
+  '.md': 'markdown', '.txt': 'plaintext', '.yaml': 'yaml', '.yml': 'yaml',
+  '.json': 'json', '.toml': 'toml', '.py': 'python', '.js': 'javascript',
+  '.ts': 'typescript', '.html': 'html', '.css': 'css', '.xml': 'xml',
+  '.sh': 'shell', '.bash': 'shell', '.cfg': 'ini', '.ini': 'ini',
+  '.conf': 'ini', '.env': 'shell', '.rst': 'restructuredtext', '.csv': 'plaintext',
+  '.log': 'plaintext', '.svg': 'xml',
+}
+
+function getMonacoLanguage(filename: string): string {
+  const lower = filename.toLowerCase()
+  const dotIdx = lower.lastIndexOf('.')
+  if (dotIdx >= 0) {
+    return EXT_LANG_MAP[lower.slice(dotIdx)] ?? 'plaintext'
+  }
+  return 'plaintext'
 }
 
 function autoDeriveName(url: string): string {
@@ -228,6 +266,7 @@ export default function SkillsLibraryPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const theme = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // View state
@@ -237,8 +276,17 @@ export default function SkillsLibraryPage() {
 
   // Drawer state
   const [drawerSkill, setDrawerSkill] = useState<UnifiedSkill | null>(null)
-  const [drawerContent, setDrawerContent] = useState<string | null>(null)
-  const [drawerLoading, setDrawerLoading] = useState(false)
+  const [drawerFiles, setDrawerFiles] = useState<SkillDirEntry[]>([])
+  const [drawerFilesLoading, setDrawerFilesLoading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null) // rel_path
+  const [fileContent, setFileContent] = useState<string | null>(null)
+  const [fileLoading, setFileLoading] = useState(false)
+  const [drawerViewMode, setDrawerViewMode] = useState<'preview' | 'source'>('preview')
+  const [editing, setEditing] = useState(false)
+  const [editBuffer, setEditBuffer] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [dirty, setDirty] = useState(false)
+  const [unsavedDialogTarget, setUnsavedDialogTarget] = useState<string | null>(null)
 
   // Dialog state
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
@@ -365,29 +413,120 @@ export default function SkillsLibraryPage() {
 
   // ── Drawer ──
 
-  const openDrawer = useCallback(
-    async (skill: UnifiedSkill) => {
-      setDrawerSkill(skill)
-      setDrawerContent(null)
-      setDrawerLoading(true)
+  const isTextFile = useCallback((name: string) => {
+    const textExts = ['.md', '.txt', '.yaml', '.yml', '.json', '.toml', '.cfg', '.ini', '.sh', '.bash', '.py', '.js', '.ts', '.html', '.css', '.xml', '.csv', '.env', '.conf', '.rst', '.log']
+    const lower = name.toLowerCase()
+    return textExts.some(ext => lower.endsWith(ext)) || !lower.includes('.')
+  }, [])
+
+  const loadFileContent = useCallback(
+    async (skill: UnifiedSkill, relPath: string) => {
+      setFileLoading(true)
+      setFileContent(null)
       try {
         let content: string
         if (skill.source === 'builtin') {
-          content = await builtinSkillApi.getContent(skill.name)
-        } else if (skill.treePath) {
-          content = await skillsLibraryApi.getContent(skill.treePath)
+          content = await builtinSkillApi.getFile(skill.name, relPath)
         } else {
-          content = await skillsLibraryApi.getReadme(skill.name)
+          content = await skillsLibraryApi.getFile(`${skill.name}/${relPath}`)
         }
-        setDrawerContent(content)
+        setFileContent(content)
+        setEditBuffer(content)
+        setDirty(false)
       } catch {
-        setDrawerContent('')
+        setFileContent(null)
       } finally {
-        setDrawerLoading(false)
+        setFileLoading(false)
       }
     },
     [],
   )
+
+  const selectFile = useCallback(
+    (skill: UnifiedSkill, relPath: string) => {
+      if (dirty) {
+        setUnsavedDialogTarget(relPath)
+        return
+      }
+      setSelectedFile(relPath)
+      setEditing(false)
+      setDrawerViewMode('preview')
+      loadFileContent(skill, relPath)
+    },
+    [dirty, loadFileContent],
+  )
+
+  const openDrawer = useCallback(
+    async (skill: UnifiedSkill) => {
+      setDrawerSkill(skill)
+      setDrawerFiles([])
+      setSelectedFile(null)
+      setFileContent(null)
+      setEditing(false)
+      setDirty(false)
+      setDrawerViewMode('preview')
+      setDrawerFilesLoading(true)
+      try {
+        const entries = await skillsLibraryApi.getDir(skill.name, skill.source)
+        setDrawerFiles(entries)
+        const skillMd = entries.find(e => e.type === 'file' && e.name === 'SKILL.md')
+        if (skillMd) {
+          setSelectedFile(skillMd.rel_path)
+          loadFileContent(skill, skillMd.rel_path)
+        }
+      } catch {
+        setDrawerFiles([])
+      } finally {
+        setDrawerFilesLoading(false)
+      }
+    },
+    [loadFileContent],
+  )
+
+  const closeDrawer = useCallback(() => {
+    if (dirty) {
+      setUnsavedDialogTarget('__close__')
+      return
+    }
+    setDrawerSkill(null)
+    setSelectedFile(null)
+    setFileContent(null)
+    setEditing(false)
+    setDirty(false)
+  }, [dirty])
+
+  const handleSave = useCallback(async () => {
+    if (!drawerSkill || !selectedFile) return
+    setSaving(true)
+    try {
+      await skillsLibraryApi.saveFile(`${drawerSkill.name}/${selectedFile}`, editBuffer)
+      setFileContent(editBuffer)
+      setDirty(false)
+      setEditing(false)
+      notification.success(t('skills.drawer.saveSuccess'))
+      queryClient.invalidateQueries({ queryKey: ['skills-all'] })
+    } catch (err) {
+      notification.error(t('skills.drawer.saveFailed', { message: (err as Error).message }))
+    } finally {
+      setSaving(false)
+    }
+  }, [drawerSkill, selectedFile, editBuffer, notification, t, queryClient])
+
+  const handleDiscardAndSwitch = useCallback(() => {
+    const target = unsavedDialogTarget
+    setDirty(false)
+    setEditing(false)
+    setUnsavedDialogTarget(null)
+    if (target === '__close__') {
+      setDrawerSkill(null)
+      setSelectedFile(null)
+      setFileContent(null)
+    } else if (target && drawerSkill) {
+      setSelectedFile(target)
+      setDrawerViewMode('preview')
+      loadFileContent(drawerSkill, target)
+    }
+  }, [unsavedDialogTarget, drawerSkill, loadFileContent])
 
   // ── Mutations ──
 
@@ -813,10 +952,10 @@ export default function SkillsLibraryPage() {
       <Drawer
         anchor="right"
         open={!!drawerSkill}
-        onClose={() => setDrawerSkill(null)}
+        onClose={closeDrawer}
         PaperProps={{
           sx: {
-            width: { xs: '100%', sm: 500 },
+            width: { xs: '100%', sm: 720, md: 820 },
             maxWidth: '100vw',
             mt: { xs: '56px', sm: '64px' },
             height: { xs: 'calc(100% - 56px)', sm: 'calc(100% - 64px)' },
@@ -826,81 +965,353 @@ export default function SkillsLibraryPage() {
         {drawerSkill && (
           <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             {/* Drawer header */}
-            <Box sx={{ px: 2.5, py: 2, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'flex-start', gap: 1.5 }}>
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
-                  {drawerSkill.displayName}
-                </Typography>
-                {drawerSkill.displayName !== drawerSkill.name && (
-                  <Typography variant="caption" color="text.disabled">
-                    {drawerSkill.name}
+            <Box sx={{ px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, lineHeight: 1.3 }} noWrap>
+                    {drawerSkill.displayName}
                   </Typography>
-                )}
-                <Stack direction="row" spacing={0.75} sx={{ mt: 1 }}>
                   <Chip
                     label={drawerSkill.source === 'builtin' ? t('skills.card.sourceBuiltin') : t('skills.card.sourceUser')}
                     size="small"
                     color={drawerSkill.source === 'builtin' ? 'primary' : 'success'}
                     variant="outlined"
-                    sx={{ fontSize: '0.7rem', height: 22 }}
+                    sx={{ fontSize: '0.65rem', height: 20 }}
                   />
                   {autoInjectSet.has(drawerSkill.name) && (
                     <Chip
                       label={t('skills.autoInject.badge')}
                       size="small"
-                      sx={{ fontSize: '0.65rem', height: 20, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }}
+                      sx={{ fontSize: '0.6rem', height: 18, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }}
                     />
                   )}
                   {drawerSkill.hasGit && (
-                    <Chip
-                      icon={<GitHubIcon sx={{ fontSize: '14px !important' }} />}
-                      label="git"
-                      size="small"
-                      sx={{ height: 22, fontSize: '0.7rem' }}
-                    />
+                    <GitHubIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
                   )}
-                </Stack>
+                </Box>
+                {drawerSkill.displayName !== drawerSkill.name && (
+                  <Typography variant="caption" color="text.disabled">{drawerSkill.name}</Typography>
+                )}
               </Box>
-              <IconButton size="small" onClick={() => setDrawerSkill(null)}>
-                <CloseIcon />
+              <Tooltip title={t('skills.drawer.autoInject')}>
+                <Switch
+                  size="small"
+                  checked={autoInjectSet.has(drawerSkill.name)}
+                  onChange={(_, checked) => toggleAutoInject(drawerSkill.name, checked)}
+                  color="warning"
+                />
+              </Tooltip>
+              <IconButton size="small" onClick={closeDrawer}>
+                <CloseIcon fontSize="small" />
               </IconButton>
             </Box>
 
-            {/* Drawer: auto-inject control */}
-            <Box sx={{ px: 2.5, py: 1.5, borderBottom: '1px solid', borderColor: 'divider', display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AutoInjectIcon sx={{ fontSize: 18, color: 'warning.main' }} />
-              <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
-                {t('skills.drawer.autoInject')}
-              </Typography>
-              <Switch
-                size="small"
-                checked={autoInjectSet.has(drawerSkill.name)}
-                onChange={(_, checked) => toggleAutoInject(drawerSkill.name, checked)}
-                color="warning"
-              />
-            </Box>
-
-            {/* Drawer body (SKILL.md content) */}
-            <Box sx={{ flex: 1, overflow: 'auto' }}>
-              {drawerLoading ? (
-                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                  <CircularProgress size={24} />
+            {/* Drawer body: file tree + content pane */}
+            <Box sx={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+              {/* ── Left: File tree ── */}
+              <Box
+                sx={{
+                  width: 200,
+                  minWidth: 200,
+                  borderRight: '1px solid',
+                  borderColor: 'divider',
+                  overflow: 'auto',
+                  bgcolor: theme => alpha(theme.palette.background.default, 0.5),
+                }}
+              >
+                <Box sx={{ px: 1.5, py: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                    {t('skills.drawer.files')}
+                  </Typography>
+                  <Typography variant="caption" color="text.disabled">
+                    ({t('skills.drawer.fileCount', { count: drawerFiles.filter(e => e.type === 'file').length })})
+                  </Typography>
                 </Box>
-              ) : drawerContent !== null ? (
-                drawerContent ? (
-                  <SkillContentPanel raw={drawerContent} />
-                ) : (
-                  <Box sx={{ px: 2.5, py: 3 }}>
-                    <Typography variant="body2" color="text.disabled">
-                      {t('skills.drawer.noContent')}
-                    </Typography>
+                {drawerFilesLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <CircularProgress size={18} />
                   </Box>
-                )
-              ) : null}
+                ) : drawerFiles.length === 0 ? (
+                  <Typography variant="caption" color="text.disabled" sx={{ px: 1.5 }}>
+                    {t('skills.drawer.emptyDir')}
+                  </Typography>
+                ) : (
+                  <List dense disablePadding sx={{ pb: 1 }}>
+                    {drawerFiles.map(entry => (
+                      <ListItemButton
+                        key={entry.rel_path}
+                        selected={selectedFile === entry.rel_path}
+                        disabled={entry.type === 'dir'}
+                        onClick={() => {
+                          if (entry.type === 'file') {
+                            selectFile(drawerSkill, entry.rel_path)
+                          }
+                        }}
+                        sx={{
+                          pl: 1 + (entry.rel_path.split('/').length - 1) * 1.5,
+                          py: 0.25,
+                          minHeight: 30,
+                          '&.Mui-selected': {
+                            bgcolor: theme => alpha(theme.palette.primary.main, 0.12),
+                          },
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 24 }}>
+                          {entry.type === 'dir' ? (
+                            <FolderIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                          ) : entry.name === 'SKILL.md' ? (
+                            <SkillMdIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                          ) : (
+                            <FileIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={entry.name}
+                          primaryTypographyProps={{
+                            variant: 'caption',
+                            fontWeight: entry.name === 'SKILL.md' ? 600 : 400,
+                            noWrap: true,
+                            color: entry.type === 'dir' ? 'text.disabled' : 'text.primary',
+                          }}
+                        />
+                        {entry.type === 'file' && selectedFile === entry.rel_path && dirty && (
+                          <Box
+                            sx={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              bgcolor: 'warning.main',
+                              flexShrink: 0,
+                              ml: 0.5,
+                            }}
+                          />
+                        )}
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
+              </Box>
+
+              {/* ── Right: Content pane ── */}
+              <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+                {/* Content toolbar */}
+                {selectedFile && (
+                  <Box
+                    sx={{
+                      px: 1.5,
+                      py: 0.75,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      bgcolor: theme => alpha(theme.palette.background.default, 0.3),
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 500, flex: 1 }} noWrap>
+                      {selectedFile}
+                    </Typography>
+
+                    {dirty && (
+                      <Chip
+                        label={t('skills.drawer.modified')}
+                        size="small"
+                        color="warning"
+                        sx={{ height: 18, fontSize: '0.6rem' }}
+                      />
+                    )}
+
+                    {drawerSkill.source === 'builtin' && (
+                      <Chip
+                        label={t('skills.drawer.readOnly')}
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 18, fontSize: '0.6rem' }}
+                      />
+                    )}
+
+                    {/* Source / Preview toggle */}
+                    {isTextFile(selectedFile) && (
+                      <ToggleButtonGroup
+                        size="small"
+                        value={editing ? 'source' : drawerViewMode}
+                        exclusive
+                        onChange={(_, v) => {
+                          if (v === 'source' || v === 'preview') {
+                            setDrawerViewMode(v)
+                            if (v === 'preview') setEditing(false)
+                          }
+                        }}
+                        disabled={editing}
+                      >
+                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
+                          <Tooltip title={t('skills.drawer.preview')}>
+                            <PreviewIcon sx={{ fontSize: 16 }} />
+                          </Tooltip>
+                        </ToggleButton>
+                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
+                          <Tooltip title={t('skills.drawer.source_code')}>
+                            <CodeIcon sx={{ fontSize: 16 }} />
+                          </Tooltip>
+                        </ToggleButton>
+                      </ToggleButtonGroup>
+                    )}
+
+                    {/* Edit / Save for user skills */}
+                    {drawerSkill.source === 'user' && isTextFile(selectedFile) && (
+                      editing ? (
+                        <Stack direction="row" spacing={0.5}>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
+                            onClick={handleSave}
+                            disabled={saving || !dirty}
+                            sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
+                          >
+                            {saving ? t('skills.drawer.saving') : t('skills.drawer.save')}
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              setEditing(false)
+                              setEditBuffer(fileContent ?? '')
+                              setDirty(false)
+                              setDrawerViewMode('source')
+                            }}
+                            disabled={saving}
+                            sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
+                          >
+                            {t('skills.drawer.cancel_edit')}
+                          </Button>
+                        </Stack>
+                      ) : (
+                        <Tooltip title={t('skills.drawer.edit')}>
+                          <IconButton
+                            size="small"
+                            onClick={() => {
+                              setEditing(true)
+                              setEditBuffer(fileContent ?? '')
+                              setDirty(false)
+                              setDrawerViewMode('source')
+                            }}
+                          >
+                            <EditIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )
+                    )}
+                  </Box>
+                )}
+
+                {/* Content body */}
+                <Box sx={{ flex: 1, overflow: 'auto' }}>
+                  {!selectedFile ? (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 1 }}>
+                      <ExtensionIcon sx={{ fontSize: 48, opacity: 0.15 }} />
+                      <Typography variant="body2" color="text.disabled">
+                        {t('skills.drawer.noContent')}
+                      </Typography>
+                    </Box>
+                  ) : fileLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress size={24} />
+                    </Box>
+                  ) : !isTextFile(selectedFile) ? (
+                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                      <Typography variant="body2" color="text.disabled">
+                        {t('skills.drawer.binaryFile')}
+                      </Typography>
+                    </Box>
+                  ) : editing ? (
+                    /* Edit mode: Monaco Editor */
+                    <Editor
+                      key={`edit-${selectedFile}`}
+                      height="100%"
+                      language={getMonacoLanguage(selectedFile)}
+                      value={editBuffer}
+                      onChange={v => {
+                        const val = v ?? ''
+                        setEditBuffer(val)
+                        setDirty(val !== (fileContent ?? ''))
+                      }}
+                      theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                      options={{
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        lineNumbers: 'on',
+                        wordWrap: 'on',
+                        scrollBeyondLastLine: false,
+                        renderLineHighlight: 'none',
+                        automaticLayout: true,
+                      }}
+                    />
+                  ) : drawerViewMode === 'source' ? (
+                    /* Source view: read-only Monaco */
+                    <Editor
+                      key={`readonly-${selectedFile}`}
+                      height="100%"
+                      language={getMonacoLanguage(selectedFile)}
+                      value={fileContent ?? ''}
+                      theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                      options={{
+                        readOnly: true,
+                        minimap: { enabled: false },
+                        fontSize: 13,
+                        lineNumbers: 'on',
+                        wordWrap: 'on',
+                        scrollBeyondLastLine: false,
+                        renderLineHighlight: 'none',
+                        automaticLayout: true,
+                      }}
+                    />
+                  ) : (
+                    /* Preview view */
+                    fileContent !== null && selectedFile.toLowerCase().endsWith('.md') ? (
+                      <SkillContentPanel raw={fileContent} />
+                    ) : (
+                      <Editor
+                        key={`preview-${selectedFile}`}
+                        height="100%"
+                        language={getMonacoLanguage(selectedFile)}
+                        value={fileContent ?? ''}
+                        theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
+                        options={{
+                          readOnly: true,
+                          minimap: { enabled: false },
+                          fontSize: 13,
+                          lineNumbers: 'on',
+                          wordWrap: 'on',
+                          scrollBeyondLastLine: false,
+                          renderLineHighlight: 'none',
+                          automaticLayout: true,
+                        }}
+                      />
+                    )
+                  )}
+                </Box>
+              </Box>
             </Box>
           </Box>
         )}
       </Drawer>
+
+      {/* ── Unsaved Changes Dialog ── */}
+      <Dialog open={!!unsavedDialogTarget} onClose={() => setUnsavedDialogTarget(null)}>
+        <DialogTitle>{t('skills.drawer.unsavedTitle')}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setUnsavedDialogTarget(null)}>
+            {t('skills.drawer.keepEditing')}
+          </Button>
+          <Button variant="contained" color="warning" onClick={handleDiscardAndSwitch}>
+            {t('skills.drawer.discard')}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* ── Clone Dialog ── */}
       <Dialog

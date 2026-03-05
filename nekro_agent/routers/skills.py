@@ -81,6 +81,24 @@ class SkillTreeResponse(BaseModel):
     nodes: List[SkillTreeNode]
 
 
+class SkillDirEntry(BaseModel):
+    """skill 目录内的单个条目"""
+
+    name: str
+    rel_path: str  # 相对于 skill 根目录
+    type: Literal["file", "dir"]
+    size: Optional[int] = None  # 文件大小（字节），仅文件有效
+
+
+class SkillDirResponse(BaseModel):
+    entries: List[SkillDirEntry]
+
+
+class SkillFileSaveRequest(BaseModel):
+    path: str  # 相对于 SKILLS_DIR 的文件路径
+    content: str
+
+
 class CloneRequest(BaseModel):
     repo_url: str
     target_dir: str  # 顶层目录名（不含路径分隔符）
@@ -247,6 +265,31 @@ def _scan_directory_sync(directory: Path, base: Path, max_depth: int = 4) -> Lis
     return nodes
 
 
+def _list_dir_entries(root: Path, current: Path, max_depth: int = 5) -> List[SkillDirEntry]:
+    """递归列出目录内所有文件和子目录（跳过 .git 等隐藏目录）"""
+    entries: List[SkillDirEntry] = []
+    if max_depth <= 0:
+        return entries
+    try:
+        items = sorted(current.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+    except PermissionError:
+        return entries
+    for item in items:
+        if item.name.startswith("."):
+            continue
+        rel = str(item.relative_to(root))
+        if item.is_dir():
+            entries.append(SkillDirEntry(name=item.name, rel_path=rel, type="dir"))
+            entries.extend(_list_dir_entries(root, item, max_depth - 1))
+        elif item.is_file():
+            try:
+                size = item.stat().st_size
+            except OSError:
+                size = None
+            entries.append(SkillDirEntry(name=item.name, rel_path=rel, type="file", size=size))
+    return entries
+
+
 async def _build_skill_tree() -> List[SkillTreeNode]:
     """构建完整的技能库树，并填充 git 信息"""
     global_skills_dir = Path(SKILLS_DIR)
@@ -325,6 +368,29 @@ async def get_builtin_skill_doc(
     return SkillReadmeResponse(readme=target.read_text(encoding="utf-8"))
 
 
+@router.get("/builtin/{name}/file", summary="读取内置 skill 指定文件", response_model=SkillReadmeResponse)
+@require_role(Role.Admin)
+async def get_builtin_skill_file(
+    name: str,
+    path: str = Query(..., description="相对于 skill 目录的文件路径"),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> SkillReadmeResponse:
+    from nekro_agent.core.os_env import BUILTIN_SKILLS_SOURCE_DIR
+
+    rel = path.strip("/")
+    if not rel or ".." in rel.split("/"):
+        raise ValidationError(reason="路径不合法")
+    skill_dir = Path(BUILTIN_SKILLS_SOURCE_DIR) / name
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        raise NotFoundError(resource=f"内置 skill '{name}'")
+    target = (skill_dir / rel).resolve()
+    if not str(target).startswith(str(skill_dir.resolve())):
+        raise ValidationError(reason="路径不合法")
+    if not target.exists() or not target.is_file():
+        raise NotFoundError(resource=f"builtin/{name}/{rel}")
+    return SkillReadmeResponse(readme=target.read_text(encoding="utf-8"))
+
+
 @router.get("/tree", summary="获取 skill 目录树", response_model=SkillTreeResponse)
 @require_role(Role.Admin)
 async def get_skills_tree(
@@ -369,6 +435,51 @@ async def get_skill_file(
     if not target.exists() or not target.is_file():
         raise NotFoundError(resource=f"file '{rel}'")
     return SkillReadmeResponse(readme=target.read_text(encoding="utf-8"))
+
+
+@router.get("/dir", summary="列出 skill 目录内所有文件", response_model=SkillDirResponse)
+@require_role(Role.Admin)
+async def list_skill_dir(
+    name: str = Query(..., description="skill 名称"),
+    source: Literal["builtin", "user"] = Query("user", description="skill 来源"),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> SkillDirResponse:
+    from nekro_agent.core.os_env import BUILTIN_SKILLS_SOURCE_DIR
+
+    if ".." in name or "/" in name or "\\" in name or name.startswith("."):
+        raise ValidationError(reason="skill 名称不合法")
+
+    if source == "builtin":
+        skill_dir = Path(BUILTIN_SKILLS_SOURCE_DIR) / name
+    else:
+        skill_dir = Path(SKILLS_DIR) / name
+
+    if not skill_dir.exists() or not skill_dir.is_dir():
+        raise NotFoundError(resource=f"skill '{name}'")
+
+    entries = await asyncio.to_thread(_list_dir_entries, skill_dir, skill_dir)
+    return SkillDirResponse(entries=entries)
+
+
+@router.put("/file", summary="保存用户 skill 文件", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def save_skill_file(
+    body: SkillFileSaveRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    global_skills_dir = Path(SKILLS_DIR)
+    rel = body.path.strip("/")
+    parts = rel.split("/")
+    if not rel or ".." in parts or len(parts) < 2:
+        raise ValidationError(reason="路径不合法，需包含 skill 名和文件名")
+
+    target = (global_skills_dir / rel).resolve()
+    if not str(target).startswith(str(global_skills_dir.resolve())):
+        raise ValidationError(reason="路径不合法，不允许跳出 skills 目录")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body.content, encoding="utf-8")
+    return ActionOkResponse(ok=True)
 
 
 @router.post("/clone", summary="从 git 仓库克隆 skill", response_model=CloneResponse)

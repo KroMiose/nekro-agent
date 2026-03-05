@@ -271,6 +271,13 @@ export interface SkillTreeResponse {
   nodes: SkillTreeNode[]
 }
 
+export interface SkillDirEntry {
+  name: string
+  rel_path: string
+  type: 'file' | 'dir'
+  size: number | null
+}
+
 export const skillsLibraryApi = {
   getTree: async (): Promise<SkillTreeNode[]> => {
     const response = await axios.get<SkillTreeResponse>('/skills/tree')
@@ -331,6 +338,17 @@ export const skillsLibraryApi = {
   setAutoInject: async (skills: string[]): Promise<void> => {
     await axios.put('/skills/auto-inject', { skills })
   },
+
+  getDir: async (name: string, source: 'builtin' | 'user' = 'user'): Promise<SkillDirEntry[]> => {
+    const response = await axios.get<{ entries: SkillDirEntry[] }>('/skills/dir', {
+      params: { name, source },
+    })
+    return response.data.entries
+  },
+
+  saveFile: async (path: string, content: string): Promise<void> => {
+    await axios.put('/skills/file', { path, content })
+  },
 }
 
 // 动态 Skill API（工作区级）
@@ -389,6 +407,13 @@ export const builtinSkillApi = {
   getDoc: async (name: string, filename: string): Promise<string> => {
     const response = await axios.get<{ readme: string }>(`/skills/builtin/${name}/doc`, {
       params: { filename },
+    })
+    return response.data.readme
+  },
+
+  getFile: async (name: string, path: string): Promise<string> => {
+    const response = await axios.get<{ readme: string }>(`/skills/builtin/${name}/file`, {
+      params: { path },
     })
     return response.data.readme
   },
