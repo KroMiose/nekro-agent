@@ -26,6 +26,8 @@ import {
   SettingsEthernet as McpIcon,
   AccessTime as HeartbeatIcon,
   Forum as ForumIcon,
+  Star as StarIcon,
+  StarBorder as StarBorderIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -34,6 +36,7 @@ import {
   WorkspaceDetail,
   SandboxStatus,
   commApi,
+  BoundChannel,
 } from '../../../services/api/workspace'
 import { ccModelPresetApi } from '../../../services/api/cc-model-preset'
 import { chatChannelApi } from '../../../services/api/chat-channel'
@@ -235,6 +238,32 @@ export default function OverviewTab({
     },
     onError: (err: Error) => notification.error(t('detail.overview.channels.unbindFailed', { message: err.message })),
   })
+
+  const annotationMutation = useMutation({
+    mutationFn: (body: { chat_key: string; description: string; is_primary: boolean }) =>
+      workspaceApi.updateChannelAnnotation(workspace.id, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workspace-channels', workspace.id] })
+    },
+    onError: (err: Error) => notification.error(t('detail.overview.channels.annotationFailed', { message: err.message })),
+  })
+
+  // inline 编辑 description 的本地状态
+  const [editingDesc, setEditingDesc] = useState<Record<string, string>>({})
+  const [editingKey, setEditingKey] = useState<string | null>(null)
+
+  const handleDescBlur = (ch: BoundChannel) => {
+    const newDesc = editingDesc[ch.chat_key] ?? ch.description
+    if (newDesc !== ch.description) {
+      annotationMutation.mutate({ chat_key: ch.chat_key, description: newDesc, is_primary: ch.is_primary })
+    }
+    setEditingKey(null)
+  }
+
+  const handleSetPrimary = (ch: BoundChannel) => {
+    if (ch.is_primary) return
+    annotationMutation.mutate({ chat_key: ch.chat_key, description: ch.description, is_primary: true })
+  }
 
   const autocompleteOptions = allChannels.map(ch => ({
     chat_key: ch.chat_key,
@@ -511,69 +540,137 @@ export default function OverviewTab({
               {t('detail.overview.channels.noChannels')}
             </Typography>
           ) : (
-            <Stack spacing={0.5}>
+            <Stack spacing={0.75}>
               {boundChannels.map(ch => {
                 const info = allChannels.find(c => c.chat_key === ch.chat_key)
+                const isOnlyChannel = boundChannels.length === 1
+                const currentDesc = editingKey === ch.chat_key
+                  ? (editingDesc[ch.chat_key] ?? ch.description)
+                  : ch.description
                 return (
                   <Box
                     key={ch.chat_key}
                     sx={{
                       display: 'flex',
-                      alignItems: 'center',
+                      flexDirection: 'column',
                       px: 1.5,
-                      py: 0.75,
+                      py: 1,
                       borderRadius: 1,
                       border: '1px solid',
-                      borderColor: 'divider',
-                      gap: 1,
+                      borderColor: ch.is_primary ? 'primary.main' : 'divider',
+                      bgcolor: ch.is_primary ? (theme) => alpha(theme.palette.primary.main, 0.04) : undefined,
+                      gap: 0.5,
+                      transition: 'border-color 0.2s',
                     }}
                   >
-                    <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    {/* 行1：频道名 + 类型 chip + 状态 chip + 主频道按钮 + 解绑按钮 */}
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <Tooltip title={ch.chat_key} placement="top" arrow>
                         <Typography
                           variant="body2"
                           sx={{
-                            fontWeight: 500,
+                            fontWeight: 600,
                             lineHeight: 1.3,
-                            display: 'inline',
                             textDecoration: 'underline',
                             textDecorationStyle: 'dotted',
                             cursor: 'help',
+                            flexShrink: 0,
                           }}
                         >
                           {info?.channel_name ?? ch.chat_key}
                         </Typography>
                       </Tooltip>
-                    </Box>
-                    {info?.chat_type && (
-                      <Box sx={{ flexShrink: 0 }}>
+                      {ch.is_primary && (
+                        <Chip
+                          label={t('detail.overview.channels.primaryTag')}
+                          size="small"
+                          color="primary"
+                          sx={{ ...CHIP_VARIANTS.base(true), height: 18, fontSize: '0.68rem' }}
+                        />
+                      )}
+                      {info?.chat_type && (
                         <Chip
                           label={info.chat_type}
                           size="small"
-                          sx={CHIP_VARIANTS.base(true)}
+                          sx={{ ...CHIP_VARIANTS.base(true), height: 18, fontSize: '0.68rem' }}
                         />
-                      </Box>
-                    )}
-                    {info?.is_active === false && (
-                      <Box sx={{ flexShrink: 0 }}>
+                      )}
+                      {info?.is_active === false && (
                         <Chip
                           label={t('detail.overview.channels.disabled')}
                           size="small"
                           color="warning"
-                          sx={CHIP_VARIANTS.base(true)}
+                          sx={{ ...CHIP_VARIANTS.base(true), height: 18, fontSize: '0.68rem' }}
                         />
-                      </Box>
-                    )}
-                    <Tooltip title={t('detail.overview.channels.unbindTooltip')}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        disabled={unbindMutation.isPending}
-                        onClick={() => unbindMutation.mutate(ch.chat_key)}
+                      )}
+                      <Box sx={{ flexGrow: 1 }} />
+                      {/* 主频道切换按钮（单频道时置灰） */}
+                      <Tooltip
+                        title={
+                          isOnlyChannel
+                            ? t('detail.overview.channels.primaryAutoTooltip')
+                            : ch.is_primary
+                              ? t('detail.overview.channels.isPrimaryTooltip')
+                              : t('detail.overview.channels.setPrimaryTooltip')
+                        }
                       >
-                        <LinkOffIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                        <span>
+                          <IconButton
+                            size="small"
+                            color={ch.is_primary ? 'primary' : 'default'}
+                            disabled={isOnlyChannel || ch.is_primary || annotationMutation.isPending}
+                            onClick={() => handleSetPrimary(ch)}
+                            sx={{ p: 0.5 }}
+                          >
+                            {ch.is_primary || isOnlyChannel
+                              ? <StarIcon sx={{ fontSize: 16 }} />
+                              : <StarBorderIcon sx={{ fontSize: 16 }} />
+                            }
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title={t('detail.overview.channels.unbindTooltip')}>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          disabled={unbindMutation.isPending}
+                          onClick={() => unbindMutation.mutate(ch.chat_key)}
+                          sx={{ p: 0.5 }}
+                        >
+                          <LinkOffIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                    {/* 行2：description inline 编辑 */}
+                    <TextField
+                      size="small"
+                      variant="standard"
+                      fullWidth
+                      placeholder={t('detail.overview.channels.descPlaceholder')}
+                      value={currentDesc}
+                      onFocus={() => {
+                        setEditingKey(ch.chat_key)
+                        setEditingDesc(prev => ({ ...prev, [ch.chat_key]: ch.description }))
+                      }}
+                      onChange={e => setEditingDesc(prev => ({ ...prev, [ch.chat_key]: e.target.value }))}
+                      onBlur={() => handleDescBlur(ch)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
+                        if (e.key === 'Escape') {
+                          setEditingDesc(prev => ({ ...prev, [ch.chat_key]: ch.description }))
+                          setEditingKey(null)
+                        }
+                      }}
+                      slotProps={{
+                        input: {
+                          sx: {
+                            fontSize: '0.78rem',
+                            color: 'text.secondary',
+                            '&:before': { borderBottomStyle: 'dashed' },
+                          },
+                        },
+                      }}
+                    />
                   </Box>
                 )
               })}

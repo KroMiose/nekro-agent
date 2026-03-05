@@ -8,6 +8,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import BUILTIN_SKILLS_SOURCE_DIR, SKILLS_DIR, WORKSPACE_ROOT_DIR
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_workspace import DBWorkspace
+from nekro_agent.schemas.workspace import ChannelAnnotation as ChannelAnnotationData
 
 if TYPE_CHECKING:
     from nekro_agent.core.cc_model_presets import CCModelPresetItem
@@ -119,9 +120,20 @@ updated: "YYYY-MM-DD"
 正文内容（Markdown 格式）
 ```
 
-**关于 `_na_context.md`**：
-这是 NA 主 Agent 的"情报简报"，字数控制在 600 字（约 1800 字符）以内。
-请在完成重要任务后主动更新它，说明：当前项目状态、关键约束、NA 应该知道的事项。
+**关于 `_na_context.md`（强制维护）**：
+这是 NA 主 Agent 的"情报简报"，NA 在每次与用户交互时都会读取此文件注入自身上下文。
+**每次任务完成后，无论任务是否"重要"，你都必须更新此文件。** 这不是可选项。
+
+更新要求：
+- **字数**：600 字以内（约 1800 字符），保持简洁
+- **格式**：使用 YAML frontmatter，`updated` 字段记录当前日期（`YYYY-MM-DD`）
+- **必须包含**：
+  1. 工作区当前状态概要（活跃项目、主要目录结构、技术栈）
+  2. 最近完成的任务摘要（做了什么、结果如何）
+  3. 当前进行中的任务或待办事项（如有）
+  4. 重要约束与注意事项（已知问题、特殊配置、踩坑记录）
+
+**不更新的后果**：NA 将无法感知工作区状态，可能给出错误的指令或重复执行已完成的工作。
 
 ## 与 NA 的协作协议
 
@@ -135,7 +147,7 @@ updated: "YYYY-MM-DD"
    - "优化性能"的具体目标是？（减少内存？降低延迟？）
    ```
 5. **自主调整**：当 NA 给出的实现思路与工作区实际情况不符时，你可以基于现实调整方案，并在响应中说明"原计划 X，实际按 Y 执行，原因：Z"
-6. **记忆更新**：完成对后续任务有参考价值的工作后，及时更新相应的记忆文件
+6. **记忆更新（强制）**：每次任务完成后，**必须**更新 `_na_context.md`（见上方说明），同时按需更新其他记忆文件
 7. **任务来源**：每条任务消息头部可能包含 `[任务来源频道: <chat_key>]` 标记，标识该任务来自哪个 NA 会话频道。在多频道共用同一工作区场景下，可利用此信息在记忆文件中区分不同频道的任务背景。
 
 {env_vars_section}
@@ -657,8 +669,8 @@ updated: "YYYY-MM-DD"
         await channel.save(update_fields=["workspace_id", "update_time"])
 
     @staticmethod
-    async def unbind_channel(chat_key: str) -> None:
-        """解除频道的工作区绑定"""
+    async def unbind_channel(workspace: DBWorkspace, chat_key: str) -> None:
+        """解除频道的工作区绑定，并同步清理工作区侧的频道注解。"""
         channel = await DBChatChannel.get_or_none(chat_key=chat_key)
         if channel is None:
             from nekro_agent.schemas.errors import NotFoundError
@@ -666,11 +678,91 @@ updated: "YYYY-MM-DD"
             raise NotFoundError(resource=f"频道 {chat_key}")
         channel.workspace_id = None  # type: ignore[assignment]
         await channel.save(update_fields=["workspace_id", "update_time"])
+        # 同步清理工作区侧注解
+        await WorkspaceService.remove_channel_annotation(workspace, chat_key)
 
     @staticmethod
     async def get_bound_channels(workspace_id: int) -> List[DBChatChannel]:
         """获取绑定到工作区的所有频道"""
         return await DBChatChannel.filter(workspace_id=workspace_id).all()
+
+    # ── 频道注解管理（存储于 metadata.channel_annotations） ───────────────────
+
+    @staticmethod
+    def get_channel_annotations(workspace: DBWorkspace) -> Dict[str, "ChannelAnnotationData"]:
+        """获取工作区所有频道注解，返回以 chat_key 为键的字典。"""
+        raw: Dict[str, Any] = workspace.metadata.get("channel_annotations", {})
+        result: Dict[str, ChannelAnnotationData] = {}
+        for chat_key, data in raw.items():
+            if isinstance(data, dict):
+                result[chat_key] = ChannelAnnotationData(
+                    description=str(data.get("description", "")),
+                    is_primary=bool(data.get("is_primary", False)),
+                )
+        return result
+
+    @staticmethod
+    def get_primary_channel_chat_key(workspace: DBWorkspace, bound_chat_keys: List[str]) -> Optional[str]:
+        """推断主频道 chat_key。
+        - 只有一个绑定频道时，直接返回它（无需显式设置）
+        - 多个频道时，从 annotations 中找 is_primary=True 的
+        """
+        if not bound_chat_keys:
+            return None
+        if len(bound_chat_keys) == 1:
+            return bound_chat_keys[0]
+        annotations = WorkspaceService.get_channel_annotations(workspace)
+        for chat_key in bound_chat_keys:
+            ann = annotations.get(chat_key)
+            if ann and ann.is_primary:
+                return chat_key
+        return None
+
+    @staticmethod
+    async def update_channel_annotation(
+        workspace: DBWorkspace,
+        chat_key: str,
+        description: str,
+        is_primary: bool,
+    ) -> None:
+        """更新单个频道的注解。若 is_primary=True，自动清除其他频道的主频道标记。"""
+        metadata = dict(workspace.metadata)
+        annotations: Dict[str, Any] = dict(metadata.get("channel_annotations", {}))
+
+        if is_primary:
+            # 清除其他频道的 is_primary
+            for key in annotations:
+                if key != chat_key and annotations[key].get("is_primary"):
+                    annotations[key] = dict(annotations[key])
+                    annotations[key]["is_primary"] = False
+
+        annotations[chat_key] = {
+            "description": description,
+            "is_primary": is_primary,
+        }
+
+        metadata["channel_annotations"] = annotations
+        workspace.metadata = metadata
+        await workspace.save(update_fields=["metadata", "update_time"])
+
+    @staticmethod
+    async def remove_channel_annotation(workspace: DBWorkspace, chat_key: str) -> None:
+        """删除频道注解（解绑时调用）。若被删除的是主频道且还有其他频道，自动将剩余第一个设为主频道。"""
+        metadata = dict(workspace.metadata)
+        annotations: Dict[str, Any] = dict(metadata.get("channel_annotations", {}))
+
+        was_primary = annotations.get(chat_key, {}).get("is_primary", False)
+        annotations.pop(chat_key, None)
+
+        # 若删除的是主频道，且还有其他注解，将第一个设为主频道
+        if was_primary and annotations:
+            first_key = next(iter(annotations))
+            annotations[first_key] = dict(annotations[first_key])
+            annotations[first_key]["is_primary"] = True
+
+        metadata["channel_annotations"] = annotations
+        workspace.metadata = metadata
+        await workspace.save(update_fields=["metadata", "update_time"])
 
     @staticmethod
     def get_dynamic_skills_dir(workspace_id: int) -> Path:

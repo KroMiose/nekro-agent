@@ -99,9 +99,20 @@ if _driver is not None:
         # 遥测任务
         start_telemetry_task()
 
-        # 延迟恢复：等待所有服务和插件就绪后，取回 CC 在 NA 断线期间完成的任务结果
+        # 延迟恢复：等待所有服务和插件就绪后执行
         async def _recover_cc_pending() -> None:
             await asyncio.sleep(5)  # 等待 message_service、频道路由等完全就绪
+
+            # 同步工作区状态：检查 active 工作区的容器实际运行状态，修正 NA 重启后残留的 stale active 记录
+            try:
+                from nekro_agent.services.workspace.container import SandboxContainerManager
+
+                await SandboxContainerManager.recover_on_startup()
+                logger.info("[cc_workspace] 工作区容器状态同步完成")
+            except Exception as e:
+                logger.warning(f"[cc_workspace] 工作区容器状态同步失败（非致命）: {e}")
+
+            # 取回 CC 在 NA 断线期间完成的任务结果
             try:
                 from builtin.cc_workspace.main import recover_pending_cc_results
 
@@ -118,6 +129,16 @@ if _driver is not None:
         await recurring_timer_service.stop()
         await timer_service.stop()
         await cleanup_adapters(get_app())
+
+        # 停止 CC 后台结果监听器
+        try:
+            from builtin.cc_workspace.main import shutdown_cc_result_watcher
+
+            await shutdown_cc_result_watcher()
+        except ImportError:
+            pass  # cc_workspace 插件未加载，跳过
+        except Exception as e:
+            logger.warning(f"[cc_workspace] 停止后台结果监听器失败: {e}")
 
         try:
             from nekro_agent.services.plugin.collector import plugin_collector

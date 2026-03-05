@@ -83,28 +83,25 @@ export default function ConfigTab({
     queryFn: () => ccModelPresetApi.getList(),
   })
 
-  const { data: workspaceCCPreset } = useQuery({
-    queryKey: ['workspace-cc-preset', workspace.id],
-    queryFn: () => workspaceApi.getCCModelPreset(workspace.id),
-  })
+  const [selectedPreset, setSelectedPreset] = useState<CCModelPresetInfo | null>(null)
 
-  const [selectedPreset, setSelectedPreset] = useState<CCModelPresetInfo | undefined>(undefined)
-
+  // 用 WorkspaceDetail 自带的 cc_model_preset_id 初始化选中项，避免独立查询的竞态问题
   useEffect(() => {
     if (!allPresets.length) return
-    if (workspaceCCPreset?.preset_id != null) {
-      const found = allPresets.find(p => p.id === workspaceCCPreset.preset_id)
+    const presetId = workspace.cc_model_preset_id
+    if (presetId != null) {
+      const found = allPresets.find(p => p.id === presetId)
       setSelectedPreset(found ?? allPresets.find(p => p.is_default) ?? allPresets[0])
     } else {
       setSelectedPreset(allPresets.find(p => p.is_default) ?? allPresets[0])
     }
-  }, [workspaceCCPreset, allPresets])
+  }, [workspace.cc_model_preset_id, allPresets])
 
   const setCCPresetMutation = useMutation({
     mutationFn: (presetId: number | null) => workspaceApi.setCCModelPreset(workspace.id, presetId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['workspace-cc-preset', workspace.id] })
       queryClient.invalidateQueries({ queryKey: ['workspace', workspace.id] })
+      queryClient.invalidateQueries({ queryKey: ['workspaces'] })
       notification.success(t('detail.config.notifications.ccPresetSuccess'))
     },
     onError: (err: Error) => notification.error(t('detail.config.notifications.ccPresetFailed', { message: err.message })),
@@ -249,7 +246,7 @@ export default function ConfigTab({
             options={allPresets}
             value={selectedPreset}
             disableClearable
-            onChange={(_, val) => {
+            onChange={(_, val: CCModelPresetInfo | null) => {
               if (!val) return
               setSelectedPreset(val)
               setCCPresetMutation.mutate(val.id)

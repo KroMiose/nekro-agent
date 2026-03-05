@@ -26,7 +26,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { chatChannelApi } from '../../services/api/chat-channel'
+import { chatChannelApi, ChatChannel, ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
@@ -63,17 +63,15 @@ export default function ChatChannelPage() {
 
   // 实时频道列表更新订阅 (SSE)
   useEffect(() => {
-    let cleanup: (() => void) | undefined
-
     const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => {
       const { event_type, chat_key } = event
 
       // 更新频道列表缓存
-      queryClient.setQueryData(['chat-channels', search, chatType, isActive, page, pageSize], (oldData: any) => {
+      queryClient.setQueryData(['chat-channels', search, chatType, isActive, page, pageSize], (oldData: ChatChannelListResponse | undefined) => {
         if (!oldData?.items) return oldData
 
-        let newItems = [...oldData.items]
-        const idx = newItems.findIndex((ch: any) => ch.chat_key === chat_key)
+        const newItems = [...oldData.items]
+        const idx = newItems.findIndex((ch: ChatChannel) => ch.chat_key === chat_key)
 
         if (event_type === 'deleted' && idx >= 0) {
           // 删除频道
@@ -116,7 +114,7 @@ export default function ChatChannelPage() {
     }
 
     // 订阅频道列表更新
-    cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
+    const cleanup = chatChannelApi.streamChannels(handleChannelUpdate, (error) => {
       console.error('Channel stream error:', error)
     })
 

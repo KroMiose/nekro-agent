@@ -35,8 +35,8 @@ import AudioFileIcon from '@mui/icons-material/AudioFile'
 import VideoFileIcon from '@mui/icons-material/VideoFile'
 import FolderZipIcon from '@mui/icons-material/FolderZip'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
-import { chatChannelApi, ChatMessage, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
+import { useInfiniteQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
+import { chatChannelApi, ChatMessage, ChatMessageListResponse, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
 
@@ -758,7 +758,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
 
     const handleNewMessage = (message: ChatMessage) => {
       // 将消息添加到 React Query 缓存的最后一页
-      queryClient.setQueryData(['chat-messages', chatKey], (oldData: any) => {
+      queryClient.setQueryData(['chat-messages', chatKey], (oldData: InfiniteData<ChatMessageListResponse> | undefined) => {
         if (!oldData?.pages) return oldData
 
         const newPages = [...oldData.pages]
@@ -961,10 +961,13 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
   }
 
   // 按时间正序排列消息
-  const allMessages =
-    data?.pages
-      .flatMap(page => page.items)
-      .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) || []
+  const allMessages = useMemo(
+    () =>
+      data?.pages
+        .flatMap(page => page.items)
+        .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) ?? [],
+    [data?.pages],
+  )
 
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找
   const messageByMsgId = useMemo(() => {

@@ -19,6 +19,7 @@ import { CARD_VARIANTS } from '../../theme/variants'
 import { useTheme } from '@mui/material/styles'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
+import { useSystemEvents } from '../../hooks/useSystemEvents'
 
 // Components
 import WorkspaceHeader from './components/WorkspaceHeader'
@@ -79,17 +80,28 @@ export default function WorkspaceDetailPage() {
     enabled: !isNaN(workspaceId),
   })
 
+  // 全局 SSE 实时状态（驱动 status / container_name / host_port）
+  const { workspaceStatuses } = useSystemEvents()
+  const sseSnapshot = workspaceStatuses.get(workspaceId)
+
+  // sandbox/status 轮询：仅用于获取 session_id / cc_version / claude_code_version
+  // status/container_name/host_port 已由 SSE 驱动，此处轮询频率大幅降低
   const { data: sandboxStatus } = useQuery({
     queryKey: ['sandbox-status', workspaceId],
     queryFn: () => workspaceApi.getSandboxStatus(workspaceId),
     enabled: !isNaN(workspaceId) && !!workspace,
-    refetchInterval: query =>
-      fastPoll
-        ? 2000
-        : query.state.data?.status === 'active' || workspace?.status === 'active'
-          ? 5000
-          : 10000,
+    refetchInterval: fastPoll ? 3000 : 30000,
   })
+
+  // 将 SSE 快照覆盖到 sandboxStatus 的 status/container_name/host_port
+  const effectiveSandboxStatus = sandboxStatus
+    ? {
+        ...sandboxStatus,
+        status: sseSnapshot?.status ?? sandboxStatus.status,
+        container_name: sseSnapshot?.container_name !== undefined ? sseSnapshot.container_name : sandboxStatus.container_name,
+        host_port: sseSnapshot?.host_port !== undefined ? sseSnapshot.host_port : sandboxStatus.host_port,
+      }
+    : undefined
 
   // ── CC 工作状态跟踪（SSE CC_STATUS 事件驱动，初始化查一次队列） ──────────
   const [ccCurrentTool, setCcCurrentTool] = useState<string | null>(null)
@@ -172,7 +184,7 @@ export default function WorkspaceDetailPage() {
       {/* 顶部栏：返回 + 名称 + 沙盒状态 Chip（可点击） */}
       <WorkspaceHeader
         workspace={workspace}
-        sandboxStatus={sandboxStatus}
+        sandboxStatus={effectiveSandboxStatus}
         ccWorking={ccWorking}
         ccCurrentTool={ccCurrentTool}
         onBack={() => navigate('/workspace')}
@@ -272,7 +284,7 @@ export default function WorkspaceDetailPage() {
           {activeTab === 0 && (
             <OverviewTab
               workspace={workspace}
-              sandboxStatus={sandboxStatus ?? null}
+              sandboxStatus={effectiveSandboxStatus ?? null}
               onNavigateToSandbox={() => setActiveTab(1)}
               onNavigateToConfig={() => setActiveTab(6)}
               onNavigateToExtensions={() => setActiveTab(4)}
@@ -282,7 +294,7 @@ export default function WorkspaceDetailPage() {
           {activeTab === 1 && (
             <SandboxTab
               workspace={workspace}
-              sandboxStatus={sandboxStatus ?? null}
+              sandboxStatus={effectiveSandboxStatus ?? null}
               onSandboxMutate={handleSandboxMutate}
             />
           )}

@@ -13,6 +13,13 @@ export interface WorkspaceSummary {
   runtime_policy: 'agent' | 'relaxed' | 'strict'
   create_time: string
   update_time: string
+  // 聚合信息
+  channel_count: number
+  channel_names: string[]          // chat_key 列表
+  channel_display_names: string[]  // 频道显示名（channel_name 或 fallback 到 chat_key）
+  skill_count: number
+  mcp_count: number
+  cc_model_preset_name: string | null
 }
 
 export interface WorkspaceDetail extends WorkspaceSummary {
@@ -21,6 +28,7 @@ export interface WorkspaceDetail extends WorkspaceSummary {
   last_error: string | null
   metadata: Record<string, unknown>
   cc_model_preset_id?: number | null
+  primary_channel_chat_key?: string | null
 }
 
 export interface SandboxStatus {
@@ -60,6 +68,14 @@ export interface SkillListResponse {
 
 export interface BoundChannel {
   chat_key: string
+  description: string
+  is_primary: boolean
+}
+
+export interface ChannelAnnotationUpdateBody {
+  chat_key: string
+  description: string
+  is_primary: boolean
 }
 
 export interface CreateWorkspaceBody {
@@ -118,8 +134,8 @@ export const workspaceApi = {
 
   // 频道绑定
   getBoundChannels: async (id: number): Promise<BoundChannel[]> => {
-    const response = await axios.get<{ channels: string[] }>(`/workspaces/${id}/channels`)
-    return response.data.channels.map(ch => ({ chat_key: ch }))
+    const response = await axios.get<{ channels: BoundChannel[] }>(`/workspaces/${id}/channels`)
+    return response.data.channels
   },
 
   bindChannel: async (id: number, chatKey: string): Promise<void> => {
@@ -128,6 +144,10 @@ export const workspaceApi = {
 
   unbindChannel: async (id: number, chatKey: string): Promise<void> => {
     await axios.delete(`/workspaces/${id}/channels/${chatKey}`)
+  },
+
+  updateChannelAnnotation: async (id: number, body: ChannelAnnotationUpdateBody): Promise<void> => {
+    await axios.put(`/workspaces/${id}/channel-annotations`, body)
   },
 
   // 沙盒操作

@@ -151,10 +151,10 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
   })
   const allChannels = channelList?.items ?? []
 
-  // 初始加载历史记录（最近20条）
+  // 初始加载历史记录（最近50条）
   useEffect(() => {
     isInitializedRef.current = false
-    commApi.getHistory(workspace.id, 20).then(r => {
+    commApi.getHistory(workspace.id, 50).then(r => {
       setMessages(r.items)
       setHasMore(r.total > r.items.length)
     }).catch(() => {})
@@ -715,12 +715,25 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
         }}
         sx={{ flex: 1, minHeight: 0, overflowY: 'auto', px: 2, py: 1, ...SCROLLBAR_VARIANTS.thin.styles }}
       >
-        {hasMore && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 1 }}>
-            {loadingMore
-              ? <CircularProgress size={18} thickness={4} />
-              : <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.7rem' }}>{t('detail.comm.loadMoreHint')}</Typography>
-            }
+        {/* 顶部加载区：有更多时显示可点击按钮；加载中显示进度圈；无更多且有消息时提示已加载全部 */}
+        {messages.length > 0 && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', py: 0.75 }}>
+            {loadingMore ? (
+              <CircularProgress size={18} thickness={4} />
+            ) : hasMore ? (
+              <Button
+                size="small"
+                variant="text"
+                onClick={loadMore}
+                sx={{ fontSize: '0.72rem', color: 'text.secondary', py: 0.25 }}
+              >
+                {t('detail.comm.loadMore')}
+              </Button>
+            ) : (
+              <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
+                {t('detail.comm.noMoreMessages')}
+              </Typography>
+            )}
           </Box>
         )}
         {displayItems.length === 0 ? (

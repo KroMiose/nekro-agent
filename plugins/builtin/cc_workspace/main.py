@@ -22,7 +22,7 @@ import secrets
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator, List
+from typing import AsyncGenerator, Dict, List, Set, Tuple
 
 import aiodocker
 
@@ -44,6 +44,11 @@ from .plugin import cc_config, plugin
 
 _TASK_TYPE = "cc_delegate"
 _CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
+
+# 已投递结果去重：(workspace_id, source_chat_key, result_id) → 投递时间
+# 防止 SSE 实时路径和 Watcher 轮询路径重复投递同一结果
+_delivered_results: Dict[Tuple[int, str, str], float] = {}
+_DELIVERED_RESULTS_TTL: float = 300.0  # 去重记录保留 5 分钟
 
 
 # ---------------------------------------------------------------------------
@@ -102,7 +107,7 @@ async def _broadcast_cc_status(workspace_id: int, running: bool) -> None:
     """通过 SSE 广播 CC 任务运行状态变化（不写入 DB）。
 
     前端 SSE handler 收到 direction='CC_STATUS' 后直接驱动状态指示条，
-    无需轮询 /comm/queue 接口。
+    无需轮询 /comm/queue 接口。同时推送全局系统事件供工作区列表页面实时刷新。
     """
     try:
         await comm_broadcast.publish(workspace_id, {
@@ -118,9 +123,24 @@ async def _broadcast_cc_status(workspace_id: int, running: bool) -> None:
     except Exception as _e:
         logger.warning("[cc_workspace] 广播 CC_STATUS 失败: %s", _e)
 
+    # 同时推送全局系统事件（workspace_cc_active），供工作区列表页面实时指示 CC 活跃状态
+    try:
+        from nekro_agent.services.system_broadcast import WorkspaceCcActiveEvent, publish_system_event
+
+        await publish_system_event(WorkspaceCcActiveEvent(
+            workspace_id=workspace_id,
+            active=running,
+            max_duration_ms=300000,  # 最长 5 分钟；任务完成时会发送 active=false 主动关闭
+        ))
+    except Exception as _e:
+        logger.warning("[cc_workspace] 全局 SSE 推送 CC_ACTIVE 失败: %s", _e)
+
 
 async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, source: str) -> None:
     """投递单条 CC 待处理结果：写通讯日志 + 广播 + 推送系统消息触发 Agent。
+
+    内置去重机制：同一 (workspace_id, source_chat_key, result_id) 在 TTL 内不会重复投递，
+    防止 SSE 实时路径和 Watcher 轮询路径的边缘时序导致重复触发 Agent。
 
     Args:
         workspace: 工作区 ORM 对象
@@ -136,6 +156,24 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
     if not source_chat_key or not result.strip():
         logger.debug(f"[cc_workspace] 跳过无效的待投递结果: id={result_id!r}")
         return
+
+    # ── 去重检查 ─────────────────────────────────────────────────────────────
+    now = datetime.now(timezone.utc).timestamp()
+    dedup_key = (workspace.id, source_chat_key, result_id)
+
+    # 清理过期记录
+    expired_keys = [k for k, t in _delivered_results.items() if now - t > _DELIVERED_RESULTS_TTL]
+    for k in expired_keys:
+        _delivered_results.pop(k, None)
+
+    if dedup_key in _delivered_results:
+        logger.info(
+            f"[cc_workspace] 跳过重复投递({source})：id={result_id!r} "
+            f"chat_key={source_chat_key!r} workspace={workspace.id}"
+        )
+        return
+
+    _delivered_results[dedup_key] = now
 
     # 写入通讯日志并广播
     try:
@@ -280,6 +318,19 @@ async def recover_pending_cc_results() -> None:
     if _cc_result_watcher_task is None or _cc_result_watcher_task.done():
         _cc_result_watcher_task = asyncio.create_task(_cc_result_watcher_loop())
         logger.info("[cc_workspace] 后台结果监听器已创建")
+
+
+async def shutdown_cc_result_watcher() -> None:
+    """显式取消后台结果监听器，在 NA 关闭时调用，避免 'Task was destroyed' 警告。"""
+    global _cc_result_watcher_task
+    if _cc_result_watcher_task is not None and not _cc_result_watcher_task.done():
+        _cc_result_watcher_task.cancel()
+        try:
+            await _cc_result_watcher_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("[cc_workspace] 后台结果监听器已停止")
+    _cc_result_watcher_task = None
 
 
 # ---------------------------------------------------------------------------
@@ -587,19 +638,45 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
 
     client = CCSandboxClient(workspace)
 
+    # 并发获取 CC 状态和队列信息（原串行调用最坏延迟 20s → 并发后 10s）
+    _status_raw, _queue_raw = await asyncio.gather(
+        client.get_sandbox_status(),
+        client.get_workspace_queue(workspace_id="default"),
+        return_exceptions=True,
+    )
+    _cc_unreachable = isinstance(_status_raw, BaseException)
+    if _cc_unreachable:
+        status_info: dict = {}
+    else:
+        status_info = _status_raw  # type: ignore[assignment]
+    if isinstance(_queue_raw, BaseException):
+        queue_status_raw: dict = {"workspace_id": "default", "current_task": None, "queued_tasks": [], "queue_length": 0}
+    else:
+        queue_status_raw = _queue_raw
+
+    # 容器不可达：DB 状态为 active 但 HTTP 请求失败，注入降级告警文本
+    if _cc_unreachable:
+        return (
+            f"[CC Workspace - 连接异常]\n"
+            f"当前频道绑定的 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
+            f"数据库状态显示为 active，但沙盒容器当前无法连接（HTTP 请求超时或容器已停止）。\n"
+            f"可能原因：宿主机重启后容器未自动恢复，或容器发生意外崩溃。\n"
+            f"请告知用户通知管理员前往工作区管理页面检查状态并重启容器。\n"
+            f"在容器恢复前，请勿尝试使用任何 CC 相关工具（delegate_to_cc 等），调用将失败。\n"
+        )
+
     # CC 应用状态：仅在异常时提示
-    status_info = await client.get_sandbox_status()
     ws_status = status_info.get("status", "")
     _NORMAL_CC_STATES = {"idle", "busy", "running", "ready", ""}
     status_hint = "" if ws_status in _NORMAL_CC_STATES else f"CC 应用状态异常: {ws_status}\n"
 
-    # 能力摘要（skills + MCP）
-    capability_hint = WorkspaceService.get_capability_summary(workspace)
+    # 能力摘要（skills + MCP）— 异步包装避免阻塞事件循环
+    capability_hint = await asyncio.to_thread(WorkspaceService.get_capability_summary, workspace)
 
     # 记忆摘要（_na_context.md），附带更新时间
     memory_hint = ""
     try:
-        na_context, updated = WorkspaceService.read_na_context(workspace.id)
+        na_context, updated = await asyncio.to_thread(WorkspaceService.read_na_context, workspace.id)
         if na_context.strip():
             time_str = f"（更新于: {updated}）" if updated else ""
             memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{na_context}\n"
@@ -610,9 +687,8 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     task_hint = ""
     is_running = bool(_ctx.from_chat_key and task_api.is_running(_TASK_TYPE, _ctx.from_chat_key))
     try:
-        queue_status = await client.get_workspace_queue(workspace_id="default")
-        current_task = queue_status.get("current_task")
-        queue_len = queue_status.get("queue_length", 0)
+        current_task = queue_status_raw.get("current_task")
+        queue_len = queue_status_raw.get("queue_length", 0)
         queue_suffix = f"，当前等待队列: {queue_len} 个任务" if queue_len > 0 else ""
 
         if current_task:
@@ -658,11 +734,12 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
                 "可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。]\n"
             )
 
-    # 扫描 shared 目录，注入最近更新的文件列表
+    # 扫描 shared 目录，注入最近更新的文件列表 — 异步包装避免阻塞事件循环
     shared_files_hint = ""
     try:
-        shared_files = WorkspaceService.scan_shared_dir(
-            workspace.id, max_files=cc_config.SHARED_DIR_MAX_FILES
+        shared_files = await asyncio.to_thread(
+            WorkspaceService.scan_shared_dir,
+            workspace.id, cc_config.SHARED_DIR_MAX_FILES,
         )
         if shared_files:
             lines = [f"  {f['rel_path']} ({f['size_human']}, {f['mtime_str']})" for f in shared_files]
@@ -674,6 +751,39 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     except Exception:
         pass
 
+    # 多频道感知：仅在绑定 2 个及以上频道时注入频道信息块
+    multi_channel_hint = ""
+    try:
+        from nekro_agent.models.db_chat_channel import DBChatChannel
+
+        bound_channels = await DBChatChannel.filter(workspace_id=workspace.id).all()
+        if len(bound_channels) >= 2:
+            annotations = await asyncio.to_thread(WorkspaceService.get_channel_annotations, workspace)
+            bound_keys = [ch.chat_key for ch in bound_channels]
+            primary_key = WorkspaceService.get_primary_channel_chat_key(workspace, bound_keys)
+            current_chat_key = _ctx.from_chat_key or ""
+            is_current_primary = current_chat_key == primary_key
+
+            channel_lines: List[str] = []
+            for ch in bound_channels:
+                ann = annotations.get(ch.chat_key)
+                desc = ann.description if ann else ""
+                role_tag = "[主频道]" if ch.chat_key == primary_key else "[协作频道]"
+                display_name = ch.channel_name or ch.chat_key
+                desc_str = f"：{desc}" if desc else ""
+                channel_lines.append(f"- {role_tag} {display_name}（{ch.chat_key}）{desc_str}")
+
+            current_role = "主频道" if is_current_primary else "协作频道"
+            multi_channel_hint = (
+                f"\n[工作区频道信息]\n"
+                f"当前工作区绑定了 {len(bound_channels)} 个频道，各频道说明如下：\n"
+                + "\n".join(channel_lines)
+                + f"\n当前任务来源频道：{current_chat_key}（{current_role}）\n"
+                f"如需跨频道发送消息，在 task_prompt 中明确指定目标频道的 chat_key，NA 将路由到对应频道。\n"
+            )
+    except Exception:
+        pass
+
     result = (
         f"[CC Workspace]\n"
         f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
@@ -681,6 +791,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"{status_hint}"
         f"{capability_hint}"
         f"{memory_hint}"
+        f"{multi_channel_hint}"
         f"{task_hint}"
         f"{shared_files_hint}"
         f"可通过 `delegate_to_cc` 将复杂的编程/工具任务**异步**委托给 CC Sandbox 后台执行（完成后自动回传），"
@@ -1066,6 +1177,7 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
     cancelled = await task_api.cancel(_TASK_TYPE, task_id)
 
     # 同时强制终止 CC 侧正在运行的进程（仅当 current_task 属于本频道时）
+    # 注意 TOCTOU：检查和 kill 之间存在时间窗口，通过缩短窗口 + 二次确认降低误杀风险
     cc_cancelled = False
     workspace = await _ctx.get_bound_workspace()
     if workspace is not None and workspace.status == "active":
@@ -1074,11 +1186,19 @@ async def cancel_cc_task(_ctx: schemas.AgentCtx) -> str:
             queue_status = await client.get_workspace_queue(workspace_id="default")
             current_task = queue_status.get("current_task")
             if current_task and current_task.get("source_chat_key") == task_id:
-                cc_cancelled = await client.force_cancel_current_task(workspace_id="default")
-                if cc_cancelled:
-                    logger.info(f"[cc_workspace] 已强制终止 CC 侧进程，chat_key={task_id}")
+                # 二次确认：紧接 kill 前再次校验，缩小 TOCTOU 窗口
+                queue_status_2 = await client.get_workspace_queue(workspace_id="default")
+                current_task_2 = queue_status_2.get("current_task")
+                if current_task_2 and current_task_2.get("source_chat_key") == task_id:
+                    cc_cancelled = await client.force_cancel_current_task(workspace_id="default")
+                    if cc_cancelled:
+                        logger.info(f"[cc_workspace] 已强制终止 CC 侧进程，chat_key={task_id}")
+                    else:
+                        logger.warning(f"[cc_workspace] CC 侧进程终止失败，chat_key={task_id}")
                 else:
-                    logger.warning(f"[cc_workspace] CC 侧进程终止失败，chat_key={task_id}")
+                    logger.info(
+                        f"[cc_workspace] CC 侧任务已切换（二次确认不匹配），跳过 kill，chat_key={task_id}"
+                    )
         except Exception as e:
             logger.warning(f"[cc_workspace] 取消 CC 侧进程失败（不影响 NA 侧取消）: {e}")
 
@@ -1305,6 +1425,10 @@ async def upload_file_to_cc(_ctx: schemas.AgentCtx, sandbox_file_path: str, dest
     ws_shared_dir.mkdir(parents=True, exist_ok=True)
 
     target_name = dest_name.strip() if dest_name.strip() else host_path.name
+    # 安全处理：强制取纯文件名，防止路径穿越（如 ../../etc/passwd）
+    target_name = Path(target_name).name
+    if not target_name:
+        raise ValueError("目标文件名无效")
     target_path = ws_shared_dir / target_name
 
     try:

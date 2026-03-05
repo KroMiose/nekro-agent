@@ -27,6 +27,35 @@
     "empty": {
       "title": "暂无工作区",
       "hint": "点击「创建工作区」开始使用"
+    },
+    "batchSelect": "批量选择",
+    "selectAll": "全选",
+    "deselectAll": "取消全选",
+    "batchBar": {
+      "selected": "已选 {{count}} 个",
+      "cancel": "取消",
+      "start": "启动",
+      "stop": "停止",
+      "restart": "重启",
+      "rebuild": "重建",
+      "resetSession": "重置会话",
+      "setPreset": "设置模型组"
+    },
+    "batchConfirm": {
+      "title": "确认批量操作",
+      "content": "确认对选中的 {{count}} 个工作区执行「{{op}}」操作？",
+      "cancel": "取消",
+      "confirm": "确认"
+    },
+    "batchPreset": {
+      "title": "批量设置 CC 模型组",
+      "hint": "将对选中的 {{count}} 个工作区设置相同的 CC 模型组。选择「清空」可移除现有绑定。",
+      "selectLabel": "CC 模型组",
+      "clearHint": "留空以清除绑定",
+      "noPresets": "暂无可用模型组",
+      "cancel": "取消",
+      "confirm": "应用",
+      "success": "已成功更新 {{count}} 个工作区的模型组"
     }
   },
   "card": {
@@ -36,7 +65,12 @@
     "container": "容器",
     "createdAt": "创建",
     "enter": "进入",
-    "delete": "删除"
+    "delete": "删除",
+    "channels": "频道",
+    "channelMore": "等{{n}}个",
+    "model": "模型",
+    "skillMcp": "Skill/MCP",
+    "ccActive": "CC 执行中"
   },
   "createDialog": {
     "title": "创建工作区",
@@ -261,7 +295,13 @@
         "bindSuccess": "频道已绑定",
         "bindFailed": "绑定失败：{{message}}",
         "unbindSuccess": "频道已解绑",
-        "unbindFailed": "解绑失败：{{message}}"
+        "unbindFailed": "解绑失败：{{message}}",
+        "annotationFailed": "注解更新失败：{{message}}",
+        "primaryTag": "主频道",
+        "setPrimaryTooltip": "设为主频道",
+        "isPrimaryTooltip": "当前主频道",
+        "primaryAutoTooltip": "单频道时自动作为主频道",
+        "descPlaceholder": "添加频道用途说明（可选）..."
       }
     },
     "sandbox": {
@@ -467,7 +507,8 @@
       }
     },
     "comm": {
-      "loadMoreHint": "向上滚动加载更多",
+      "loadMore": "加载更多历史消息",
+      "noMoreMessages": "已加载全部历史消息",
       "noRecords": "暂无通讯记录",
       "noRecordsHint": "NA 向 CC 发送任务时，记录将实时出现在此处",
       "inputPlaceholderMac": "输入提示词（↩ 发送，⇧↩ 换行）",

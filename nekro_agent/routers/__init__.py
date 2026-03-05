@@ -27,6 +27,7 @@ from .cloud.telemetry import router as telemetry_router
 from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
+from .events import router as events_router
 from .logs import router as logs_router
 from .plugin_editor import router as plugin_editor_router
 from .plugins import router as plugins_router
@@ -87,6 +88,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(workspaces_router)
     api.include_router(skills_router)
     api.include_router(cc_model_presets_router)
+    api.include_router(events_router)
 
     api.include_router(load_adapters_api())
 

@@ -27,6 +27,35 @@
     "empty": {
       "title": "No Workspaces",
       "hint": "Click \"Create Workspace\" to get started"
+    },
+    "batchSelect": "Batch Select",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "batchBar": {
+      "selected": "{{count}} selected",
+      "cancel": "Cancel",
+      "start": "Start",
+      "stop": "Stop",
+      "restart": "Restart",
+      "rebuild": "Rebuild",
+      "resetSession": "Reset Session",
+      "setPreset": "Set Model Group"
+    },
+    "batchConfirm": {
+      "title": "Confirm Batch Operation",
+      "content": "Apply \"{{op}}\" to {{count}} selected workspaces?",
+      "cancel": "Cancel",
+      "confirm": "Confirm"
+    },
+    "batchPreset": {
+      "title": "Batch Set CC Model Group",
+      "hint": "Apply the same CC model group to {{count}} selected workspaces. Leave empty to clear existing binding.",
+      "selectLabel": "CC Model Group",
+      "clearHint": "Leave empty to clear binding",
+      "noPresets": "No model groups available",
+      "cancel": "Cancel",
+      "confirm": "Apply",
+      "success": "Successfully updated model group for {{count}} workspaces"
     }
   },
   "card": {
@@ -36,7 +65,12 @@
     "container": "Container",
     "createdAt": "Created",
     "enter": "Enter",
-    "delete": "Delete"
+    "delete": "Delete",
+    "channels": "Channels",
+    "channelMore": "+{{n}} more",
+    "model": "Model",
+    "skillMcp": "Skill/MCP",
+    "ccActive": "CC Running"
   },
   "createDialog": {
     "title": "Create Workspace",
@@ -261,7 +295,13 @@
         "bindSuccess": "Channel bound",
         "bindFailed": "Bind failed: {{message}}",
         "unbindSuccess": "Channel unbound",
-        "unbindFailed": "Unbind failed: {{message}}"
+        "unbindFailed": "Unbind failed: {{message}}",
+        "annotationFailed": "Annotation update failed: {{message}}",
+        "primaryTag": "Primary",
+        "setPrimaryTooltip": "Set as primary channel",
+        "isPrimaryTooltip": "Current primary channel",
+        "primaryAutoTooltip": "Single channel is automatically the primary",
+        "descPlaceholder": "Add channel purpose description (optional)..."
       }
     },
     "sandbox": {
@@ -467,7 +507,8 @@
       }
     },
     "comm": {
-      "loadMoreHint": "Scroll up to load more",
+      "loadMore": "Load more history",
+      "noMoreMessages": "All history loaded",
       "noRecords": "No comm records",
       "noRecordsHint": "Records will appear here in real time when NA sends tasks to CC",
       "inputPlaceholderMac": "Enter prompt (↩ send, ⇧↩ newline)",

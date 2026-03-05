@@ -29,6 +29,13 @@ class WorkspaceSummary(BaseModel):
     runtime_policy: str
     create_time: str
     update_time: str
+    # 聚合信息（列表页使用，无需额外请求）
+    channel_count: int = 0
+    channel_names: List[str] = []          # chat_key 列表（内部标识）
+    channel_display_names: List[str] = []  # 频道显示名（channel_name 或 fallback 到 chat_key）
+    skill_count: int = 0
+    mcp_count: int = 0
+    cc_model_preset_name: Optional[str] = None
 
 
 class WorkspaceDetail(WorkspaceSummary):
@@ -37,6 +44,7 @@ class WorkspaceDetail(WorkspaceSummary):
     last_error: Optional[str]
     metadata: Dict[str, Any]
     cc_model_preset_id: Optional[int] = None
+    primary_channel_chat_key: Optional[str] = None
 
 
 class WorkspaceListResponse(BaseModel):
@@ -121,3 +129,33 @@ class ClaudeMdResponse(BaseModel):
 
 class ClaudeMdExtraUpdate(BaseModel):
     extra: str
+
+
+# ── 频道注解 ─────────────────────────────────────────────────────────────────
+
+
+class ChannelAnnotation(BaseModel):
+    """单个频道在工作区中的注解（存储于 DBWorkspace.metadata.channel_annotations）。"""
+
+    description: str = Field(default="", max_length=256, description="频道在本工作区中的用途说明")
+    is_primary: bool = Field(default=False, description="是否为主频道")
+
+
+class ChannelAnnotationUpdate(BaseModel):
+    """更新单个频道注解的请求体。"""
+
+    chat_key: str = Field(..., description="目标频道的全局唯一标识")
+    description: str = Field(default="", max_length=256, description="频道在本工作区中的用途说明")
+    is_primary: bool = Field(default=False, description="是否设为主频道（设置后自动清除其他频道的主频道标记）")
+
+
+class BoundChannelInfo(BaseModel):
+    """绑定频道的完整信息（含注解）。"""
+
+    chat_key: str
+    description: str = ""
+    is_primary: bool = False
+
+
+class BoundChannelsResponse(BaseModel):
+    channels: List[BoundChannelInfo]

@@ -95,6 +95,10 @@ class CCSandboxClient:
                     try:
                         chunk = json.loads(raw)
                     except Exception:
+                        logger.debug(
+                            f"[cc_client] SSE JSON parse failed, skipping: "
+                            f"raw={raw[:200]!r} workspace={workspace_id}"
+                        )
                         continue
                     chunk_type = chunk.get("type")
                     if chunk_type == "chunk":
