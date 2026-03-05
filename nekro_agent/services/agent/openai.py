@@ -432,13 +432,19 @@ async def gen_openai_chat_response(
                 async for chunk in res_stream:
                     if not first_token_time:
                         first_token_time = time.time()
-                    if not chunk.choices or len(chunk.choices) == 0 or not chunk.choices[0].delta or not chunk.choices[0].delta.content:
-                        logger.exception(f"OpenAI流式生成过程中出错: 空响应块 {chunk}")
+                    delta = chunk.choices[0].delta if chunk.choices else None
+                    if not delta:
+                        logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
                         continue
-                    chunk_text: Optional[str] = chunk.choices[0].delta.content
+                    has_content = delta.content
+                    has_reasoning = getattr(delta, thought_chain_field_name, None)
+                    if not has_content and not has_reasoning:
+                        logger.warning(f"OpenAI流式生成: 跳过空响应块 (content={delta.content}, reasoning={has_reasoning})")
+                        continue
+                    chunk_text: Optional[str] = delta.content
                     if chunk_text:
-                        output += f"{chunk_text}"
-                    _thought_chain = getattr(chunk.choices[0].delta, thought_chain_field_name, "") or ""
+                        output += chunk_text
+                    _thought_chain = getattr(delta, thought_chain_field_name, "") or ""
                     thought_chain += _thought_chain
 
                     if chunk.usage and chunk.usage.total_tokens is not None:
