@@ -322,6 +322,15 @@ export const skillsLibraryApi = {
     const response = await axios.get<{ readme: string }>(`/skills/${name}/readme`)
     return response.data.readme
   },
+
+  getAutoInject: async (): Promise<string[]> => {
+    const response = await axios.get<{ skills: string[] }>('/skills/auto-inject')
+    return response.data.skills
+  },
+
+  setAutoInject: async (skills: string[]): Promise<void> => {
+    await axios.put('/skills/auto-inject', { skills })
+  },
 }
 
 // 动态 Skill API（工作区级）

@@ -17,7 +17,7 @@ from nekro_agent.schemas.errors import (
     NotFoundError,
     ValidationError,
 )
-from nekro_agent.schemas.workspace import SkillItem
+from nekro_agent.schemas.workspace import AutoInjectSkillsResponse, AutoInjectSkillsUpdate, SkillItem
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.manager import WorkspaceService
@@ -457,6 +457,28 @@ async def list_all_skills(
         source=s["source"],
     ) for s in raw]
     return AllSkillsResponse(total=len(items), items=items)
+
+
+@router.get("/auto-inject", summary="获取自动注入技能列表", response_model=AutoInjectSkillsResponse)
+@require_role(Role.Admin)
+async def get_auto_inject_skills(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> AutoInjectSkillsResponse:
+    from nekro_agent.core.auto_inject_skills import get_auto_inject_skills as _get
+
+    return AutoInjectSkillsResponse(skills=_get())
+
+
+@router.put("/auto-inject", summary="更新自动注入技能列表", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_auto_inject_skills(
+    body: AutoInjectSkillsUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    from nekro_agent.core.auto_inject_skills import set_auto_inject_skills as _set
+
+    _set(body.skills)
+    return ActionOkResponse(ok=True)
 
 
 @router.get("", summary="列出全局 skill 资源库（扁平列表）", response_model=SkillListResponse)

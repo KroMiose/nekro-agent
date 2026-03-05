@@ -82,6 +82,14 @@ class WorkspaceSkillsUpdate(BaseModel):
     skills: List[str]
 
 
+class AutoInjectSkillsUpdate(BaseModel):
+    skills: List[str]
+
+
+class AutoInjectSkillsResponse(BaseModel):
+    skills: List[str]
+
+
 # ── 沙盒通讯日志 ────────────────────────────────────────────────────────────
 
 

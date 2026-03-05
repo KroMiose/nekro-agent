@@ -231,6 +231,19 @@ async def create_workspace(
         runtime_policy=body.runtime_policy,
     )
 
+    # 自动注入默认技能
+    from nekro_agent.core.auto_inject_skills import get_auto_inject_skills
+
+    auto_skills = get_auto_inject_skills()
+    if auto_skills:
+        valid_skills = [s["name"] for s in WorkspaceService.list_all_skills()]
+        injected = [name for name in auto_skills if name in valid_skills]
+        if injected:
+            metadata = ws.metadata or {}
+            metadata["skills"] = injected
+            ws.metadata = metadata
+            await ws.save(update_fields=["metadata"])
+
     return await _detail_async(ws)
 
 

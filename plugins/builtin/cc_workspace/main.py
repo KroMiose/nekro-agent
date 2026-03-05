@@ -905,6 +905,18 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
             description=f"由 NA 自动为频道 {chat_key} 创建",
             runtime_policy="agent",
         )
+        # 自动注入默认技能
+        from nekro_agent.core.auto_inject_skills import get_auto_inject_skills
+
+        auto_skills = get_auto_inject_skills()
+        if auto_skills:
+            valid_names = {s["name"] for s in WorkspaceService.list_all_skills()}
+            injected = [n for n in auto_skills if n in valid_names]
+            if injected:
+                metadata = ws.metadata or {}
+                metadata["skills"] = injected
+                ws.metadata = metadata
+                await ws.save(update_fields=["metadata"])
     except Exception as e:
         logger.error(f"[cc_workspace] 创建工作区失败: {e}")
         raise ValueError(f"创建工作区失败：{e}") from e

@@ -157,30 +157,30 @@
     }
   },
   "skills": {
-    "tabs": {
-      "user": "用户技能库",
-      "builtin": "内置技能",
-      "builtinWithCount": "内置技能（{{count}}）"
-    },
-    "stats": {
-      "filtered": "{{filtered}} / {{total}} 个技能",
-      "total": "共 {{total}} 个技能"
-    },
+    "pageTitle": "技能库",
+    "pageDesc": "管理 Claude Code 可用的技能，标记自动注入的技能将在新建工作区时自动启用",
+    "statBuiltin": "内置技能",
+    "statUser": "用户技能",
+    "statAutoInject": "自动注入",
     "search": {
-      "placeholder": "搜索技能..."
+      "placeholder": "搜索技能名称或描述..."
+    },
+    "filter": {
+      "all": "全部",
+      "builtin": "内置",
+      "user": "用户"
     },
     "toolbar": {
-      "treeView": "目录树视图",
-      "flatView": "平铺视图",
+      "cardView": "卡片视图",
+      "listView": "列表视图",
       "refresh": "刷新",
       "uploadTooltip": "上传 Skill（.zip 格式）",
-      "uploadBtn": "上传 ZIP",
+      "uploadBtn": "上传",
       "addBtn": "添加 Skill"
     },
     "empty": {
-      "title": "Skills 库为空",
-      "hint": "点击「添加 Skill」从 git 仓库克隆，或「上传 ZIP」添加本地包",
-      "noBuiltin": "暂无内置技能",
+      "title": "技能库为空",
+      "hint": "点击「添加 Skill」从 Git 仓库克隆，或上传 ZIP 包",
       "noMatch": "没有匹配的技能"
     },
     "content": {
@@ -188,16 +188,29 @@
       "allowedTools": "允许工具:",
       "loading": "加载中..."
     },
-    "nodeRow": {
-      "pullTooltip": "拉取更新",
-      "deleteTooltip": "删除"
+    "autoInject": {
+      "on": "自动注入",
+      "off": "非自动注入",
+      "tooltip": "开启后，新建工作区时将自动添加此技能",
+      "badge": "自动注入"
     },
     "card": {
-      "collapseTooltip": "收起",
-      "viewTooltip": "查看 SKILL.md"
+      "viewTooltip": "查看详情",
+      "deleteTooltip": "删除",
+      "pullTooltip": "拉取更新",
+      "sourceBuiltin": "内置",
+      "sourceUser": "用户"
+    },
+    "drawer": {
+      "title": "技能详情",
+      "close": "关闭",
+      "source": "来源",
+      "directory": "目录名",
+      "autoInject": "自动注入",
+      "noContent": "暂无 SKILL.md 内容"
     },
     "error": {
-      "loadFailed": "加载 Skills 库失败：{{message}}"
+      "loadFailed": "加载技能库失败：{{message}}"
     },
     "cloneDialog": {
       "title": "添加 Skill",
@@ -225,7 +238,9 @@
       "pullSuccess": "更新完成：{{output}}",
       "pullUpToDate": "已是最新",
       "pullFailed": "更新失败：{{message}}",
-      "invalidFile": "请选择 .zip 格式的文件"
+      "invalidFile": "请选择 .zip 格式的文件",
+      "autoInjectUpdated": "自动注入设置已更新",
+      "autoInjectFailed": "自动注入设置失败：{{message}}"
     }
   },
   "detail": {
@@ -444,6 +459,7 @@
       "skillChipBuiltin": "内置",
       "skillChipUser": "技能库",
       "skillChipPending": "待同步",
+      "skillChipAutoInject": "自动注入",
       "removeTooltip": "从已部署列表移除（点击「同步到沙盒」生效）",
       "ccCreatedLabel": "CC 创建（{{count}}）",
       "ccCreatedEmpty": "暂无动态技能",

@@ -157,30 +157,30 @@
     }
   },
   "skills": {
-    "tabs": {
-      "user": "User Skills",
-      "builtin": "Built-in Skills",
-      "builtinWithCount": "Built-in Skills ({{count}})"
-    },
-    "stats": {
-      "filtered": "{{filtered}} / {{total}} skills",
-      "total": "{{total}} skills total"
-    },
+    "pageTitle": "Skills Library",
+    "pageDesc": "Manage skills available to Claude Code. Skills marked as auto-inject will be enabled automatically when creating new workspaces",
+    "statBuiltin": "Built-in",
+    "statUser": "User Skills",
+    "statAutoInject": "Auto-Inject",
     "search": {
-      "placeholder": "Search skills..."
+      "placeholder": "Search skills by name or description..."
+    },
+    "filter": {
+      "all": "All",
+      "builtin": "Built-in",
+      "user": "User"
     },
     "toolbar": {
-      "treeView": "Tree View",
-      "flatView": "Flat View",
+      "cardView": "Card View",
+      "listView": "List View",
       "refresh": "Refresh",
       "uploadTooltip": "Upload Skill (.zip format)",
-      "uploadBtn": "Upload ZIP",
+      "uploadBtn": "Upload",
       "addBtn": "Add Skill"
     },
     "empty": {
       "title": "Skills library is empty",
-      "hint": "Click \"Add Skill\" to clone from a git repo, or \"Upload ZIP\" to add a local package",
-      "noBuiltin": "No built-in skills",
+      "hint": "Click \"Add Skill\" to clone from a Git repo, or upload a ZIP package",
       "noMatch": "No matching skills"
     },
     "content": {
@@ -188,13 +188,26 @@
       "allowedTools": "Allowed tools:",
       "loading": "Loading..."
     },
-    "nodeRow": {
-      "pullTooltip": "Pull updates",
-      "deleteTooltip": "Delete"
+    "autoInject": {
+      "on": "Auto-Inject",
+      "off": "Not Auto-Inject",
+      "tooltip": "When enabled, this skill will be automatically added to new workspaces",
+      "badge": "Auto-Inject"
     },
     "card": {
-      "collapseTooltip": "Collapse",
-      "viewTooltip": "View SKILL.md"
+      "viewTooltip": "View Details",
+      "deleteTooltip": "Delete",
+      "pullTooltip": "Pull Updates",
+      "sourceBuiltin": "Built-in",
+      "sourceUser": "User"
+    },
+    "drawer": {
+      "title": "Skill Details",
+      "close": "Close",
+      "source": "Source",
+      "directory": "Directory",
+      "autoInject": "Auto-Inject",
+      "noContent": "No SKILL.md content"
     },
     "error": {
       "loadFailed": "Failed to load skills library: {{message}}"
@@ -225,7 +238,9 @@
       "pullSuccess": "Updated: {{output}}",
       "pullUpToDate": "Already up to date",
       "pullFailed": "Update failed: {{message}}",
-      "invalidFile": "Please select a .zip file"
+      "invalidFile": "Please select a .zip file",
+      "autoInjectUpdated": "Auto-inject settings updated",
+      "autoInjectFailed": "Failed to update auto-inject: {{message}}"
     }
   },
   "detail": {
@@ -444,6 +459,7 @@
       "skillChipBuiltin": "Built-in",
       "skillChipUser": "Library",
       "skillChipPending": "Pending",
+      "skillChipAutoInject": "Auto-Inject",
       "removeTooltip": "Remove from deployed list (click \"Sync to Sandbox\" to apply)",
       "ccCreatedLabel": "CC Created ({{count}})",
       "ccCreatedEmpty": "No dynamic skills",

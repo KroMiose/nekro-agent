@@ -95,6 +95,13 @@ export default function ExtensionsTab({
     queryFn: () => skillsLibraryApi.getAll(),
   })
 
+  // ── 自动注入列表 ──
+  const { data: autoInjectList = [] } = useQuery({
+    queryKey: ['skills-auto-inject'],
+    queryFn: () => skillsLibraryApi.getAutoInject(),
+  })
+  const autoInjectSet = useMemo(() => new Set(autoInjectList), [autoInjectList])
+
   // ── 所有技能的 map（name -> AllSkillItem）──
   const allSkillsMap = useMemo<Record<string, AllSkillItem>>(
     () => Object.fromEntries(allSkills.map(s => [s.name, s])),
@@ -188,8 +195,13 @@ export default function ExtensionsTab({
           s.description.toLowerCase().includes(q)
       )
     }
-    return list
-  }, [availableToAdd, sourceFilter, addSearch])
+    // Auto-inject skills first
+    return [...list].sort((a, b) => {
+      const aAuto = autoInjectSet.has(a.name) ? 0 : 1
+      const bAuto = autoInjectSet.has(b.name) ? 0 : 1
+      return aAuto - bAuto
+    })
+  }, [availableToAdd, sourceFilter, addSearch, autoInjectSet])
 
   // ── 已部署列表详情 ──
   const selectedSkillsDetail = useMemo(
@@ -479,6 +491,20 @@ export default function ExtensionsTab({
                       sx={{ fontSize: '0.65rem', height: 20, flexShrink: 0 }}
                     />
                   )}
+                  {autoInjectSet.has(skill.name) && (
+                    <Chip
+                      label={t('detail.extensions.skillChipAutoInject')}
+                      size="small"
+                      sx={{
+                        fontSize: '0.6rem',
+                        height: 18,
+                        bgcolor: 'warning.main',
+                        color: 'warning.contrastText',
+                        fontWeight: 600,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 500 }}>
                       {skill.display_name !== skill.name ? `${skill.display_name} (${skill.name})` : skill.name}
@@ -715,6 +741,13 @@ export default function ExtensionsTab({
                           variant="outlined"
                           sx={{ fontSize: '0.6rem', height: 18 }}
                         />
+                        {autoInjectSet.has(skill.name) && (
+                          <Chip
+                            label={t('detail.extensions.skillChipAutoInject')}
+                            size="small"
+                            sx={{ fontSize: '0.55rem', height: 16, bgcolor: 'warning.main', color: 'warning.contrastText', fontWeight: 600 }}
+                          />
+                        )}
                         <Typography variant="body2" sx={{ fontWeight: 500 }}>
                           {skill.display_name !== skill.name ? `${skill.display_name} (${skill.name})` : skill.name}
                         </Typography>
