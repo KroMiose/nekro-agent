@@ -1,4 +1,8 @@
-"""全局系统事件 SSE 端点"""
+"""全局系统事件 SSE 端点
+
+连接建立时自动推送一条 type=snapshot 事件（包含所有 domain 的当前完整状态），
+之后持续推送增量 delta 事件。断线重连时同样会先收到 snapshot。
+"""
 
 import asyncio
 from typing import AsyncGenerator
@@ -23,11 +27,13 @@ async def stream_system_events(
     request: Request,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
-    """订阅全局系统事件流（工作区状态变化、CC 沙盒活动状态等）。
+    """订阅全局系统事件流。
 
-    事件格式（JSON）：
-    - type=workspace_status: {type, workspace_id, status, name}
-    - type=workspace_cc_active: {type, workspace_id, active, max_duration_ms}
+    连接建立后立即推送 ``type=snapshot`` 全量状态快照，随后持续推送增量事件：
+
+    - type=snapshot: ``{type, data: {domain: {key: value, ...}, ...}}``
+    - type=workspace_status: ``{type, workspace_id, status, name, ...}``
+    - type=workspace_cc_active: ``{type, workspace_id, active, max_duration_ms}``
     """
 
     async def event_generator() -> AsyncGenerator[str, None]:

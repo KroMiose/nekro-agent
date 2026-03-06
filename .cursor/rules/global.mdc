@@ -29,6 +29,7 @@ alwaysApply: true
 
 - 后端开发文档: [backend-rules.mdc](mdc:.cursor/rules/backend-rules.mdc)
 - 前端开发文档: [frontend-rules.mdc](mdc:.cursor/rules/frontend-rules.mdc)
+- 全局 SSE 状态推送: [sse-system-events.mdc](mdc:.cursor/rules/sse-system-events.mdc)
 
 # 开发指南
 

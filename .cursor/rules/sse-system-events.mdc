@@ -1,0 +1,154 @@
+---
+description: 全局 SSE 状态推送系统（Snapshot + Delta）开发指南
+globs: nekro_agent/services/system_broadcast.py,nekro_agent/routers/events.py,frontend/src/hooks/useSystemEvents.ts
+alwaysApply: false
+---
+# 全局 SSE 状态推送系统
+
+系统通过 `GET /api/events/stream` 提供全局 SSE（Server-Sent Events）实时状态通道，采用 **Snapshot + Delta** 模式：新订阅者/重连时先收到全量快照，之后持续接收增量事件。
+
+## 架构概览
+
+```
+发布者（路由/插件）
+  ↓ publish_system_event(event)
+  ↓ 1. 更新内存 StateStore
+  ↓ 2. 广播给所有 SSE 订阅者
+  ↓
+后端 StateStore (domain → key → value)
+  ↓ 新连接/重连时
+  ↓ subscribe_system_events() → Queue 注入 snapshot
+  ↓
+SSE 端点 /api/events/stream
+  ↓
+前端 useSystemEvents() hook
+  ├─ snapshot → 全量替换本地状态
+  └─ delta   → 增量更新本地状态
+```
+
+## 核心文件
+
+| 文件 | 职责 |
+|------|------|
+| [system_broadcast.py](mdc:nekro_agent/services/system_broadcast.py) | 后端：事件模型、StateStore、广播器 |
+| [events.py](mdc:nekro_agent/routers/events.py) | 后端：SSE 路由端点 |
+| [useSystemEvents.ts](mdc:frontend/src/hooks/useSystemEvents.ts) | 前端：全局 SSE 订阅 hook |
+
+## StateStore 数据结构
+
+内存中按 `domain → key → value` 三级字典存储：
+
+```python
+_state_store: Dict[str, Dict[str, dict]] = {
+    "workspace_status": {
+        "1": {"workspace_id": 1, "status": "active", "name": "...", ...},
+    },
+    "workspace_cc_active": {
+        "1": {"workspace_id": 1, "active": True, "max_duration_ms": 300000},
+    },
+    # 未来新增 domain 自然追加
+}
+```
+
+- **domain**: 状态领域标识（如 `workspace_status`、`workspace_cc_active`）
+- **key**: 领域内唯一标识（通常为资源 ID 的字符串化；全局单例状态使用固定 key 如 `"_global"`）
+- **value**: JSON 可序列化的状态字典
+
+## 事件协议
+
+### snapshot 事件（连接建立/重连时自动推送）
+
+```json
+{
+  "type": "snapshot",
+  "data": {
+    "workspace_status": { "1": {...}, "2": {...} },
+    "workspace_cc_active": { "1": {...} }
+  }
+}
+```
+
+### delta 事件（状态变化时推送）
+
+每种 delta 事件必须有唯一的 `type` 字段作为 discriminator：
+
+```json
+{"type": "workspace_status", "workspace_id": 1, "status": "active", ...}
+{"type": "workspace_cc_active", "workspace_id": 1, "active": true, ...}
+```
+
+## 扩展新状态类型的标准流程
+
+### 后端（3 步）
+
+**第 1 步：定义事件模型**（`system_broadcast.py`）
+
+```python
+class MyNewEvent(BaseModel):
+    type: Literal["my_new_domain"] = "my_new_domain"
+    resource_id: int
+    # ... 其他字段
+```
+
+将其加入 `SystemEvent` Union：
+
+```python
+SystemEvent = Annotated[
+    Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, MyNewEvent],
+    Field(discriminator="type"),
+]
+```
+
+**第 2 步：注册状态提取逻辑**（`system_broadcast.py` 的 `_update_state`）
+
+```python
+elif isinstance(event, MyNewEvent):
+    domain = "my_new_domain"
+    key = str(event.resource_id)
+    _state_store.setdefault(domain, {})[key] = {
+        "resource_id": event.resource_id,
+        # ... 需要持久化到快照的字段
+    }
+```
+
+**第 3 步：在业务代码中发布事件**
+
+```python
+from nekro_agent.services.system_broadcast import MyNewEvent, publish_system_event
+
+await publish_system_event(MyNewEvent(resource_id=42, ...))
+```
+
+### 前端（3 步）
+
+**第 1 步：扩展类型定义**（`useSystemEvents.ts`）
+
+- 在 `SnapshotData` 接口中增加新 domain 的类型
+- 定义新的 delta 事件接口
+- 将其加入 `SystemEvent` 联合类型
+
+**第 2 步：增加 state 和 handler**
+
+- 新增 `useState` 存储该 domain 的状态
+- 在 `onMessage` 中增加 snapshot 恢复分支（`applySnapshot*`）和 delta 更新分支
+- 在 `SystemEvents` 接口中新增返回字段
+
+**第 3 步：在页面中消费**
+
+```tsx
+const { workspaceStatuses, workspaceCcActive, myNewState } = useSystemEvents()
+```
+
+## 禁止事项
+
+- **禁止**绕过 `publish_system_event()` 直接操作 `_state_store`
+- **禁止**在 SSE delta 事件中省略 `type` 字段
+- **禁止**假设前端已收到过之前的事件（Late Subscriber 问题）——任何状态必须通过 snapshot 可恢复
+- **禁止**新增"纯事件"（不需要状态恢复的通知类消息）走全局 SSE 通道；此通道仅用于**状态同步**，一次性通知应使用其他机制
+
+## 注意事项
+
+- 所有 domain 完全正交，互不干扰
+- StateStore 仅在内存中维护，进程重启后状态清空（由后续真实事件重新填充）
+- 前端 `useSystemEvents()` 是单例 hook，应在应用顶层或 Layout 中调用，通过 props/context 传递给子组件
+- 对于需要 TTL 自动失效的状态（如 `cc_active`），TTL 逻辑在**前端** hook 中处理

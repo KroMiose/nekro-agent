@@ -86,6 +86,16 @@ function MyComponent() {
 
 当你需要开发流式推送服务时，复用已经实现的包含鉴权的流式请求工具 [stream.ts](mdc:frontend/src/services/api/utils/stream.ts) ，应用示例: [logs.py](mdc:nekro_agent/routers/logs.py), [logs.ts](mdc:frontend/src/services/api/logs.ts)
 
+# 全局 SSE 状态推送
+
+当需要在页面中消费后端实时状态（如工作区状态、CC 活跃状态等）时，使用 `useSystemEvents()` hook，禁止自行建立独立的 SSE 连接或轮询。
+
+详细开发指南：[sse-system-events.mdc](mdc:.cursor/rules/sse-system-events.mdc)
+
+核心入口：
+* SSE 订阅 Hook: [useSystemEvents.ts](mdc:frontend/src/hooks/useSystemEvents.ts)
+* 使用示例: [workspace/index.tsx](mdc:frontend/src/pages/workspace/index.tsx), [workspace/detail.tsx](mdc:frontend/src/pages/workspace/detail.tsx)
+
 # i18n 约定
 
 * 公共文案使用 `common.*` 命名空间（含分页/通用状态）

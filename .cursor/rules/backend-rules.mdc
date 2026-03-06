@@ -69,6 +69,16 @@ logger.error("错误信息")
 - 禁止调用 `generate_schemas()` 与 `nekro_db_reset`，避免破坏已部署数据
 - 应用启动默认自动迁移（`AUTO_DB_MIGRATE=true`），可通过环境变量关闭
 
+# 全局 SSE 状态推送
+
+当需要向前端实时推送状态变化时，必须使用全局 SSE 广播系统（Snapshot + Delta 模式），禁止自行实现轮询或独立 SSE 端点。
+
+详细开发指南：[sse-system-events.mdc](mdc:.cursor/rules/sse-system-events.mdc)
+
+核心入口：
+* 事件模型与广播器: [system_broadcast.py](mdc:nekro_agent/services/system_broadcast.py)
+* SSE 路由端点: [events.py](mdc:nekro_agent/routers/events.py)
+
 # 扩展相关
 
 扩展可以被 AI 调用，用来增强 NekroAgent 的能力，开发文档参考 [Extension_Development.md](mdc:docs/Extension_Development.md)

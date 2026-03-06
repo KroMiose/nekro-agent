@@ -1,13 +1,15 @@
 /**
- * useSystemEvents — 全局系统事件 SSE 订阅 hook
+ * useSystemEvents — 全局系统事件 SSE 订阅 hook（Snapshot + Delta 模式）
  *
- * 订阅 GET /api/events/stream，解析以下事件类型：
- * - workspace_status: {type, workspace_id, status, name, container_name?, host_port?}
+ * 订阅 GET /api/events/stream，连接建立时后端先推送 type=snapshot 全量快照，
+ * 之后持续推送增量 delta 事件。断线重连时同样先收到 snapshot，自动恢复状态。
+ *
+ * 事件类型：
+ * - snapshot: {type, data: {domain: {key: value}}}  — 全量状态快照
+ * - workspace_status: {type, workspace_id, status, name, ...}
  * - workspace_cc_active: {type, workspace_id, active, max_duration_ms}
  *
- * 返回：
- * - workspaceStatuses: Map<workspaceId, WorkspaceStatusSnapshot> — 由 SSE 驱动的实时状态覆盖
- * - workspaceCcActive: Map<workspaceId, boolean> — CC 沙盒当前是否活跃
+ * 返回值保持稳定接口，新增 domain 只需在本 hook 中扩展 handler 即可。
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -33,7 +35,30 @@ interface WorkspaceCcActiveEvent {
   max_duration_ms: number
 }
 
-type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent
+/** 后端 snapshot 事件的 data 结构：domain → key → value */
+interface SnapshotData {
+  workspace_status?: Record<string, {
+    workspace_id: number
+    status: SystemEventWorkspaceStatus
+    name: string
+    container_name?: string | null
+    host_port?: number | null
+  }>
+  workspace_cc_active?: Record<string, {
+    workspace_id: number
+    active: boolean
+    max_duration_ms: number
+  }>
+  // 未来新增 domain 在此扩展
+  [domain: string]: Record<string, Record<string, unknown>> | undefined
+}
+
+interface SnapshotEvent {
+  type: 'snapshot'
+  data: SnapshotData
+}
+
+type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent | SnapshotEvent
 
 // ── 状态快照接口 ──────────────────────────────────────────────────────────────
 
@@ -55,10 +80,49 @@ export function useSystemEvents(): SystemEvents {
   const [workspaceStatuses, setWorkspaceStatuses] = useState<Map<number, WorkspaceStatusSnapshot>>(new Map())
   const [workspaceCcActive, setWorkspaceCcActive] = useState<Map<number, boolean>>(new Map())
 
-  // 用 ref 记录各工作区的 CC active TTL timer，防止内存泄漏
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
+    /**
+     * 从 snapshot 的 workspace_status domain 恢复 workspaceStatuses Map
+     */
+    const applySnapshotStatuses = (entries: NonNullable<SnapshotData['workspace_status']>) => {
+      const next = new Map<number, WorkspaceStatusSnapshot>()
+      for (const val of Object.values(entries)) {
+        next.set(val.workspace_id, {
+          status: val.status,
+          container_name: val.container_name,
+          host_port: val.host_port,
+        })
+      }
+      setWorkspaceStatuses(next)
+    }
+
+    /**
+     * 从 snapshot 的 workspace_cc_active domain 恢复 workspaceCcActive Map，
+     * 并为所有 active=true 的工作区重建 TTL timer。
+     */
+    const applySnapshotCcActive = (entries: NonNullable<SnapshotData['workspace_cc_active']>) => {
+      // 清除所有旧 timer
+      for (const timer of ccTimers.current.values()) clearTimeout(timer)
+      ccTimers.current.clear()
+
+      const next = new Map<number, boolean>()
+      for (const val of Object.values(entries)) {
+        next.set(val.workspace_id, val.active)
+        if (val.active) {
+          const ttl = val.max_duration_ms ?? DEFAULT_CC_ACTIVE_TTL
+          const wsId = val.workspace_id
+          const timer = setTimeout(() => {
+            setWorkspaceCcActive(prev => new Map(prev).set(wsId, false))
+            ccTimers.current.delete(wsId)
+          }, ttl)
+          ccTimers.current.set(wsId, timer)
+        }
+      }
+      setWorkspaceCcActive(next)
+    }
+
     const cancel = createEventStream({
       endpoint: '/events/stream',
       onMessage: (data: string) => {
@@ -67,6 +131,19 @@ export function useSystemEvents(): SystemEvents {
           const event = JSON.parse(data) as SystemEvent
           if (!event.type) return
 
+          // ── snapshot：全量状态恢复 ──
+          if (event.type === 'snapshot') {
+            const snapData = event.data
+            if (snapData.workspace_status) {
+              applySnapshotStatuses(snapData.workspace_status)
+            }
+            if (snapData.workspace_cc_active) {
+              applySnapshotCcActive(snapData.workspace_cc_active)
+            }
+            return
+          }
+
+          // ── delta：增量更新（原有逻辑） ──
           if (event.type === 'workspace_status') {
             const wsId = event.workspace_id
             setWorkspaceStatuses(prev => {
@@ -83,20 +160,14 @@ export function useSystemEvents(): SystemEvents {
             const active = event.active
             const ttl = event.max_duration_ms ?? DEFAULT_CC_ACTIVE_TTL
 
-            // 清除旧 timer
             const oldTimer = ccTimers.current.get(wsId)
             if (oldTimer !== undefined) clearTimeout(oldTimer)
 
             setWorkspaceCcActive(prev => new Map(prev).set(wsId, active))
 
             if (active) {
-              // active=true 时设置 TTL，超时后自动降为 false（防止 active=false 丢失）
               const timer = setTimeout(() => {
-                setWorkspaceCcActive(prev => {
-                  const next = new Map(prev)
-                  next.set(wsId, false)
-                  return next
-                })
+                setWorkspaceCcActive(prev => new Map(prev).set(wsId, false))
                 ccTimers.current.delete(wsId)
               }, ttl)
               ccTimers.current.set(wsId, timer)
@@ -109,11 +180,10 @@ export function useSystemEvents(): SystemEvents {
         }
       },
       onReconnect: () => {
-        // 重连后状态由后续事件驱动更新，无需主动清除
+        // 重连后后端会自动推送 snapshot 全量快照，无需额外处理
       },
     })
 
-    // 在 effect 内捕获 ref 当前值，供 cleanup 使用（避免 react-hooks/exhaustive-deps 警告）
     const timersRef = ccTimers.current
     return () => {
       cancel()
