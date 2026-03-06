@@ -150,7 +150,7 @@ export default function AnnouncementList({
               </Box>
 
               {/* 内容区 */}
-              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', gap: 1 }}>
+              <Box sx={{ flex: 1, minWidth: 0, display: 'flex', gap: 1, alignItems: 'center' }}>
                 {/* 左侧：标题 */}
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
