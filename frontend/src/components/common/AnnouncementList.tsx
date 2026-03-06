@@ -156,10 +156,10 @@ export default function AnnouncementList({
                   <Typography
                     variant="body2"
                     sx={{
-                      fontWeight: isImportant ? 700 : 500,
+                      fontWeight: isImportant ? 800 : 600,
                       fontSize: isImportant ? '0.84rem' : '0.82rem',
                       lineHeight: 1.5,
-                      color: isRead ? 'text.secondary' : 'text.primary',
+                      color: isRead ? palette.text.secondary : palette.text.primary,
                       transition: 'color 0.2s ease',
                     }}
                   >
