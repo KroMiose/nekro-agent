@@ -203,7 +203,7 @@ export default function AnnouncementList({
                       fontWeight: 500,
                     }}
                   >
-                    {formatRelativeTime(item.createdAt)}
+                    {formatRelativeTime(item.createdAt, i18n.language)}
                   </Typography>
                 </Box>
               </Box>
