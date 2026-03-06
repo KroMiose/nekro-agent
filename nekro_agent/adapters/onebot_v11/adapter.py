@@ -1,5 +1,6 @@
+import re
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import Any, Dict, List, Optional, Type
 
 from fastapi import APIRouter
 from nonebot.adapters.onebot.v11 import Bot, Message, MessageSegment
@@ -97,6 +98,63 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
     async def cleanup(self) -> None:
         """清理适配器"""
         return
+
+    async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:
+        """OneBot V11: 以合并转发消息形式发送长文本"""
+        try:
+            await self._send_forward_message(chat_key, message)
+        except Exception as e:
+            logger.warning(f"[ForwardMsg] 合并转发发送失败: {e}")
+            return False
+        else:
+            return True
+
+    async def _send_forward_message(self, chat_key: str, text: str) -> None:
+        """以合并转发消息形式发送长文本，智能拆分段落"""
+        bot: Bot = get_bot()
+        db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+        chat_type = db_chat_channel.chat_type
+        chat_id = int(db_chat_channel.channel_id.split("_")[1])
+
+        # 智能拆分：优先按 ====== 分隔符，其次按双换行，最后按固定行数
+        sections: List[str] = []
+        if re.search(r"={3,}", text):
+            # 按 ===== 标题行拆分
+            sections = re.split(r"\n(?=={3,})", text)
+        elif "\n\n" in text:
+            # 按双换行拆分（如插件列表）
+            sections = text.split("\n\n")
+        else:
+            # 按固定行数拆分（每 20 行一段）
+            lines = text.split("\n")
+            for i in range(0, len(lines), 20):
+                sections.append("\n".join(lines[i : i + 20]))
+
+        nodes: List[Dict[str, Any]] = []
+        for section in sections:
+            content = section.strip()
+            if not content:
+                continue
+            nodes.append(
+                {
+                    "type": "node",
+                    "data": {
+                        "name": "NekroAgent",
+                        "uin": bot.self_id,
+                        "content": [{"type": "text", "data": {"text": content}}],
+                    },
+                }
+            )
+
+        if not nodes:
+            raise ValueError("无法拆分消息内容")
+
+        if chat_type is ChatType.GROUP:
+            await bot.call_api("send_group_forward_msg", group_id=chat_id, messages=nodes)
+        elif chat_type is ChatType.PRIVATE:
+            await bot.call_api("send_private_forward_msg", user_id=chat_id, messages=nodes)
+        else:
+            raise ValueError(f"不支持的聊天类型: {chat_type}")
 
     async def forward_message(self, request: PlatformSendRequest) -> PlatformSendResponse:
         """推送消息到 OneBot V11 协议端"""

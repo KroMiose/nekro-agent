@@ -64,6 +64,16 @@ class BaseAdapterConfig(ConfigBase):
         title="权限不足提示",
         description="权限不足时是否向用户输出提示信息",
     )
+    COMMAND_ENHANCED_OUTPUT: bool = Field(
+        default=False,
+        title="命令增强输出",
+        description="启用后，较长的命令输出将使用平台特性进行优化展示（如合并转发、卡片等）",
+    )
+    COMMAND_ENHANCED_OUTPUT_MIN_LENGTH: int = Field(
+        default=200,
+        title="增强输出触发字数",
+        description="命令输出超过此字数时触发增强输出（需启用命令增强输出）",
+    )
 
 
 # 定义配置类型变量，约束为 BaseAdapterConfig 子类
@@ -350,13 +360,32 @@ class BaseAdapter(ABC, Generic[TConfig]):
         return True
 
     async def _send_command_message(self, chat_key: str, message: str) -> None:
-        """发送命令输出消息到频道（自动添加命令输出前缀）"""
+        """发送命令输出消息到频道
+
+        当启用增强输出且消息长度超过阈值时，尝试使用平台特性发送；
+        若平台不支持或发送失败，回退为普通文本。
+        """
+        if (
+            self.config.COMMAND_ENHANCED_OUTPUT
+            and len(message) >= self.config.COMMAND_ENHANCED_OUTPUT_MIN_LENGTH
+            and await self._try_send_enhanced_command_message(chat_key, message)
+        ):
+            return
+
         from nekro_agent.services.chat.universal_chat_service import universal_chat_service
 
         await universal_chat_service.send_operation_message(
             chat_key=chat_key,
             message=message,
         )
+
+    async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:  # noqa: ARG002
+        """尝试以平台增强格式发送命令消息
+
+        子类可重写此方法，利用平台特性（合并转发、卡片等）优化长消息展示。
+        返回 True 表示发送成功，False 表示不支持或失败（将回退为普通文本）。
+        """
+        return False
 
     async def _handle_command_wait(self, chat_key: str, user_id: str, response: "CommandResponse") -> None:
         """处理 wait 状态（发送提示消息并注册 WaitSession）"""
