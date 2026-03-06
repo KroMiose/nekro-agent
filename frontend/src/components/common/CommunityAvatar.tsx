@@ -38,10 +38,10 @@ export default function CommunityAvatar() {
     fetchUserProfile()
   }, [fetchUserProfile])
 
-  // 组件挂载时检查公告更新，之后每 30 分钟定时检查
+  // 组件挂载时检查公告更新，之后每 5 分钟定时检查
   useEffect(() => {
     checkForUpdates()
-    const timer = setInterval(checkForUpdates, 30 * 60 * 1000)
+    const timer = setInterval(checkForUpdates, 5 * 60 * 1000)
     return () => clearInterval(timer)
   }, [checkForUpdates])
 
