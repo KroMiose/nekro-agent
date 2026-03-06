@@ -6,6 +6,7 @@ import { telemetryApi } from './telemetry'
 // Auth API
 export const authApi = {
   checkGitHubStars: auth.checkGitHubStars,
+  getCommunityUserProfile: auth.getCommunityUserProfile,
 }
 
 export const cloudApi = {

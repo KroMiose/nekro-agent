@@ -19,5 +19,14 @@
   "devMode": {
     "enabled": "Developer mode enabled!",
     "disabled": "Developer mode disabled"
+  },
+  "community": {
+    "avatarTooltip": "Community Account",
+    "visitCommunity": "Visit Community",
+    "refreshProfile": "Refresh Profile",
+    "notConfiguredTitle": "Community API Key Not Configured",
+    "notConfiguredDesc": "Configure Nekro Cloud API Key to display your community avatar",
+    "getCommunityKey": "Get Key from Community",
+    "goToSettings": "Go to System Settings"
   }
 }
