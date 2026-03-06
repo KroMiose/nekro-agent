@@ -159,7 +159,7 @@ export default function AnnouncementList({
                       fontWeight: isImportant ? 800 : 600,
                       fontSize: isImportant ? '0.84rem' : '0.82rem',
                       lineHeight: 1.5,
-                      color: isRead ? palette.text.secondary : palette.text.primary,
+                      color: isRead ? 'text.secondary' : 'text.primary',
                       transition: 'color 0.2s ease',
                     }}
                   >
