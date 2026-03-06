@@ -211,7 +211,7 @@ export function LoggedInContent({
         <Box
           sx={footerBtnStyles}
           onClick={() => {
-            window.open('https://community.nekro.ai', '_blank')
+            window.open('https://cloud.nekro.ai', '_blank')
           }}
         >
           <OpenInNewIcon sx={{ fontSize: 14 }} />
@@ -284,7 +284,7 @@ export function NotConfiguredContent({ onClose }: { onClose: () => void }) {
             fontWeight: 600,
           }}
           onClick={() => {
-            window.open('https://community.nekro.ai', '_blank')
+            window.open('https://cloud.nekro.ai', '_blank')
             onClose()
           }}
         >
