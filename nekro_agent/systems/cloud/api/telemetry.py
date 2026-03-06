@@ -17,6 +17,9 @@ from .client import get_client
 logger = get_sub_logger("cloud_api")
 _CACHE: Dict[str, Dict[str, Any]] = {"community_stats": {"data": None, "expires_at": 0}}
 
+# 公告最后更新时间（由遥测响应返回）
+_announcement_updated_at: Optional[str] = None
+
 
 async def _send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryResponse:
     """发送遥测数据
@@ -30,7 +33,7 @@ async def _send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryRespon
     has_api_key = bool(config.NEKRO_CLOUD_API_KEY)
     async with get_client(require_auth=has_api_key) as client:
         response = await client.post(
-            url="/api/telemetry",
+            url="/api/v2/telemetry",
             json=telemetry_data.model_dump(mode="json", exclude_none=True),
         )
         response.raise_for_status()
@@ -47,6 +50,8 @@ async def send_telemetry_report(hour_start: datetime, hour_end: datetime) -> Tel
     Returns:
         TelemetryResponse: 遥测响应
     """
+    global _announcement_updated_at  # noqa: PLW0603
+
     try:
         # 准备遥测数据
         telemetry_data = await prepare_telemetry_data(hour_start, hour_end)
@@ -65,6 +70,9 @@ async def send_telemetry_report(hour_start: datetime, hour_end: datetime) -> Tel
         logger.error(f"与 Nekro Cloud 通信发生错误: {e}")
         return TelemetryResponse(success=False, message=f"发送遥测报告失败: {e!s}")
     else:
+        # 缓存公告最后更新时间
+        if response.announcement_updated_at is not None:
+            _announcement_updated_at = response.announcement_updated_at
         return response
 
 
@@ -103,3 +111,8 @@ async def get_community_stats(force_refresh: bool = False) -> Optional[Dict[str,
     except Exception as e:
         logger.error(f"获取社区统计数据失败: {e}")
         return None
+
+
+def get_announcement_updated_at() -> Optional[str]:
+    """获取缓存的公告最后更新时间"""
+    return _announcement_updated_at

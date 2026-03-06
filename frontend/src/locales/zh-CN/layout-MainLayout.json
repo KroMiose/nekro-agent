@@ -27,6 +27,11 @@
     "notConfiguredTitle": "未配置社区 API Key",
     "notConfiguredDesc": "配置 Nekro Cloud API Key 后可显示社区头像",
     "getCommunityKey": "前往社区获取 Key",
-    "goToSettings": "前往系统设置配置"
+    "goToSettings": "前往系统设置配置",
+    "tabNotifications": "公告",
+    "tabMessages": "消息",
+    "noNotifications": "暂无公告",
+    "noMessages": "暂无消息",
+    "markAllRead": "全部已读"
   }
 }
