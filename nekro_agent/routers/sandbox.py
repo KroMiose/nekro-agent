@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from tortoise.expressions import Q
 
 from nekro_agent.core.os_env import PROMPT_LOG_DIR
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
@@ -51,17 +52,29 @@ class SandboxStats(BaseModel):
 async def get_sandbox_logs(
     page: int = 1,
     page_size: int = 20,
-    chat_key: Optional[str] = None,
+    search: Optional[str] = None,
     success: Optional[bool] = None,
+    stop_type: Optional[int] = None,
+    use_model: Optional[str] = None,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> SandboxLogListResponse:
-    """获取沙盒执行日志列表"""
+    """获取沙盒执行日志列表，支持全文搜索和结构化过滤"""
     query = DBExecCode.all()
 
-    if chat_key:
-        query = query.filter(chat_key=chat_key)
+    if search:
+        query = query.filter(
+            Q(chat_key__icontains=search)
+            | Q(trigger_user_name__icontains=search)
+            | Q(code_text__icontains=search)
+            | Q(thought_chain__icontains=search)
+            | Q(outputs__icontains=search)
+        )
     if success is not None:
         query = query.filter(success=success)
+    if stop_type is not None:
+        query = query.filter(stop_type=stop_type)
+    if use_model:
+        query = query.filter(use_model=use_model)
 
     total = await query.count()
     logs = await query.order_by("-create_time").offset((page - 1) * page_size).limit(page_size)
@@ -114,6 +127,14 @@ async def get_sandbox_log_content(
         return json.loads(log_content)
     except (OSError, json.JSONDecodeError) as e:
         raise OperationFailedError(operation="读取日志文件") from e
+
+
+@router.get("/models", summary="获取沙盒执行日志中使用过的模型列表")
+@require_role(Role.Admin)
+async def get_sandbox_models(_current_user: DBUser = Depends(get_current_active_user)) -> List[str]:
+    """获取所有日志中出现过的非空模型名称（去重）"""
+    rows = await DBExecCode.all().exclude(use_model="").exclude(use_model=None).values_list("use_model", flat=True)
+    return sorted({str(m) for m in rows})
 
 
 @router.get("/stats", summary="获取沙盒执行统计")

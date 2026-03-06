@@ -372,10 +372,12 @@ export default function SandboxTab({
   workspace,
   sandboxStatus,
   onSandboxMutate,
+  onNavigateToOverview,
 }: {
   workspace: WorkspaceDetail
   sandboxStatus: SandboxStatus | null
   onSandboxMutate: () => void
+  onNavigateToOverview?: () => void
 }) {
   const theme = useTheme()
   const queryClient = useQueryClient()
@@ -403,7 +405,13 @@ export default function SandboxTab({
       queryClient.invalidateQueries({ queryKey: ['workspace', workspace.id] })
       notification.success(t('detail.sandbox.notifications.startSuccess'))
     },
-    onError: (err: Error) => notification.error(t('detail.sandbox.notifications.startFailed', { message: err.message })),
+    onError: (err: Error) => {
+      const msg = err.message
+      notification.error(t('detail.sandbox.notifications.startFailed', { message: msg }))
+      if ((msg.includes('镜像') || msg.includes('image')) && onNavigateToOverview) {
+        onNavigateToOverview()
+      }
+    },
   })
 
   const stopMutation = useMutation({
@@ -435,8 +443,12 @@ export default function SandboxTab({
       setIsTransitioning(false)
     },
     onError: (err: Error) => {
-      notification.error(t('detail.sandbox.notifications.rebuildFailed', { message: err.message }))
+      const msg = err.message
       setRebuildOpen(false)
+      notification.error(t('detail.sandbox.notifications.rebuildFailed', { message: msg }))
+      if ((msg.includes('镜像') || msg.includes('image')) && onNavigateToOverview) {
+        onNavigateToOverview()
+      }
     },
   })
 

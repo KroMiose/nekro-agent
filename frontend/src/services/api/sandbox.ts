@@ -60,8 +60,10 @@ export const sandboxApi = {
   getLogs: async (params: {
     page: number
     page_size: number
-    chat_key?: string
+    search?: string
     success?: boolean
+    stop_type?: number
+    use_model?: string
   }) => {
     const response = await axios.get<{ total: number; items: SandboxLog[] }>('/sandbox/logs', {
       params,
@@ -73,6 +75,11 @@ export const sandboxApi = {
     const response = await axios.get('/sandbox/log-content', {
       params: { log_path },
     })
+    return response.data
+  },
+
+  getModels: async () => {
+    const response = await axios.get<string[]>('/sandbox/models')
     return response.data
   },
 

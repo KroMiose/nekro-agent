@@ -47,6 +47,13 @@
     "copyTrigger": "Copy Trigger Message",
     "copyCode": "Copy Code",
     "viewLog": "View Full Log",
+    "downloadFullLog": "Download Full Log",
+    "downloadSimplifiedLog": "Download Simplified Log",
+    "downloadFullLogTooltip": "Download JSON log with complete prompts and responses",
+    "downloadSimplifiedLogTooltip": "Download simplified JSON log with base64 content omitted (suitable for AI analysis)",
+    "downloading": "Downloading...",
+    "downloadSuccess": "Log downloaded",
+    "downloadFailed": "Download failed, please try again",
     "noContent": "No content to copy",
     "copied": "{{content}} copied to clipboard",
     "copyFailed": "Copy failed, please try again"
@@ -75,5 +82,25 @@
     "close": "Close",
     "loadFailed": "Failed to load log content:",
     "noContent": "No content available."
+  },
+  "filter": {
+    "searchPlaceholder": "Search chat_key / user / code / thought chain / output...",
+    "allStatus": "All",
+    "successStatus": "Success",
+    "failedStatus": "Failed",
+    "stopTypeLabel": "Stop Type",
+    "stopTypeAll": "All Types",
+    "modelLabel": "Model",
+    "modelAll": "All Models",
+    "clearFilter": "Clear Filters",
+    "stopTypes": {
+      "NORMAL": "Normal",
+      "ERROR": "Error",
+      "TIMEOUT": "Timeout",
+      "AGENT": "Agent",
+      "MANUAL": "Manual",
+      "SECURITY": "Security",
+      "MULTIMODAL_AGENT": "Multimodal Agent"
+    }
   }
 }

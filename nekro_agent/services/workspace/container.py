@@ -17,6 +17,14 @@ from nekro_agent.services.workspace.manager import WorkspaceService
 
 logger = get_sub_logger("workspace_container")
 
+
+class ImageNotFoundError(Exception):
+    """本地不存在指定的沙盒镜像，需要先拉取。"""
+
+    def __init__(self, image: str) -> None:
+        self.image = image
+        super().__init__(f"本地不存在镜像 {image!r}，请先拉取")
+
 CONTAINER_WORKSPACE_PATH = "/workspace"  # 容器内工作区挂载路径
 
 _resolved_nekro_network: str = ""  # 模块级缓存，避免每次创建容器都重复探测
@@ -27,10 +35,8 @@ _CONTAINER_ID_RE = re.compile(r"^[0-9a-f]{64}$")  # Docker 容器 ID 格式：64
 async def _resolve_nekro_network(docker: aiodocker.Docker) -> str:
     """解析 NA 所在的 nekro_network 网络名。
 
-    优先使用 INSTANCE_NAME 环境变量拼接；
-    若 INSTANCE_NAME 为空（docker-compose 未透传），则通过 Docker API
-    自动探测当前容器所连接的以 'nekro_network' 结尾的网络名。
-    结果缓存于模块变量，同一进程内只探测一次；并发调用由 asyncio.Lock 保护。
+    通过 Docker API inspect 当前 NA 容器自身，取其所连接的以 'nekro_network'
+    结尾的网络名。结果缓存于模块变量，同一进程内只探测一次；并发调用由 asyncio.Lock 保护。
     """
     global _resolved_nekro_network
 
@@ -43,12 +49,7 @@ async def _resolve_nekro_network(docker: aiodocker.Docker) -> str:
         if _resolved_nekro_network:
             return _resolved_nekro_network
 
-        # 优先：INSTANCE_NAME 已设置，直接拼接（与 docker-compose 命名规则一致）
-        if OsEnv.INSTANCE_NAME:
-            _resolved_nekro_network = f"{OsEnv.INSTANCE_NAME}nekro_network"
-            return _resolved_nekro_network
-
-        # Fallback：通过 Docker API 探测当前容器实际所属的 nekro_network
+        # 通过 Docker API inspect 自身容器，取实际所属的 nekro_network
         try:
             container_id = Path("/etc/hostname").read_text().strip()
             if not _CONTAINER_ID_RE.match(container_id):
@@ -133,8 +134,28 @@ class SandboxContainerManager:
         return cc_presets_store.get_default()
 
     @staticmethod
+    async def check_image_exists(image: str) -> bool:
+        """检查本地是否已有指定镜像。"""
+        docker = aiodocker.Docker()
+        try:
+            await docker.images.get(image)
+            return True
+        except aiodocker.exceptions.DockerError:
+            return False
+        finally:
+            await docker.close()
+
+    @staticmethod
     async def create_and_start(workspace: DBWorkspace) -> DBWorkspace:
         """初始化目录 + 创建并启动容器 + 等待健康检查"""
+        image_name = workspace.sandbox_image or config.CC_SANDBOX_IMAGE
+        image_tag = workspace.sandbox_version or config.CC_SANDBOX_IMAGE_TAG
+        image = f"{image_name}:{image_tag}"
+
+        # 提前检查镜像是否存在，给出友好错误而非 500
+        if not await SandboxContainerManager.check_image_exists(image):
+            raise ImageNotFoundError(image)
+
         # 解析 CC 模型预设并初始化工作区目录
         cc_preset = await SandboxContainerManager._resolve_preset(workspace)
         await WorkspaceService.init_workspace_dir(workspace, cc_preset=cc_preset)
@@ -153,9 +174,6 @@ class SandboxContainerManager:
             host_port = await _find_free_port()
             ws_host_dir = str(WorkspaceService.get_workspace_dir(workspace.id).resolve())
             claude_home_host_dir = str((WorkspaceService.get_workspace_dir(workspace.id) / ".claude_home").resolve())
-            image_name = workspace.sandbox_image or config.CC_SANDBOX_IMAGE
-            image_tag = workspace.sandbox_version or config.CC_SANDBOX_IMAGE_TAG
-            image = f"{image_name}:{image_tag}"
 
             host_tz = _get_host_timezone()
             binds = [

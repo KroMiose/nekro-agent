@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
 
 import aiodocker
-from fastapi import APIRouter, Depends, Query, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -49,7 +49,7 @@ from nekro_agent.services.system_broadcast import WorkspaceStatusEvent, publish_
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
-from nekro_agent.services.workspace.container import SandboxContainerManager
+from nekro_agent.services.workspace.container import ImageNotFoundError, SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
@@ -412,7 +412,10 @@ async def start_sandbox(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ws.status == "active":
         raise ValidationError(reason="工作区容器已在运行中")
-    ws = await SandboxContainerManager.create_and_start(ws)
+    try:
+        ws = await SandboxContainerManager.create_and_start(ws)
+    except ImageNotFoundError as e:
+        raise ValidationError(reason=f"镜像 {e.image} 在本地不存在，请先在概览页拉取镜像后再启动容器")
     await publish_system_event(WorkspaceStatusEvent(
         workspace_id=ws.id,
         status=ws.status,  # type: ignore[arg-type]
@@ -477,7 +480,10 @@ async def rebuild_sandbox(
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    ws = await SandboxContainerManager.rebuild(ws)
+    try:
+        ws = await SandboxContainerManager.rebuild(ws)
+    except ImageNotFoundError as e:
+        raise ValidationError(reason=f"镜像 {e.image} 在本地不存在，请先在概览页拉取镜像后再重建容器")
     await publish_system_event(WorkspaceStatusEvent(
         workspace_id=ws.id,
         status=ws.status,  # type: ignore[arg-type]
@@ -486,6 +492,86 @@ async def rebuild_sandbox(
         host_port=ws.host_port,
     ))
     return await _detail_async(ws)
+
+
+# ─────────────────────────────────────────────────────────────
+# 沙盒镜像管理
+# ─────────────────────────────────────────────────────────────
+
+
+class ImageCheckResponse(BaseModel):
+    image: str
+    exists: bool
+
+
+@router.get("/{workspace_id}/sandbox/image/check", summary="检查沙盒镜像是否存在", response_model=ImageCheckResponse)
+@require_role(Role.Admin)
+async def check_sandbox_image(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ImageCheckResponse:
+    from nekro_agent.core.config import config as app_config
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    image_name = ws.sandbox_image or app_config.CC_SANDBOX_IMAGE
+    image_tag = ws.sandbox_version or app_config.CC_SANDBOX_IMAGE_TAG
+    image = f"{image_name}:{image_tag}"
+    exists = await SandboxContainerManager.check_image_exists(image)
+    return ImageCheckResponse(image=image, exists=exists)
+
+
+@router.post("/{workspace_id}/sandbox/image/pull/stream", summary="拉取沙盒镜像（SSE 流式进度）")
+@require_role(Role.Admin)
+async def pull_sandbox_image_stream(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> EventSourceResponse:
+    from nekro_agent.core.config import config as app_config
+
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    image_name = ws.sandbox_image or app_config.CC_SANDBOX_IMAGE
+    image_tag = ws.sandbox_version or app_config.CC_SANDBOX_IMAGE_TAG
+    image = f"{image_name}:{image_tag}"
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        docker = aiodocker.Docker()
+        # 记录每个 layer 当前状态，避免重复推送相同状态
+        layer_status: dict[str, str] = {}
+        # 需要立即推送的终态/关键状态
+        _TERMINAL_STATUSES = {"Pull complete", "Already exists", "Download complete", "Verifying Checksum"}
+        try:
+            async for progress in docker.images.pull(image, stream=True):
+                if not isinstance(progress, dict):
+                    continue
+                status: str = progress.get("status", "")
+                layer_id: str = progress.get("id", "")
+                # 无 layer ID 的全局消息（Digest、Status）直接推送
+                if not layer_id:
+                    if status:
+                        yield json.dumps({"type": "progress", "layer": "", "status": status})
+                    continue
+                prev = layer_status.get(layer_id)
+                # 状态未变化且不是终态，跳过
+                if prev == status and status not in _TERMINAL_STATUSES:
+                    continue
+                layer_status[layer_id] = status
+                yield json.dumps({"type": "progress", "layer": layer_id, "status": status})
+            yield json.dumps({"type": "done", "data": f"镜像 {image} 拉取完成"})
+        except aiodocker.exceptions.DockerError as e:
+            yield json.dumps({"type": "error", "data": f"拉取失败：{e}"})
+        except Exception as e:
+            yield json.dumps({"type": "error", "data": f"拉取异常：{e}"})
+        finally:
+            try:
+                await docker.close()
+            except Exception:
+                pass
+
+    return EventSourceResponse(event_generator())
 
 
 @router.get("/{workspace_id}/sandbox/status", summary="获取沙盒状态", response_model=SandboxStatus)
@@ -1117,6 +1203,7 @@ async def get_workspace_cc_preset(
 @router.get("/{workspace_id}/sandbox/logs/stream", summary="流式推送容器日志")
 @require_role(Role.Admin)
 async def stream_sandbox_logs(
+    request: Request,
     workspace_id: int,
     tail: int = Query(default=200, ge=1, le=2000),
     _current_user: DBUser = Depends(get_current_active_user),
@@ -1124,6 +1211,40 @@ async def stream_sandbox_logs(
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    # _SENTINEL 用于通知生成器日志 Task 已结束
+    _SENTINEL = object()
+
+    async def _pump_docker_logs(
+        container_name: str,
+        current_tail: int,
+        queue: "asyncio.Queue[object]",
+    ) -> None:
+        """在独立 Task 中消费 Docker log stream，将数据写入 Queue。
+        Task 被取消时，aiodocker 的 async for 会收到 CancelledError 并退出。
+        """
+        docker = aiodocker.Docker()
+        try:
+            container = await docker.containers.get(container_name)
+            async for chunk in container.log(stdout=True, stderr=True, follow=True, tail=current_tail):
+                await queue.put(json.dumps({"type": "log", "data": chunk}))
+        except asyncio.CancelledError:
+            raise
+        except aiodocker.exceptions.DockerError as e:
+            err_msg = str(e)
+            if "No such container" in err_msg or "404" in err_msg:
+                await queue.put(json.dumps({"type": "info", "data": "[容器已被删除，等待重建...]\n"}))
+            else:
+                await queue.put(json.dumps({"type": "error", "data": f"[Docker 错误: {e}]\n"}))
+        except Exception as e:
+            await queue.put(json.dumps({"type": "error", "data": f"[错误: {e}]\n"}))
+        finally:
+            try:
+                await docker.close()
+            except Exception:
+                pass
+            # 通知消费方本次 Task 已结束
+            await queue.put(_SENTINEL)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         # 记录上一次跟踪的容器名，用于检测容器切换
@@ -1134,10 +1255,13 @@ async def stream_sandbox_logs(
         current_tail = tail
 
         while True:
+            # 检查客户端是否已断开
+            if await request.is_disconnected():
+                return
+
             # 每次循环都重新查询数据库，获取最新容器名
             ws_current = await DBWorkspace.get_or_none(id=workspace_id)
             if not ws_current:
-                # 工作区已被删除，终止流
                 yield json.dumps({"type": "error", "data": "[工作区已不存在，日志流终止]\n"})
                 return
 
@@ -1162,33 +1286,35 @@ async def stream_sandbox_logs(
                     current_tail = 50  # 新容器只取最近 50 行，避免刷屏
                 last_container_name = current_container
 
-            docker = aiodocker.Docker()
+            # 启动独立 Task 消费 Docker log stream，通过 Queue 传递数据
+            queue: asyncio.Queue[object] = asyncio.Queue(maxsize=256)
+            log_task = asyncio.create_task(_pump_docker_logs(current_container, current_tail, queue))
             try:
-                container = await docker.containers.get(current_container)
-                async for chunk in container.log(stdout=True, stderr=True, follow=True, tail=current_tail):
-                    yield json.dumps({"type": "log", "data": chunk})
-                # 日志流正常结束（容器停止），继续循环等待新容器
-                yield json.dumps({"type": "info", "data": "[容器已停止，等待重启...]\n"})
-                last_container_name = None
-                await asyncio.sleep(2)
-            except aiodocker.exceptions.DockerError as e:
-                err_msg = str(e)
-                if "No such container" in err_msg or "404" in err_msg:
-                    # 容器已被删除，等待新容器
-                    yield json.dumps({"type": "info", "data": "[容器已被删除，等待重建...]\n"})
-                    last_container_name = None
-                    await asyncio.sleep(2)
-                else:
-                    yield json.dumps({"type": "error", "data": f"[Docker 错误: {e}]\n"})
-                    await asyncio.sleep(3)
-            except Exception as e:
-                yield json.dumps({"type": "error", "data": f"[错误: {e}]\n"})
-                await asyncio.sleep(3)
+                while True:
+                    # 检查客户端是否已断开
+                    if await request.is_disconnected():
+                        return
+                    try:
+                        item = await asyncio.wait_for(queue.get(), timeout=2.0)
+                    except asyncio.TimeoutError:
+                        continue
+                    if item is _SENTINEL:
+                        # Task 正常结束（容器停止）
+                        break
+                    yield str(item)
             finally:
-                try:
-                    await docker.close()
-                except Exception:
-                    pass
+                # 无论何种退出原因（断连、CancelledError、正常结束）都取消 Task
+                if not log_task.done():
+                    log_task.cancel()
+                    try:
+                        await log_task
+                    except (asyncio.CancelledError, Exception):
+                        pass
+
+            # 容器停止后等待重启
+            yield json.dumps({"type": "info", "data": "[容器已停止，等待重启...]\n"})
+            last_container_name = None
+            await asyncio.sleep(2)
 
     return EventSourceResponse(event_generator())
 
@@ -1458,6 +1584,7 @@ def _comm_log_to_dict(log: Any) -> dict:
 @router.get("/{workspace_id}/comm/stream", summary="实时推送沙盒通讯事件（SSE）")
 @require_role(Role.Admin)
 async def stream_comm_log(
+    request: Request,
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
@@ -1471,6 +1598,8 @@ async def stream_comm_log(
         q = comm_broadcast.subscribe(workspace_id)
         try:
             while True:
+                if await request.is_disconnected():
+                    return
                 try:
                     payload = await asyncio.wait_for(q.get(), timeout=20.0)
                     yield payload

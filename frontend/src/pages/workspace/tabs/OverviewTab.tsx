@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import {
   Box,
   Button,
@@ -15,6 +15,10 @@ import {
   Autocomplete,
   Skeleton,
   alpha,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material'
 import {
   ArrowForward as ArrowForwardIcon,
@@ -28,6 +32,7 @@ import {
   Forum as ForumIcon,
   Star as StarIcon,
   StarBorder as StarBorderIcon,
+  CloudDownload as CloudDownloadIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
@@ -37,6 +42,7 @@ import {
   SandboxStatus,
   commApi,
   BoundChannel,
+  ImagePullMessage,
 } from '../../../services/api/workspace'
 import { ccModelPresetApi } from '../../../services/api/cc-model-preset'
 import { chatChannelApi } from '../../../services/api/chat-channel'
@@ -193,6 +199,15 @@ export default function OverviewTab({
     staleTime: 30000,
   })
   const commCount = commStats?.total ?? 0
+
+  // ── 镜像状态检查 ──
+  const [pullDialogOpen, setPullDialogOpen] = useState(false)
+  const [pullConfirmOpen, setPullConfirmOpen] = useState(false)
+  const imageCheckQuery = useQuery({
+    queryKey: ['sandbox-image-check', workspace.id],
+    queryFn: () => workspaceApi.checkSandboxImage(workspace.id),
+    staleTime: 60000,
+  })
 
   // ── CC 模型预设 ──
   const { data: allPresets = [] } = useQuery({
@@ -358,10 +373,78 @@ export default function OverviewTab({
                   sx={CHIP_VARIANTS.base(true)}
                 />
               </InfoRow>
-              <InfoRow
-                label={t('detail.overview.infoRows.image')}
-                value={`${workspace.sandbox_image || t('detail.overview.defaultImage')}:${workspace.sandbox_version || 'latest'}`}
-                mono
+              <InfoRow label={t('detail.overview.infoRows.image')}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}
+                  >
+                    {imageCheckQuery.data?.image ?? `${workspace.sandbox_image || t('detail.overview.defaultImage')}:${workspace.sandbox_version || 'latest'}`}
+                  </Typography>
+                  {imageCheckQuery.isLoading ? (
+                    <CircularProgress size={12} />
+                  ) : imageCheckQuery.data?.exists === false ? (
+                    <Chip
+                      label={t('detail.errors.image.notPulled')}
+                      size="small"
+                      icon={<CloudDownloadIcon />}
+                      onClick={() => setPullConfirmOpen(true)}
+                      sx={{ cursor: 'pointer', ...CHIP_VARIANTS.getCustomColorChip(theme.palette.warning.main, true) }}
+                    />
+                  ) : imageCheckQuery.data?.exists === true ? (
+                    <Chip
+                      label={t('detail.errors.image.ready')}
+                      size="small"
+                      sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.success.main, true)}
+                    />
+                  ) : null}
+                </Box>
+              </InfoRow>
+
+              {/* 拉取确认对话框 */}
+              <Dialog open={pullConfirmOpen} onClose={() => setPullConfirmOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CloudDownloadIcon fontSize="small" />
+                  {t('detail.errors.image.pullDialog.confirmTitle')}
+                </DialogTitle>
+                <DialogContent>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    {t('detail.errors.image.pullDialog.confirmHint')}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 1.5, py: 1, borderRadius: 1 }}
+                  >
+                    {imageCheckQuery.data?.image ?? ''}
+                  </Typography>
+                </DialogContent>
+                <DialogActions>
+                  <Button size="small" onClick={() => setPullConfirmOpen(false)}>
+                    {t('detail.errors.image.pullDialog.cancel')}
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<CloudDownloadIcon />}
+                    onClick={() => {
+                      setPullConfirmOpen(false)
+                      setPullDialogOpen(true)
+                    }}
+                  >
+                    {t('detail.errors.image.pullDialog.pullBtn')}
+                  </Button>
+                </DialogActions>
+              </Dialog>
+
+              {/* 拉取进度对话框 */}
+              <ImagePullDialog
+                open={pullDialogOpen}
+                onClose={() => {
+                  setPullDialogOpen(false)
+                  void imageCheckQuery.refetch()
+                }}
+                workspaceId={workspace.id}
+                image={imageCheckQuery.data?.image ?? ''}
               />
               <InfoRow label={t('detail.overview.infoRows.createdAt')} value={new Date(workspace.create_time).toLocaleString()} />
               <InfoRow label={t('detail.overview.infoRows.updatedAt')} value={new Date(workspace.update_time).toLocaleString()} />
@@ -679,5 +762,203 @@ export default function OverviewTab({
         </CardContent>
       </Card>
     </Stack>
+  )
+}
+
+
+// ─────────────────────────────────────────────────────────────
+// ImagePullDialog: SSE 流式镜像拉取对话框
+// ─────────────────────────────────────────────────────────────
+
+/** 全局消息（无 layer ID，如 Digest / Status） */
+interface GlobalLine {
+  text: string
+}
+
+const _DONE_STATUS = new Set(['Pull complete', 'Already exists', 'Download complete'])
+
+function ImagePullDialog({
+  open,
+  onClose,
+  workspaceId,
+  image,
+}: {
+  open: boolean
+  onClose: () => void
+  workspaceId: number
+  image: string
+}) {
+  const { t } = useTranslation('workspace')
+  const theme = useTheme()
+
+  const getLayerColor = (status: string): string => {
+    if (_DONE_STATUS.has(status)) return theme.palette.success.main
+    if (status.startsWith('Extracting')) return theme.palette.warning.main
+    if (status.startsWith('Downloading')) return theme.palette.primary.main
+    if (status.startsWith('Pulling')) return theme.palette.text.disabled as string
+    return theme.palette.text.secondary as string
+  }
+  // layer 状态映射（保持插入顺序）
+  const [layers, setLayers] = useState<Map<string, string>>(new Map())
+  // 全局消息行（Digest / Status 等）
+  const [globalLines, setGlobalLines] = useState<GlobalLine[]>([])
+  const [pullStatus, setPullStatus] = useState<'idle' | 'pulling' | 'done' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const cancelRef = useRef<(() => void) | null>(null)
+
+  const startPull = () => {
+    setLayers(new Map())
+    setGlobalLines([])
+    setErrorMsg('')
+    setPullStatus('pulling')
+
+    const cancel = workspaceApi.streamPullSandboxImage(
+      workspaceId,
+      (msg: ImagePullMessage) => {
+        if (msg.type === 'progress') {
+          if (msg.layer) {
+            setLayers(prev => new Map(prev).set(msg.layer, msg.status))
+          } else if (msg.status) {
+            setGlobalLines(prev => [...prev, { text: msg.status }])
+          }
+        } else if (msg.type === 'done') {
+          setPullStatus('done')
+        } else if (msg.type === 'error') {
+          setErrorMsg(msg.data)
+          setPullStatus('error')
+        }
+      },
+      () => {
+        setPullStatus('error')
+        setErrorMsg(t('detail.errors.image.pullDialog.failed'))
+      },
+    )
+    cancelRef.current = cancel
+  }
+
+  useEffect(() => {
+    if (!open) return
+    startPull()
+    return () => {
+      cancelRef.current?.()
+      cancelRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, workspaceId])
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+    }
+  }, [layers, globalLines])
+
+  const handleClose = () => {
+    cancelRef.current?.()
+    cancelRef.current = null
+    onClose()
+  }
+
+  const handleRetry = () => {
+    cancelRef.current?.()
+    startPull()
+  }
+
+  const layerEntries = Array.from(layers.entries())
+  const doneCount = layerEntries.filter(([, s]) => _DONE_STATUS.has(s)).length
+  const totalCount = layerEntries.length
+
+  return (
+    <Dialog open={open} onClose={pullStatus === 'pulling' ? undefined : handleClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pb: 1 }}>
+        <CloudDownloadIcon fontSize="small" />
+        {t('detail.errors.image.pullDialog.title')}
+      </DialogTitle>
+      <DialogContent sx={{ pt: 0 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5, fontFamily: 'monospace', fontSize: '0.8rem' }}>
+          {image}
+        </Typography>
+
+        {/* 进度终端区域：20 行高度，最大 60vh 适配小屏 */}
+        <Box
+          ref={scrollRef}
+          sx={{
+            bgcolor: 'action.hover',
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            p: 1.5,
+            height: 'min(480px, 60vh)',
+            overflowY: 'auto',
+            fontFamily: 'monospace',
+            fontSize: '0.75rem',
+            lineHeight: 1.6,
+          }}
+        >
+          {layers.size === 0 && globalLines.length === 0 && pullStatus === 'pulling' ? (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'text.disabled' }}>
+              <CircularProgress size={12} color="primary" />
+              <span>{t('detail.errors.image.pullDialog.pulling')}</span>
+            </Box>
+          ) : (
+            <>
+              {/* Layer 状态表格 */}
+              {layerEntries.map(([id, layerStatus]) => (
+                <Box key={id} sx={{ display: 'flex', gap: 1.5, mb: 0.25 }}>
+                  <Box component="span" sx={{ color: 'text.disabled', minWidth: 80, flexShrink: 0 }}>
+                    {id.slice(0, 12)}
+                  </Box>
+                  <Box component="span" sx={{ color: getLayerColor(layerStatus) }}>
+                    {layerStatus}
+                  </Box>
+                </Box>
+              ))}
+              {/* 全局消息 */}
+              {globalLines.map((line, i) => (
+                <Box key={i} sx={{ color: 'text.secondary', mt: 0.5 }}>
+                  {line.text}
+                </Box>
+              ))}
+            </>
+          )}
+        </Box>
+
+        {/* 进度摘要 */}
+        {totalCount > 0 && pullStatus === 'pulling' && (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+            <CircularProgress
+              variant="determinate"
+              value={totalCount > 0 ? (doneCount / totalCount) * 100 : 0}
+              size={16}
+              color="success"
+            />
+            <Typography variant="caption" color="text.secondary">
+              {doneCount} / {totalCount} layers
+            </Typography>
+          </Box>
+        )}
+
+        {pullStatus === 'done' && (
+          <Typography variant="body2" color="success.main" sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            ✓ {t('detail.errors.image.pullDialog.success')}
+          </Typography>
+        )}
+        {pullStatus === 'error' && (
+          <Typography variant="body2" color="error.main" sx={{ mt: 1 }}>
+            ✗ {errorMsg || t('detail.errors.image.pullDialog.failed')}
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        {pullStatus === 'error' && (
+          <Button onClick={handleRetry} size="small">
+            {t('detail.errors.image.pullDialog.retry')}
+          </Button>
+        )}
+        <Button onClick={handleClose} disabled={pullStatus === 'pulling'} size="small">
+          {t('detail.errors.image.pullDialog.close')}
+        </Button>
+      </DialogActions>
+    </Dialog>
   )
 }

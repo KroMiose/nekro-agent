@@ -290,6 +290,7 @@ function MyTable() {
 2. 使用主题判断：`theme.palette.mode === 'dark'` ❌
 3. 在组件中混合使用多种获取主题方式 ❌
 4. 使用固定阴影值而非主题提供的阴影 ❌
+5. **对 MUI `<Chip>` 使用 `color="warning"` / `color="success"` 等语义 color 属性** ❌
 
 ### 正确做法
 
@@ -297,3 +298,28 @@ function MyTable() {
 2. 使用样式变体：`sx={CARD_VARIANTS.default.styles}` ✅ 
 3. 使用组件级样式：`boxShadow: LOGIN_PAGE_STYLES.SHADOW.CARD` ✅
 4. 始终使用相对不透明度：`alpha(theme.palette.primary.main, 0.2)` ✅
+5. **Chip 必须用 `CHIP_VARIANTS.getCustomColorChip(theme.palette.xxx.main, isSmall)`** ✅
+
+### Chip 专项规范（高频错误，务必遵守）
+
+**禁止**使用 MUI Chip 的 `color` prop（如 `color="success"` / `color="warning"` / `color="error"`），这会绕过主题系统使用 MUI 默认颜色。
+
+**必须**通过 `useTheme()` 获取主题颜色，然后传给 `CHIP_VARIANTS.getCustomColorChip()`：
+
+```tsx
+// ❌ 错误：使用 MUI color prop
+<Chip color="success" label="已就绪" sx={CHIP_VARIANTS.base(true)} />
+<Chip color="warning" label="未拉取" sx={CHIP_VARIANTS.base(true)} />
+
+// ✅ 正确：通过主题获取颜色
+const theme = useTheme()
+<Chip label="已就绪" sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.success.main, true)} />
+<Chip label="未拉取" sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.warning.main, true)} />
+```
+
+常用颜色映射：
+- 成功/运行中 → `theme.palette.success.main`
+- 警告/未就绪 → `theme.palette.warning.main`
+- 错误/失败 → `theme.palette.error.main`
+- 主色/强调 → `theme.palette.primary.main`
+- 次要/停止 → `theme.palette.text.secondary`

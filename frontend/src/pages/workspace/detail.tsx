@@ -296,6 +296,7 @@ export default function WorkspaceDetailPage() {
               workspace={workspace}
               sandboxStatus={effectiveSandboxStatus ?? null}
               onSandboxMutate={handleSandboxMutate}
+              onNavigateToOverview={() => setActiveTab(0)}
             />
           )}
           {activeTab === 2 && (

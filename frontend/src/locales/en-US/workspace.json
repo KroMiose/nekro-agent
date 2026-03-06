@@ -657,6 +657,27 @@
         "cancel": "Cancel",
         "delete": "Delete"
       }
+    },
+    "errors": {
+      "imageNotFound": "Image not found, please pull the image from the overview page first",
+      "image": {
+        "checking": "Checking",
+        "ready": "Ready",
+        "notPulled": "Not Pulled",
+          "pullDialog": {
+            "title": "Pull Sandbox Image",
+            "confirmTitle": "Pull Sandbox Image",
+            "confirmHint": "The following image will be pulled from Docker Hub. First-time pull may take a while — please ensure your network is available:",
+            "cancel": "Cancel",
+            "image": "Image",
+            "pulling": "Pulling...",
+            "success": "Pull complete",
+            "failed": "Pull failed",
+            "close": "Close",
+            "retry": "Retry",
+            "pullBtn": "Start Pull"
+          }
+      }
     }
   }
 }

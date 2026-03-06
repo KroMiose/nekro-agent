@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Box,
   Paper,
@@ -29,6 +29,15 @@ import {
   DialogActions,
   Button,
   alpha,
+  TextField,
+  InputAdornment,
+  ToggleButton,
+  ToggleButtonGroup,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  SelectChangeEvent,
 } from '@mui/material'
 import {
   CheckCircle as CheckCircleIcon,
@@ -46,9 +55,13 @@ import {
   Functions as FunctionsIcon,
   Abc as AbcIcon,
   Visibility as VisibilityIcon,
+  Search as SearchIcon,
+  FilterAltOff as FilterAltOffIcon,
+  Download as DownloadIcon,
+  Summarize as SummarizeIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
-import { sandboxApi, SandboxCodeExtData } from '../../services/api/sandbox'
+import { sandboxApi, SandboxCodeExtData, SandboxLog, ExecStopType } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
@@ -117,6 +130,7 @@ interface FullLogData {
 }
 
 function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
+  const { t } = useTranslation('sandbox')
   const { data, isLoading, error } = useQuery<FullLogData, Error>({
     queryKey: ['sandbox-log-content', logPath],
     queryFn: () => sandboxApi.getLogContent(logPath),
@@ -139,11 +153,11 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
     }
 
     if (error) {
-      return <Alert severity="error">Failed to load log content: {error.message}</Alert>
+      return <Alert severity="error">{t('dialog.loadFailed')} {error.message}</Alert>
     }
 
     if (!data) {
-      return <Alert severity="warning">No content available.</Alert>
+      return <Alert severity="warning">{t('dialog.noContent')}</Alert>
     }
 
     // Custom renderer for JSON content to handle images
@@ -165,7 +179,7 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
       return (
         <Box>
           <Typography variant="h6" gutterBottom>
-            Request Details
+            {t('dialog.requestDetails')}
           </Typography>
           <Paper variant="outlined" sx={{ p: 2, mb: 2, ...scrollableContentStyles }}>
             {jsonData.request.messages.map((msg: LogMessage, index: number) => (
@@ -208,11 +222,11 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
           </Paper>
 
           <Typography variant="h6" gutterBottom>
-            Response
+            {t('dialog.response')}
           </Typography>
           <Paper variant="outlined" sx={{ p: 2, ...scrollableContentStyles }}>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-              Thought Chain:
+              {t('dialog.thoughtChain')}
             </Typography>
             <pre
               style={{
@@ -225,7 +239,7 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
               {unescapeNewlines(jsonData.response.thought_chain) || '<Empty>'}
             </pre>
             <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mt: 2 }}>
-              Content:
+              {t('dialog.content')}
             </Typography>
             <pre
               style={{
@@ -246,12 +260,12 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>View Log Content</DialogTitle>
+      <DialogTitle>{t('dialog.logTitle')}</DialogTitle>
       <DialogContent dividers sx={scrollableContentStyles}>
         {renderContent()}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Close</Button>
+        <Button onClick={onClose}>{t('dialog.close')}</Button>
       </DialogActions>
     </Dialog>
   )
@@ -272,6 +286,29 @@ export default function SandboxPage() {
   const isEnglish = currentLocale === 'en-US'
   const [logViewerOpen, setLogViewerOpen] = useState(false)
   const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
+
+  // 过滤状态
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [filterSuccess, setFilterSuccess] = useState<boolean | null>(null)
+  const [filterStopType, setFilterStopType] = useState<number | ''>('')
+  const [filterModel, setFilterModel] = useState<string>('')
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // 下载 loading 状态（key: logId_type）
+  const [downloadingMap, setDownloadingMap] = useState<Record<string, boolean>>({})
+
+  // 搜索防抖
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    debounceTimer.current = setTimeout(() => {
+      setDebouncedSearch(searchInput)
+      setPage(0)
+    }, 500)
+    return () => {
+      if (debounceTimer.current) clearTimeout(debounceTimer.current)
+    }
+  }, [searchInput])
 
   const formatNumber = (num: number | undefined | null) => {
     if (num === undefined || num === null || isNaN(num)) return t('performance.notSupported')
@@ -304,16 +341,25 @@ export default function SandboxPage() {
     queryFn: () => sandboxApi.getStats(),
   })
 
+  const { data: availableModels } = useQuery({
+    queryKey: ['sandbox-models'],
+    queryFn: () => sandboxApi.getModels(),
+  })
+
   const {
     data: logs,
     isLoading,
     isPlaceholderData,
   } = useQuery({
-    queryKey: ['sandbox-logs', page, rowsPerPage],
+    queryKey: ['sandbox-logs', page, rowsPerPage, debouncedSearch, filterSuccess, filterStopType, filterModel],
     queryFn: () =>
       sandboxApi.getLogs({
         page: page + 1,
         page_size: rowsPerPage,
+        search: debouncedSearch || undefined,
+        success: filterSuccess ?? undefined,
+        stop_type: filterStopType !== '' ? filterStopType : undefined,
+        use_model: filterModel || undefined,
       }),
     placeholderData: logs => logs,
   })
@@ -346,6 +392,102 @@ export default function SandboxPage() {
       notification.success(t('actions.copied', { content: contentType }))
     } else {
       notification.error(t('actions.copyFailed'))
+    }
+  }
+
+  // 清除所有过滤条件
+  const handleClearFilters = () => {
+    setSearchInput('')
+    setDebouncedSearch('')
+    setFilterSuccess(null)
+    setFilterStopType('')
+    setFilterModel('')
+    setPage(0)
+  }
+
+  const hasActiveFilters =
+    searchInput !== '' || filterSuccess !== null || filterStopType !== '' || filterModel !== ''
+
+  // base64 智能省略：处理简化日志
+  const simplifyLogData = (data: FullLogData): FullLogData => {
+    const simplifiedMessages = data.request.messages.map(msg => {
+      if (!Array.isArray(msg.content)) return msg
+      const simplifiedContent = msg.content.map(item => {
+        if (item.type === 'image_url' && item.image_url?.url?.startsWith('data:')) {
+          const sizeKb = Math.round(item.image_url.url.length * 0.75 / 1024)
+          return {
+            type: 'text' as const,
+            text: `[BASE64_IMAGE_OMITTED: ~${sizeKb}KB]`,
+          }
+        }
+        if (item.type === 'text' && item.text) {
+          const simplified = item.text.replace(/[A-Za-z0-9+/]{200,}={0,2}/g, match => {
+            const sizeKb = Math.round(match.length * 0.75 / 1024)
+            return `[BASE64_CONTENT_OMITTED: ~${sizeKb}KB]`
+          })
+          return { ...item, text: simplified }
+        }
+        return item
+      })
+      return { ...msg, content: simplifiedContent }
+    })
+    return {
+      ...data,
+      request: { ...data.request, messages: simplifiedMessages },
+    }
+  }
+
+  // 触发文件下载
+  const triggerDownload = (content: object, filename: string) => {
+    const blob = new Blob([JSON.stringify(content, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  // 下载日志（完整或简化）
+  const handleDownloadLog = async (log: SandboxLog, simplified: boolean) => {
+    let extraData: SandboxCodeExtData | null = null
+    try {
+      extraData = log.extra_data ? (JSON.parse(log.extra_data) as SandboxCodeExtData) : null
+    } catch {
+      // ignore parse error
+    }
+    const logPath = extraData?.log_path
+    if (!logPath) return
+
+    const downloadKey = `${log.id}_${simplified ? 'simplified' : 'full'}`
+    setDownloadingMap(prev => ({ ...prev, [downloadKey]: true }))
+    try {
+      const rawData = (await sandboxApi.getLogContent(logPath)) as FullLogData
+      const processedData = simplified ? simplifyLogData(rawData) : rawData
+      const fullLog = {
+        id: log.id,
+        chat_key: log.chat_key,
+        trigger_user_name: log.trigger_user_name,
+        success: log.success,
+        stop_type: log.stop_type,
+        use_model: log.use_model,
+        exec_time_ms: log.exec_time_ms,
+        generation_time_ms: log.generation_time_ms,
+        total_time_ms: log.total_time_ms,
+        create_time: log.create_time,
+        code_text: log.code_text,
+        outputs: log.outputs,
+        thought_chain: log.thought_chain,
+        ...processedData,
+      }
+      const safeTime = log.create_time.replace(/[: ]/g, '-')
+      const suffix = simplified ? '_simplified' : ''
+      triggerDownload(fullLog, `sandbox_log_${log.id}_${safeTime}${suffix}.json`)
+      notification.success(t('actions.downloadSuccess'))
+    } catch {
+      notification.error(t('actions.downloadFailed'))
+    } finally {
+      setDownloadingMap(prev => ({ ...prev, [downloadKey]: false }))
     }
   }
 
@@ -486,8 +628,127 @@ export default function SandboxPage() {
       {/* 统计卡片 */}
       {renderStatsCards()}
 
+      {/* 过滤栏 */}
+      <Paper
+        sx={{
+          ...CARD_VARIANTS.default.styles,
+          p: isSmall ? 1.5 : 2,
+          mb: 2,
+          flexShrink: 0,
+        }}
+      >
+        <Stack
+          direction={isMobile ? 'column' : 'row'}
+          spacing={1.5}
+          alignItems={isMobile ? 'stretch' : 'center'}
+          flexWrap="wrap"
+        >
+          {/* 全文搜索框 */}
+          <TextField
+            size="small"
+            placeholder={t('filter.searchPlaceholder')}
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
+            sx={{ flex: isMobile ? 'unset' : '1 1 260px', minWidth: 200 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            }}
+          />
+
+          {/* 成功状态过滤 */}
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={filterSuccess === null ? 'all' : filterSuccess ? 'success' : 'failed'}
+            onChange={(_e, val) => {
+              if (val === 'all' || val === null) setFilterSuccess(null)
+              else if (val === 'success') setFilterSuccess(true)
+              else setFilterSuccess(false)
+              setPage(0)
+            }}
+          >
+            <ToggleButton value="all">{t('filter.allStatus')}</ToggleButton>
+            <ToggleButton value="success">{t('filter.successStatus')}</ToggleButton>
+            <ToggleButton value="failed">{t('filter.failedStatus')}</ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* 停止类型过滤 */}
+          <FormControl size="small" sx={{ minWidth: 130 }}>
+            <InputLabel>{t('filter.stopTypeLabel')}</InputLabel>
+            <Select
+              label={t('filter.stopTypeLabel')}
+              value={filterStopType}
+              onChange={(e: SelectChangeEvent<number | ''>) => {
+                setFilterStopType(e.target.value as number | '')
+                setPage(0)
+              }}
+            >
+              <MenuItem value="">{t('filter.stopTypeAll')}</MenuItem>
+              <MenuItem value={ExecStopType.NORMAL}>{t('filter.stopTypes.NORMAL')}</MenuItem>
+              <MenuItem value={ExecStopType.ERROR}>{t('filter.stopTypes.ERROR')}</MenuItem>
+              <MenuItem value={ExecStopType.TIMEOUT}>{t('filter.stopTypes.TIMEOUT')}</MenuItem>
+              <MenuItem value={ExecStopType.AGENT}>{t('filter.stopTypes.AGENT')}</MenuItem>
+              <MenuItem value={ExecStopType.MANUAL}>{t('filter.stopTypes.MANUAL')}</MenuItem>
+              <MenuItem value={ExecStopType.SECURITY}>{t('filter.stopTypes.SECURITY')}</MenuItem>
+              <MenuItem value={ExecStopType.MULTIMODAL_AGENT}>{t('filter.stopTypes.MULTIMODAL_AGENT')}</MenuItem>
+            </Select>
+          </FormControl>
+
+          {/* 模型过滤 */}
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <InputLabel>{t('filter.modelLabel')}</InputLabel>
+            <Select
+              label={t('filter.modelLabel')}
+              value={filterModel}
+              onChange={(e: SelectChangeEvent<string>) => {
+                setFilterModel(e.target.value)
+                setPage(0)
+              }}
+            >
+              <MenuItem value="">{t('filter.modelAll')}</MenuItem>
+              {(availableModels ?? []).map(model => (
+                <MenuItem key={model} value={model}>
+                  {model}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          {/* 清除过滤按钮 */}
+          {hasActiveFilters && (
+            <Tooltip title={t('filter.clearFilter')}>
+              <IconButton size="small" onClick={handleClearFilters} color="default">
+                <FilterAltOffIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </Stack>
+      </Paper>
+
       {/* 日志表格 */}
-      <Paper sx={UNIFIED_TABLE_STYLES.tableContentContainer}>
+      <Paper sx={{ ...UNIFIED_TABLE_STYLES.tableContentContainer, position: 'relative' }}>
+        {/* 过滤/翻页刷新时的遮罩 loading */}
+        {isPlaceholderData && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 10,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: theme => alpha(theme.palette.background.paper, 0.6),
+              backdropFilter: 'blur(2px)',
+              borderRadius: 'inherit',
+            }}
+          >
+            <CircularProgress size={32} />
+          </Box>
+        )}
         <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport}>
           <Table stickyHeader size={isSmall ? 'small' : 'medium'}>
             <TableHead>
@@ -1362,19 +1623,67 @@ export default function SandboxPage() {
                               {/* 开发者工具 */}
                               {devMode && extraData?.log_path && (
                                 <Box sx={{ my: 2 }}>
-                                  <Button
-                                    variant="outlined"
-                                    color="secondary"
-                                    size="small"
-                                    startIcon={<VisibilityIcon />}
-                                    onClick={e => {
-                                      e.stopPropagation()
-                                      setSelectedLogPath(extraData?.log_path || null)
-                                      setLogViewerOpen(true)
-                                    }}
-                                  >
-                                    查看详细请求日志
-                                  </Button>
+                                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                                    <Button
+                                      variant="outlined"
+                                      color="secondary"
+                                      size="small"
+                                      startIcon={<VisibilityIcon />}
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        setSelectedLogPath(extraData?.log_path || null)
+                                        setLogViewerOpen(true)
+                                      }}
+                                    >
+                                      {t('actions.viewLog')}
+                                    </Button>
+                                    <Tooltip title={t('actions.downloadFullLogTooltip')}>
+                                      <span>
+                                        <Button
+                                          variant="outlined"
+                                          color="info"
+                                          size="small"
+                                          startIcon={
+                                            downloadingMap[`${log.id}_full`] ? (
+                                              <CircularProgress size={14} />
+                                            ) : (
+                                              <DownloadIcon />
+                                            )
+                                          }
+                                          disabled={downloadingMap[`${log.id}_full`]}
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            handleDownloadLog(log, false)
+                                          }}
+                                        >
+                                          {t('actions.downloadFullLog')}
+                                        </Button>
+                                      </span>
+                                    </Tooltip>
+                                    <Tooltip title={t('actions.downloadSimplifiedLogTooltip')}>
+                                      <span>
+                                        <Button
+                                          variant="outlined"
+                                          color="success"
+                                          size="small"
+                                          startIcon={
+                                            downloadingMap[`${log.id}_simplified`] ? (
+                                              <CircularProgress size={14} />
+                                            ) : (
+                                              <SummarizeIcon />
+                                            )
+                                          }
+                                          disabled={downloadingMap[`${log.id}_simplified`]}
+                                          onClick={e => {
+                                            e.stopPropagation()
+                                            handleDownloadLog(log, true)
+                                          }}
+                                        >
+                                          {t('actions.downloadSimplifiedLog')}
+                                        </Button>
+                                      </span>
+                                    </Tooltip>
+                                  </Stack>
                                 </Box>
                               )}
                             </Box>

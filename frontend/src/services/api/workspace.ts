@@ -1,6 +1,12 @@
 import axios from './axios'
 import { createEventStream } from './utils/stream'
 
+/** 镜像拉取 SSE 消息结构 */
+export type ImagePullMessage =
+  | { type: 'progress'; layer: string; status: string }
+  | { type: 'done'; data: string }
+  | { type: 'error'; data: string }
+
 export interface WorkspaceSummary {
   id: number
   name: string
@@ -171,6 +177,30 @@ export const workspaceApi = {
   getSandboxStatus: async (id: number): Promise<SandboxStatus> => {
     const response = await axios.get<SandboxStatus>(`/workspaces/${id}/sandbox/status`)
     return response.data
+  },
+
+  checkSandboxImage: async (id: number): Promise<{ image: string; exists: boolean }> => {
+    const response = await axios.get<{ image: string; exists: boolean }>(`/workspaces/${id}/sandbox/image/check`)
+    return response.data
+  },
+
+  streamPullSandboxImage: (
+    id: number,
+    onMessage: (msg: ImagePullMessage) => void,
+    onError?: (err: Error) => void,
+  ): (() => void) => {
+    return createEventStream({
+      endpoint: `/workspaces/${id}/sandbox/image/pull/stream`,
+      method: 'POST',
+      onMessage: (raw) => {
+        try {
+          onMessage(JSON.parse(raw) as ImagePullMessage)
+        } catch {
+          onMessage({ type: 'progress', layer: '', status: raw })
+        }
+      },
+      onError,
+    })
   },
 
   getSandboxLogs: async (id: number, tail: number = 100): Promise<string> => {

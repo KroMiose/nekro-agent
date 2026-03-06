@@ -47,6 +47,13 @@
     "copyTrigger": "复制触发消息",
     "copyCode": "复制代码",
     "viewLog": "查看完整日志",
+    "downloadFullLog": "下载完整日志",
+    "downloadSimplifiedLog": "下载简化日志",
+    "downloadFullLogTooltip": "下载包含完整提示词和响应的 JSON 日志",
+    "downloadSimplifiedLogTooltip": "下载已省略 base64 内容的简化 JSON 日志（适合投放给 AI 分析）",
+    "downloading": "下载中...",
+    "downloadSuccess": "日志已下载",
+    "downloadFailed": "下载失败，请重试",
     "noContent": "无内容可复制",
     "copied": "{{content}}已复制到剪贴板",
     "copyFailed": "复制失败，请重试"
@@ -75,5 +82,25 @@
     "close": "关闭",
     "loadFailed": "加载日志内容失败:",
     "noContent": "无可用内容。"
+  },
+  "filter": {
+    "searchPlaceholder": "搜索 chat_key / 用户 / 代码 / 思维链 / 输出...",
+    "allStatus": "全部",
+    "successStatus": "成功",
+    "failedStatus": "失败",
+    "stopTypeLabel": "停止类型",
+    "stopTypeAll": "全部类型",
+    "modelLabel": "使用模型",
+    "modelAll": "全部模型",
+    "clearFilter": "清除过滤",
+    "stopTypes": {
+      "NORMAL": "正常结束",
+      "ERROR": "错误停止",
+      "TIMEOUT": "超时停止",
+      "AGENT": "代理停止",
+      "MANUAL": "手动停止",
+      "SECURITY": "安全停止",
+      "MULTIMODAL_AGENT": "多模态代理停止"
+    }
   }
 }

@@ -3,7 +3,7 @@
 import asyncio
 from typing import AsyncGenerator
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/events", tags=["Events"])
 @router.get("/stream", summary="全局系统事件实时推送（SSE）")
 @require_role(Role.Admin)
 async def stream_system_events(
+    request: Request,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
     """订阅全局系统事件流（工作区状态变化、CC 沙盒活动状态等）。
@@ -36,6 +37,8 @@ async def stream_system_events(
             return
         try:
             while True:
+                if await request.is_disconnected():
+                    return
                 try:
                     payload = await asyncio.wait_for(q.get(), timeout=25.0)
                     yield payload
