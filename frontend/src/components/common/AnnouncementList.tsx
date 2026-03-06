@@ -11,7 +11,6 @@ import { PushPin as PushPinIcon, Campaign as CampaignIcon } from '@mui/icons-mat
 import { useTranslation } from 'react-i18next'
 import type { AnnouncementSummary, AnnouncementType } from '../../services/api/cloud/announcement'
 import { ANNOUNCEMENT_TYPE_COLORS, ANNOUNCEMENT_TYPE_LABELS, formatRelativeTime } from './AnnouncementConstants'
-import { getCurrentThemeMode } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 
 interface AnnouncementListProps {
@@ -49,7 +48,6 @@ export default function AnnouncementList({
   onAnnouncementClick,
 }: AnnouncementListProps) {
   const { t, i18n } = useTranslation('layout-MainLayout')
-  const themeMode = getCurrentThemeMode()
 
   const getTypeLabel = useCallback(
     (type: AnnouncementType) => {
@@ -158,7 +156,7 @@ export default function AnnouncementList({
                       fontWeight: isImportant ? 800 : 600,
                       fontSize: isImportant ? '0.84rem' : '0.82rem',
                       lineHeight: 1.5,
-                      color: isRead ? alpha('#000', 0.5) : alpha('#000', 0.87),
+                      color: isRead ? 'text.secondary' : 'text.primary',
                       transition: 'color 0.2s ease',
                     }}
                   >
