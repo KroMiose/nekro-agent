@@ -11,7 +11,7 @@ import { PushPin as PushPinIcon, Campaign as CampaignIcon } from '@mui/icons-mat
 import { useTranslation } from 'react-i18next'
 import type { AnnouncementSummary, AnnouncementType } from '../../services/api/cloud/announcement'
 import { ANNOUNCEMENT_TYPE_COLORS, ANNOUNCEMENT_TYPE_LABELS, formatRelativeTime } from './AnnouncementConstants'
-import { getCurrentThemeMode, getCurrentExtendedPalette } from '../../theme/themeConfig'
+import { getCurrentThemeMode } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 
 interface AnnouncementListProps {
@@ -49,7 +49,6 @@ export default function AnnouncementList({
   onAnnouncementClick,
 }: AnnouncementListProps) {
   const { t, i18n } = useTranslation('layout-MainLayout')
-  const palette = getCurrentExtendedPalette()
   const themeMode = getCurrentThemeMode()
 
   const getTypeLabel = useCallback(
@@ -100,15 +99,15 @@ export default function AnnouncementList({
                 transition: 'all 0.2s ease',
                 borderRadius: BORDER_RADIUS.SMALL,
                 margin: '0.5px',
-                backgroundColor: isHighPriority ? alpha(palette.error.main, 0.03) : 'transparent',
+                backgroundColor: isHighPriority ? alpha('#f44336', 0.03) : 'transparent',
                 '&:hover': {
-                  backgroundColor: alpha(palette.primary.main, isHighPriority ? 0.12 : 0.08),
+                  backgroundColor: alpha('#1976d2', isHighPriority ? 0.12 : 0.08),
                   opacity: 1,
                   transform: 'translateX(2px)',
                 },
                 // 高优先级左边框
                 ...(isHighPriority && {
-                  borderLeft: `3px solid ${palette.error.main}`,
+                  borderLeft: `3px solid #f44336`,
                   paddingLeft: '1.5rem',
                 }),
               }}
@@ -132,8 +131,8 @@ export default function AnnouncementList({
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      bgcolor: isHighPriority ? palette.error.main : palette.primary.main,
-                      boxShadow: `0 0 0 2px ${alpha(isHighPriority ? palette.error.main : palette.primary.main, 0.2)}`,
+                      bgcolor: isHighPriority ? '#f44336' : '#1976d2',
+                      boxShadow: `0 0 0 2px ${alpha(isHighPriority ? '#f44336' : '#1976d2', 0.2)}`,
                       transition: 'all 0.3s ease',
                     }}
                   />
@@ -141,7 +140,7 @@ export default function AnnouncementList({
                   <PushPinIcon
                     sx={{
                       fontSize: 14,
-                      color: palette.warning.main,
+                      color: '#ff9800',
                       transform: 'rotate(45deg)',
                       opacity: 0.7,
                     }}
@@ -201,7 +200,7 @@ export default function AnnouncementList({
                     variant="caption"
                     sx={{
                       fontSize: '0.67rem',
-                      color: isRead ? 'text.disabled' : palette.text.secondary,
+                      color: isRead ? 'text.disabled' : 'text.secondary',
                       transition: 'color 0.2s ease',
                       fontWeight: 500,
                     }}
