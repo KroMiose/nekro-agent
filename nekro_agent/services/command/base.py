@@ -3,6 +3,7 @@
 包含命令权限枚举、命令元数据模型、命令基类及插件命令适配器。
 """
 
+import inspect
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from enum import Enum
@@ -53,6 +54,12 @@ class BaseCommand(ABC):
     @abstractmethod
     def metadata(self) -> CommandMetadata: ...
 
+    def _auto_params_schema(self) -> Optional[dict]:
+        """从 execute 方法签名自动生成 params_schema"""
+        from nekro_agent.services.command.parser import ArgumentParser
+
+        return ArgumentParser.extract_params_schema(self.execute)
+
     @abstractmethod
     async def execute(
         self,
@@ -90,14 +97,21 @@ class BaseCommand(ABC):
         try:
             # 解析参数
             parsed_kwargs = self._parse_args(request.raw_args)
-            result = await self.execute(request.context, **parsed_kwargs)
+            result_or_coro = self.execute(request.context, **parsed_kwargs)
 
-            # 统一处理返回值：支持 CommandResponse 和 AsyncIterator[CommandResponse]
-            if isinstance(result, CommandResponse):
-                yield result
-            else:
-                async for response in result:
+            # 统一处理返回值：支持 CommandResponse、AsyncIterator[CommandResponse] 和 AsyncGenerator
+            if inspect.isasyncgen(result_or_coro):
+                # async generator (使用 yield 的 execute)
+                async for response in result_or_coro:
                     yield response
+            else:
+                # 普通 coroutine (使用 return 的 execute)
+                result = await result_or_coro
+                if isinstance(result, CommandResponse):
+                    yield result
+                else:
+                    async for response in result:
+                        yield response
 
         except ValueError as e:
             yield CommandResponse(status=CommandResponseStatus.INVALID_ARGS, message=f"参数错误: {e}")

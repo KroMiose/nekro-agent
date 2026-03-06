@@ -21,6 +21,7 @@ class ExecCommand(BaseCommand):
             usage="exec <code>",
             permission=CommandPermission.ADVANCED,
             category="调试",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -54,6 +55,7 @@ class CodeLogCommand(BaseCommand):
             usage="code_log [index]",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -89,6 +91,7 @@ class SystemCommand(BaseCommand):
             usage="system <message>",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -178,6 +181,7 @@ class LogChatTestCommand(BaseCommand):
             usage="log_chat_test <索引/文件名> [-g <模型组>] [--stream]",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

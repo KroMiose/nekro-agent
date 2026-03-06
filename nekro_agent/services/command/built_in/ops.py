@@ -72,6 +72,7 @@ class DockerRestartCommand(BaseCommand):
             usage="docker_restart [container_name]",
             permission=CommandPermission.ADVANCED,
             category="运维",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -100,6 +101,7 @@ class DockerLogsCommand(BaseCommand):
             usage="docker_logs [container_name]",
             permission=CommandPermission.ADVANCED,
             category="运维",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -127,6 +129,7 @@ class ShCommand(BaseCommand):
             usage="sh <command>",
             permission=CommandPermission.ADVANCED,
             category="运维",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -214,6 +217,7 @@ class LogErrListCommand(BaseCommand):
             usage="log_err_list [-p <页码>] [-s <每页数量>] [-a]",
             permission=CommandPermission.SUPER_USER,
             category="运维",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

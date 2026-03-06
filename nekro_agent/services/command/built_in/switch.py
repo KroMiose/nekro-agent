@@ -19,6 +19,7 @@ class NaOnCommand(BaseCommand):
             usage="na_on [chat_key|*|private_*|group_*]",
             permission=CommandPermission.SUPER_USER,
             category="开关",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -67,6 +68,7 @@ class NaOffCommand(BaseCommand):
             usage="na_off [chat_key|*|private_*|group_*]",
             permission=CommandPermission.SUPER_USER,
             category="开关",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

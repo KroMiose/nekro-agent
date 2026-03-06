@@ -18,6 +18,7 @@ class ResetCommand(BaseCommand):
             usage="reset [chat_key]",
             permission=CommandPermission.SUPER_USER,
             category="会话",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -60,6 +61,7 @@ class StopCommand(BaseCommand):
             usage="stop [chat_key]",
             permission=CommandPermission.SUPER_USER,
             category="会话",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -89,6 +91,7 @@ class InspectCommand(BaseCommand):
             usage="inspect [chat_key]",
             permission=CommandPermission.SUPER_USER,
             category="会话",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

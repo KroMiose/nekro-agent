@@ -102,6 +102,7 @@ class QuotaBoostCommand(BaseCommand):
             usage="quota_boost <数字>",
             permission=CommandPermission.SUPER_USER,
             category="配额",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -157,6 +158,7 @@ class QuotaSetCommand(BaseCommand):
             usage="quota_set <数字>",
             permission=CommandPermission.SUPER_USER,
             category="配额",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -204,6 +206,7 @@ class QuotaWhitelistCommand(BaseCommand):
             usage="quota_whitelist [add|remove <用户ID>]",
             permission=CommandPermission.SUPER_USER,
             category="配额",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

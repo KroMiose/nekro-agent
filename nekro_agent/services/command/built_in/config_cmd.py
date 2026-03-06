@@ -19,6 +19,7 @@ class ConfShowCommand(BaseCommand):
             usage="conf_show [key]",
             permission=CommandPermission.ADVANCED,
             category="配置",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -55,6 +56,7 @@ class ConfSetCommand(BaseCommand):
             usage="conf_set key=value",
             permission=CommandPermission.ADVANCED,
             category="配置",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(

@@ -62,6 +62,7 @@ class PluginInfoCommand(BaseCommand):
             usage="plugin_info <plugin_name/key>",
             permission=CommandPermission.SUPER_USER,
             category="插件",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
@@ -151,6 +152,7 @@ class ResetPluginCommand(BaseCommand):
             usage="reset_plugin <plugin_name/key>",
             permission=CommandPermission.SUPER_USER,
             category="插件",
+            params_schema=self._auto_params_schema(),
         )
 
     async def execute(
