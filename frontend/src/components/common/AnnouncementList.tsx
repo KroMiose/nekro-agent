@@ -11,7 +11,8 @@ import { PushPin as PushPinIcon, Campaign as CampaignIcon } from '@mui/icons-mat
 import { useTranslation } from 'react-i18next'
 import type { AnnouncementSummary, AnnouncementType } from '../../services/api/cloud/announcement'
 import { ANNOUNCEMENT_TYPE_COLORS, ANNOUNCEMENT_TYPE_LABELS, formatRelativeTime } from './AnnouncementConstants'
-import { getCurrentExtendedPalette } from '../../theme/themeConfig'
+import { getCurrentThemeMode, getCurrentExtendedPalette } from '../../theme/themeConfig'
+import { BORDER_RADIUS } from '../../theme/variants'
 
 interface AnnouncementListProps {
   items: AnnouncementSummary[]
@@ -49,6 +50,7 @@ export default function AnnouncementList({
 }: AnnouncementListProps) {
   const { t, i18n } = useTranslation('layout-MainLayout')
   const palette = getCurrentExtendedPalette()
+  const themeMode = getCurrentThemeMode()
 
   const getTypeLabel = useCallback(
     (type: AnnouncementType) => {
@@ -79,39 +81,70 @@ export default function AnnouncementList({
     <>
       {items.map((item, index) => {
         const isRead = readIds.includes(item.id)
+        const isHighPriority = item.priority >= 2
+        const isImportant = item.priority >= 1
+
         return (
           <Box key={item.id}>
             <Box
               onClick={() => onAnnouncementClick(item.id)}
               sx={{
+                position: 'relative',
                 px: 2,
                 py: 1.25,
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: 1,
                 cursor: 'pointer',
-                opacity: isRead ? 0.6 : 1,
-                transition: 'background-color 0.15s ease, opacity 0.2s ease',
+                opacity: isRead ? 0.65 : 1,
+                transition: 'all 0.2s ease',
+                borderRadius: BORDER_RADIUS.SMALL,
+                margin: '0.5px',
+                backgroundColor: isHighPriority ? alpha(palette.error.main, 0.03) : 'transparent',
                 '&:hover': {
-                  backgroundColor: alpha(palette.primary.main, 0.06),
+                  backgroundColor: alpha(palette.primary.main, isHighPriority ? 0.12 : 0.08),
                   opacity: 1,
+                  transform: 'translateX(2px)',
                 },
+                // 高优先级左边框
+                ...(isHighPriority && {
+                  borderLeft: `3px solid ${palette.error.main}`,
+                  paddingLeft: '1.5rem',
+                }),
               }}
             >
               {/* 未读指示点 / 置顶图标 */}
-              <Box sx={{ width: 16, flexShrink: 0, pt: 0.5, display: 'flex', justifyContent: 'center' }}>
+              <Box
+                sx={{
+                  width: 16,
+                  flexShrink: 0,
+                  pt: 0.5,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  ...(isHighPriority && {
+                    ml: -0.5,
+                  }),
+                }}
+              >
                 {!isRead ? (
                   <Box
                     sx={{
-                      width: 7,
-                      height: 7,
+                      width: 8,
+                      height: 8,
                       borderRadius: '50%',
-                      bgcolor: 'primary.main',
+                      bgcolor: isHighPriority ? palette.error.main : palette.primary.main,
+                      boxShadow: `0 0 0 2px ${alpha(isHighPriority ? palette.error.main : palette.primary.main, 0.2)}`,
+                      transition: 'all 0.3s ease',
                     }}
                   />
                 ) : item.isPinned ? (
                   <PushPinIcon
-                    sx={{ fontSize: 13, color: 'warning.main', transform: 'rotate(45deg)' }}
+                    sx={{
+                      fontSize: 14,
+                      color: palette.warning.main,
+                      transform: 'rotate(45deg)',
+                      opacity: 0.7,
+                    }}
                   />
                 ) : null}
               </Box>
@@ -123,9 +156,11 @@ export default function AnnouncementList({
                   <Typography
                     variant="body2"
                     sx={{
-                      fontWeight: item.priority >= 1 ? 600 : 400,
-                      fontSize: '0.82rem',
-                      lineHeight: 1.4,
+                      fontWeight: isImportant ? 700 : 500,
+                      fontSize: isImportant ? '0.84rem' : '0.82rem',
+                      lineHeight: 1.5,
+                      color: isRead ? 'text.secondary' : 'text.primary',
+                      transition: 'color 0.2s ease',
                     }}
                   >
                     {item.title}
@@ -133,43 +168,59 @@ export default function AnnouncementList({
                 </Box>
 
                 {/* 右侧：Chip（上）和时间（下） */}
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5, flexShrink: 0 }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 0.75,
+                    flexShrink: 0,
+                  }}
+                >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                     <Chip
                       label={getTypeLabel(item.type)}
                       size="small"
                       sx={{
-                        height: 18,
+                        height: 20,
                         fontSize: '0.65rem',
-                        fontWeight: 600,
-                        bgcolor: alpha(ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999', 0.15),
+                        fontWeight: 700,
+                        bgcolor: alpha(ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999', 0.25),
                         color: ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999',
-                        '& .MuiChip-label': { px: 0.75 },
+                        border: `1px solid ${alpha(ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999', 0.4)}`,
+                        '& .MuiChip-label': { px: 0.75, letterSpacing: '0.3px' },
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          bgcolor: alpha(ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999', 0.35),
+                          borderColor: ANNOUNCEMENT_TYPE_COLORS[item.type] ?? '#999',
+                        },
                       }}
                     />
-                    {item.priority >= 2 && (
-                      <Box
-                        sx={{
-                          width: 6,
-                          height: 6,
-                          borderRadius: '50%',
-                          bgcolor: 'error.main',
-                          flexShrink: 0,
-                        }}
-                      />
-                    )}
                   </Box>
                   <Typography
                     variant="caption"
-                    color="text.disabled"
-                    sx={{ fontSize: '0.68rem' }}
+                    sx={{
+                      fontSize: '0.67rem',
+                      color: isRead ? 'text.disabled' : palette.text.secondary,
+                      transition: 'color 0.2s ease',
+                      fontWeight: 500,
+                    }}
                   >
                     {formatRelativeTime(item.createdAt)}
                   </Typography>
                 </Box>
               </Box>
             </Box>
-            {index < items.length - 1 && <Divider sx={{ mx: 2 }} />}
+            {index < items.length - 1 && (
+              <Divider
+                sx={{
+                  mx: 1.5,
+                  my: 0,
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s ease',
+                }}
+              />
+            )}
           </Box>
         )
       })}
