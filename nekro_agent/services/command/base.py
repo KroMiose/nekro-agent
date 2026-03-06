@@ -97,14 +97,19 @@ class BaseCommand(ABC):
         try:
             # 解析参数
             parsed_kwargs = self._parse_args(request.raw_args)
-            result = await self.execute(request.context, **parsed_kwargs)
+            result_or_gen = self.execute(request.context, **parsed_kwargs)
 
-            # 统一处理返回值：CommandResponse 直接返回，AsyncIterator 逐条 yield
-            if isinstance(result, CommandResponse):
-                yield result
-            else:
-                async for response in result:
+            # 子类 execute 可能是 async generator (用 yield) 或普通 coroutine (用 return)
+            if inspect.isasyncgen(result_or_gen):
+                async for response in result_or_gen:  # type: ignore[union-attr]
                     yield response
+            else:
+                result = await result_or_gen
+                if isinstance(result, CommandResponse):
+                    yield result
+                else:
+                    async for response in result:
+                        yield response
 
         except ValueError as e:
             yield CommandResponse(status=CommandResponseStatus.INVALID_ARGS, message=f"参数错误: {e}")
