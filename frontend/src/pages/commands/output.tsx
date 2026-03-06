@@ -62,7 +62,7 @@ export default function CommandOutputPage() {
 
   const { data: channelList, isLoading } = useQuery({
     queryKey: ['chat-channels-for-commands'],
-    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 200, is_active: true }),
+    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 200 }),
   })
 
   // 获取命令列表

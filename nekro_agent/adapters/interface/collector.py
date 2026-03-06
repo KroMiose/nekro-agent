@@ -36,6 +36,14 @@ async def collect_message(
         channel_name=platform_channel.channel_name,
     )
 
+    # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）
+    chat_key = db_chat_channel.chat_key
+    content_text = platform_message.content_text.strip()
+    if content_text and await _try_handle_command(
+        adapter, chat_key, platform_user, platform_message, content_text,
+    ):
+        return
+
     if not db_chat_channel.is_active:
         return
 
@@ -65,14 +73,6 @@ async def collect_message(
 
     if platform_message.is_self:
         logger.info(f'接收自身消息 "{platform_message.content_text}"，跳过...')
-        return
-
-    # 命令检测与执行
-    chat_key = db_chat_channel.chat_key
-    content_text = platform_message.content_text.strip()
-    if content_text and await _try_handle_command(
-        adapter, chat_key, platform_user, platform_message, content_text,
-    ):
         return
 
     chat_message: ChatMessage = ChatMessage(
