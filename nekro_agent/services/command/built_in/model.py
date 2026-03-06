@@ -19,7 +19,7 @@ class ModelTestCommand(BaseCommand):
             name="model_test",
             aliases=["model-test"],
             description="测试模型连通性和响应速度",
-            usage="model_test <model_name> [-g] [--stream] [--use-system]",
+            usage="model_test [model_name] [-g group_name] [--stream] [--use-system]",
             permission=CommandPermission.SUPER_USER,
             category="模型",
             params_schema=self._auto_params_schema(),
@@ -34,66 +34,101 @@ class ModelTestCommand(BaseCommand):
         from nekro_agent.services.agent.openai import OpenAIResponse, gen_openai_chat_response
 
         if not args_str:
-            yield CmdCtl.failed("请指定要测试的模型名 (model_test <model_name1> <model_name2> ...)")
+            yield CmdCtl.failed(
+                "用法: model_test [model_name] [-g group_name] [--stream] [--use-system]\n"
+                "  model_test gpt-4o          按模型名测试\n"
+                "  model_test -g default      按模型组名测试\n"
+                "  model_test gpt-4o -g def*  模型名 + 组名筛选\n"
+                "  model_test -g *            测试所有模型组"
+            )
             return
 
         parts = args_str.strip().split()
-        use_group_name = "-g" in parts
         stream_mode = "--stream" in parts
         use_system = "--use-system" in parts
+        filtered_parts = [p for p in parts if p not in ("--stream", "--use-system")]
 
-        model_names = [p for p in parts if p not in ("-g", "--stream", "--use-system")]
+        # 解析 -g <group_name> 参数
+        group_names: list[str] = []
+        model_names: list[str] = []
+        i = 0
+        while i < len(filtered_parts):
+            if filtered_parts[i] == "-g" and i + 1 < len(filtered_parts):
+                group_names.append(filtered_parts[i + 1])
+                i += 2
+            elif filtered_parts[i] == "-g":
+                i += 1  # -g 后无值，跳过
+            else:
+                model_names.append(filtered_parts[i])
+                i += 1
 
-        if not model_names:
-            yield CmdCtl.failed("请指定要测试的模型名")
+        if not model_names and not group_names:
+            yield CmdCtl.failed("请指定模型名或使用 -g 指定模型组名")
             return
 
-        test_model_groups: list[ModelConfigGroup] = []
-        if use_group_name:
-            for group_name in model_names:
-                if "*" in group_name:
-                    pattern = group_name.replace("*", ".*")
-                    matching_groups = [g for g in config.MODEL_GROUPS if re.match(pattern, g)]
+        test_model_groups: list[tuple[str, ModelConfigGroup]] = []
+
+        if group_names and not model_names:
+            # 仅指定组名: model_test -g <group_name>
+            for gn in group_names:
+                if "*" in gn:
+                    pattern = gn.replace("*", ".*")
                     test_model_groups.extend(
-                        config.MODEL_GROUPS[g]
-                        for g in matching_groups
-                        if config.MODEL_GROUPS[g].MODEL_TYPE == "chat"
+                        (g, config.MODEL_GROUPS[g])
+                        for g in config.MODEL_GROUPS
+                        if re.match(pattern, g) and config.MODEL_GROUPS[g].MODEL_TYPE == "chat"
                     )
-                elif group_name in config.MODEL_GROUPS and config.MODEL_GROUPS[group_name].MODEL_TYPE == "chat":
-                    test_model_groups.append(config.MODEL_GROUPS[group_name])
-        else:
-            for model_name in model_names:
-                if "*" in model_name:
-                    pattern = model_name.replace("*", ".*")
+                elif gn in config.MODEL_GROUPS and config.MODEL_GROUPS[gn].MODEL_TYPE == "chat":
+                    test_model_groups.append((gn, config.MODEL_GROUPS[gn]))
+        elif model_names and not group_names:
+            # 仅指定模型名: model_test <model_name>
+            for mn in model_names:
+                if "*" in mn:
+                    pattern = mn.replace("*", ".*")
                     test_model_groups.extend(
-                        g
-                        for g in config.MODEL_GROUPS.values()
+                        (gk, g)
+                        for gk, g in config.MODEL_GROUPS.items()
                         if g.MODEL_TYPE == "chat" and re.match(pattern, g.CHAT_MODEL)
                     )
                 else:
                     test_model_groups.extend(
-                        g
-                        for g in config.MODEL_GROUPS.values()
-                        if model_name == g.CHAT_MODEL and g.MODEL_TYPE == "chat"
+                        (gk, g)
+                        for gk, g in config.MODEL_GROUPS.items()
+                        if mn == g.CHAT_MODEL and g.MODEL_TYPE == "chat"
                     )
+        else:
+            # 同时指定模型名和组名: model_test <model_name> -g <group_name>
+            for mn in model_names:
+                for gn in group_names:
+                    for group_key, group_cfg in config.MODEL_GROUPS.items():
+                        if group_cfg.MODEL_TYPE != "chat":
+                            continue
+                        model_match = re.match(mn.replace("*", ".*"), group_cfg.CHAT_MODEL) if "*" in mn else (mn == group_cfg.CHAT_MODEL)
+                        group_match = re.match(gn.replace("*", ".*"), group_key) if "*" in gn else (gn == group_key)
+                        if model_match and group_match:
+                            test_model_groups.append((group_key, group_cfg))
 
         if not test_model_groups:
             yield CmdCtl.failed("未找到符合条件的模型组")
             return
 
-        model_test_success_result_map: dict[str, int] = {}
-        model_test_fail_result_map: dict[str, int] = {}
-        model_speed_map: dict[str, list[float]] = {}
+        result_keys: list[str] = []
+        success_map: dict[str, int] = {}
+        fail_map: dict[str, int] = {}
+        speed_map: dict[str, list[float]] = {}
 
         total = len(test_model_groups)
         yield CmdCtl.message(f"开始测试 {total} 个模型组...")
 
-        for i, model_group in enumerate(test_model_groups, 1):
-            model_test_success_result_map.setdefault(model_group.CHAT_MODEL, 0)
-            model_test_fail_result_map.setdefault(model_group.CHAT_MODEL, 0)
-            model_speed_map.setdefault(model_group.CHAT_MODEL, [])
+        for i, (group_key, model_group) in enumerate(test_model_groups, 1):
+            label = f"{model_group.CHAT_MODEL} [{group_key}]"
+            if label not in success_map:
+                result_keys.append(label)
+            success_map.setdefault(label, 0)
+            fail_map.setdefault(label, 0)
+            speed_map.setdefault(label, [])
 
-            yield CmdCtl.message(f"[{i}/{total}] 测试 {model_group.CHAT_MODEL} ...")
+            yield CmdCtl.message(f"[{i}/{total}] 测试 {label} ...")
 
             try:
                 start_time = time.time()
@@ -112,17 +147,17 @@ class ModelTestCommand(BaseCommand):
                 end_time = time.time()
                 assert llm_response.response_content  # noqa: S101
                 elapsed = end_time - start_time
-                model_test_success_result_map[model_group.CHAT_MODEL] += 1
-                model_speed_map[model_group.CHAT_MODEL].append(elapsed)
-                yield CmdCtl.message(f"[{i}/{total}] ✓ {model_group.CHAT_MODEL} 通过 ({elapsed:.2f}s)")
+                success_map[label] += 1
+                speed_map[label].append(elapsed)
+                yield CmdCtl.message(f"[{i}/{total}] ✓ {label} 通过 ({elapsed:.2f}s)")
             except Exception:
-                model_test_fail_result_map[model_group.CHAT_MODEL] += 1
-                yield CmdCtl.message(f"[{i}/{total}] ✗ {model_group.CHAT_MODEL} 失败")
+                fail_map[label] += 1
+                yield CmdCtl.message(f"[{i}/{total}] ✗ {label} 失败")
 
         result_lines = ["[模型测试结果]"]
-        for model_name in set(list(model_test_success_result_map.keys()) + list(model_test_fail_result_map.keys())):
-            success = model_test_success_result_map.get(model_name, 0)
-            fail = model_test_fail_result_map.get(model_name, 0)
+        for label in result_keys:
+            success = success_map.get(label, 0)
+            fail = fail_map.get(label, 0)
             if fail > 0:
                 status = "失败"
             elif success > 0:
@@ -131,7 +166,7 @@ class ModelTestCommand(BaseCommand):
                 status = "未知"
 
             speed_info = ""
-            speeds = model_speed_map.get(model_name)
+            speeds = speed_map.get(label)
             if speeds:
                 avg_speed = sum(speeds) / len(speeds)
                 if len(speeds) > 1:
@@ -141,7 +176,7 @@ class ModelTestCommand(BaseCommand):
                 else:
                     speed_info = f" | 速度: {avg_speed:.2f}s"
 
-            result_lines.append(f"{status} {model_name}: (成功: {success}, 失败: {fail}){speed_info}")
+            result_lines.append(f"{status} {label}: (成功: {success}, 失败: {fail}){speed_info}")
 
         yield CmdCtl.success("\n".join(result_lines))
 
