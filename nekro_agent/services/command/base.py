@@ -97,21 +97,14 @@ class BaseCommand(ABC):
         try:
             # 解析参数
             parsed_kwargs = self._parse_args(request.raw_args)
-            result_or_coro = self.execute(request.context, **parsed_kwargs)
+            result = await self.execute(request.context, **parsed_kwargs)
 
-            # 统一处理返回值：支持 CommandResponse、AsyncIterator[CommandResponse] 和 AsyncGenerator
-            if inspect.isasyncgen(result_or_coro):
-                # async generator (使用 yield 的 execute)
-                async for response in result_or_coro:
-                    yield response
+            # 统一处理返回值：CommandResponse 直接返回，AsyncIterator 逐条 yield
+            if isinstance(result, CommandResponse):
+                yield result
             else:
-                # 普通 coroutine (使用 return 的 execute)
-                result = await result_or_coro
-                if isinstance(result, CommandResponse):
-                    yield result
-                else:
-                    async for response in result:
-                        yield response
+                async for response in result:
+                    yield response
 
         except ValueError as e:
             yield CommandResponse(status=CommandResponseStatus.INVALID_ARGS, message=f"参数错误: {e}")
@@ -175,7 +168,10 @@ class PluginCommandAdapter(BaseCommand):
         )
 
     async def execute(self, context: CommandExecutionContext, **kwargs: Any):
-        return await self._cmd.execute_func(context, **kwargs)
+        result = self._cmd.execute_func(context, **kwargs)
+        if inspect.isasyncgen(result):
+            return result
+        return await result
 
     def _parse_args(self, raw_args: str) -> dict[str, Any]:
         """根据原始插件函数的类型注解解析参数"""
