@@ -26,7 +26,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { chatChannelApi, ChatChannel, ChatChannelListResponse } from '../../services/api/chat-channel'
+import { chatChannelApi, type ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
@@ -67,11 +67,11 @@ export default function ChatChannelPage() {
       const { event_type, chat_key } = event
 
       // 更新频道列表缓存
-      queryClient.setQueryData(['chat-channels', search, chatType, isActive, page, pageSize], (oldData: ChatChannelListResponse | undefined) => {
+      queryClient.setQueryData<ChatChannelListResponse | undefined>(['chat-channels', search, chatType, isActive, page, pageSize], (oldData) => {
         if (!oldData?.items) return oldData
 
         const newItems = [...oldData.items]
-        const idx = newItems.findIndex((ch: ChatChannel) => ch.chat_key === chat_key)
+        const idx = newItems.findIndex((ch) => ch.chat_key === chat_key)
 
         if (event_type === 'deleted' && idx >= 0) {
           // 删除频道
@@ -81,7 +81,7 @@ export default function ChatChannelPage() {
           newItems.unshift({
             id: 0,
             chat_key,
-            channel_name: event.channel_name,
+            channel_name: event.channel_name ?? null,
             is_active: event.is_active ?? true,
             chat_type: '',
             message_count: 0,
@@ -95,14 +95,14 @@ export default function ChatChannelPage() {
             const channel = { ...newItems[idx] }
             newItems.splice(idx, 1)
 
-              if (newChannelName != null) {
-                channel.channel_name = newChannelName
-              }
-              if (newIsActive != null) {
-                channel.is_active = newIsActive
-              }
-              channel.update_time = new Date().toISOString()
-              channel.last_message_time = new Date().toISOString()
+            if (event.channel_name != null) {
+              channel.channel_name = event.channel_name
+            }
+            if (event.is_active != null) {
+              channel.is_active = event.is_active
+            }
+            channel.update_time = new Date().toISOString()
+            channel.last_message_time = new Date().toISOString()
 
             // 移到列表顶部（最新活动的频道）
             newItems.unshift(channel)
@@ -323,6 +323,8 @@ export default function ChatChannelPage() {
                 backgroundColor: 'transparent',
                 backdropFilter: 'blur(20px)',
                 borderRight: `1px solid ${theme.palette.divider}`,
+                display: 'flex',
+                flexDirection: 'column',
               },
             }}
           >

@@ -343,7 +343,8 @@ class MessageProcessor:
         """提取文本内容"""
         text_parts = []
         for segment in segments:
-            if segment.type == ChatMessageSegmentType.TEXT:
+            # use_enum_values=True 使 type 存储为字符串值
+            if segment.type == ChatMessageSegmentType.TEXT.value:
                 text_parts.append(segment.text)
         return "".join(text_parts)
 

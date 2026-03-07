@@ -35,7 +35,7 @@ import AudioFileIcon from '@mui/icons-material/AudioFile'
 import VideoFileIcon from '@mui/icons-material/VideoFile'
 import FolderZipIcon from '@mui/icons-material/FolderZip'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
-import { useInfiniteQuery, useQueryClient, InfiniteData } from '@tanstack/react-query'
+import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { chatChannelApi, ChatMessage, ChatMessageListResponse, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
@@ -516,6 +516,9 @@ function MessageContent({
 
   const segments = message.content_data || []
 
+  // 存在合并转发段时跳过纯文本段（NapCat 会同时发送转发卡片预览文本和完整转发内容，导致重复渲染）
+  const hasForward = segments.some(s => s.type === 'forward')
+
   // 没有 content_data 时回退到纯文本
   if (segments.length === 0) {
     if (!message.content) {
@@ -637,6 +640,8 @@ function MessageContent({
 
         // text：渲染文本（支持 Markdown）
         if (seg.text) {
+          // 存在 FORWARD 段时跳过纯文本段（避免转发卡片预览与完整内容重复）
+          if (hasForward && seg.type === 'text') return null
           return (
             <MarkdownRenderer key={i} sx={chatMarkdownSx}>
               {seg.text}
@@ -758,7 +763,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
 
     const handleNewMessage = (message: ChatMessage) => {
       // 将消息添加到 React Query 缓存的最后一页
-      queryClient.setQueryData(['chat-messages', chatKey], (oldData: InfiniteData<ChatMessageListResponse> | undefined) => {
+      queryClient.setQueryData<InfiniteData<ChatMessageListResponse> | undefined>(['chat-messages', chatKey], (oldData) => {
         if (!oldData?.pages) return oldData
 
         const newPages = [...oldData.pages]
@@ -966,7 +971,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
       data?.pages
         .flatMap(page => page.items)
         .sort((a, b) => new Date(a.create_time).getTime() - new Date(b.create_time).getTime()) ?? [],
-    [data?.pages],
+    [data?.pages]
   )
 
   // 构建 message_id -> ChatMessage 的映射，用于引用消息查找

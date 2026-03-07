@@ -24,20 +24,14 @@
 """
 
 import random
-from typing import Dict, List, Tuple
+from typing import Annotated, Dict, List, Tuple
 
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
-from nonebot.matcher import Matcher
-from nonebot.params import CommandArg
-
-from nekro_agent.adapters.onebot_v11.matchers.command import (
-    command_guard,
-    finish_with,
-    on_command,
-)
 from nekro_agent.api import core, i18n, message
 from nekro_agent.api.plugin import ConfigBase, NekroPlugin, SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.ctl import CmdCtl
+from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
 plugin = NekroPlugin(
     name="掷骰姬",
@@ -61,49 +55,65 @@ _ASSERT_DICE_NUM: int = 0
 _LOCKED_DICE_NUM: int = 0
 
 
-@on_command("dice_assert", aliases={"dice-assert"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+@plugin.mount_command(
+    name="dice_assert",
+    description="预设下一次掷骰结果",
+    aliases=["dice-assert"],
+    usage="dice_assert <1-20>",
+    permission=CommandPermission.SUPER_USER,
+    category="掷骰",
+)
+async def dice_assert_cmd(
+    context: CommandExecutionContext,
+    value: Annotated[int, Arg("预设的骰点值 (1-20)", positional=True)] = 0,
+) -> CommandResponse:
     global _ASSERT_DICE_NUM
 
-    if not cmd_content:
-        await finish_with(matcher, message="需要指定一个难度值")
-        return
+    if not value:
+        return CmdCtl.failed("需要指定一个骰点值")
 
-    _ASSERT_DICE_NUM = int(cmd_content)
-    assert 1 <= _ASSERT_DICE_NUM <= 20, "难度值应在 1 到 20 之间"
+    if not 1 <= value <= 20:
+        return CmdCtl.failed("骰点值应在 1 到 20 之间")
 
-    await finish_with(matcher, message=f"掷骰检定预言: {_ASSERT_DICE_NUM}/20")
+    _ASSERT_DICE_NUM = value
+    return CmdCtl.success(f"掷骰检定预言: {_ASSERT_DICE_NUM}/20")
 
 
-@on_command("dice_lock", aliases={"dice-lock"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+@plugin.mount_command(
+    name="dice_lock",
+    description="锁定之后所有掷骰结果",
+    aliases=["dice-lock"],
+    usage="dice_lock <1-20>",
+    permission=CommandPermission.SUPER_USER,
+    category="掷骰",
+)
+async def dice_lock_cmd(
+    context: CommandExecutionContext,
+    value: Annotated[int, Arg("锁定的骰点值 (1-20)", positional=True)] = 0,
+) -> CommandResponse:
     global _LOCKED_DICE_NUM
 
-    if not cmd_content:
-        await finish_with(matcher, message="需要指定一个锁定的骰点值")
-        return
+    if not value:
+        return CmdCtl.failed("需要指定一个锁定的骰点值")
 
-    try:
-        dice_num = int(cmd_content)
-        if not 1 <= dice_num <= 20:
-            await finish_with(matcher, message="骰点值应在 1 到 20 之间")
-            return
+    if not 1 <= value <= 20:
+        return CmdCtl.failed("骰点值应在 1 到 20 之间")
 
-        _LOCKED_DICE_NUM = dice_num
-        await finish_with(matcher, message=f"骰点已锁定为 {_LOCKED_DICE_NUM}")
-    except ValueError:
-        await finish_with(matcher, message="请输入有效的数字")
+    _LOCKED_DICE_NUM = value
+    return CmdCtl.success(f"骰点已锁定为 {_LOCKED_DICE_NUM}")
 
 
-@on_command("dice_unlock", aliases={"dice-unlock"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+@plugin.mount_command(
+    name="dice_unlock",
+    description="解除骰点锁定",
+    aliases=["dice-unlock"],
+    permission=CommandPermission.SUPER_USER,
+    category="掷骰",
+)
+async def dice_unlock_cmd(context: CommandExecutionContext) -> CommandResponse:
     global _LOCKED_DICE_NUM
-
     _LOCKED_DICE_NUM = 0
-    await finish_with(matcher, message="骰点锁定已解除")
+    return CmdCtl.success("骰点锁定已解除")
 
 
 def _weighted_random_choice(choices: Dict[str, float]) -> str:

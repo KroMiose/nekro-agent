@@ -36,6 +36,14 @@ async def collect_message(
         channel_name=platform_channel.channel_name,
     )
 
+    # 命令检测与执行（在 is_active 检查之前，确保 na_on 等命令在频道关闭时仍可用）
+    chat_key = db_chat_channel.chat_key
+    content_text = platform_message.content_text.strip()
+    if content_text and await _try_handle_command(
+        adapter, chat_key, platform_user, platform_message, content_text,
+    ):
+        return
+
     if not db_chat_channel.is_active:
         return
 
@@ -76,7 +84,7 @@ async def collect_message(
         platform_userid=platform_user.user_id,
         is_tome=platform_message.is_tome,
         is_recalled=False,
-        chat_key=db_chat_channel.chat_key,
+        chat_key=chat_key,
         chat_type=platform_channel.channel_type,
         content_text=platform_message.content_text,
         content_data=platform_message.content_data,
@@ -96,3 +104,55 @@ async def collect_message(
     )
 
     await message_service.push_human_message(message=chat_message, user=user, db_chat_channel=db_chat_channel)
+
+
+async def _try_handle_command(
+    adapter: "BaseAdapter",
+    chat_key: str,
+    platform_user: "PlatformUser",
+    platform_message: "PlatformMessage",
+    content_text: str,
+) -> bool:
+    """尝试检测和执行命令，返回 True 表示消息已被命令系统消费
+
+    检测顺序:
+    1. 检测命令前缀 → 执行命令
+    2. 检测挂起的 wait 交互 → 路由到回调命令
+    """
+    from nekro_agent.core.config import config
+
+    is_super = platform_user.user_id in config.SUPER_USERS
+    is_advanced = is_super and config.ENABLE_ADVANCED_COMMAND
+
+    # 1. 命令前缀检测
+    cmd_result = adapter.detect_command(content_text)
+    if cmd_result:
+        command_name, raw_args = cmd_result
+        logger.info(f"Command Detect: [{chat_key}] {platform_user.user_name}: /{command_name} {raw_args}")
+
+        await adapter.execute_command(
+            chat_key=chat_key,
+            user_id=platform_user.user_id,
+            username=platform_user.user_name,
+            command_name=command_name,
+            raw_args=raw_args,
+            is_super_user=is_super,
+            is_advanced_user=is_advanced,
+        )
+
+        return True
+
+    # 2. 挂起的 wait 交互检测
+    consumed = await adapter.try_handle_wait_input(
+        chat_key=chat_key,
+        user_id=platform_user.user_id,
+        username=platform_user.user_name,
+        text=content_text,
+        is_super_user=is_super,
+        is_advanced_user=is_advanced,
+    )
+    if consumed:
+        logger.info(f"Wait Consumed: [{chat_key}] {platform_user.user_name}: {content_text}")
+        return True
+
+    return False

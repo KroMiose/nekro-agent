@@ -218,6 +218,7 @@
     "clearSelection": "Clear selection",
     "managePresets": "Manage Presets",
     "defaultPreset": "Default Preset",
+    "cloudPreset": "Cloud",
     "presetMissing": "Selected preset does not exist",
     "overridable": "Overridable",
     "cannotDisable": "This item cannot be disabled individually",

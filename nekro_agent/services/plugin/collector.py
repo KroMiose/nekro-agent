@@ -198,6 +198,13 @@ class PluginCollector:
             await plugin.cleanup_method()
             logger.info(f"插件 {plugin.name} 清理完成")
 
+        # 卸载插件命令
+        if plugin._commands:  # noqa: SLF001
+            from nekro_agent.services.command.registry import command_registry
+
+            command_registry.unregister_plugin_commands(plugin.key)
+            logger.debug(f"插件 {plugin.name} 命令已卸载")
+
         if plugin.key in self.loaded_plugins:
             del self.loaded_plugins[plugin.key]
 
@@ -250,6 +257,11 @@ class PluginCollector:
         loaded_plugin = self.get_plugin_by_module_name(fixed_module_name)
         if loaded_plugin:
             logger.info(f"插件 `{module_name}` 已加载，正在重载...")
+            # 卸载插件命令
+            if loaded_plugin._commands:  # noqa: SLF001
+                from nekro_agent.services.command.registry import command_registry
+
+                command_registry.unregister_plugin_commands(loaded_plugin.key)
             if loaded_plugin.cleanup_method:
                 await loaded_plugin.cleanup_method()
                 logger.info(f"插件 {loaded_plugin.name} 清理完成")
@@ -524,6 +536,14 @@ class PluginCollector:
                 await plugin.trigger_callbacks("enabled")
             self.loaded_plugins[plugin.key] = plugin
             self.loaded_module_names.add(module_path)
+
+            # 注册插件命令
+            if plugin._commands:  # noqa: SLF001
+                from nekro_agent.services.command.registry import command_registry
+
+                for cmd in plugin._commands:  # noqa: SLF001
+                    command_registry.register_plugin_command(cmd)
+                logger.debug(f"插件 {plugin.name} 注册了 {len(plugin._commands)} 个命令")  # noqa: SLF001
 
             # 如果之前记录了失败信息，现在加载成功了，删除失败记录
             self._remove_failed_plugin(module_path)

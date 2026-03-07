@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 from nekro_agent.models.db_chat_channel import DBChatChannel
 
@@ -59,6 +59,14 @@ class BaseNoticeHandler:
         if self.config.use_operator_as_sender and "operator_id" in info:
             return str(info["operator_id"])
         return str(info["user_id"])
+
+    def get_content_data(self, info: Dict[str, str]) -> List[Any]:  # noqa: ARG002
+        """获取消息内容数据（子类可覆盖以提供结构化消息段）
+
+        Returns:
+            List[Any]: 消息段列表，默认为空
+        """
+        return []
 
 
 class NoticeResult(TypedDict):

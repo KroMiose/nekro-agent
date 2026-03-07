@@ -122,6 +122,27 @@ const router = createHashRouter([
             path: 'space-cleanup',
             element: lazyLoad(() => import('../pages/settings/space-cleanup')),
           },
+          {
+            path: 'commands',
+            element: lazyLoad(() => import('../pages/settings/commands')),
+          },
+        ],
+      },
+      {
+        path: 'commands',
+        children: [
+          {
+            index: true,
+            element: <Navigate to="management" />,
+          },
+          {
+            path: 'management',
+            element: lazyLoad(() => import('../pages/settings/commands')),
+          },
+          {
+            path: 'output',
+            element: lazyLoad(() => import('../pages/commands/output')),
+          },
         ],
       },
       {

@@ -35,21 +35,13 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Annotated, Any, AsyncIterator, Dict, List, Optional, Tuple
 
 import aiofiles
 import httpx
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent, MessageSegment
-from nonebot.matcher import Matcher
-from nonebot.params import CommandArg
 from pydantic import BaseModel, Field
 from qdrant_client import models as qdrant_models
 
-from nekro_agent.adapters.onebot_v11.matchers.command import (
-    command_guard,
-    finish_with,
-    on_command,
-)
 from nekro_agent.api import i18n, schemas
 from nekro_agent.api.core import ModelConfigGroup, get_qdrant_client, logger
 from nekro_agent.api.core import config as core_config
@@ -61,6 +53,9 @@ from nekro_agent.api.plugin import (
 )
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
 from nekro_agent.services.agent.openai import gen_openai_embeddings
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.ctl import CmdCtl
+from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 from nekro_agent.services.message_service import message_service
 from nekro_agent.tools.common_util import copy_to_upload_dir
 from nekro_agent.tools.path_convertor import (
@@ -651,31 +646,27 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 
 
 # region: 表情包命令
-@on_command("emo_search", aliases={"emo-search"}, priority=5, block=True).handle()
-async def _(
-    matcher: Matcher,
-    event: MessageEvent,
-    bot: Bot,
-    arg: Message = CommandArg(),
-):
-    username, cmd_content, chat_key, chat_type = await command_guard(
-        event,
-        bot,
-        arg,
-        matcher,
-    )
-
-    if not cmd_content:
-        await finish_with(matcher, message="喵~ 请输入要搜索的关键词哦！")
-        return
+@plugin.mount_command(
+    name="emo_search",
+    description="语义搜索表情包",
+    aliases=["emo-search"],
+    usage="emo_search <关键词>",
+    permission=CommandPermission.SUPER_USER,
+    category="表情包",
+)
+async def emo_search_cmd(
+    context: CommandExecutionContext,
+    keyword: Annotated[str, Arg("搜索关键词", positional=True, greedy=True)] = "",
+) -> CommandResponse:
+    if not keyword:
+        return CmdCtl.failed("请输入要搜索的关键词")
 
     # 生成查询向量
     try:
-        query_embedding = await generate_embedding(cmd_content)
+        query_embedding = await generate_embedding(keyword)
     except Exception as e:
         logger.exception(f"生成查询向量失败: {e}")
-        await finish_with(matcher, message=f"喵呜... 生成查询向量失败了: {e!s}")
-        return
+        return CmdCtl.failed(f"生成查询向量失败: {e!s}")
 
     # 获取Qdrant客户端
     client = await get_qdrant_client()
@@ -686,169 +677,105 @@ async def _(
             collection_name=plugin.get_vector_collection_name(),
             query_vector=query_embedding,
             limit=emotion_config.MAX_SEARCH_RESULTS,
-            with_payload=True,  # 确保返回payload以获取原始emotion_id
+            with_payload=True,
         )
     except Exception as e:
         logger.error(f"向量搜索失败: {e}")
-        await finish_with(matcher, message=f"喵呜... 搜索失败了: {e!s}")
-        return
+        return CmdCtl.failed(f"搜索失败: {e!s}")
 
-    # 检查是否有结果
     if not search_results:
-        await finish_with(
-            matcher,
-            message=f"喵~ 没有找到和「{cmd_content}」相关的表情包呢...",
-        )
-        return
+        return CmdCtl.failed(f"没有找到和「{keyword}」相关的表情包")
 
     # 加载表情包存储
     emotion_store = await load_emotion_store()
 
-    # 构建返回消息（包含图片和文字）
-    message = Message()
-    message.append(MessageSegment.text(f"喵~ 这是和「{cmd_content}」相关的表情包：\n"))
-    found_valid_results = False
+    # 构建文本结果
+    result_lines = [f"和「{keyword}」相关的表情包："]
+    found_count = 0
 
-    # 处理搜索结果
     for i, result in enumerate(search_results, 1):
-        # 从payload中获取原始emotion_id
         emotion_id = result.payload.get("emotion_id") if result.payload else None
         if not emotion_id:
-            # 向后兼容：如果没有emotion_id，尝试使用十六进制字符串
             emotion_id = format(result.id, "x")
 
         metadata = emotion_store.get_emotion(emotion_id)
         if not metadata:
             continue
 
-        # 解析文件路径
         file_path = resolve_emotion_file_path(metadata.file_path)
         if not file_path.exists():
             logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
             continue
 
-        # 准备标签字符串
         tags_str = "、".join(metadata.tags) if metadata.tags else "暂无标签"
+        result_lines.append(f"\n{i}. ID: {emotion_id}\n   描述: {metadata.description}\n   标签: {tags_str}")
+        found_count += 1
 
-        # 添加表情包信息文本
-        message.append(
-            MessageSegment.text(
-                f"\n{i}. ID: {emotion_id}\n描述: {metadata.description}\n标签: {tags_str}\n",
-            ),
-        )
+    if not found_count:
+        return CmdCtl.failed(f"没有找到和「{keyword}」相关的可用表情包")
 
-        # 添加表情包图片
-        try:
-            image_bytes = file_path.read_bytes()
-            message.append(MessageSegment.image(file=image_bytes))
-        except Exception as e:
-            logger.error(f"读取表情包图片失败: {emotion_id}, {file_path}, 错误: {e}")
-            message.append(MessageSegment.text("[图片加载失败]\n"))
-
-        found_valid_results = True
-
-    if not found_valid_results:
-        await finish_with(
-            matcher,
-            message=f"喵~ 没有找到和「{cmd_content}」相关的可用表情包呢...",
-        )
-        return
-
-    # 使用 matcher.finish 直接发送包含图片的消息
-    await matcher.finish(message)
+    return CmdCtl.success("\n".join(result_lines))
 
 
-@on_command("emo_stats", aliases={"emo-stats"}, priority=5, block=True).handle()
-async def _(
-    matcher: Matcher,
-    event: MessageEvent,
-    bot: Bot,
-    arg: Message = CommandArg(),
-):
-    username, cmd_content, chat_key, chat_type = await command_guard(
-        event,
-        bot,
-        arg,
-        matcher,
-    )
-
+@plugin.mount_command(
+    name="emo_stats",
+    description="查看表情包统计信息",
+    aliases=["emo-stats"],
+    permission=CommandPermission.SUPER_USER,
+    category="表情包",
+)
+async def emo_stats_cmd(context: CommandExecutionContext) -> CommandResponse:
     try:
-        # 加载表情包存储
         emotion_store = await load_emotion_store()
-
-        # 获取Qdrant客户端并查询集合信息
         client = await get_qdrant_client()
         collection_info = await client.get_collection(
             plugin.get_vector_collection_name(),
         )
 
-        # 统计信息
         total_count = len(emotion_store.emotions)
         vector_count = collection_info.vectors_count if collection_info else 0
-        all_tags = set()
+        all_tags: set[str] = set()
         for metadata in emotion_store.emotions.values():
             all_tags.update(metadata.tags)
 
-        # 限制标签显示数量
         sorted_tags = sorted(all_tags)[:32]
         tags_str = "、".join(sorted_tags) if sorted_tags else "暂无标签"
 
-        message = f"喵~ 这是当前的表情包统计信息：\n总数量：{total_count} 个\n向量数量：{vector_count} 个\n标签集合（top 32）：{tags_str}"
+        return CmdCtl.success(
+            f"当前表情包统计信息：\n总数量：{total_count} 个\n向量数量：{vector_count} 个\n标签集合（top 32）：{tags_str}"
+        )
     except Exception as e:
         logger.error(f"统计表情包失败: {e}")
-        message = f"喵呜... 统计失败了: {e!s}"
-
-    await finish_with(matcher, message=message)
+        return CmdCtl.failed(f"统计失败: {e!s}")
 
 
-@on_command(
-    "emo_list",
-    aliases={"emo-list", "emo_ls", "emo-ls"},
-    priority=5,
-    block=True,
-).handle()
-async def _(
-    matcher: Matcher,
-    event: MessageEvent,
-    bot: Bot,
-    arg: Message = CommandArg(),
-):
-    username, cmd_content, chat_key, chat_type = await command_guard(
-        event,
-        bot,
-        arg,
-        matcher,
-    )
-
-    # 加载表情包存储
+@plugin.mount_command(
+    name="emo_list",
+    description="分页列出所有表情包",
+    aliases=["emo-list", "emo_ls", "emo-ls"],
+    usage="emo_list [页码]",
+    permission=CommandPermission.SUPER_USER,
+    category="表情包",
+)
+async def emo_list_cmd(
+    context: CommandExecutionContext,
+    page: Annotated[int, Arg("页码", positional=True)] = 1,
+) -> CommandResponse:
     emotion_store = await load_emotion_store()
 
-    # 获取页码，默认为1
-    try:
-        page = max(1, int(cmd_content)) if cmd_content else 1
-    except ValueError:
-        page = 1
-
-    # 计算分页
+    page = max(1, page)
     page_size = 10
     total_count = len(emotion_store.emotions)
     total_pages = (total_count + page_size - 1) // page_size
 
-    # 确保页码有效
     if page > total_pages:
-        await finish_with(
-            matcher,
-            message=f"喵... 当前只有 {total_pages} 页呢，请输入有效的页码～",
-        )
-        return
-    # 获取当前页的表情包
+        return CmdCtl.failed(f"当前只有 {total_pages} 页，请输入有效的页码")
+
     start_idx = (page - 1) * page_size
     end_idx = min(start_idx + page_size, total_count)
 
-    # 构建消息
-    _message: str = f"喵~ 这是第 {page}/{total_pages} 页的表情包列表：\n\n"
+    lines = [f"第 {page}/{total_pages} 页的表情包列表：\n"]
 
-    # 获取排序后的表情包列表
     sorted_emotions = sorted(
         emotion_store.emotions.items(),
         key=lambda x: x[1].added_time,
@@ -856,94 +783,66 @@ async def _(
     )[start_idx:end_idx]
 
     for emotion_id, metadata in sorted_emotions:
-        tags_str = "、".join(metadata.tags[:3]) + (
-            "..." if len(metadata.tags) > 3 else ""
-        )
-        _message += f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n\n"
+        tags_str = "、".join(metadata.tags[:3]) + ("..." if len(metadata.tags) > 3 else "")
+        lines.append(f"ID: {emotion_id}\n描述: {metadata.description[:30]}...\n标签: {tags_str}\n")
 
-    _message += "使用 emo-list <页码> 查看其他页面～"
+    lines.append("使用 emo_list <页码> 查看其他页面")
 
-    await finish_with(matcher, message=_message)
+    return CmdCtl.success("\n".join(lines))
 
 
-@on_command("emo_migrate", aliases={"emo-migrate"}, priority=5, block=True).handle()
-async def _(
-    matcher: Matcher,
-    event: MessageEvent,
-    bot: Bot,
-    arg: Message = CommandArg(),
-):
-    username, cmd_content, chat_key, chat_type = await command_guard(
-        event,
-        bot,
-        arg,
-        matcher,
-    )
-
-    # 执行路径迁移
-    await matcher.send("喵~ 开始迁移表情包路径到新格式...")
-
+@plugin.mount_command(
+    name="emo_migrate",
+    description="迁移表情包路径到新格式",
+    aliases=["emo-migrate"],
+    permission=CommandPermission.SUPER_USER,
+    category="表情包",
+)
+async def emo_migrate_cmd(context: CommandExecutionContext) -> CommandResponse:
     migrated_count = await migrate_emotion_paths()
-    await finish_with(
-        matcher,
-        message=f"喵~ 路径迁移完成！成功迁移 {migrated_count} 个表情包路径～",
-    )
+    return CmdCtl.success(f"路径迁移完成！成功迁移 {migrated_count} 个表情包路径")
 
 
-@on_command("emo_reindex", aliases={"emo-reindex"}, priority=5, block=True).handle()
-async def _(
-    matcher: Matcher,
-    event: MessageEvent,
-    bot: Bot,
-    arg: Message = CommandArg(),
-):
-    username, cmd_content, chat_key, chat_type = await command_guard(
-        event,
-        bot,
-        arg,
-        matcher,
-    )
-
-    if "-y" not in cmd_content:
-        await finish_with(matcher, message="喵~ 请输入 -y 确认重建表情包索引哦～")
+@plugin.mount_command(
+    name="emo_reindex",
+    description="重建表情包索引",
+    aliases=["emo-reindex"],
+    usage="emo_reindex -y",
+    permission=CommandPermission.SUPER_USER,
+    category="表情包",
+)
+async def emo_reindex_cmd(
+    context: CommandExecutionContext,
+    args_str: Annotated[str, Arg("参数", positional=True, greedy=True)] = "",
+) -> AsyncIterator[CommandResponse]:
+    if "-y" not in args_str:
+        yield CmdCtl.failed("请输入 -y 确认重建表情包索引")
         return
 
-    # 第一步：加载所有表情包元数据
     emotion_store = await load_emotion_store()
     total_emotions = len(emotion_store.emotions)
 
     if total_emotions == 0:
-        await finish_with(matcher, message="喵~ 当前没有任何表情包需要重建索引呢～")
+        yield CmdCtl.success("当前没有任何表情包需要重建索引")
         return
 
-    # 告知开始处理
-    await matcher.send(
-        f"喵~ 开始重建 {total_emotions} 个表情包的索引，这可能需要一些时间...",
-    )
+    yield CmdCtl.message(f"开始重建 {total_emotions} 个表情包的索引，这可能需要一些时间...")
 
-    # 获取Qdrant客户端
     client = await get_qdrant_client()
     if client is None:
-        await finish_with(
-            matcher,
-            message="喵呜... 无法连接到向量数据库，重建索引失败了～",
-        )
+        yield CmdCtl.failed("无法连接到向量数据库，重建索引失败")
         return
 
     collection_name = plugin.get_vector_collection_name()
 
-    # 清空或创建集合
     try:
-        # 检查集合是否存在
         collections = await client.get_collections()
         collection_names = [collection.name for collection in collections.collections]
 
         if collection_name in collection_names:
-            # 删除现有集合
             await client.delete_collection(collection_name=collection_name)
             logger.info(f"已删除现有集合: {collection_name}")
 
-        # 创建新集合
         await client.create_collection(
             collection_name=collection_name,
             vectors_config=qdrant_models.VectorParams(
@@ -955,50 +854,40 @@ async def _(
 
     except Exception as e:
         logger.error(f"重置向量集合失败: {e}")
-        await finish_with(matcher, message=f"喵呜... 重置向量集合失败: {e!s}")
+        yield CmdCtl.failed(f"重置向量集合失败: {e!s}")
         return
 
-    # 进度报告变量
     success_count = 0
     error_count = 0
     missing_file_count = 0
-
-    # 批处理相关变量
-    batch_size = 50  # 每批处理的表情包数量
-    current_batch = []
-
-    # 时间跟踪变量
+    batch_size = 50
+    current_batch: list[qdrant_models.PointStruct] = []
     last_progress_time = time.time()
-    progress_interval = 60  # 进度报告间隔，单位秒（1分钟）
+    progress_interval = 60
 
-    # 处理每个表情包
     for emotion_id, metadata in emotion_store.emotions.items():
         try:
-            # 检查文件是否存在
             file_path = resolve_emotion_file_path(metadata.file_path)
             if not file_path.exists():
                 logger.warning(f"表情包文件不存在: {emotion_id}, {file_path}")
                 missing_file_count += 1
                 continue
 
-            # 生成嵌入向量
             embedding_text = f"{metadata.description} {' '.join(metadata.tags)}"
             embedding = await generate_embedding(embedding_text)
 
-            # 添加到当前批次
             current_batch.append(
                 qdrant_models.PointStruct(
-                    id=int(emotion_id, 16),  # 将十六进制字符串转换为整数
+                    id=int(emotion_id, 16),
                     vector=embedding,
                     payload={
                         "description": metadata.description,
                         "tags": metadata.tags,
-                        "emotion_id": emotion_id,  # 保存原始ID以便后续检索
+                        "emotion_id": emotion_id,
                     },
                 ),
             )
 
-            # 如果达到批处理大小或是最后一个，则提交批次
             if (
                 len(current_batch) >= batch_size
                 or emotion_id == list(emotion_store.emotions.keys())[-1]
@@ -1007,17 +896,13 @@ async def _(
                     collection_name=collection_name,
                     points=current_batch,
                 )
-                # 清空当前批次
                 current_batch = []
 
             success_count += 1
 
-            # 按时间间隔更新进度（每1分钟一次）
             current_time = time.time()
             if current_time - last_progress_time >= progress_interval:
-                await matcher.send(
-                    f"喵~ 已成功处理 {success_count}/{total_emotions} 个表情包...",
-                )
+                yield CmdCtl.message(f"已成功处理 {success_count}/{total_emotions} 个表情包...")
                 last_progress_time = current_time
 
             await asyncio.sleep(0.1)
@@ -1026,13 +911,12 @@ async def _(
             logger.error(f"处理表情包失败: {emotion_id}, 错误: {e}")
             error_count += 1
 
-    # 最终统计
-    message = f"喵~ 表情包索引重建完成！\n总计: {total_emotions} 个\n成功: {success_count} 个\n失败: {error_count} 个\n文件缺失: {missing_file_count} 个"
+    result = f"表情包索引重建完成！\n总计: {total_emotions} 个\n成功: {success_count} 个\n失败: {error_count} 个\n文件缺失: {missing_file_count} 个"
 
     if error_count > 0:
-        message += "\n有一些表情包处理失败了，请查看日志获取详细信息～"
+        result += "\n有一些表情包处理失败了，请查看日志获取详细信息"
 
-    await finish_with(matcher, message=message)
+    yield CmdCtl.success(result)
 
 
 # endregion: 表情包命令

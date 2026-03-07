@@ -285,6 +285,51 @@
       "checkFailed": "功能授权检查失败，请稍后再试"
     }
   },
+  "commands": {
+    "search": "搜索命令...",
+    "total": "共 {{count}} 个命令",
+    "loading": "加载中...",
+    "empty": "暂无命令",
+    "rowsPerPage": "每页",
+    "filters": {
+      "category": "分类",
+      "source": "来源",
+      "all": "全部"
+    },
+    "sources": {
+      "builtIn": "内置"
+    },
+    "table": {
+      "name": "命令名",
+      "description": "描述",
+      "category": "分类",
+      "source": "来源",
+      "permission": "权限",
+      "enabled": "启用",
+      "actions": "操作"
+    },
+    "detail": {
+      "namespace": "命名空间",
+      "usage": "用法",
+      "aliases": "别名",
+      "params": "参数"
+    },
+    "actions": {
+      "reset": "重置为默认"
+    },
+    "permissions": {
+      "public": "公开",
+      "user": "用户",
+      "advanced": "高级",
+      "super_user": "超级管理员"
+    },
+    "messages": {
+      "toggleSuccess": "已更新命令状态",
+      "toggleFailed": "更新失败",
+      "resetSuccess": "已重置命令状态",
+      "resetFailed": "重置失败"
+    }
+  },
   "spaceCleanup": {
     "title": "空间回收",
     "description": "清理磁盘空间",

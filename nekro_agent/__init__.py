@@ -62,6 +62,13 @@ if _driver is not None:
         await init_db()
         await run_db_migrations()
         await init_adapters(app)
+
+        # 注册内置命令
+        from nekro_agent.services.command.built_in import register_built_in_commands
+
+        register_built_in_commands()
+        logger.info("Built-in commands registered")
+
         await init_plugins()
 
         # 初始化默认人设（需要在数据库和迁移完成后执行）

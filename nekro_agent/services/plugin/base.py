@@ -129,6 +129,9 @@ class NekroPlugin:
         # 异步任务注册
         self._async_tasks: Dict[str, Callable[..., AsyncGenerator[Any, None]]] = {}
 
+        # 命令注册
+        self._commands: List[Any] = []  # List[PluginCommand]
+
     def reset_methods(self) -> None:
         self.init_method = None
         self.cleanup_method = None
@@ -142,6 +145,8 @@ class NekroPlugin:
         self._router = None
         # 重置异步任务
         self._async_tasks = {}
+        # 重置命令
+        self._commands = []
 
     def mount_init_method(self) -> Callable[[Callable[..., Coroutine[Any, Any, Any]]], Callable[..., Coroutine[Any, Any, Any]]]:
         """挂载初始化方法
@@ -543,10 +548,134 @@ class NekroPlugin:
             return func
     
         return decorator
-    
+
+    def mount_command(
+        self,
+        name: str,
+        description: str,
+        aliases: Optional[List[str]] = None,
+        permission: Any = None,
+        usage: str = "",
+        category: str = "plugin",
+        tags: Optional[List[str]] = None,
+        internal: bool = False,
+    ) -> Callable[[Callable], Callable]:
+        """挂载命令
+
+        用于注册插件命令，插件加载时自动注册到命令系统。
+        命名空间和 source 由框架自动填充为插件的 module_name 和 key。
+
+        Args:
+            name: 命令名
+            description: 命令描述
+            aliases: 别名列表
+            permission: 权限级别 (CommandPermission 枚举值)
+            usage: 使用说明
+            category: 分类
+            tags: 标签 (便于 Agent 检索)
+            internal: 是否为内部命令 (不在帮助列表和补全中显示)
+
+        Returns:
+            装饰器函数
+
+        Example:
+            ```python
+            from nekro_agent.services.command.base import CommandPermission
+            from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
+            from nekro_agent.services.command.ctl import CmdCtl
+
+            @plugin.mount_command(
+                name="weather",
+                description="查询天气",
+                aliases=["天气"],
+                permission=CommandPermission.PUBLIC,
+            )
+            async def weather_command(
+                context: CommandExecutionContext,
+                location: Annotated[str, Arg("城市名称", positional=True)] = "北京",
+            ) -> CommandResponse:
+                return CmdCtl.success(f"{location} 当前天气：晴")
+            ```
+        """
+
+        def decorator(func: Callable) -> Callable:
+            from nekro_agent.services.command.base import CommandPermission, PluginCommand
+
+            perm = permission or CommandPermission.PUBLIC
+            if isinstance(perm, str):
+                perm = CommandPermission(perm)
+
+            cmd = PluginCommand(
+                name=name,
+                description=description,
+                aliases=aliases or [],
+                permission=perm,
+                usage=usage,
+                category=category,
+                source=self.key,
+                namespace=self.module_name,
+                tags=tags or [],
+                internal=internal,
+                execute_func=func,
+            )
+            self._commands.append(cmd)
+            return func
+
+        return decorator
+
+    def mount_command_group(
+        self,
+        name: str,
+        description: str,
+        permission: Any = None,
+        category: str = "plugin",
+        tags: Optional[List[str]] = None,
+    ) -> Any:
+        """创建命令组
+
+        命令组将多个子命令组织在一个前缀下，子命令在注册表中展平为 ``group.sub`` 的形式。
+
+        Args:
+            name: 组名（如 "config"）
+            description: 组描述
+            permission: 默认权限级别（子命令可覆盖）
+            category: 默认分类
+            tags: 默认标签
+
+        Returns:
+            CommandGroup 实例，通过其 ``command()`` 装饰器注册子命令
+
+        Example:
+            ```python
+            config_group = plugin.mount_command_group(
+                name="config",
+                description="配置管理",
+                permission=CommandPermission.ADVANCED,
+            )
+
+            @config_group.command(name="set", description="设置配置项")
+            async def config_set(context, key, value):
+                return CmdCtl.success(f"已设置 {key} = {value}")
+            ```
+
+            调用: ``/config.set key:"model" value:"gpt-4"``
+        """
+        from nekro_agent.services.command.group import CommandGroup
+
+        return CommandGroup(
+            group_name=name,
+            description=description,
+            commands_list=self._commands,
+            source=self.key,
+            namespace=self.module_name,
+            permission=permission,
+            category=category,
+            tags=tags,
+        )
+
     async def trigger_callbacks(self, event_type: Literal["enabled", "disabled"]) -> None:
         """触发回调函数
-    
+
         并行执行所有已注册的回调函数，异常会被捕获并记录日志。
         此方法由插件管理器在启用/禁用插件时调用。
     

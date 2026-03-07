@@ -219,6 +219,7 @@
     "clearSelection": "清空所有选择",
     "managePresets": "管理人设",
     "defaultPreset": "默认人设",
+    "cloudPreset": "云端",
     "presetMissing": "当前选择的人设已不存在",
     "overridable": "可覆盖",
     "cannotDisable": "此配置项不支持单独禁用",

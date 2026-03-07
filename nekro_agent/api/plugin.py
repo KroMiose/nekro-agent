@@ -4,6 +4,10 @@
 """
 
 from nekro_agent.core.core_utils import ExtraField
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.ctl import CmdCtl
+from nekro_agent.services.command.group import CommandGroup
+from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 from nekro_agent.services.plugin.base import ConfigBase, NekroPlugin, PluginStore
 from nekro_agent.services.plugin.packages import dynamic_import_pkg
 from nekro_agent.services.plugin.schema import SandboxMethod, SandboxMethodType
@@ -16,7 +20,13 @@ from nekro_agent.services.plugin.task import (
 )
 
 __all__ = [
+    "Arg",
     "AsyncTaskHandle",
+    "CmdCtl",
+    "CommandExecutionContext",
+    "CommandGroup",
+    "CommandPermission",
+    "CommandResponse",
     "ConfigBase",
     "ExtraField",
     "NekroPlugin",

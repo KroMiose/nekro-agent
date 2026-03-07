@@ -18,17 +18,9 @@
 此插件的功能**高度依赖**于您所使用的 OneBot v11 协议端。它需要协议端实现了 `send_group_ai_record` 和 `get_ai_characters` 这两个自定义 API。如果您的协议端不支持这些 API，此插件将无法正常工作。
 """
 
-from nonebot.adapters.onebot.v11 import Bot, Message, MessageEvent
-from nonebot.matcher import Matcher
-from nonebot.params import CommandArg
 from pydantic import Field
 
 from nekro_agent.adapters.onebot_v11.core.bot import get_bot
-from nekro_agent.adapters.onebot_v11.matchers.command import (
-    command_guard,
-    finish_with,
-    on_command,
-)
 from nekro_agent.api import core, i18n
 from nekro_agent.api.plugin import (
     ConfigBase,
@@ -39,6 +31,9 @@ from nekro_agent.api.plugin import (
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.command.base import CommandPermission
+from nekro_agent.services.command.ctl import CmdCtl
+from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
 
 plugin = NekroPlugin(
     name="AI 语音插件",
@@ -84,22 +79,28 @@ class AIVoiceConfig(ConfigBase):
 config = plugin.get_config(AIVoiceConfig)
 
 
-@on_command("ai_voices", aliases={"ai-voices"}, priority=5, block=True).handle()
-async def _(matcher: Matcher, event: MessageEvent, bot: Bot, arg: Message = CommandArg()):
-    username, cmd_content, chat_key, chat_type = await command_guard(event, bot, arg, matcher)
+@plugin.mount_command(
+    name="ai_voices",
+    description="查看可用的 AI 语音角色",
+    aliases=["ai-voices"],
+    permission=CommandPermission.SUPER_USER,
+    category="语音",
+)
+async def ai_voices_cmd(context: CommandExecutionContext) -> CommandResponse:
+    db_chat_channel = await DBChatChannel.get_channel(chat_key=context.chat_key)
+    if db_chat_channel.chat_type != ChatType.GROUP:
+        return CmdCtl.failed("AI 声聊功能仅支持群组")
 
-    if chat_type is ChatType.GROUP:
-        tags = await bot.call_api("get_ai_characters", group_id=chat_key.split("_")[2])
+    try:
+        bot = get_bot()
+        tags = await bot.call_api("get_ai_characters", group_id=context.chat_key.split("_")[2])
         formatted_characters = []
         for tag in tags:
-            char_list = []
-            for char in tag["characters"]:
-                char_list.append(f"ID: {char['character_id']} - {char['character_name']}")
+            char_list = [f"ID: {char['character_id']} - {char['character_name']}" for char in tag["characters"]]
             formatted_characters.append(f"=== {tag['type']} ===\n" + "\n".join(char_list))
-
-        await finish_with(matcher, message="当前可用的 AI 声聊角色: \n\n" + "\n\n".join(formatted_characters))
-    else:
-        await finish_with(matcher, message="AI 声聊功能仅支持群组")
+        return CmdCtl.success("当前可用的 AI 声聊角色: \n\n" + "\n\n".join(formatted_characters))
+    except Exception as e:
+        return CmdCtl.failed(f"获取 AI 语音角色列表失败: {e}")
 
 
 @plugin.mount_sandbox_method(SandboxMethodType.TOOL, "发送消息语音")

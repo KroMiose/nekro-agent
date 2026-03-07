@@ -104,6 +104,29 @@
     "senderNone": "静默",
     "senderBotHint": "以机器人的身份直接发送，消息在目标频道可见 · AI上下文可见 · UI可见",
     "senderSystemHint": "以内部系统通知身份发送，消息在目标频道不可见 · AI上下文可见 · UI可见",
-    "senderNoneHint": "以AI感知静默方式发送，只对目标频道中的用户可见 · AI上下文不可见 · UI不可见"
+    "senderNoneHint": "以AI感知静默方式发送，只对目标频道中的用户可见 · AI上下文不可见 · UI不可见",
+    "pokeSent": "戳一戳已发送",
+    "pokeFailed": "戳一戳发送失败"
+  },
+  "commandSidebar": {
+    "title": "命令管理",
+    "commandList": "命令列表",
+    "outputLog": "命令输出",
+    "searchPlaceholder": "搜索命令...",
+    "noCommands": "暂无命令",
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "connecting": "连接中...",
+    "clear": "清空",
+    "noOutput": "暂无命令输出",
+    "outputHint": "在聊天平台中执行命令后，输出将实时显示在此处",
+    "selectChannel": "选择频道",
+    "selectCommand": "选择命令",
+    "builtInCommands": "内置命令",
+    "pluginCommands": "插件命令",
+    "argsPlaceholder": "输入参数...",
+    "noArgsNeeded": "该命令无需参数",
+    "selectChannelHint": "请先选择一个频道以查看命令输出",
+    "inputPlaceholder": "输入命令，如 help"
   }
 }

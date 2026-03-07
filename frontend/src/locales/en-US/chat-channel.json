@@ -104,6 +104,29 @@
     "senderNone": "Silent",
     "senderBotHint": "Send as bot directly. Visible in target channel · AI context visible · UI visible",
     "senderSystemHint": "Send as internal system notification. Hidden from target channel · AI context visible · UI visible",
-    "senderNoneHint": "Send silently without AI awareness. Only visible to users in target channel · AI context hidden · UI hidden"
+    "senderNoneHint": "Send silently without AI awareness. Only visible to users in target channel · AI context hidden · UI hidden",
+    "pokeSent": "Poke sent",
+    "pokeFailed": "Failed to send poke"
+  },
+  "commandSidebar": {
+    "title": "Commands",
+    "commandList": "Command List",
+    "outputLog": "Command Output",
+    "searchPlaceholder": "Search commands...",
+    "noCommands": "No commands",
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting...",
+    "clear": "Clear",
+    "noOutput": "No command output",
+    "outputHint": "Execute commands in chat platform and output will appear here in real-time",
+    "selectChannel": "Select Channel",
+    "selectCommand": "Select Command",
+    "builtInCommands": "Built-in Commands",
+    "pluginCommands": "Plugin Commands",
+    "argsPlaceholder": "Enter arguments...",
+    "noArgsNeeded": "No arguments needed",
+    "selectChannelHint": "Please select a channel to view command output",
+    "inputPlaceholder": "Enter command, e.g. help"
   }
 }

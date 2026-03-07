@@ -8,7 +8,12 @@ from typing import Dict, List, Optional, Union
 import magic
 
 from nekro_agent.adapters.interface.schemas.extra import PlatformMessageExt
-from nekro_agent.adapters.interface.schemas.platform import PlatformSendResponse
+from nekro_agent.adapters.interface.schemas.platform import (
+    PlatformSendRequest,
+    PlatformSendResponse,
+    PlatformSendSegment,
+    PlatformSendSegmentType,
+)
 from nekro_agent.adapters.utils import adapter_utils
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -291,6 +296,20 @@ class MessageService:
                         logger.info(
                             f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
                         )
+                        # 通过适配器发送可见通知
+                        quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
+                        adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
+                        await adapter.forward_message(
+                            PlatformSendRequest(
+                                chat_key=message.chat_key,
+                                segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=quota_msg)],
+                            )
+                        )
+                        await self.push_system_message(
+                            chat_key=message.chat_key,
+                            agent_messages=quota_msg,
+                            db_chat_channel=db_chat_channel,
+                        )
                         return
 
                     # 每小时限额检查
@@ -306,6 +325,19 @@ class MessageService:
                         if hourly_count >= hourly_limit:
                             logger.info(
                                 f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
+                            )
+                            hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
+                            adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
+                            await adapter.forward_message(
+                                PlatformSendRequest(
+                                    chat_key=message.chat_key,
+                                    segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=hourly_msg)],
+                                )
+                            )
+                            await self.push_system_message(
+                                chat_key=message.chat_key,
+                                agent_messages=hourly_msg,
+                                db_chat_channel=db_chat_channel,
                             )
                             return
 

@@ -28,6 +28,7 @@ class ChatMessageSegmentType(Enum):
     AT = "at"
     JSON_CARD = "json_card"
     FORWARD = "forward"
+    POKE = "poke"
 
 
 class ChatMessageSegment(BaseModel):
@@ -164,6 +165,15 @@ class ChatMessageSegmentJsonCard(ChatMessageSegment):
         return ChatMessageSegmentType.JSON_CARD
 
 
+class ChatMessageSegmentPoke(ChatMessageSegment):
+    """戳一戳消息段"""
+
+    action_img_url: str = ""
+    poke_style: str = "戳一戳"
+    poke_style_suffix: str = ""
+    target_id: str = ""
+
+
 def segment_from_dict(data: Dict) -> ChatMessageSegment:
     """根据字典数据创建聊天消息段"""
     segment_type = ChatMessageSegmentType(data["type"])
@@ -179,6 +189,8 @@ def segment_from_dict(data: Dict) -> ChatMessageSegment:
         return ChatMessageSegmentJsonCard.model_validate(data)
     if segment_type == ChatMessageSegmentType.FORWARD:
         return ChatMessageSegmentForward.model_validate(data)
+    if segment_type == ChatMessageSegmentType.POKE:
+        return ChatMessageSegmentPoke.model_validate(data)
     raise ValueError(f"Unsupported segment type: {segment_type}")
 
 

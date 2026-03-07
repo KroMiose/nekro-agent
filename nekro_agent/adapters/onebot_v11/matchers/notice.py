@@ -16,7 +16,7 @@ from nekro_agent.adapters.utils import AdapterUtils
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.chat_message import ChatMessage, ChatMessageSegmentPoke, ChatMessageSegmentType, ChatType
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.notice_service import (
     BaseNoticeHandler,
@@ -36,20 +36,40 @@ class PokeNoticeHandler(BaseNoticeHandler):
         raw_info = event_dict.get("raw_info", [])
         poke_style = raw_info[2].get("txt", "戳一戳") if len(raw_info) > 2 else "戳一戳"
         poke_style_suffix = raw_info[4].get("txt", "") if len(raw_info) > 4 else ""
+        action_img_url = ""
+        if len(raw_info) > 1 and raw_info[1].get("type") == "img":
+            action_img_url = raw_info[1].get("src", "")
         return {
             "user_id": str(event_dict["user_id"]),
             "target_id": str(event_dict["target_id"]),
             "poke_style": poke_style,
             "poke_style_suffix": poke_style_suffix,
+            "action_img_url": action_img_url,
         }
+
+    def get_content_data(self, info: Dict[str, str]) -> list:
+        sender_display = info.get("sender_name") or info["user_id"]
+        target_display = info.get("target_name") or info["target_id"]
+        return [
+            ChatMessageSegmentPoke(
+                type=ChatMessageSegmentType.POKE,
+                text=f"{sender_display} {info['poke_style']} {target_display} {info['poke_style_suffix']}",
+                action_img_url=info.get("action_img_url", ""),
+                poke_style=info["poke_style"],
+                poke_style_suffix=info["poke_style_suffix"],
+                target_id=info["target_id"],
+            )
+        ]
 
     async def format_message(self, _db_chat_channel: DBChatChannel, info: Dict[str, str]) -> str:
         from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
 
         adapter = _db_chat_channel.adapter.cast(OnebotV11Adapter)
+        target_display = info.get("target_name") or info["target_id"]
         if str(info["target_id"]) == str(adapter.config.BOT_QQ):
-            return f"( {info['poke_style']} {(await _db_chat_channel.get_preset()).name} {info['poke_style_suffix']})"
-        return f"({info['poke_style']} {info['target_id']} {info['poke_style_suffix']})"
+            target_display = (await _db_chat_channel.get_preset()).name
+        sender_display = info.get("sender_name") or info["user_id"]
+        return f"({sender_display} {info['poke_style']} {target_display} {info['poke_style_suffix']})"
 
 
 class GroupIncreaseNoticeHandler(BaseNoticeHandler):
@@ -223,6 +243,23 @@ async def _(_: Matcher, event: NoticeEvent, bot: Bot):
     handler = result["handler"]
     info = result["info"]
 
+    # 戳一戳事件：解析目标用户和发送者昵称
+    if isinstance(handler, PokeNoticeHandler):
+        try:
+            target_name = await get_user_name(
+                event=event, bot=bot, user_id=info["target_id"], db_chat_channel=db_chat_channel
+            )
+            info["target_name"] = target_name
+        except Exception as e:
+            logger.warning(f"解析戳一戳目标昵称失败: {e}")
+        try:
+            sender_name = await get_user_name(
+                event=event, bot=bot, user_id=info["user_id"], db_chat_channel=db_chat_channel
+            )
+            info["sender_name"] = sender_name
+        except Exception as e:
+            logger.warning(f"解析戳一戳发送者昵称失败: {e}")
+
     # 格式化消息
     content_text = await handler.format_message(db_chat_channel, info)
 
@@ -265,7 +302,7 @@ async def _(_: Matcher, event: NoticeEvent, bot: Bot):
             chat_key=chat_key,
             chat_type=chat_type,
             content_text=content_text,
-            content_data=[],
+            content_data=handler.get_content_data(info),
             raw_cq_code="",
             ext_data={},
             send_timestamp=int(time.time()),
