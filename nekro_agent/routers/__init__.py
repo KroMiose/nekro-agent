@@ -20,6 +20,7 @@ from nekro_agent.tools.common_util import get_app_version
 from .adapters import router as adapters_router
 from .cc_model_presets import router as cc_model_presets_router
 from .chat_channel import router as chat_channel_router
+from .cloud.announcement import router as cloud_announcement_router
 from .cloud.auth import router as cloud_auth_router
 from .cloud.plugins_market import router as plugins_market_router
 from .cloud.presets_market import router as presets_market_router
@@ -83,6 +84,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(presets_market_router)
     api.include_router(plugins_market_router)
     api.include_router(cloud_auth_router)
+    api.include_router(cloud_announcement_router)
     api.include_router(adapters_router)
     api.include_router(common_router)
     api.include_router(space_cleanup_router)

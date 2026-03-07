@@ -70,6 +70,45 @@ import { CARD_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { copyText } from '../../utils/clipboard'
+import { configApi } from '../../services/api/config'
+
+// 简单语义化版本比较
+function compareVersions(a: string, b: string): number {
+  const pa = a.split('.').map(Number)
+  const pb = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    const x = pa[i] || 0
+    const y = pb[i] || 0
+    if (x < y) return -1
+    if (x > y) return 1
+  }
+  return 0
+}
+
+// 检查插件是否兼容当前 NA 版本
+function isPluginCompatible(
+  plugin: CloudPlugin,
+  naVersion: string | null
+): { compatible: boolean; reason?: string; reasonKey?: string; reasonParams?: Record<string, string> } {
+  if (!naVersion) return { compatible: true }
+  if (plugin.minNaVersion && compareVersions(naVersion, plugin.minNaVersion) < 0) {
+    return {
+      compatible: false,
+      reason: `需要 NA ≥ ${plugin.minNaVersion}`,
+      reasonKey: 'pluginsMarket.requiresNaVersion',
+      reasonParams: { version: plugin.minNaVersion },
+    }
+  }
+  if (plugin.maxNaVersion && compareVersions(naVersion, plugin.maxNaVersion) >= 0) {
+    return {
+      compatible: false,
+      reason: `需要 NA < ${plugin.maxNaVersion}`,
+      reasonKey: 'pluginsMarket.maxNaVersionLimit',
+      reasonParams: { version: plugin.maxNaVersion },
+    }
+  }
+  return { compatible: true }
+}
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -97,6 +136,7 @@ const PluginCard = ({
   onUnpublish,
   onShowDetail,
   t,
+  naVersion,
 }: {
   plugin: CloudPlugin
   onDownload: () => void
@@ -105,11 +145,13 @@ const PluginCard = ({
   onUnpublish?: () => void
   onShowDetail: () => void
   t: (key: string, options?: Record<string, unknown>) => string
+  naVersion: string | null
 }) => {
   const theme = useTheme()
   // 移除 isDark 判断
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const [iconError, setIconError] = useState(false)
+  const compatibility = isPluginCompatible(plugin, naVersion)
 
   // 更多菜单状态
   const [moreMenuAnchor, setMoreMenuAnchor] = useState<null | HTMLElement>(null)
@@ -362,8 +404,16 @@ const PluginCard = ({
             startIcon={<CloudDownloadIcon />}
             onClick={onDownload}
             color="primary"
+            disabled={!compatibility.compatible}
+            title={
+              !compatibility.compatible && compatibility.reasonKey
+                ? t(compatibility.reasonKey, compatibility.reasonParams)
+                : undefined
+            }
           >
-            {t('pluginsMarket.obtain')}
+            {!compatibility.compatible && compatibility.reasonKey
+              ? t(compatibility.reasonKey, compatibility.reasonParams)
+              : t('pluginsMarket.obtain')}
           </Button>
         )}
       </CardActions>
@@ -385,6 +435,7 @@ const PluginDetailDialog = ({
   onEdit,
   t,
   notification,
+  naVersion,
 }: {
   open: boolean
   onClose: () => void
@@ -396,6 +447,7 @@ const PluginDetailDialog = ({
   onEdit?: () => void
   t: (key: string, options?: Record<string, unknown>) => string
   notification?: NotificationService
+  naVersion: string | null
 }) => {
   const theme = useTheme()
   const localNotification = useNotification()
@@ -448,6 +500,8 @@ const PluginDetailDialog = ({
   }, [open, plugin])
 
   if (!plugin) return null
+
+  const compatibility = isPluginCompatible(plugin, naVersion)
 
   return (
     <Dialog
@@ -548,6 +602,33 @@ const PluginDetailDialog = ({
                   </Typography>
                 )}
               </Typography>
+
+              {/* NA 版本兼容信息 */}
+              {(plugin.minNaVersion || plugin.maxNaVersion) && (
+                <Box sx={{ display: 'flex', gap: 1, mb: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {plugin.minNaVersion && (
+                    <Chip
+                      label={`NA ≥ ${plugin.minNaVersion}`}
+                      size="small"
+                      color={compatibility.compatible ? 'default' : 'error'}
+                      variant="outlined"
+                    />
+                  )}
+                  {plugin.maxNaVersion && (
+                    <Chip
+                      label={`NA < ${plugin.maxNaVersion}`}
+                      size="small"
+                      color={compatibility.compatible ? 'default' : 'error'}
+                      variant="outlined"
+                    />
+                  )}
+                  {!compatibility.compatible && compatibility.reasonKey && (
+                    <Typography variant="caption" color="error.main">
+                      {t(compatibility.reasonKey, compatibility.reasonParams)}
+                    </Typography>
+                  )}
+                </Box>
+              )}
               <Typography
                 variant="body1"
                 paragraph
@@ -842,8 +923,11 @@ const PluginDetailDialog = ({
                   color="primary"
                   onClick={onDownload}
                   fullWidth
+                  disabled={!compatibility.compatible}
                 >
-                  获取插件
+                  {!compatibility.compatible
+                    ? t('pluginsMarket.incompatibleVersion')
+                    : t('pluginsMarket.obtain')}
                 </Button>
               )}
             </Box>
@@ -949,8 +1033,11 @@ const PluginDetailDialog = ({
                   startIcon={<CloudDownloadIcon />}
                   color="primary"
                   onClick={onDownload}
+                  disabled={!compatibility.compatible}
                 >
-                  获取插件
+                  {!compatibility.compatible
+                    ? t('pluginsMarket.incompatibleVersion')
+                    : t('pluginsMarket.obtain')}
                 </Button>
               )}
             </Box>
@@ -973,6 +1060,7 @@ const CreatePluginDialog = ({
   onSubmit: (data: PluginCreateRequest) => void
   isSubmitting: boolean
 }) => {
+  const { t } = useTranslation('cloud')
   const [formData, setFormData] = useState<PluginCreateRequest>({
     name: '',
     moduleName: '',
@@ -984,7 +1072,9 @@ const CreatePluginDialog = ({
     cloneUrl: '',
     licenseType: 'MIT',
     isSfw: true,
-    icon: '', // 添加图标字段
+    icon: '',
+    minNaVersion: '',
+    maxNaVersion: '',
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [iconPreview, setIconPreview] = useState<string | null>(null)
@@ -1006,6 +1096,8 @@ const CreatePluginDialog = ({
         licenseType: 'MIT',
         isSfw: true,
         icon: '',
+        minNaVersion: '',
+        maxNaVersion: '',
       })
       setErrors({})
       setIconPreview(null)
@@ -1094,6 +1186,16 @@ const CreatePluginDialog = ({
       newErrors.cloneUrl = 'Git 克隆 URL 不能为空'
     } else if (!/\.git$/.test(formData.cloneUrl)) {
       newErrors.cloneUrl = '克隆URL格式不正确，应以.git结尾'
+    }
+
+    if (!formData.minNaVersion?.trim()) {
+      newErrors.minNaVersion = t('pluginsMarket.minNaVersionRequired')
+    } else if (!/^\d+\.\d+\.\d+$/.test(formData.minNaVersion.trim())) {
+      newErrors.minNaVersion = t('pluginsMarket.versionFormatError')
+    }
+
+    if (formData.maxNaVersion?.trim() && !/^\d+\.\d+\.\d+$/.test(formData.maxNaVersion.trim())) {
+      newErrors.maxNaVersion = t('pluginsMarket.versionFormatError')
     }
 
     setErrors(newErrors)
@@ -1349,6 +1451,33 @@ const CreatePluginDialog = ({
               disabled={isSubmitting}
             />
           </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="minNaVersion"
+              label={t('pluginsMarket.minNaVersion')}
+              value={formData.minNaVersion}
+              onChange={handleChange}
+              fullWidth
+              required
+              error={!!errors.minNaVersion}
+              helperText={errors.minNaVersion}
+              placeholder="2.3.0"
+              disabled={isSubmitting}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
+              name="maxNaVersion"
+              label={t('pluginsMarket.maxNaVersion')}
+              value={formData.maxNaVersion}
+              onChange={handleChange}
+              fullWidth
+              error={!!errors.maxNaVersion}
+              helperText={errors.maxNaVersion || t('pluginsMarket.maxNaVersionHint')}
+              placeholder="3.0.0"
+              disabled={isSubmitting}
+            />
+          </Grid>
 
           {/* 添加分割线和确认选项 */}
           <Grid item xs={12}>
@@ -1437,9 +1566,15 @@ export default function PluginsMarket() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
+  const [naVersion, setNaVersion] = useState<string | null>(null)
   const pageSize = 12
   const notification = useNotification()
   const { t } = useTranslation('cloud')
+
+  // 获取当前 NA 版本
+  useEffect(() => {
+    configApi.getVersion().then(setNaVersion).catch(() => setNaVersion(null))
+  }, [])
 
   const fetchPlugins = useCallback(
     async (page: number, keyword: string = '') => {
@@ -1682,6 +1817,8 @@ export default function PluginsMarket() {
       licenseType: 'MIT',
       isSfw: true,
       icon: '',
+      minNaVersion: '',
+      maxNaVersion: '',
     })
     const [errors, setErrors] = useState<Record<string, string>>({})
     const [iconPreview, setIconPreview] = useState<string | null>(null)
@@ -1703,6 +1840,8 @@ export default function PluginsMarket() {
           licenseType: plugin.licenseType || 'MIT',
           isSfw: true,
           icon: plugin.icon || '',
+          minNaVersion: plugin.minNaVersion || '',
+          maxNaVersion: plugin.maxNaVersion || '',
         })
         setIconPreview(plugin.icon || null)
         setErrors({})
@@ -1784,6 +1923,14 @@ export default function PluginsMarket() {
 
       if (formData.cloneUrl && !/\.git$/.test(formData.cloneUrl)) {
         newErrors.cloneUrl = '克隆URL格式不正确，应以.git结尾'
+      }
+
+      if (formData.minNaVersion?.trim() && !/^\d+\.\d+\.\d+$/.test(formData.minNaVersion.trim())) {
+        newErrors.minNaVersion = t('pluginsMarket.versionFormatError')
+      }
+
+      if (formData.maxNaVersion?.trim() && !/^\d+\.\d+\.\d+$/.test(formData.maxNaVersion.trim())) {
+        newErrors.maxNaVersion = t('pluginsMarket.versionFormatError')
       }
 
       setErrors(newErrors)
@@ -2047,6 +2194,32 @@ export default function PluginsMarket() {
                 disabled={isSubmitting}
               />
             </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="minNaVersion"
+                label={t('pluginsMarket.minNaVersion')}
+                value={formData.minNaVersion}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.minNaVersion}
+                helperText={errors.minNaVersion}
+                placeholder="2.3.0"
+                disabled={isSubmitting}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                name="maxNaVersion"
+                label={t('pluginsMarket.maxNaVersion')}
+                value={formData.maxNaVersion}
+                onChange={handleChange}
+                fullWidth
+                error={!!errors.maxNaVersion}
+                helperText={errors.maxNaVersion || t('pluginsMarket.maxNaVersionHint')}
+                placeholder="3.0.0"
+                disabled={isSubmitting}
+              />
+            </Grid>
 
             {/* 添加分割线和确认选项 */}
             <Grid item xs={12}>
@@ -2260,6 +2433,7 @@ export default function PluginsMarket() {
                     onUnpublish={plugin.isOwner ? () => handleUnpublishClick(plugin) : undefined}
                     onShowDetail={() => handleShowDetail(plugin)}
                     t={t}
+                    naVersion={naVersion}
                   />
                 </Grid>
               ))}
@@ -2322,6 +2496,7 @@ export default function PluginsMarket() {
         onEdit={selectedPlugin?.isOwner ? () => handleEditPlugin(selectedPlugin) : undefined}
         t={t}
         notification={notification}
+        naVersion={naVersion}
       />
 
       {/* 确认下载/更新/下架/移除对话框 */}

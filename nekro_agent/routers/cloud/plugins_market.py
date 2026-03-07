@@ -25,6 +25,7 @@ from nekro_agent.systems.cloud.api.plugin import (
 )
 from nekro_agent.systems.cloud.api.plugin import update_plugin as cloud_update_plugin
 from nekro_agent.systems.cloud.schemas.plugin import PluginCreate, PluginUpdate, RepoData
+from nekro_agent.tools.common_util import compare_semver, get_app_version
 from nekro_agent.tools.image_utils import process_image_data_url
 
 logger = get_sub_logger("cloud_api")
@@ -49,6 +50,8 @@ class CloudPlugin(BaseModel):
     can_update: Optional[bool] = None
     icon: Optional[str] = None
     isOwner: Optional[bool] = None
+    minNaVersion: Optional[str] = None
+    maxNaVersion: Optional[str] = None
 
 
 class CloudPluginListResponse(BaseModel):
@@ -132,6 +135,8 @@ async def get_cloud_plugins_list(
                 can_update=can_update,
                 icon=item.icon,
                 isOwner=getattr(item, "isOwner", False),
+                minNaVersion=getattr(item, "minNaVersion", None),
+                maxNaVersion=getattr(item, "maxNaVersion", None),
             ),
         )
 
@@ -193,6 +198,8 @@ async def get_plugin_detail(
         can_update=False,
         icon=plugin_data.icon,
         isOwner=plugin_data.isOwner,
+        minNaVersion=plugin_data.minNaVersion,
+        maxNaVersion=plugin_data.maxNaVersion,
     )
 
 
@@ -230,6 +237,18 @@ async def download_plugin(
 
     if not plugin_data.cloneUrl:
         raise NotFoundError(resource="插件仓库")
+
+    # 版本兼容性校验
+    current_version = get_app_version()
+    if current_version != "unknown":
+        if plugin_data.minNaVersion and compare_semver(current_version, plugin_data.minNaVersion) < 0:
+            raise OperationFailedError(
+                operation=f"下载插件（当前 NA 版本 {current_version} 低于最低要求 {plugin_data.minNaVersion}）"
+            )
+        if plugin_data.maxNaVersion and compare_semver(current_version, plugin_data.maxNaVersion) >= 0:
+            raise OperationFailedError(
+                operation=f"下载插件（当前 NA 版本 {current_version} 不低于最高限制 {plugin_data.maxNaVersion}）"
+            )
 
     await plugin_collector.clone_package(
         module_name=plugin_data.moduleName,

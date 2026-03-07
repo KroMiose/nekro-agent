@@ -18,6 +18,7 @@ ADAPTER_DICT: Dict[str, str] = {
     "wechatpad": "nekro_agent.adapters.wechatpad.adapter.WeChatPadAdapter",
     "telegram": "nekro_agent.adapters.telegram.adapter.TelegramAdapter",
     "email": "nekro_agent.adapters.email.adapter.EmailAdapter",
+    "feishu": "nekro_agent.adapters.feishu.adapter.FeishuAdapter",
     # 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
     # 文档: https://developer.work.weixin.qq.com/document/path/101031
     # "wxwork": "nekro_agent.adapters.wxwork.adapter.WxWorkAdapter",

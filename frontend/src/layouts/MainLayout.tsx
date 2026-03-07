@@ -47,6 +47,7 @@ import {
 import { useDevModeStore } from '../stores/devMode'
 import { useSecretCode } from '../hooks/useSecretCode'
 import LocaleToggleButton from '../components/common/LocaleToggleButton'
+import CommunityAvatar from '../components/common/CommunityAvatar'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
 
@@ -629,6 +630,8 @@ export default function MainLayout() {
               Stars {starCount !== null ? starCount : '...'}
             </Box>
           </Button>
+
+          <CommunityAvatar />
         </Toolbar>
       </AppBar>
       <Box

@@ -67,3 +67,8 @@ class TelemetryResponse(BasicResponse):
     """遥测响应"""
 
     data: Optional[TelemetryData] = Field(default=None, description="遥测数据")
+    announcement_updated_at: Optional[str] = Field(
+        default=None,
+        description="公告最后更新时间（ISO 8601）",
+        alias="announcementUpdatedAt",
+    )

@@ -19,5 +19,19 @@
   "devMode": {
     "enabled": "开发者模式已开启！",
     "disabled": "开发者模式已关闭"
+  },
+  "community": {
+    "avatarTooltip": "社区账户",
+    "visitCommunity": "前往社区",
+    "refreshProfile": "刷新信息",
+    "notConfiguredTitle": "未配置社区 API Key",
+    "notConfiguredDesc": "配置 Nekro Cloud API Key 后可显示社区头像",
+    "getCommunityKey": "前往社区获取 Key",
+    "goToSettings": "前往系统设置配置",
+    "tabNotifications": "公告",
+    "tabMessages": "消息",
+    "noNotifications": "暂无公告",
+    "noMessages": "暂无消息",
+    "markAllRead": "全部已读"
   }
 }

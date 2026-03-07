@@ -94,7 +94,15 @@
     "operationFailedRetry": "Operation failed, please try again",
     "operationFailedUnknown": "Operation failed: Unknown error",
     "publishSuccess": "Plugin published successfully!",
-    "updateInfoSuccess": "Plugin information updated successfully!"
+    "updateInfoSuccess": "Plugin information updated successfully!",
+    "minNaVersion": "Min NA Version",
+    "maxNaVersion": "Max NA Version",
+    "minNaVersionRequired": "Min NA version is required",
+    "versionFormatError": "Invalid version format, should be x.y.z",
+    "incompatibleVersion": "Incompatible with current NA version",
+    "requiresNaVersion": "Requires NA ≥ {{version}}",
+    "maxNaVersionLimit": "Requires NA < {{version}}",
+    "maxNaVersionHint": "Leave empty for no limit"
   },
   "telemetry": {
     "title": "Community Statistics",

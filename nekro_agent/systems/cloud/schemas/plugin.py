@@ -22,6 +22,8 @@ class PluginBase(BaseModel):
     updated_at: str = Field(alias="updatedAt")
     icon: Optional[str] = None  # 插件图标URL
     isOwner: Optional[bool] = None  # 是否为当前用户上传的插件
+    minNaVersion: Optional[str] = None  # 最低 NA 版本要求
+    maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
 
 
 class PluginCreate(BaseModel):
@@ -38,6 +40,8 @@ class PluginCreate(BaseModel):
     licenseType: Optional[str] = None
     isSfw: bool = True
     icon: Optional[str] = None  # 插件图标，可以是Base64或URL
+    minNaVersion: Optional[str] = None  # 最低 NA 版本要求
+    maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
 
 
 class PluginUpdate(BaseModel):
@@ -53,6 +57,8 @@ class PluginUpdate(BaseModel):
     licenseType: Optional[str] = None
     isSfw: Optional[bool] = None
     icon: Optional[str] = None  # 插件图标，可以是Base64或URL
+    minNaVersion: Optional[str] = None  # 最低 NA 版本要求
+    maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
 
 
 class PluginCreateResponse(BasicResponse):
@@ -84,6 +90,8 @@ class PluginListItem(BaseModel):
     updatedAt: str
     icon: Optional[str] = None  # 插件图标URL
     isOwner: Optional[bool] = None  # 是否为当前用户上传的插件
+    minNaVersion: Optional[str] = None  # 最低 NA 版本要求
+    maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
 
 
 class PluginListData(BaseModel):

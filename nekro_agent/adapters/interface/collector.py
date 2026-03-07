@@ -51,17 +51,17 @@ async def collect_message(
     user: Optional[DBUser] = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
 
     if not user:
-        ret = await user_register(
-            UserCreate(
-                username=platform_user.user_name,
-                password="",
-                adapter_key=adapter.key,
-                platform_userid=platform_user.user_id,
-            ),
-        )
-
-        if not ret:
-            logger.error(f"注册用户失败: {platform_user.user_name} - {platform_user.user_id}")
+        try:
+            await user_register(
+                UserCreate(
+                    username=platform_user.user_name,
+                    password="",
+                    adapter_key=adapter.key,
+                    platform_userid=platform_user.user_id,
+                ),
+            )
+        except Exception:
+            logger.exception(f"注册用户失败: {platform_user.user_name} - {platform_user.user_id}")
             return
 
         user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)

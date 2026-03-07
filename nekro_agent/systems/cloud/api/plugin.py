@@ -14,6 +14,8 @@ from nekro_agent.systems.cloud.schemas.plugin import (
 
 from .client import get_client
 
+PLUGIN_API = '/api/v2/plugin'
+
 logger = get_sub_logger("cloud_api")
 async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
     """创建插件资源
@@ -26,21 +28,10 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
     """
     try:
         async with get_client(require_auth=True) as client:
+            payload = plugin_data.model_dump(exclude_none=True)
             response = await client.post(
-                url="/api/plugin",
-                json={
-                    "name": plugin_data.name,
-                    "moduleName": plugin_data.moduleName,
-                    "description": plugin_data.description,
-                    "author": plugin_data.author,
-                    "hasWebhook": plugin_data.hasWebhook,
-                    "homepageUrl": plugin_data.homepageUrl,
-                    "githubUrl": plugin_data.githubUrl,
-                    "cloneUrl": plugin_data.cloneUrl,
-                    "licenseType": plugin_data.licenseType,
-                    "isSfw": plugin_data.isSfw,
-                    "icon": plugin_data.icon,
-                },
+                url=PLUGIN_API,
+                json=payload,
             )
             response.raise_for_status()
             logger.debug(f"创建插件资源响应数据: {response.json()}")
@@ -63,7 +54,7 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
     try:
         async with get_client(require_auth=True) as client:
             response = await client.put(
-                url=f"/api/plugin/{module_name}",
+                url=f"{PLUGIN_API}/{module_name}",
                 json=updates,
             )
             response.raise_for_status()
@@ -86,7 +77,7 @@ async def delete_plugin(module_name: str) -> BasicResponse:
     try:
         async with get_client(require_auth=True) as client:
             response = await client.delete(
-                url=f"/api/plugin/{module_name}",
+                url=f"{PLUGIN_API}/{module_name}",
             )
             response.raise_for_status()
             logger.debug(f"删除插件资源响应数据: {response.json()}")
@@ -107,7 +98,7 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
     """
     try:
         async with get_client() as client:
-            response = await client.get(url=f"/api/plugin/{module_name}")
+            response = await client.get(url=f"{PLUGIN_API}/{module_name}")
             response.raise_for_status()
             data = response.json()
             logger.debug(f"获取插件详情响应数据: {data}")
@@ -149,7 +140,7 @@ async def list_plugins(
 
         async with get_client() as client:
             response = await client.get(
-                url="/api/plugin",
+                url=PLUGIN_API,
                 params=params,
             )
             response.raise_for_status()
@@ -168,7 +159,7 @@ async def list_user_plugins() -> UserPluginListResponse:
     """
     try:
         async with get_client(require_auth=True) as client:
-            response = await client.get(url="/api/plugin/user")
+            response = await client.get(url=f"{PLUGIN_API}/user")
             response.raise_for_status()
             return UserPluginListResponse(**response.json())
     except Exception as e:
@@ -187,7 +178,7 @@ async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
     """
     try:
         async with get_client() as client:
-            response = await client.get(url=f"/api/plugin/{module_name}/repo")
+            response = await client.get(url=f"{PLUGIN_API}/{module_name}/repo")
             response.raise_for_status()
             data = response.json()
             return PluginRepoResponse(**data)

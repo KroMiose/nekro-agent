@@ -32,6 +32,7 @@
     "wechatpad": "WeChatPad",
     "telegram": "Telegram",
     "email": "Email",
+    "feishu": "飞书",
     "wxwork": "WeWork Bot"
   },
   "status": {

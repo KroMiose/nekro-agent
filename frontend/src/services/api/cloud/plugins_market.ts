@@ -18,6 +18,8 @@ export interface CloudPlugin {
   can_update?: boolean // 标记是否可更新，后端判断
   icon?: string // 插件图标URL或Base64
   isOwner?: boolean // 标记是否为当前用户上传的插件
+  minNaVersion?: string | null // 最低 NA 版本要求
+  maxNaVersion?: string | null // 最高 NA 版本要求
 }
 
 export interface UserPlugin {
@@ -101,6 +103,8 @@ export interface PluginCreateRequest {
   licenseType?: string
   isSfw?: boolean
   icon?: string // 添加图标字段
+  minNaVersion?: string // 最低 NA 版本要求
+  maxNaVersion?: string // 最高 NA 版本要求
 }
 
 export interface PluginUpdateRequest {
@@ -114,6 +118,8 @@ export interface PluginUpdateRequest {
   licenseType?: string
   isSfw?: boolean
   icon?: string
+  minNaVersion?: string // 最低 NA 版本要求
+  maxNaVersion?: string // 最高 NA 版本要求
 }
 
 export interface ActionResponse {

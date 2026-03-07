@@ -1194,6 +1194,21 @@ wheels = [
 ]
 
 [[package]]
+name = "lark-oapi"
+version = "1.5.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "httpx" },
+    { name = "pycryptodome" },
+    { name = "requests" },
+    { name = "requests-toolbelt" },
+    { name = "websockets" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/ff/2ece5d735ebfa2af600a53176f2636ae47af2bf934e08effab64f0d1e047/lark_oapi-1.5.3-py3-none-any.whl", hash = "sha256:fda6b32bb38d21b6bdaae94979c600b94c7c521e985adade63a54e4b3e20cc36", size = 6993016, upload-time = "2026-01-27T08:21:49.307Z" },
+]
+
+[[package]]
 name = "linkify-it-py"
 version = "2.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -1471,6 +1486,7 @@ dependencies = [
     { name = "gitpython" },
     { name = "httpx", extra = ["socks"] },
     { name = "json5" },
+    { name = "lark-oapi" },
     { name = "lunar-python" },
     { name = "matplotlib" },
     { name = "mcp" },
@@ -1531,6 +1547,7 @@ requires-dist = [
     { name = "gitpython", specifier = ">=3.1.44,<4.0.0" },
     { name = "httpx", extras = ["socks"], specifier = ">=0.27.0,<0.28.0" },
     { name = "json5", specifier = ">=0.10.0,<1.0.0" },
+    { name = "lark-oapi", specifier = ">=1.4.0,<2.0.0" },
     { name = "lunar-python", specifier = ">=1.3.12,<2.0.0" },
     { name = "matplotlib", specifier = ">=3.10.3,<4.0.0" },
     { name = "mcp", specifier = ">=1.7.0,<2.0.0" },
@@ -2490,6 +2507,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c9/74/b3ff8e6c8446842c3f5c837e9c3dfcfe2018ea6ecef224c710c85ef728f4/requests-2.32.5.tar.gz", hash = "sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf", size = 134517, upload-time = "2025-08-18T20:46:02.573Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/1e/db/4254e3eabe8020b458f1a747140d32277ec7a271daf1d235b70dc0b4e6e3/requests-2.32.5-py3-none-any.whl", hash = "sha256:2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6", size = 64738, upload-time = "2025-08-18T20:46:00.542Z" },
+]
+
+[[package]]
+name = "requests-toolbelt"
+version = "1.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "requests" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f3/61/d7545dafb7ac2230c70d38d31cbfe4cc64f7144dc41f6e4e4b78ecd9f5bb/requests-toolbelt-1.0.0.tar.gz", hash = "sha256:7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6", size = 206888, upload-time = "2023-05-01T04:11:33.229Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/51/d4db610ef29373b879047326cbf6fa98b6c1969d6f6dc423279de2b1be2c/requests_toolbelt-1.0.0-py2.py3-none-any.whl", hash = "sha256:cccfdd665f0a24fcf4726e690f65639d272bb0637b9b92dfd91a5568ccf6bd06", size = 54481, upload-time = "2023-05-01T04:11:28.427Z" },
 ]
 
 [[package]]
