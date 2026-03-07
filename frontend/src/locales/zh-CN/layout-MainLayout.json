@@ -20,6 +20,19 @@
     "enabled": "开发者模式已开启！",
     "disabled": "开发者模式已关闭"
   },
+  "agentActivity": {
+    "title": "AI 响应中",
+    "tooltipChatKey": "频道 ID",
+    "tooltipType": "类型",
+    "tooltipTypeGroup": "群聊",
+    "tooltipTypePrivate": "私聊",
+    "tooltipTypeUnknown": "未知",
+    "tooltipPreset": "人设",
+    "tooltipElapsed": "已处理",
+    "tooltipElapsedSec": "{{s}}s",
+    "tooltipClickHint": "点击跳转到频道",
+    "tooltipNoPreset": "默认人设"
+  },
   "community": {
     "avatarTooltip": "社区账户",
     "visitCommunity": "前往社区",

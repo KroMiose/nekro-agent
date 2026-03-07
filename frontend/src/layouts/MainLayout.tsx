@@ -47,7 +47,9 @@ import {
 import { useDevModeStore } from '../stores/devMode'
 import { useSecretCode } from '../hooks/useSecretCode'
 import LocaleToggleButton from '../components/common/LocaleToggleButton'
+import { useSystemEvents } from '../hooks/useSystemEvents'
 import CommunityAvatar from '../components/common/CommunityAvatar'
+import AgentActivityCard from '../components/common/AgentActivityCard'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
 
@@ -69,6 +71,7 @@ export default function MainLayout() {
   const { devMode, toggleDevMode } = useDevModeStore()
   const { t } = useTranslation()
   const { currentLocale } = useLocaleStore()
+  const { agentActives } = useSystemEvents()
 
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240
@@ -634,6 +637,9 @@ export default function MainLayout() {
           <CommunityAvatar />
         </Toolbar>
       </AppBar>
+
+      {/* AI 响应活动播报卡片（FPS 风格，全局可见） */}
+      <AgentActivityCard agentActives={agentActives} />
       <Box
         component="nav"
         sx={{

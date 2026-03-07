@@ -61,8 +61,25 @@ class WorkspaceCcActiveEvent(BaseModel):
     max_duration_ms: int = Field(default=300_000, description="任务最大持续时间（ms），超时后前端自动降为 inactive")
 
 
+class AgentActiveEvent(BaseModel):
+    """NA Agent 响应生成活跃状态事件（频道 AI 处理开始/结束时触发）。
+
+    前端使用此事件在全局悬浮卡片中展示正在处理的频道及其绑定的人设头像。
+    注意：头像 base64 数据量较大，不内联于事件，由前端通过 preset_id 独立获取。
+    """
+
+    type: Literal["agent_active"] = "agent_active"
+    chat_key: str
+    active: bool
+    channel_name: Optional[str] = None
+    chat_type: Optional[str] = None
+    preset_id: Optional[int] = None
+    preset_name: Optional[str] = None
+    max_duration_ms: int = Field(default=300_000, description="任务最大持续时间（ms），超时后前端自动降为 inactive")
+
+
 SystemEvent = Annotated[
-    Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent],
+    Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent],
     Field(discriminator="type"),
 ]
 
@@ -73,7 +90,7 @@ SystemEvent = Annotated[
 _state_store: Dict[str, Dict[str, dict]] = {}
 
 
-def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent]) -> None:
+def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent]) -> None:
     """根据事件类型更新内存状态快照。
 
     新增事件类型时在此处注册其状态提取逻辑即可。
@@ -97,6 +114,23 @@ def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent]) ->
             "active": event.active,
             "max_duration_ms": event.max_duration_ms,
         }
+
+    elif isinstance(event, AgentActiveEvent):
+        domain = "agent_active"
+        key = event.chat_key
+        if event.active:
+            _state_store.setdefault(domain, {})[key] = {
+                "chat_key": event.chat_key,
+                "active": True,
+                "channel_name": event.channel_name,
+                "chat_type": event.chat_type,
+                "preset_id": event.preset_id,
+                "preset_name": event.preset_name,
+                "max_duration_ms": event.max_duration_ms,
+            }
+        else:
+            # active=False 时从快照中移除该频道，避免晚到者看到已结束的任务
+            _state_store.get(domain, {}).pop(key, None)
 
 
 def get_state_snapshot() -> Dict[str, Dict[str, dict]]:
@@ -126,7 +160,7 @@ def _build_snapshot_payload() -> str:
     return json.dumps({"type": "snapshot", "data": get_state_snapshot()}, ensure_ascii=False)
 
 
-async def publish_system_event(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent]) -> None:
+async def publish_system_event(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent]) -> None:
     """向所有全局 SSE 订阅者广播事件，并同步更新状态快照。"""
     _update_state(event)
 

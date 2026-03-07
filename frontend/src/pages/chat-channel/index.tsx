@@ -26,6 +26,7 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { chatChannelApi, type ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
@@ -47,6 +48,21 @@ export default function ChatChannelPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
   const queryClient = useQueryClient()
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // 支持从外部跳转时通过 ?chat_key=xxx 自动选中频道（如 AgentActivityCard 点击跳转）
+  // HashRouter 下 query string 由 React Router 管理，必须用 useSearchParams 读取
+  useEffect(() => {
+    const initKey = searchParams.get('chat_key')
+    if (initKey) {
+      setSelectedChatKey(initKey)
+      if (isMobile) setDrawerOpen(true)
+      // 清除 URL 参数，避免刷新后重复触发
+      setSearchParams({}, { replace: true })
+    }
+  // 仅在页面挂载时执行一次
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({

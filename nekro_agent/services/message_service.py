@@ -153,10 +153,30 @@ class MessageService:
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import run_agent
+        from nekro_agent.services.system_broadcast import AgentActiveEvent, publish_system_event
 
         adapter = await adapter_utils.get_adapter_for_chat(chat_key)
 
         logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
+
+        # 获取频道信息用于广播
+        db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+        preset = await db_channel.get_preset()
+        preset_id: Optional[int] = preset.id if hasattr(preset, "id") else None  # type: ignore[union-attr]
+        preset_name: Optional[str] = preset.name if hasattr(preset, "name") else None  # type: ignore[union-attr]
+
+        # 广播 Agent 开始处理
+        try:
+            await publish_system_event(AgentActiveEvent(
+                chat_key=chat_key,
+                active=True,
+                channel_name=db_channel.channel_name,
+                chat_type=db_channel.channel_type,
+                preset_id=preset_id,
+                preset_name=preset_name,
+            ))
+        except Exception as _e:
+            logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
 
         # 设置处理emoji
         if message and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
@@ -183,6 +203,19 @@ class MessageService:
             # 取消处理emoji（如果设置过）
             if adapter.config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
                 await adapter.set_message_reaction(message.message_id, False)
+
+            # 广播 Agent 处理结束
+            try:
+                await publish_system_event(AgentActiveEvent(
+                    chat_key=chat_key,
+                    active=False,
+                    channel_name=db_channel.channel_name,
+                    chat_type=db_channel.channel_type,
+                    preset_id=preset_id,
+                    preset_name=preset_name,
+                ))
+            except Exception as _e:
+                logger.warning(f"[message_service] 广播 AgentActive 结束事件失败: {_e}")
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
