@@ -10,8 +10,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  Card,
-  CardContent,
   IconButton,
   Collapse,
   Tooltip,
@@ -59,6 +57,10 @@ import {
   FilterAltOff as FilterAltOffIcon,
   Download as DownloadIcon,
   Summarize as SummarizeIcon,
+  Close as CloseIcon,
+  Analytics as AnalyticsIcon,
+  SmartToy as SmartToyIcon,
+  Percent as PercentIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { sandboxApi, SandboxCodeExtData, SandboxLog, ExecStopType } from '../../services/api/sandbox'
@@ -66,13 +68,65 @@ import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { useColorMode } from '../../stores/theme'
 import { getStopTypeTranslatedText, getStopTypeColorValue } from '../../theme/utils'
-import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES, CARD_VARIANTS } from '../../theme/variants'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { useDevModeStore } from '../../stores/devMode'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../../stores/locale'
 import { copyText } from '../../utils/clipboard'
+
+// ─── Stat Card Component ────────────────────────────────────
+
+interface StatCardProps {
+  label: string
+  value: number | string
+  icon: React.ReactNode
+  color: string
+  valueColor?: string
+}
+
+function StatCard({ label, value, icon, color, valueColor }: StatCardProps) {
+  return (
+    <Paper
+      variant="outlined"
+      sx={{
+        px: 2,
+        py: 1.5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        borderRadius: 2,
+        minWidth: 140,
+        flex: '1 1 0',
+      }}
+    >
+      <Box
+        sx={{
+          width: 36,
+          height: 36,
+          borderRadius: 1.5,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          bgcolor: color,
+          color: '#fff',
+          flexShrink: 0,
+        }}
+      >
+        {icon}
+      </Box>
+      <Box>
+        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2, color: valueColor }}>
+          {value}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+      </Box>
+    </Paper>
+  )
+}
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -491,155 +545,72 @@ export default function SandboxPage() {
     }
   }
 
-  // 统计卡片渲染
-  const renderStatsCards = () =>
-    isMobile ? (
-      <Grid container spacing={2} className="flex-shrink-0 mb-2">
-        <Grid item xs={6}>
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
-              <Typography
-                color="textSecondary"
-                variant={isSmall ? 'caption' : 'body2'}
-                className="mb-1"
-              >
-                {t('stats.total')}
-              </Typography>
-              <Typography variant={isSmall ? 'h5' : 'h4'}>{stats?.total || 0}</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={6}>
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
-              <Typography
-                color="textSecondary"
-                variant={isSmall ? 'caption' : 'body2'}
-                className="mb-1"
-              >
-                {t('stats.success')}
-              </Typography>
-              <Typography variant={isSmall ? 'h5' : 'h4'} color="success.main">
-                {stats?.success || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={4}>
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
-              <Typography
-                color="textSecondary"
-                variant={isSmall ? 'caption' : 'body2'}
-                className="mb-1"
-              >
-                {t('stats.agentCount')}
-              </Typography>
-              <Typography variant={isSmall ? 'h6' : 'h5'} color="info.main">
-                {stats?.agent_count || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={4}>
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
-              <Typography
-                color="textSecondary"
-                variant={isSmall ? 'caption' : 'body2'}
-                className="mb-1"
-              >
-                {t('stats.failed')}
-              </Typography>
-              <Typography variant={isSmall ? 'h6' : 'h5'} color="error.main">
-                {stats?.failed || 0}
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={4}>
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ p: isSmall ? 1.5 : 2 }}>
-              <Typography
-                color="textSecondary"
-                variant={isSmall ? 'caption' : 'body2'}
-                className="mb-1"
-              >
-                {t('stats.successRate')}
-              </Typography>
-              <Typography variant={isSmall ? 'h6' : 'h5'}>{stats?.success_rate || 0}%</Typography>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-    ) : (
-      <Stack direction="row" spacing={2} className="flex-shrink-0" sx={{ width: '100%' }}>
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-          <CardContent>
-            <Typography color="textSecondary" className="mb-1">
-              {t('stats.total')}
-            </Typography>
-            <Typography variant="h4">{stats?.total || 0}</Typography>
-          </CardContent>
-        </Card>
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-          <CardContent>
-            <Typography color="textSecondary" className="mb-1">
-              {t('stats.success')}
-            </Typography>
-            <Typography variant="h4" color="success.main">
-              {stats?.success || 0}
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-          <CardContent>
-            <Typography color="textSecondary" className="mb-1">
-              {t('stats.agentCount')}
-            </Typography>
-            <Typography variant="h4" color="info.main">
-              {stats?.agent_count || 0}
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-          <CardContent>
-            <Typography color="textSecondary" className="mb-1">
-              {t('stats.failed')}
-            </Typography>
-            <Typography variant="h4" color="error.main">
-              {stats?.failed || 0}
-            </Typography>
-          </CardContent>
-        </Card>
-        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-          <CardContent>
-            <Typography color="textSecondary" className="mb-1">
-              {t('stats.successRate')}
-            </Typography>
-            <Typography variant="h4">{stats?.success_rate || 0}%</Typography>
-          </CardContent>
-        </Card>
-      </Stack>
-    )
+  // 统计卡片数据
+  const statCards = [
+    {
+      label: t('stats.total'),
+      value: stats?.total || 0,
+      icon: <AnalyticsIcon sx={{ fontSize: 20 }} />,
+      color: '#5c6bc0',
+    },
+    {
+      label: t('stats.success'),
+      value: stats?.success || 0,
+      icon: <CheckCircleIcon sx={{ fontSize: 20 }} />,
+      color: '#66bb6a',
+      valueColor: 'success.main',
+    },
+    {
+      label: t('stats.agentCount'),
+      value: stats?.agent_count || 0,
+      icon: <SmartToyIcon sx={{ fontSize: 20 }} />,
+      color: '#29b6f6',
+      valueColor: 'info.main',
+    },
+    {
+      label: t('stats.failed'),
+      value: stats?.failed || 0,
+      icon: <ErrorIcon sx={{ fontSize: 20 }} />,
+      color: '#ef5350',
+      valueColor: 'error.main',
+    },
+    {
+      label: t('stats.successRate'),
+      value: `${stats?.success_rate || 0}%`,
+      icon: <PercentIcon sx={{ fontSize: 20 }} />,
+      color: '#7e57c2',
+    },
+  ]
 
   return (
-    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 2 }}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
       {/* 统计卡片 */}
-      {renderStatsCards()}
-
-      {/* 过滤栏 */}
-      <Paper
+      <Box
         sx={{
-          ...CARD_VARIANTS.default.styles,
-          p: isSmall ? 1.5 : 2,
-          mb: 2,
+          display: 'flex',
+          gap: 2,
+          mb: 3,
+          flexWrap: 'wrap',
           flexShrink: 0,
         }}
       >
+        {statCards.map(card => (
+          <StatCard
+            key={card.label}
+            label={card.label}
+            value={card.value}
+            icon={card.icon}
+            color={card.color}
+            valueColor={card.valueColor}
+          />
+        ))}
+      </Box>
+
+      {/* 过滤栏 */}
+      <Box sx={{ mb: 2, flexShrink: 0 }}>
         <Stack
           direction={isMobile ? 'column' : 'row'}
-          spacing={1.5}
+          spacing={1.25}
           alignItems={isMobile ? 'stretch' : 'center'}
           flexWrap="wrap"
         >
@@ -649,13 +620,20 @@ export default function SandboxPage() {
             placeholder={t('filter.searchPlaceholder')}
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            sx={{ flex: isMobile ? 'unset' : '1 1 260px', minWidth: 200 }}
+            sx={{ width: { xs: '100%', sm: 320, md: 420 }, maxWidth: '100%', flexShrink: 0 }}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
                   <SearchIcon fontSize="small" />
                 </InputAdornment>
               ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput('')}>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
             }}
           />
 
@@ -727,7 +705,7 @@ export default function SandboxPage() {
             </Tooltip>
           )}
         </Stack>
-      </Paper>
+      </Box>
 
       {/* 日志表格 */}
       <Paper sx={{ ...UNIFIED_TABLE_STYLES.tableContentContainer, position: 'relative' }}>

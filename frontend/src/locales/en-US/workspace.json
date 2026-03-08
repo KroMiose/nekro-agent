@@ -178,7 +178,8 @@
       "refresh": "Refresh",
       "uploadTooltip": "Upload Skill (.zip format)",
       "uploadBtn": "Upload",
-      "addBtn": "Add Skill"
+      "addBtn": "Add Skill",
+      "clearFilters": "Clear Filters"
     },
     "empty": {
       "title": "Skills library is empty",

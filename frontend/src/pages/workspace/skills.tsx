@@ -30,6 +30,7 @@ import {
   ListItemIcon,
   ListItemText,
   alpha,
+  useMediaQuery,
 } from '@mui/material'
 import {
   Extension as ExtensionIcon,
@@ -56,6 +57,7 @@ import {
   PreviewOutlined as PreviewIcon,
   SyncOutlined as SyncIcon,
   Inventory as RepoIcon,
+  FilterAltOff as FilterAltOffIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -67,7 +69,7 @@ import {
   SkillDirEntry,
 } from '../../services/api/workspace'
 import { useNotification } from '../../hooks/useNotification'
-import { CARD_VARIANTS } from '../../theme/variants'
+import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
 
 // ─── Types ───────────────────────────────────────────────────
@@ -270,6 +272,8 @@ export default function SkillsLibraryPage() {
   const notification = useNotification()
   const { t } = useTranslation('workspace')
   const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
+  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // View state
@@ -397,6 +401,7 @@ export default function SkillsLibraryPage() {
   }), [unifiedSkills, autoInjectList])
 
   const isLoading = loadingAll || loadingBuiltin
+  const hasActiveFilters = searchQuery.trim() !== '' || sourceFilter !== 'all'
 
   // ── Auto-inject toggle ──
 
@@ -631,12 +636,17 @@ export default function SkillsLibraryPage() {
     refetchAutoInject()
   }
 
+  const handleClearFilters = () => {
+    setSearchQuery('')
+    setSourceFilter('all')
+  }
+
   // ── Render ────────────────────────────────────────────────
 
   return (
-    <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
       {/* Stat cards */}
-      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', flexShrink: 0 }}>
         <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color="#5c6bc0" />
         <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color="#26a69a" />
         <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color="#7e57c2" />
@@ -644,110 +654,127 @@ export default function SkillsLibraryPage() {
       </Box>
 
       {/* Toolbar */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2.5, flexWrap: 'wrap' }}>
-        {/* Search */}
-        <TextField
-          size="small"
-          placeholder={t('skills.search.placeholder')}
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          sx={{ width: 240 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-            endAdornment: searchQuery ? (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setSearchQuery('')}>
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </InputAdornment>
-            ) : undefined,
-          }}
-        />
-
-        {/* Source filter */}
-        <ToggleButtonGroup
-          value={sourceFilter}
-          exclusive
-          onChange={(_, v: SourceFilter | null) => { if (v !== null) setSourceFilter(v) }}
-          size="small"
+      <Box sx={{ mb: 2, flexShrink: 0 }}>
+        <Stack
+          direction={isMobile ? 'column' : 'row'}
+          spacing={1.25}
+          alignItems={isMobile ? 'stretch' : 'center'}
+          flexWrap="wrap"
         >
-          <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.all')}</ToggleButton>
-          <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.builtin')}</ToggleButton>
-          <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.user')}</ToggleButton>
-          <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.repo')}</ToggleButton>
-        </ToggleButtonGroup>
+          <TextField
+            size="small"
+            placeholder={t('skills.search.placeholder')}
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: searchQuery ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchQuery('')}>
+                    <CloseIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
+            }}
+          />
 
-        {/* View mode */}
-        <ToggleButtonGroup
-          value={viewMode}
-          exclusive
-          onChange={(_, v: ViewMode | null) => { if (v !== null) setViewMode(v) }}
-          size="small"
-        >
-          <ToggleButton value="card">
-            <Tooltip title={t('skills.toolbar.cardView')}>
-              <GridViewIcon fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-          <ToggleButton value="list">
-            <Tooltip title={t('skills.toolbar.listView')}>
-              <ListViewIcon fontSize="small" />
-            </Tooltip>
-          </ToggleButton>
-        </ToggleButtonGroup>
-
-        <Box sx={{ flexGrow: 1 }} />
-
-        {/* Actions */}
-        <Tooltip title={t('skills.toolbar.refresh')}>
-          <IconButton onClick={handleRefresh} disabled={isLoading} size="small">
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        <input type="file" accept=".zip" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
-        <Tooltip title={t('skills.toolbar.uploadTooltip')}>
-          <Button
-            variant="outlined"
-            startIcon={uploadMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadMutation.isPending}
+          <ToggleButtonGroup
+            value={sourceFilter}
+            exclusive
+            onChange={(_, v: SourceFilter | null) => {
+              if (v !== null) setSourceFilter(v)
+            }}
             size="small"
           >
-            {t('skills.toolbar.uploadBtn')}
-          </Button>
-        </Tooltip>
+            <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.all')}</ToggleButton>
+            <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.builtin')}</ToggleButton>
+            <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.user')}</ToggleButton>
+            <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.repo')}</ToggleButton>
+          </ToggleButtonGroup>
 
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small">
-          {t('skills.toolbar.addBtn')}
-        </Button>
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v: ViewMode | null) => {
+              if (v !== null) setViewMode(v)
+            }}
+            size="small"
+          >
+            <ToggleButton value="card">
+              <Tooltip title={t('skills.toolbar.cardView')}>
+                <GridViewIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="list">
+              <Tooltip title={t('skills.toolbar.listView')}>
+                <ListViewIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
 
-        <Tooltip title={t('skills.pageDesc')} arrow>
-          <IconButton size="small" sx={{ color: 'text.disabled' }}>
-            <HelpIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+          {hasActiveFilters && (
+            <Tooltip title={t('skills.toolbar.clearFilters')}>
+              <IconButton size="small" onClick={handleClearFilters} color="default">
+                <FilterAltOffIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          <Box sx={{ flexGrow: 1 }} />
+
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+            <Tooltip title={t('skills.toolbar.refresh')}>
+              <IconButton onClick={handleRefresh} disabled={isLoading} size="small">
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+
+            <input type="file" accept=".zip" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
+            <Tooltip title={t('skills.toolbar.uploadTooltip')}>
+              <Button
+                variant="outlined"
+                startIcon={uploadMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadMutation.isPending}
+                size="small"
+              >
+                {t('skills.toolbar.uploadBtn')}
+              </Button>
+            </Tooltip>
+
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small">
+              {t('skills.toolbar.addBtn')}
+            </Button>
+
+            <Tooltip title={t('skills.pageDesc')} arrow>
+              <IconButton size="small" sx={{ color: 'text.disabled' }}>
+                <HelpIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Stack>
       </Box>
 
       {/* Error */}
       {errorAll && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2, flexShrink: 0 }}>
           {t('skills.error.loadFailed', { message: (errorAll as Error).message })}
         </Alert>
       )}
 
       {/* Loading */}
       {isLoading ? (
-        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 8 }}>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <CircularProgress />
         </Box>
       ) : filteredSkills.length === 0 ? (
         /* Empty state */
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', pt: 8, gap: 2 }}>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2 }}>
           <ExtensionIcon sx={{ fontSize: 64, opacity: 0.2 }} />
           <Typography variant="h6" color="text.secondary">
             {searchQuery || sourceFilter !== 'all' ? t('skills.empty.noMatch') : t('skills.empty.title')}
@@ -760,20 +787,21 @@ export default function SkillsLibraryPage() {
         </Box>
       ) : viewMode === 'card' ? (
         /* ── Card View ── */
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
-          {filteredSkills.map(skill => (
-            <Card
-              key={skill.name}
-              sx={{
-                ...CARD_VARIANTS.default.styles,
-                display: 'flex',
-                flexDirection: 'column',
-                cursor: 'pointer',
-                '&:hover': { borderColor: 'primary.main', boxShadow: 2 },
-                transition: 'border-color 0.2s, box-shadow 0.2s',
-              }}
-              onClick={() => openDrawer(skill)}
-            >
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto', pr: 0.5 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 2 }}>
+            {filteredSkills.map(skill => (
+              <Card
+                key={skill.name}
+                sx={{
+                  ...CARD_VARIANTS.default.styles,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  '&:hover': { borderColor: 'primary.main', boxShadow: 2 },
+                  transition: 'border-color 0.2s, box-shadow 0.2s',
+                }}
+                onClick={() => openDrawer(skill)}
+              >
               <Box sx={{ p: 2, flex: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {/* Top row: source chip + git icon */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
@@ -876,28 +904,29 @@ export default function SkillsLibraryPage() {
                   </IconButton>
                 </Tooltip>
               </Box>
-            </Card>
-          ))}
+              </Card>
+            ))}
+          </Box>
         </Box>
       ) : (
         /* ── List View ── */
-        <Paper variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-          {filteredSkills.map((skill, index) => (
-            <Box key={skill.name}>
-              {index > 0 && <Divider />}
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  px: 2,
-                  py: 1.25,
-                  gap: 1.5,
-                  cursor: 'pointer',
-                  '&:hover': { bgcolor: 'action.hover' },
-                  transition: 'background-color 0.15s',
-                }}
-                onClick={() => openDrawer(skill)}
-              >
+        <Paper sx={{ ...UNIFIED_TABLE_STYLES.tableContentContainer, position: 'relative', minHeight: 0 }}>
+          <Box sx={UNIFIED_TABLE_STYLES.tableViewport}>
+            {filteredSkills.map((skill, index) => (
+              <Box key={skill.name}>
+                {index > 0 && <Divider />}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    px: 2,
+                    py: 1.25,
+                    gap: 1.5,
+                    cursor: 'pointer',
+                    ...UNIFIED_TABLE_STYLES.row,
+                  }}
+                  onClick={() => openDrawer(skill)}
+                >
                 {/* Source chip */}
                 <Chip
                   label={
@@ -977,9 +1006,10 @@ export default function SkillsLibraryPage() {
                     </Tooltip>
                   )}
                 </Box>
+                </Box>
               </Box>
-            </Box>
-          ))}
+            ))}
+          </Box>
         </Paper>
       )}
 

@@ -178,7 +178,8 @@
       "refresh": "刷新",
       "uploadTooltip": "上传 Skill（.zip 格式）",
       "uploadBtn": "上传",
-      "addBtn": "添加 Skill"
+      "addBtn": "添加 Skill",
+      "clearFilters": "清除筛选"
     },
     "empty": {
       "title": "技能库为空",
