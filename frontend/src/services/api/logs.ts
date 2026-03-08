@@ -10,6 +10,9 @@ export interface LogEntry {
   line: number
   subsystem?: string
   plugin_key?: string
+  exception_type?: string
+  exception_message?: string
+  traceback?: string
 }
 
 export interface LogsResponse {

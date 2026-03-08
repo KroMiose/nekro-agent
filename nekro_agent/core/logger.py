@@ -1,5 +1,6 @@
 import json
 import sys
+import traceback as traceback_module
 from asyncio import Queue
 from collections import deque
 from datetime import datetime
@@ -26,6 +27,23 @@ def format_log_entry(record: Dict) -> Dict:
     log_sources.add(record["name"])
 
     extra = record.get("extra") or {}
+    record_exception = record.get("exception")
+    traceback_text: Optional[str] = None
+    exception_type: Optional[str] = None
+    exception_message: Optional[str] = None
+
+    if record_exception:
+        exception_type = getattr(record_exception.type, "__name__", None)
+        exception_value = record_exception.value
+        exception_message = str(exception_value) if exception_value is not None else None
+        traceback_text = "".join(
+            traceback_module.format_exception(
+                record_exception.type,
+                exception_value,
+                record_exception.traceback,
+            )
+        ).strip() or None
+
     return {
         "timestamp": datetime.fromtimestamp(record["time"].timestamp()).strftime("%Y-%m-%d %H:%M:%S"),
         "level": record["level"].name,
@@ -35,6 +53,9 @@ def format_log_entry(record: Dict) -> Dict:
         "plugin_key": extra.get("plugin_key"),
         "function": record["function"],
         "line": record["line"],
+        "exception_type": exception_type,
+        "exception_message": exception_message,
+        "traceback": traceback_text,
     }
 
 

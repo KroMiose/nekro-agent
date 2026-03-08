@@ -31,6 +31,9 @@ class LogEntry(BaseModel):
     line: int
     subsystem: Optional[str] = None
     plugin_key: Optional[str] = None
+    exception_type: Optional[str] = None
+    exception_message: Optional[str] = None
+    traceback: Optional[str] = None
 
 
 class LogsResponse(BaseModel):
@@ -121,6 +124,8 @@ async def download_logs(
         log_text += (
             f"[{log['timestamp']}] [{log['level']}] {log['source']} | {log['function']}:{log['line']} | {log['message']}\n"
         )
+        if log.get("traceback"):
+            log_text += f"{log['traceback']}\n"
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     source_part = f"_{source}" if source else ""

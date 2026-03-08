@@ -13,7 +13,7 @@
  * 挂载位置：MainLayout 根节点（position: fixed，右下角）
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { forwardRef, useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Box, Avatar, Tooltip, Typography, useTheme } from '@mui/material'
 import { SmartToy as SmartToyIcon, Terminal as TerminalIcon } from '@mui/icons-material'
@@ -58,7 +58,10 @@ interface AgentItemProps {
   onDismiss: (key: string) => void
 }
 
-function AgentItem({ info, isLeaving, onNavigate, onDismiss }: AgentItemProps) {
+const AgentItem = forwardRef<HTMLDivElement, AgentItemProps>(function AgentItem(
+  { info, isLeaving, onNavigate, onDismiss },
+  ref
+) {
   const theme = useTheme()
   const { t } = useTranslation('layout-MainLayout')
   const elapsed = useElapsedSeconds(info.start_time)
@@ -114,7 +117,7 @@ function AgentItem({ info, isLeaving, onNavigate, onDismiss }: AgentItemProps) {
   )
 
   return (
-    <BroadcastMotionWrapper isLeaving={isLeaving}>
+    <BroadcastMotionWrapper ref={ref} isLeaving={isLeaving}>
       <BroadcastCard
         isLeaving={isLeaving}
         accentColor={accentColor}
@@ -157,7 +160,7 @@ function AgentItem({ info, isLeaving, onNavigate, onDismiss }: AgentItemProps) {
       </BroadcastCard>
     </BroadcastMotionWrapper>
   )
-}
+})
 
 // ── 工作区 CC 播报卡片 ────────────────────────────────────────────────────────
 
@@ -171,7 +174,10 @@ interface WorkspaceCcItemProps {
   onDismiss: (key: string) => void
 }
 
-function WorkspaceCcItem({ workspaceId, ccInfo, snapshot, startTime, isLeaving, onNavigate, onDismiss }: WorkspaceCcItemProps) {
+const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(function WorkspaceCcItem(
+  { workspaceId, ccInfo, snapshot, startTime, isLeaving, onNavigate, onDismiss },
+  ref
+) {
   const theme = useTheme()
   const { t } = useTranslation('layout-MainLayout')
   const elapsed = useElapsedSeconds(startTime)
@@ -213,7 +219,7 @@ function WorkspaceCcItem({ workspaceId, ccInfo, snapshot, startTime, isLeaving, 
   )
 
   return (
-    <BroadcastMotionWrapper isLeaving={isLeaving}>
+    <BroadcastMotionWrapper ref={ref} isLeaving={isLeaving}>
       <BroadcastCard
         isLeaving={isLeaving}
         accentColor={accentColor}
@@ -255,7 +261,7 @@ function WorkspaceCcItem({ workspaceId, ccInfo, snapshot, startTime, isLeaving, 
       </BroadcastCard>
     </BroadcastMotionWrapper>
   )
-}
+})
 
 // ── 共用子组件 ────────────────────────────────────────────────────────────────
 
@@ -277,9 +283,13 @@ function PingRing({ color }: { color: string }) {
   )
 }
 
-function BroadcastMotionWrapper({ isLeaving, children }: { isLeaving: boolean; children: React.ReactNode }) {
+const BroadcastMotionWrapper = forwardRef<
+  HTMLDivElement,
+  { isLeaving: boolean; children: React.ReactNode }
+>(function BroadcastMotionWrapper({ isLeaving, children }, ref) {
   return (
     <motion.div
+      ref={ref}
       layout
       initial={{ opacity: 0, x: 48, scale: 0.92 }}
       animate={isLeaving
@@ -297,7 +307,7 @@ function BroadcastMotionWrapper({ isLeaving, children }: { isLeaving: boolean; c
       {children}
     </motion.div>
   )
-}
+})
 
 
 interface BroadcastCardProps {

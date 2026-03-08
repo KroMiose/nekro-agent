@@ -49,7 +49,10 @@
     "module": "Module:",
     "line": "Position:",
     "lineNumber": "Line {{line}}",
-    "messageContent": "Message Content:"
+    "messageContent": "Message Content:",
+    "exceptionType": "Exception Type:",
+    "exceptionMessage": "Exception Message:",
+    "traceback": "Traceback:"
   },
   "status": {
     "disconnected": "Log stream disconnected, attempting to reconnect..."

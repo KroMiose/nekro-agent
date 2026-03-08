@@ -311,8 +311,19 @@ export default function LogsPage() {
         cleanup = logsApi.streamLogs(
           data => {
             if (!data) return
+            const trimmedData = data.trim()
+            // 忽略 SSE 心跳和其他非 JSON 帧，避免误报解析失败
+            if (!trimmedData || !trimmedData.startsWith('{')) return
             try {
-              const log = JSON.parse(data) as LogEntry
+              const log = JSON.parse(trimmedData) as LogEntry
+              if (
+                typeof log.timestamp !== 'string' ||
+                typeof log.level !== 'string' ||
+                typeof log.message !== 'string' ||
+                typeof log.source !== 'string'
+              ) {
+                return
+              }
               const sourceMatch = !filters.source || log.source === filters.source
               if (sourceMatch) {
                 logQueue.current.push(log)
@@ -369,7 +380,14 @@ export default function LogsPage() {
   }, [])
 
   const copyLogContent = async (log: LogEntry) => {
-    const logText = `${log.timestamp} [${log.level}] [${log.source}] ${log.message}`
+    const logText = [
+      `${log.timestamp} [${log.level}] [${log.source}] ${log.message}`,
+      log.exception_type ? `${t('dialog.exceptionType')} ${log.exception_type}` : '',
+      log.exception_message ? `${t('dialog.exceptionMessage')} ${log.exception_message}` : '',
+      log.traceback ? `${t('dialog.traceback')}\n${log.traceback}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
     const success = await copyText(logText)
     if (success) {
       notification.success(t('dialog.copyLog'))
@@ -813,6 +831,75 @@ export default function LogsPage() {
                 {selectedLog.message}
               </Paper>
             </Box>
+
+            {selectedLog.exception_type && (
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', width: 80 }}>
+                  {t('dialog.exceptionType')}
+                </Typography>
+                <Typography variant="body2" sx={{ flex: 1, fontFamily: 'monospace' }}>
+                  {selectedLog.exception_type}
+                </Typography>
+              </Box>
+            )}
+
+            {selectedLog.exception_message && (
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  {t('dialog.exceptionMessage')}
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    backgroundColor: getAlphaColor(
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.background.paper
+                        : theme.palette.background.default,
+                      0.05
+                    ),
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    borderRadius: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  {selectedLog.exception_message}
+                </Paper>
+              </Box>
+            )}
+
+            {selectedLog.traceback && (
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  {t('dialog.traceback')}
+                </Typography>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                    backgroundColor: getAlphaColor(
+                      theme.palette.mode === 'dark'
+                        ? theme.palette.background.paper
+                        : theme.palette.background.default,
+                      0.05
+                    ),
+                    maxHeight: '50vh',
+                    overflow: 'auto',
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    borderRadius: 1,
+                    borderColor: 'divider',
+                  }}
+                >
+                  {selectedLog.traceback}
+                </Paper>
+              </Box>
+            )}
           </Stack>
         )}
       </NekroDialog>

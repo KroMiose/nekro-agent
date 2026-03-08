@@ -49,7 +49,10 @@
     "module": "模块:",
     "line": "位置:",
     "lineNumber": "行 {{line}}",
-    "messageContent": "消息内容:"
+    "messageContent": "消息内容:",
+    "exceptionType": "异常类型:",
+    "exceptionMessage": "异常信息:",
+    "traceback": "异常堆栈:"
   },
   "status": {
     "disconnected": "日志流连接已断开，正在尝试重新连接..."
