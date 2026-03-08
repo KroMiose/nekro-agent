@@ -371,7 +371,7 @@ class SandboxContainerManager:
                     info = await container.show()
                     state = info.get("State", {})
                     if state.get("Running"):
-                        logger.info(f"workspace {workspace.id} 容器运行中: {workspace.container_name}")
+                        logger.debug(f"workspace {workspace.id} 容器运行中: {workspace.container_name}")
                     else:
                         workspace.status = "stopped"
                         await workspace.save(update_fields=["status", "update_time"])

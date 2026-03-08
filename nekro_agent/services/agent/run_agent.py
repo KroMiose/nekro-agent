@@ -49,6 +49,7 @@ async def run_agent(
     # 获取当前聊天频道的有效配置
     one_time_code = os.urandom(4).hex()
     db_chat_channel: DBChatChannel
+    logger.debug(f"[run_agent] {chat_key} | 开始准备上下文")
     if ctx:
         if ctx.db_chat_channel:
             db_chat_channel = ctx.db_chat_channel
@@ -64,9 +65,13 @@ async def run_agent(
     adapter_dialog_examples = await ctx.adapter.set_dialog_example()
     adapter_jinja_env = await ctx.adapter.get_jinja_env()
     self_info = await ctx.adapter.get_self_info()
+    logger.debug(f"[run_agent] {chat_key} | 适配器信息就绪，开始渲染插件 prompt")
 
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
+
+    plugins_prompt = await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx)
+    logger.debug(f"[run_agent] {chat_key} | 插件 prompt 渲染完成，开始构建 system prompt")
 
     messages = [
         OpenAIChatMessage.from_template(
@@ -77,7 +82,7 @@ async def run_agent(
                 bot_platform_id=self_info.user_id,
                 chat_preset=preset.content,
                 chat_key=chat_key,
-                plugins_prompt=await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx),
+                plugins_prompt=plugins_prompt,
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
                 chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),
@@ -140,8 +145,10 @@ async def run_agent(
         ),
     )
 
+    logger.debug(f"[run_agent] {chat_key} | 历史记录渲染完成，发送 LLM 请求 (model={used_model_group.CHAT_MODEL})")
     history_render_until_time = time.time()
     llm_response, used_model_group = await send_agent_request(messages=messages, config=config, chat_key=chat_key)
+    logger.debug(f"[run_agent] {chat_key} | LLM 请求完成，开始解析响应")
     parsed_code_data: ParsedCodeRunData = parse_chat_response(llm_response.response_content)
 
     for i in range(config.AI_SCRIPT_MAX_RETRY_TIMES):
@@ -295,6 +302,9 @@ async def send_agent_request(
     for i in range(config.AI_CHAT_LLM_API_MAX_RETRIES):
         use_model_group: ModelConfigGroup = model_group if i < config.AI_CHAT_LLM_API_MAX_RETRIES - 1 else fallback_model_group
 
+        logger.info(
+            f"[send_agent_request] {chat_key} | 发送 LLM 请求 model={use_model_group.CHAT_MODEL} retry={i}/{config.AI_CHAT_LLM_API_MAX_RETRIES}"
+        )
         try:
             llm_response: OpenAIResponse = await gen_openai_chat_response(
                 model=use_model_group.CHAT_MODEL,

@@ -250,7 +250,7 @@ async def _cc_result_watcher_loop() -> None:
     - 与 SSE 实时通道互补：SSE 连通时结果即时到达；SSE 断开/超时时由此兜底
     - 此循环在 NA 整个运行期内持续存在，不受单次 delegate_to_cc 调用影响
     """
-    logger.info("[cc_workspace] 后台结果监听器已启动（轮询间隔: %ds）", _WATCHER_INTERVAL)
+    logger.info(f"[cc_workspace] 后台结果监听器已启动（轮询间隔: {_WATCHER_INTERVAL}s）")
     while True:
         await asyncio.sleep(_WATCHER_INTERVAL)
         try:

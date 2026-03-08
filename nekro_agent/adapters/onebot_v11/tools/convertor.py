@@ -1,3 +1,4 @@
+import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -145,7 +146,13 @@ async def _parse_forward_message(
         return "[嵌套转发消息，层级过深]", []
 
     try:
-        result = await bot.call_api("get_forward_msg", message_id=forward_id)
+        result = await asyncio.wait_for(
+            bot.call_api("get_forward_msg", message_id=forward_id),
+            timeout=10.0,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"获取合并转发消息超时 (forward_id={forward_id})")
+        return FORWARD_FALLBACK_TEXT, []
     except Exception as e:
         logger.warning(f"获取合并转发消息失败: {e}")
         return FORWARD_FALLBACK_TEXT, []
@@ -523,7 +530,17 @@ async def convert_chat_message(
                 ),
             )
         elif ob_event.file.id:
-            file_data = await bot.get_file(file_id=ob_event.file.id)
+            try:
+                file_data = await asyncio.wait_for(
+                    bot.get_file(file_id=ob_event.file.id),
+                    timeout=10.0,
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"获取文件信息超时 (file_id={ob_event.file.id})")
+                return ret_list
+            except Exception as e:
+                logger.warning(f"获取文件信息失败: {e}")
+                return ret_list
             logger.debug(f"获取文件: {file_data}")
             # TODO: 获取文件: {'file': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'url': '/app/.config/QQ/NapCat/temp/XXXXXX.csv', 'file_size': '1079', 'file_name': 'XXXXXX.csv'}
             # napcat 挂载目录 ${NEKRO_DATA_DIR}/napcat_data/QQ:/app/.config/QQ

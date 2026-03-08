@@ -1,8 +1,36 @@
 import argparse
+import asyncio
+import faulthandler
 import os
+import signal
 import sys
+import traceback
 from pathlib import Path
 from typing import Optional
+
+# ── 卡死诊断：收到 SIGUSR1 时 dump 所有线程调用栈到 stderr ──────────────────
+# 使用方法：kill -USR1 <pid>  （pid 见启动日志或 pgrep -f run_bot）
+faulthandler.register(signal.SIGUSR1, file=sys.stderr, all_threads=True, chain=False)
+
+
+def _dump_asyncio_tasks(signum: int, frame: object) -> None:  # noqa: ARG001
+    """收到 SIGUSR2 时把所有 asyncio Task 的协程栈打印到 stderr。"""
+    try:
+        loop = asyncio.get_event_loop()
+        tasks = asyncio.all_tasks(loop)
+        print(f"\n{'='*60}", file=sys.stderr)
+        print(f"[SIGUSR2] asyncio tasks dump ({len(tasks)} tasks)", file=sys.stderr)
+        for task in tasks:
+            print(f"\n--- Task: {task.get_name()} ---", file=sys.stderr)
+            task.print_stack(file=sys.stderr)
+        print("="*60, file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"[SIGUSR2] dump failed: {e}", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+
+
+# SIGUSR2：dump 所有 asyncio 协程调用栈（比 faulthandler 更精准定位 await 挂起位置）
+signal.signal(signal.SIGUSR2, _dump_asyncio_tasks)
 
 # 解析命令行参数
 parser = argparse.ArgumentParser(description="NekroAgent Bot Runner")

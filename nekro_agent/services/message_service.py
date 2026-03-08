@@ -162,8 +162,14 @@ class MessageService:
         # 获取频道信息用于广播
         db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
         preset = await db_channel.get_preset()
+        config = await db_channel.get_effective_config()
         preset_id: Optional[int] = preset.id if hasattr(preset, "id") else None  # type: ignore[union-attr]
         preset_name: Optional[str] = preset.name if hasattr(preset, "name") else None  # type: ignore[union-attr]
+
+        # 计算兜底总超时：每轮 LLM 超时 × (最大迭代次数 + 1) + 额外缓冲
+        # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
+        _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
+        _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
 
         # 广播 Agent 开始处理
         try:
@@ -183,15 +189,21 @@ class MessageService:
             await adapter.set_message_reaction(message.message_id, True)
 
         try:
-            for _i in range(3):
-                try:
-                    await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
-                except Exception as e:
-                    logger.exception(f"执行失败: {e}")
-                else:
-                    break
-            else:
-                logger.error("Failed to Run Chat Agent.")
+            try:
+                async with asyncio.timeout(_max_total_timeout):
+                    for _i in range(3):
+                        try:
+                            await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+                        except Exception as e:
+                            logger.exception(f"执行失败: {e}")
+                        else:
+                            break
+                    else:
+                        logger.error("Failed to Run Chat Agent.")
+            except TimeoutError:
+                logger.error(
+                    f"[message_service] 频道 {chat_key} Agent 任务超过兜底超时 {_max_total_timeout}s，强制终止以释放频道锁"
+                )
         finally:
             # 清理任务状态
             if chat_key in self.running_tasks:

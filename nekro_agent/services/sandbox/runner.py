@@ -201,44 +201,49 @@ async def run_code_in_sandbox(
         del chat_key_sandbox_container_map[from_chat_key]
 
     # 启动容器
+    # 使用 try/finally 确保 Docker 客户端（及其底层 aiohttp UnixConnector）在使用后被正确关闭，
+    # 防止连接泄漏导致连接池耗尽后 docker.containers.run() 永久挂起
     docker = aiodocker.Docker()
-    container: DockerContainer = await docker.containers.run(
-        name=container_name,
-        config={
-            "Image": IMAGE_NAME,
-            "Cmd": ["bash", "-c", EXEC_SCRIPT],
-            "HostConfig": {
-                "Binds": [
-                    f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
-                    f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
-                    f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
-                    f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
-                ],
-                "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
-                "NanoCPUs": 1000000000,  # CPU 限制 (1 core)
-                "SecurityOpt": (
-                    []
-                    if OsEnv.RUN_IN_DOCKER
-                    else [
-                        # "no-new-privileges",  # 禁止提升权限
-                        "apparmor=unconfined",  # 禁止 AppArmor 配置
-                    ]
-                ),
-                "NetworkMode": "bridge",
-                "ExtraHosts": ["host.docker.internal:host-gateway"],
+    try:
+        container: DockerContainer = await docker.containers.run(
+            name=container_name,
+            config={
+                "Image": IMAGE_NAME,
+                "Cmd": ["bash", "-c", EXEC_SCRIPT],
+                "HostConfig": {
+                    "Binds": [
+                        f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
+                        f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
+                        f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
+                        f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
+                    ],
+                    "Memory": 512 * 1024 * 1024,  # 内存限制 (512MB)
+                    "NanoCPUs": 1000000000,  # CPU 限制 (1 core)
+                    "SecurityOpt": (
+                        []
+                        if OsEnv.RUN_IN_DOCKER
+                        else [
+                            # "no-new-privileges",  # 禁止提升权限
+                            "apparmor=unconfined",  # 禁止 AppArmor 配置
+                        ]
+                    ),
+                    "NetworkMode": "bridge",
+                    "ExtraHosts": ["host.docker.internal:host-gateway"],
+                },
+                "User": "nobody",  # 非特权用户
+                "AutoRemove": True,
             },
-            "User": "nobody",  # 非特权用户
-            "AutoRemove": True,
-        },
-    )
-    chat_key_sandbox_container_map[from_chat_key] = container
-    logger.debug(f"启动容器: {container_name} | ID: {container.id}")
+        )
+        chat_key_sandbox_container_map[from_chat_key] = container
+        logger.debug(f"启动容器: {container_name} | ID: {container.id}")
 
-    # 获取输出和退出类型
-    output_text, stop_type = await run_container_with_timeout(
-        container,
-        config.SANDBOX_RUNNING_TIMEOUT,
-    )
+        # 获取输出和退出类型
+        output_text, stop_type = await run_container_with_timeout(
+            container,
+            config.SANDBOX_RUNNING_TIMEOUT,
+        )
+    finally:
+        await docker.close()
 
     # 记录执行耗时
     exec_time = int((time.time() - start_time) * 1000)  # 转换为毫秒

@@ -286,6 +286,43 @@ find . -type d -name "__pycache__" -exec rm -rf {} +
 find . -type f -name "*.pyc" -delete
 """
 
+# 进程诊断
+[tool.poe.tasks.diagnose]
+help = "向运行中的 bot 进程发送 SIGUSR2，dump 所有 asyncio 协程调用栈（用于分析卡死原因）"
+shell = """
+# uvicorn reload 模式下，asyncio 跑在 multiprocessing spawn 的 worker 子进程里
+# 优先找 worker 子进程，找不到再找主进程
+PID=$(pgrep -f "multiprocessing.spawn" | grep -v "$$" | head -1)
+if [ -z "$PID" ]; then
+  PID=$(pgrep -f "bot --env" | grep -v "$$" | head -1)
+fi
+if [ -z "$PID" ]; then
+  echo "未找到运行中的 bot 进程，当前候选进程："
+  ps aux | grep -E "bot --env|multiprocessing.spawn|run_bot" | grep -v grep
+  exit 1
+fi
+echo "发送 SIGUSR2 到进程 PID=$PID ..."
+echo "协程栈将输出到 bot 进程的 stderr（即 bot 的 tmux 终端）"
+kill -USR2 $PID && echo "信号已发送，请查看 bot 终端输出"
+"""
+
+[tool.poe.tasks.diagnose-threads]
+help = "向运行中的 bot 进程发送 SIGUSR1，dump 所有线程调用栈（用于分析同步阻塞）"
+shell = """
+PID=$(pgrep -f "multiprocessing.spawn" | grep -v "$$" | head -1)
+if [ -z "$PID" ]; then
+  PID=$(pgrep -f "bot --env" | grep -v "$$" | head -1)
+fi
+if [ -z "$PID" ]; then
+  echo "未找到运行中的 bot 进程，当前候选进程："
+  ps aux | grep -E "bot --env|multiprocessing.spawn|run_bot" | grep -v grep
+  exit 1
+fi
+echo "发送 SIGUSR1 到进程 PID=$PID ..."
+echo "线程栈将输出到 bot 进程的 stderr（即 bot 的 tmux 终端）"
+kill -USR1 $PID && echo "信号已发送，请查看 bot 终端输出"
+"""
+
 # SDK发布
 [tool.poe.tasks.build-sdk]
 help = "构建SSE SDK包"
