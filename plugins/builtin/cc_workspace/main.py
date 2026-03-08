@@ -22,7 +22,7 @@ import secrets
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator, Dict, List, Set, Tuple
+from typing import AsyncGenerator, Dict, List, Optional, Set, Tuple
 
 import aiodocker
 
@@ -103,7 +103,7 @@ async def _broadcast_error_comm_log(workspace_id: int, source_chat_key: str, con
         logger.warning("[cc_workspace] 写入错误 CommLog 失败（不影响主流程）: %s", e)
 
 
-async def _broadcast_cc_status(workspace_id: int, running: bool) -> None:
+async def _broadcast_cc_status(workspace_id: int, running: bool, *, name: Optional[str] = None) -> None:
     """通过 SSE 广播 CC 任务运行状态变化（不写入 DB）。
 
     前端 SSE handler 收到 direction='CC_STATUS' 后直接驱动状态指示条，
@@ -130,6 +130,7 @@ async def _broadcast_cc_status(workspace_id: int, running: bool) -> None:
         await publish_system_event(WorkspaceCcActiveEvent(
             workspace_id=workspace_id,
             active=running,
+            name=name,
             max_duration_ms=300000,  # 最长 5 分钟；任务完成时会发送 active=false 主动关闭
         ))
     except Exception as _e:
@@ -200,7 +201,7 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
         logger.warning(f"[cc_workspace] 投递({source})：写入通讯日志失败 (id={result_id!r}): {e}")
 
     # CC 后台任务完成，广播状态结束
-    await _broadcast_cc_status(workspace.id, False)
+    await _broadcast_cc_status(workspace.id, False, name=workspace.name)
 
     # 推送系统消息并触发 NA Agent
     try:
@@ -385,7 +386,7 @@ async def _cc_delegate_task(
         pass
 
     # 广播 CC 任务开始状态（SSE 驱动前端状态指示条，避免轮询）
-    await _broadcast_cc_status(workspace_id, True)
+    await _broadcast_cc_status(workspace_id, True, name=workspace.name)
 
     try:
         yield TaskCtl.report_progress("CC Sandbox 任务已开始执行...", percent=0)

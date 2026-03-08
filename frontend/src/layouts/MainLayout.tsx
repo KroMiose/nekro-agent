@@ -71,7 +71,7 @@ export default function MainLayout() {
   const { devMode, toggleDevMode } = useDevModeStore()
   const { t } = useTranslation()
   const { currentLocale } = useLocaleStore()
-  const { agentActives } = useSystemEvents()
+  const { agentActives, workspaceStatuses, workspaceCcActive } = useSystemEvents()
 
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240
@@ -639,7 +639,7 @@ export default function MainLayout() {
       </AppBar>
 
       {/* AI 响应活动播报卡片（FPS 风格，全局可见） */}
-      <AgentActivityCard agentActives={agentActives} />
+      <AgentActivityCard agentActives={agentActives} workspaceStatuses={workspaceStatuses} workspaceCcActive={workspaceCcActive} />
       <Box
         component="nav"
         sx={{

@@ -33,6 +33,13 @@
     "tooltipClickHint": "点击跳转到频道",
     "tooltipNoPreset": "默认人设"
   },
+  "workspaceActivity": {
+    "tooltipId": "工作区 ID",
+    "tooltipContainer": "容器"
+  },
+  "activity": {
+    "dismissHint": "右键点击临时隐藏"
+  },
   "community": {
     "avatarTooltip": "社区账户",
     "visitCommunity": "前往社区",

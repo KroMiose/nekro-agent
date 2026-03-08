@@ -8,7 +8,7 @@ import {
   Tab,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   workspaceApi,
   WorkspaceDetail as _WorkspaceDetail,
@@ -45,6 +45,18 @@ export default function WorkspaceDetailPage() {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState(0)
   const [commPrefill, setCommPrefill] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+
+  // 支持从外部跳转时通过 ?tab=comm 自动切换到对应 tab（如 AgentActivityCard 点击跳转）
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'comm') {
+      setActiveTab(2)
+      setSearchParams({}, { replace: true })
+    }
+  // 仅在页面挂载时执行一次
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleNavigateToComm = (prefill: string) => {
     setCommPrefill(prefill)

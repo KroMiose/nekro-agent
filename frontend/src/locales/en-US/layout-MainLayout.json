@@ -33,6 +33,13 @@
     "tooltipClickHint": "Click to open channel",
     "tooltipNoPreset": "Default Persona"
   },
+  "workspaceActivity": {
+    "tooltipId": "Workspace ID",
+    "tooltipContainer": "Container"
+  },
+  "activity": {
+    "dismissHint": "Right-click to dismiss"
+  },
   "community": {
     "avatarTooltip": "Community Account",
     "visitCommunity": "Visit Community",

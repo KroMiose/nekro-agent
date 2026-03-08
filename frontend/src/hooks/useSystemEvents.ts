@@ -33,6 +33,7 @@ interface WorkspaceCcActiveEvent {
   type: 'workspace_cc_active'
   workspace_id: number
   active: boolean
+  name?: string | null
   max_duration_ms: number
 }
 
@@ -59,6 +60,7 @@ interface SnapshotData {
   workspace_cc_active?: Record<string, {
     workspace_id: number
     active: boolean
+    name?: string | null
     max_duration_ms: number
   }>
   agent_active?: Record<string, {
@@ -85,6 +87,7 @@ type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent | AgentActiveEv
 
 export interface WorkspaceStatusSnapshot {
   status: SystemEventWorkspaceStatus
+  name: string
   container_name?: string | null
   host_port?: number | null
 }
@@ -101,9 +104,15 @@ export interface AgentActiveInfo {
   max_duration_ms: number
 }
 
+/** CC 沙盒活跃状态快照 */
+export interface WorkspaceCcActiveInfo {
+  active: boolean
+  name?: string | null
+}
+
 export interface SystemEvents {
   workspaceStatuses: Map<number, WorkspaceStatusSnapshot>
-  workspaceCcActive: Map<number, boolean>
+  workspaceCcActive: Map<number, WorkspaceCcActiveInfo>
   /** 当前活跃的 Agent 任务，key 为 chat_key */
   agentActives: Map<string, AgentActiveInfo>
 }
@@ -113,7 +122,7 @@ const DEFAULT_TTL = 300_000
 
 export function useSystemEvents(): SystemEvents {
   const [workspaceStatuses, setWorkspaceStatuses] = useState<Map<number, WorkspaceStatusSnapshot>>(new Map())
-  const [workspaceCcActive, setWorkspaceCcActive] = useState<Map<number, boolean>>(new Map())
+  const [workspaceCcActive, setWorkspaceCcActive] = useState<Map<number, WorkspaceCcActiveInfo>>(new Map())
   const [agentActives, setAgentActives] = useState<Map<string, AgentActiveInfo>>(new Map())
 
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
@@ -127,6 +136,7 @@ export function useSystemEvents(): SystemEvents {
       for (const val of Object.values(entries)) {
         next.set(val.workspace_id, {
           status: val.status,
+          name: val.name,
           container_name: val.container_name,
           host_port: val.host_port,
         })
@@ -138,14 +148,14 @@ export function useSystemEvents(): SystemEvents {
       for (const timer of ccTimers.current.values()) clearTimeout(timer)
       ccTimers.current.clear()
 
-      const next = new Map<number, boolean>()
+      const next = new Map<number, WorkspaceCcActiveInfo>()
       for (const val of Object.values(entries)) {
-        next.set(val.workspace_id, val.active)
+        next.set(val.workspace_id, { active: val.active, name: val.name })
         if (val.active) {
           const ttl = val.max_duration_ms ?? DEFAULT_TTL
           const wsId = val.workspace_id
           const timer = setTimeout(() => {
-            setWorkspaceCcActive(prev => new Map(prev).set(wsId, false))
+            setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active: false, name: val.name }))
             ccTimers.current.delete(wsId)
           }, ttl)
           ccTimers.current.set(wsId, timer)
@@ -243,6 +253,7 @@ export function useSystemEvents(): SystemEvents {
               const next = new Map(prev)
               next.set(wsId, {
                 status: event.status,
+                name: event.name,
                 container_name: event.container_name ?? prev.get(wsId)?.container_name,
                 host_port: event.host_port ?? prev.get(wsId)?.host_port,
               })
@@ -251,16 +262,17 @@ export function useSystemEvents(): SystemEvents {
           } else if (event.type === 'workspace_cc_active') {
             const wsId = event.workspace_id
             const active = event.active
+            const name = event.name ?? null
             const ttl = event.max_duration_ms ?? DEFAULT_TTL
 
             const oldTimer = ccTimers.current.get(wsId)
             if (oldTimer !== undefined) clearTimeout(oldTimer)
 
-            setWorkspaceCcActive(prev => new Map(prev).set(wsId, active))
+            setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active, name }))
 
             if (active) {
               const timer = setTimeout(() => {
-                setWorkspaceCcActive(prev => new Map(prev).set(wsId, false))
+                setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active: false, name }))
                 ccTimers.current.delete(wsId)
               }, ttl)
               ccTimers.current.set(wsId, timer)

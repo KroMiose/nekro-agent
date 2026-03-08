@@ -58,6 +58,7 @@ class WorkspaceCcActiveEvent(BaseModel):
     type: Literal["workspace_cc_active"] = "workspace_cc_active"
     workspace_id: int
     active: bool
+    name: Optional[str] = None
     max_duration_ms: int = Field(default=300_000, description="任务最大持续时间（ms），超时后前端自动降为 inactive")
 
 
@@ -112,6 +113,7 @@ def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, Age
         _state_store.setdefault(domain, {})[key] = {
             "workspace_id": event.workspace_id,
             "active": event.active,
+            "name": event.name,
             "max_duration_ms": event.max_duration_ms,
         }
 

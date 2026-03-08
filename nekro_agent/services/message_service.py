@@ -184,9 +184,15 @@ class MessageService:
         except Exception as _e:
             logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
 
-        # 设置处理emoji
+        # 设置处理emoji（Bot 已断开时可能抛 RuntimeError，仅记录后继续执行）
         if message and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
-            await adapter.set_message_reaction(message.message_id, True)
+            try:
+                await adapter.set_message_reaction(message.message_id, True)
+            except RuntimeError as _e:
+                if "No OneBot V11 bot instance found" in str(_e):
+                    logger.warning(f"[message_service] 设置 emoji 时 Bot 未连接: {_e}")
+                else:
+                    raise
 
         try:
             try:
@@ -212,9 +218,16 @@ class MessageService:
             final_message = self.pending_messages.pop(chat_key, None)
             self.debounce_timers.pop(chat_key, None)
 
-            # 取消处理emoji（如果设置过）
+            # 取消处理emoji（如果设置过）；NapCat 断开时 get_bot() 可能抛 RuntimeError，不能影响后续清理
             if adapter.config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
-                await adapter.set_message_reaction(message.message_id, False)
+                try:
+                    await adapter.set_message_reaction(message.message_id, False)
+                except RuntimeError as _e:
+                    if "No OneBot V11 bot instance found" not in str(_e):
+                        raise
+                    logger.warning(f"[message_service] 取消 emoji 时 Bot 已断开: {_e}")
+                except Exception as _e:
+                    logger.warning(f"[message_service] 取消 emoji 失败: {_e}")
 
             # 广播 Agent 处理结束
             try:
