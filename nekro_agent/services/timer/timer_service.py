@@ -1,5 +1,6 @@
 import asyncio
 import json
+import secrets
 import time
 from datetime import datetime
 from pathlib import Path
@@ -15,7 +16,8 @@ logger = get_sub_logger("timer")
 class TimerTask:
     """定时任务类"""
 
-    def __init__(self, chat_key: str, trigger_time: int, event_desc: str):
+    def __init__(self, chat_key: str, trigger_time: int, event_desc: str, task_id: Optional[str] = None):
+        self.task_id = task_id or secrets.token_hex(6)
         self.chat_key = chat_key
         self.trigger_time = trigger_time
         self.event_desc = event_desc
@@ -27,7 +29,7 @@ class TimerTask:
 class TimerService:
     """定时器服务类"""
 
-    _PERSIST_VERSION = 1
+    _PERSIST_VERSION = 2
     _MISFIRE_GRACE_SECONDS = 300
 
     def __init__(self):
@@ -77,6 +79,7 @@ class TimerService:
             trigger_time = item.get("trigger_time")
             event_desc = item.get("event_desc")
             temporary = item.get("temporary", False)
+            task_id = item.get("task_id") if isinstance(item.get("task_id"), str) else None
 
             if not isinstance(chat_key, str) or not isinstance(trigger_time, int) or not isinstance(event_desc, str):
                 continue
@@ -98,7 +101,7 @@ class TimerService:
                     dropped += 1
                 continue
 
-            task = TimerTask(chat_key, trigger_time, event_desc)
+            task = TimerTask(chat_key, trigger_time, event_desc, task_id=task_id)
             task.temporary = bool(temporary)
             task.callback = None
             self.tasks.setdefault(chat_key, []).append(task)
@@ -121,6 +124,7 @@ class TimerService:
                         continue
                     tasks_dump.append(
                         {
+                            "task_id": t.task_id,
                             "chat_key": chat_key,
                             "trigger_time": int(t.trigger_time),
                             "event_desc": t.event_desc,
@@ -240,6 +244,59 @@ class TimerService:
         """
         return self.tasks.get(chat_key, [])
 
+    def get_all_timers(self, *, include_callbacks: bool = False) -> List[TimerTask]:
+        items: List[TimerTask] = []
+        for tasks in self.tasks.values():
+            for task in tasks:
+                if include_callbacks or task.callback is None:
+                    items.append(task)
+        return items
+
+    def get_timer_by_id(self, task_id: str) -> Optional[TimerTask]:
+        for tasks in self.tasks.values():
+            for task in tasks:
+                if task.task_id == task_id:
+                    return task
+        return None
+
+    async def delete_timer_by_id(self, task_id: str) -> bool:
+        removed = False
+        for chat_key, tasks in list(self.tasks.items()):
+            remaining = [task for task in tasks if task.task_id != task_id]
+            if len(remaining) != len(tasks):
+                removed = True
+                if remaining:
+                    self.tasks[chat_key] = remaining
+                else:
+                    del self.tasks[chat_key]
+                break
+
+        if removed:
+            await self._persist_tasks()
+        return removed
+
+    async def trigger_timer_now(self, task_id: str) -> bool:
+        task = self.get_timer_by_id(task_id)
+        if task is None:
+            return False
+
+        await self._execute_task(task)
+        await self.delete_timer_by_id(task_id)
+        return True
+
+    async def _execute_task(self, task: TimerTask) -> None:
+        if task.callback:
+            await task.callback()
+        elif task.event_desc:
+            system_message = f"⏰ 定时提醒：{task.event_desc}"
+            await message_service.push_system_message(
+                chat_key=task.chat_key,
+                agent_messages=system_message,
+                trigger_agent=True,
+            )
+        else:
+            await message_service.schedule_agent_task(task.chat_key)
+
     async def _timer_loop(self):
         """定时器循环"""
         while self.running:
@@ -253,17 +310,7 @@ class TimerService:
                         triggered_tasks.append(task)
                         # 执行回调函数或发送系统消息
                         try:
-                            if task.callback:
-                                await task.callback()
-                            elif task.event_desc:
-                                system_message = f"⏰ 定时提醒：{task.event_desc}"
-                                await message_service.push_system_message(
-                                    chat_key=task.chat_key,
-                                    agent_messages=system_message,
-                                    trigger_agent=True,
-                                )
-                            else:
-                                await message_service.schedule_agent_task(task.chat_key)
+                            await self._execute_task(task)
                         except Exception:
                             logger.exception(f"定时器触发失败: chat_key={task.chat_key}")
 
@@ -280,4 +327,3 @@ class TimerService:
 
 # 全局定时器服务实例
 timer_service = TimerService()
-

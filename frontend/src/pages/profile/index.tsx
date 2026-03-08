@@ -118,6 +118,7 @@ export default function ProfilePage() {
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
               disabled={isAdminUser}
+              autoComplete="new-password"
               sx={INPUT_VARIANTS.default.styles}
             />
             <TextField
@@ -127,6 +128,7 @@ export default function ProfilePage() {
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               disabled={isAdminUser}
+              autoComplete="new-password"
               sx={INPUT_VARIANTS.default.styles}
             />
             <Button

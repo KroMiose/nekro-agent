@@ -273,7 +273,6 @@ export default function SkillsLibraryPage() {
   const { t } = useTranslation('workspace')
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
-  const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // View state

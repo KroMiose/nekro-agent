@@ -27,7 +27,8 @@
     "workspace": "Workspace",
     "workspaceList": "Workspace Management",
     "skillsLibrary": "Skills Dictionary",
-    "ccModels": "CC Model Config"
+    "ccModels": "CC Model Config",
+    "timers": "Timers"
   },
   "footer": {
     "copyright": "All rights reserved",

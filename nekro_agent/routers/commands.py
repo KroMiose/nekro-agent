@@ -1,8 +1,9 @@
 """命令管理 API 路由"""
 
+import asyncio
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 
 from nekro_agent.models.db_user import DBUser
@@ -134,6 +135,7 @@ async def get_command_completions(
 @require_role(Role.Admin)
 async def stream_command_output(
     chat_key: str,
+    request: Request,
     _current_user: DBUser = Depends(get_current_active_user),
 ):
     """获取指定频道命令输出的实时流，使用 Server-Sent Events (SSE)
@@ -149,11 +151,24 @@ async def stream_command_output(
     from fastapi.responses import StreamingResponse
 
     from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
+    from nekro_agent.services.runtime_state import is_shutting_down
 
     async def event_generator():
         """生成 SSE 事件流"""
-        async for event in command_output_broadcaster.subscribe(chat_key):
-            yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
+        subscription = command_output_broadcaster.subscribe(chat_key)
+        try:
+            while not is_shutting_down():
+                if await request.is_disconnected():
+                    return
+                try:
+                    event = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+
+                yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
+        finally:
+            await subscription.aclose()
 
     return StreamingResponse(
         event_generator(),

@@ -854,6 +854,7 @@ const UserTable: React.FC<UserTableProps> = ({
             onChange={e => setNewPassword(e.target.value)}
             margin="normal"
             label={t('form.newPassword')}
+            autoComplete="new-password"
             required
           />
         </DialogContent>
@@ -901,6 +902,7 @@ const UserTable: React.FC<UserTableProps> = ({
             value={editFormData.access_key}
             onChange={e => setEditFormData({ ...editFormData, access_key: e.target.value })}
             margin="normal"
+            autoComplete="new-password"
             required
             helperText={t('form.accessKeyHelper')}
           />

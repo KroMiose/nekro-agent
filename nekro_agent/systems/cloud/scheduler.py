@@ -6,6 +6,7 @@ from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.api.telemetry import send_telemetry_report
 
 logger = get_sub_logger("cloud_api")
+_telemetry_task: asyncio.Task | None = None
 
 async def telemetry_task():
     """遥测任务 - 定时收集和上报遥测数据"""
@@ -50,4 +51,17 @@ async def telemetry_task():
 
 def start_telemetry_task():
     """启动遥测任务"""
-    asyncio.create_task(telemetry_task())
+    global _telemetry_task
+    if _telemetry_task is None or _telemetry_task.done():
+        _telemetry_task = asyncio.create_task(telemetry_task())
+
+
+async def stop_telemetry_task() -> None:
+    global _telemetry_task
+    if _telemetry_task is not None and not _telemetry_task.done():
+        _telemetry_task.cancel()
+        try:
+            await _telemetry_task
+        except asyncio.CancelledError:
+            pass
+    _telemetry_task = None

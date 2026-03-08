@@ -680,5 +680,150 @@
           }
       }
     }
+  },
+  "timers": {
+    "title": "Timers",
+    "description": "View one-shot reminders and recurring jobs in one place, with workspace-aware linkage.",
+    "loading": "Loading timers...",
+    "healthHint": "There are {{count}} tasks that need attention. Check failed or auto-paused recurring jobs first.",
+    "stats": {
+      "total": "All Tasks",
+      "activeRecurring": "Active Recurring",
+      "paused": "Paused",
+      "upcoming24h": "Due in 24h",
+      "errors": "Issues"
+    },
+    "actions": {
+      "refresh": "Refresh",
+      "onlyErrors": "Only Issues",
+      "resetFilters": "Reset Filters",
+      "view": "View Details",
+      "runNow": "Run Now",
+      "pause": "Pause",
+      "resume": "Resume",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "viewWorkspace": "View Workspace",
+      "viewChannel": "View Channel"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by title, ID, workspace or channel",
+      "workspace": "Workspace",
+      "allWorkspaces": "All Workspaces",
+      "type": "Type",
+      "allTypes": "All Types",
+      "status": "Status",
+      "allStatuses": "All Statuses",
+      "timeRange": "Time Range",
+      "sortBy": "Sort By",
+      "totalCount": "{{count}} tasks"
+    },
+    "types": {
+      "oneShot": "One-shot",
+      "recurring": "Recurring",
+      "oneShotTemporary": "Temporary wake-up"
+    },
+    "status": {
+      "active": "Active",
+      "paused": "Paused",
+      "error": "Error"
+    },
+    "timeRange": {
+      "all": "All",
+      "today": "Today",
+      "next24h": "Next 24h",
+      "next7d": "Next 7 Days",
+      "overdue": "Overdue"
+    },
+    "sort": {
+      "nextRun": "Earliest Next Run",
+      "recentUpdate": "Recently Updated",
+      "recentRun": "Recently Run",
+      "errorFirst": "Issues First"
+    },
+    "table": {
+      "task": "Task",
+      "type": "Type",
+      "status": "Status",
+      "workspace": "Workspace",
+      "channel": "Channel",
+      "rule": "Schedule",
+      "nextRun": "Next Run",
+      "lastRun": "Last Run",
+      "issue": "Issue",
+      "actions": "Actions"
+    },
+    "detail": {
+      "basic": "Basic Info",
+      "schedule": "Schedule",
+      "health": "Health",
+      "linkage": "Linkage",
+      "source": "Source",
+      "tags": "Tags",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "triggerAt": "Trigger At",
+      "workdayMode": "Workday Mode",
+      "scheduleTags": "Schedule Tags",
+      "timezone": "Timezone",
+      "healthTags": "Health Tags",
+      "failureCount": "Consecutive Failures",
+      "failureCountChip": "{{count}} failures",
+      "lastError": "Last Error",
+      "temporary": "Temporary",
+      "linkageTags": "Linkage Tags",
+      "healthStateNormal": "Healthy",
+      "healthStateAbnormal": "Issue Detected",
+      "healthAlertNormal": "This task is healthy and ready to run as scheduled.",
+      "healthAlertError": "This task has an issue and needs manual attention."
+    },
+    "source": {
+      "agent": "Created by Agent",
+      "system": "System Task",
+      "unknown": "Unknown"
+    },
+    "workdayMode": {
+      "none": "Raw Cron Rule",
+      "mon_fri": "Mon-Fri",
+      "weekend": "Weekend",
+      "cn_workday": "CN Workday",
+      "cn_restday": "CN Rest Day"
+    },
+    "misc": {
+      "untitled": "Untitled Task",
+      "noDescription": "No description",
+      "unknownChannel": "Unknown Channel",
+      "unlinkedWorkspace": "Unlinked",
+      "primaryChannel": "Primary",
+      "hasError": "Has Error",
+      "failureCount": "{{count}} failures",
+      "yes": "Yes",
+      "no": "No",
+      "oneShotRule": "One-shot reminder"
+    },
+    "empty": {
+      "title": "No timers yet",
+      "description": "There are no visible timer tasks right now. New tasks created by the agent or system will appear here.",
+      "filteredTitle": "No matching tasks",
+      "filteredDescription": "Try adjusting the filters or clear them to view more tasks."
+    },
+    "deleteDialog": {
+      "title": "Confirm Delete",
+      "content": "Delete task \"{{name}}\"? This action cannot be undone."
+    },
+    "pluginAlert": {
+      "message": "The built-in \"Timer Utilities\" plugin is currently disabled, so the AI cannot create new timer tasks directly. Enable the plugin first in Plugin Management.",
+      "action": "Go Enable"
+    },
+    "notifications": {
+      "runNowSuccess": "Task executed",
+      "runNowFailed": "Run failed: {{message}}",
+      "pauseSuccess": "Task paused",
+      "pauseFailed": "Pause failed: {{message}}",
+      "resumeSuccess": "Task resumed",
+      "resumeFailed": "Resume failed: {{message}}",
+      "deleteSuccess": "Task deleted",
+      "deleteFailed": "Delete failed: {{message}}"
+    }
   }
 }

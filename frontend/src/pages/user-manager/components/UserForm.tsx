@@ -151,6 +151,7 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             label={t('form.password')}
             name="password"
             type="password"
+            autoComplete="new-password"
             value={formData.password}
             onChange={handleChange}
             error={!!errors.password}
@@ -169,6 +170,7 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             margin="normal"
             label={t('form.confirmPassword')}
             type="password"
+            autoComplete="new-password"
             value={confirmPassword}
             onChange={e => setConfirmPassword(e.target.value)}
             error={!!errors.confirmPassword}
@@ -224,6 +226,7 @@ const UserForm: React.FC<UserFormProps> = ({ open, onClose, onSubmit }) => {
             label={t('form.accessKey')}
             name="access_key"
             type="password"
+            autoComplete="new-password"
             value={formData.access_key}
             onChange={handleChange}
             error={!!errors.access_key}

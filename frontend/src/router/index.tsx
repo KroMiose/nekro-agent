@@ -177,6 +177,10 @@ const router = createHashRouter([
             element: lazyLoad(() => import('../pages/workspace/cc-models')),
           },
           {
+            path: 'timers',
+            element: lazyLoad(() => import('../pages/workspace/timers')),
+          },
+          {
             path: ':id',
             element: lazyLoad(() => import('../pages/workspace/detail')),
           },

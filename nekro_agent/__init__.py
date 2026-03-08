@@ -16,9 +16,10 @@ from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.mail.mail_service import send_bot_status_email
 from nekro_agent.services.plugin.collector import init_plugins
+from nekro_agent.services.runtime_state import mark_shutting_down, mark_started
 from nekro_agent.services.timer.recurring_timer_service import recurring_timer_service
 from nekro_agent.services.timer.timer_service import timer_service
-from nekro_agent.systems.cloud.scheduler import start_telemetry_task
+from nekro_agent.systems.cloud.scheduler import start_telemetry_task, stop_telemetry_task
 
 logging.getLogger("passlib").setLevel(logging.ERROR)
 
@@ -55,6 +56,8 @@ if _driver is not None:
 if _driver is not None:
     @_driver.on_startup
     async def on_startup():
+        mark_started()
+
         # 启动时不再挂载主路由，它们已在启动前挂载完毕
         app = get_app()
 
@@ -133,6 +136,8 @@ if _driver is not None:
 
     @_driver.on_shutdown
     async def on_shutdown():
+        mark_shutting_down()
+        await stop_telemetry_task()
         await recurring_timer_service.stop()
         await timer_service.stop()
         await cleanup_adapters(get_app())

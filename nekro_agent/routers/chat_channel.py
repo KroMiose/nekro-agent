@@ -1,8 +1,9 @@
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import json5
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from pydantic import BaseModel
 from tortoise.expressions import Q
 
@@ -160,6 +161,7 @@ async def get_chat_channel_list(
 @router.get("/list/stream", summary="获取聊天频道列表实时流")
 @require_role(Role.Admin)
 async def stream_chat_channel_list(
+    request: Request,
     _current_user: DBUser = Depends(get_current_active_user),
 ):
     """获取聊天频道列表的实时更新流，使用 Server-Sent Events (SSE)
@@ -179,12 +181,24 @@ async def stream_chat_channel_list(
     from fastapi.responses import StreamingResponse
 
     from nekro_agent.services.channel_broadcaster import channel_broadcaster
+    from nekro_agent.services.runtime_state import is_shutting_down
 
     async def event_generator():
         """生成 SSE 事件流"""
-        async for event in channel_broadcaster.subscribe():
-            # 以 SSE 事件格式发送
-            yield f"data: {json.dumps(event.model_dump())}\n\n"
+        subscription = channel_broadcaster.subscribe()
+        try:
+            while not is_shutting_down():
+                if await request.is_disconnected():
+                    return
+                try:
+                    event = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+
+                yield f"data: {json.dumps(event.model_dump())}\n\n"
+        finally:
+            await subscription.aclose()
 
     return StreamingResponse(
         event_generator(),
@@ -530,6 +544,7 @@ async def send_message_to_channel(
 @require_role(Role.Admin)
 async def stream_chat_channel_messages(
     chat_key: str,
+    request: Request,
     _current_user: DBUser = Depends(get_current_active_user),
 ):
     """获取聊天频道消息的实时流，使用 Server-Sent Events (SSE)
@@ -548,6 +563,7 @@ async def stream_chat_channel_messages(
     from fastapi.responses import StreamingResponse
 
     from nekro_agent.services.message_broadcaster import message_broadcaster
+    from nekro_agent.services.runtime_state import is_shutting_down
 
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
@@ -555,47 +571,55 @@ async def stream_chat_channel_messages(
 
     async def event_generator():
         """生成 SSE 事件流"""
-        async for message in message_broadcaster.subscribe(chat_key):
-            # 直接使用广播的消息对象，转换为可序列化的字典格式
-            try:
-                # 将content_data转换为可序列化的格式
-                content_data = []
-                if message.content_data:
-                    if isinstance(message.content_data, str):
-                        try:
-                            content_data = json5.loads(message.content_data)
-                        except Exception:
-                            content_data = []
-                    elif isinstance(message.content_data, list):
-                        # 将ChatMessageSegment对象转换为字典
-                        for item in message.content_data:
-                            if hasattr(item, 'model_dump'):
-                                content_data.append(item.model_dump())
-                            elif isinstance(item, dict):
-                                content_data.append(item)
-                            else:
-                                content_data.append(str(item))
+        subscription = message_broadcaster.subscribe(chat_key)
+        try:
+            while not is_shutting_down():
+                if await request.is_disconnected():
+                    return
+                try:
+                    message = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
 
-                # 构建消息字典格式，用于SSE发送
-                message_dict = {
-                    "id": getattr(message, 'message_id', '') or str(hash(message.message_id + str(message.send_timestamp))),  # 使用 message_id 作为稳定唯一值
-                    "sender_id": str(message.sender_id),
-                    "sender_name": message.sender_name,
-                    "sender_nickname": message.sender_nickname or message.sender_name,
-                    "platform_userid": message.platform_userid or "",
-                    "content": message.content_text,
-                    "content_data": content_data,
-                    "chat_key": message.chat_key,
-                    "create_time": "",  # 前端可使用当前时间
-                    "message_id": message.message_id or "",
-                    "ref_msg_id": getattr(message, "ref_msg_id", "") or "",
-                }
+                # 直接使用广播的消息对象，转换为可序列化的字典格式
+                try:
+                    content_data = []
+                    if message.content_data:
+                        if isinstance(message.content_data, str):
+                            try:
+                                content_data = json5.loads(message.content_data)
+                            except Exception:
+                                content_data = []
+                        elif isinstance(message.content_data, list):
+                            for item in message.content_data:
+                                if hasattr(item, 'model_dump'):
+                                    content_data.append(item.model_dump())
+                                elif isinstance(item, dict):
+                                    content_data.append(item)
+                                else:
+                                    content_data.append(str(item))
 
-                # 以 SSE 事件格式发送
-                yield f"data: {json.dumps(message_dict, ensure_ascii=False)}\n\n"
-            except Exception as e:
-                logger.error(f"SSE消息序列化失败: {e}")
-                continue
+                    message_dict = {
+                        "id": getattr(message, 'message_id', '') or str(hash(message.message_id + str(message.send_timestamp))),
+                        "sender_id": str(message.sender_id),
+                        "sender_name": message.sender_name,
+                        "sender_nickname": message.sender_nickname or message.sender_name,
+                        "platform_userid": message.platform_userid or "",
+                        "content": message.content_text,
+                        "content_data": content_data,
+                        "chat_key": message.chat_key,
+                        "create_time": "",
+                        "message_id": message.message_id or "",
+                        "ref_msg_id": getattr(message, "ref_msg_id", "") or "",
+                    }
+
+                    yield f"data: {json.dumps(message_dict, ensure_ascii=False)}\n\n"
+                except Exception as e:
+                    logger.error(f"SSE消息序列化失败: {e}")
+                    continue
+        finally:
+            await subscription.aclose()
 
     return StreamingResponse(
         event_generator(),

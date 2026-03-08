@@ -509,16 +509,23 @@ export default function LoginPage() {
                 {t('title')}
               </Typography>
 
-              <Box component="form" sx={{ mt: 1 }}>
+              <Box component="form" sx={{ mt: 1 }} autoComplete="on">
                 <TextField
                   fullWidth
                   label={t('form.username')}
+                  name="username"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   onKeyPress={handleKeyPress}
                   margin="normal"
                   autoFocus
+                  autoComplete="username"
                   size={isMobile ? 'small' : 'medium'}
+                  inputProps={{
+                    autoCapitalize: 'none',
+                    autoCorrect: 'off',
+                    spellCheck: false,
+                  }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
@@ -538,11 +545,13 @@ export default function LoginPage() {
                 <TextField
                   fullWidth
                   label={t('form.password')}
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   onKeyPress={handleKeyPress}
                   margin="normal"
+                  autoComplete="current-password"
                   size={isMobile ? 'small' : 'medium'}
                   InputProps={{
                     startAdornment: (

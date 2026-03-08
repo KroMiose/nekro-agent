@@ -1,8 +1,9 @@
+import asyncio
 from asyncio import Queue
 from datetime import datetime
 from typing import AsyncGenerator, List, Optional
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -67,15 +68,25 @@ async def get_sources(_current_user: DBUser = Depends(get_current_active_user)) 
 
 @router.get("/stream", summary="实时日志流")
 @require_role(Role.Admin)
-async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
+async def stream_logs(
+    request: Request,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> EventSourceResponse:
     """获取实时日志流"""
+    from nekro_agent.services.runtime_state import is_shutting_down
 
     async def event_generator() -> AsyncGenerator[str, None]:
         queue: Queue = Queue()
         subscribers.append(queue)
         try:
-            while True:
-                message = await queue.get()
+            while not is_shutting_down():
+                if await request.is_disconnected():
+                    return
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    yield ": ping"
+                    continue
                 yield message
         finally:
             subscribers.remove(queue)

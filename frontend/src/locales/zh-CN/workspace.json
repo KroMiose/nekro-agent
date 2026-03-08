@@ -680,5 +680,150 @@
           }
       }
     }
+  },
+  "timers": {
+    "title": "定时任务",
+    "description": "统一查看一次性提醒与周期任务，并按工作区联动管理。",
+    "loading": "正在加载定时任务...",
+    "healthHint": "当前有 {{count}} 个需关注任务，建议优先检查失败或自动暂停的周期任务。",
+    "stats": {
+      "total": "全部任务",
+      "activeRecurring": "活跃周期任务",
+      "paused": "已暂停任务",
+      "upcoming24h": "24h 内触发",
+      "errors": "异常任务"
+    },
+    "actions": {
+      "refresh": "刷新",
+      "onlyErrors": "仅看异常",
+      "resetFilters": "重置筛选",
+      "view": "查看详情",
+      "runNow": "立即执行",
+      "pause": "暂停",
+      "resume": "恢复",
+      "delete": "删除",
+      "cancel": "取消",
+      "viewWorkspace": "查看工作区",
+      "viewChannel": "查看频道"
+    },
+    "filters": {
+      "searchPlaceholder": "搜索任务标题、ID、工作区或频道",
+      "workspace": "工作区",
+      "allWorkspaces": "全部工作区",
+      "type": "类型",
+      "allTypes": "全部类型",
+      "status": "状态",
+      "allStatuses": "全部状态",
+      "timeRange": "时间范围",
+      "sortBy": "排序",
+      "totalCount": "共 {{count}} 个任务"
+    },
+    "types": {
+      "oneShot": "一次性",
+      "recurring": "周期",
+      "oneShotTemporary": "临时自唤醒"
+    },
+    "status": {
+      "active": "活跃",
+      "paused": "暂停",
+      "error": "异常"
+    },
+    "timeRange": {
+      "all": "全部",
+      "today": "今日",
+      "next24h": "24h 内",
+      "next7d": "近 7 天",
+      "overdue": "已过期"
+    },
+    "sort": {
+      "nextRun": "下次触发最早",
+      "recentUpdate": "最近更新",
+      "recentRun": "最近执行",
+      "errorFirst": "异常优先"
+    },
+    "table": {
+      "task": "任务",
+      "type": "类型",
+      "status": "状态",
+      "workspace": "工作区",
+      "channel": "频道",
+      "rule": "调度规则",
+      "nextRun": "下次触发",
+      "lastRun": "上次执行",
+      "issue": "异常",
+      "actions": "操作"
+    },
+    "detail": {
+      "basic": "基本信息",
+      "schedule": "调度配置",
+      "health": "异常与执行状态",
+      "linkage": "联动关系",
+      "source": "来源",
+      "tags": "标记",
+      "createdAt": "创建时间",
+      "updatedAt": "更新时间",
+      "triggerAt": "触发时间",
+      "workdayMode": "触发日模式",
+      "scheduleTags": "调度标签",
+      "timezone": "时区",
+      "healthTags": "健康标签",
+      "failureCount": "连续失败次数",
+      "failureCountChip": "失败 {{count}} 次",
+      "lastError": "最近错误",
+      "temporary": "是否临时",
+      "linkageTags": "联动标签",
+      "healthStateNormal": "状态正常",
+      "healthStateAbnormal": "存在异常",
+      "healthAlertNormal": "当前任务状态正常，可继续按计划执行。",
+      "healthAlertError": "当前任务存在异常，需要人工检查。"
+    },
+    "source": {
+      "agent": "Agent 创建",
+      "system": "系统任务",
+      "unknown": "未知来源"
+    },
+    "workdayMode": {
+      "none": "按 Cron 原样触发",
+      "mon_fri": "周一至周五",
+      "weekend": "周末",
+      "cn_workday": "法定工作日",
+      "cn_restday": "法定休息日"
+    },
+    "misc": {
+      "untitled": "未命名任务",
+      "noDescription": "无描述",
+      "unknownChannel": "未知频道",
+      "unlinkedWorkspace": "未关联工作区",
+      "primaryChannel": "主频道",
+      "hasError": "存在错误",
+      "failureCount": "失败 {{count}} 次",
+      "yes": "是",
+      "no": "否",
+      "oneShotRule": "一次性提醒"
+    },
+    "empty": {
+      "title": "还没有定时任务",
+      "description": "当前系统中暂无可展示的定时任务，后续 AI 或系统创建后会显示在这里。",
+      "filteredTitle": "没有符合条件的任务",
+      "filteredDescription": "尝试调整筛选条件，或清空筛选后重新查看。"
+    },
+    "deleteDialog": {
+      "title": "确认删除任务",
+      "content": "确定要删除任务 “{{name}}” 吗？此操作不可撤销。"
+    },
+    "pluginAlert": {
+      "message": "内置插件“定时器工具集”当前未启用，AI 无法直接为你创建新的定时任务。请先前往插件管理启用该插件。",
+      "action": "前往启用"
+    },
+    "notifications": {
+      "runNowSuccess": "任务已立即执行",
+      "runNowFailed": "执行失败：{{message}}",
+      "pauseSuccess": "任务已暂停",
+      "pauseFailed": "暂停失败：{{message}}",
+      "resumeSuccess": "任务已恢复",
+      "resumeFailed": "恢复失败：{{message}}",
+      "deleteSuccess": "任务已删除",
+      "deleteFailed": "删除失败：{{message}}"
+    }
   }
 }

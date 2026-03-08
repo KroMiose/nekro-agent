@@ -27,7 +27,8 @@
     "workspace": "工作区",
     "workspaceList": "工作区管理",
     "skillsLibrary": "技能字典",
-    "ccModels": "CC 模型配置"
+    "ccModels": "CC 模型配置",
+    "timers": "定时任务"
   },
   "footer": {
     "copyright": "版权所有",

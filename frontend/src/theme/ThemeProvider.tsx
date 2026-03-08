@@ -479,6 +479,9 @@ export default function ThemeProvider({ children }: { children: ReactNode }) {
         },
       },
       MuiTextField: {
+        defaultProps: {
+          autoComplete: 'off',
+        },
         styleOverrides: {
           root: {
             '& .MuiOutlinedInput-root': {

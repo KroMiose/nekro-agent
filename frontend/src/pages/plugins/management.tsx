@@ -68,7 +68,7 @@ import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
 
 import { unifiedConfigApi, createConfigService } from '../../services/api/unified-config'
 import ConfigTable from '../../components/common/ConfigTable'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   pluginTypeColors,
   methodTypeColors,
@@ -1331,6 +1331,7 @@ export default function PluginsManagementPage() {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [searchParams, setSearchParams] = useSearchParams()
   const notification = useNotification()
   const { t, i18n } = useTranslation('plugins')
 
@@ -1392,14 +1393,22 @@ export default function PluginsManagementPage() {
   }
 
   const [searchTerm, setSearchTerm] = useState('')
+  const targetPluginId = searchParams.get('plugin_id')
   // 过滤插件列表
   const filteredPlugins = plugins
     .filter(
       plugin => {
-        const name = getPluginName(plugin, i18n.language).toLowerCase()
-        const description = getPluginDescription(plugin, i18n.language).toLowerCase()
+        const name = (getPluginName(plugin, i18n.language) || '').toLowerCase()
+        const description = (getPluginDescription(plugin, i18n.language) || '').toLowerCase()
+        const pluginId = (plugin.id || '').toLowerCase()
+        const moduleName = (plugin.moduleName || '').toLowerCase()
         const search = searchTerm.toLowerCase()
-        return name.includes(search) || description.includes(search)
+        return (
+          name.includes(search) ||
+          description.includes(search) ||
+          pluginId.includes(search) ||
+          moduleName.includes(search)
+        )
       }
     )
     .sort((a, b) => {
@@ -1434,6 +1443,22 @@ export default function PluginsManagementPage() {
       // 最后按名称字母顺序排序
       return getPluginName(a, i18n.language).localeCompare(getPluginName(b, i18n.language))
     })
+
+  useEffect(() => {
+    if (!targetPluginId || plugins.length === 0) return
+
+    const target = plugins.find(
+      plugin =>
+        plugin.id === targetPluginId ||
+        plugin.id.endsWith(`.${targetPluginId}`) ||
+        plugin.moduleName === targetPluginId,
+    )
+    if (!target) return
+
+    setSearchTerm(targetPluginId)
+    setSelectedPlugin(target)
+    setSearchParams({}, { replace: true })
+  }, [targetPluginId, plugins, setSearchParams])
 
   const pluginListContent = (
     <>

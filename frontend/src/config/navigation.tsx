@@ -16,6 +16,7 @@ import {
   CleaningServices as CleaningServicesIcon,
   Workspaces as WorkspacesIcon,
   ListAlt as ListAltIcon,
+  Schedule as ScheduleIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
@@ -147,6 +148,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         text: t('menu.ccModels'),
         translationKey: 'menu.ccModels',
         icon: <StorageIcon />,
+        parent: 'workspace',
+      },
+      {
+        path: '/workspace/timers',
+        text: t('menu.timers'),
+        translationKey: 'menu.timers',
+        icon: <ScheduleIcon />,
         parent: 'workspace',
       },
     ],
