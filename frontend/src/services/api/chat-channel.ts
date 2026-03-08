@@ -187,8 +187,10 @@ export const chatChannelApi = {
     return createEventStream({
       endpoint: `/chat-channel/${chatKey}/stream`,
       onMessage: (data: string) => {
+        const trimmedData = data.trim()
+        if (!trimmedData || !trimmedData.startsWith('{')) return
         try {
-          const message = JSON.parse(data) as ChatMessage
+          const message = JSON.parse(trimmedData) as ChatMessage
           onMessage(message)
         } catch (error) {
           console.error('Failed to parse message:', error)
@@ -208,8 +210,10 @@ export const chatChannelApi = {
     return createEventStream({
       endpoint: '/chat-channel/list/stream',
       onMessage: (data: string) => {
+        const trimmedData = data.trim()
+        if (!trimmedData || !trimmedData.startsWith('{')) return
         try {
-          const event = JSON.parse(data)
+          const event = JSON.parse(trimmedData)
           onMessage(event)
         } catch (error) {
           console.error('Failed to parse channel event:', error)
