@@ -52,6 +52,26 @@ class ModelConfigGroup(ConfigBase):
 class CoreConfig(ConfigBase):
     """核心配置"""
 
+    SYSTEM_LANG: Literal["zh-CN", "en-US"] = Field(
+        default="zh-CN",
+        title="系统语言",
+        description="系统默认语言，影响命令响应等文本的语言",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="系统语言",
+                en_US="System Language",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="系统默认语言，影响命令响应等文本的语言 (zh-CN / en-US)",
+                en_US="Default system language for command responses and other text (zh-CN / en-US)",
+            ),
+        ).model_dump(),
+    )
+
     """Nekro Cloud 云服务配置"""
     ENABLE_NEKRO_CLOUD: bool = Field(
         default=True,

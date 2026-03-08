@@ -287,6 +287,9 @@ class BaseAdapter(ABC, Generic[TConfig]):
         # 用户发送新命令时自动取消挂起的 wait
         wait_manager.cancel(chat_key, user_id)
 
+        from nekro_agent.core.config import config
+        from nekro_agent.schemas.i18n import SupportedLang
+
         context = CommandExecutionContext(
             user_id=user_id,
             chat_key=chat_key,
@@ -294,6 +297,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
             adapter_key=self.key,
             is_super_user=is_super_user,
             is_advanced_user=is_advanced_user,
+            lang=SupportedLang(config.SYSTEM_LANG),
         )
         request = CommandRequest(context=context, command_name=command_name, raw_args=raw_args)
 

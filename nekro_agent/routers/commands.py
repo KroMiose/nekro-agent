@@ -28,6 +28,9 @@ class CommandStateResponse(BaseModel):
     enabled: bool
     has_channel_override: bool
     params_schema: Optional[dict] = None
+    i18n_description: Optional[dict[str, str]] = None
+    i18n_usage: Optional[dict[str, str]] = None
+    i18n_category: Optional[dict[str, str]] = None
 
 
 # endregion
@@ -113,11 +116,14 @@ async def batch_set_command_state(
 async def get_command_completions(
     chat_key: Optional[str] = Query(None),
     prefix: Optional[str] = Query(None, description="输入前缀过滤"),
+    lang: Optional[str] = Query(None, description="语言代码 (zh-CN / en-US)"),
 ):
     """获取命令补全列表（供前端输入框使用）"""
+    from nekro_agent.schemas.i18n import SupportedLang
     from nekro_agent.services.command.completion import completion_provider
 
-    entries = await completion_provider.get_completion_entries(chat_key)
+    target_lang = SupportedLang(lang) if lang and lang in [e.value for e in SupportedLang] else SupportedLang.ZH_CN
+    entries = await completion_provider.get_completion_entries(chat_key, lang=target_lang)
 
     if prefix:
         entries = [e for e in entries if e.name.startswith(prefix)]
@@ -204,6 +210,8 @@ async def webui_execute_command(
     _current_user: DBUser = Depends(get_current_active_user),
 ):
     """从 WebUI 直接执行命令，结果仅通过 SSE 广播到 WebUI，不发送到聊天平台"""
+    from nekro_agent.core.config import config
+    from nekro_agent.schemas.i18n import SupportedLang
     from nekro_agent.services.command.registry import command_registry
     from nekro_agent.services.command.schemas import CommandExecutionContext, CommandRequest
     from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
@@ -215,6 +223,7 @@ async def webui_execute_command(
         adapter_key="webui",
         is_super_user=True,
         is_advanced_user=True,
+        lang=SupportedLang(config.SYSTEM_LANG),
     )
     request = CommandRequest(context=context, command_name=req.command_name, raw_args=req.raw_args)
 
