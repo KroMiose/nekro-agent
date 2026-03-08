@@ -202,6 +202,7 @@
     "headerEnableOverride": "启用覆盖",
     "headerConfigItem": "配置项",
     "headerAttribute": "属性",
+    "headerCategory": "分类",
     "headerType": "类型",
     "headerValue": "值",
     "searchPlaceholder": "搜索配置项 (名称/关键字/描述)",

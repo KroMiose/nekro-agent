@@ -96,8 +96,11 @@ export default function SettingsPage() {
 
   // 根据当前选中的分类过滤配置
   const displayConfigs = useMemo(() => {
+    if (searchText.trim()) {
+      return configs
+    }
     return configsByCategory[activeTab] || []
-  }, [activeTab, configsByCategory])
+  }, [activeTab, configs, configsByCategory, searchText])
 
   const handleSearchChange = (text: string) => {
     setSearchText(text)
@@ -149,6 +152,7 @@ export default function SettingsPage() {
           onRefresh={handleRefresh}
           showSearchBar={true}
           showToolbar={true}
+          showCategoryColumn={Boolean(searchText.trim())}
           emptyMessage={t('system.emptyMessage')}
         />
       </Box>

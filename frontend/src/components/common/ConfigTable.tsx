@@ -826,6 +826,7 @@ export interface ConfigTableProps {
   emptyMessage?: string
   infoBox?: ReactNode
   isOverridePage?: boolean
+  showCategoryColumn?: boolean
 }
 
 interface ConfirmDialogProps {
@@ -866,6 +867,7 @@ export default function ConfigTable({
   emptyMessage, // Will handle default in component body
   infoBox,
   isOverridePage = false,
+  showCategoryColumn = false,
 }: ConfigTableProps) {
   const navigate = useNavigate()
   const notification = useNotification()
@@ -874,6 +876,8 @@ export default function ConfigTable({
   const defaultEmptyMessage = t('messages.noData')
   const actualEmptyMessage = emptyMessage || defaultEmptyMessage
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const [internalSearchText, setInternalSearchText] = useState(searchText)
+  const effectiveSearchText = onSearchChange ? searchText : internalSearchText
 
   // i18n 辅助函数：获取本地化的配置项标题和描述
   const getConfigTitle = useCallback(
@@ -920,6 +924,12 @@ export default function ConfigTable({
   const [expandedRows, setExpandedRows] = useState<ExpandedRowsState>({})
   const [restartDialogOpen, setRestartDialogOpen] = useState(false)
   const [isRestarting, setIsRestarting] = useState(false)
+
+  useEffect(() => {
+    if (!onSearchChange) {
+      setInternalSearchText(searchText)
+    }
+  }, [onSearchChange, searchText])
 
   useEffect(() => {
     const loadData = async () => {
@@ -1124,8 +1134,8 @@ export default function ConfigTable({
       })
     }
 
-    if (searchText) {
-      const lowerSearchText = searchText.toLowerCase()
+    if (effectiveSearchText) {
+      const lowerSearchText = effectiveSearchText.toLowerCase()
       return processedConfigs.filter(config => {
         const title = getConfigTitle(config)
         const description = getConfigDescription(config)
@@ -1138,7 +1148,7 @@ export default function ConfigTable({
     }
 
     return processedConfigs
-  }, [configs, searchText, isOverridePage, enableStateMap, getConfigTitle, getConfigDescription])
+  }, [configs, effectiveSearchText, isOverridePage, enableStateMap, getConfigTitle, getConfigDescription])
 
   useEffect(() => {
     if (configs) {
@@ -1594,8 +1604,15 @@ export default function ConfigTable({
                 size="small"
                 sx={{ flexGrow: 1 }}
                 placeholder={t('configTable.searchPlaceholder')}
-                value={searchText}
-                onChange={e => onSearchChange?.(e.target.value)}
+                value={effectiveSearchText}
+                onChange={e => {
+                  const nextValue = e.target.value
+                  if (onSearchChange) {
+                    onSearchChange(nextValue)
+                  } else {
+                    setInternalSearchText(nextValue)
+                  }
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -1656,10 +1673,26 @@ export default function ConfigTable({
                 <TableCell sx={{ width: '5%', minWidth: 80 }}>
                   {t('configTable.headerAttribute')}
                 </TableCell>
+                {showCategoryColumn && (
+                  <TableCell sx={{ width: '10%', minWidth: 120 }}>
+                    {t('configTable.headerCategory')}
+                  </TableCell>
+                )}
                 <TableCell sx={{ width: '5%', minWidth: 80 }}>
                   {t('configTable.headerType')}
                 </TableCell>
-                <TableCell sx={{ width: isOverridePage ? '45%' : '50%', minWidth: 300 }}>
+                <TableCell
+                  sx={{
+                    width: showCategoryColumn
+                      ? isOverridePage
+                        ? '35%'
+                        : '40%'
+                      : isOverridePage
+                        ? '45%'
+                        : '50%',
+                    minWidth: 300,
+                  }}
+                >
                   {t('configTable.headerValue')}
                 </TableCell>
               </TableRow>
@@ -1759,15 +1792,6 @@ export default function ConfigTable({
                     </TableCell>
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
                       <Stack spacing={1} direction="row" alignItems="center" flexWrap="wrap">
-                        {getConfigCategory(config) && (
-                          <Chip
-                            label={getConfigCategory(config)}
-                            size="small"
-                            color="secondary"
-                            variant="outlined"
-                            sx={{ ...CHIP_VARIANTS.base(isSmall) }}
-                          />
-                        )}
                         {config.overridable && configKey === 'system' && (
                           <Chip
                             label={t('configTable.overridable')}
@@ -1779,6 +1803,21 @@ export default function ConfigTable({
                         )}
                       </Stack>
                     </TableCell>
+                    {showCategoryColumn && (
+                      <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
+                        {getConfigCategory(config) ? (
+                          <Chip
+                            label={getConfigCategory(config)}
+                            size="small"
+                            color="secondary"
+                            variant="outlined"
+                            sx={{ ...CHIP_VARIANTS.base(isSmall) }}
+                          />
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                    )}
                     <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
                       <Chip
                         label={

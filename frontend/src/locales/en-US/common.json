@@ -201,6 +201,7 @@
     "headerEnableOverride": "Enable Override",
     "headerConfigItem": "Config Item",
     "headerAttribute": "Attribute",
+    "headerCategory": "Category",
     "headerType": "Type",
     "headerValue": "Value",
     "searchPlaceholder": "Search config (name/keyword/description)",

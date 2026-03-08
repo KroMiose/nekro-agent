@@ -16,7 +16,7 @@
   },
   "tabs": {
     "home": "主页",
-    "config": "适配器配置",
+    "config": "配置",
     "overrides": "覆盖配置",
     "advanced": "高级",
     "logs": "容器日志",
