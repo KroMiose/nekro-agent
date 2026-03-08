@@ -70,8 +70,14 @@ export default function MainLayout() {
   const notification = useNotification()
   const { devMode, toggleDevMode } = useDevModeStore()
   const { t } = useTranslation()
-  const { currentLocale } = useLocaleStore()
+  const { currentLocale, syncFromBackend } = useLocaleStore()
   const { agentActives, workspaceStatuses, workspaceCcActive } = useSystemEvents()
+
+  // 初始化时从后端同步语言设置
+  useEffect(() => {
+    syncFromBackend()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240
