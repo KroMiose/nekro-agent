@@ -4,6 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from nekro_agent.schemas.i18n import SupportedLang
 from nekro_agent.services.command.base import CommandPermission
 
 
@@ -24,6 +25,7 @@ class CommandCompletionProvider:
     async def get_completion_entries(
         self,
         chat_key: Optional[str] = None,
+        lang: SupportedLang = SupportedLang.ZH_CN,
     ) -> list[CommandCompletionEntry]:
         """获取补全条目列表（已过滤禁用命令和 internal 命令）"""
         from nekro_agent.services.command.manager import command_manager
@@ -36,9 +38,9 @@ class CommandCompletionProvider:
             entries.append(
                 CommandCompletionEntry(
                     name=meta.name,
-                    description=meta.description[:100],
-                    usage=meta.usage,
-                    category=meta.category,
+                    description=meta.get_description(lang)[:100],
+                    usage=meta.get_usage(lang),
+                    category=meta.get_category(lang),
                     permission=meta.permission,
                     params_schema=meta.params_schema,
                 )

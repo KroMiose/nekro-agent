@@ -81,8 +81,10 @@ class CommandRegistry:
 
     async def execute(self, request: CommandRequest) -> AsyncIterator[CommandResponse]:
         """执行命令 - 自动检查启用状态"""
+        from nekro_agent.services.command.i18n_helper import t
         from nekro_agent.services.command.manager import command_manager
 
+        lang = request.context.lang
         cmd = self.resolve(request.command_name)
         if not cmd:
             # 检查是否存在冲突
@@ -91,19 +93,31 @@ class CommandRegistry:
                 hint = ", ".join(candidates)
                 yield CommandResponse(
                     status=CommandResponseStatus.NOT_FOUND,
-                    message=f"命令 '{request.command_name}' 存在冲突，请使用完整名: {hint}",
+                    message=t(
+                        lang,
+                        zh_CN=f"命令 '{request.command_name}' 存在冲突，请使用完整名: {hint}",
+                        en_US=f"Command '{request.command_name}' is ambiguous, use full name: {hint}",
+                    ),
                 )
                 return
             yield CommandResponse(
                 status=CommandResponseStatus.NOT_FOUND,
-                message=f"命令不存在: {request.command_name}",
+                message=t(
+                    lang,
+                    zh_CN=f"命令不存在: {request.command_name}",
+                    en_US=f"Command not found: {request.command_name}",
+                ),
             )
             return
 
         if not command_manager.is_command_enabled(cmd.metadata.name, request.context.chat_key):
             yield CommandResponse(
                 status=CommandResponseStatus.DISABLED,
-                message=f"命令已禁用: {request.command_name}",
+                message=t(
+                    lang,
+                    zh_CN=f"命令已禁用: {request.command_name}",
+                    en_US=f"Command is disabled: {request.command_name}",
+                ),
             )
             return
 

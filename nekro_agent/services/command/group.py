@@ -2,6 +2,8 @@
 
 from typing import Any, Callable, Optional
 
+from nekro_agent.schemas.i18n import I18nDict
+
 
 class CommandGroup:
     """命令组 - 将多个子命令组织在一个前缀下
@@ -55,6 +57,9 @@ class CommandGroup:
         category: str = "",
         tags: Optional[list[str]] = None,
         internal: bool = False,
+        i18n_description: Optional[I18nDict] = None,
+        i18n_usage: Optional[I18nDict] = None,
+        i18n_category: Optional[I18nDict] = None,
     ) -> Callable[[Callable], Callable]:
         """注册子命令
 
@@ -67,6 +72,9 @@ class CommandGroup:
             category: 分类（默认继承组级别）
             tags: 标签
             internal: 是否为内部命令
+            i18n_description: 国际化描述
+            i18n_usage: 国际化用法说明
+            i18n_category: 国际化分类
         """
 
         def decorator(func: Callable) -> Callable:
@@ -82,10 +90,13 @@ class CommandGroup:
             cmd = PluginCommand(
                 name=full_name,
                 description=description,
+                i18n_description=i18n_description,
                 aliases=full_aliases,
                 permission=perm,
                 usage=usage or f"{full_name}",
+                i18n_usage=i18n_usage,
                 category=category or self._default_category,
+                i18n_category=i18n_category,
                 source=self._source,
                 namespace=self._namespace,
                 tags=tags or self._default_tags,

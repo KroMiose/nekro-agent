@@ -11,6 +11,7 @@ from typing import Any, Callable, Optional, Union
 
 from pydantic import BaseModel
 
+from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text
 from nekro_agent.services.command.schemas import (
     CommandExecutionContext,
     CommandRequest,
@@ -31,13 +32,25 @@ class CommandMetadata(BaseModel):
     namespace: str = "built_in"  # 命名空间（内置命令为 "built_in"，插件命令自动填充为插件 key）
     aliases: list[str] = []
     description: str
+    i18n_description: Optional[I18nDict] = None  # 国际化描述
     usage: str = ""
+    i18n_usage: Optional[I18nDict] = None  # 国际化用法说明
     permission: CommandPermission = CommandPermission.PUBLIC
     category: str = "general"
+    i18n_category: Optional[I18nDict] = None  # 国际化分类
     source: str = "built_in"  # "built_in" | 插件 key
     tags: list[str] = []  # 标签 (便于 Agent 检索)
     params_schema: Optional[dict] = None  # 自动生成的 JSON Schema (用于 Agent Tool-Use)
     internal: bool = False  # 内部命令 (不在帮助列表和补全中显示, 如 wait 的 callback_cmd)
+
+    def get_description(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
+        return get_text(self.i18n_description, self.description, lang)
+
+    def get_category(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
+        return get_text(self.i18n_category, self.category, lang)
+
+    def get_usage(self, lang: SupportedLang = SupportedLang.ZH_CN) -> str:
+        return get_text(self.i18n_usage, self.usage, lang)
 
 
 class BaseCommand(ABC):
@@ -72,14 +85,24 @@ class BaseCommand(ABC):
         context: CommandExecutionContext,
     ) -> tuple[bool, Optional[str]]:
         """默认权限检查，子类可覆盖"""
+        from nekro_agent.services.command.i18n_helper import t
+
         perm = self.metadata.permission
         if perm == CommandPermission.PUBLIC:
             return True, None
         if perm == CommandPermission.SUPER_USER:
-            return (True, None) if context.is_super_user else (False, "此命令仅限超级用户使用")
+            return (
+                (True, None)
+                if context.is_super_user
+                else (False, t(context.lang, zh_CN="此命令仅限超级用户使用", en_US="This command is for super users only"))
+            )
         if perm == CommandPermission.ADVANCED:
             ok = context.is_advanced_user or context.is_super_user
-            return (True, None) if ok else (False, "此命令仅限高级用户使用")
+            return (
+                (True, None)
+                if ok
+                else (False, t(context.lang, zh_CN="此命令仅限高级用户使用", en_US="This command is for advanced users only"))
+            )
         if perm == CommandPermission.USER:
             return True, None  # 已登录用户均可
         return True, None
@@ -89,14 +112,19 @@ class BaseCommand(ABC):
         request: CommandRequest,
     ) -> AsyncIterator[CommandResponse]:
         """完整处理流程: 权限检查 -> 参数解析 -> 执行 -> 消费输出流"""
+        from nekro_agent.services.command.i18n_helper import t
+
         has_perm, err = await self.check_permission(request.context)
         if not has_perm:
-            yield CommandResponse(status=CommandResponseStatus.UNAUTHORIZED, message=err or "权限不足")
+            yield CommandResponse(
+                status=CommandResponseStatus.UNAUTHORIZED,
+                message=err or t(request.context.lang, zh_CN="权限不足", en_US="Permission denied"),
+            )
             return
 
         try:
             # 解析参数
-            parsed_kwargs = self._parse_args(request.raw_args)
+            parsed_kwargs = self._parse_args(request.raw_args, request.context.lang)
             result_or_gen = self.execute(request.context, **parsed_kwargs)
 
             # 子类 execute 可能是 async generator (用 yield) 或普通 coroutine (用 return)
@@ -112,15 +140,21 @@ class BaseCommand(ABC):
                         yield response
 
         except ValueError as e:
-            yield CommandResponse(status=CommandResponseStatus.INVALID_ARGS, message=f"参数错误: {e}")
+            yield CommandResponse(
+                status=CommandResponseStatus.INVALID_ARGS,
+                message=t(request.context.lang, zh_CN="参数错误: ", en_US="Invalid argument: ") + str(e),
+            )
         except Exception as e:
-            yield CommandResponse(status=CommandResponseStatus.ERROR, message=f"命令执行出错: {e}")
+            yield CommandResponse(
+                status=CommandResponseStatus.ERROR,
+                message=t(request.context.lang, zh_CN="命令执行出错: ", en_US="Command execution error: ") + str(e),
+            )
 
-    def _parse_args(self, raw_args: str) -> dict[str, Any]:
+    def _parse_args(self, raw_args: str, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
         """根据 execute 方法的类型注解解析参数"""
         from nekro_agent.services.command.parser import ArgumentParser
 
-        return ArgumentParser.parse(self.execute, raw_args)
+        return ArgumentParser.parse(self.execute, raw_args, lang=lang)
 
 
 class PluginCommand(BaseModel):
@@ -128,10 +162,13 @@ class PluginCommand(BaseModel):
 
     name: str
     description: str
+    i18n_description: Optional[I18nDict] = None
     aliases: list[str] = []
     permission: CommandPermission = CommandPermission.PUBLIC
     usage: str = ""
+    i18n_usage: Optional[I18nDict] = None
     category: str = "plugin"
+    i18n_category: Optional[I18nDict] = None
     source: str = ""
     namespace: str = ""
     tags: list[str] = []
@@ -163,9 +200,12 @@ class PluginCommandAdapter(BaseCommand):
             namespace=self._cmd.namespace,
             aliases=self._cmd.aliases,
             description=self._cmd.description,
+            i18n_description=self._cmd.i18n_description,
             usage=self._cmd.usage,
+            i18n_usage=self._cmd.i18n_usage,
             permission=self._cmd.permission,
             category=self._cmd.category,
+            i18n_category=self._cmd.i18n_category,
             source=self._cmd.source,
             tags=self._cmd.tags,
             internal=self._cmd.internal,
@@ -178,8 +218,8 @@ class PluginCommandAdapter(BaseCommand):
             return result
         return await result
 
-    def _parse_args(self, raw_args: str) -> dict[str, Any]:
+    def _parse_args(self, raw_args: str, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
         """根据原始插件函数的类型注解解析参数"""
         from nekro_agent.services.command.parser import ArgumentParser
 
-        return ArgumentParser.parse(self._cmd.execute_func, raw_args)
+        return ArgumentParser.parse(self._cmd.execute_func, raw_args, lang=lang)

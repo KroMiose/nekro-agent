@@ -33,7 +33,7 @@ class CmdCtl:
         callback_cmd: str,
         options: Optional[list[str]] = None,
         timeout: float = 60.0,
-        on_timeout_message: str = "操作超时，已取消",
+        on_timeout_message: str = "",
         context_data: Optional[dict] = None,
     ) -> CommandResponse:
         """交互等待 - 挂起命令，等待用户选择/输入后路由到 callback_cmd
@@ -58,7 +58,7 @@ class CmdCtl:
 
     @staticmethod
     def success(
-        message: str = "操作成功",
+        message: str = "",
         data: Optional[dict] = None,
     ) -> CommandResponse:
         """成功终态"""
@@ -70,7 +70,7 @@ class CmdCtl:
 
     @staticmethod
     def failed(
-        message: str = "操作失败",
+        message: str = "",
         data: Optional[dict] = None,
     ) -> CommandResponse:
         """失败终态"""
