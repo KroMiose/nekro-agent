@@ -52,6 +52,8 @@ plugin = NekroPlugin(
         zh_CN="角色状态控制，提高角色状态保持能力，提供状态管理和名片更新能力",
         en_US="Character status control for enhanced consistency in roleplay scenarios",
     ),
+    allow_sleep=False,
+    sleep_brief="用于维护角色状态和可选名片同步，在角色扮演或状态持续追踪时激活。",
 )
 
 

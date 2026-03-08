@@ -47,6 +47,7 @@ plugin = NekroPlugin(
         zh_CN="提供一次性定时器与持久化周期任务（Cron），支持工作日提醒与 AI 管理",
         en_US="Provides one-shot timers and persistent recurring cron jobs with workday options and AI management",
     ),
+    sleep_brief="用于一次性提醒、延时回调与周期任务管理。在涉及定时、提醒或计划任务时激活。",
 )
 
 

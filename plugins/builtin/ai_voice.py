@@ -51,6 +51,8 @@ plugin = NekroPlugin(
         zh_CN="提供AI语音生成功能，支持将文本转为AI合成语音",
         en_US="Provides AI voice generation to convert text into AI-synthesized speech",
     ),
+    allow_sleep=True,
+    sleep_brief="用于将文本转成语音消息，仅在需要发送 AI 语音回复时激活。",
 )
 
 

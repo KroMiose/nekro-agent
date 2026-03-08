@@ -6,6 +6,7 @@ export type MethodType = 'tool' | 'behavior' | 'agent' | 'multimodal_agent'
 
 export interface Method {
   name: string
+  title: string
   type: MethodType
   description: string
 }
@@ -37,6 +38,20 @@ export interface Plugin {
   errorType?: string
   filePath?: string
   stackTrace?: string
+  activationStrategy?: {
+    configured: 'auto' | 'allow_sleep' | 'forbid_sleep'
+    effective: 'sleep' | 'always_loaded'
+    pluginDefaultAllowsSleep: boolean | null
+    canEnableSleep: boolean
+    canChangeStrategy: boolean
+    isProtected: boolean
+    sleepBrief: string
+    controller: {
+      enabled: boolean
+      pluginId: string
+      moduleName: string
+    }
+  } | null
 }
 
 export interface PluginConfig {
@@ -101,6 +116,16 @@ export const pluginsApi = {
 
   togglePluginEnabled: async (pluginId: string, enabled: boolean): Promise<boolean> => {
     const response = await axios.post<ActionResponse>(`/plugins/toggle/${pluginId}`, { enabled })
+    return response.data.ok
+  },
+
+  updatePluginActivationStrategy: async (
+    pluginId: string,
+    strategy: 'auto' | 'allow_sleep' | 'forbid_sleep'
+  ): Promise<boolean> => {
+    const response = await axios.post<ActionResponse>(`/plugins/activation-strategy/${pluginId}`, {
+      strategy,
+    })
     return response.data.ok
   },
 

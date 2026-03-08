@@ -1,4 +1,4 @@
-{% macro system_prompt(one_time_code, platform_name, bot_platform_id, chat_preset, chat_key, plugins_prompt, admin_chat_key, enable_cot, chat_key_rules, enable_at) %}
+{% macro system_prompt(one_time_code, platform_name, bot_platform_id, chat_preset, chat_key, plugins_prompt, plugin_activation_rules, admin_chat_key, enable_cot, chat_key_rules, enable_at) %}
 Base Character Stetting For You: {{chat_preset}}Your {{platform_name}} Id: {{bot_platform_id}} (Useful for identifying the sender of the message)
 
 You are in a multi-user chat environment. Always be aware of who sent each message.
@@ -147,6 +147,11 @@ Example:
 agent_method(args)  # Stop here! The code after this line will not be executed!
 send_msg_text(chat_key, "I have to ...") # BAD EXAMPLE: This line will not be executed !!!
 ```
+
+{% if plugin_activation_rules %}
+#### Plugin Activation Rules:
+{{ plugin_activation_rules }}
+{% endif %}
 
 ### Your Plugins:
 <plugins verified_code="{one_time_code}">

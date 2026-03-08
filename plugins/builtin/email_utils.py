@@ -119,6 +119,8 @@ plugin = NekroPlugin(
     url="https://github.com/nekro-agent/nekro-agent",
     # support_adapter=["email", "onebot_v11"],
     is_builtin=True,
+    allow_sleep=True,
+    sleep_brief="提供邮箱账户查询、邮件发送、附件转发和邮件总结能力。仅在任务明确涉及邮件时激活。",
 )
 
 

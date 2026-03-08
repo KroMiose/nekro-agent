@@ -54,6 +54,8 @@ plugin = NekroPlugin(
         zh_CN="为不具备多模态视觉能力的模型提供图像理解能力",
         en_US="Provides image understanding for models without multimodal vision capabilities",
     ),
+    allow_sleep=True,
+    sleep_brief="用于调用视觉模型理解图片，仅在当前模型缺少视觉能力且需要看图时激活。",
 )
 
 

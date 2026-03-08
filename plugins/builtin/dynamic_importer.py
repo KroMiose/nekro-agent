@@ -45,6 +45,8 @@ plugin = NekroPlugin(
         zh_CN="提供动态 pip 安装、导入、持久化功能",
         en_US="Provides dynamic pip installation, import and persistence features",
     ),
+    allow_sleep=True,
+    sleep_brief="按需扩展 Python 运行环境并导入可信第三方库。仅在确实缺少依赖时再激活。",
 )
 
 

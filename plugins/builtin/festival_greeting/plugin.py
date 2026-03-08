@@ -24,6 +24,8 @@ plugin = NekroPlugin(
         zh_CN="自动在节日时向所有活跃聊天发送祝福",
         en_US="Automatically send greetings to all active chats during festivals",
     ),
+    allow_sleep=False,
+    sleep_brief="用于节日自动祝福和节日触发管理，仅在节日广播或节日相关场景时激活。",
 )
 
 

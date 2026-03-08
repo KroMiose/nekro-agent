@@ -62,6 +62,7 @@ plugin = NekroPlugin(
         zh_CN="提供 Bilibili 直播适配器专用的消息发送和Live2d模型设置等功能",
         en_US="Provides Bilibili live adapter utilities for messaging and Live2d model configuration",
     ),
+    sleep_brief="用于 Bilibili 直播弹幕、Live2D 动作和演出队列控制，仅在直播场景下激活。",
 )
 
 

@@ -49,6 +49,7 @@ plugin = NekroPlugin(
         zh_CN="提供掷骰检定能力和概率轮盘选择功能",
         en_US="Provides dice rolling and probability roulette selection features",
     ),
+    sleep_brief="用于随机检定、掷骰和概率轮盘，在需要随机性、跑团或概率选择时激活。",
 )
 
 _ASSERT_DICE_NUM: int = 0

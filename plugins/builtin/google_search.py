@@ -47,6 +47,8 @@ plugin = NekroPlugin(
         zh_CN="提供Google搜索功能，获取实时信息",
         en_US="Provides Google search functionality for real-time information",
     ),
+    allow_sleep=True,
+    sleep_brief="用于联网搜索实时信息与外部事实。只有在知识不足或需要最新信息时再激活。",
 )
 
 

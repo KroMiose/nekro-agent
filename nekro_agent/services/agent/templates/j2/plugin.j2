@@ -1,5 +1,23 @@
-{% macro plugin_prompt(plugin_name, plugin_injected_prompt, plugin_method_prompt, one_time_code) %}
-<plugin name="{{ plugin_name }}">
+{% macro plugin_prompt(plugin_name, module_name, state, rounds_left, activation_hint, plugin_brief, plugin_injected_prompt, plugin_method_prompt) %}
+<plugin name="{{ plugin_name }}" module_name="{{ module_name }}" state="{{ state }}"{% if rounds_left is not none %} rounds_left="{{ rounds_left }}"{% endif %}>
+
+{% if state == "sleeping" and plugin_brief %}
+<capability_brief>
+{{ plugin_brief }}
+</capability_brief>
+{% endif %}
+
+{% if state == "sleeping" %}
+<activation_rule>
+Summary only. Do not guess hidden details. Activate if needed.
+</activation_rule>
+{% endif %}
+
+{% if state == "active" and rounds_left == 1 and activation_hint %}
+<activation_rule>
+{{ activation_hint }}
+</activation_rule>
+{% endif %}
 
 {% if plugin_injected_prompt %}
 <injected_prompt>

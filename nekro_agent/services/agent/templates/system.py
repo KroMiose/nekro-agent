@@ -9,6 +9,7 @@ class SystemPrompt(PromptTemplate):
     chat_preset: str
     chat_key: str
     plugins_prompt: str
+    plugin_activation_rules: str
     admin_chat_key: str
     enable_cot: bool
     chat_key_rules: str

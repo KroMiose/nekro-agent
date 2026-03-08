@@ -52,6 +52,8 @@ plugin = NekroPlugin(
         zh_CN="提供历史聊天记录精确检索与漫游能力",
         en_US="Provides precise retrieval and navigation of chat history",
     ),
+    allow_sleep=True,
+    sleep_brief="用于检索较早的聊天记录与上下文漫游。只有当前窗口信息不足时再激活。",
 )
 
 

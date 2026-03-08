@@ -76,6 +76,7 @@ plugin = NekroPlugin(
         zh_CN="为直播场景提供专业的演示白板，支持实时展示图片、视频、HTML等内容",
         en_US="Professional presentation whiteboard for live streaming with real-time image, video and HTML display",
     ),
+    sleep_brief="用于直播白板展示图片、视频、HTML 和文本内容，仅在白板演示场景下激活。",
 )
 
 

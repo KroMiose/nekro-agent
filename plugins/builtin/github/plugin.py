@@ -19,6 +19,8 @@ plugin = NekroPlugin(
         zh_CN="接收 GitHub Webhook 消息并处理，支持订阅仓库消息",
         en_US="Receives and processes GitHub Webhook messages with repository subscription support",
     ),
+    allow_sleep=True,
+    sleep_brief="用于 GitHub 仓库订阅、Webhook 消息与订阅管理。只有在涉及 GitHub 仓库跟踪时再激活。",
 )
 
 

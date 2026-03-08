@@ -76,6 +76,8 @@ plugin = NekroPlugin(
         zh_CN="提供 Minecraft 适配器专用的消息发送和 RCON 命令执行功能",
         en_US="Provides Minecraft adapter utilities for message sending and RCON command execution",
     ),
+    allow_sleep=True,
+    sleep_brief="用于 Minecraft 富文本消息和 RCON 指令执行，仅在 Minecraft 场景下激活。",
 )
 
 

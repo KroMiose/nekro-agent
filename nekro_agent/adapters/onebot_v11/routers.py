@@ -1,13 +1,14 @@
 import asyncio
 import json
 import time
+import contextlib
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
 
 
 import aiodocker
 from aiodocker.containers import DockerContainer
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -22,6 +23,7 @@ from nekro_agent.core.os_env import (
 )
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import NotFoundError, OperationFailedError, ValidationError
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -128,7 +130,10 @@ async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(ge
 
 @router.get("/logs/stream")
 @require_role(Role.Admin)
-async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) -> EventSourceResponse:
+async def stream_logs(
+    request: Request,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> EventSourceResponse:
     """实时日志流"""
 
     async def generate() -> AsyncGenerator[str, None]:
@@ -136,12 +141,42 @@ async def stream_logs(_current_user: DBUser = Depends(get_current_active_user)) 
         initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=False)
         init_time = time.time()
         for log in initial_logs:
+            if is_shutting_down() or await request.is_disconnected():
+                return
             yield log
             await asyncio.sleep(0.01)
 
-        async for log in container.log(stdout=True, stderr=True, follow=True, since=int(init_time), timestamps=False):
-            yield log
-            await asyncio.sleep(0.01)
+        queue: asyncio.Queue[object] = asyncio.Queue(maxsize=256)
+        sentinel = object()
+
+        async def pump_logs() -> None:
+            try:
+                async for log in container.log(stdout=True, stderr=True, follow=True, since=int(init_time), timestamps=False):
+                    await queue.put(log)
+            except asyncio.CancelledError:
+                raise
+            finally:
+                await queue.put(sentinel)
+
+        log_task = asyncio.create_task(pump_logs())
+        try:
+            while not is_shutting_down():
+                if await request.is_disconnected():
+                    return
+                try:
+                    item = await asyncio.wait_for(queue.get(), timeout=1.0)
+                except asyncio.TimeoutError:
+                    yield ": ping\n\n"
+                    continue
+                if item is sentinel:
+                    return
+                yield str(item)
+                await asyncio.sleep(0.01)
+        finally:
+            if not log_task.done():
+                log_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await log_task
 
     return EventSourceResponse(generate())
 

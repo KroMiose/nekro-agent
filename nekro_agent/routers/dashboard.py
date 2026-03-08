@@ -3,7 +3,7 @@ import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Union
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -11,6 +11,7 @@ from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_exec_code import DBExecCode, ExecStopType
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.user.deps import get_current_active_user
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -199,6 +200,7 @@ async def get_ranking(
 
 @router.get("/stats/stream", summary="获取实时统计数据流")
 async def get_stats_stream(
+    request: Request,
     granularity: int = Query(10, description="数据粒度（分钟）", ge=1, le=60),
     _current_user: DBUser = Depends(get_current_active_user),
 ):
@@ -262,10 +264,16 @@ async def get_stats_stream(
         if next_aligned_time.minute < now.minute:
             next_aligned_time = next_aligned_time.replace(hour=next_aligned_time.hour + 1)
 
-        while True:
+        while not is_shutting_down():
+            if await request.is_disconnected():
+                return
             wait_seconds = (next_aligned_time - datetime.now()).total_seconds()
-            if wait_seconds > 0:
-                await asyncio.sleep(wait_seconds)
+            while wait_seconds > 0:
+                if is_shutting_down() or await request.is_disconnected():
+                    return
+                sleep_seconds = min(wait_seconds, 1.0)
+                await asyncio.sleep(sleep_seconds)
+                wait_seconds -= sleep_seconds
 
             current_message_count = await DBChatMessage.all().count()
             current_sandbox_count = await DBExecCode.all().count()

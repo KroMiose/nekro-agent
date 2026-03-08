@@ -84,6 +84,8 @@ plugin = NekroPlugin(
     ),
     # 开放给各适配器使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
     support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu"],
+    allow_sleep=False,
+    sleep_brief="提供发送文本、文件和基础互动能力，是多数对话都会依赖的基础插件。",
 )
 
 

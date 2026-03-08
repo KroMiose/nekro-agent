@@ -19,6 +19,8 @@ plugin = NekroPlugin(
         zh_CN="将 CC Sandbox（claude-code）工作区能力接入主 Agent，支持任务委托、文件传递与状态查询",
         en_US="Integrates CC Sandbox (claude-code) workspace capabilities into the main Agent, supporting task delegation, file transfer and status queries",
     ),
+    allow_sleep=True,
+    sleep_brief="用于将复杂任务委托给 CC 工作区，适合编程、文件处理和长流程协作任务。",
 )
 
 

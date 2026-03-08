@@ -1473,9 +1473,15 @@ class CoreConfig(ConfigBase):
 
     """插件配置"""
     PLUGIN_ENABLED: List[str] = Field(
-        default=["KroMiose.basic"],
+        default=["KroMiose.basic", "KroMiose.plugin_activation"],
         title="启用插件",
         description="启用插件 key 列表",
+        json_schema_extra=ExtraField(is_hidden=True).model_dump(),
+    )
+    PLUGIN_ACTIVATION_STRATEGIES: Dict[str, Literal["auto", "allow_sleep", "forbid_sleep"]] = Field(
+        default={},
+        title="插件激活策略覆盖",
+        description="按插件 module_name 覆盖插件提示词激活策略",
         json_schema_extra=ExtraField(is_hidden=True).model_dump(),
     )
 

@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, Request
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.system_broadcast import (
     subscribe_system_events,
     unsubscribe_system_events,
@@ -42,7 +43,7 @@ async def stream_system_events(
             yield '{"type":"error","message":"连接数已达上限，请稍后重试"}'
             return
         try:
-            while True:
+            while not is_shutting_down():
                 if await request.is_disconnected():
                     return
                 try:

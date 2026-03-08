@@ -45,6 +45,8 @@ plugin = NekroPlugin(
         zh_CN="提供群荣誉功能，支持设置用户群组头衔",
         en_US="Provides group honor features for setting user group titles",
     ),
+    allow_sleep=True,
+    sleep_brief="用于设置或移除群成员头衔，仅在涉及群称号管理时激活。",
 )
 
 

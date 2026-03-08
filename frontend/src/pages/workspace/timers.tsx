@@ -25,6 +25,7 @@ import {
   TextField,
   Tooltip,
   Typography,
+  type Theme,
   useMediaQuery,
   useTheme,
 } from '@mui/material'
@@ -85,13 +86,13 @@ function formatTaskRule(task: TimerTaskItem, t: (key: string, options?: Record<s
   }
 }
 
-function getStatusColor(theme: ReturnType<typeof useTheme>, status: TimerTaskStatus) {
+function getStatusColor(theme: Theme, status: TimerTaskStatus) {
   if (status === 'active') return theme.palette.success.main
   if (status === 'paused') return theme.palette.warning.main
   return theme.palette.error.main
 }
 
-function getTypeColor(theme: ReturnType<typeof useTheme>, taskType: TimerTaskType) {
+function getTypeColor(theme: Theme, taskType: TimerTaskType) {
   return taskType === 'recurring' ? theme.palette.primary.main : theme.palette.info.main
 }
 
@@ -822,7 +823,7 @@ export default function WorkspaceTimersPage() {
                               <IconButton
                                 size="small"
                                 disabled={!task.actionable || runNowMutation.isPending}
-                                onClick={event => {
+                                onClick={() => {
                                   runNowMutation.mutate({ taskType: task.task_type, taskId: task.id })
                                 }}
                               >
@@ -836,7 +837,7 @@ export default function WorkspaceTimersPage() {
                                 <IconButton
                                   size="small"
                                   disabled={!task.actionable || pauseMutation.isPending || resumeMutation.isPending}
-                                  onClick={event => {
+                                  onClick={() => {
                                     if (task.status === 'paused') {
                                       resumeMutation.mutate(task.id)
                                     } else {

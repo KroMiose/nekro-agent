@@ -53,6 +53,8 @@ plugin = NekroPlugin(
         zh_CN="提供笔记系统功能，支持设置、获取、删除笔记",
         en_US="Provides note system features including creating, retrieving and deleting notes",
     ),
+    allow_sleep=False,
+    sleep_brief="用于持久化记录和读取长期笔记，在需要跨轮次保存关键信息时激活。",
 )
 
 

@@ -16,6 +16,7 @@ from nekro_agent.models.db_exec_code import ExecStopType
 from nekro_agent.schemas.agent_ctx import AgentCtx
 from nekro_agent.schemas.chat_message import ChatMessage
 from nekro_agent.services.plugin.collector import plugin_collector
+from nekro_agent.services.plugin.prompt_activation import build_plugin_activation_rules
 from nekro_agent.services.sandbox.runner import limited_run_code
 
 from .creator import OpenAIChatMessage
@@ -69,8 +70,14 @@ async def run_agent(
 
     # 获取当前使用的模型组
     used_model_group: ModelConfigGroup = config.MODEL_GROUPS[config.USE_MODEL_GROUP]
+    activation_plugin = plugin_collector.get_plugin_by_module_name("plugin_activation")
+    activation_enabled = bool(activation_plugin and activation_plugin.is_enabled)
 
-    plugins_prompt = await render_plugins_prompt(plugin_collector.get_all_active_plugins(), ctx)
+    plugins_prompt = await render_plugins_prompt(
+        plugin_collector.get_all_active_plugins(),
+        ctx,
+        activation_enabled=activation_enabled,
+    )
     logger.debug(f"[run_agent] {chat_key} | 插件 prompt 渲染完成，开始构建 system prompt")
 
     messages = [
@@ -83,6 +90,7 @@ async def run_agent(
                 chat_preset=preset.content,
                 chat_key=chat_key,
                 plugins_prompt=plugins_prompt,
+                plugin_activation_rules=build_plugin_activation_rules() if activation_enabled else "",
                 admin_chat_key=config.ADMIN_CHAT_KEY,
                 enable_cot=used_model_group.ENABLE_COT,
                 chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),

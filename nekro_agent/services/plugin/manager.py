@@ -11,8 +11,42 @@ from nekro_agent.core.core_utils import ConfigBase
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.services.config_service import ConfigService
 from nekro_agent.services.plugin.collector import plugin_collector
+from nekro_agent.services.plugin.prompt_activation import (
+    PluginActivationStrategy,
+    get_plugin_activation_strategy,
+    is_sleep_effective,
+    plugin_strategy_can_change,
+    plugin_strategy_is_protected,
+    plugin_supports_sleep,
+    set_plugin_activation_strategy,
+)
 
 logger = get_sub_logger("plugin_system")
+
+
+def _get_activation_controller_meta() -> dict:
+    controller = plugin_collector.get_plugin_by_module_name("plugin_activation")
+    return {
+        "enabled": bool(controller and controller.is_enabled),
+        "pluginId": controller.key if controller else "KroMiose.plugin_activation",
+        "moduleName": "plugin_activation",
+    }
+
+
+def _build_activation_strategy_meta(plugin) -> dict:
+    configured = get_plugin_activation_strategy(plugin.module_name)
+    return {
+        "configured": configured,
+        "effective": "sleep" if is_sleep_effective(plugin) else "always_loaded",
+        "pluginDefaultAllowsSleep": plugin.allow_sleep,
+        "canEnableSleep": plugin_supports_sleep(plugin) and not plugin_strategy_is_protected(plugin),
+        "canChangeStrategy": plugin_strategy_can_change(plugin),
+        "isProtected": plugin_strategy_is_protected(plugin),
+        "sleepBrief": plugin.sleep_brief,
+        "controller": _get_activation_controller_meta(),
+    }
+
+
 async def get_all_ext_meta_data() -> List[dict]:
     """获取所有已注册插件的元数据（包括加载成功和失败的插件）"""
     plugins = plugin_collector.get_all_plugins()
@@ -33,6 +67,7 @@ async def get_all_ext_meta_data() -> List[dict]:
             "isPackage": plugin.is_package,
             "i18n_name": plugin.i18n_name,
             "i18n_description": plugin.i18n_description,
+            "activationStrategy": _build_activation_strategy_meta(plugin),
             "loadFailed": False,  # 标记加载状态
         }
         for plugin in plugins
@@ -54,6 +89,7 @@ async def get_all_ext_meta_data() -> List[dict]:
                 "isPackage": failed_plugin.is_package,
                 "i18n_name": None,
                 "i18n_description": None,
+                "activationStrategy": None,
                 "loadFailed": True,  # 标记加载失败，前端根据此字段隐藏开关并显示"加载失败"
                 "errorMessage": failed_plugin.error_message,  # 完整错误信息
                 "errorType": failed_plugin.error_type,  # 错误类型
@@ -90,6 +126,7 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
                 "router": None,
                 "isBuiltin": failed_plugin.is_builtin,
                 "isPackage": failed_plugin.is_package,
+                "activationStrategy": None,
                 "loadFailed": True,  # 前端根据此字段隐藏开关并显示"加载失败"
                 "errorMessage": failed_plugin.error_message,  # 完整错误信息
                 "errorType": failed_plugin.error_type,  # 错误类型
@@ -101,7 +138,8 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
     # 获取方法信息
     methods = [
         {
-            "name": method.name,
+            "name": method.func.__name__,
+            "title": method.name,
             "type": method.method_type.value,
             "description": method.description or "",
         }
@@ -145,8 +183,30 @@ async def get_plugin_detail(plugin_id: str) -> Optional[dict]:
         "router": router_info,  # 新增路由信息
         "isBuiltin": plugin.is_builtin,
         "isPackage": plugin.is_package,
+        "activationStrategy": _build_activation_strategy_meta(plugin),
         "loadFailed": False,
     }
+
+
+async def update_plugin_activation_strategy(
+    plugin_id: str,
+    strategy: PluginActivationStrategy,
+) -> tuple[bool, Optional[str]]:
+    plugin = plugin_collector.get_plugin(plugin_id)
+    if not plugin:
+        return False, f"插件 {plugin_id} 不存在"
+
+    if plugin_strategy_is_protected(plugin):
+        if strategy == "auto":
+            set_plugin_activation_strategy(plugin.module_name, "auto")
+            return True, None
+        return False, f"插件 {plugin.module_name} 的激活策略受保护，不允许修改"
+
+    if strategy == "allow_sleep" and not plugin_supports_sleep(plugin):
+        return False, f"插件 {plugin.module_name} 未提供休眠提示词，无法开启休眠"
+
+    set_plugin_activation_strategy(plugin.module_name, strategy)
+    return True, None
 
 
 async def get_all_plugin_router_info() -> Dict[str, Any]:

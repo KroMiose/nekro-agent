@@ -32,6 +32,7 @@ import {
   Stack,
   Collapse,
   Link,
+  InputAdornment,
   useMediaQuery,
   useTheme,
   Drawer,
@@ -62,6 +63,7 @@ import {
   Category as CategoryIcon,
   Bookmark as BookmarkIcon,
   MoreVert as MoreVertIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
@@ -94,12 +96,20 @@ const getPluginDescription = (plugin: Plugin, language: string) => {
 
 interface PluginDetailProps {
   plugin: Plugin
+  activationStrategyLoading: boolean
   onBack: () => void
   onToggleEnabled: (id: string, enabled: boolean) => void
+  onOpenPlugin: (pluginId: string) => void
 }
 
 // 插件详情组件
-function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
+function PluginDetails({
+  plugin,
+  activationStrategyLoading,
+  onBack,
+  onToggleEnabled,
+  onOpenPlugin,
+}: PluginDetailProps) {
   const [activeTab, setActiveTab] = useState(0)
   const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const [resetDataConfirmOpen, setResetDataConfirmOpen] = useState(false)
@@ -191,6 +201,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     },
   })
 
+  const updateActivationStrategyMutation = useMutation({
+    mutationFn: (strategy: 'auto' | 'allow_sleep' | 'forbid_sleep') =>
+      pluginsApi.updatePluginActivationStrategy(plugin.id, strategy),
+    onSuccess: () => {
+      notification.success(t('messages.activationStrategyUpdated'))
+      queryClient.invalidateQueries({ queryKey: ['plugins'] })
+      queryClient.invalidateQueries({ queryKey: ['plugin-detail', plugin.id] })
+    },
+    onError: (error: Error) => {
+      notification.error(error.message)
+    },
+  })
+
   // 删除云端插件
   const removePackageMutation = useMutation({
     mutationFn: () => pluginsApi.removePackage(plugin.moduleName, clearDataOnDelete),
@@ -242,6 +265,11 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
     const type = getPluginType()
     return t(`types.${type}`)
   }
+
+  const activationStrategy = plugin.activationStrategy
+  const activationConfigurable =
+    !!activationStrategy && !plugin.loadFailed && activationStrategy.canChangeStrategy
+  const activationControllerEnabled = activationStrategy?.controller.enabled ?? true
 
   // 按钮点击处理函数
   const handleNavigateToEditor = () => {
@@ -618,6 +646,129 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                       </Link>
                     </Typography>
                   </Stack>
+                  {!plugin.loadFailed && activationStrategy && (
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <ExtensionIcon color="action" />
+                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                        <Stack
+                          direction={{ xs: 'column', sm: 'row' }}
+                          spacing={1}
+                          alignItems={{ xs: 'stretch', sm: 'center' }}
+                        >
+                          <Typography variant="body2" sx={{ whiteSpace: 'nowrap', minWidth: 'fit-content' }}>
+                            <strong>{t('activation.strategyLabel')}：</strong>
+                          </Typography>
+                          <TextField
+                            select
+                            size="small"
+                            value={activationStrategy.configured}
+                            disabled={
+                              !activationConfigurable ||
+                              !activationControllerEnabled ||
+                              updateActivationStrategyMutation.isPending
+                            }
+                            onChange={e =>
+                              updateActivationStrategyMutation.mutate(
+                                e.target.value as 'auto' | 'allow_sleep' | 'forbid_sleep'
+                              )
+                            }
+                            sx={{ minWidth: { xs: '100%', sm: 136 }, maxWidth: { sm: 164 } }}
+                          >
+                            <MenuItem value="auto">{t('activation.options.auto')}</MenuItem>
+                            <MenuItem value="allow_sleep" disabled={!activationStrategy.canEnableSleep}>
+                              {t('activation.options.allow_sleep')}
+                            </MenuItem>
+                            <MenuItem value="forbid_sleep">{t('activation.options.forbid_sleep')}</MenuItem>
+                          </TextField>
+                          {activationStrategyLoading ? (
+                            <Chip
+                              icon={<CircularProgress size={14} color="inherit" />}
+                              label={t('activation.loadingStatus')}
+                              size="small"
+                              sx={CHIP_VARIANTS.base(isSmall)}
+                            />
+                          ) : (
+                            <Tooltip
+                              arrow
+                              placement="top"
+                              title={
+                                <Stack spacing={1} sx={{ maxWidth: 340, py: 0.25 }}>
+                                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                    {t('activation.strategyLabel')}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                                    {t('activation.description')}
+                                  </Typography>
+                                  {!activationControllerEnabled && (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                      {t('activation.controllerDisabled')}
+                                    </Typography>
+                                  )}
+                                  {activationStrategy.isProtected && (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                      {t('activation.protected')}
+                                    </Typography>
+                                  )}
+                                  <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                    {t('activation.note')}
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                    {t('activation.currentStrategy', {
+                                      strategy: t(`activation.options.${activationStrategy.configured}`),
+                                    })}
+                                    {' · '}
+                                    {t(`activation.effective.${activationStrategy.effective}`)}
+                                  </Typography>
+                                  {activationStrategy.canEnableSleep ? (
+                                    <Box>
+                                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.25 }}>
+                                        {t('activation.sleepBrief')}
+                                      </Typography>
+                                      <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+                                        {activationStrategy.sleepBrief || t('activation.none')}
+                                      </Typography>
+                                    </Box>
+                                  ) : activationStrategy.isProtected ? (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                      {t('activation.protectedNoSleep')}
+                                    </Typography>
+                                  ) : (
+                                    <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+                                      {t('activation.noSleepBrief')}
+                                    </Typography>
+                                  )}
+                                </Stack>
+                              }
+                            >
+                              <Chip
+                                icon={<InfoIcon />}
+                                label={
+                                  activationControllerEnabled
+                                    ? t(`activation.effective.${activationStrategy.effective}`)
+                                    : t('activation.controllerOff')
+                                }
+                                color={
+                                  !activationControllerEnabled
+                                    ? 'warning'
+                                    : activationStrategy.effective === 'sleep'
+                                    ? 'warning'
+                                    : 'success'
+                                }
+                                size="small"
+                                sx={CHIP_VARIANTS.base(isSmall)}
+                                clickable={!activationControllerEnabled}
+                                onClick={
+                                  !activationControllerEnabled
+                                    ? () => onOpenPlugin(activationStrategy.controller.pluginId)
+                                    : undefined
+                                }
+                              />
+                            </Tooltip>
+                          )}
+                        </Stack>
+                      </Box>
+                    </Stack>
+                  )}
                 </Box>
               </CardContent>
             </Card>
@@ -692,6 +843,9 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                         <TableCell width={isMobile ? '30%' : '20%'} sx={{ py: isSmall ? 1 : 1.5 }}>
                           {t('methods.name')}
                         </TableCell>
+                        <TableCell width={isMobile ? '25%' : '18%'} sx={{ py: isSmall ? 1 : 1.5 }}>
+                          {t('methods.title')}
+                        </TableCell>
                         <TableCell width={isMobile ? '25%' : '15%'} sx={{ py: isSmall ? 1 : 1.5 }}>
                           {t('methods.type')}
                         </TableCell>
@@ -715,6 +869,19 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
                               }}
                             >
                               {method.name}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
+                            <Typography
+                              variant="body2"
+                              sx={{
+                                fontWeight: 600,
+                                fontSize: isSmall ? '0.75rem' : '0.875rem',
+                                overflowWrap: 'break-word',
+                                wordBreak: 'break-word',
+                              }}
+                            >
+                              {method.title}
                             </Typography>
                           </TableCell>
                           <TableCell sx={{ py: isSmall ? 0.75 : 1.25 }}>
@@ -1325,7 +1492,7 @@ function PluginDetails({ plugin, onBack, onToggleEnabled }: PluginDetailProps) {
 }
 
 export default function PluginsManagementPage() {
-  const [selectedPlugin, setSelectedPlugin] = useState<Plugin | null>(null)
+  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -1342,18 +1509,19 @@ export default function PluginsManagementPage() {
   })
 
   // 获取当前选中插件的详情
-  const { data: pluginDetail } = useQuery({
-    queryKey: ['plugin-detail', selectedPlugin?.id],
-    queryFn: () => pluginsApi.getPluginDetail(selectedPlugin?.id as string),
-    enabled: !!selectedPlugin?.id,
+  const {
+    data: pluginDetail,
+    isFetching: isPluginDetailFetching,
+    isLoading: isPluginDetailLoading,
+  } = useQuery({
+    queryKey: ['plugin-detail', selectedPluginId],
+    queryFn: () => pluginsApi.getPluginDetail(selectedPluginId as string),
+    enabled: !!selectedPluginId,
   })
-
-  // 当获取到详情后更新选中的插件
-  useEffect(() => {
-    if (pluginDetail) {
-      setSelectedPlugin(pluginDetail)
-    }
-  }, [pluginDetail])
+  const selectedPluginSummary =
+    plugins.find(plugin => plugin.id === selectedPluginId) ?? null
+  const selectedPlugin = pluginDetail ?? selectedPluginSummary
+  const activationStrategyLoading = !!selectedPluginId && (isPluginDetailLoading || isPluginDetailFetching)
 
   // 切换插件启用状态
   const toggleEnabledMutation = useMutation({
@@ -1361,12 +1529,8 @@ export default function PluginsManagementPage() {
       pluginsApi.togglePluginEnabled(id, enabled),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['plugins'] })
+      queryClient.invalidateQueries({ queryKey: ['plugin-detail'] })
       notification.success(t(variables.enabled ? 'status.enabled' : 'status.disabled'))
-
-      // 如果是当前选中的插件，更新其状态
-      if (selectedPlugin && selectedPlugin.id === variables.id) {
-        setSelectedPlugin(prev => (prev ? { ...prev, enabled: variables.enabled } : null))
-      }
     },
     onError: (error: Error) => {
       notification.error(t('messages.updateFailedWithMessage', { message: error.message }))
@@ -1379,10 +1543,24 @@ export default function PluginsManagementPage() {
 
   // 处理选择插件的逻辑
   const handleSelectPlugin = (plugin: Plugin) => {
-    setSelectedPlugin(plugin)
+    setSelectedPluginId(plugin.id)
     if (isMobile) {
       setDrawerOpen(false)
     }
+  }
+
+  const handleOpenPlugin = (pluginId: string) => {
+    const target = plugins.find(
+      plugin =>
+        plugin.id === pluginId ||
+        plugin.id.endsWith(`.${pluginId}`) ||
+        plugin.moduleName === pluginId,
+    )
+    if (!target) {
+      notification.error(t('messages.pluginNotFound'))
+      return
+    }
+    handleSelectPlugin(target)
   }
 
   // 获取插件类型
@@ -1455,8 +1633,7 @@ export default function PluginsManagementPage() {
     )
     if (!target) return
 
-    setSearchTerm(targetPluginId)
-    setSelectedPlugin(target)
+    setSelectedPluginId(target.id)
     setSearchParams({}, { replace: true })
   }, [targetPluginId, plugins, setSearchParams])
 
@@ -1470,6 +1647,22 @@ export default function PluginsManagementPage() {
           onChange={e => setSearchTerm(e.target.value)}
           variant="outlined"
           fullWidth
+          slotProps={{
+            input: {
+              endAdornment: searchTerm ? (
+                <InputAdornment position="end">
+                  <IconButton
+                    size="small"
+                    edge="end"
+                    aria-label={t('actions.clear')}
+                    onClick={() => setSearchTerm('')}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ) : undefined,
+            },
+          }}
           sx={{
             '& .MuiOutlinedInput-root': {
               borderRadius: 2,
@@ -1489,7 +1682,7 @@ export default function PluginsManagementPage() {
               <React.Fragment key={plugin.id}>
                 <ListItemButton
                   onClick={() => handleSelectPlugin(plugin)}
-                  selected={selectedPlugin?.id === plugin.id}
+                  selected={selectedPluginId === plugin.id}
                   sx={{
                     py: 1.5,
                     px: 2,
@@ -1629,8 +1822,10 @@ export default function PluginsManagementPage() {
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
-                onBack={() => setSelectedPlugin(null)}
+                activationStrategyLoading={activationStrategyLoading}
+                onBack={() => setSelectedPluginId(null)}
                 onToggleEnabled={handleToggleEnabled}
+                onOpenPlugin={handleOpenPlugin}
               />
             ) : (
               <Card
@@ -1678,8 +1873,10 @@ export default function PluginsManagementPage() {
             {selectedPlugin ? (
               <PluginDetails
                 plugin={selectedPlugin}
-                onBack={() => setSelectedPlugin(null)}
+                activationStrategyLoading={activationStrategyLoading}
+                onBack={() => setSelectedPluginId(null)}
                 onToggleEnabled={handleToggleEnabled}
+                onOpenPlugin={handleOpenPlugin}
               />
             ) : (
               <Card

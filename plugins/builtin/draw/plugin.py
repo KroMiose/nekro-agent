@@ -21,6 +21,8 @@ plugin = NekroPlugin(
         zh_CN="学会画画！",
         en_US="Learn to draw!",
     ),
+    allow_sleep=True,
+    sleep_brief="提供文生图、图生图与多图参考绘制能力。仅在明确需要生成图片时激活。",
 )
 
 

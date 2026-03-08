@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.models.db_user import DBUser
-from nekro_agent.schemas.errors import NotFoundError, PluginLoadError, PluginNotFoundError
+from nekro_agent.schemas.errors import NotFoundError, PluginLoadError, PluginNotFoundError, ValidationError
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.manager import (
     disable_plugin,
@@ -13,6 +13,7 @@ from nekro_agent.services.plugin.manager import (
     get_all_ext_meta_data,
     get_all_plugin_router_info,
     get_plugin_detail,
+    update_plugin_activation_strategy,
 )
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
@@ -34,6 +35,10 @@ class BatchUpdateConfig(BaseModel):
     """批量更新配置请求体"""
 
     configs: Dict[str, str]
+
+
+class PluginActivationStrategyRequest(BaseModel):
+    strategy: str
 
 
 class ActionResponse(BaseModel):
@@ -124,6 +129,21 @@ async def toggle_plugin(
 
     if not success:
         raise PluginNotFoundError(plugin_id=plugin_id)
+    return ActionResponse(ok=True)
+
+
+@router.post("/activation-strategy/{plugin_id}", summary="更新插件激活策略", response_model=ActionResponse)
+@require_role(Role.Admin)
+async def update_plugin_activation_strategy_handler(
+    plugin_id: str,
+    body: PluginActivationStrategyRequest = Body(...),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    if body.strategy not in {"auto", "allow_sleep", "forbid_sleep"}:
+        raise ValidationError(reason="无效的插件激活策略")
+    success, error = await update_plugin_activation_strategy(plugin_id, body.strategy)  # type: ignore[arg-type]
+    if not success:
+        raise ValidationError(reason=error or "插件激活策略更新失败")
     return ActionResponse(ok=True)
 
 

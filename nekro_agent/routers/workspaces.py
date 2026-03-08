@@ -1588,6 +1588,7 @@ async def stream_comm_log(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
+    from nekro_agent.services.runtime_state import is_shutting_down
     from nekro_agent.services.workspace import comm_broadcast
 
     ws = await DBWorkspace.get_or_none(id=workspace_id)
@@ -1597,7 +1598,7 @@ async def stream_comm_log(
     async def event_generator() -> AsyncGenerator[str, None]:
         q = comm_broadcast.subscribe(workspace_id)
         try:
-            while True:
+            while not is_shutting_down():
                 if await request.is_disconnected():
                     return
                 try:
@@ -1828,4 +1829,3 @@ async def force_cancel_comm_task(
         logger.warning(f"广播 CC_STATUS false 失败: {e}")
 
     return {"cancelled": cancelled, "workspace_id": workspace_id}
-

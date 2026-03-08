@@ -57,6 +57,8 @@ class NekroPlugin:
         is_package: bool = False,
         i18n_name: Optional[I18nDict] = None,
         i18n_description: Optional[I18nDict] = None,
+        allow_sleep: bool | None = None,
+        sleep_brief: str = "",
     ):
         """
         Args:
@@ -101,6 +103,8 @@ class NekroPlugin:
         self.support_adapter = support_adapter or []
         self.i18n_name = i18n_name
         self.i18n_description = i18n_description
+        self.allow_sleep = allow_sleep
+        self.sleep_brief = sleep_brief.strip()
         self._is_enabled = True
         self._key = f"{self.author}.{self.module_name}"
 

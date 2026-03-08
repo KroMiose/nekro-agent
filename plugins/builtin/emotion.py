@@ -79,6 +79,7 @@ plugin = NekroPlugin(
         zh_CN="提供收集、搜索、使用表情包能力，使用Qdrant向量数据库",
         en_US="Provides emotion pack collection, search and usage features using Qdrant vector database",
     ),
+    sleep_brief="用于收藏、搜索和发送表情包，在需要图片表情语义检索或表情管理时激活。",
 )
 
 

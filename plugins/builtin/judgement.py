@@ -46,6 +46,8 @@ plugin = NekroPlugin(
         zh_CN="群管理工具集，提供临时禁言群管理功能",
         en_US="Group management tools providing temporary mute features",
     ),
+    allow_sleep=True,
+    sleep_brief="用于群聊禁言与管理反馈，仅在需要执行群管理处罚时激活。",
 )
 
 

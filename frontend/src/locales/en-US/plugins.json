@@ -32,8 +32,35 @@
     "filePath": "File Path",
     "stackTrace": "Stack Trace"
   },
+  "activation": {
+    "title": "Prompt Activation Strategy",
+    "strategyLabel": "Activation Strategy",
+    "description": "This only controls whether the plugin prompt is fully expanded to the Agent by default. It does not affect whether the plugin is enabled, loaded, registers methods, or runs.",
+    "selectLabel": "Activation Strategy",
+    "currentStrategy": "Current setting: {{strategy}}",
+    "note": "Auto: follow the plugin's default behavior. Allow Sleep: manage this plugin with the sleep/activation mechanism. Forbid Sleep: always expose the full prompt.",
+    "controllerDisabled": "The plugin activation scheduler is currently disabled, so activation strategies will not take effect until it is enabled.",
+    "controllerOff": "Inactive",
+    "loadingStatus": "Syncing",
+    "openController": "Open Scheduler",
+    "protected": "This plugin's activation strategy is protected by the plugin itself and cannot be changed to sleepable in the management UI.",
+    "protectedNoSleep": "This plugin is explicitly protected as always-on and cannot be switched to sleeping.",
+    "sleepBrief": "Sleep Brief",
+    "noSleepBrief": "This plugin does not provide a sleep brief, so sleep cannot be enabled.",
+    "none": "None",
+    "options": {
+      "auto": "Auto",
+      "allow_sleep": "Allow Sleep",
+      "forbid_sleep": "Forbid Sleep"
+    },
+    "effective": {
+      "sleep": "Controlled by activation",
+      "always_loaded": "Always fully visible"
+    }
+  },
   "methods": {
     "name": "Method Name",
+    "title": "Title",
     "type": "Type",
     "description": "Description",
     "noMethods": "This plugin has no defined methods"
@@ -121,7 +148,9 @@
     "deleteFailed": "Delete failed",
     "resetFailed": "Reset failed",
     "refreshFailed": "Refresh failed",
-    "updateFailedWithMessage": "Update failed: {{message}}"
+    "updateFailedWithMessage": "Update failed: {{message}}",
+    "activationStrategyUpdated": "Plugin activation strategy updated",
+    "pluginNotFound": "Target plugin not found"
   },
   "list": {
     "title": "Plugin List",

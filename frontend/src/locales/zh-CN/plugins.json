@@ -32,8 +32,35 @@
     "filePath": "文件路径",
     "stackTrace": "堆栈追踪"
   },
+  "activation": {
+    "title": "提示词激活策略",
+    "strategyLabel": "激活策略",
+    "description": "该设置只控制插件提示词是否默认完整向 Agent 展开，不影响插件是否启用、加载、注册方法或实际运行。",
+    "selectLabel": "激活策略",
+    "currentStrategy": "当前配置：{{strategy}}",
+    "note": "自动：遵循插件自身默认策略。允许休眠：将该插件纳入休眠/激活机制。禁止休眠：始终完整暴露提示词。",
+    "controllerDisabled": "插件激活调度器当前未启用，因此激活策略机制暂时不会生效。启用后才会按休眠/激活规则控制提示词展开。",
+    "controllerOff": "机制未生效",
+    "loadingStatus": "同步中",
+    "openController": "前往启用",
+    "protected": "该插件的激活策略受插件自身保护，不能在管理页面改为可休眠。",
+    "protectedNoSleep": "该插件被显式保护为常驻提示词，不允许切换为休眠。",
+    "sleepBrief": "休眠摘要",
+    "noSleepBrief": "该插件未提供休眠摘要，无法开启休眠。",
+    "none": "无",
+    "options": {
+      "auto": "自动",
+      "allow_sleep": "允许休眠",
+      "forbid_sleep": "禁止休眠"
+    },
+    "effective": {
+      "sleep": "受激活机制控制",
+      "always_loaded": "始终完整可见"
+    }
+  },
   "methods": {
     "name": "方法名",
+    "title": "标题",
     "type": "类型",
     "description": "描述",
     "noMethods": "此插件没有定义方法"
@@ -121,7 +148,9 @@
     "deleteFailed": "删除失败",
     "resetFailed": "重置失败",
     "refreshFailed": "刷新失败",
-    "updateFailedWithMessage": "更新失败: {{message}}"
+    "updateFailedWithMessage": "更新失败: {{message}}",
+    "activationStrategyUpdated": "插件激活策略已更新",
+    "pluginNotFound": "未找到目标插件"
   },
   "list": {
     "title": "插件列表",

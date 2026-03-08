@@ -39,6 +39,7 @@ from nekro_agent.adapters.sse.sdk.models import (
     HeartbeatData,
 )
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.services.runtime_state import is_shutting_down
 
 
 logger = get_sub_logger("adapter.sse")
@@ -329,10 +330,11 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
         )
         yield connected_event.to_sse_format()
 
-        # 心跳计时器
-        heartbeat_timer = 0
+        # 独立维护心跳与断连检查时钟，避免互相覆盖。
+        heartbeat_timer = 0.0
+        disconnect_check_timer = 0.0
 
-        while client.is_alive:
+        while client.is_alive and not is_shutting_down():
             if time.time() - heartbeat_timer >= 5:
                 heartbeat_event = Event[HeartbeatData](
                     event="heartbeat", data=HeartbeatData(timestamp=int(time.time())),
@@ -348,11 +350,12 @@ async def sse_stream(request: Request, client: SseClient) -> AsyncGenerator[Dict
             except asyncio.TimeoutError:
                 pass
             
-            # 减少 is_disconnected 检查频率，每5秒检查一次即可
-            # 频繁检查会导致性能下降
-            if time.time() - heartbeat_timer >= 5 and await request.is_disconnected():
+            # 减少 is_disconnected 检查频率，每5秒检查一次即可。
+            if time.time() - disconnect_check_timer >= 5 and await request.is_disconnected():
                 logger.info(f"SSE客户端 {client.client_id} 连接已断开")
                 break
+            if time.time() - disconnect_check_timer >= 5:
+                disconnect_check_timer = time.time()
 
     except asyncio.CancelledError:
         logger.info(f"SSE客户端 {client.client_id} SSE流已取消")
