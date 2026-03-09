@@ -1,11 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   Box,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  ListSubheader,
+  Autocomplete,
   Typography,
   Card,
   Stack,
@@ -14,6 +14,7 @@ import {
   IconButton,
   Chip,
   Tooltip,
+  InputAdornment,
 } from '@mui/material'
 import {
   Send as SendIcon,
@@ -53,8 +54,7 @@ function formatTime(ts: number): string {
 export default function CommandOutputPage() {
   const { t } = useTranslation('chat-channel')
   const [selectedChatKey, setSelectedChatKey] = useState<string>('')
-  const [selectedCommand, setSelectedCommand] = useState<string>('')
-  const [argsInput, setArgsInput] = useState('')
+  const [inputValue, setInputValue] = useState('')
   const [entries, setEntries] = useState<OutputEntry[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -72,6 +72,8 @@ export default function CommandOutputPage() {
     enabled: !!selectedChatKey,
   })
 
+  const enabledCommands = useMemo(() => commands.filter((cmd) => cmd.enabled), [commands])
+
   // 自动选中第一个频道
   useEffect(() => {
     if (!selectedChatKey && channelList?.items?.length) {
@@ -79,11 +81,10 @@ export default function CommandOutputPage() {
     }
   }, [channelList, selectedChatKey])
 
-  // 切换频道时清空输出和命令选择
+  // 切换频道时清空输出和输入
   useEffect(() => {
     setEntries([])
-    setSelectedCommand('')
-    setArgsInput('')
+    setInputValue('')
   }, [selectedChatKey])
 
   // 检测是否在底部附近，控制自动滚动
@@ -94,14 +95,36 @@ export default function CommandOutputPage() {
     setAutoScroll(atBottom)
   }, [])
 
-  // 判断当前选中命令是否接受额外参数
-  const selectedCmdHasArgs = (() => {
-    if (!selectedCommand) return false
-    const cmd = commands.find((c) => c.name === selectedCommand)
-    if (!cmd?.params_schema) return false
-    const props = cmd.params_schema.properties as Record<string, unknown> | undefined
-    return !!props && Object.keys(props).length > 0
-  })()
+  // 从输入中解析命令名和参数
+  const parseInput = useCallback(
+    (text: string): { name: string; args: string } | null => {
+      const trimmed = text.trim()
+      if (!trimmed) return null
+      const spaceIdx = trimmed.indexOf(' ')
+      const cmdName = spaceIdx === -1 ? trimmed : trimmed.slice(0, spaceIdx)
+      const args = spaceIdx === -1 ? '' : trimmed.slice(spaceIdx + 1).trim()
+      const matched = enabledCommands.find(
+        (c) => c.name === cmdName || c.aliases.includes(cmdName),
+      )
+      if (!matched) return null
+      return { name: matched.name, args }
+    },
+    [enabledCommands],
+  )
+
+  const handleSubmit = () => {
+    const parsed = parseInput(inputValue)
+    if (!parsed || !selectedChatKey) return
+    executeCommand({ name: parsed.name, args: parsed.args })
+    setInputValue('')
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    }
+  }
 
   // 自动滚动到底部
   useEffect(() => {
@@ -127,19 +150,6 @@ export default function CommandOutputPage() {
       })
     },
   })
-
-  const handleSubmit = () => {
-    if (!selectedCommand || !selectedChatKey) return
-    executeCommand({ name: selectedCommand, args: argsInput.trim() })
-    setArgsInput('')
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
-    }
-  }
 
   const handleClear = () => {
     setEntries([])
@@ -261,73 +271,84 @@ export default function CommandOutputPage() {
         )}
       </Card>
 
-      {/* 底部：命令选择 + 参数输入 */}
+      {/* 底部：命令输入框 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ p: 2 }}>
-          <FormControl size="small" sx={{ minWidth: 200 }}>
-            <InputLabel>{t('commandSidebar.selectCommand')}</InputLabel>
-            <Select
-              value={selectedCommand}
-              label={t('commandSidebar.selectCommand')}
-              onChange={(e) => setSelectedCommand(e.target.value)}
-              disabled={!selectedChatKey || isPending}
-              renderValue={(val) => `/${val}`}
-            >
-              {(() => {
-                const enabled = commands.filter((cmd) => cmd.enabled)
-                const builtIn = enabled.filter((cmd) => cmd.source === 'built_in')
-                const plugin = enabled.filter((cmd) => cmd.source !== 'built_in')
-                const items: React.ReactNode[] = []
-                if (builtIn.length > 0) {
-                  items.push(<ListSubheader key="__builtin">{t('commandSidebar.builtInCommands', '内置命令')}</ListSubheader>)
-                  builtIn.forEach((cmd) => items.push(
-                    <MenuItem key={cmd.name} value={cmd.name}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="body2" component="span" fontFamily="monospace">
-                          /{cmd.name}
-                        </Typography>
-                        <Typography variant="caption" component="span" color="text.secondary">
-                          {cmd.description}
-                        </Typography>
-                      </Stack>
-                    </MenuItem>
-                  ))
-                }
-                if (plugin.length > 0) {
-                  items.push(<ListSubheader key="__plugin">{t('commandSidebar.pluginCommands', '插件命令')}</ListSubheader>)
-                  plugin.forEach((cmd) => items.push(
-                    <MenuItem key={cmd.name} value={cmd.name}>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="body2" component="span" fontFamily="monospace">
-                          /{cmd.name}
-                        </Typography>
-                        <Typography variant="caption" component="span" color="text.secondary">
-                          {cmd.description}
-                        </Typography>
-                      </Stack>
-                    </MenuItem>
-                  ))
-                }
-                return items
-              })()}
-            </Select>
-          </FormControl>
-          <TextField
-            size="small"
+          <Autocomplete
             fullWidth
-            placeholder={selectedCmdHasArgs ? t('commandSidebar.argsPlaceholder', '输入参数...') : t('commandSidebar.noArgsNeeded', '该命令无需参数')}
-            value={argsInput}
-            onChange={(e) => setArgsInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            disabled={!selectedCommand || isPending || !selectedCmdHasArgs}
+            freeSolo
+            options={enabledCommands}
+            inputValue={inputValue}
+            onInputChange={(_, val, reason) => {
+              if (reason !== 'reset') setInputValue(val)
+            }}
+            onChange={(_, val) => {
+              if (val && typeof val !== 'string') {
+                setInputValue(`${val.name} `)
+              }
+            }}
+            getOptionLabel={(opt) => (typeof opt === 'string' ? opt : opt.name)}
+            groupBy={(opt) =>
+              typeof opt === 'string'
+                ? ''
+                : opt.source === 'built_in'
+                  ? t('commandSidebar.builtInCommands', '内置命令')
+                  : t('commandSidebar.pluginCommands', '插件命令')
+            }
+            filterOptions={(options, { inputValue: iv }) => {
+              const q = iv.split(/\s/)[0].toLowerCase()
+              if (!q) return options
+              return options.filter(
+                (cmd) =>
+                  cmd.name.toLowerCase().includes(q) ||
+                  cmd.description.toLowerCase().includes(q) ||
+                  cmd.aliases.some((a) => a.toLowerCase().includes(q)),
+              )
+            }}
+            renderOption={({ key, ...props }, opt) =>
+              typeof opt === 'string' ? null : (
+                <Box component="li" key={key} {...props}>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="body2" component="span" fontFamily="monospace">
+                      {opt.name}
+                    </Typography>
+                    <Typography variant="caption" component="span" color="text.secondary">
+                      {opt.description}
+                    </Typography>
+                  </Stack>
+                </Box>
+              )
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={t('commandSidebar.inputPlaceholder', '输入命令，如 help')}
+                onKeyDown={handleKeyDown}
+                slotProps={{
+                  input: {
+                    ...params.InputProps,
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        {params.InputProps.endAdornment}
+                        <IconButton
+                          onClick={handleSubmit}
+                          disabled={!parseInput(inputValue) || !selectedChatKey || isPending}
+                          color="primary"
+                          size="small"
+                        >
+                          {isPending ? <CircularProgress size={20} /> : <SendIcon />}
+                        </IconButton>
+                      </InputAdornment>
+                    ),
+                  },
+                }}
+              />
+            )}
+            disabled={!selectedChatKey || isPending}
+            isOptionEqualToValue={(opt, val) =>
+              typeof opt === 'string' || typeof val === 'string' ? false : opt.name === val.name
+            }
           />
-          <IconButton
-            onClick={handleSubmit}
-            disabled={!selectedCommand || !selectedChatKey || isPending}
-            color="primary"
-          >
-            {isPending ? <CircularProgress size={20} /> : <SendIcon />}
-          </IconButton>
         </Stack>
       </Card>
     </Box>

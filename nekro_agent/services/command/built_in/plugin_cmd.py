@@ -48,6 +48,7 @@ class NaPluginsCommand(BaseCommand):
 
             info = (
                 f"* {plugin.name} - v{plugin.version} ({plugin_status})\n"
+                f"module: {plugin.module_name}\n"
                 f"{author_label}: {plugin.author}\n"
                 f"{desc_label}: {plugin.description}\n"
                 f"{link_label}: {plugin.url}\n"
@@ -238,6 +239,101 @@ class ResetPluginCommand(BaseCommand):
                     en_US=f"Plugin {target_plugin.name} config file does not exist",
                 )
             )
+
+
+class PluginCtlCommand(BaseCommand):
+    """启用/禁用插件"""
+
+    @property
+    def metadata(self) -> CommandMetadata:
+        return CommandMetadata(
+            name="plugin_ctl",
+            aliases=["plugin-ctl", "npc"],
+            description="启用/禁用插件",
+            i18n_description=i18n_text(zh_CN="启用/禁用插件", en_US="Enable/disable plugin"),
+            usage="plugin_ctl <plugin_name/module_name/key> [on|off]",
+            permission=CommandPermission.SUPER_USER,
+            category="插件",
+            i18n_category=i18n_text(zh_CN="插件", en_US="Plugin"),
+            params_schema=self._auto_params_schema(),
+        )
+
+    async def execute(
+        self,
+        context: CommandExecutionContext,
+        search_term: Annotated[str, Arg("插件名/模块名/键名 及可选 on/off", positional=True, greedy=True)] = "",
+    ) -> CommandResponse:
+        from nekro_agent.services.plugin.collector import plugin_collector
+        from nekro_agent.services.plugin.manager import disable_plugin, enable_plugin
+
+        if not search_term:
+            return CmdCtl.failed(
+                t(
+                    context.lang,
+                    zh_CN="请指定插件名或键名 (plugin_toggle <name> [on|off])",
+                    en_US="Please specify plugin name or key (plugin_toggle <name> [on|off])",
+                )
+            )
+
+        parts = search_term.strip().rsplit(maxsplit=1)
+        action: str | None = None
+        if len(parts) == 2 and parts[-1].lower() in ("on", "off"):
+            plugin_term = parts[0]
+            action = parts[-1].lower()
+        else:
+            plugin_term = search_term.strip()
+
+        plugins = plugin_collector.get_all_plugins()
+        target_plugin = _find_plugin(plugins, plugin_term)
+
+        if not target_plugin:
+            return CmdCtl.failed(
+                t(context.lang, zh_CN=f"未找到插件: {plugin_term}", en_US=f"Plugin not found: {plugin_term}")
+            )
+
+        if action == "on":
+            should_enable = True
+        elif action == "off":
+            should_enable = False
+        else:
+            should_enable = not target_plugin.is_enabled
+
+        if should_enable:
+            ok = await enable_plugin(target_plugin.key)
+            if ok:
+                return CmdCtl.success(
+                    t(
+                        context.lang,
+                        zh_CN=f"插件 {target_plugin.name} 已启用",
+                        en_US=f"Plugin {target_plugin.name} enabled",
+                    )
+                )
+            else:
+                return CmdCtl.failed(
+                    t(
+                        context.lang,
+                        zh_CN=f"启用插件 {target_plugin.name} 失败",
+                        en_US=f"Failed to enable plugin {target_plugin.name}",
+                    )
+                )
+        else:
+            ok = await disable_plugin(target_plugin.key)
+            if ok:
+                return CmdCtl.success(
+                    t(
+                        context.lang,
+                        zh_CN=f"插件 {target_plugin.name} 已禁用",
+                        en_US=f"Plugin {target_plugin.name} disabled",
+                    )
+                )
+            else:
+                return CmdCtl.failed(
+                    t(
+                        context.lang,
+                        zh_CN=f"禁用插件 {target_plugin.name} 失败",
+                        en_US=f"Failed to disable plugin {target_plugin.name}",
+                    )
+                )
 
 
 def _find_plugin(plugins: list[Any], search_term: str) -> Any:

@@ -22,7 +22,7 @@ class ModelTestCommand(BaseCommand):
             aliases=["model-test"],
             description="测试模型连通性和响应速度",
             i18n_description=i18n_text(zh_CN="测试模型连通性和响应速度", en_US="Test model connectivity and response speed"),
-            usage="model_test [model_name] [-g group_name] [--stream] [--use-system]",
+            usage="model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]",
             permission=CommandPermission.SUPER_USER,
             category="模型",
             i18n_category=i18n_text(zh_CN="模型", en_US="Model"),
@@ -42,18 +42,20 @@ class ModelTestCommand(BaseCommand):
                 t(
                     context.lang,
                     zh_CN=(
-                        "用法: model_test [model_name] [-g group_name] [--stream] [--use-system]\n"
+                        "用法: model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]\n"
                         "  model_test gpt-4o          按模型名测试\n"
                         "  model_test -g default      按模型组名测试\n"
                         "  model_test gpt-4o -g def*  模型名 + 组名筛选\n"
-                        "  model_test -g *            测试所有模型组"
+                        "  model_test -g *            测试所有模型组\n"
+                        "  --detail                   显示模型组名等详细信息"
                     ),
                     en_US=(
-                        "Usage: model_test [model_name] [-g group_name] [--stream] [--use-system]\n"
+                        "Usage: model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]\n"
                         "  model_test gpt-4o          Test by model name\n"
                         "  model_test -g default      Test by model group name\n"
                         "  model_test gpt-4o -g def*  Model name + group filter\n"
-                        "  model_test -g *            Test all model groups"
+                        "  model_test -g *            Test all model groups\n"
+                        "  --detail                   Show model group name and details"
                     ),
                 )
             )
@@ -62,7 +64,8 @@ class ModelTestCommand(BaseCommand):
         parts = args_str.strip().split()
         stream_mode = "--stream" in parts
         use_system = "--use-system" in parts
-        filtered_parts = [p for p in parts if p not in ("--stream", "--use-system")]
+        detail_mode = "--detail" in parts
+        filtered_parts = [p for p in parts if p not in ("--stream", "--use-system", "--detail")]
 
         # 解析 -g <group_name> 参数
         group_names: list[str] = []
@@ -130,6 +133,7 @@ class ModelTestCommand(BaseCommand):
             return
 
         result_keys: list[str] = []
+        display_labels: dict[str, str] = {}
         success_map: dict[str, int] = {}
         fail_map: dict[str, int] = {}
         speed_map: dict[str, list[float]] = {}
@@ -141,14 +145,16 @@ class ModelTestCommand(BaseCommand):
 
         for i, (group_key, model_group) in enumerate(test_model_groups, 1):
             label = f"{model_group.CHAT_MODEL} [{group_key}]"
+            display = label if detail_mode else model_group.CHAT_MODEL
             if label not in success_map:
                 result_keys.append(label)
+                display_labels[label] = display
             success_map.setdefault(label, 0)
             fail_map.setdefault(label, 0)
             speed_map.setdefault(label, [])
 
             yield CmdCtl.message(
-                t(context.lang, zh_CN=f"[{i}/{total}] 测试 {label} ...", en_US=f"[{i}/{total}] Testing {label} ...")
+                t(context.lang, zh_CN=f"[{i}/{total}] 测试 {display} ...", en_US=f"[{i}/{total}] Testing {display} ...")
             )
 
             try:
@@ -171,12 +177,12 @@ class ModelTestCommand(BaseCommand):
                 success_map[label] += 1
                 speed_map[label].append(elapsed)
                 yield CmdCtl.message(
-                    t(context.lang, zh_CN=f"[{i}/{total}] ✓ {label} 通过 ({elapsed:.2f}s)", en_US=f"[{i}/{total}] ✓ {label} passed ({elapsed:.2f}s)")
+                    t(context.lang, zh_CN=f"[{i}/{total}] ✓ {display} 通过 ({elapsed:.2f}s)", en_US=f"[{i}/{total}] ✓ {display} passed ({elapsed:.2f}s)")
                 )
             except Exception:
                 fail_map[label] += 1
                 yield CmdCtl.message(
-                    t(context.lang, zh_CN=f"[{i}/{total}] ✗ {label} 失败", en_US=f"[{i}/{total}] ✗ {label} failed")
+                    t(context.lang, zh_CN=f"[{i}/{total}] ✗ {display} 失败", en_US=f"[{i}/{total}] ✗ {display} failed")
                 )
 
         title = t(context.lang, zh_CN="[模型测试结果]", en_US="[Model Test Results]")
@@ -185,11 +191,11 @@ class ModelTestCommand(BaseCommand):
             success = success_map.get(label, 0)
             fail = fail_map.get(label, 0)
             if fail > 0:
-                status = t(context.lang, zh_CN="失败", en_US="FAIL")
+                status = t(context.lang, zh_CN="❌ 失败", en_US="❌ FAIL")
             elif success > 0:
-                status = t(context.lang, zh_CN="通过", en_US="PASS")
+                status = t(context.lang, zh_CN="✅ 通过", en_US="✅ PASS")
             else:
-                status = t(context.lang, zh_CN="未知", en_US="UNKNOWN")
+                status = t(context.lang, zh_CN="⚠️ 未知", en_US="⚠️ UNKNOWN")
 
             speed_info = ""
             speeds = speed_map.get(label)
@@ -207,7 +213,7 @@ class ModelTestCommand(BaseCommand):
 
             success_label = t(context.lang, zh_CN="成功", en_US="success")
             fail_label = t(context.lang, zh_CN="失败", en_US="fail")
-            result_lines.append(f"{status} {label}: ({success_label}: {success}, {fail_label}: {fail}){speed_info}")
+            result_lines.append(f"{status} {display_labels[label]}: ({success_label}: {success}, {fail_label}: {fail}){speed_info}")
 
         yield CmdCtl.success("\n".join(result_lines))
 

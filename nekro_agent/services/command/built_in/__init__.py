@@ -16,7 +16,7 @@ from .ops import (
     LogErrListCommand,
     ShCommand,
 )
-from .plugin_cmd import NaPluginsCommand, PluginInfoCommand, ResetPluginCommand
+from .plugin_cmd import NaPluginsCommand, PluginCtlCommand, PluginInfoCommand, ResetPluginCommand
 from .quota_cmd import QuotaBoostCommand, QuotaCommand, QuotaResetCommand, QuotaSetCommand, QuotaWhitelistCommand
 from .switch import NaOffCommand, NaOnCommand
 
@@ -50,6 +50,7 @@ def register_built_in_commands() -> None:
         NaPluginsCommand(),
         PluginInfoCommand(),
         ResetPluginCommand(),
+        PluginCtlCommand(),
         # 运维类
         ClearSandboxCacheCommand(),
         DockerRestartCommand(),
