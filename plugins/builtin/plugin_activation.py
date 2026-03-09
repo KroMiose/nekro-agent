@@ -58,12 +58,12 @@ def _get_sleepable_plugin(module_name: str) -> NekroPlugin | None:
     name="激活插件提示词",
     description="按 module_name 激活一个允许休眠的插件，并立即返回其完整提示词块",
 )
-async def activate_plugin(_ctx: AgentCtx, module_name: str, rounds: int = 3) -> str:
+async def activate_plugin(_ctx: AgentCtx, module_name: str, rounds: int = 5) -> str:
     """Activate a sleeping plugin and return its full prompt block immediately.
 
     Args:
         module_name (str): Target plugin module_name.
-        rounds (int): Visible runs to keep after activation.
+        rounds (int): Visible runs to keep after activation. Default is 5.
     """
     target = _get_sleepable_plugin(module_name)
     if not target:
@@ -84,12 +84,12 @@ async def activate_plugin(_ctx: AgentCtx, module_name: str, rounds: int = 3) -> 
     name="续期插件提示词激活",
     description="按 module_name 延长一个已接管插件的完整可见轮数",
 )
-async def extend_plugin_activation(_ctx: AgentCtx, module_name: str, rounds: int = 2) -> str:
+async def extend_plugin_activation(_ctx: AgentCtx, module_name: str, rounds: int = 3) -> str:
     """Extend the visible lifetime of an already managed plugin.
 
     Args:
         module_name (str): Target plugin module_name.
-        rounds (int): Additional visible runs to append.
+        rounds (int): Additional visible runs to append. Default is 3.
     """
     target = _get_sleepable_plugin(module_name)
     if not target:

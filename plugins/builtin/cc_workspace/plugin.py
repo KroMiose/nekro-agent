@@ -5,22 +5,22 @@ from nekro_agent.api.plugin import ConfigBase, ExtraField, NekroPlugin
 
 # 创建插件实例
 plugin = NekroPlugin(
-    name="CC 工作区协作",
+    name="Claude Code 协作",
     module_name="cc_workspace",
     description="将 CC Sandbox（claude-code）工作区能力接入主 Agent，支持任务委托、文件传递与状态查询",
     version="0.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     i18n_name=i18n.i18n_text(
-        zh_CN="CC 工作区协作",
-        en_US="CC Workspace Collaboration",
+        zh_CN="Claude Code 协作",
+        en_US="Claude Code Collaboration",
     ),
     i18n_description=i18n.i18n_text(
         zh_CN="将 CC Sandbox（claude-code）工作区能力接入主 Agent，支持任务委托、文件传递与状态查询",
         en_US="Integrates CC Sandbox (claude-code) workspace capabilities into the main Agent, supporting task delegation, file transfer and status queries",
     ),
     allow_sleep=True,
-    sleep_brief="用于将复杂任务委托给 CC 工作区，适合编程、文件处理和长流程协作任务。",
+    sleep_brief="用于将复杂任务委托给 Claude Code (CC) 独立 Agent 工作区，适合编程、文件处理、网络搜索和长流程复杂协作任务。**请在复杂任务中积极启用，而不是试图自行处理！**",
 )
 
 
