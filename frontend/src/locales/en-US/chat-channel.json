@@ -80,7 +80,8 @@
     "tabs": {
       "basicInfo": "Basic Info",
       "overrideSettings": "Override Settings",
-      "messageHistory": "Message History"
+      "messageHistory": "Message History",
+      "pluginData": "Plugin Data"
     },
     "resetDialog": {
       "title": "Confirm Reset Chat?",
@@ -122,11 +123,40 @@
     "outputHint": "Execute commands in chat platform and output will appear here in real-time",
     "selectChannel": "Select Channel",
     "selectCommand": "Select Command",
+    "searchCommand": "Search command...",
     "builtInCommands": "Built-in Commands",
     "pluginCommands": "Plugin Commands",
     "argsPlaceholder": "Enter arguments...",
     "noArgsNeeded": "No arguments needed",
     "selectChannelHint": "Please select a channel to view command output",
     "inputPlaceholder": "Enter command, e.g. help"
+  },
+  "pluginData": {
+    "filterByPlugin": "Filter by Plugin",
+    "allPlugins": "All Plugins",
+    "pluginKey": "Plugin",
+    "dataKey": "Data Key",
+    "dataValue": "Data Value",
+    "userId": "User ID",
+    "updateTime": "Updated",
+    "actions": "Actions",
+    "edit": "Edit",
+    "delete": "Delete",
+    "noData": "No plugin data for this channel",
+    "editTitle": "Edit Plugin Data",
+    "editPlugin": "Plugin",
+    "editKey": "Data Key",
+    "editUser": "User ID",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saveSuccess": "Plugin data saved",
+    "saveFailed": "Failed to save plugin data",
+    "deleteConfirmTitle": "Delete Plugin Data?",
+    "deleteConfirmContent": "This action cannot be undone. Continue?",
+    "deleteSuccess": "Plugin data deleted",
+    "deleteFailed": "Failed to delete plugin data",
+    "globalScope": "Global",
+    "jsonFormatError": "Invalid JSON format, will save as plain text",
+    "selectItem": "Select an item from the list to view data"
   }
 }

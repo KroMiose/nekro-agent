@@ -34,6 +34,7 @@ import { chatChannelApi } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
 import OverrideSettings from './detail-tabs/OverrideSettings'
+import PluginData from './detail-tabs/PluginData'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
 import { useTranslation } from 'react-i18next'
@@ -207,6 +208,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
           <Tab label={t('channelDetail.tabs.basicInfo')} />
           <Tab label={t('channelDetail.tabs.overrideSettings')} />
           <Tab label={t('channelDetail.tabs.messageHistory')} />
+          <Tab label={t('channelDetail.tabs.pluginData')} />
         </Tabs>
       </Card>
 
@@ -225,6 +227,11 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
         {currentTab === 2 && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
             <MessageHistory chatKey={chatKey} canSend={channel?.can_send ?? false} aiAlwaysIncludeMsgId={channel?.ai_always_include_msg_id ?? false} />
+          </Card>
+        )}
+        {currentTab === 3 && (
+          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+            <PluginData chatKey={chatKey} />
           </Card>
         )}
       </Box>
