@@ -191,14 +191,14 @@ async def stream_chat_channel_list(
                 if await request.is_disconnected():
                     return
                 try:
-                    event = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                    event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
 
                 yield f"data: {json.dumps(event.model_dump())}\n\n"
         finally:
-            await subscription.aclose()
+            subscription.close()
 
     return StreamingResponse(
         event_generator(),
@@ -683,7 +683,7 @@ async def stream_chat_channel_messages(
                 if await request.is_disconnected():
                     return
                 try:
-                    message = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                    message = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
@@ -725,7 +725,7 @@ async def stream_chat_channel_messages(
                     logger.error(f"SSE消息序列化失败: {e}")
                     continue
         finally:
-            await subscription.aclose()
+            subscription.close()
 
     return StreamingResponse(
         event_generator(),

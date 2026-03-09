@@ -167,14 +167,14 @@ async def stream_command_output(
                 if await request.is_disconnected():
                     return
                 try:
-                    event = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                    event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
 
                 yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
         finally:
-            await subscription.aclose()
+            subscription.close()
 
     return StreamingResponse(
         event_generator(),
