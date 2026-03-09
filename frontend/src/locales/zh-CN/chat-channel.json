@@ -120,7 +120,7 @@
     "connecting": "连接中...",
     "clear": "清空",
     "noOutput": "暂无命令输出",
-    "outputHint": "在聊天平台中执行命令后，输出将实时显示在此处",
+    "outputHint": "执行命令后，输出结果将在此处实时展示",
     "selectChannel": "选择频道",
     "selectCommand": "选择命令",
     "searchCommand": "搜索命令...",

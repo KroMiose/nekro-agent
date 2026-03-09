@@ -120,7 +120,7 @@
     "connecting": "Connecting...",
     "clear": "Clear",
     "noOutput": "No command output",
-    "outputHint": "Execute commands in chat platform and output will appear here in real-time",
+    "outputHint": "Command output will appear here in real-time after execution",
     "selectChannel": "Select Channel",
     "selectCommand": "Select Command",
     "searchCommand": "Search command...",
