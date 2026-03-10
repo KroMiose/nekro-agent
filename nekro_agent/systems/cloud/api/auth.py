@@ -1,3 +1,6 @@
+import asyncio
+import random
+
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.schemas.auth import StarCheckResponse
 
@@ -26,6 +29,12 @@ async def check_official_repos_starred() -> StarCheckResponse:
                         f"检查GitHub仓库Star状态返回空响应，第 {attempt + 1} 次尝试，status={response.status_code}",
                     )
                     if attempt == 0:
+                        # 轻微退避 + 抖动，避免紧密循环打满上游
+                        backoff = 0.2 + random.random() * 0.3
+                        logger.debug(
+                            f"空响应后将在 {backoff:.3f} 秒后重试 GitHub 仓库 Star 状态请求",
+                        )
+                        await asyncio.sleep(backoff)
                         continue
                     raise ValueError(f"empty response body, status={response.status_code}")
 
