@@ -145,7 +145,9 @@ class DBChatChannel(Model):
             if default_preset:
                 return default_preset
         # 最终回退到内置默认人设
-        return DefaultPreset(name="可洛喵", content="你是可洛喵, 是一名非常可爱的二次元人类宅女和非常聪明厉害的技术宅.")
+        from nekro_agent.services.preset_service import DEFAULT_PRESET_CONTENT, DEFAULT_PRESET_NAME
+
+        return DefaultPreset(name=DEFAULT_PRESET_NAME, content=DEFAULT_PRESET_CONTENT)
 
     @property
     def adapter(self) -> "BaseAdapter":

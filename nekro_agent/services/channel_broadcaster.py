@@ -4,7 +4,7 @@
 """
 
 import asyncio
-from typing import AsyncGenerator, Optional
+from typing import Optional
 
 from pydantic import BaseModel
 
@@ -22,6 +22,22 @@ class ChannelEvent(BaseModel):
     is_active: Optional[bool] = None
 
 
+class ChannelSubscription:
+    """频道事件订阅句柄"""
+
+    def __init__(self, queue: asyncio.Queue[ChannelEvent], cleanup: callable):
+        self._queue = queue
+        self._cleanup = cleanup
+
+    async def get(self, timeout: float) -> ChannelEvent:
+        """获取下一个事件，超时抛出 asyncio.TimeoutError"""
+        return await asyncio.wait_for(self._queue.get(), timeout=timeout)
+
+    def close(self) -> None:
+        """关闭订阅，清理资源"""
+        self._cleanup()
+
+
 class ChannelBroadcaster:
     """频道广播器 - 管理全局频道列表的实时更新"""
 
@@ -29,29 +45,22 @@ class ChannelBroadcaster:
         """初始化频道广播器"""
         self.queues: list[asyncio.Queue] = []  # 全局订阅队列列表
 
-    async def subscribe(self) -> AsyncGenerator[ChannelEvent, None]:
+    def subscribe(self) -> ChannelSubscription:
         """订阅频道更新事件
 
-        Yields:
-            ChannelEvent: 频道事件
-
-        Raises:
-            Exception: 当订阅被取消时
+        Returns:
+            ChannelSubscription: 订阅句柄，调用 get(timeout) 获取事件，结束后调用 close()
         """
-        queue: asyncio.Queue = asyncio.Queue()
+        queue: asyncio.Queue[ChannelEvent] = asyncio.Queue()
         self.queues.append(queue)
         logger.debug(f"新订阅者加入频道列表, 当前订阅数: {len(self.queues)}")
 
-        try:
-            while True:
-                event = await queue.get()
-                yield event
-        except asyncio.CancelledError:
-            logger.debug("频道列表订阅被取消")
-            raise
-        finally:
-            self.queues.remove(queue)
-            logger.debug(f"订阅者离开频道列表, 当前订阅数: {len(self.queues)}")
+        def cleanup():
+            if queue in self.queues:
+                self.queues.remove(queue)
+                logger.debug(f"订阅者离开频道列表, 当前订阅数: {len(self.queues)}")
+
+        return ChannelSubscription(queue, cleanup)
 
     async def publish_update(self, event_type: str, chat_key: str, channel_name: Optional[str] = None, is_active: Optional[bool] = None) -> None:
         """发布频道更新事件到所有订阅者

@@ -1,4 +1,5 @@
 import axios from './axios'
+import type { I18nDict } from './types'
 import { createEventStream } from './utils/stream'
 
 export interface CommandState {
@@ -13,6 +14,9 @@ export interface CommandState {
   enabled: boolean
   has_channel_override: boolean
   params_schema?: Record<string, unknown>
+  i18n_description?: I18nDict
+  i18n_usage?: I18nDict
+  i18n_category?: I18nDict
 }
 
 export interface CommandOutputEvent {

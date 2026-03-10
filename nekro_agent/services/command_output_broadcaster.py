@@ -5,7 +5,6 @@
 
 import asyncio
 import time
-from typing import AsyncGenerator
 
 from pydantic import BaseModel
 
@@ -24,20 +23,36 @@ class CommandOutputEvent(BaseModel):
     timestamp: float
 
 
+class CommandOutputSubscription:
+    """命令输出订阅句柄"""
+
+    def __init__(self, queue: asyncio.Queue[CommandOutputEvent], cleanup: callable):
+        self._queue = queue
+        self._cleanup = cleanup
+
+    async def get(self, timeout: float) -> CommandOutputEvent:
+        """获取下一个事件，超时抛出 asyncio.TimeoutError"""
+        return await asyncio.wait_for(self._queue.get(), timeout=timeout)
+
+    def close(self) -> None:
+        """关闭订阅，清理资源"""
+        self._cleanup()
+
+
 class CommandOutputBroadcaster:
     """命令输出广播器 - 管理每个频道的命令输出订阅"""
 
     def __init__(self):
         self.queues: dict[str, list[asyncio.Queue[CommandOutputEvent]]] = {}
 
-    async def subscribe(self, chat_key: str) -> AsyncGenerator[CommandOutputEvent, None]:
+    def subscribe(self, chat_key: str) -> CommandOutputSubscription:
         """订阅指定频道的命令输出
 
         Args:
             chat_key: 聊天频道唯一标识
 
-        Yields:
-            CommandOutputEvent: 命令输出事件
+        Returns:
+            CommandOutputSubscription: 订阅句柄
         """
         if chat_key not in self.queues:
             self.queues[chat_key] = []
@@ -46,18 +61,14 @@ class CommandOutputBroadcaster:
         self.queues[chat_key].append(queue)
         logger.debug(f"命令输出订阅者加入频道 {chat_key}, 当前订阅数: {len(self.queues[chat_key])}")
 
-        try:
-            while True:
-                event = await queue.get()
-                yield event
-        except asyncio.CancelledError:
-            logger.debug(f"频道 {chat_key} 的命令输出订阅被取消")
-            raise
-        finally:
-            self.queues[chat_key].remove(queue)
-            logger.debug(f"命令输出订阅者离开频道 {chat_key}, 当前订阅数: {len(self.queues[chat_key])}")
-            if not self.queues[chat_key]:
-                del self.queues[chat_key]
+        def cleanup():
+            if chat_key in self.queues and queue in self.queues[chat_key]:
+                self.queues[chat_key].remove(queue)
+                logger.debug(f"命令输出订阅者离开频道 {chat_key}, 当前订阅数: {len(self.queues[chat_key])}")
+                if not self.queues[chat_key]:
+                    del self.queues[chat_key]
+
+        return CommandOutputSubscription(queue, cleanup)
 
     async def publish(self, chat_key: str, command_name: str, status: str, message: str) -> None:
         """发布命令输出事件到指定频道的所有订阅者

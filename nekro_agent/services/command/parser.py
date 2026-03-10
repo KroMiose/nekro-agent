@@ -4,6 +4,7 @@ import inspect
 import shlex
 from typing import Any, Callable, Optional, get_type_hints
 
+from nekro_agent.schemas.i18n import SupportedLang, t
 from nekro_agent.services.command.schemas import _UNSET, Arg
 
 
@@ -39,7 +40,7 @@ class ArgumentParser:
     """命令参数解析器 - 支持位置参数和 K-V 参数混合模式"""
 
     @classmethod
-    def parse(cls, func: Callable, raw_args: str) -> dict[str, Any]:
+    def parse(cls, func: Callable, raw_args: str, *, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:
         """从函数签名 + 原始参数字符串 -> 解析后的 kwargs
 
         解析规则：
@@ -51,6 +52,8 @@ class ArgumentParser:
         6. greedy=True 的参数吃掉剩余所有文本
         7. 执行类型转换和约束校验
         """
+        from nekro_agent.schemas.i18n import t
+
         params = cls._extract_params(func)
         if not params:
             return {}
@@ -61,7 +64,11 @@ class ArgumentParser:
             result = {}
             for p in params:
                 if p.is_required:
-                    raise ValueError(f"缺少必填参数: {p.name}" + (f" ({p.arg_meta.description})" if p.arg_meta else ""))
+                    raise ValueError(
+                        t(zh_CN="缺少必填参数: ", en_US="Missing required argument: ")
+                        + p.name
+                        + (f" ({p.arg_meta.description})" if p.arg_meta else "")
+                    )
                 result[p.name] = p.default
             return result
 
@@ -70,7 +77,7 @@ class ArgumentParser:
 
         # 如果只有一个参数且是 greedy 或 positional，直接将整个 raw_args 作为值
         if len(params) == 1 and (params[0].is_greedy or params[0].is_positional):
-            return {params[0].name: cls._convert_type(raw_args, params[0])}
+            return {params[0].name: cls._convert_type(raw_args, params[0], lang=lang)}
 
         # 词法分析
         tokens = cls._tokenize(raw_args)
@@ -109,19 +116,23 @@ class ArgumentParser:
         for key, value in kv_args.items():
             param = next((p for p in params if p.name == key), None)
             if param:
-                result[key] = cls._convert_type(value, param)
+                result[key] = cls._convert_type(value, param, lang=lang)
 
         # 2. 按位置填充 positional 参数
         positional_params = [p for p in params if p.is_positional and p.name not in result]
         for idx, param in enumerate(positional_params):
             if idx < len(positional_values):
-                result[param.name] = cls._convert_type(positional_values[idx], param)
+                result[param.name] = cls._convert_type(positional_values[idx], param, lang=lang)
 
         # 3. 填充默认值
         for p in params:
             if p.name not in result:
                 if p.is_required:
-                    raise ValueError(f"缺少必填参数: {p.name}" + (f" ({p.arg_meta.description})" if p.arg_meta else ""))
+                    raise ValueError(
+                        t(zh_CN="缺少必填参数: ", en_US="Missing required argument: ")
+                        + p.name
+                        + (f" ({p.arg_meta.description})" if p.arg_meta else "")
+                    )
                 result[p.name] = p.default
 
         return result
@@ -255,7 +266,7 @@ class ArgumentParser:
         return key, value
 
     @classmethod
-    def _convert_type(cls, value: str, param: _ParamInfo) -> Any:
+    def _convert_type(cls, value: str, param: _ParamInfo, *, lang: SupportedLang = SupportedLang.ZH_CN) -> Any:
         """类型转换和约束校验"""
         target_type = param.annotation
 
@@ -268,11 +279,18 @@ class ArgumentParser:
             try:
                 result = int(value)
             except ValueError:
-                raise ValueError(f"参数 {param.name} 需要整数类型") from None
+                raise ValueError(
+                    t(zh_CN=f"参数 {param.name} 需要整数类型", en_US=f"Argument {param.name} requires integer type")
+                ) from None
             if param.arg_meta and param.arg_meta.range:
                 min_val, max_val = param.arg_meta.range
                 if not (min_val <= result <= max_val):
-                    raise ValueError(f"参数 {param.name} 的值需在 {min_val}-{max_val} 之间")
+                    raise ValueError(
+                        t(
+                            zh_CN=f"参数 {param.name} 的值需在 {min_val}-{max_val} 之间",
+                            en_US=f"Argument {param.name} must be between {min_val} and {max_val}",
+                        )
+                    )
             return result
 
         # float
@@ -280,16 +298,28 @@ class ArgumentParser:
             try:
                 result = float(value)
             except ValueError:
-                raise ValueError(f"参数 {param.name} 需要数值类型") from None
+                raise ValueError(
+                    t(zh_CN=f"参数 {param.name} 需要数值类型", en_US=f"Argument {param.name} requires numeric type")
+                ) from None
             if param.arg_meta and param.arg_meta.range:
                 min_val, max_val = param.arg_meta.range
                 if not (min_val <= result <= max_val):
-                    raise ValueError(f"参数 {param.name} 的值需在 {min_val}-{max_val} 之间")
+                    raise ValueError(
+                        t(
+                            zh_CN=f"参数 {param.name} 的值需在 {min_val}-{max_val} 之间",
+                            en_US=f"Argument {param.name} must be between {min_val} and {max_val}",
+                        )
+                    )
             return result
 
         # choices 校验
         if param.arg_meta and param.arg_meta.choices and value not in param.arg_meta.choices:
-            raise ValueError(f"参数 {param.name} 的值必须是 {param.arg_meta.choices} 之一")
+            raise ValueError(
+                t(
+                    zh_CN=f"参数 {param.name} 的值必须是 {param.arg_meta.choices} 之一",
+                    en_US=f"Argument {param.name} must be one of {param.arg_meta.choices}",
+                )
+            )
 
         # str（默认）
         return value

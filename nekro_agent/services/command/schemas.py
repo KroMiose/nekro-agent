@@ -8,6 +8,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel
 
+from nekro_agent.schemas.i18n import SupportedLang
+
 # Arg 默认值哨兵
 _UNSET = object()
 
@@ -21,6 +23,7 @@ class CommandExecutionContext(BaseModel):
     adapter_key: str
     is_super_user: bool = False
     is_advanced_user: bool = False
+    lang: SupportedLang = SupportedLang.ZH_CN  # 命令响应语言
 
 
 class CommandRequest(BaseModel):

@@ -191,14 +191,14 @@ async def stream_chat_channel_list(
                 if await request.is_disconnected():
                     return
                 try:
-                    event = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                    event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
 
                 yield f"data: {json.dumps(event.model_dump())}\n\n"
         finally:
-            await subscription.aclose()
+            subscription.close()
 
     return StreamingResponse(
         event_generator(),
@@ -431,6 +431,112 @@ async def send_poke(
     return ActionResponse(ok=ok)
 
 
+class ChatPluginDataItem(BaseModel):
+    id: int
+    plugin_key: str
+    data_key: str
+    data_value: str
+    target_user_id: str
+    create_time: str
+    update_time: str
+
+
+class ChatPluginDataResponse(BaseModel):
+    total: int
+    items: List[ChatPluginDataItem]
+    plugin_keys: List[str]
+    plugin_names: Dict[str, str]
+
+
+class UpdatePluginDataRequest(BaseModel):
+    data_value: str
+
+
+@router.get("/{chat_key}/plugin-data", summary="获取聊天频道的插件数据")
+@require_role(Role.Admin)
+async def get_chat_plugin_data(
+    chat_key: str,
+    plugin_key: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 20,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ChatPluginDataResponse:
+    """获取指定聊天频道下所有插件存储的数据"""
+    from nekro_agent.models.db_plugin_data import DBPluginData
+
+    query = DBPluginData.filter(target_chat_key=chat_key)
+    if plugin_key:
+        query = query.filter(plugin_key=plugin_key)
+
+    total = await query.count()
+    items = await query.order_by("-update_time").offset((page - 1) * page_size).limit(page_size)
+
+    # 获取该频道涉及的所有插件 key（用于前端筛选下拉）
+    all_keys = await DBPluginData.filter(target_chat_key=chat_key).distinct().values_list("plugin_key", flat=True)
+
+    # 构建 plugin_key → 插件显示名称的映射
+    from nekro_agent.services.plugin.collector import plugin_collector
+
+    plugin_names: Dict[str, str] = {}
+    for pk in all_keys:
+        plugin = plugin_collector.get_plugin(pk)
+        plugin_names[pk] = plugin.name if plugin else pk
+
+    return ChatPluginDataResponse(
+        total=total,
+        items=[
+            ChatPluginDataItem(
+                id=item.id,
+                plugin_key=item.plugin_key,
+                data_key=item.data_key,
+                data_value=item.data_value,
+                target_user_id=item.target_user_id,
+                create_time=item.create_time.strftime("%Y-%m-%d %H:%M:%S"),
+                update_time=item.update_time.strftime("%Y-%m-%d %H:%M:%S"),
+            )
+            for item in items
+        ],
+        plugin_keys=list(all_keys),
+        plugin_names=plugin_names,
+    )
+
+
+@router.put("/{chat_key}/plugin-data/{data_id}", summary="修改插件数据")
+@require_role(Role.Admin)
+async def update_chat_plugin_data(
+    chat_key: str,
+    data_id: int,
+    body: UpdatePluginDataRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    """修改指定聊天频道下的某条插件数据"""
+    from nekro_agent.models.db_plugin_data import DBPluginData
+
+    data = await DBPluginData.filter(id=data_id, target_chat_key=chat_key).first()
+    if not data:
+        raise NotFoundError(resource="插件数据")
+    data.data_value = body.data_value
+    await data.save(update_fields=["data_value"])
+    return ActionResponse(ok=True)
+
+
+@router.delete("/{chat_key}/plugin-data/{data_id}", summary="删除插件数据")
+@require_role(Role.Admin)
+async def delete_chat_plugin_data(
+    chat_key: str,
+    data_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    """删除指定聊天频道下的某条插件数据"""
+    from nekro_agent.models.db_plugin_data import DBPluginData
+
+    data = await DBPluginData.filter(id=data_id, target_chat_key=chat_key).first()
+    if not data:
+        raise NotFoundError(resource="插件数据")
+    await data.delete()
+    return ActionResponse(ok=True)
+
+
 class SendMessageRequest(BaseModel):
     message: str
 
@@ -577,7 +683,7 @@ async def stream_chat_channel_messages(
                 if await request.is_disconnected():
                     return
                 try:
-                    message = await asyncio.wait_for(anext(subscription), timeout=1.0)
+                    message = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
                     yield ": ping\n\n"
                     continue
@@ -619,7 +725,7 @@ async def stream_chat_channel_messages(
                     logger.error(f"SSE消息序列化失败: {e}")
                     continue
         finally:
-            await subscription.aclose()
+            subscription.close()
 
     return StreamingResponse(
         event_generator(),

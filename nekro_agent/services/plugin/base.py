@@ -563,6 +563,9 @@ class NekroPlugin:
         category: str = "plugin",
         tags: Optional[List[str]] = None,
         internal: bool = False,
+        i18n_description: Optional[Dict[str, str]] = None,
+        i18n_usage: Optional[Dict[str, str]] = None,
+        i18n_category: Optional[Dict[str, str]] = None,
     ) -> Callable[[Callable], Callable]:
         """挂载命令
 
@@ -578,6 +581,9 @@ class NekroPlugin:
             category: 分类
             tags: 标签 (便于 Agent 检索)
             internal: 是否为内部命令 (不在帮助列表和补全中显示)
+            i18n_description: 国际化描述 (由 i18n_text() 创建)
+            i18n_usage: 国际化用法说明
+            i18n_category: 国际化分类
 
         Returns:
             装饰器函数
@@ -612,10 +618,13 @@ class NekroPlugin:
             cmd = PluginCommand(
                 name=name,
                 description=description,
+                i18n_description=i18n_description,
                 aliases=aliases or [],
                 permission=perm,
                 usage=usage,
+                i18n_usage=i18n_usage,
                 category=category,
+                i18n_category=i18n_category,
                 source=self.key,
                 namespace=self.module_name,
                 tags=tags or [],

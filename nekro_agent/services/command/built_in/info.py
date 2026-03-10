@@ -1,5 +1,6 @@
 """内置命令 - 信息类: na_info, na_help"""
 
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
@@ -14,8 +15,10 @@ class NaInfoCommand(BaseCommand):
             name="na_info",
             aliases=["na-info"],
             description="查看系统信息",
+            i18n_description=i18n_text(zh_CN="查看系统信息", en_US="View system information"),
             permission=CommandPermission.SUPER_USER,
             category="信息",
+            i18n_category=i18n_text(zh_CN="信息", en_US="Information"),
         )
 
     async def execute(self, context: CommandExecutionContext) -> CommandResponse:
@@ -28,16 +31,22 @@ class NaInfoCommand(BaseCommand):
         preset = await db_chat_channel.get_preset()
         version = get_app_version()
 
+        title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
+        subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
+        chat_settings = t(zh_CN="========聊天设定========", en_US="========Chat Settings========")
+        preset_label = t(zh_CN="人设", en_US="Preset")
+        model_group_label = t(zh_CN="当前模型组", en_US="Current Model Group")
+
         message = (
-            f"[Nekro-Agent 信息]\n"
-            f"> 更智能、更优雅的代理执行 AI\n"
+            f"{title}\n"
+            f"{subtitle}\n"
             f"Author: KroMiose\n"
             f"Github: https://github.com/KroMiose/nekro-agent\n"
             f"Version: {version}\n"
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
-            "========聊天设定========\n"
-            f"人设: {preset.name}\n"
-            f"当前模型组: {config.USE_MODEL_GROUP}"
+            f"{chat_settings}\n"
+            f"{preset_label}: {preset.name}\n"
+            f"{model_group_label}: {config.USE_MODEL_GROUP}"
         )
 
         return CmdCtl.success(
@@ -60,8 +69,10 @@ class NaHelpCommand(BaseCommand):
             name="na_help",
             aliases=["na-help"],
             description="查看帮助信息",
+            i18n_description=i18n_text(zh_CN="查看帮助信息", en_US="View help information"),
             permission=CommandPermission.USER,
             category="信息",
+            i18n_category=i18n_text(zh_CN="信息", en_US="Information"),
         )
 
     async def execute(self, context: CommandExecutionContext) -> CommandResponse:
@@ -75,7 +86,7 @@ class NaHelpCommand(BaseCommand):
         # 按分类分组
         categories: dict[str, list[str]] = {}
         for meta in commands:
-            cat = meta.category
+            cat = meta.get_category(context.lang)
             categories.setdefault(cat, [])
             # 构建命令描述行
             name = meta.name
@@ -83,16 +94,18 @@ class NaHelpCommand(BaseCommand):
                 name = f"{meta.namespace}:{meta.name}"
             alias_str = f" ({', '.join(meta.aliases)})" if meta.aliases else ""
             perm_str = f"[{meta.permission.value.upper()}]" if meta.permission != CommandPermission.PUBLIC else ""
-            line = f"{name}{alias_str}: {meta.description} {perm_str}".strip()
+            line = f"{name}{alias_str}: {meta.get_description(context.lang)} {perm_str}".strip()
             categories[cat].append(line)
 
         # 构建输出
-        parts = ["[Nekro-Agent 帮助]"]
+        help_title = t(zh_CN="[Nekro-Agent 帮助]", en_US="[Nekro-Agent Help]")
+        more_info = t(zh_CN="更多信息", en_US="More Info")
+        parts = [help_title]
         for cat_name, lines in categories.items():
             parts.append(f"\n====== [{cat_name}] ======")
             parts.extend(lines)
 
-        parts.append("\n====== [更多信息] ======")
+        parts.append(f"\n====== [{more_info}] ======")
         parts.append(f"Version: {get_app_version()}")
         parts.append("Github: https://github.com/KroMiose/nekro-agent")
 

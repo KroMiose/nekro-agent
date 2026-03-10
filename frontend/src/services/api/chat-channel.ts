@@ -95,6 +95,23 @@ export interface ChatChannelUsersResponse {
   items: ChatChannelUser[]
 }
 
+export interface ChatPluginData {
+  id: number
+  plugin_key: string
+  data_key: string
+  data_value: string
+  target_user_id: string
+  create_time: string
+  update_time: string
+}
+
+export interface ChatPluginDataResponse {
+  total: number
+  items: ChatPluginData[]
+  plugin_keys: string[]
+  plugin_names: Record<string, string>
+}
+
 export const chatChannelApi = {
   getList: async (params: {
     page: number
@@ -198,6 +215,27 @@ export const chatChannelApi = {
       },
       onError,
     })
+  },
+
+  getPluginData: async (chatKey: string, params?: {
+    plugin_key?: string
+    page?: number
+    page_size?: number
+  }): Promise<ChatPluginDataResponse> => {
+    const response = await axios.get<ChatPluginDataResponse>(`/chat-channel/${chatKey}/plugin-data`, { params })
+    return response.data
+  },
+
+  updatePluginData: async (chatKey: string, dataId: number, dataValue: string): Promise<ActionResponse> => {
+    const response = await axios.put<ActionResponse>(`/chat-channel/${chatKey}/plugin-data/${dataId}`, {
+      data_value: dataValue,
+    })
+    return response.data
+  },
+
+  deletePluginData: async (chatKey: string, dataId: number): Promise<ActionResponse> => {
+    const response = await axios.delete<ActionResponse>(`/chat-channel/${chatKey}/plugin-data/${dataId}`)
+    return response.data
   },
 
   streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => void, onError?: (error: Error) => void): (() => void) => {

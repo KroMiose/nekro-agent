@@ -109,6 +109,8 @@ class AgentToolExporter:
         Returns:
             合并后的响应字典
         """
+        from nekro_agent.core.config import config
+        from nekro_agent.schemas.i18n import SupportedLang
         from nekro_agent.services.command.registry import command_registry
         from nekro_agent.services.command.schemas import CommandExecutionContext, CommandRequest
 
@@ -118,6 +120,7 @@ class AgentToolExporter:
             username=username,
             adapter_key="agent",
             is_super_user=True,  # AI 调用默认拥有最高权限
+            lang=SupportedLang(config.SYSTEM_LANG),
         )
         request = CommandRequest(context=context, command_name=command_name, raw_args=raw_args)
 

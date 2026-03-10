@@ -7,12 +7,15 @@ import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
 import { getLocalizedText } from '../../services/api/types'
 import type { ConfigItem } from '../../components/common/ConfigTable'
+import { useLocaleStore } from '../../stores/locale'
+import type { SupportedLocale } from '../../config/i18n'
 
 export default function SettingsPage() {
   const location = useLocation()
   const [searchText, setSearchText] = useState<string>('')
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
+  const { setLocaleLocal } = useLocaleStore()
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -93,6 +96,18 @@ export default function SettingsPage() {
       setSearchText(searchParamValue)
     }
   }, [location.search])
+
+  // 当系统配置刷新后，同步 SYSTEM_LANG 到前端 locale
+  useEffect(() => {
+    const langConfig = configs.find((c: ConfigItem) => c.key === 'SYSTEM_LANG')
+    if (langConfig) {
+      const backendLang = langConfig.value as string
+      if (backendLang === 'zh-CN' || backendLang === 'en-US') {
+        setLocaleLocal(backendLang as SupportedLocale)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configs])
 
   // 根据当前选中的分类过滤配置
   const displayConfigs = useMemo(() => {

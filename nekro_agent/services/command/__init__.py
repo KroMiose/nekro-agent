@@ -5,6 +5,7 @@
 
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission, PluginCommand
 from nekro_agent.services.command.ctl import CmdCtl
+from nekro_agent.services.command.group import CommandGroup
 from nekro_agent.services.command.schemas import (
     Arg,
     CommandExecutionContext,
@@ -18,6 +19,7 @@ __all__ = [
     "BaseCommand",
     "CmdCtl",
     "CommandExecutionContext",
+    "CommandGroup",
     "CommandMetadata",
     "CommandPermission",
     "CommandRequest",

@@ -1,13 +1,13 @@
 import { useState, useMemo } from 'react'
 import {
   Box,
+  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  TablePagination,
   Switch,
   Chip,
   TextField,
@@ -33,8 +33,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { commandsApi, type CommandState } from '../../services/api/commands'
+import { getLocalizedText } from '../../services/api/types'
 import { useNotification } from '../../hooks/useNotification'
-import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 
 const PERMISSION_COLORS: Record<string, 'error' | 'warning' | 'success' | 'default' | 'info'> = {
   super_user: 'error',
@@ -44,7 +46,7 @@ const PERMISSION_COLORS: Record<string, 'error' | 'warning' | 'success' | 'defau
 }
 
 export default function CommandsPage() {
-  const { t } = useTranslation('settings')
+  const { t, i18n } = useTranslation('settings')
   const notification = useNotification()
   const queryClient = useQueryClient()
 
@@ -100,16 +102,18 @@ export default function CommandsPage() {
   // 过滤
   const filtered = useMemo(() => {
     return commands.filter((cmd) => {
+      const localDesc = getLocalizedText(cmd.i18n_description, cmd.description, i18n.language)
       const matchSearch =
         !search ||
         cmd.name.toLowerCase().includes(search.toLowerCase()) ||
+        localDesc.toLowerCase().includes(search.toLowerCase()) ||
         cmd.description.toLowerCase().includes(search.toLowerCase()) ||
         cmd.aliases.some((a) => a.toLowerCase().includes(search.toLowerCase()))
       const matchCategory = !categoryFilter || cmd.category === categoryFilter
       const matchSource = !sourceFilter || cmd.source === sourceFilter
       return matchSearch && matchCategory && matchSource
     })
-  }, [commands, search, categoryFilter, sourceFilter])
+  }, [commands, search, categoryFilter, sourceFilter, i18n.language])
 
   // 分页
   const paginated = useMemo(() => {
@@ -126,146 +130,161 @@ export default function CommandsPage() {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+    <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 2 }}>
       {/* 搜索和过滤栏 */}
-      <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
-        <TextField
-          size="small"
-          placeholder={t('commands.search', '搜索命令...')}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(0)
-          }}
-          sx={{ minWidth: 220 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
-        />
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>{t('commands.filters.category', '分类')}</InputLabel>
-          <Select
-            value={categoryFilter}
-            label={t('commands.filters.category', '分类')}
+      <Paper
+        sx={{
+          ...CARD_VARIANTS.default.styles,
+          p: 2,
+          flexShrink: 0,
+        }}
+      >
+        <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center">
+          <TextField
+            size="small"
+            placeholder={t('commands.search', '搜索命令...')}
+            value={search}
             onChange={(e) => {
-              setCategoryFilter(e.target.value)
+              setSearch(e.target.value)
               setPage(0)
             }}
-          >
-            <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
-            {categories.map((cat) => (
-              <MenuItem key={cat} value={cat}>
-                {cat}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>{t('commands.filters.source', '来源')}</InputLabel>
-          <Select
-            value={sourceFilter}
-            label={t('commands.filters.source', '来源')}
-            onChange={(e) => {
-              setSourceFilter(e.target.value)
-              setPage(0)
+            sx={{ minWidth: 220 }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
             }}
-          >
-            <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
-            {sources.map((src) => (
-              <MenuItem key={src} value={src}>
-                {src === 'built_in' ? t('commands.sources.builtIn', '内置') : src}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Typography variant="body2" sx={{ alignSelf: 'center', color: 'text.secondary', ml: 'auto' }}>
-          {t('commands.total', '共 {{count}} 个命令', { count: filtered.length })}
-        </Typography>
-      </Stack>
+          />
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>{t('commands.filters.category', '分类')}</InputLabel>
+            <Select
+              value={categoryFilter}
+              label={t('commands.filters.category', '分类')}
+              onChange={(e) => {
+                setCategoryFilter(e.target.value)
+                setPage(0)
+              }}
+            >
+              <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
+              {categories.map((cat) => (
+                <MenuItem key={cat} value={cat}>
+                  {commands.find((c) => c.category === cat)
+                    ? getLocalizedText(
+                        commands.find((c) => c.category === cat)?.i18n_category,
+                        cat,
+                        i18n.language
+                      )
+                    : cat}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl size="small" sx={{ minWidth: 140 }}>
+            <InputLabel>{t('commands.filters.source', '来源')}</InputLabel>
+            <Select
+              value={sourceFilter}
+              label={t('commands.filters.source', '来源')}
+              onChange={(e) => {
+                setSourceFilter(e.target.value)
+                setPage(0)
+              }}
+            >
+              <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
+              {sources.map((src) => (
+                <MenuItem key={src} value={src}>
+                  {src === 'built_in' ? t('commands.sources.builtIn', '内置') : src}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <Typography variant="body2" sx={{ alignSelf: 'center', color: 'text.secondary', ml: 'auto' }}>
+            {t('commands.total', '共 {{count}} 个命令', { count: filtered.length })}
+          </Typography>
+        </Stack>
+      </Paper>
 
       {/* 表格 */}
-      <TableContainer sx={{ ...UNIFIED_TABLE_STYLES.container, flex: 1, overflow: 'auto' }}>
-        <Table stickyHeader size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={40} />
-              <TableCell sx={UNIFIED_TABLE_STYLES.header}>
-                {t('commands.table.name', '命令名')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header}>
-                {t('commands.table.description', '描述')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={100}>
-                {t('commands.table.category', '分类')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={100}>
-                {t('commands.table.source', '来源')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={90}>
-                {t('commands.table.permission', '权限')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={80} align="center">
-                {t('commands.table.enabled', '启用')}
-              </TableCell>
-              <TableCell sx={UNIFIED_TABLE_STYLES.header} width={60} align="center">
-                {t('commands.table.actions', '操作')}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {isLoading ? (
+      <Paper sx={{ ...UNIFIED_TABLE_STYLES.tableContentContainer }}>
+        <TableContainer sx={UNIFIED_TABLE_STYLES.tableViewport}>
+          <Table stickyHeader size="small">
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">
-                    {t('commands.loading', '加载中...')}
-                  </Typography>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={40} />
+                <TableCell sx={UNIFIED_TABLE_STYLES.header}>
+                  {t('commands.table.name', '命令名')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header}>
+                  {t('commands.table.description', '描述')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={100}>
+                  {t('commands.table.category', '分类')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={100}>
+                  {t('commands.table.source', '来源')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={90}>
+                  {t('commands.table.permission', '权限')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={80} align="center">
+                  {t('commands.table.enabled', '启用')}
+                </TableCell>
+                <TableCell sx={UNIFIED_TABLE_STYLES.header} width={60} align="center">
+                  {t('commands.table.actions', '操作')}
                 </TableCell>
               </TableRow>
-            ) : paginated.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                  <Typography color="text.secondary">
-                    {t('commands.empty', '暂无命令')}
-                  </Typography>
-                </TableCell>
-              </TableRow>
-            ) : (
-              paginated.map((cmd) => (
-                <CommandRow
-                  key={cmd.name}
-                  cmd={cmd}
-                  expanded={expandedRow === cmd.name}
-                  onToggleExpand={() =>
-                    setExpandedRow(expandedRow === cmd.name ? null : cmd.name)
-                  }
-                  onToggleEnabled={() => handleToggle(cmd)}
-                  onReset={() => handleReset(cmd.name)}
-                  t={t}
-                />
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">
+                      {t('commands.loading', '加载中...')}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : paginated.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
+                    <Typography color="text.secondary">
+                      {t('commands.empty', '暂无命令')}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                paginated.map((cmd) => (
+                  <CommandRow
+                    key={cmd.name}
+                    cmd={cmd}
+                    expanded={expandedRow === cmd.name}
+                    onToggleExpand={() =>
+                      setExpandedRow(expandedRow === cmd.name ? null : cmd.name)
+                    }
+                    onToggleEnabled={() => handleToggle(cmd)}
+                    onReset={() => handleReset(cmd.name)}
+                    t={t}
+                    lang={i18n.language}
+                  />
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
-      {/* 分页 */}
-      <TablePagination
-        component="div"
-        count={filtered.length}
-        page={page}
-        onPageChange={(_, p) => setPage(p)}
-        rowsPerPage={rowsPerPage}
-        onRowsPerPageChange={(e) => {
-          setRowsPerPage(parseInt(e.target.value, 10))
-          setPage(0)
-        }}
-        rowsPerPageOptions={[10, 20, 50]}
-        labelRowsPerPage={t('commands.rowsPerPage', '每页')}
-      />
+        {/* 分页 */}
+        <TablePaginationStyled
+          count={filtered.length}
+          page={page}
+          rowsPerPage={rowsPerPage}
+          onPageChange={(_, p) => setPage(p)}
+          onRowsPerPageChange={(e) => {
+            setRowsPerPage(parseInt(e.target.value, 10))
+            setPage(0)
+          }}
+          rowsPerPageOptions={[10, 20, 50]}
+        />
+      </Paper>
     </Box>
   )
 }
@@ -277,6 +296,7 @@ function CommandRow({
   onToggleEnabled,
   onReset,
   t,
+  lang,
 }: {
   cmd: CommandState
   expanded: boolean
@@ -284,6 +304,7 @@ function CommandRow({
   onToggleEnabled: () => void
   onReset: () => void
   t: TFunction<'settings'>
+  lang: string
 }) {
   return (
     <>
@@ -305,11 +326,11 @@ function CommandRow({
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
           <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
-            {cmd.description}
+            {getLocalizedText(cmd.i18n_description, cmd.description, lang)}
           </Typography>
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
-          <Chip label={cmd.category} size="small" variant="outlined" />
+          <Chip label={getLocalizedText(cmd.i18n_category, cmd.category, lang)} size="small" variant="outlined" />
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
           <Chip
@@ -362,7 +383,7 @@ function CommandRow({
                 />
                 <DetailItem
                   label={t('commands.detail.usage', '用法')}
-                  value={cmd.usage}
+                  value={getLocalizedText(cmd.i18n_usage, cmd.usage, lang)}
                   mono
                 />
                 {cmd.aliases.length > 0 && (

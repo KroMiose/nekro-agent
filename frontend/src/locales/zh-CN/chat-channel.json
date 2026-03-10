@@ -80,7 +80,8 @@
     "tabs": {
       "basicInfo": "基础信息",
       "overrideSettings": "覆盖配置",
-      "messageHistory": "消息记录"
+      "messageHistory": "消息记录",
+      "pluginData": "插件数据"
     },
     "resetDialog": {
       "title": "确认重置聊天？",
@@ -119,14 +120,43 @@
     "connecting": "连接中...",
     "clear": "清空",
     "noOutput": "暂无命令输出",
-    "outputHint": "在聊天平台中执行命令后，输出将实时显示在此处",
+    "outputHint": "执行命令后，输出结果将在此处实时展示",
     "selectChannel": "选择频道",
     "selectCommand": "选择命令",
+    "searchCommand": "搜索命令...",
     "builtInCommands": "内置命令",
     "pluginCommands": "插件命令",
     "argsPlaceholder": "输入参数...",
     "noArgsNeeded": "该命令无需参数",
     "selectChannelHint": "请先选择一个频道以查看命令输出",
     "inputPlaceholder": "输入命令，如 help"
+  },
+  "pluginData": {
+    "filterByPlugin": "按插件筛选",
+    "allPlugins": "全部插件",
+    "pluginKey": "插件标识",
+    "dataKey": "数据键",
+    "dataValue": "数据值",
+    "userId": "用户 ID",
+    "updateTime": "更新时间",
+    "actions": "操作",
+    "edit": "编辑",
+    "delete": "删除",
+    "noData": "该频道暂无插件数据",
+    "editTitle": "编辑插件数据",
+    "editPlugin": "插件",
+    "editKey": "数据键",
+    "editUser": "用户 ID",
+    "save": "保存",
+    "cancel": "取消",
+    "saveSuccess": "插件数据已保存",
+    "saveFailed": "保存插件数据失败",
+    "deleteConfirmTitle": "确认删除插件数据？",
+    "deleteConfirmContent": "删除后无法恢复，确定继续吗？",
+    "deleteSuccess": "插件数据已删除",
+    "deleteFailed": "删除插件数据失败",
+    "globalScope": "全局",
+    "jsonFormatError": "JSON 格式错误，将以纯文本保存",
+    "selectItem": "选择左侧列表项查看数据"
   }
 }

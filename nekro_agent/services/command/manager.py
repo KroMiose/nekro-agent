@@ -136,6 +136,9 @@ class CommandManager:
                 "enabled": enabled,
                 "has_channel_override": has_channel_override,
                 "params_schema": meta.params_schema,
+                "i18n_description": meta.i18n_description,
+                "i18n_usage": meta.i18n_usage,
+                "i18n_category": meta.i18n_category,
             })
         return result
 

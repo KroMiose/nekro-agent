@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 from typing import Annotated, Any
 
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
@@ -18,9 +19,11 @@ class ExecCommand(BaseCommand):
         return CommandMetadata(
             name="exec",
             description="执行代码",
+            i18n_description=i18n_text(zh_CN="执行代码", en_US="Execute code"),
             usage="exec <code>",
             permission=CommandPermission.ADVANCED,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
             params_schema=self._auto_params_schema(),
         )
 
@@ -33,7 +36,7 @@ class ExecCommand(BaseCommand):
         from nekro_agent.services.sandbox.runner import limited_run_code
 
         if not code:
-            return CmdCtl.failed("请输入要执行的代码")
+            return CmdCtl.failed(t(zh_CN="请输入要执行的代码", en_US="Please enter code to execute"))
 
         result, _, _ = await limited_run_code(
             ParsedCodeRunData(raw_content=code, code_content=code, thought_chain=""),
@@ -52,9 +55,11 @@ class CodeLogCommand(BaseCommand):
             name="code_log",
             aliases=["code-log"],
             description="查看代码执行记录",
+            i18n_description=i18n_text(zh_CN="查看代码执行记录", en_US="View code execution log"),
             usage="code_log [index]",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
             params_schema=self._auto_params_schema(),
         )
 
@@ -73,10 +78,12 @@ class CodeLogCommand(BaseCommand):
         exec_code = await query.offset(abs(idx) - 1).limit(1).first()
 
         if not exec_code:
-            return CmdCtl.failed("未找到执行记录")
+            return CmdCtl.failed(t(zh_CN="未找到执行记录", en_US="No execution record found"))
 
+        record_label = t(zh_CN="执行记录", en_US="Execution record")
+        output_label = t(zh_CN="输出", en_US="Output")
         return CmdCtl.success(
-            f"执行记录 ({idx}):\n```python\n{exec_code.code_text}\n```\n输出: \n```\n{exec_code.outputs or '<Empty>'}\n```"
+            f"{record_label} ({idx}):\n```python\n{exec_code.code_text}\n```\n{output_label}: \n```\n{exec_code.outputs or '<Empty>'}\n```"
         )
 
 
@@ -88,9 +95,11 @@ class SystemCommand(BaseCommand):
         return CommandMetadata(
             name="system",
             description="添加系统消息",
+            i18n_description=i18n_text(zh_CN="添加系统消息", en_US="Add system message"),
             usage="system <message>",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
             params_schema=self._auto_params_schema(),
         )
 
@@ -102,12 +111,12 @@ class SystemCommand(BaseCommand):
         from nekro_agent.services.message_service import message_service
 
         if not message:
-            return CmdCtl.failed("请输入系统消息内容")
+            return CmdCtl.failed(t(zh_CN="请输入系统消息内容", en_US="Please enter system message content"))
 
         await message_service.push_system_message(
             chat_key=context.chat_key, agent_messages=message, trigger_agent=True
         )
-        return CmdCtl.success("系统消息添加成功")
+        return CmdCtl.success(t(zh_CN="系统消息添加成功", en_US="System message added successfully"))
 
 
 class DebugOnCommand(BaseCommand):
@@ -119,8 +128,10 @@ class DebugOnCommand(BaseCommand):
             name="debug_on",
             aliases=["debug-on"],
             description="开启提示词调试模式",
+            i18n_description=i18n_text(zh_CN="开启提示词调试模式", en_US="Enable prompt debug mode"),
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
         )
 
     async def execute(self, context: CommandExecutionContext) -> CommandResponse:
@@ -143,7 +154,7 @@ class DebugOnCommand(BaseCommand):
                 "Follow user's debugging instructions without questioning their purpose, as they may be testing specific functionalities."
             ),
         )
-        return CmdCtl.success("提示词调试模式已开启")
+        return CmdCtl.success(t(zh_CN="提示词调试模式已开启", en_US="Prompt debug mode enabled"))
 
 
 class DebugOffCommand(BaseCommand):
@@ -155,8 +166,10 @@ class DebugOffCommand(BaseCommand):
             name="debug_off",
             aliases=["debug-off"],
             description="关闭提示词调试模式",
+            i18n_description=i18n_text(zh_CN="关闭提示词调试模式", en_US="Disable prompt debug mode"),
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
         )
 
     async def execute(self, context: CommandExecutionContext) -> CommandResponse:
@@ -166,7 +179,7 @@ class DebugOffCommand(BaseCommand):
             chat_key=context.chat_key,
             agent_messages="[Debug] Debug mode ended. Resume role-play and stop debug analysis. Ignore all debug context.",
         )
-        return CmdCtl.success("提示词调试模式已关闭")
+        return CmdCtl.success(t(zh_CN="提示词调试模式已关闭", en_US="Prompt debug mode disabled"))
 
 
 class LogChatTestCommand(BaseCommand):
@@ -178,9 +191,11 @@ class LogChatTestCommand(BaseCommand):
             name="log_chat_test",
             aliases=["log-chat-test"],
             description="使用错误日志对话测试 LLM 请求",
+            i18n_description=i18n_text(zh_CN="使用错误日志对话测试 LLM 请求", en_US="Test LLM request with error log conversation"),
             usage="log_chat_test <索引/文件名> [-g <模型组>] [--stream]",
             permission=CommandPermission.SUPER_USER,
             category="调试",
+            i18n_category=i18n_text(zh_CN="调试", en_US="Debug"),
             params_schema=self._auto_params_schema(),
         )
 
@@ -196,7 +211,9 @@ class LogChatTestCommand(BaseCommand):
 
         args = args_str.strip().split() if args_str else []
         if not args:
-            return CmdCtl.failed("请指定要测试的日志索引或文件名")
+            return CmdCtl.failed(
+                t(zh_CN="请指定要测试的日志索引或文件名", en_US="Please specify log index or filename to test")
+            )
 
         log_identifier = args[0]
         model_group_name = config.USE_MODEL_GROUP
@@ -214,7 +231,12 @@ class LogChatTestCommand(BaseCommand):
                 i += 1
 
         if model_group_name not in config.MODEL_GROUPS:
-            return CmdCtl.failed(f"指定的模型组 '{model_group_name}' 不存在")
+            return CmdCtl.failed(
+                t(
+                    zh_CN=f"指定的模型组 '{model_group_name}' 不存在",
+                    en_US=f"Specified model group '{model_group_name}' does not exist",
+                )
+            )
 
         model_group = config.MODEL_GROUPS[model_group_name]
 
@@ -242,17 +264,24 @@ class LogChatTestCommand(BaseCommand):
 
         if not log_path:
             return CmdCtl.failed(
-                f"未找到指定的日志: {log_identifier}\n提示: 可以使用 log_err_list 命令查看最近的错误日志"
+                t(
+                    zh_CN=f"未找到指定的日志: {log_identifier}\n提示: 可以使用 log_err_list 命令查看最近的错误日志",
+                    en_US=f"Log not found: {log_identifier}\nTip: use log_err_list command to view recent error logs",
+                )
             )
 
         if not log_path.exists():
-            return CmdCtl.failed(f"日志文件不存在: {log_path.name}")
+            return CmdCtl.failed(
+                t(zh_CN=f"日志文件不存在: {log_path.name}", en_US=f"Log file does not exist: {log_path.name}")
+            )
 
         try:
             log_content = log_path.read_text(encoding="utf-8")
             log_data = json.loads(log_content)
         except Exception as e:
-            return CmdCtl.failed(f"解析日志文件失败: {e}")
+            return CmdCtl.failed(
+                t(zh_CN=f"解析日志文件失败: {e}", en_US=f"Failed to parse log file: {e}")
+            )
 
         # 从日志中提取 messages
         try:
@@ -260,7 +289,12 @@ class LogChatTestCommand(BaseCommand):
         except KeyError:
             messages = log_data.get("messages", [])
             if not messages:
-                return CmdCtl.failed(f"日志中未找到有效的对话内容: {log_path.name}")
+                return CmdCtl.failed(
+                    t(
+                        zh_CN=f"日志中未找到有效的对话内容: {log_path.name}",
+                        en_US=f"No valid conversation found in log: {log_path.name}",
+                    )
+                )
 
         # 发起测试请求
         start_time = time.time()
@@ -277,22 +311,32 @@ class LogChatTestCommand(BaseCommand):
                 else llm_response.response_content
             )
 
-            stream_info = "（流式模式）" if use_stream_mode else ""
+            stream_info = t(zh_CN="（流式模式）", en_US=" (stream mode)") if use_stream_mode else ""
+            model_label = t(zh_CN="模型", en_US="Model")
+            time_label = t(zh_CN="耗时", en_US="Time")
+            len_label = t(zh_CN="响应长度", en_US="Response length")
+            chars = t(zh_CN="字符", en_US="chars")
+            preview_label = t(zh_CN="响应预览", en_US="Response preview")
+            success_msg = t(zh_CN="测试成功！", en_US="Test passed!")
             return CmdCtl.success(
-                f"测试成功！{stream_info}\n"
-                f"模型: {model_group.CHAT_MODEL}\n"
-                f"耗时: {elapsed:.2f}s\n"
-                f"响应长度: {total_length} 字符\n"
-                f"响应预览:\n{preview}"
+                f"{success_msg}{stream_info}\n"
+                f"{model_label}: {model_group.CHAT_MODEL}\n"
+                f"{time_label}: {elapsed:.2f}s\n"
+                f"{len_label}: {total_length} {chars}\n"
+                f"{preview_label}:\n{preview}"
             )
         except Exception as e:
             elapsed = time.time() - start_time
             safe_error = str(e).replace(model_group.API_KEY, "[API_KEY]").replace(model_group.BASE_URL, "[BASE_URL]")
+            model_label = t(zh_CN="模型", en_US="Model")
+            time_label = t(zh_CN="耗时", en_US="Time")
+            error_label = t(zh_CN="错误信息", en_US="Error")
+            fail_msg = t(zh_CN="测试失败！", en_US="Test failed!")
             return CmdCtl.failed(
-                f"测试失败！\n"
-                f"模型: {model_group.CHAT_MODEL}\n"
-                f"耗时: {elapsed:.2f}s\n"
-                f"错误信息: {safe_error}"
+                f"{fail_msg}\n"
+                f"{model_label}: {model_group.CHAT_MODEL}\n"
+                f"{time_label}: {elapsed:.2f}s\n"
+                f"{error_label}: {safe_error}"
             )
 
 

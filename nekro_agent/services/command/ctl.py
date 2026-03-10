@@ -3,8 +3,9 @@
 命令处理函数通过 yield CmdCtl.xxx() 来控制执行流程。
 """
 
-from typing import Optional
+from typing import Optional, Union
 
+from nekro_agent.schemas.i18n import I18nDict, resolve_i18n
 from nekro_agent.services.command.schemas import CommandResponse, CommandResponseStatus
 
 
@@ -16,14 +17,18 @@ class CmdCtl:
     - CmdCtl.wait(...)     -> 交互挂起，等待用户后续输入
     - CmdCtl.success(...)  -> 成功终态
     - CmdCtl.failed(...)   -> 失败终态
+
+    message / success / failed 的 text 参数支持两种类型：
+    - str: 纯文本，直接使用
+    - I18nDict (i18n_text 返回值): 按当前系统语言自动解析
     """
 
     @staticmethod
-    def message(text: str, data: Optional[dict] = None) -> CommandResponse:
+    def message(text: Union[str, I18nDict] = "", data: Optional[dict] = None) -> CommandResponse:
         """过程输出 - 中间状态反馈，不中断命令执行"""
         return CommandResponse(
             status=CommandResponseStatus.PROCESSING,
-            message=text,
+            message=resolve_i18n(text),
             data=data,
         )
 
@@ -33,7 +38,7 @@ class CmdCtl:
         callback_cmd: str,
         options: Optional[list[str]] = None,
         timeout: float = 60.0,
-        on_timeout_message: str = "操作超时，已取消",
+        on_timeout_message: str = "",
         context_data: Optional[dict] = None,
     ) -> CommandResponse:
         """交互等待 - 挂起命令，等待用户选择/输入后路由到 callback_cmd
@@ -58,24 +63,24 @@ class CmdCtl:
 
     @staticmethod
     def success(
-        message: str = "操作成功",
+        message: Union[str, I18nDict] = "",
         data: Optional[dict] = None,
     ) -> CommandResponse:
         """成功终态"""
         return CommandResponse(
             status=CommandResponseStatus.SUCCESS,
-            message=message,
+            message=resolve_i18n(message),
             data=data,
         )
 
     @staticmethod
     def failed(
-        message: str = "操作失败",
+        message: Union[str, I18nDict] = "",
         data: Optional[dict] = None,
     ) -> CommandResponse:
         """失败终态"""
         return CommandResponse(
             status=CommandResponseStatus.ERROR,
-            message=message,
+            message=resolve_i18n(message),
             data=data,
         )
