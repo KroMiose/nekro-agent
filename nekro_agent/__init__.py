@@ -75,7 +75,7 @@ if _driver is not None:
         from nekro_agent.services.preset_service import init_default_preset
 
         await init_default_preset()
-        logger.info("Default preset initialized")
+        logger.info("Default preset initialized 喵~")
 
         # 初始化插件路由管理器并挂载插件路由
         try:
@@ -92,7 +92,7 @@ if _driver is not None:
                 if plugin_router_manager.mount_plugin_router(plugin):
                     success_count += 1
 
-            logger.info(f"插件路由热挂载完成，成功挂载 {success_count} 个插件的路由")
+            logger.info(f"插件路由热挂载完成，成功挂载 {success_count} 个插件的路由 喵~")
 
         except Exception as e:
             logger.exception(f"初始化插件路由管理器失败: {e}")

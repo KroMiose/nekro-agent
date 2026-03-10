@@ -247,10 +247,10 @@ async def _cc_result_watcher_loop() -> None:
     设计说明：
     - 每 _WATCHER_INTERVAL 秒轮询一次，CC 结果最大延迟 ≈ _WATCHER_INTERVAL 秒
     - 消费语义：get_pending_results() 取回后 CC 侧自动删除，不会重复投递
-    - 与 SSE 实时通道互补：SSE 连通时结果即时到达；SSE 断开/超时时由此兜底
-    - 此循环在 NA 整个运行期内持续存在，不受单次 delegate_to_cc 调用影响
+    - 与 SSE 实时通道互补：SSE 连通时结果即时到达；SSE 由此兜底
+    - 此循环断开/超时时在 NA 整个运行期内持续存在，不受单次 delegate_to_cc 调用影响
     """
-    logger.info("[cc_workspace] 后台结果监听器已启动（轮询间隔: %ds）", _WATCHER_INTERVAL)
+    logger.info("[cc_workspace] 后台结果监听器已启动（轮询间隔: %ds）喵~", _WATCHER_INTERVAL)
     while True:
         await asyncio.sleep(_WATCHER_INTERVAL)
         try:
@@ -317,7 +317,7 @@ async def recover_pending_cc_results() -> None:
     # 启动后台 Watcher（幂等：已运行则跳过）
     if _cc_result_watcher_task is None or _cc_result_watcher_task.done():
         _cc_result_watcher_task = asyncio.create_task(_cc_result_watcher_loop())
-        logger.info("[cc_workspace] 后台结果监听器已创建")
+        logger.info("[cc_workspace] 后台结果监听器已创建 喵~")
 
 
 async def shutdown_cc_result_watcher() -> None:
@@ -329,7 +329,7 @@ async def shutdown_cc_result_watcher() -> None:
             await _cc_result_watcher_task
         except asyncio.CancelledError:
             pass
-        logger.info("[cc_workspace] 后台结果监听器已停止")
+        logger.info("[cc_workspace] 后台结果监听器已停止 喵~")
     _cc_result_watcher_task = None
 
 
@@ -932,7 +932,7 @@ async def create_and_bind_workspace(_ctx: schemas.AgentCtx, workspace_name: str 
             pass
         raise ValueError(f"工作区创建成功但绑定到当前频道失败：{e}") from e
 
-    logger.info(f"[cc_workspace] 已创建并绑定工作区: {final_name}（ID: {ws.id}），chat_key={chat_key}")
+    logger.info(f"[cc_workspace] 已创建并绑定工作区: {final_name}（ID: {ws.id}），chat_key={chat_key} 喵~")
     return (
         f"工作区已创建并绑定到当前频道。\n"
         f"工作区名称: {final_name}（ID: {ws.id}）\n"

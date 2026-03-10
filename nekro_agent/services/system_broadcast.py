@@ -171,7 +171,7 @@ async def publish_system_event(event: Union[WorkspaceStatusEvent, WorkspaceCcAct
             q.put_nowait(payload)
         except QueueFull:
             stale.append(q)
-            logger.warning("[system_broadcast] 订阅者队列已满，自动移除断开的连接")
+            logger.warning("[system_broadcast] 订阅者队列已满，自动移除断开的连接 喵~")
     if stale:
         for q in stale:
             if q in _subscribers:
@@ -185,7 +185,7 @@ def subscribe_system_events() -> "Queue[str] | None":
     确保晚到的订阅者能立即获取完整状态。
     """
     if len(_subscribers) >= _MAX_SUBSCRIBERS:
-        logger.warning(f"[system_broadcast] 全局 SSE 连接数已达上限 {_MAX_SUBSCRIBERS}，拒绝新连接")
+        logger.warning(f"[system_broadcast] 全局 SSE 连接数已达上限 {_MAX_SUBSCRIBERS}，拒绝新连接 喵~")
         return None
     q: Queue[str] = Queue(maxsize=_MAX_QUEUE_SIZE)
 

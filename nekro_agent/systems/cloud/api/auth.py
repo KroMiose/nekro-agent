@@ -14,11 +14,28 @@ async def check_official_repos_starred() -> StarCheckResponse:
     """
     try:
         async with get_client(require_auth=True) as client:
-            response = await client.get(
-                url="/api/auth/official-repos-starred",
-            )
-            response.raise_for_status()
-            return StarCheckResponse(**response.json())
+            for attempt in range(2):
+                response = await client.get(
+                    url="/api/auth/official-repos-starred",
+                )
+                response.raise_for_status()
+
+                response_text = response.text.strip()
+                if not response_text:
+                    logger.warning(
+                        f"检查GitHub仓库Star状态返回空响应，第 {attempt + 1} 次尝试，status={response.status_code}",
+                    )
+                    if attempt == 0:
+                        continue
+                    raise ValueError(f"empty response body, status={response.status_code}")
+
+                content_type = response.headers.get("content-type", "")
+                if "json" not in content_type.lower():
+                    logger.warning(
+                        f"检查GitHub仓库Star状态返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                    )
+
+                return StarCheckResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"检查GitHub仓库Star状态发生错误: {e}")
         return StarCheckResponse.process_exception(e)

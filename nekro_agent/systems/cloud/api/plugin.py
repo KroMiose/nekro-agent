@@ -34,8 +34,19 @@ async def create_plugin(plugin_data: PluginCreate) -> PluginCreateResponse:
                 json=payload,
             )
             response.raise_for_status()
-            logger.debug(f"创建插件资源响应数据: {response.json()}")
-            return PluginCreateResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"创建插件资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            logger.debug(f"创建插件资源响应数据: {response_text[:500]}")
+            return PluginCreateResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"创建插件资源发生错误: {e}")
         return PluginCreateResponse.process_exception(e)
@@ -58,8 +69,19 @@ async def update_plugin(module_name: str, updates: Dict[str, Any]) -> BasicRespo
                 json=updates,
             )
             response.raise_for_status()
-            logger.debug(f"更新插件资源响应数据: {response.json()}")
-            return BasicResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"更新插件资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            logger.debug(f"更新插件资源响应数据: {response_text[:500]}")
+            return BasicResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"更新插件资源发生错误: {e}")
         return BasicResponse.process_exception(e)
@@ -80,8 +102,19 @@ async def delete_plugin(module_name: str) -> BasicResponse:
                 url=f"{PLUGIN_API}/{module_name}",
             )
             response.raise_for_status()
-            logger.debug(f"删除插件资源响应数据: {response.json()}")
-            return BasicResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"删除插件资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            logger.debug(f"删除插件资源响应数据: {response_text[:500]}")
+            return BasicResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"删除插件资源发生错误: {e}")
         return BasicResponse.process_exception(e)
@@ -100,9 +133,19 @@ async def get_plugin(module_name: str) -> PluginDetailResponse:
         async with get_client() as client:
             response = await client.get(url=f"{PLUGIN_API}/{module_name}")
             response.raise_for_status()
-            data = response.json()
-            logger.debug(f"获取插件详情响应数据: {data}")
-            return PluginDetailResponse(**data)
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取插件详情返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            logger.debug(f"获取插件详情响应数据: {response_text[:500]}")
+            return PluginDetailResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取插件详情发生错误: {e}")
         return PluginDetailResponse.process_exception(e)
@@ -144,8 +187,18 @@ async def list_plugins(
                 params=params,
             )
             response.raise_for_status()
-            data = response.json()
-            return PluginListResponse(**data)
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"查询插件列表返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return PluginListResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"查询插件列表发生错误: {e}")
         return PluginListResponse.process_exception(e)
@@ -161,7 +214,18 @@ async def list_user_plugins() -> UserPluginListResponse:
         async with get_client(require_auth=True) as client:
             response = await client.get(url=f"{PLUGIN_API}/user")
             response.raise_for_status()
-            return UserPluginListResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取用户上传插件列表返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return UserPluginListResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取用户上传插件列表发生错误: {e}")
         return UserPluginListResponse.process_exception(e)
@@ -180,8 +244,18 @@ async def get_plugin_repo_info(module_name: str) -> PluginRepoResponse:
         async with get_client() as client:
             response = await client.get(url=f"{PLUGIN_API}/{module_name}/repo")
             response.raise_for_status()
-            data = response.json()
-            return PluginRepoResponse(**data)
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取插件仓库信息返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return PluginRepoResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取插件仓库信息发生错误: {e}")
         return PluginRepoResponse.process_exception(e)

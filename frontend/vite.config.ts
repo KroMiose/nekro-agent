@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    base: '/webui', // 配置为webui路径，与后端静态文件挂载路径一致
+    base: '/webui/', // 配置为webui路径，与后端静态文件挂载路径一致（必须带尾部斜杠）
     optimizeDeps: {
       include: ['@monaco-editor/react'], // 预构建Monaco Editor
     },
@@ -33,6 +33,8 @@ export default defineConfig(({ mode }) => {
     build: {
       cssMinify: true, // CSS 压缩
       cssCodeSplit: true, // CSS 代码分割
+      sourcemap: false, // 不生成 sourcemap，减小体积
+      minify: 'esbuild', // 使用 esbuild 压缩
       rollupOptions: {
         output: {
           manualChunks: {
@@ -40,6 +42,10 @@ export default defineConfig(({ mode }) => {
             'mui-vendor': ['@mui/material', '@mui/icons-material'],
             'monaco-editor': ['@monaco-editor/react'], // Monaco Editor 单独分chunk
           },
+          // 确保 chunk 文件名格式正确
+          chunkFileNames: 'assets/[name]-[hash].js',
+          entryFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash].[ext]',
         },
       },
     },

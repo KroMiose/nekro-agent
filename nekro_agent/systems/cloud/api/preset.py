@@ -42,7 +42,18 @@ async def create_preset(preset_data: PresetCreate) -> PresetCreateResponse:
                 },
             )
             response.raise_for_status()
-            return PresetCreateResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"创建人设资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return PresetCreateResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"创建人设资源发生错误: {e}")
         return PresetCreateResponse.process_exception(e)
@@ -76,7 +87,18 @@ async def update_preset(preset_id: str, preset_data: PresetUpdate) -> BasicRespo
                 },
             )
             response.raise_for_status()
-            return BasicResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"更新人设资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return BasicResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"更新人设资源发生错误: {e}")
         return BasicResponse.process_exception(e)
@@ -99,7 +121,18 @@ async def delete_preset(preset_id: str, instance_id: str) -> BasicResponse:
                 params={"instanceId": instance_id},
             )
             response.raise_for_status()
-            return BasicResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"删除人设资源返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return BasicResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"删除人设资源发生错误: {e}")
         return BasicResponse.process_exception(e)
@@ -118,7 +151,18 @@ async def get_preset(preset_id: str) -> PresetDetailResponse:
         async with get_client() as client:
             response = await client.get(url=f"/api/preset/{preset_id}")
             response.raise_for_status()
-            return PresetDetailResponse.model_validate(response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取人设详情返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return PresetDetailResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"获取人设详情发生错误: {e}")
         return PresetDetailResponse.process_exception(e)
@@ -161,7 +205,18 @@ async def list_presets(
                 params=params,
             )
             response.raise_for_status()
-            return PresetListResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"查询人设列表返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return PresetListResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"查询人设列表发生错误: {e}")
         return PresetListResponse.process_exception(e)
@@ -177,7 +232,18 @@ async def list_user_presets() -> UserPresetListResponse:
         async with get_client(require_auth=True) as client:
             response = await client.get(url="/api/preset/user")
             response.raise_for_status()
-            return UserPresetListResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取用户上传人设列表返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return UserPresetListResponse.model_validate_json(response_text)
     except Exception as e:
         logger.exception(f"获取用户上传人设列表发生错误: {e}")
         return UserPresetListResponse.process_exception(e)

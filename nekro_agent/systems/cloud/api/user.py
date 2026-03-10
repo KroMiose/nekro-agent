@@ -16,7 +16,18 @@ async def get_community_user_profile() -> CommunityUserResponse:
         async with get_client(require_auth=True) as client:
             response = await client.get(url="/api/v2/user")
             response.raise_for_status()
-            return CommunityUserResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取社区用户信息返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return CommunityUserResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取社区用户信息失败: {e}")
         return CommunityUserResponse.process_exception(e)

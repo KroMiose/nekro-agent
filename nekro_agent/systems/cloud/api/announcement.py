@@ -22,7 +22,18 @@ async def get_latest_announcements(limit: int = 5) -> AnnouncementLatestResponse
                 params={"limit": min(limit, 10)},
             )
             response.raise_for_status()
-            return AnnouncementLatestResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取最新公告返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return AnnouncementLatestResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取最新公告失败: {e}")
         return AnnouncementLatestResponse.process_exception(e)
@@ -41,7 +52,18 @@ async def get_announcement_detail(announcement_id: str) -> AnnouncementDetailRes
         async with get_client() as client:
             response = await client.get(url=f"/api/v2/announcement/{announcement_id}")
             response.raise_for_status()
-            return AnnouncementDetailResponse(**response.json())
+
+            response_text = response.text.strip()
+            if not response_text:
+                raise ValueError(f"empty response body, status={response.status_code}")
+
+            content_type = response.headers.get("content-type", "")
+            if "json" not in content_type.lower():
+                logger.warning(
+                    f"获取公告详情返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
+                )
+
+            return AnnouncementDetailResponse.model_validate_json(response_text)
     except Exception as e:
         logger.error(f"获取公告详情失败: {e}")
         return AnnouncementDetailResponse.process_exception(e)

@@ -594,7 +594,7 @@ updated: "YYYY-MM-DD"
                 "description": meta.get("description", ""),
             }
         except Exception as e:
-            logger.warning(f"读取 SKILL.md 失败: {skill_dir.name}: {e}")
+            logger.warning(f"读取 SKILL.md 失败: {skill_dir.name}: {e} 喵~")
             return None
 
     @staticmethod
@@ -663,7 +663,7 @@ updated: "YYYY-MM-DD"
         for skill_id in selected_skills:
             src, cat = WorkspaceService._resolve_skill_source(skill_id)
             if src is None or not src.is_dir():
-                logger.warning(f"skill 不存在: {skill_id}")
+                logger.warning(f"skill 不存在: {skill_id} 喵~")
                 continue
             target_name = skill_id.split("/")[-1] if "/" in skill_id else skill_id
             dst_parent = builtin_dst if cat == "builtin" else user_dst
@@ -1007,7 +1007,7 @@ updated: "YYYY-MM-DD"
             return False
         src, cat = WorkspaceService._resolve_skill_source(skill_id)
         if src is None or not src.is_dir():
-            logger.warning(f"全局 skill 不存在，无法同步: {skill_id}")
+            logger.warning(f"全局 skill 不存在，无法同步: {skill_id} 喵~")
             return False
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
         target_name = skill_id.split("/")[-1] if "/" in skill_id else skill_id
