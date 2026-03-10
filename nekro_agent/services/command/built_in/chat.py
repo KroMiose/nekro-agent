@@ -2,10 +2,9 @@
 
 from typing import Annotated
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.i18n_helper import t
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
 
@@ -37,7 +36,7 @@ class ResetCommand(BaseCommand):
         target_chat_key = target if target and context.is_super_user else context.chat_key
 
         if not target_chat_key:
-            return CmdCtl.failed(t(context.lang, zh_CN="聊天标识获取失败", en_US="Failed to get chat identifier"))
+            return CmdCtl.failed(t(zh_CN="聊天标识获取失败", en_US="Failed to get chat identifier"))
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=target_chat_key)
 
@@ -52,7 +51,6 @@ class ResetCommand(BaseCommand):
 
         return CmdCtl.success(
             t(
-                context.lang,
                 zh_CN=f"已重置 {target_chat_key} 的对话上下文（当前会话 {msg_cnt} 条消息已归档）",
                 en_US=f"Reset conversation context for {target_chat_key} ({msg_cnt} messages archived)",
             )
@@ -87,10 +85,10 @@ class StopCommand(BaseCommand):
 
         cancelled = await message_service.cancel_agent_task(target_chat_key)
         if cancelled:
-            return CmdCtl.success(t(context.lang, zh_CN="已终止当前回复流程", en_US="Current reply process stopped"))
+            return CmdCtl.success(t(zh_CN="已终止当前回复流程", en_US="Current reply process stopped"))
         else:
             return CmdCtl.success(
-                t(context.lang, zh_CN="当前没有正在进行的回复流程", en_US="No reply process is currently running")
+                t(zh_CN="当前没有正在进行的回复流程", en_US="No reply process is currently running")
             )
 
 
@@ -119,15 +117,15 @@ class InspectCommand(BaseCommand):
 
         target_chat_key = target or context.chat_key
         if not target_chat_key:
-            return CmdCtl.failed(t(context.lang, zh_CN="请指定要查询的聊天", en_US="Please specify the chat to query"))
+            return CmdCtl.failed(t(zh_CN="请指定要查询的聊天", en_US="Please specify the chat to query"))
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=target_chat_key)
         preset = await db_chat_channel.get_preset()
-        preset_label = t(context.lang, zh_CN="基本人设", en_US="Preset")
+        preset_label = t(zh_CN="基本人设", en_US="Preset")
         info = f"{preset_label}: {preset.name}"
 
-        channel_label = t(context.lang, zh_CN="频道", en_US="Channel")
-        info_label = t(context.lang, zh_CN="信息", en_US="Info")
+        channel_label = t(zh_CN="频道", en_US="Channel")
+        info_label = t(zh_CN="信息", en_US="Info")
 
         return CmdCtl.success(
             f"{channel_label} {target_chat_key} {info_label}：\n{info}",

@@ -6,10 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Annotated
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.i18n_helper import t
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
 
@@ -61,7 +60,6 @@ class ClearSandboxCacheCommand(BaseCommand):
         size_in_mb = cleared_size / (1024 * 1024)
         return CmdCtl.success(
             t(
-                context.lang,
                 zh_CN=f"沙盒缓存清理完成！\n已清理文件：{cleared_files} 个\n释放空间：{size_in_mb:.2f} MB",
                 en_US=f"Sandbox cache cleared!\nFiles removed: {cleared_files}\nSpace freed: {size_in_mb:.2f} MB",
             )
@@ -94,12 +92,12 @@ class DockerRestartCommand(BaseCommand):
 
         if not OsEnv.RUN_IN_DOCKER:
             return CmdCtl.failed(
-                t(context.lang, zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
+                t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
         os.system(f"docker restart {container}")  # noqa: S605
         return CmdCtl.success(
-            t(context.lang, zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
+            t(zh_CN=f"已发送重启命令: docker restart {container}", en_US=f"Restart command sent: docker restart {container}")
         )
 
 
@@ -129,12 +127,12 @@ class DockerLogsCommand(BaseCommand):
 
         if not OsEnv.RUN_IN_DOCKER:
             return CmdCtl.failed(
-                t(context.lang, zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
+                t(zh_CN="当前环境不在 Docker 容器中，无法执行此操作", en_US="Not running in Docker, cannot perform this operation")
             )
 
         logs = os.popen(f"docker logs {container} --tail 100").read()  # noqa: S605
         return CmdCtl.success(
-            t(context.lang, zh_CN=f"容器日志: \n{logs}", en_US=f"Container logs: \n{logs}")
+            t(zh_CN=f"容器日志: \n{logs}", en_US=f"Container logs: \n{logs}")
         )
 
 
@@ -160,11 +158,11 @@ class ShCommand(BaseCommand):
         command: Annotated[str, Arg("Shell 命令", positional=True, greedy=True)] = "",
     ) -> CommandResponse:
         if not command:
-            return CmdCtl.failed(t(context.lang, zh_CN="请输入要执行的命令", en_US="Please enter a command to execute"))
+            return CmdCtl.failed(t(zh_CN="请输入要执行的命令", en_US="Please enter a command to execute"))
 
         outputs = os.popen(command).read()  # noqa: S605
         return CmdCtl.success(
-            t(context.lang, zh_CN=f"命令 `{command}` 输出: \n{outputs or '<Empty>'}", en_US=f"Command `{command}` output: \n{outputs or '<Empty>'}")
+            t(zh_CN=f"命令 `{command}` 输出: \n{outputs or '<Empty>'}", en_US=f"Command `{command}` output: \n{outputs or '<Empty>'}")
         )
 
 
@@ -189,13 +187,13 @@ class InstanceIdCommand(BaseCommand):
 
         instance_id = generate_instance_id()
 
-        title = t(context.lang, zh_CN="[实例ID信息]", en_US="[Instance ID Info]")
-        id_label = t(context.lang, zh_CN="实例ID", en_US="Instance ID")
-        env_label = t(context.lang, zh_CN="运行环境", en_US="Environment")
-        docker_env = t(context.lang, zh_CN="Docker容器", en_US="Docker Container")
-        local_env = t(context.lang, zh_CN="本地环境", en_US="Local Environment")
-        enabled = t(context.lang, zh_CN="已启用", en_US="Enabled")
-        disabled = t(context.lang, zh_CN="未启用", en_US="Disabled")
+        title = t(zh_CN="[实例ID信息]", en_US="[Instance ID Info]")
+        id_label = t(zh_CN="实例ID", en_US="Instance ID")
+        env_label = t(zh_CN="运行环境", en_US="Environment")
+        docker_env = t(zh_CN="Docker容器", en_US="Docker Container")
+        local_env = t(zh_CN="本地环境", en_US="Local Environment")
+        enabled = t(zh_CN="已启用", en_US="Enabled")
+        disabled = t(zh_CN="未启用", en_US="Disabled")
 
         return CmdCtl.success(
             f"{title}\n"
@@ -228,23 +226,23 @@ class GithubStarsCheckCommand(BaseCommand):
 
             if not result.success:
                 return CmdCtl.failed(
-                    t(context.lang, zh_CN=f"检查GitHub Star状态失败: {result.message}", en_US=f"Failed to check GitHub Star status: {result.message}")
+                    t(zh_CN=f"检查GitHub Star状态失败: {result.message}", en_US=f"Failed to check GitHub Star status: {result.message}")
                 )
 
             if not result.data:
-                return CmdCtl.failed(t(context.lang, zh_CN="获取Star状态数据为空", en_US="Star status data is empty"))
+                return CmdCtl.failed(t(zh_CN="获取Star状态数据为空", en_US="Star status data is empty"))
 
-            starred = ", ".join(result.data.starred_repositories) if result.data.starred_repositories else t(context.lang, zh_CN="无", en_US="None")
-            unstarred = ", ".join(result.data.unstarred_repositories) if result.data.unstarred_repositories else t(context.lang, zh_CN="无", en_US="None")
-            status = t(context.lang, zh_CN="已Star所有官方仓库", en_US="All official repos starred") if result.data.all_starred else t(context.lang, zh_CN="还有未Star的官方仓库", en_US="Some official repos not starred")
+            starred = ", ".join(result.data.starred_repositories) if result.data.starred_repositories else t(zh_CN="无", en_US="None")
+            unstarred = ", ".join(result.data.unstarred_repositories) if result.data.unstarred_repositories else t(zh_CN="无", en_US="None")
+            status = t(zh_CN="已Star所有官方仓库", en_US="All official repos starred") if result.data.all_starred else t(zh_CN="还有未Star的官方仓库", en_US="Some official repos not starred")
 
-            title = t(context.lang, zh_CN="[GitHub Star 状态]", en_US="[GitHub Star Status]")
-            status_label = t(context.lang, zh_CN="状态", en_US="Status")
-            starred_label = t(context.lang, zh_CN="已Star", en_US="Starred")
-            unstarred_label = t(context.lang, zh_CN="未Star", en_US="Not Starred")
+            title = t(zh_CN="[GitHub Star 状态]", en_US="[GitHub Star Status]")
+            status_label = t(zh_CN="状态", en_US="Status")
+            starred_label = t(zh_CN="已Star", en_US="Starred")
+            unstarred_label = t(zh_CN="未Star", en_US="Not Starred")
             return CmdCtl.success(f"{title}\n{status_label}: {status}\n{starred_label}: {starred}\n{unstarred_label}: {unstarred}")
         except Exception as e:
-            return CmdCtl.failed(t(context.lang, zh_CN=f"执行失败: {e}", en_US=f"Execution failed: {e}"))
+            return CmdCtl.failed(t(zh_CN=f"执行失败: {e}", en_US=f"Execution failed: {e}"))
 
 
 class LogErrListCommand(BaseCommand):
@@ -282,12 +280,12 @@ class LogErrListCommand(BaseCommand):
                 try:
                     page = int(args[i + 1])
                 except ValueError:
-                    return CmdCtl.failed(t(context.lang, zh_CN="分页参数格式错误", en_US="Invalid page parameter format"))
+                    return CmdCtl.failed(t(zh_CN="分页参数格式错误", en_US="Invalid page parameter format"))
             elif arg == "-s" and i + 1 < len(args):
                 try:
                     page_size = int(args[i + 1])
                 except ValueError:
-                    return CmdCtl.failed(t(context.lang, zh_CN="每页显示数量参数格式错误", en_US="Invalid page size parameter format"))
+                    return CmdCtl.failed(t(zh_CN="每页显示数量参数格式错误", en_US="Invalid page size parameter format"))
             elif arg in ("-a", "--all"):
                 use_dir_files = True
 
@@ -297,7 +295,7 @@ class LogErrListCommand(BaseCommand):
         if use_dir_files:
             log_dir = Path(PROMPT_ERROR_LOG_DIR)
             if not log_dir.exists():
-                return CmdCtl.failed(t(context.lang, zh_CN="错误日志目录不存在", en_US="Error log directory does not exist"))
+                return CmdCtl.failed(t(zh_CN="错误日志目录不存在", en_US="Error log directory does not exist"))
             logs = sorted(log_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         else:
             logs = list(RECENT_ERR_LOGS)
@@ -311,11 +309,10 @@ class LogErrListCommand(BaseCommand):
         current_page_logs = logs[start_idx:end_idx]
 
         if not current_page_logs:
-            return CmdCtl.success(t(context.lang, zh_CN="没有错误日志记录", en_US="No error log records"))
+            return CmdCtl.success(t(zh_CN="没有错误日志记录", en_US="No error log records"))
 
         result_lines = [
             t(
-                context.lang,
                 zh_CN=f"错误日志列表 (第 {page}/{total_pages} 页，共 {total_logs} 条):",
                 en_US=f"Error log list (page {page}/{total_pages}, total {total_logs}):",
             )
@@ -328,18 +325,16 @@ class LogErrListCommand(BaseCommand):
             except Exception:
                 result_lines.append(f"{i}. {log_path.name}")
 
-        usage_title = t(context.lang, zh_CN="\n使用方法:", en_US="\nUsage:")
+        usage_title = t(zh_CN="\n使用方法:", en_US="\nUsage:")
         result_lines.append(usage_title)
         result_lines.append(
             t(
-                context.lang,
                 zh_CN="log_err_list -p <页码> -s <每页数量>: 查看最近错误日志列表",
                 en_US="log_err_list -p <page> -s <page_size>: View recent error log list",
             )
         )
         result_lines.append(
             t(
-                context.lang,
                 zh_CN="log_err_list -a/--all: 查看所有日志文件",
                 en_US="log_err_list -a/--all: View all log files",
             )

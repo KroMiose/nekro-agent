@@ -2,10 +2,9 @@
 
 from typing import Annotated
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.i18n_helper import t
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
 
@@ -40,18 +39,18 @@ class ConfShowCommand(BaseCommand):
                     modifiable_keys.append(_key)
             lines = [f"- {k} ({type(getattr(config, k)).__name__})" for k in modifiable_keys]
             return CmdCtl.success(
-                t(context.lang, zh_CN="当前支持动态修改配置：\n", en_US="Dynamically modifiable configurations:\n")
+                t(zh_CN="当前支持动态修改配置：\n", en_US="Dynamically modifiable configurations:\n")
                 + "\n".join(lines)
             )
         else:
             dump = config.model_dump()
             if key in dump:
                 return CmdCtl.success(
-                    t(context.lang, zh_CN=f"当前配置：\n{key}={getattr(config, key)}", en_US=f"Current config:\n{key}={getattr(config, key)}")
+                    t(zh_CN=f"当前配置：\n{key}={getattr(config, key)}", en_US=f"Current config:\n{key}={getattr(config, key)}")
                 )
             else:
                 return CmdCtl.failed(
-                    t(context.lang, zh_CN=f"未知配置 `{key}`", en_US=f"Unknown config `{key}`")
+                    t(zh_CN=f"未知配置 `{key}`", en_US=f"Unknown config `{key}`")
                 )
 
 
@@ -82,7 +81,6 @@ class ConfSetCommand(BaseCommand):
         if not expr or "=" not in expr:
             return CmdCtl.failed(
                 t(
-                    context.lang,
                     zh_CN="参数错误，请使用 `conf_set key=value` 的格式",
                     en_US="Invalid argument, use `conf_set key=value` format",
                 )
@@ -92,7 +90,6 @@ class ConfSetCommand(BaseCommand):
         if not key or not value:
             return CmdCtl.failed(
                 t(
-                    context.lang,
                     zh_CN="参数错误，请使用 `conf_set key=value` 的格式",
                     en_US="Invalid argument, use `conf_set key=value` format",
                 )
@@ -100,7 +97,7 @@ class ConfSetCommand(BaseCommand):
 
         dump = config.model_dump()
         if key not in dump:
-            return CmdCtl.failed(t(context.lang, zh_CN=f"未知配置: `{key}`", en_US=f"Unknown config: `{key}`"))
+            return CmdCtl.failed(t(zh_CN=f"未知配置: `{key}`", en_US=f"Unknown config: `{key}`"))
 
         current_value = getattr(config, key)
         if isinstance(current_value, (int, float)):
@@ -113,7 +110,6 @@ class ConfSetCommand(BaseCommand):
             else:
                 return CmdCtl.failed(
                     t(
-                        context.lang,
                         zh_CN=f"布尔值只能是 `true` 或 `false`，请检查 `{key}` 的值",
                         en_US=f"Boolean value must be `true` or `false`, check the value of `{key}`",
                     )
@@ -123,14 +119,13 @@ class ConfSetCommand(BaseCommand):
         else:
             return CmdCtl.failed(
                 t(
-                    context.lang,
                     zh_CN=f"不支持动态修改的配置类型 `{type(current_value)}`",
                     en_US=f"Unsupported config type for dynamic modification: `{type(current_value)}`",
                 )
             )
 
         return CmdCtl.success(
-            t(context.lang, zh_CN=f"已设置 `{key}` 的值为 `{value}`", en_US=f"Set `{key}` to `{value}`")
+            t(zh_CN=f"已设置 `{key}` 的值为 `{value}`", en_US=f"Set `{key}` to `{value}`")
         )
 
 
@@ -156,10 +151,10 @@ class ConfReloadCommand(BaseCommand):
             reload_config()
         except Exception as e:
             return CmdCtl.failed(
-                t(context.lang, zh_CN=f"重载配置失败：{e}", en_US=f"Failed to reload configuration: {e}")
+                t(zh_CN=f"重载配置失败：{e}", en_US=f"Failed to reload configuration: {e}")
             )
         return CmdCtl.success(
-            t(context.lang, zh_CN="重载配置成功", en_US="Configuration reloaded successfully")
+            t(zh_CN="重载配置成功", en_US="Configuration reloaded successfully")
         )
 
 
@@ -185,8 +180,8 @@ class ConfSaveCommand(BaseCommand):
             save_config()
         except Exception as e:
             return CmdCtl.failed(
-                t(context.lang, zh_CN=f"保存配置失败：{e}", en_US=f"Failed to save configuration: {e}")
+                t(zh_CN=f"保存配置失败：{e}", en_US=f"Failed to save configuration: {e}")
             )
         return CmdCtl.success(
-            t(context.lang, zh_CN="保存配置成功", en_US="Configuration saved successfully")
+            t(zh_CN="保存配置成功", en_US="Configuration saved successfully")
         )

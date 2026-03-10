@@ -3,7 +3,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import Field
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import SupportedLang, i18n_text, set_system_lang
 
 from .core_utils import ConfigBase, ExtraField
 from .os_env import OsEnv
@@ -1537,12 +1537,14 @@ except Exception as e:
     exit(1)
 
 config.dump_config()
+set_system_lang(SupportedLang(config.SYSTEM_LANG))
 
 
 def save_config():
     """保存配置"""
     global config
     config.dump_config()
+    set_system_lang(SupportedLang(config.SYSTEM_LANG))
 
 
 def reload_config():
@@ -1554,3 +1556,4 @@ def reload_config():
     for field_name in CoreConfig.model_fields:
         value = getattr(new_config, field_name)
         setattr(config, field_name, value)
+    set_system_lang(SupportedLang(config.SYSTEM_LANG))

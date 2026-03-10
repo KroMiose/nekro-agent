@@ -11,7 +11,7 @@ from typing import Any, Callable, Optional, Union
 
 from pydantic import BaseModel
 
-from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text
+from nekro_agent.schemas.i18n import I18nDict, SupportedLang, get_text, t
 from nekro_agent.services.command.schemas import (
     CommandExecutionContext,
     CommandRequest,
@@ -85,8 +85,6 @@ class BaseCommand(ABC):
         context: CommandExecutionContext,
     ) -> tuple[bool, Optional[str]]:
         """默认权限检查，子类可覆盖"""
-        from nekro_agent.services.command.i18n_helper import t
-
         perm = self.metadata.permission
         if perm == CommandPermission.PUBLIC:
             return True, None
@@ -94,14 +92,14 @@ class BaseCommand(ABC):
             return (
                 (True, None)
                 if context.is_super_user
-                else (False, t(context.lang, zh_CN="此命令仅限超级用户使用", en_US="This command is for super users only"))
+                else (False, t(zh_CN="此命令仅限超级用户使用", en_US="This command is for super users only"))
             )
         if perm == CommandPermission.ADVANCED:
             ok = context.is_advanced_user or context.is_super_user
             return (
                 (True, None)
                 if ok
-                else (False, t(context.lang, zh_CN="此命令仅限高级用户使用", en_US="This command is for advanced users only"))
+                else (False, t(zh_CN="此命令仅限高级用户使用", en_US="This command is for advanced users only"))
             )
         if perm == CommandPermission.USER:
             return True, None  # 已登录用户均可
@@ -112,13 +110,11 @@ class BaseCommand(ABC):
         request: CommandRequest,
     ) -> AsyncIterator[CommandResponse]:
         """完整处理流程: 权限检查 -> 参数解析 -> 执行 -> 消费输出流"""
-        from nekro_agent.services.command.i18n_helper import t
-
         has_perm, err = await self.check_permission(request.context)
         if not has_perm:
             yield CommandResponse(
                 status=CommandResponseStatus.UNAUTHORIZED,
-                message=err or t(request.context.lang, zh_CN="权限不足", en_US="Permission denied"),
+                message=err or t(zh_CN="权限不足", en_US="Permission denied"),
             )
             return
 
@@ -142,12 +138,12 @@ class BaseCommand(ABC):
         except ValueError as e:
             yield CommandResponse(
                 status=CommandResponseStatus.INVALID_ARGS,
-                message=t(request.context.lang, zh_CN="参数错误: ", en_US="Invalid argument: ") + str(e),
+                message=t(zh_CN="参数错误: ", en_US="Invalid argument: ") + str(e),
             )
         except Exception as e:
             yield CommandResponse(
                 status=CommandResponseStatus.ERROR,
-                message=t(request.context.lang, zh_CN="命令执行出错: ", en_US="Command execution error: ") + str(e),
+                message=t(zh_CN="命令执行出错: ", en_US="Command execution error: ") + str(e),
             )
 
     def _parse_args(self, raw_args: str, lang: SupportedLang = SupportedLang.ZH_CN) -> dict[str, Any]:

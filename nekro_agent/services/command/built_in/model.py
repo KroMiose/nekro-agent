@@ -5,10 +5,9 @@ import time
 from collections.abc import AsyncIterator
 from typing import Annotated, Any
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.i18n_helper import t
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
 
 
@@ -40,7 +39,6 @@ class ModelTestCommand(BaseCommand):
         if not args_str:
             yield CmdCtl.failed(
                 t(
-                    context.lang,
                     zh_CN=(
                         "用法: model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]\n"
                         "  model_test gpt-4o          按模型名测试\n"
@@ -83,7 +81,7 @@ class ModelTestCommand(BaseCommand):
 
         if not model_names and not group_names:
             yield CmdCtl.failed(
-                t(context.lang, zh_CN="请指定模型名或使用 -g 指定模型组名", en_US="Please specify model name or use -g to specify model group name")
+                t(zh_CN="请指定模型名或使用 -g 指定模型组名", en_US="Please specify model name or use -g to specify model group name")
             )
             return
 
@@ -128,7 +126,7 @@ class ModelTestCommand(BaseCommand):
 
         if not test_model_groups:
             yield CmdCtl.failed(
-                t(context.lang, zh_CN="未找到符合条件的模型组", en_US="No matching model groups found")
+                t(zh_CN="未找到符合条件的模型组", en_US="No matching model groups found")
             )
             return
 
@@ -140,7 +138,7 @@ class ModelTestCommand(BaseCommand):
 
         total = len(test_model_groups)
         yield CmdCtl.message(
-            t(context.lang, zh_CN=f"开始测试 {total} 个模型组...", en_US=f"Starting test for {total} model groups...")
+            t(zh_CN=f"开始测试 {total} 个模型组...", en_US=f"Starting test for {total} model groups...")
         )
 
         for i, (group_key, model_group) in enumerate(test_model_groups, 1):
@@ -154,7 +152,7 @@ class ModelTestCommand(BaseCommand):
             speed_map.setdefault(label, [])
 
             yield CmdCtl.message(
-                t(context.lang, zh_CN=f"[{i}/{total}] 测试 {display} ...", en_US=f"[{i}/{total}] Testing {display} ...")
+                t(zh_CN=f"[{i}/{total}] 测试 {display} ...", en_US=f"[{i}/{total}] Testing {display} ...")
             )
 
             try:
@@ -177,42 +175,42 @@ class ModelTestCommand(BaseCommand):
                 success_map[label] += 1
                 speed_map[label].append(elapsed)
                 yield CmdCtl.message(
-                    t(context.lang, zh_CN=f"[{i}/{total}] ✓ {display} 通过 ({elapsed:.2f}s)", en_US=f"[{i}/{total}] ✓ {display} passed ({elapsed:.2f}s)")
+                    t(zh_CN=f"[{i}/{total}] ✓ {display} 通过 ({elapsed:.2f}s)", en_US=f"[{i}/{total}] ✓ {display} passed ({elapsed:.2f}s)")
                 )
             except Exception:
                 fail_map[label] += 1
                 yield CmdCtl.message(
-                    t(context.lang, zh_CN=f"[{i}/{total}] ✗ {display} 失败", en_US=f"[{i}/{total}] ✗ {display} failed")
+                    t(zh_CN=f"[{i}/{total}] ✗ {display} 失败", en_US=f"[{i}/{total}] ✗ {display} failed")
                 )
 
-        title = t(context.lang, zh_CN="[模型测试结果]", en_US="[Model Test Results]")
+        title = t(zh_CN="[模型测试结果]", en_US="[Model Test Results]")
         result_lines = [title]
         for label in result_keys:
             success = success_map.get(label, 0)
             fail = fail_map.get(label, 0)
             if fail > 0:
-                status = t(context.lang, zh_CN="❌ 失败", en_US="❌ FAIL")
+                status = t(zh_CN="❌ 失败", en_US="❌ FAIL")
             elif success > 0:
-                status = t(context.lang, zh_CN="✅ 通过", en_US="✅ PASS")
+                status = t(zh_CN="✅ 通过", en_US="✅ PASS")
             else:
-                status = t(context.lang, zh_CN="⚠️ 未知", en_US="⚠️ UNKNOWN")
+                status = t(zh_CN="⚠️ 未知", en_US="⚠️ UNKNOWN")
 
             speed_info = ""
             speeds = speed_map.get(label)
             if speeds:
                 avg_speed = sum(speeds) / len(speeds)
-                speed_label = t(context.lang, zh_CN="速度", en_US="Speed")
+                speed_label = t(zh_CN="速度", en_US="Speed")
                 if len(speeds) > 1:
-                    fastest = t(context.lang, zh_CN="最快", en_US="fastest")
-                    slowest = t(context.lang, zh_CN="最慢", en_US="slowest")
+                    fastest = t(zh_CN="最快", en_US="fastest")
+                    slowest = t(zh_CN="最慢", en_US="slowest")
                     speed_info = (
                         f" | {speed_label}: {avg_speed:.2f}s ({fastest}: {min(speeds):.2f}s, {slowest}: {max(speeds):.2f}s)"
                     )
                 else:
                     speed_info = f" | {speed_label}: {avg_speed:.2f}s"
 
-            success_label = t(context.lang, zh_CN="成功", en_US="success")
-            fail_label = t(context.lang, zh_CN="失败", en_US="fail")
+            success_label = t(zh_CN="成功", en_US="success")
+            fail_label = t(zh_CN="失败", en_US="fail")
             result_lines.append(f"{status} {display_labels[label]}: ({success_label}: {success}, {fail_label}: {fail}){speed_info}")
 
         yield CmdCtl.success("\n".join(result_lines))

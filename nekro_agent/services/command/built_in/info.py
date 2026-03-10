@@ -1,9 +1,8 @@
 """内置命令 - 信息类: na_info, na_help"""
 
-from nekro_agent.schemas.i18n import i18n_text
+from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
-from nekro_agent.services.command.i18n_helper import t
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
 
 
@@ -32,11 +31,11 @@ class NaInfoCommand(BaseCommand):
         preset = await db_chat_channel.get_preset()
         version = get_app_version()
 
-        title = t(context.lang, zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
-        subtitle = t(context.lang, zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
-        chat_settings = t(context.lang, zh_CN="========聊天设定========", en_US="========Chat Settings========")
-        preset_label = t(context.lang, zh_CN="人设", en_US="Preset")
-        model_group_label = t(context.lang, zh_CN="当前模型组", en_US="Current Model Group")
+        title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
+        subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
+        chat_settings = t(zh_CN="========聊天设定========", en_US="========Chat Settings========")
+        preset_label = t(zh_CN="人设", en_US="Preset")
+        model_group_label = t(zh_CN="当前模型组", en_US="Current Model Group")
 
         message = (
             f"{title}\n"
@@ -99,8 +98,8 @@ class NaHelpCommand(BaseCommand):
             categories[cat].append(line)
 
         # 构建输出
-        help_title = t(context.lang, zh_CN="[Nekro-Agent 帮助]", en_US="[Nekro-Agent Help]")
-        more_info = t(context.lang, zh_CN="更多信息", en_US="More Info")
+        help_title = t(zh_CN="[Nekro-Agent 帮助]", en_US="[Nekro-Agent Help]")
+        more_info = t(zh_CN="更多信息", en_US="More Info")
         parts = [help_title]
         for cat_name, lines in categories.items():
             parts.append(f"\n====== [{cat_name}] ======")

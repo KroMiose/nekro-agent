@@ -25,7 +25,7 @@
 """
 
 from enum import Enum
-from typing import Optional, TypeAlias
+from typing import Optional, TypeAlias, Union
 
 
 class SupportedLang(str, Enum):
@@ -96,6 +96,57 @@ def get_text(
         return default
     # 使用枚举的字符串值作为键来查找
     return i18n_dict.get(lang.value, default)
+
+
+# ── 全局系统语言 ──────────────────────────────────────────────
+_system_lang: SupportedLang = SupportedLang.ZH_CN
+
+
+def get_system_lang() -> SupportedLang:
+    """获取当前系统语言"""
+    return _system_lang
+
+
+def set_system_lang(lang: SupportedLang) -> None:
+    """设置当前系统语言（配置加载/保存时调用）"""
+    global _system_lang
+    _system_lang = lang
+
+
+def t(*, zh_CN: str, en_US: str) -> str:
+    """命令层翻译快捷函数（使用全局系统语言）
+
+    Args:
+        zh_CN: 简体中文文本
+        en_US: 美式英文文本
+
+    Returns:
+        当前系统语言对应的文本
+
+    Example:
+        >>> t(zh_CN="操作成功", en_US="Operation successful")
+        '操作成功'
+    """
+    return {
+        SupportedLang.ZH_CN.value: zh_CN,
+        SupportedLang.EN_US.value: en_US,
+    }.get(_system_lang.value, zh_CN)
+
+
+def resolve_i18n(text: Union[str, "I18nDict"]) -> str:
+    """自动解析文本：str 直接返回，I18nDict 按系统语言解析
+
+    用于 CmdCtl 等需要同时支持纯文本和国际化字典的场景。
+
+    Args:
+        text: 纯文本字符串 或 i18n_text() 返回的字典
+
+    Returns:
+        解析后的字符串
+    """
+    if isinstance(text, str):
+        return text
+    return text.get(_system_lang.value, next(iter(text.values()), ""))
 
 
 def i18n_text(

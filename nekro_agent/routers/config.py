@@ -205,6 +205,12 @@ async def batch_update_config(
             operation="保存配置",
         )
 
+    # 系统配置保存后同步全局语言
+    if config_key == "system":
+        from nekro_agent.schemas.i18n import SupportedLang, set_system_lang
+
+        set_system_lang(SupportedLang(config.SYSTEM_LANG))
+
     return ActionResponse(ok=True)
 
 
