@@ -10,6 +10,7 @@ from nekro_agent.systems.cloud.collector import prepare_telemetry_data
 from nekro_agent.systems.cloud.exceptions import NekroCloudDisabled
 from nekro_agent.systems.cloud.schemas.telemetry import TelemetryData, TelemetryResponse
 
+from .base import parse_json_dict, parse_json_response
 from .client import get_client
 
 # 内存缓存
@@ -38,17 +39,7 @@ async def _send_telemetry_data(telemetry_data: TelemetryData) -> TelemetryRespon
         )
         response.raise_for_status()
 
-        response_text = response.text.strip()
-        if not response_text:
-            raise ValueError(f"empty response body, status={response.status_code}")
-
-        content_type = response.headers.get("content-type", "")
-        if "json" not in content_type.lower():
-            logger.warning(
-                f"发送遥测数据返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
-            )
-
-        return TelemetryResponse.model_validate_json(response_text)
+        return parse_json_response(response, TelemetryResponse, "发送遥测数据")
 
 
 async def send_telemetry_report(hour_start: datetime, hour_end: datetime) -> TelemetryResponse:
@@ -110,19 +101,7 @@ async def get_community_stats(force_refresh: bool = False) -> Optional[Dict[str,
             response = await client.get("/api/telemetry/community-stats")
             response.raise_for_status()
 
-            response_text = response.text.strip()
-            if not response_text:
-                raise ValueError(f"empty response body, status={response.status_code}")
-
-            content_type = response.headers.get("content-type", "")
-            if "json" not in content_type.lower():
-                logger.warning(
-                    f"获取社区统计数据返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
-                )
-
-            # 解析为 dict
-            import json as json_lib
-            stats = json_lib.loads(response_text)
+            stats = parse_json_dict(response, "获取社区统计数据")
 
             # 更新缓存，设置1小时有效期
             _CACHE["community_stats"]["data"] = stats

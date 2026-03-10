@@ -1,6 +1,7 @@
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.systems.cloud.schemas.announcement import AnnouncementDetailResponse, AnnouncementLatestResponse
 
+from .base import parse_json_response
 from .client import get_client
 
 logger = get_sub_logger("cloud_api")
@@ -23,17 +24,7 @@ async def get_latest_announcements(limit: int = 5) -> AnnouncementLatestResponse
             )
             response.raise_for_status()
 
-            response_text = response.text.strip()
-            if not response_text:
-                raise ValueError(f"empty response body, status={response.status_code}")
-
-            content_type = response.headers.get("content-type", "")
-            if "json" not in content_type.lower():
-                logger.warning(
-                    f"获取最新公告返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
-                )
-
-            return AnnouncementLatestResponse.model_validate_json(response_text)
+            return parse_json_response(response, AnnouncementLatestResponse, "获取最新公告")
     except Exception as e:
         logger.error(f"获取最新公告失败: {e}")
         return AnnouncementLatestResponse.process_exception(e)
@@ -53,17 +44,7 @@ async def get_announcement_detail(announcement_id: str) -> AnnouncementDetailRes
             response = await client.get(url=f"/api/v2/announcement/{announcement_id}")
             response.raise_for_status()
 
-            response_text = response.text.strip()
-            if not response_text:
-                raise ValueError(f"empty response body, status={response.status_code}")
-
-            content_type = response.headers.get("content-type", "")
-            if "json" not in content_type.lower():
-                logger.warning(
-                    f"获取公告详情返回非JSON响应，content-type={content_type}, body={response_text[:200]}",
-                )
-
-            return AnnouncementDetailResponse.model_validate_json(response_text)
+            return parse_json_response(response, AnnouncementDetailResponse, "获取公告详情")
     except Exception as e:
         logger.error(f"获取公告详情失败: {e}")
         return AnnouncementDetailResponse.process_exception(e)
