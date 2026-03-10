@@ -607,32 +607,19 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     # ── 状态1：未绑定工作区 ──────────────────────────────────────────────────
     if workspace is None:
         return (
-            "[CC Workspace]\n"
-            "当前频道未绑定任何 CC Workspace。\n"
-            "CC Workspace 是一个独立的 Claude Code 沙盒，支持持久化执行代码、处理文件、运行命令和使用各种工具。\n"
-            "可通过 `create_and_bind_workspace` 自动创建并绑定工作区到当前频道（绑定后需再调用 `start_cc_sandbox` 启动容器）。\n"
-            "如果用户有特殊需求（如指定镜像、运行策略），建议引导用户到工作区管理页面手动创建后再绑定。\n"
+            "[CC Workspace] 未绑定\n"
+            "CC Workspace 是独立的 Claude Code 沙盒，支持持久化执行代码、处理文件、运行命令。\n"
+            "可通过 `create_and_bind_workspace` 创建并绑定，然后 `start_cc_sandbox` 启动。\n"
+            "特殊需求（自定义镜像、运行策略）请引导用户到工作区管理页面手动创建。\n"
         )
 
     # ── 状态2：已绑定工作区，但沙盒未运行 ──────────────────────────────────
     if workspace.status != "active":
-        status_label = {
-            "stopped": "已停止",
-            "failed": "启动失败",
-            "deleting": "删除中",
-        }.get(workspace.status, workspace.status)
-        last_error_hint = f"\n上次错误: {workspace.last_error}" if workspace.last_error else ""
-        user_action_hint = (
-            "上次错误可能需要用户介入处理（如镜像缺失、配置错误等），请告知用户查看工作区管理页面。"
-            if workspace.last_error
-            else "可通过 `start_cc_sandbox` 启动沙盒容器。"
-        )
+        status_label = {"stopped": "已停止", "failed": "启动失败", "deleting": "删除中"}.get(workspace.status, workspace.status)
+        error_hint = f"（错误: {workspace.last_error[:50]}...）" if workspace.last_error else ""
         return (
-            f"[CC Workspace]\n"
-            f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
-            f"运行策略: {workspace.runtime_policy}\n"
-            f"状态: {status_label}（沙盒未运行）{last_error_hint}\n"
-            f"{user_action_hint}\n"
+            f"[CC Workspace] {workspace.name} - {status_label}{error_hint}\n"
+            f"{'需用户检查工作区管理页面' if workspace.last_error else '可通过 `start_cc_sandbox` 启动'}\n"
         )
 
     # ── 状态3：工作区正常运行 ────────────────────────────────────────────────
@@ -655,15 +642,11 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     else:
         queue_status_raw = _queue_raw
 
-    # 容器不可达：DB 状态为 active 但 HTTP 请求失败，注入降级告警文本
+    # 容器不可达
     if _cc_unreachable:
         return (
-            f"[CC Workspace - 连接异常]\n"
-            f"当前频道绑定的 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
-            f"数据库状态显示为 active，但沙盒容器当前无法连接（HTTP 请求超时或容器已停止）。\n"
-            f"可能原因：宿主机重启后容器未自动恢复，或容器发生意外崩溃。\n"
-            f"请告知用户通知管理员前往工作区管理页面检查状态并重启容器。\n"
-            f"在容器恢复前，请勿尝试使用任何 CC 相关工具（delegate_to_cc 等），调用将失败。\n"
+            f"[CC Workspace] {workspace.name} - 连接异常\n"
+            f"容器无法连接，请告知用户检查工作区管理页面并重启容器。CC 工具暂不可用。\n"
         )
 
     # CC 应用状态：仅在异常时提示
@@ -671,71 +654,77 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     _NORMAL_CC_STATES = {"idle", "busy", "running", "ready", ""}
     status_hint = "" if ws_status in _NORMAL_CC_STATES else f"CC 应用状态异常: {ws_status}\n"
 
-    # 能力摘要（skills + MCP）— 异步包装避免阻塞事件循环
-    capability_hint = await asyncio.to_thread(WorkspaceService.get_capability_summary, workspace)
+    # 能力摘要（skills + MCP）— 只列名称，不列描述
+    capability_hint = ""
+    try:
+        selected_skills: List[str] = workspace.metadata.get("skills", [])
+        dynamic_skills = await asyncio.to_thread(WorkspaceService.list_dynamic_skills, workspace.id)
+        mcp_servers = (workspace.metadata.get("mcp_config") or {}).get("mcpServers", {})
+        parts = []
+        if selected_skills:
+            parts.append(f"Skills: {', '.join(selected_skills)}")
+        if dynamic_skills:
+            parts.append(f"动态Skills: {', '.join(s['name'] for s in dynamic_skills)}")
+        if mcp_servers:
+            parts.append(f"MCP: {', '.join(mcp_servers.keys())}")
+        if parts:
+            capability_hint = " | ".join(parts) + "\n"
+    except Exception:
+        pass
 
-    # 记忆摘要（_na_context.md），附带更新时间
+    # 记忆摘要（_na_context.md）— 可配置最大长度，超出时截断
     memory_hint = ""
     try:
         na_context, updated = await asyncio.to_thread(WorkspaceService.read_na_context, workspace.id)
         if na_context.strip():
-            time_str = f"（更新于: {updated}）" if updated else ""
-            memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{na_context}\n"
+            max_len = cc_config.MEMORY_SUMMARY_MAX_LENGTH
+            time_str = f"（更新于 {updated}）" if updated else ""
+            if len(na_context) > max_len:
+                short_context = na_context[:max_len] + "..."
+                memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{short_context}\n"
+            else:
+                memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{na_context}\n"
     except Exception:
         pass
 
-    # 合并任务/队列状态：NA 侧 AsyncTask + CC 侧队列，给出统一逻辑视图
+    # 合并任务/队列状态
     task_hint = ""
     is_running = bool(_ctx.from_chat_key and task_api.is_running(_TASK_TYPE, _ctx.from_chat_key))
     try:
         current_task = queue_status_raw.get("current_task")
         queue_len = queue_status_raw.get("queue_length", 0)
-        queue_suffix = f"，当前等待队列: {queue_len} 个任务" if queue_len > 0 else ""
 
         if current_task:
             src = current_task.get("source_chat_key", "")
             elapsed = current_task.get("elapsed_seconds", 0)
             preview = current_task.get("prompt_preview", "")
-            preview_str = preview[:60] + ("..." if len(preview) > 60 else "")
-            src_display = (src.split("_")[0] + " 频道") if "_" in src else (src or "未知频道")
+            preview_str = (preview[:50] + "...") if len(preview) > 50 else preview
+            is_mine = is_running and src == _ctx.from_chat_key
 
-            if is_running and src == _ctx.from_chat_key:
-                # 本频道任务正在 CC 执行
+            if is_mine:
                 task_hint = (
-                    f"\n[CC 委托任务执行中] 已运行 {elapsed:.0f}s\n"
+                    f"\n[任务执行中] 已运行 {elapsed:.0f}s，完成后自动回传\n"
                     f"任务: {preview_str}\n"
-                    f"完成后结果将自动推回本会话。可通过 `cancel_cc_task` 取消，"
-                    f"或通过 `get_cc_context` 查询完整上下文（含原始任务和通讯历史）。\n"
+                    f"可用 `cancel_cc_task` 取消，`get_cc_context` 查询上下文。\n"
                 )
             elif is_running:
-                # 本频道任务在排队，工作区被其他频道占用
                 task_hint = (
-                    f"\n[CC 委托任务排队中] 工作区当前由 {src_display} 占用（已运行 {elapsed:.0f}s）{queue_suffix}\n"
-                    f"本频道任务正在等待执行。可通过 `cancel_cc_task` 取消等待，"
-                    f"或通过 `force_cancel_cc_workspace` 强制抢占。\n"
+                    f"\n[排队中] 工作区被占用（{elapsed:.0f}s），等待队列: {queue_len}\n"
+                    f"可用 `cancel_cc_task` 取消等待，`force_cancel_cc_workspace` 强制抢占。\n"
                 )
             else:
-                # 本频道无任务，工作区被其他频道占用
                 task_hint = (
-                    f"\n[CC 工作区占用中] 当前由 {src_display} 占用（已运行 {elapsed:.0f}s）{queue_suffix}\n"
+                    f"\n[工作区占用] 其他频道任务执行中（{elapsed:.0f}s）\n"
                     f"任务: {preview_str}\n"
-                    f"委托新任务将自动排队。如需强制取消，可调用 `force_cancel_cc_workspace`。\n"
+                    f"委托新任务将自动排队。如需强制取消可用 `force_cancel_cc_workspace`。\n"
                 )
         elif is_running:
-            # NA 任务在跑但 CC 队列为空（任务刚提交/CC 侧尚未入队）
-            task_hint = (
-                "\n[CC 委托任务已提交，等待 CC 侧接收...]\n"
-                "完成后结果将自动推回本会话。可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。\n"
-            )
+            task_hint = "\n[任务已提交] 等待 CC 接收中，完成后自动回传。\n"
     except Exception:
-        # 无法查询 CC 队列时，仅依赖 NA 侧状态
         if is_running:
-            task_hint = (
-                "\n[当前有 CC 委托任务正在后台执行中，完成后结果将自动回传。"
-                "可通过 `get_cc_context` 查询完整协作上下文，或通过 `cancel_cc_task` 取消。]\n"
-            )
+            task_hint = "\n[任务执行中] 完成后自动回传。可用 `get_cc_context` 查询，`cancel_cc_task` 取消。\n"
 
-    # 扫描 shared 目录，注入最近更新的文件列表 — 异步包装避免阻塞事件循环
+    # 扫描 shared 目录 — 显示文件名、大小、更新时间
     shared_files_hint = ""
     try:
         shared_files = await asyncio.to_thread(
@@ -745,14 +734,14 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         if shared_files:
             lines = [f"  {f['rel_path']} ({f['size_human']}, {f['mtime_str']})" for f in shared_files]
             shared_files_hint = (
-                "\n[CC 共享目录文件（/workspace/default/shared/）]\n"
+                f"\n[shared/ 目录] 最近更新的 {len(shared_files)} 个文件:\n"
                 + "\n".join(lines)
-                + "\n可通过 download_file_from_cc 下载这些文件或 CC 工作区内的任意文件。\n"
+                + "\n可用 `download_file_from_cc` 下载这些或工作区内任意文件。\n"
             )
     except Exception:
         pass
 
-    # 多频道感知：仅在绑定 2 个及以上频道时注入频道信息块
+    # 多频道感知 — 显示频道列表和角色
     multi_channel_hint = ""
     try:
         from nekro_agent.models.db_chat_channel import DBChatChannel
@@ -763,24 +752,19 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             bound_keys = [ch.chat_key for ch in bound_channels]
             primary_key = WorkspaceService.get_primary_channel_chat_key(workspace, bound_keys)
             current_chat_key = _ctx.from_chat_key or ""
-            is_current_primary = current_chat_key == primary_key
 
             channel_lines: List[str] = []
             for ch in bound_channels:
                 ann = annotations.get(ch.chat_key)
-                desc = ann.description if ann else ""
-                role_tag = "[主频道]" if ch.chat_key == primary_key else "[协作频道]"
-                display_name = ch.channel_name or ch.chat_key
-                desc_str = f"：{desc}" if desc else ""
-                channel_lines.append(f"- {role_tag} {display_name}（{ch.chat_key}）{desc_str}")
+                desc = f": {ann.description}" if ann and ann.description else ""
+                role = "主" if ch.chat_key == primary_key else "协作"
+                marker = " ← 当前" if ch.chat_key == current_chat_key else ""
+                channel_lines.append(f"  [{role}] {ch.channel_name or ch.chat_key}{desc}{marker}")
 
-            current_role = "主频道" if is_current_primary else "协作频道"
             multi_channel_hint = (
-                f"\n[工作区频道信息]\n"
-                f"当前工作区绑定了 {len(bound_channels)} 个频道，各频道说明如下：\n"
+                f"\n[多频道工作区] 共 {len(bound_channels)} 个频道:\n"
                 + "\n".join(channel_lines)
-                + f"\n当前任务来源频道：{current_chat_key}（{current_role}）\n"
-                f"如需跨频道发送消息，在 task_prompt 中明确指定目标频道的 chat_key，NA 将路由到对应频道。\n"
+                + "\n跨频道发消息：在 task_prompt 中指定目标 chat_key，NA 会路由到对应频道。\n"
             )
     except Exception:
         pass
@@ -795,48 +779,31 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"{multi_channel_hint}"
         f"{task_hint}"
         f"{shared_files_hint}"
-        f"可通过 `delegate_to_cc` 将复杂的编程/工具任务**异步**委托给 CC Sandbox 后台执行（完成后自动回传），"
-        f"通过 `upload_file_to_cc` / `download_file_from_cc` 与 CC Workspace 传递文件，"
-        f"通过 `get_cc_context` 查询工作区协作上下文（任务状态 + 原始任务 + 通讯历史）。\n"
+        f"可用方法: `delegate_to_cc`(异步委托) / `upload_file_to_cc` / `download_file_from_cc` / `get_cc_context`\n"
         f"\n"
-        f"[CC 协作注意事项 — 必须严格遵守]\n"
-        f"**CC 无法看到你与用户的对话。** CC 是一个独立运行的 AI 进程，无法访问本频道的任何聊天记录。"
-        f"`task_prompt` 是 CC 获取任务信息的**唯一来源**。因此：\n"
-        f"- **task_prompt 必须自包含**：将你的完整需求(从用户意图转化)、相关背景、技术要求、约束条件全部写入 task_prompt，"
-        f"不得假定 CC 已了解当前话题、前序讨论内容或用户曾经提到的任何信息\n"
-        f"- **原文引用关键信息**：对话中出现的具体错误信息、日志片段、用户描述的现象等，必须在 task_prompt 中原文引用，不要概括或省略\n"
-        f"- **你无法读取 CC 工作区**：CC 是工作区文件和代码的第一手知识持有者，你无法主动读取工作区内容，"
-        f"因此不要在指令中假设工作区存在特定文件路径、函数名或代码结构\n"
-        f"- **用户提及的路径需 CC 核实**：如果用户提到具体的文件/函数/路径，应以「用户提及了 X，请自行核实是否存在」的方式传达，而非断言其存在\n"
-        f"- **描述目标，而非步骤**：告诉 CC「做什么」和「为什么」，让 CC 自行探索工作区并决定实现方式，"
-        f"绝不要下达精细化的代码修改指令（如'将第X行改为...'）\n"
-        f"- CC 响应中若包含「[需要澄清]」问题，应将问题**转达给用户**后，再决定是否继续委托\n"
+        f"[CC 协作规范]\n"
+        f"**CC 无法看到你与用户的对话。** task_prompt 是 CC 获取信息的唯一来源，必须自包含：\n"
+        f"- 完整需求、背景、约束条件；原文引用关键信息（错误日志、用户描述等）\n"
+        f"- 你无法读取 CC 工作区，不要假设特定文件/函数存在；用户提及的路径让 CC 自行核实\n"
+        f"- 描述目标而非步骤，让 CC 自行探索决定实现方式\n"
+        f"- 若 CC 响应含「[需要澄清]」，先转达给用户再决定下一步\n"
         f"\n"
-        f"[CC 结果呈递 — 用户无法直接看到 CC 的工作过程和返回内容]\n"
-        f"**重要：用户看不到 CC Workspace 的工作过程、通讯记录和返回结果。**用户只能看到你在本频道发送的消息。"
-        f"因此当 CC 完成任务返回结果时，你必须以合适的方式向用户呈递结果，而不能简单地说「CC 已完成」或只给出极简摘要。"
-        f"根据任务性质，选择最合适的结果呈递方式：\n"
-        f"- **简单反馈**：对于简单操作（如文件创建、命令执行、配置修改等），简要告知结果和关键信息即可\n"
-        f"- **详细转述**：对于分析、调研、代码审查等知识密集型任务，应详细转述 CC 的发现和结论，保留关键细节\n"
-        f"- **文件传递**：对于生成报告、文档、代码文件等产出物，应通过 `download_file_from_cc` 提取文件并发送给用户。"
-        f"在委托任务时就应与 CC 约定好产出形式（如「请将分析结果写入 /workspace/default/shared/xxx-report.md」）\n"
-        f"- **用户指定形式**：如果用户明确要求了结果形式（如「给我一份报告」「列出所有问题」），按用户要求呈递\n"
-        f"- **自动判断**：如果用户没有指定，根据上下文判断最合适的呈递方式——较长的分析结果考虑生成文件，"
-        f"简短的操作结果直接文本反馈，代码修改结果说明改了什么和为什么\n"
+        f"[成果交付 — 用户无法访问 CC 工作区]\n"
+        f"**用户看不到 CC 的工作过程和返回内容**，你必须确保成果到达用户：\n"
+        f"- **代码修改**：要求 CC 创建 PR 或推送分支，获取链接后告知用户\n"
+        f"- **生成文件**：CC 放入 shared/ 后，用 `download_file_from_cc` 获取并发送给用户\n"
+        f"- **分析结果**：详细转述给用户，或获取报告文件后发送\n"
+        f"委托时应指定交付方式（如「创建 PR 并返回链接」「写入 shared/report.md」）\n"
     )
 
-    # ── 人设融合模式：将 CC 能力合并到主人设 ──────────────────────────────────
+    # ── 人设融合模式 ──────────────────────────────────
     if cc_config.MERGE_CC_AS_SELF:
         result += (
-            "\n[角色融合 — 必须严格遵守]\n"
-            "**你不应向用户暴露 CC Workspace / CC Agent / CC 沙盒 等内部概念的存在。**"
-            "在用户视角中，你就是一个拥有代码编写、文件处理、命令执行等全能能力的 AI 助手。\n"
-            "具体要求：\n"
-            "- 当你使用 `delegate_to_cc` 执行编码/文件/命令任务时，对用户呈现为「我来做」「我正在处理」而非「我委托给 CC」\n"
-            "- 当任务在后台执行时，对用户说「我正在处理中，完成后会告诉你」而非「CC 正在执行」\n"
-            "- 当结果回传时，以第一人称呈递，如「我已经完成了...」而非「CC 返回了...」\n"
-            "- 不要提及「工作区」「沙盒」「容器」「委托」等技术术语\n"
-            "- 如果用户好奇你的能力，用自然的方式说明你可以编写代码、运行命令、处理文件等，无需解释背后机制\n"
+            "\n[角色融合]\n"
+            "不向用户暴露 CC Workspace / 沙盒 / 委托 等内部概念。对用户而言，你就是一个全能助手：\n"
+            "- 执行任务时说「我来处理」而非「委托给 CC」\n"
+            "- 结果回传时说「我已完成」而非「CC 返回了」\n"
+            "- 避免提及「工作区」「容器」等技术术语\n"
         )
 
     return result
@@ -1112,6 +1079,19 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
 
     # 持久化 task_prompt，供结果回传时提醒 NA 本次任务的原始目标
     await plugin.store.set(chat_key=chat_key, store_key="last_cc_task_prompt", value=task_prompt)
+
+    # 检查记忆摘要是否超限，自动附加整理指令
+    try:
+        na_context, _ = await asyncio.to_thread(WorkspaceService.read_na_context, workspace.id)
+        if na_context and len(na_context) > cc_config.MEMORY_SUMMARY_MAX_LENGTH:
+            task_prompt = (
+                f"{task_prompt}\n\n"
+                f"---\n"
+                f"[系统附加] 工作区记忆摘要 _na_context.md 已超限（{len(na_context)}/{cc_config.MEMORY_SUMMARY_MAX_LENGTH}字符），"
+                f"请在完成主任务后整理该文件：精简历史记录，删除过时信息，保留关键上下文。"
+            )
+    except Exception:
+        pass
 
     # on_terminal 异步辅助：在任务终态时读取存储的原始提示词并推送给主 Agent
     async def _push_result(ctl: TaskCtl) -> None:
