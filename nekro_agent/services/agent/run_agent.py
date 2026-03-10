@@ -22,18 +22,9 @@ from nekro_agent.services.sandbox.runner import limited_run_code
 from .creator import OpenAIChatMessage
 from .openai import OpenAIResponse, gen_openai_chat_response
 from .resolver import ParsedCodeRunData, parse_chat_response
-from .templates.base import env as default_env
-from .templates.history import HistoryFirstStart, render_history_data
+from .templates.compiler import PromptCompiler
+from .templates.history import render_history_data
 from .templates.plugin import render_plugins_prompt
-from .templates.practice import (
-    BasePracticePrompt_question,
-    BasePracticePrompt_response,
-    PracticePrompt_question_1,
-    PracticePrompt_question_2,
-    PracticePrompt_response_1,
-    PracticePrompt_response_2,
-)
-from .templates.system import SystemPrompt
 
 # 使用deque保存最近100条错误日志路径
 
@@ -73,83 +64,34 @@ async def run_agent(
     activation_plugin = plugin_collector.get_plugin_by_module_name("plugin_activation")
     activation_enabled = bool(activation_plugin and activation_plugin.is_enabled)
 
-    plugins_prompt = await render_plugins_prompt(
+    rendered_plugins = await render_plugins_prompt(
         plugin_collector.get_all_active_plugins(),
         ctx,
         activation_enabled=activation_enabled,
     )
     logger.debug(f"[run_agent] {chat_key} | 插件 prompt 渲染完成，开始构建 system prompt")
 
-    messages = [
-        OpenAIChatMessage.from_template(
-            "system",
-            SystemPrompt(
-                one_time_code=one_time_code,
-                platform_name=self_info.platform_name,
-                bot_platform_id=self_info.user_id,
-                chat_preset=preset.content,
-                chat_key=chat_key,
-                plugins_prompt=plugins_prompt,
-                plugin_activation_rules=build_plugin_activation_rules() if activation_enabled else "",
-                admin_chat_key=config.ADMIN_CHAT_KEY,
-                enable_cot=used_model_group.ENABLE_COT,
-                chat_key_rules="\n".join([f"- {r}" for r in [db_chat_channel.adapter.chat_key_rules]]),
-                enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
-            ),
-            default_env,
-        ),
-    ]
+    prompt_compiler = PromptCompiler(
+        platform_name=self_info.platform_name,
+        bot_platform_id=self_info.user_id,
+        chat_preset=preset.content,
+        plugins_prompt=rendered_plugins.system_prompt,
+        plugins_runtime_prompt=rendered_plugins.runtime_prompt,
+        plugin_activation_rules=build_plugin_activation_rules() if activation_enabled else "",
+        enable_cot=used_model_group.ENABLE_COT,
+        chat_key_rules="\n".join(f"- {r}" for r in db_chat_channel.adapter.chat_key_rules),
+        enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
+    )
 
-    if adapter_dialog_examples and adapter_jinja_env:
-        for prompt_template in adapter_dialog_examples:
-            role = None
-            if isinstance(prompt_template, BasePracticePrompt_question):
-                role = "user"
-                prompt_template.one_time_code = one_time_code
-            elif isinstance(prompt_template, BasePracticePrompt_response):
-                role = "assistant"
-                prompt_template.one_time_code = one_time_code
-                prompt_template.enable_cot = used_model_group.ENABLE_COT
-                prompt_template.enable_at = db_chat_channel.adapter.config.SESSION_ENABLE_AT
-            else:
-                raise TypeError(f"未知消息类型模板: {prompt_template}")
-            messages.append(OpenAIChatMessage.from_template(role, prompt_template, adapter_jinja_env))
-    else:
-        # 使用默认对话示例
-        messages.extend(
-            [
-                OpenAIChatMessage.from_template("user", PracticePrompt_question_1(one_time_code=one_time_code), default_env),
-                OpenAIChatMessage.from_template(
-                    "assistant",
-                    PracticePrompt_response_1(
-                        one_time_code=one_time_code,
-                        enable_cot=used_model_group.ENABLE_COT,
-                        enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
-                    ),
-                    default_env,
-                ),
-                OpenAIChatMessage.from_template("user", PracticePrompt_question_2(one_time_code=one_time_code), default_env),
-                OpenAIChatMessage.from_template(
-                    "assistant",
-                    PracticePrompt_response_2(
-                        one_time_code=one_time_code,
-                        enable_cot=used_model_group.ENABLE_COT,
-                        enable_at=db_chat_channel.adapter.config.SESSION_ENABLE_AT,
-                    ),
-                    default_env,
-                ),
-            ],
-        )
-
+    messages = [prompt_compiler.render_system_message()]
+    messages.extend(prompt_compiler.render_practice_messages(adapter_dialog_examples, adapter_jinja_env))
     messages.append(
-        OpenAIChatMessage.from_template("user", HistoryFirstStart(enable_cot=used_model_group.ENABLE_COT), default_env).extend(
-            await render_history_data(
-                chat_key=chat_key,
-                db_chat_channel=db_chat_channel,
-                one_time_code=one_time_code,
-                model_group=used_model_group,
-                config=config,
-            ),
+        await prompt_compiler.render_history_message(
+            chat_key=chat_key,
+            db_chat_channel=db_chat_channel,
+            one_time_code=one_time_code,
+            config=config,
+            model_group=used_model_group,
         ),
     )
 
@@ -250,6 +192,7 @@ async def run_agent(
                 chat_key=chat_key,
                 db_chat_channel=db_chat_channel,
                 one_time_code=one_time_code,
+                plugin_injected_prompt=rendered_plugins.runtime_prompt,
                 record_sta_timestamp=history_render_until_time,
                 model_group=used_model_group,
                 config=config,

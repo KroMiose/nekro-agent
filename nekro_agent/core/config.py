@@ -212,22 +212,6 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
-    ADMIN_CHAT_KEY: str = Field(
-        default="",
-        title="管理频道",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
-            ),
-            is_secret=True,
-            placeholder="xxxx-group_xxxxxxxx / xxxx-private_xxxxxxxx",
-            i18n_title=i18n_text(
-                zh_CN="管理频道",
-                en_US="Admin Channel",
-            ),
-        ).model_dump(),
-    )
     SAVE_PROMPTS_LOG: bool = Field(
         default=False,
         title="保存聊天提示词生成日志",
