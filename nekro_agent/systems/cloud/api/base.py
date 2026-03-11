@@ -19,8 +19,8 @@ def parse_json_response(response: httpx.Response, model_cls: Type[T], action_des
 
     包含：
     - 空响应检查
-    - Content-Type 校验
-    - 日志记录
+    - Content-Type 校验（非 JSON 响应抛出错误）
+    - JSON 解析异常处理
 
     Args:
         response: httpx 响应对象
@@ -31,7 +31,7 @@ def parse_json_response(response: httpx.Response, model_cls: Type[T], action_des
         解析后的 Pydantic 模型实例
 
     Raises:
-        ValueError: 响应体为空时
+        ValueError: 响应体为空、非 JSON 类型、或 JSON 解析失败时
     """
     response_text = response.text.strip()
     if not response_text:
@@ -39,9 +39,26 @@ def parse_json_response(response: httpx.Response, model_cls: Type[T], action_des
 
     content_type = response.headers.get("content-type", "")
     if "json" not in content_type.lower():
-        logger.warning(f"{action_desc}: non-JSON, type={content_type}, body={response_text[:200]}")
+        # 非 JSON 响应，记录详细信息并抛出错误
+        body_preview = response_text[:500] if response_text else "(empty)"
+        logger.error(
+            f"{action_desc}: expected JSON but got content-type={content_type}, "
+            f"status={response.status_code}, body={body_preview}"
+        )
+        raise ValueError(
+            f"{action_desc}: non-JSON response (content-type={content_type}), "
+            f"status={response.status_code}"
+        )
 
-    return model_cls.model_validate_json(response_text)
+    try:
+        return model_cls.model_validate_json(response_text)
+    except Exception as e:
+        # JSON 解析失败
+        logger.error(
+            f"{action_desc}: JSON parsing failed, status={response.status_code}, "
+            f"body={response_text[:200]}, error={e}"
+        )
+        raise ValueError(f"{action_desc}: JSON parsing failed - {e}")
 
 
 def parse_json_dict(response: httpx.Response, action_desc: str) -> Dict[str, Any]:
