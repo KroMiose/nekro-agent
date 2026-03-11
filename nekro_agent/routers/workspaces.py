@@ -947,7 +947,10 @@ async def put_dynamic_skill(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if not dir_name or "/" in dir_name or ".." in dir_name or dir_name.startswith("."):
         raise ValidationError(reason=f"非法 skill 名称: {dir_name!r}")
-    WorkspaceService.write_dynamic_skill(workspace_id, dir_name, body.content)
+    try:
+        WorkspaceService.write_dynamic_skill(workspace_id, dir_name, body.content)
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
     return ActionOkResponse(ok=True)
 
 
@@ -1048,8 +1051,8 @@ async def list_dynamic_skill_dir(
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-    if not skill_dir.exists() or not skill_dir.is_dir():
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
         raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     entries = await asyncio.to_thread(_list_dynamic_dir, skill_dir, skill_dir)
     return DynamicSkillDirResponse(entries=entries)
@@ -1072,7 +1075,9 @@ async def get_dynamic_skill_file(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ".." in rel_path.split("/"):
         raise ValidationError(reason="路径不合法")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
+        raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     target = skill_dir / rel_path
     if not target.exists() or not target.is_file():
         raise NotFoundError(resource=f"文件 '{rel_path}'")
@@ -1097,8 +1102,8 @@ async def save_dynamic_skill_file(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ".." in body.rel_path.split("/"):
         raise ValidationError(reason="路径不合法")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-    if not skill_dir.exists() or not skill_dir.is_dir():
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
         raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     target = skill_dir / body.rel_path
     target.parent.mkdir(parents=True, exist_ok=True)

@@ -12,7 +12,7 @@ allowed-tools: Read,Write,Bash
 
 1. 理解用户意图（想让技能做什么、何时触发、期望输出）
 2. 编写符合规范的 SKILL.md
-3. 保存到 `~/.claude/skills/dynamic/` 目录
+3. 保存到 `~/.claude/skills/<skill-name>/` 目录
 4. 验证技能可被正确解析
 
 按用户的实际需求灵活执行——可以跳过不需要的步骤。
@@ -131,6 +131,20 @@ my-skill/
 
 ---
 
+## 平台元数据边界
+
+只创建和修改 skill 内容文件，例如 `SKILL.md`、`install.md`、`reference.md`、`scripts/`。
+
+不要手动编造或维护平台级来源元数据，例如：
+- `.skill-origin.json`
+- 市场/社区 skill ID
+- 发布者身份
+- 工作区实例 ID
+
+这些信息应由上层平台在保存、扫描、晋升或发布时自动补齐。
+
+---
+
 ## 完整示例
 
 ### 示例 1：简单技能
@@ -194,13 +208,13 @@ allowed-tools: Read,Write,Bash
 
 ## 保存位置
 
-将技能保存到 `~/.claude/skills/dynamic/` 目录：
+将技能保存到 `~/.claude/skills/<skill-name>/` 目录：
 
 ```bash
-mkdir -p ~/.claude/skills/dynamic/my-skill-name
+mkdir -p ~/.claude/skills/my-skill-name
 ```
 
-动态技能在会话之间持久保存，创建后立即可用。
+workspace 本地技能在会话之间持久保存，创建后即可被 Claude Code 发现。
 
 ## 创建后验证
 
