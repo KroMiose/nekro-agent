@@ -125,6 +125,9 @@
       "nameReadonly": "名称创建后不可修改",
       "desc": "描述",
       "sectionApi": "API 配置",
+      "sourcePreset": "来源预设",
+      "sourcePresetHint": "自动填充官方确认的 Base URL 与推荐模型映射，随后只需填写密钥即可",
+      "sourcePresetCustom": "自定义（不套用预设）",
       "timeout": "超时 (ms)",
       "sectionModel": "模型配置",
       "modelType": "模型类型",
@@ -665,19 +668,19 @@
         "checking": "检查中",
         "ready": "已就绪",
         "notPulled": "未拉取",
-          "pullDialog": {
-            "title": "拉取沙盒镜像",
-            "confirmTitle": "拉取沙盒镜像",
-            "confirmHint": "将从 Docker Hub 拉取以下镜像，首次拉取需要一定时间，请确认网络畅通：",
-            "cancel": "取消",
-            "image": "镜像",
-            "pulling": "正在拉取...",
-            "success": "拉取完成",
-            "failed": "拉取失败",
-            "close": "关闭",
-            "retry": "重试",
-            "pullBtn": "开始拉取"
-          }
+        "pullDialog": {
+          "title": "拉取沙盒镜像",
+          "confirmTitle": "拉取沙盒镜像",
+          "confirmHint": "将从 Docker Hub 拉取以下镜像，首次拉取需要一定时间，请确认网络畅通：",
+          "cancel": "取消",
+          "image": "镜像",
+          "pulling": "正在拉取...",
+          "success": "拉取完成",
+          "failed": "拉取失败",
+          "close": "关闭",
+          "retry": "重试",
+          "pullBtn": "开始拉取"
+        }
       }
     }
   },

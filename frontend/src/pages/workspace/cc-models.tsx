@@ -36,7 +36,16 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { ccModelPresetApi, CCModelPresetInfo, CCModelPresetCreate } from '../../services/api/cc-model-preset'
+import {
+  CC_MODEL_SOURCE_PRESETS,
+  DEFAULT_CC_EXTRA_ENV,
+  getLocalizedText,
+} from '../../config/model-presets'
+import {
+  ccModelPresetApi,
+  CCModelPresetInfo,
+  CCModelPresetCreate,
+} from '../../services/api/cc-model-preset'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 
@@ -86,10 +95,7 @@ const DEFAULT_FORM: PresetFormState = {
   default_sonnet: '',
   default_opus: '',
   default_haiku: '',
-  extra_env: [
-    { key: 'CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC', value: '1' },
-    { key: 'CLAUDE_CODE_ATTRIBUTION_HEADER', value: '0' },
-  ],
+  extra_env: DEFAULT_CC_EXTRA_ENV.map(pair => ({ ...pair })),
 }
 
 function computeConfigJson(form: PresetFormState): Record<string, unknown> {
@@ -123,9 +129,11 @@ interface EditDialogProps {
 
 function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
   const [form, setForm] = useState<PresetFormState>(DEFAULT_FORM)
+  const [sourcePresetId, setSourcePresetId] = useState('')
   const [showToken, setShowToken] = useState(false)
   const notification = useNotification()
-  const { t } = useTranslation('workspace')
+  const { t, i18n } = useTranslation('workspace')
+  const selectedSourcePreset = CC_MODEL_SOURCE_PRESETS.find(item => item.id === sourcePresetId)
 
   const createMutation = useMutation({
     mutationFn: (body: CCModelPresetCreate) => ccModelPresetApi.create(body),
@@ -134,7 +142,8 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       onSuccess()
       onClose()
     },
-    onError: (err: Error) => notification.error(t('ccModels.notifications.createFailed', { message: err.message })),
+    onError: (err: Error) =>
+      notification.error(t('ccModels.notifications.createFailed', { message: err.message })),
   })
 
   const updateMutation = useMutation({
@@ -144,7 +153,8 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       onSuccess()
       onClose()
     },
-    onError: (err: Error) => notification.error(t('ccModels.notifications.saveFailed', { message: err.message })),
+    onError: (err: Error) =>
+      notification.error(t('ccModels.notifications.saveFailed', { message: err.message })),
   })
 
   useEffect(() => {
@@ -168,6 +178,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       } else {
         setForm(DEFAULT_FORM)
       }
+      setSourcePresetId('')
       setShowToken(false)
     }
   }, [open, initial])
@@ -198,7 +209,8 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
     }
   }
 
-  const addEnvPair = () => setForm(prev => ({ ...prev, extra_env: [...prev.extra_env, { key: '', value: '' }] }))
+  const addEnvPair = () =>
+    setForm(prev => ({ ...prev, extra_env: [...prev.extra_env, { key: '', value: '' }] }))
   const removeEnvPair = (idx: number) =>
     setForm(prev => ({ ...prev, extra_env: prev.extra_env.filter((_, i) => i !== idx) }))
   const updateEnvPair = (idx: number, field: 'key' | 'value', val: string) =>
@@ -208,11 +220,35 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       return { ...prev, extra_env: pairs }
     })
 
+  const applySourcePreset = (presetId: string) => {
+    setSourcePresetId(presetId)
+    if (!presetId) return
+
+    const preset = CC_MODEL_SOURCE_PRESETS.find(item => item.id === presetId)
+    if (!preset) return
+
+    setForm(prev => ({
+      ...prev,
+      base_url: preset.form.base_url,
+      api_timeout_ms: preset.form.api_timeout_ms,
+      model_type: preset.form.model_type,
+      preset_model: preset.form.preset_model,
+      anthropic_model: preset.form.anthropic_model,
+      small_fast_model: preset.form.small_fast_model,
+      default_sonnet: preset.form.default_sonnet,
+      default_opus: preset.form.default_opus,
+      default_haiku: preset.form.default_haiku,
+      extra_env: preset.form.extra_env.map(pair => ({ ...pair })),
+    }))
+  }
+
   const configPreview = JSON.stringify(computeConfigJson(form), null, 2)
 
   return (
     <Dialog open={open} onClose={() => !isPending && onClose()} maxWidth="md" fullWidth>
-      <DialogTitle>{initial ? t('ccModels.dialog.titleEdit') : t('ccModels.dialog.titleCreate')}</DialogTitle>
+      <DialogTitle>
+        {initial ? t('ccModels.dialog.titleEdit') : t('ccModels.dialog.titleCreate')}
+      </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
           {/* 基本信息 */}
@@ -242,6 +278,27 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
           <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, mt: 1 }}>
             {t('ccModels.dialog.sectionApi')}
           </Typography>
+          <TextField
+            label={t('ccModels.dialog.sourcePreset')}
+            select
+            value={sourcePresetId}
+            onChange={e => applySourcePreset(e.target.value)}
+            fullWidth
+            size="small"
+            helperText={t('ccModels.dialog.sourcePresetHint')}
+          >
+            <MenuItem value="">{t('ccModels.dialog.sourcePresetCustom')}</MenuItem>
+            {CC_MODEL_SOURCE_PRESETS.map(preset => (
+              <MenuItem key={preset.id} value={preset.id}>
+                {getLocalizedText(preset.label, i18n.resolvedLanguage)}
+              </MenuItem>
+            ))}
+          </TextField>
+          {selectedSourcePreset && (
+            <Alert severity="info" variant="outlined">
+              {getLocalizedText(selectedSourcePreset.note, i18n.resolvedLanguage)}
+            </Alert>
+          )}
           <TextField
             label="Base URL"
             value={form.base_url}
@@ -296,7 +353,9 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
             label={t('ccModels.dialog.modelType')}
             select
             value={form.model_type}
-            onChange={e => setForm(prev => ({ ...prev, model_type: e.target.value as 'preset' | 'manual' }))}
+            onChange={e =>
+              setForm(prev => ({ ...prev, model_type: e.target.value as 'preset' | 'manual' }))
+            }
             size="small"
             fullWidth
           >
@@ -369,7 +428,9 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
           )}
 
           {/* 自定义附加变量 */}
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}>
+          <Box
+            sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mt: 1 }}
+          >
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
               {t('ccModels.dialog.sectionEnv')}
             </Typography>
@@ -440,7 +501,13 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
           onClick={handleSubmit}
           disabled={isPending || !form.name.trim()}
         >
-          {isPending ? <CircularProgress size={18} /> : initial ? t('ccModels.dialog.save') : t('ccModels.dialog.create')}
+          {isPending ? (
+            <CircularProgress size={18} />
+          ) : initial ? (
+            t('ccModels.dialog.save')
+          ) : (
+            t('ccModels.dialog.create')
+          )}
         </Button>
       </DialogActions>
     </Dialog>
@@ -468,7 +535,8 @@ export default function CCModelsPage() {
       queryClient.invalidateQueries({ queryKey: ['cc-model-presets'] })
       setDeleteTarget(null)
     },
-    onError: (err: Error) => notification.error(t('ccModels.notifications.deleteFailed', { message: err.message })),
+    onError: (err: Error) =>
+      notification.error(t('ccModels.notifications.deleteFailed', { message: err.message })),
   })
 
   const handleAdd = () => {
@@ -582,11 +650,18 @@ export default function CCModelsPage() {
                       <Stack direction="row" alignItems="center" spacing={0.5}>
                         <Typography variant="subtitle2">{preset.name}</Typography>
                         {preset.is_default && (
-                          <Chip label={t('ccModels.table.defaultChip')} size="small" color="primary" sx={{ height: 18, fontSize: '0.68rem' }} />
+                          <Chip
+                            label={t('ccModels.table.defaultChip')}
+                            size="small"
+                            color="primary"
+                            sx={{ height: 18, fontSize: '0.68rem' }}
+                          />
                         )}
                       </Stack>
                     </TableCell>
-                    <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}>
+                    <TableCell
+                      sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}
+                    >
                       <Typography
                         variant="body2"
                         color="text.secondary"
@@ -597,7 +672,11 @@ export default function CCModelsPage() {
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Chip
-                        label={preset.model_type === 'preset' ? t('ccModels.table.typePreset') : t('ccModels.table.typeManual')}
+                        label={
+                          preset.model_type === 'preset'
+                            ? t('ccModels.table.typePreset')
+                            : t('ccModels.table.typeManual')
+                        }
                         size="small"
                         color={preset.model_type === 'preset' ? 'primary' : 'secondary'}
                         variant="outlined"
@@ -605,13 +684,18 @@ export default function CCModelsPage() {
                       />
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
-                      <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                      >
                         {preset.model_type === 'preset'
                           ? preset.preset_model
                           : preset.anthropic_model || t('ccModels.table.multiModel')}
                       </Typography>
                     </TableCell>
-                    <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}>
+                    <TableCell
+                      sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}
+                    >
                       <Typography
                         variant="body2"
                         sx={{
@@ -639,7 +723,14 @@ export default function CCModelsPage() {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title={preset.is_default ? t('ccModels.table.tooltips.defaultCannotDelete') : t('ccModels.table.tooltips.delete')} arrow>
+                        <Tooltip
+                          title={
+                            preset.is_default
+                              ? t('ccModels.table.tooltips.defaultCannotDelete')
+                              : t('ccModels.table.tooltips.delete')
+                          }
+                          arrow
+                        >
                           <span>
                             <IconButton
                               size="small"
@@ -692,7 +783,11 @@ export default function CCModelsPage() {
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             disabled={deleteMutation.isPending}
           >
-            {deleteMutation.isPending ? <CircularProgress size={18} /> : t('ccModels.deleteDialog.delete')}
+            {deleteMutation.isPending ? (
+              <CircularProgress size={18} />
+            ) : (
+              t('ccModels.deleteDialog.delete')
+            )}
           </Button>
         </DialogActions>
       </Dialog>

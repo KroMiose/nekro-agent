@@ -125,6 +125,9 @@
       "nameReadonly": "Name cannot be changed after creation",
       "desc": "Description",
       "sectionApi": "API Config",
+      "sourcePreset": "Source Preset",
+      "sourcePresetHint": "Auto-fill a vendor's official Base URL and recommended model mapping, then only enter the API key.",
+      "sourcePresetCustom": "Custom (no preset)",
       "timeout": "Timeout (ms)",
       "sectionModel": "Model Config",
       "modelType": "Model Type",
@@ -665,19 +668,19 @@
         "checking": "Checking",
         "ready": "Ready",
         "notPulled": "Not Pulled",
-          "pullDialog": {
-            "title": "Pull Sandbox Image",
-            "confirmTitle": "Pull Sandbox Image",
-            "confirmHint": "The following image will be pulled from Docker Hub. First-time pull may take a while — please ensure your network is available:",
-            "cancel": "Cancel",
-            "image": "Image",
-            "pulling": "Pulling...",
-            "success": "Pull complete",
-            "failed": "Pull failed",
-            "close": "Close",
-            "retry": "Retry",
-            "pullBtn": "Start Pull"
-          }
+        "pullDialog": {
+          "title": "Pull Sandbox Image",
+          "confirmTitle": "Pull Sandbox Image",
+          "confirmHint": "The following image will be pulled from Docker Hub. First-time pull may take a while — please ensure your network is available:",
+          "cancel": "Cancel",
+          "image": "Image",
+          "pulling": "Pulling...",
+          "success": "Pull complete",
+          "failed": "Pull failed",
+          "close": "Close",
+          "retry": "Retry",
+          "pullBtn": "Start Pull"
+        }
       }
     }
   },

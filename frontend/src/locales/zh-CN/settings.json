@@ -50,19 +50,6 @@
       "apiAddress": "https://api.nekro.ai/v1",
       "modelName": "gpt-4o"
     },
-    "providers": {
-      "nekroAI": "NekroAI中转",
-      "googleGemini": "谷歌Gemini",
-      "tongyiQianwen": "通义千问",
-      "doubao": "豆包",
-      "kimi": "Kimi",
-      "zhipuQingyan": "智谱清言",
-      "baiduQianfan": "百度千帆",
-      "iflytekSpark": "科大讯飞",
-      "baichuan": "百川",
-      "tencentHunyuan": "腾讯混元",
-      "sensetimeRixin": "商汤日日新"
-    },
     "helpers": {
       "apiAddress": "从列表中选择常用供应商，或输入任意 OpenAI 接口基准地址",
       "modelName": "若无法获取列表，请直接手动输入模型名称",
