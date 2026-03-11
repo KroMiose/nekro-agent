@@ -607,19 +607,19 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     # ── 状态1：未绑定工作区 ──────────────────────────────────────────────────
     if workspace is None:
         return (
-            "[CC Workspace] 未绑定\n"
-            "CC Workspace 是独立的 Claude Code 沙盒，支持持久化执行代码、处理文件、运行命令。\n"
-            "可通过 `create_and_bind_workspace` 创建并绑定，然后 `start_cc_sandbox` 启动。\n"
-            "特殊需求（自定义镜像、运行策略）请引导用户到工作区管理页面手动创建。\n"
+            "[CC Workspace] Unbound\n"
+            "CC Workspace is an isolated Claude Code sandbox for persistent code execution, file handling, and command execution.\n"
+            "Use `create_and_bind_workspace` to create and bind one, then `start_cc_sandbox` to start it.\n"
+            "For special requirements such as custom images or runtime policies, guide the user to create it manually in the workspace management page.\n"
         )
 
     # ── 状态2：已绑定工作区，但沙盒未运行 ──────────────────────────────────
     if workspace.status != "active":
-        status_label = {"stopped": "已停止", "failed": "启动失败", "deleting": "删除中"}.get(workspace.status, workspace.status)
-        error_hint = f"（错误: {workspace.last_error[:50]}...）" if workspace.last_error else ""
+        status_label = {"stopped": "Stopped", "failed": "Start failed", "deleting": "Deleting"}.get(workspace.status, workspace.status)
+        error_hint = f" (error: {workspace.last_error[:50]}...)" if workspace.last_error else ""
         return (
             f"[CC Workspace] {workspace.name} - {status_label}{error_hint}\n"
-            f"{'需用户检查工作区管理页面' if workspace.last_error else '可通过 `start_cc_sandbox` 启动'}\n"
+            f"{'Ask the user to check the workspace management page.' if workspace.last_error else 'It can be started with `start_cc_sandbox`.'}\n"
         )
 
     # ── 状态3：工作区正常运行 ────────────────────────────────────────────────
@@ -645,14 +645,14 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
     # 容器不可达
     if _cc_unreachable:
         return (
-            f"[CC Workspace] {workspace.name} - 连接异常\n"
-            f"容器无法连接，请告知用户检查工作区管理页面并重启容器。CC 工具暂不可用。\n"
+            f"[CC Workspace] {workspace.name} - Connection error\n"
+            f"The container is unreachable. Ask the user to check the workspace management page and restart the container. CC tools are currently unavailable.\n"
         )
 
     # CC 应用状态：仅在异常时提示
     ws_status = status_info.get("status", "")
     _NORMAL_CC_STATES = {"idle", "busy", "running", "ready", ""}
-    status_hint = "" if ws_status in _NORMAL_CC_STATES else f"CC 应用状态异常: {ws_status}\n"
+    status_hint = "" if ws_status in _NORMAL_CC_STATES else f"CC application status is abnormal: {ws_status}\n"
 
     # 能力摘要（skills + MCP）— 只列名称，不列描述
     capability_hint = ""
@@ -664,7 +664,7 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         if selected_skills:
             parts.append(f"Skills: {', '.join(selected_skills)}")
         if dynamic_skills:
-            parts.append(f"动态Skills: {', '.join(s['name'] for s in dynamic_skills)}")
+            parts.append(f"Dynamic skills: {', '.join(s['name'] for s in dynamic_skills)}")
         if mcp_servers:
             parts.append(f"MCP: {', '.join(mcp_servers.keys())}")
         if parts:
@@ -678,12 +678,12 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         na_context, updated = await asyncio.to_thread(WorkspaceService.read_na_context, workspace.id)
         if na_context.strip():
             max_len = cc_config.MEMORY_SUMMARY_MAX_LENGTH
-            time_str = f"（更新于 {updated}）" if updated else ""
+            time_str = f" (updated at {updated})" if updated else ""
             if len(na_context) > max_len:
                 short_context = na_context[:max_len] + "..."
-                memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{short_context}\n"
+                memory_hint = f"\n[CC Workspace Memory Summary]{time_str}\n{short_context}\n"
             else:
-                memory_hint = f"\n[CC 工作区记忆摘要]{time_str}\n{na_context}\n"
+                memory_hint = f"\n[CC Workspace Memory Summary]{time_str}\n{na_context}\n"
     except Exception:
         pass
 
@@ -703,26 +703,26 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
 
             if is_mine:
                 task_hint = (
-                    f"\n[任务执行中] 已运行 {elapsed:.0f}s，完成后自动回传\n"
-                    f"任务: {preview_str}\n"
-                    f"可用 `cancel_cc_task` 取消，`get_cc_context` 查询上下文。\n"
+                    f"\n[Task Running] Running for {elapsed:.0f}s. The result will be returned automatically when complete.\n"
+                    f"Task: {preview_str}\n"
+                    f"Use `cancel_cc_task` to cancel it or `get_cc_context` to inspect context.\n"
                 )
             elif is_running:
                 task_hint = (
-                    f"\n[排队中] 工作区被占用（{elapsed:.0f}s），等待队列: {queue_len}\n"
-                    f"可用 `cancel_cc_task` 取消等待，`force_cancel_cc_workspace` 强制抢占。\n"
+                    f"\n[Queued] The workspace is busy ({elapsed:.0f}s). Queue length: {queue_len}\n"
+                    f"Use `cancel_cc_task` to stop waiting, or `force_cancel_cc_workspace` to preempt.\n"
                 )
             else:
                 task_hint = (
-                    f"\n[工作区占用] 其他频道任务执行中（{elapsed:.0f}s）\n"
-                    f"任务: {preview_str}\n"
-                    f"委托新任务将自动排队。如需强制取消可用 `force_cancel_cc_workspace`。\n"
+                    f"\n[Workspace Busy] Another channel is running a task ({elapsed:.0f}s).\n"
+                    f"Task: {preview_str}\n"
+                    f"A new delegated task will be queued automatically. Use `force_cancel_cc_workspace` if you must preempt it.\n"
                 )
         elif is_running:
-            task_hint = "\n[任务已提交] 等待 CC 接收中，完成后自动回传。\n"
+            task_hint = "\n[Task Submitted] Waiting for CC to accept it. The result will be returned automatically when complete.\n"
     except Exception:
         if is_running:
-            task_hint = "\n[任务执行中] 完成后自动回传。可用 `get_cc_context` 查询，`cancel_cc_task` 取消。\n"
+            task_hint = "\n[Task Running] The result will be returned automatically when complete. Use `get_cc_context` to inspect it or `cancel_cc_task` to cancel it.\n"
 
     # 扫描 shared 目录 — 显示文件名、大小、更新时间
     shared_files_hint = ""
@@ -734,9 +734,9 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         if shared_files:
             lines = [f"  {f['rel_path']} ({f['size_human']}, {f['mtime_str']})" for f in shared_files]
             shared_files_hint = (
-                f"\n[shared/ 目录] 最近更新的 {len(shared_files)} 个文件:\n"
+                f"\n[shared/ Directory] {len(shared_files)} most recently updated files:\n"
                 + "\n".join(lines)
-                + "\n可用 `download_file_from_cc` 下载这些或工作区内任意文件。\n"
+                + "\nUse `download_file_from_cc` to retrieve these files or any other file in the workspace.\n"
             )
     except Exception:
         pass
@@ -757,53 +757,62 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
             for ch in bound_channels:
                 ann = annotations.get(ch.chat_key)
                 desc = f": {ann.description}" if ann and ann.description else ""
-                role = "主" if ch.chat_key == primary_key else "协作"
-                marker = " ← 当前" if ch.chat_key == current_chat_key else ""
+                role = "Primary" if ch.chat_key == primary_key else "Collaborative"
+                marker = " <- current" if ch.chat_key == current_chat_key else ""
                 channel_lines.append(f"  [{role}] {ch.channel_name or ch.chat_key}{desc}{marker}")
 
             multi_channel_hint = (
-                f"\n[多频道工作区] 共 {len(bound_channels)} 个频道:\n"
+                f"\n[Multi-channel Workspace] {len(bound_channels)} channels are bound:\n"
                 + "\n".join(channel_lines)
-                + "\n跨频道发消息：在 task_prompt 中指定目标 chat_key，NA 会路由到对应频道。\n"
+                + "\nTo message another channel, specify the target chat_key in task_prompt and NA will route it there.\n"
             )
     except Exception:
         pass
 
     result = (
         f"[CC Workspace]\n"
-        f"当前频道已绑定 CC Workspace: {workspace.name}（ID: {workspace.id}）\n"
-        f"运行策略: {workspace.runtime_policy}\n"
+        f"The current channel is bound to CC Workspace: {workspace.name} (ID: {workspace.id})\n"
+        f"Runtime policy: {workspace.runtime_policy}\n"
         f"{status_hint}"
         f"{capability_hint}"
         f"{memory_hint}"
         f"{multi_channel_hint}"
         f"{task_hint}"
         f"{shared_files_hint}"
-        f"可用方法: `delegate_to_cc`(异步委托) / `upload_file_to_cc` / `download_file_from_cc` / `get_cc_context`\n"
+        f"Available methods: `delegate_to_cc` (async delegation) / `upload_file_to_cc` / `download_file_from_cc` / `get_cc_context`\n"
         f"\n"
-        f"[CC 协作规范]\n"
-        f"**CC 无法看到你与用户的对话。** task_prompt 是 CC 获取信息的唯一来源，必须自包含：\n"
-        f"- 完整需求、背景、约束条件；原文引用关键信息（错误日志、用户描述等）\n"
-        f"- 你无法读取 CC 工作区，不要假设特定文件/函数存在；用户提及的路径让 CC 自行核实\n"
-        f"- 描述目标而非步骤，让 CC 自行探索决定实现方式\n"
-        f"- 若 CC 响应含「[需要澄清]」，先转达给用户再决定下一步\n"
+        f"[Delegation Preconditions]\n"
+        f"- Use `delegate_to_cc` only for tasks that **you have already defined clearly**. Do not dump a vague problem onto CC and expect it to infer the task.\n"
+        f"- Before delegating, make sure you know which project is being handled, what exactly needs to be investigated or changed, and what deliverable is expected.\n"
+        f"- The current workspace is only an available execution environment. It does not mean the project, screenshot, PR, or error mentioned by the user already exists here.\n"
+        f"- If the target project or materials are not in the current workspace, first specify how to obtain them, then ask CC to clone the repo, check out the branch, download files, or inspect the given path.\n"
+        f"- If the project source, error source, or target version is unclear, ask the user to clarify first. Do not issue tasks that cannot be verified or completed.\n"
         f"\n"
-        f"[成果交付 — 用户无法访问 CC 工作区]\n"
-        f"**用户看不到 CC 的工作过程和返回内容**，你必须确保成果到达用户：\n"
-        f"- **代码修改**：要求 CC 创建 PR 或推送分支，获取链接后告知用户\n"
-        f"- **生成文件**：CC 放入 shared/ 后，用 `download_file_from_cc` 获取并发送给用户\n"
-        f"- **分析结果**：详细转述给用户，或获取报告文件后发送\n"
-        f"委托时应指定交付方式（如「创建 PR 并返回链接」「写入 shared/report.md」）\n"
+        f"[CC Collaboration Rules]\n"
+        f"**CC cannot see your conversation with the user.** `task_prompt` is CC's only source of context and must be self-contained:\n"
+        f"- Include the full requirement, background, and constraints; quote key facts directly when useful, such as error logs and the user's description.\n"
+        f"- The task target must be explicit: project name, repository source, branch or commit, and the relevant files or directories. Provide at least enough information for CC to start correctly.\n"
+        f"- If the code is not in the current workspace, explicitly tell CC where to obtain it. Never assume it is already present.\n"
+        f"- You cannot read CC's workspace. Do not assume specific files or functions exist there; let CC verify user-mentioned paths on its own.\n"
+        f"- Describe the goal rather than prescribing every step, so CC can explore and choose the implementation path.\n"
+        f"- If CC responds with `[Need Clarification]`, relay that to the user before deciding the next step.\n"
+        f"\n"
+        f"[Delivery Requirement - The user cannot access CC Workspace]\n"
+        f"**The user cannot see CC's work process or raw response.** You must ensure the result reaches the user:\n"
+        f"- **Code changes**: ask CC to create a PR or push a branch, then tell the user the link.\n"
+        f"- **Generated files**: have CC write them into `shared/`, then use `download_file_from_cc` to retrieve and send them.\n"
+        f"- **Analysis results**: relay them clearly to the user, or retrieve and send the report file.\n"
+        f"When delegating, specify the delivery method, such as `create a PR and return the link` or `write the report to shared/report.md`.\n"
     )
 
     # ── 人设融合模式 ──────────────────────────────────
     if cc_config.MERGE_CC_AS_SELF:
         result += (
-            "\n[角色融合]\n"
-            "不向用户暴露 CC Workspace / 沙盒 / 委托 等内部概念。对用户而言，你就是一个全能助手：\n"
-            "- 执行任务时说「我来处理」而非「委托给 CC」\n"
-            "- 结果回传时说「我已完成」而非「CC 返回了」\n"
-            "- 避免提及「工作区」「容器」等技术术语\n"
+            "\n[Role Merge]\n"
+            "Do not expose internal concepts such as CC Workspace, sandbox, or delegation to the user. From the user's perspective, you are a single capable assistant:\n"
+            "- Say `I'll handle it` instead of `I'll delegate this to CC`.\n"
+            "- Say `I've completed it` instead of `CC returned the result`.\n"
+            "- Avoid terms like `workspace` or `container` in user-facing replies.\n"
         )
 
     return result
