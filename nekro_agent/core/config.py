@@ -1398,36 +1398,6 @@ class CoreConfig(ConfigBase):
         json_schema_extra=ExtraField(is_hidden=True).model_dump(),
     )
 
-    """Weave 配置"""
-    WEAVE_ENABLED: bool = Field(
-        default=False,
-        title="启用 Weave 追踪",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
-            ),
-            i18n_title=i18n_text(
-                zh_CN="启用 Weave 追踪",
-                en_US="Enable Weave Tracing",
-            ),
-        ).model_dump(),
-    )
-    WEAVE_PROJECT_NAME: str = Field(
-        default="nekro-agent",
-        title="Weave 项目名称",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
-            ),
-            i18n_title=i18n_text(
-                zh_CN="Weave 项目名称",
-                en_US="Weave Project Name",
-            ),
-        ).model_dump(),
-    )
-
     """其他功能"""
     ENABLE_FESTIVAL_REMINDER: bool = Field(
         default=True,

@@ -6,8 +6,6 @@ from collections import deque
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-import weave
-
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import PROMPT_ERROR_LOG_DIR, PROMPT_LOG_DIR
@@ -32,7 +30,6 @@ logger = get_sub_logger("agent_runtime")
 RECENT_ERR_LOGS = deque(maxlen=100)
 
 
-@weave.op(name="run_agent")
 async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,

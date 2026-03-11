@@ -30,7 +30,6 @@ dependencies = [
     "python-multipart>=0.0.9,<1.0.0",
     "bcrypt>=4.2.0,<5.0.0",
     "toml>=0.10.2,<1.0.0",
-    "weave>=0.51.19,<1.0.0",
     "tortoise-orm>=0.24.0,<1.0.0",
     "asyncpg>=0.30.0,<1.0.0",
     "json5>=0.10.0,<1.0.0",
