@@ -12,7 +12,7 @@ from nekro_agent.api.plugin import ConfigBase, ExtraField, NekroPlugin
 plugin = NekroPlugin(
     name="节日祝福",
     module_name="festival_greeting",
-    description="自动在节日时向指定聊天频道发送祝福",
+    description="自动在节日时向聊天频道发送祝福",
     version="1.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
@@ -21,7 +21,7 @@ plugin = NekroPlugin(
         en_US="Festival Greeting",
     ),
     i18n_description=i18n.i18n_text(
-        zh_CN="自动在节日时向指定聊天频道发送祝福",
+        zh_CN="自动在节日时向聊天频道发送祝福",
         en_US="Automatically send greetings to specified chats during festivals",
     ),
     allow_sleep=False,
