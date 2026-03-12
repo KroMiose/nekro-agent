@@ -12,8 +12,8 @@ from nekro_agent.api.plugin import ConfigBase, ExtraField, NekroPlugin
 plugin = NekroPlugin(
     name="节日祝福",
     module_name="festival_greeting",
-    description="自动在节日时向所有活跃聊天发送祝福",
-    version="1.0.0",
+    description="自动在节日时向指定聊天频道发送祝福",
+    version="1.1.0",
     author="KroMiose",
     url="https://github.com/KroMiose/nekro-agent",
     i18n_name=i18n.i18n_text(
@@ -21,8 +21,8 @@ plugin = NekroPlugin(
         en_US="Festival Greeting",
     ),
     i18n_description=i18n.i18n_text(
-        zh_CN="自动在节日时向所有活跃聊天发送祝福",
-        en_US="Automatically send greetings to all active chats during festivals",
+        zh_CN="自动在节日时向指定聊天频道发送祝福",
+        en_US="Automatically send greetings to specified chats during festivals",
     ),
     allow_sleep=False,
     sleep_brief="用于节日自动祝福和节日触发管理，仅在节日广播或节日相关场景时激活。",
@@ -184,6 +184,56 @@ class CustomNthWeekdayFestival(BaseModel):
 class FestivalGreetingConfig(ConfigBase):
     """节日祝福配置"""
 
+    AUTO_GREETING_ENABLED: bool = Field(
+        default=True,
+        title="开启自动祝福 (黑名单模式)",
+        description="开启后，默认向所有活跃聊天频道发送祝福，可使用黑名单排除特定频道。关闭后，切换为白名单模式，仅向白名单中的频道发送祝福。",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="开启自动祝福 (黑名单模式)",
+                en_US="Enable Auto Greeting (Blacklist Mode)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="开启后，默认向所有活跃聊天频道发送祝福，可使用黑名单排除特定频道。关闭后，切换为白名单模式，仅向白名单中的频道发送祝福。",
+                en_US="When enabled, greetings are sent to all active chats by default (use blacklist to exclude). When disabled, switches to whitelist mode (sends only to whitelisted chats).",
+            ),
+        ).model_dump(),
+    )
+
+    BLACKLIST_CHATS: List[str] = Field(
+        default=[],
+        title="黑名单聊天频道 (总开关开启时生效)",
+        description="[黑名单模式] 不发送祝福的聊天频道列表，格式如 group_123456 或 private_789",
+        json_schema_extra=ExtraField(
+            sub_item_name="频道",
+            i18n_title=i18n.i18n_text(
+                zh_CN="黑名单聊天频道 (总开关开启时生效)",
+                en_US="Blacklisted Chats (when enabled)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="[黑名单模式] 不发送祝福的聊天频道列表，格式如 group_123456 或 private_789",
+                en_US="[Blacklist Mode] List of chat channels to skip, format: group_123456 or private_789",
+            ),
+        ).model_dump(),
+    )
+
+    WHITELIST_CHATS: List[str] = Field(
+        default=[],
+        title="白名单聊天频道 (总开关关闭时生效)",
+        description="[白名单模式] 仅向这些聊天频道发送祝福，格式如 group_123456 或 private_789",
+        json_schema_extra=ExtraField(
+            sub_item_name="频道",
+            i18n_title=i18n.i18n_text(
+                zh_CN="白名单聊天频道 (总开关关闭时生效)",
+                en_US="Whitelisted Chats (when disabled)",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="[白名单模式] 仅向这些聊天频道发送祝福，格式如 group_123456 或 private_789",
+                en_US="[Whitelist Mode] Only send greetings to these chat channels, format: group_123456 or private_789",
+            ),
+        ).model_dump(),
+    )
+
     # 分类开关
     ENABLE_CHINESE_TRADITIONAL: bool = Field(
         default=True,
@@ -305,24 +355,6 @@ class FestivalGreetingConfig(ConfigBase):
         ).model_dump(),
     )
 
-    # 跳过的聊天频道列表
-    SKIP_CHAT_KEYS: List[str] = Field(
-        default=[],
-        title="跳过的聊天频道",
-        description="不发送祝福的聊天频道列表，格式如 group_123456 或 private_789",
-        json_schema_extra=ExtraField(
-            sub_item_name="频道",
-            i18n_title=i18n.i18n_text(
-                zh_CN="跳过的聊天频道",
-                en_US="Skip Chat Keys",
-            ),
-            i18n_description=i18n.i18n_text(
-                zh_CN="不发送祝福的聊天频道列表，格式如 group_123456 或 private_789",
-                en_US="List of chat channels to skip, format: group_123456 or private_789",
-            ),
-        ).model_dump(),
-    )
-
     # 自定义公历节日
     CUSTOM_SOLAR_FESTIVALS: List[CustomSolarFestival] = Field(
         default=[],
@@ -377,9 +409,9 @@ class FestivalGreetingConfig(ConfigBase):
         ).model_dump(),
     )
 
-    @field_validator("SKIP_CHAT_KEYS", mode="before")
+    @field_validator("BLACKLIST_CHATS", "WHITELIST_CHATS", mode="before")
     @classmethod
-    def validate_skip_chat_keys(cls, v: Any) -> List[str]:
+    def validate_chat_keys(cls, v: Any) -> List[str]:
         """兼容旧版字符串格式配置"""
         if isinstance(v, list):
             return v
