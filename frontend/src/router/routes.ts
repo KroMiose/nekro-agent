@@ -39,6 +39,10 @@ export const sanitizeRedirectTarget = (target: string | null | undefined) => {
   return target
 }
 
+/**
+ * 当前应用 path（仅 pathname，不含 query/hash）。
+ * 用于登录重定向等场景，避免 redirect 参数内包含 ?/& 导致 URL 被截断或解析错误。
+ */
 export const getCurrentAppPath = () => {
   if (typeof window === 'undefined') return '/'
 
@@ -46,5 +50,6 @@ export const getCurrentAppPath = () => {
   if (!hash.startsWith('#')) return '/'
 
   const currentPath = hash.slice(1)
-  return currentPath || '/'
+  const pathnameOnly = currentPath.split('?')[0]
+  return pathnameOnly || '/'
 }

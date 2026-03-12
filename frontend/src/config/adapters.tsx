@@ -617,10 +617,10 @@ export const getAdapterNavigationConfigs = () => {
  */
 export const getAdapterStatusDisplay = (status: string): AdapterStatusDisplay => {
   switch (status) {
-    case 'loaded':
+    case 'enabled':
       return {
         icon: <CheckCircleIcon color="success" fontSize="small" />,
-        text: 'status.loaded',
+        text: 'status.enabled',
         color: 'success',
         getBgColor: (theme: Theme) => theme.palette.success.main,
       }

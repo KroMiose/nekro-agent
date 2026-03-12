@@ -36,7 +36,7 @@
     "wxwork": "WeWork Bot"
   },
   "status": {
-    "loaded": "Loaded",
+    "enabled": "Enabled",
     "failed": "Failed",
     "disabled": "Disabled",
     "unknown": "Unknown"
@@ -86,6 +86,7 @@
     "statusFailed": "Load Failed",
     "statusDisabled": "Disabled",
     "statusUnknown": "Unknown Status",
+    "restartHint": "Changes to adapter enablement and some settings require an application restart to take effect.",
     "unknown": "Unknown",
     "loaded": "Loaded",
     "initialized": "Initialized",

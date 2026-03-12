@@ -26,6 +26,7 @@ from nekro_agent.schemas.agent_message import (
     convert_agent_message_to_prompt,
 )
 from nekro_agent.schemas.chat_message import ChatMessage, ChatType
+from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
 from nekro_agent.services.message_broadcaster import message_broadcaster
@@ -155,46 +156,50 @@ class MessageService:
         from nekro_agent.services.agent.run_agent import run_agent
         from nekro_agent.services.system_broadcast import AgentActiveEvent, publish_system_event
 
-        adapter = await adapter_utils.get_adapter_for_chat(chat_key)
-
-        logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
-
-        # 获取频道信息用于广播
         db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
         preset = await db_channel.get_preset()
         config = await db_channel.get_effective_config()
         preset_id: Optional[int] = preset.id if hasattr(preset, "id") else None  # type: ignore[union-attr]
         preset_name: Optional[str] = preset.name if hasattr(preset, "name") else None  # type: ignore[union-attr]
+        adapter = None
 
-        # 计算兜底总超时：每轮 LLM 超时 × (最大迭代次数 + 1) + 额外缓冲
-        # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
-        _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
-        _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
-
-        # 广播 Agent 开始处理
         try:
-            await publish_system_event(AgentActiveEvent(
-                chat_key=chat_key,
-                active=True,
-                channel_name=db_channel.channel_name,
-                chat_type=db_channel.channel_type,
-                preset_id=preset_id,
-                preset_name=preset_name,
-            ))
-        except Exception as _e:
-            logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
-
-        # 设置处理emoji（Bot 已断开时可能抛 RuntimeError，仅记录后继续执行）
-        if message and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
             try:
-                await adapter.set_message_reaction(message.message_id, True)
-            except RuntimeError as _e:
-                if "No OneBot V11 bot instance found" in str(_e):
-                    logger.warning(f"[message_service] 设置 emoji 时 Bot 未连接: {_e}")
-                else:
-                    raise
+                adapter = await adapter_utils.get_adapter_for_chat(chat_key)
+            except AdapterUnavailableError as e:
+                logger.warning(f"[message_service] 频道 {chat_key} 适配器不可用，跳过 Agent 任务: {e}")
+                return
 
-        try:
+            logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
+
+            # 计算兜底总超时：每轮 LLM 超时 × (最大迭代次数 + 1) + 额外缓冲
+            # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
+            _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
+            _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
+
+            # 广播 Agent 开始处理
+            try:
+                await publish_system_event(AgentActiveEvent(
+                    chat_key=chat_key,
+                    active=True,
+                    channel_name=db_channel.channel_name,
+                    chat_type=db_channel.channel_type,
+                    preset_id=preset_id,
+                    preset_name=preset_name,
+                ))
+            except Exception as _e:
+                logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
+
+            # 设置处理emoji（Bot 已断开时可能抛 RuntimeError，仅记录后继续执行）
+            if message and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message.message_id:
+                try:
+                    await adapter.set_message_reaction(message.message_id, True)
+                except RuntimeError as _e:
+                    if "No OneBot V11 bot instance found" in str(_e):
+                        logger.warning(f"[message_service] 设置 emoji 时 Bot 未连接: {_e}")
+                    else:
+                        raise
+
             try:
                 async with asyncio.timeout(_max_total_timeout):
                     for _i in range(3):
@@ -219,7 +224,7 @@ class MessageService:
             self.debounce_timers.pop(chat_key, None)
 
             # 取消处理emoji（如果设置过）；NapCat 断开时 get_bot() 可能抛 RuntimeError，不能影响后续清理
-            if adapter.config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
+            if adapter and adapter.config.SESSION_PROCESSING_WITH_EMOJI and message and message.message_id:
                 try:
                     await adapter.set_message_reaction(message.message_id, False)
                 except RuntimeError as _e:
@@ -356,13 +361,17 @@ class MessageService:
                         )
                         # 通过适配器发送可见通知
                         quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
-                        adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
-                        await adapter.forward_message(
-                            PlatformSendRequest(
-                                chat_key=message.chat_key,
-                                segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=quota_msg)],
+                        try:
+                            adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
+                        except AdapterUnavailableError as e:
+                            logger.warning(f"[message_service] 配额通知发送失败，适配器不可用: {e}")
+                        else:
+                            await adapter.forward_message(
+                                PlatformSendRequest(
+                                    chat_key=message.chat_key,
+                                    segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=quota_msg)],
+                                )
                             )
-                        )
                         await self.push_system_message(
                             chat_key=message.chat_key,
                             agent_messages=quota_msg,
@@ -385,13 +394,17 @@ class MessageService:
                                 f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
                             )
                             hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
-                            adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
-                            await adapter.forward_message(
-                                PlatformSendRequest(
-                                    chat_key=message.chat_key,
-                                    segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=hourly_msg)],
+                            try:
+                                adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
+                            except AdapterUnavailableError as e:
+                                logger.warning(f"[message_service] 小时配额通知发送失败，适配器不可用: {e}")
+                            else:
+                                await adapter.forward_message(
+                                    PlatformSendRequest(
+                                        chat_key=message.chat_key,
+                                        segments=[PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=hourly_msg)],
+                                    )
                                 )
-                            )
                             await self.push_system_message(
                                 chat_key=message.chat_key,
                                 agent_messages=hourly_msg,
@@ -512,14 +525,21 @@ class MessageService:
                         },
                     )
 
-        adapter = adapter_utils.get_adapter(db_chat_channel.adapter_key)
+        platform_userid = ""
+        try:
+            adapter = adapter_utils.get_adapter(db_chat_channel.adapter_key)
+        except AdapterUnavailableError as e:
+            logger.warning(f"[message_service] 写入 bot 消息时适配器不可用，使用空 platform_userid: {e}")
+        else:
+            platform_userid = (await adapter.get_self_info()).user_id
+
         await DBChatMessage.create(
             message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
             sender_id=-1,
             sender_name=preset.name,
             sender_nickname=preset.name,
             adapter_key=db_chat_channel.adapter_key,
-            platform_userid=(await adapter.get_self_info()).user_id,
+            platform_userid=platform_userid,
             is_tome=0,
             is_recalled=False,
             chat_key=chat_key,
@@ -538,7 +558,7 @@ class MessageService:
             sender_name=preset.name,
             sender_nickname=preset.name,
             adapter_key=db_chat_channel.adapter_key,
-            platform_userid=(await adapter.get_self_info()).user_id,
+            platform_userid=platform_userid,
             is_tome=0,
             is_recalled=False,
             chat_key=chat_key,
