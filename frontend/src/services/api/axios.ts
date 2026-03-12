@@ -3,6 +3,7 @@ import i18n from '../../config/i18n'
 import { useAuthStore } from '../../stores/auth'
 import { config } from '../../config/env'
 import type { ApiErrorResponse } from './types'
+import { getCurrentAppPath, loginPath, sanitizeRedirectTarget } from '../../router/routes'
 
 /**
  * 自定义 API 错误类
@@ -96,7 +97,8 @@ axiosInstance.interceptors.response.use(
           // ignore storage errors
         }
         useAuthStore.getState().logout()
-        window.location.href = '/#/login'
+        const redirectTarget = sanitizeRedirectTarget(getCurrentAppPath())
+        window.location.replace(`/#${loginPath(redirectTarget)}`)
       }
       // 使用后端返回的本地化消息，或使用前端翻译
       throw new ApiError(

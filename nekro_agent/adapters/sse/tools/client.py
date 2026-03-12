@@ -10,6 +10,7 @@ from fastapi import Request
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.services.runtime_state import is_shutting_down
 
 
 logger = get_sub_logger("adapter.sse")
@@ -161,7 +162,7 @@ async def sse_stream(request: Request, client: ClientInfo):
         # 心跳计时器
         heartbeat_timer = 0
 
-        while client.is_alive:
+        while client.is_alive and not is_shutting_down():
             # 每5秒发送一次心跳
             if time.time() - heartbeat_timer >= 5:
                 yield {"event": "heartbeat", "data": {"timestamp": int(time.time())}}

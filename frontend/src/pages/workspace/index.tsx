@@ -50,6 +50,7 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { workspaceDetailPath } from '../../router/routes'
 import {
   workspaceApi,
   WorkspaceSummary,
@@ -732,7 +733,7 @@ export default function WorkspaceListPage() {
                   batchMode={batchMode}
                   isSelected={selectedIds.has(ws.id)}
                   onToggleSelect={() => toggleSelect(ws.id)}
-                  onEnter={() => navigate(`/workspace/${ws.id}`)}
+                  onEnter={() => navigate(workspaceDetailPath(ws.id))}
                   onDelete={() => setDeleteTarget(ws)}
                 />
               </Grid2>
