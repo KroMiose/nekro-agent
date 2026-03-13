@@ -81,7 +81,7 @@ export default function AdapterAdvancedPage() {
   // 获取状态信息
   const getStatusInfo = (statusValue: string) => {
     switch (statusValue) {
-      case 'loaded':
+      case 'enabled':
         return {
           icon: <CheckCircleIcon />,
           text: t('advanced.statusRunning'),
@@ -199,6 +199,9 @@ export default function AdapterAdvancedPage() {
                 </Grid>
               </Grid>
             )}
+            <Alert severity="info" sx={{ mt: 3 }}>
+              {t('advanced.restartHint')}
+            </Alert>
           </CardContent>
         </Card>
 

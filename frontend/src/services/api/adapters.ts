@@ -4,7 +4,7 @@ export interface AdapterInfo {
   key: string
   name: string
   description: string
-  status: string // loaded, failed, disabled
+  status: string // enabled, failed, disabled
   config_class: string
   chat_key_rules: string[]
   has_config: boolean

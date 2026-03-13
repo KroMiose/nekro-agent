@@ -327,6 +327,10 @@
         "switchConfig": "Switch in Config tab",
         "managePresets": "Manage Model Presets"
       },
+      "ccPluginAlert": {
+        "message": "The built-in \"Claude Code Collaboration\" plugin is currently disabled, so the main Agent cannot fully use CC Workspace delegation, file transfer, and status query capabilities. Enable the plugin first in Plugin Management to unlock the full CC sandbox collaboration workflow.",
+        "action": "Go Enable"
+      },
       "channels": {
         "title": "Bound Channels",
         "searchPlaceholder": "Search and select a channel",

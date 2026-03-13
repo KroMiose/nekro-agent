@@ -61,10 +61,36 @@ import {
 import { workspaceApi } from '../../services/api/workspace'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
+import { chatChannelPath, pluginsManagementPath, workspaceDetailPath } from '../../router/routes'
 
 type QuickFilter = 'all' | 'activeRecurring' | 'paused' | 'upcoming24h' | 'errors'
 
 const DEFAULT_ROWS_PER_PAGE = 10
+const DEFAULT_SORT_BY: TimerSortBy = 'next_run_asc'
+const DEFAULT_TIME_RANGE: TimerTimeRange = 'all'
+const DEFAULT_QUICK_FILTER: QuickFilter = 'all'
+const TIMER_TASK_TYPES: TimerTaskType[] = ['one_shot', 'recurring']
+const TIMER_TASK_STATUSES: TimerTaskStatus[] = ['active', 'paused', 'error']
+const TIMER_TIME_RANGES: TimerTimeRange[] = ['all', 'today', '24h', '7d', 'overdue']
+const TIMER_SORT_OPTIONS: TimerSortBy[] = [
+  'next_run_asc',
+  'recent_update',
+  'recent_run',
+  'error_first',
+]
+const QUICK_FILTER_OPTIONS: QuickFilter[] = [
+  'all',
+  'activeRecurring',
+  'paused',
+  'upcoming24h',
+  'errors',
+]
+
+function parsePositiveInt(value: string | null, fallback: number) {
+  if (!value) return fallback
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
 
 function formatDateTime(value: string | null | undefined) {
   if (!value) return '-'
@@ -247,34 +273,130 @@ export default function WorkspaceTimersPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const [search, setSearch] = useState('')
-  const [workspaceId, setWorkspaceId] = useState<number | ''>('')
-  const [taskType, setTaskType] = useState<TimerTaskType | ''>('')
-  const [status, setStatus] = useState<TimerTaskStatus | ''>('')
-  const [timeRange, setTimeRange] = useState<TimerTimeRange>('all')
-  const [sortBy, setSortBy] = useState<TimerSortBy>('next_run_asc')
-  const [quickFilter, setQuickFilter] = useState<QuickFilter>('all')
+  const [search, setSearch] = useState(() => searchParams.get('search') ?? searchParams.get('chat_key') ?? '')
+  const [workspaceId, setWorkspaceId] = useState<number | ''>(() => {
+    const value = searchParams.get('workspace_id')
+    if (!value) return ''
+    const parsed = Number(value)
+    return Number.isNaN(parsed) ? '' : parsed
+  })
+  const [taskType, setTaskType] = useState<TimerTaskType | ''>(() => {
+    const value = searchParams.get('task_type')
+    return value && TIMER_TASK_TYPES.includes(value as TimerTaskType) ? (value as TimerTaskType) : ''
+  })
+  const [status, setStatus] = useState<TimerTaskStatus | ''>(() => {
+    const value = searchParams.get('status')
+    return value && TIMER_TASK_STATUSES.includes(value as TimerTaskStatus) ? (value as TimerTaskStatus) : ''
+  })
+  const [timeRange, setTimeRange] = useState<TimerTimeRange>(() => {
+    const value = searchParams.get('time_range')
+    return value && TIMER_TIME_RANGES.includes(value as TimerTimeRange)
+      ? (value as TimerTimeRange)
+      : DEFAULT_TIME_RANGE
+  })
+  const [sortBy, setSortBy] = useState<TimerSortBy>(() => {
+    const value = searchParams.get('sort_by')
+    return value && TIMER_SORT_OPTIONS.includes(value as TimerSortBy)
+      ? (value as TimerSortBy)
+      : DEFAULT_SORT_BY
+  })
+  const [quickFilter, setQuickFilter] = useState<QuickFilter>(() => {
+    const value = searchParams.get('quick_filter')
+    return value && QUICK_FILTER_OPTIONS.includes(value as QuickFilter)
+      ? (value as QuickFilter)
+      : DEFAULT_QUICK_FILTER
+  })
   const [selectedTask, setSelectedTask] = useState<TimerTaskItem | null>(null)
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<TimerTaskItem | null>(null)
-  const [page, setPage] = useState(0)
-  const [rowsPerPage, setRowsPerPage] = useState(DEFAULT_ROWS_PER_PAGE)
+  const [page, setPage] = useState(() => parsePositiveInt(searchParams.get('page'), 1) - 1)
+  const [rowsPerPage, setRowsPerPage] = useState(() =>
+    parsePositiveInt(searchParams.get('page_size'), DEFAULT_ROWS_PER_PAGE)
+  )
 
   useEffect(() => {
-    const initialWorkspaceId = searchParams.get('workspace_id')
-    const initialChatKey = searchParams.get('chat_key')
-    if (initialWorkspaceId) {
-      const parsed = Number(initialWorkspaceId)
-      if (!Number.isNaN(parsed)) setWorkspaceId(parsed)
+    const nextSearch = searchParams.get('search') ?? searchParams.get('chat_key') ?? ''
+    const workspaceParam = searchParams.get('workspace_id')
+    const nextWorkspaceId = workspaceParam ? Number(workspaceParam) : ''
+    const nextTaskType = searchParams.get('task_type')
+    const nextStatus = searchParams.get('status')
+    const nextTimeRange = searchParams.get('time_range')
+    const nextSortBy = searchParams.get('sort_by')
+    const nextQuickFilter = searchParams.get('quick_filter')
+    const nextPage = parsePositiveInt(searchParams.get('page'), 1) - 1
+    const nextRowsPerPage = parsePositiveInt(searchParams.get('page_size'), DEFAULT_ROWS_PER_PAGE)
+
+    setSearch(prev => (prev === nextSearch ? prev : nextSearch))
+    setWorkspaceId(prev => {
+      const normalized = nextWorkspaceId === '' || Number.isNaN(nextWorkspaceId) ? '' : nextWorkspaceId
+      return prev === normalized ? prev : normalized
+    })
+    setTaskType(prev => {
+      const normalized =
+        nextTaskType && TIMER_TASK_TYPES.includes(nextTaskType as TimerTaskType)
+          ? (nextTaskType as TimerTaskType)
+          : ''
+      return prev === normalized ? prev : normalized
+    })
+    setStatus(prev => {
+      const normalized =
+        nextStatus && TIMER_TASK_STATUSES.includes(nextStatus as TimerTaskStatus)
+          ? (nextStatus as TimerTaskStatus)
+          : ''
+      return prev === normalized ? prev : normalized
+    })
+    setTimeRange(prev => {
+      const normalized =
+        nextTimeRange && TIMER_TIME_RANGES.includes(nextTimeRange as TimerTimeRange)
+          ? (nextTimeRange as TimerTimeRange)
+          : DEFAULT_TIME_RANGE
+      return prev === normalized ? prev : normalized
+    })
+    setSortBy(prev => {
+      const normalized =
+        nextSortBy && TIMER_SORT_OPTIONS.includes(nextSortBy as TimerSortBy)
+          ? (nextSortBy as TimerSortBy)
+          : DEFAULT_SORT_BY
+      return prev === normalized ? prev : normalized
+    })
+    setQuickFilter(prev => {
+      const normalized =
+        nextQuickFilter && QUICK_FILTER_OPTIONS.includes(nextQuickFilter as QuickFilter)
+          ? (nextQuickFilter as QuickFilter)
+          : DEFAULT_QUICK_FILTER
+      return prev === normalized ? prev : normalized
+    })
+    setPage(prev => (prev === nextPage ? prev : nextPage))
+    setRowsPerPage(prev => (prev === nextRowsPerPage ? prev : nextRowsPerPage))
+  }, [searchParams])
+
+  useEffect(() => {
+    const nextParams = new URLSearchParams()
+    if (search) nextParams.set('search', search)
+    if (workspaceId !== '') nextParams.set('workspace_id', String(workspaceId))
+    if (taskType) nextParams.set('task_type', taskType)
+    if (status) nextParams.set('status', status)
+    if (timeRange !== DEFAULT_TIME_RANGE) nextParams.set('time_range', timeRange)
+    if (sortBy !== DEFAULT_SORT_BY) nextParams.set('sort_by', sortBy)
+    if (quickFilter !== DEFAULT_QUICK_FILTER) nextParams.set('quick_filter', quickFilter)
+    if (page !== 0) nextParams.set('page', String(page + 1))
+    if (rowsPerPage !== DEFAULT_ROWS_PER_PAGE) nextParams.set('page_size', String(rowsPerPage))
+
+    if (searchParams.toString() !== nextParams.toString()) {
+      setSearchParams(nextParams, { replace: true })
     }
-    if (initialChatKey) {
-      setSearch(initialChatKey)
-    }
-    if (initialWorkspaceId || initialChatKey) {
-      setSearchParams({}, { replace: true })
-    }
-  // 仅在挂载时处理外部跳转参数
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [
+    page,
+    quickFilter,
+    rowsPerPage,
+    search,
+    searchParams,
+    setSearchParams,
+    sortBy,
+    status,
+    taskType,
+    timeRange,
+    workspaceId,
+  ])
 
   const summaryQuery = useQuery({
     queryKey: ['timers-summary'],
@@ -523,7 +645,7 @@ export default function WorkspaceTimersPage() {
             <Button
               color="inherit"
               size="small"
-              onClick={() => navigate('/plugins/management?plugin_id=timer')}
+              onClick={() => navigate(pluginsManagementPath('timer'))}
             >
               {t('timers.pluginAlert.action')}
             </Button>
@@ -1128,7 +1250,10 @@ export default function WorkspaceTimersPage() {
                           textUnderlineOffset: '2px',
                           font: 'inherit',
                         }}
-                        onClick={() => navigate(`/workspace/${currentDetail.workspace_id}`)}
+                        onClick={() => {
+                          if (currentDetail.workspace_id == null) return
+                          navigate(workspaceDetailPath(currentDetail.workspace_id))
+                        }}
                       >
                         {currentDetail.workspace_name || t('timers.misc.unlinkedWorkspace')}
                         <OpenInNewIcon sx={{ fontSize: 14 }} />
@@ -1156,7 +1281,7 @@ export default function WorkspaceTimersPage() {
                           textUnderlineOffset: '2px',
                           font: 'inherit',
                         }}
-                        onClick={() => navigate(`/chat-channel?chat_key=${encodeURIComponent(currentDetail.chat_key)}`)}
+                        onClick={() => navigate(chatChannelPath(currentDetail.chat_key))}
                       >
                         {currentDetail.channel_name || t('timers.misc.unknownChannel')}
                         <OpenInNewIcon sx={{ fontSize: 14 }} />

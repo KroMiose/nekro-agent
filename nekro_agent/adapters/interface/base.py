@@ -7,7 +7,7 @@ from jinja2 import Environment
 from nonebot import logger
 from pydantic import BaseModel, Field
 
-from nekro_agent.core.core_utils import ConfigBase
+from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 if TYPE_CHECKING:
     from nekro_agent.services.command.schemas import CommandResponse
@@ -36,6 +36,13 @@ class AdapterMetadata(BaseModel):
 
 class BaseAdapterConfig(ConfigBase):
     """适配器配置基类"""
+
+    ENABLED: bool = Field(
+        default=False,
+        title="启用适配器",
+        description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+    )
 
     SESSION_ENABLE_AT: bool = Field(
         default=True,

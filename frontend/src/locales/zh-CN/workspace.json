@@ -327,6 +327,10 @@
         "switchConfig": "在配置页切换",
         "managePresets": "管理模型预设"
       },
+      "ccPluginAlert": {
+        "message": "内置插件“Claude Code 协作”当前未启用，主 Agent 无法完整接入 CC Workspace 的任务委托、文件传递与状态查询能力。请先前往插件管理启用该插件，以使用 CC 沙盒的完整协作功能。",
+        "action": "前往启用"
+      },
       "channels": {
         "title": "绑定频道",
         "searchPlaceholder": "搜索并选择频道",

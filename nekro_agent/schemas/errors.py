@@ -140,6 +140,19 @@ class OperationFailedError(AppError):
         super().__init__(operation=operation, **kwargs)
 
 
+class AdapterUnavailableError(AppError):
+    """适配器不可用"""
+
+    http_status: ClassVar[int] = 503
+    i18n_message: ClassVar[I18nDict] = i18n_text(
+        zh_CN="适配器 '{adapter_key}' 当前不可用: {reason}",
+        en_US="Adapter '{adapter_key}' is unavailable: {reason}",
+    )
+
+    def __init__(self, adapter_key: str, reason: str, **kwargs: Any):
+        super().__init__(adapter_key=adapter_key, reason=reason, **kwargs)
+
+
 # ============================================================
 # 认证授权错误
 # ============================================================
@@ -513,4 +526,3 @@ class AdvancedCommandDisabledError(AppError):
         zh_CN="高级管理命令未启用，请在配置文件中启用",
         en_US="Advanced commands are disabled, please enable in configuration",
     )
-

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Box, Tabs, Tab } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { useLocation } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
 import { createConfigService } from '../../services/api/unified-config'
 import { useTranslation } from 'react-i18next'
@@ -11,11 +11,11 @@ import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
 
 export default function SettingsPage() {
-  const location = useLocation()
-  const [searchText, setSearchText] = useState<string>('')
+  const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
   const { setLocaleLocal } = useLocaleStore()
+  const searchText = searchParams.get('search') ?? ''
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -77,25 +77,28 @@ export default function SettingsPage() {
   }, [configs, i18n.language])
 
   // 初始化 activeTab，默认为第一个分类
-  const [activeTab, setActiveTab] = useState<string>(() => {
-    return categories[0] || ''
-  })
+  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('category') ?? '')
 
   // 当分类列表更新时，确保 activeTab 有效
   useEffect(() => {
-    if (categories.length > 0 && (!activeTab || !categories.includes(activeTab))) {
-      setActiveTab(categories[0])
-    }
-  }, [categories, activeTab])
+    if (categories.length === 0) return
 
-  // 从URL中获取搜索参数
-  useEffect(() => {
-    const searchParams = new URLSearchParams(location.search)
-    const searchParamValue = searchParams.get('search')
-    if (searchParamValue) {
-      setSearchText(searchParamValue)
+    const requestedCategory = searchParams.get('category')
+    if (requestedCategory && categories.includes(requestedCategory)) {
+      if (requestedCategory !== activeTab) {
+        setActiveTab(requestedCategory)
+      }
+      return
     }
-  }, [location.search])
+
+    if (!activeTab || !categories.includes(activeTab)) {
+      const fallbackCategory = categories[0]
+      setActiveTab(fallbackCategory)
+      const nextParams = new URLSearchParams(searchParams)
+      nextParams.set('category', fallbackCategory)
+      setSearchParams(nextParams, { replace: true })
+    }
+  }, [activeTab, categories, searchParams, setSearchParams])
 
   // 当系统配置刷新后，同步 SYSTEM_LANG 到前端 locale
   useEffect(() => {
@@ -118,7 +121,16 @@ export default function SettingsPage() {
   }, [activeTab, configs, configsByCategory, searchText])
 
   const handleSearchChange = (text: string) => {
-    setSearchText(text)
+    const nextParams = new URLSearchParams(searchParams)
+    if (text.trim()) {
+      nextParams.set('search', text)
+    } else {
+      nextParams.delete('search')
+    }
+    if (activeTab) {
+      nextParams.set('category', activeTab)
+    }
+    setSearchParams(nextParams, { replace: true })
   }
 
   const handleRefresh = () => {
@@ -139,7 +151,12 @@ export default function SettingsPage() {
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, flexShrink: 0 }}>
         <Tabs
           value={categories.length > 0 ? activeTab : false}
-          onChange={(_, newValue) => setActiveTab(newValue)}
+          onChange={(_, newValue) => {
+            setActiveTab(newValue)
+            const nextParams = new URLSearchParams(searchParams)
+            nextParams.set('category', newValue)
+            setSearchParams(nextParams, { replace: true })
+          }}
           variant="scrollable"
           scrollButtons="auto"
           sx={{

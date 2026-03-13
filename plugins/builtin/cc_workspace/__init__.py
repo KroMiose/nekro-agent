@@ -7,8 +7,11 @@
 ## 功能一览
 
 - **Prompt 注入**：自动在系统提示词中注入当前频道绑定的 CC Workspace 状态与可用工具列表
-- **delegate_to_cc**（AGENT）：将复杂任务委托给 CC Sandbox 执行，CC 完成后主 Agent 继续处理结果
-- **get_cc_status**（TOOL）：查询 CC Sandbox 工作区实时状态（容器状态、工具列表、健康检查）
+- **create_and_bind_workspace / start_cc_sandbox**：为当前频道创建并启动 CC 工作区
+- **delegate_to_cc**（BEHAVIOR）：将复杂任务委托给 CC Sandbox 异步执行，完成后自动回传结果
+- **cancel_cc_task / force_cancel_cc_workspace**：取消本频道任务或强制抢占当前工作区任务
+- **get_cc_context**（AGENT）：查询当前频道的 CC 协作上下文
+- **cc_help / cc_status / cc_context / cc_recent**：供用户直接查看帮助、工作区状态、上下文与近期协作记录
 - **upload_file_to_cc**（TOOL）：将主沙盒文件复制到 CC Workspace `data/` 目录
 - **download_file_from_cc**（TOOL）：将 CC Workspace `data/` 目录中的文件引入主沙盒共享目录
 

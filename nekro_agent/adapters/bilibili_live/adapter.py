@@ -48,7 +48,7 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 logger = get_sub_logger("adapter.bilibili_live")
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
-    ENABLE: bool = Field(
+    ENABLED: bool = Field(
         default=False,
         title="启用 Bilibili 直播适配器",
         description="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
@@ -93,7 +93,7 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
 
     async def init(self) -> None:
         """初始化适配器"""
-        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL or not self.config.ENABLE:
+        if not self.config.VTUBE_STUDIO_CONTROLLER_WS_URL or not self.config.ENABLED:
             logger.warning(
                 "取消加载 Bilibili 直播适配器",
             )

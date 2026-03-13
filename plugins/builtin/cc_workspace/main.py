@@ -2,10 +2,14 @@
 
 提供以下能力：
 - **prompt 注入**：在主 Agent 系统提示词中注入当前频道绑定的 CC Workspace 状态
+- **插件命令**：提供 `cc_status` / `cc_context` / `cc_recent` / `cc_abort` /
+  `cc_reset_session` / `cc_restart` / `cc_stop` 便于用户直接查看和控制协作状态
 - **create_and_bind_workspace**（AGENT 类型）：为当前频道创建 CC Workspace 并自动绑定
 - **start_cc_sandbox**（AGENT 类型）：启动绑定工作区的 CC 沙盒容器
 - **delegate_to_cc**（BEHAVIOR 类型）：异步委托任务给 CC Workspace 执行，完成后自动将结果推送回主 Agent
 - **cancel_cc_task**（BEHAVIOR 类型）：取消正在后台运行的 CC 委托任务
+- **reset_cc_session**（BEHAVIOR 类型）：重置 CC 会话并清理旧委托摘要缓存
+- **restart_cc_sandbox**（BEHAVIOR 类型）：重启沙盒容器并尝试先终止运行中任务
 - **get_cc_context**（AGENT 类型）：查询当前频道 CC 协作上下文（任务状态 + 原始任务摘要 + 通讯历史）
 - **upload_file_to_cc**（BEHAVIOR 类型）：将主沙盒文件上传/共享至 CC Workspace 数据目录
 - **download_file_from_cc**（TOOL 类型）：将 CC Workspace 数据目录中的文件引入主沙盒
@@ -22,14 +26,23 @@ import secrets
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import AsyncGenerator, Dict, List, Optional, Set, Tuple
+from typing import Annotated, AsyncGenerator, Dict, List, Optional, Set, Tuple
 
 import aiodocker
 
 from nekro_agent.api import schemas
-from nekro_agent.api.plugin import SandboxMethodType
+from nekro_agent.api.plugin import (
+    Arg,
+    CmdCtl,
+    CommandExecutionContext,
+    CommandPermission,
+    CommandResponse,
+    SandboxMethodType,
+)
 from nekro_agent.core.config import config as app_config
 from nekro_agent.core.logger import logger
+from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.models.db_plugin_data import DBPluginData
 from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
 from nekro_agent.services.message_service import message_service
@@ -68,6 +81,197 @@ async def _check_sandbox_image_exists(image: str) -> bool:
         await docker.close()
 
 
+def _format_workspace_status(status: str) -> str:
+    return {
+        "active": "运行中",
+        "stopped": "已停止",
+        "failed": "启动失败",
+        "deleting": "删除中",
+    }.get(status, status or "未知")
+
+
+async def _get_agent_ctx_from_command(context: CommandExecutionContext) -> schemas.AgentCtx:
+    return await schemas.AgentCtx.create_by_chat_key(context.chat_key)
+
+
+async def _require_bound_workspace(_ctx: schemas.AgentCtx) -> DBWorkspace:
+    workspace = await _ctx.get_bound_workspace()
+    if workspace is None:
+        raise ValueError("当前频道未绑定任何 CC Workspace。")
+    return workspace
+
+
+async def _build_cc_status_message(_ctx: schemas.AgentCtx) -> tuple[str, dict]:
+    """生成面向用户的 CC 协作状态摘要。"""
+    workspace = await _ctx.get_bound_workspace()
+    base_data: dict = {
+        "chat_key": _ctx.chat_key,
+        "bound": bool(workspace),
+    }
+
+    if workspace is None:
+        return (
+            "当前频道未绑定 CC 工作区。\n"
+            "可在工作区管理页面手动绑定，或让 Agent 调用 `create_and_bind_workspace` 自动创建。",
+            base_data,
+        )
+
+    metadata = workspace.metadata or {}
+    selected_skills = metadata.get("skills") or []
+    mcp_servers = ((metadata.get("mcp_config") or {}).get("mcpServers") or {})
+    status_lines = [
+        "[CC 协作状态]",
+        f"工作区: {workspace.name}（ID: {workspace.id}）",
+        f"状态: {_format_workspace_status(workspace.status)}",
+        f"运行策略: {workspace.runtime_policy}",
+    ]
+    data: dict = {
+        **base_data,
+        "workspace_id": workspace.id,
+        "workspace_name": workspace.name,
+        "workspace_status": workspace.status,
+        "runtime_policy": workspace.runtime_policy,
+        "skills": selected_skills,
+        "mcp_servers": list(mcp_servers.keys()),
+    }
+
+    if selected_skills:
+        status_lines.append(f"已启用技能: {', '.join(selected_skills)}")
+    if mcp_servers:
+        status_lines.append(f"MCP 服务: {', '.join(mcp_servers.keys())}")
+    if workspace.last_error:
+        status_lines.append(f"最近错误: {workspace.last_error[:200]}")
+
+    if workspace.status != "active":
+        status_lines.append("提示: 启动容器后才能使用完整的 CC 沙盒协作能力。")
+        return "\n".join(status_lines), data
+
+    client = CCSandboxClient(workspace)
+    healthy = False
+    queue_status: dict = {"current_task": None, "queue_length": 0, "queued_tasks": []}
+    health_error = ""
+
+    try:
+        healthy = await client.health_check()
+    except Exception as e:
+        health_error = str(e)
+
+    try:
+        queue_status = await client.get_workspace_queue(workspace_id="default")
+    except Exception as e:
+        status_lines.append(f"队列查询失败: {e}")
+
+    task_id = _ctx.from_chat_key or _ctx.chat_key
+    task_state = task_api.get_state(_TASK_TYPE, task_id)
+    is_running = task_api.is_running(_TASK_TYPE, task_id)
+    current_task = queue_status.get("current_task") or {}
+    queue_length = int(queue_status.get("queue_length") or 0)
+    queued_tasks = queue_status.get("queued_tasks") or []
+
+    status_lines.append(f"容器健康: {'正常' if healthy else '异常'}")
+    if health_error:
+        status_lines.append(f"健康检查错误: {health_error[:200]}")
+
+    if current_task:
+        source_chat_key = current_task.get("source_chat_key") or "未知频道"
+        elapsed = int(current_task.get("elapsed_seconds") or 0)
+        preview = (current_task.get("prompt_preview") or "").strip()
+        preview_text = preview[:120] + ("..." if len(preview) > 120 else "")
+        status_lines.append(f"当前任务频道: {source_chat_key}")
+        status_lines.append(f"当前任务耗时: {elapsed}s")
+        if preview_text:
+            status_lines.append(f"当前任务摘要: {preview_text}")
+    else:
+        status_lines.append("当前任务: 空闲")
+
+    status_lines.append(f"排队数量: {queue_length}")
+    if queued_tasks:
+        queue_sources = [item.get("source_chat_key", "未知频道") for item in queued_tasks[:5]]
+        status_lines.append(f"排队频道: {', '.join(queue_sources)}")
+
+    if is_running and task_state:
+        latest_msg = task_state.message[:160] + ("..." if len(task_state.message) > 160 else "")
+        status_lines.append("本频道任务: 执行中")
+        if latest_msg:
+            status_lines.append(f"最新进度: {latest_msg}")
+    elif task_state is not None:
+        signal_map = {"progress": "进行中", "success": "已完成", "fail": "失败", "cancel": "已取消"}
+        status_lines.append(f"本频道最近任务: {signal_map.get(task_state.signal.value, task_state.signal.value)}")
+        if task_state.message:
+            latest_msg = task_state.message[:160] + ("..." if len(task_state.message) > 160 else "")
+            status_lines.append(f"最近结果摘要: {latest_msg}")
+    else:
+        status_lines.append("本频道最近任务: 暂无记录")
+
+    data.update({
+        "healthy": healthy,
+        "health_error": health_error,
+        "queue_length": queue_length,
+        "current_task": current_task or None,
+        "queued_tasks": queued_tasks[:5],
+        "channel_task_running": is_running,
+    })
+    return "\n".join(status_lines), data
+
+
+async def _build_cc_recent_logs_message(_ctx: schemas.AgentCtx, limit: int) -> tuple[str, dict]:
+    workspace = await _ctx.get_bound_workspace()
+    if workspace is None:
+        return (
+            "当前频道未绑定 CC 工作区，暂无可查看的协作记录。",
+            {"chat_key": _ctx.chat_key, "bound": False, "logs": []},
+        )
+
+    logs = await DBWorkspaceCommLog.filter(
+        workspace_id=workspace.id,
+        direction__in=["NA_TO_CC", "CC_TO_NA", "SYSTEM"],
+        source_chat_key=_ctx.chat_key,
+    ).order_by("-create_time").limit(limit).all()
+
+    if not logs:
+        return (
+            f"当前频道在工作区 {workspace.name} 中还没有 CC 协作记录。",
+            {
+                "chat_key": _ctx.chat_key,
+                "bound": True,
+                "workspace_id": workspace.id,
+                "logs": [],
+            },
+        )
+
+    lines = [f"[CC 最近协作记录] 工作区: {workspace.name}（最近 {len(logs)} 条）"]
+    payload_logs: list[dict] = []
+    direction_map = {
+        "NA_TO_CC": "NA→CC",
+        "CC_TO_NA": "CC→NA",
+        "SYSTEM": "系统",
+    }
+    for log in reversed(logs):
+        content = log.content
+        if log.direction == "NA_TO_CC" and content.startswith("[任务来源频道:"):
+            separator = content.find("\n\n")
+            if separator != -1:
+                content = content[separator + 2:]
+        preview = content[:200] + ("..." if len(content) > 200 else "")
+        label = direction_map.get(log.direction, log.direction)
+        time_str = log.create_time.strftime("%m-%d %H:%M")
+        lines.append(f"[{time_str}] {label}: {preview}")
+        payload_logs.append({
+            "id": log.id,
+            "direction": log.direction,
+            "time": log.create_time.isoformat(),
+            "content": preview,
+            "task_id": log.task_id,
+        })
+
+    return "\n".join(lines), {
+        "chat_key": _ctx.chat_key,
+        "bound": True,
+        "workspace_id": workspace.id,
+        "logs": payload_logs,
+    }
+
+
 # ---------------------------------------------------------------------------
 # NA 重启后恢复 CC 待投递结果 + 运行时后台监听器
 # ---------------------------------------------------------------------------
@@ -101,6 +305,96 @@ async def _broadcast_error_comm_log(workspace_id: int, source_chat_key: str, con
         })
     except Exception as e:
         logger.warning("[cc_workspace] 写入错误 CommLog 失败（不影响主流程）: %s", e)
+
+
+async def _broadcast_system_comm_log(
+    workspace_id: int,
+    content: str,
+    *,
+    source_chat_key: str = "",
+    task_id: str | None = None,
+) -> None:
+    """写入并广播 SYSTEM CommLog，供控制类操作复用。"""
+    try:
+        sys_log = await DBWorkspaceCommLog.create(
+            workspace_id=workspace_id,
+            direction="SYSTEM",
+            source_chat_key=source_chat_key,
+            content=content,
+            is_streaming=False,
+            task_id=task_id,
+        )
+        await comm_broadcast.publish(workspace_id, {
+            "id": sys_log.id,
+            "workspace_id": sys_log.workspace_id,
+            "direction": sys_log.direction,
+            "source_chat_key": sys_log.source_chat_key,
+            "content": sys_log.content,
+            "is_streaming": sys_log.is_streaming,
+            "task_id": sys_log.task_id,
+            "create_time": sys_log.create_time.isoformat(),
+        })
+    except Exception as e:
+        logger.warning("[cc_workspace] 写入 SYSTEM CommLog 失败（不影响主流程）: %s", e)
+
+
+async def _clear_last_cc_task_prompts(workspace_id: int) -> int:
+    """清理绑定到该工作区的频道 task prompt 缓存。"""
+    try:
+        bound_channels = await DBChatChannel.filter(workspace_id=workspace_id).all()
+        if not bound_channels:
+            return 0
+        chat_keys = [ch.chat_key for ch in bound_channels]
+        deleted_count = await DBPluginData.filter(
+            plugin_key="KroMiose.cc_workspace",
+            target_chat_key__in=chat_keys,
+            data_key="last_cc_task_prompt",
+        ).delete()
+        if deleted_count:
+            logger.info(
+                "[cc_workspace] 已清理 %s 条 last_cc_task_prompt 缓存，workspace_id=%s",
+                deleted_count,
+                workspace_id,
+            )
+        return int(deleted_count)
+    except Exception as e:
+        logger.warning("[cc_workspace] 清理 last_cc_task_prompt 缓存失败: %s", e)
+        return 0
+
+
+async def _maybe_force_cancel_running_workspace_task(workspace: DBWorkspace) -> dict:
+    """如工作区中存在运行中的任务则强制终止，并返回摘要。"""
+    client = CCSandboxClient(workspace)
+    queue_status = await client.get_workspace_queue(workspace_id="default")
+    current_task = queue_status.get("current_task") or None
+    if not current_task:
+        return {"cancelled": False, "source_chat_key": None, "elapsed_seconds": 0}
+
+    src = current_task.get("source_chat_key") or ""
+    elapsed = int(current_task.get("elapsed_seconds") or 0)
+    cancelled = await client.force_cancel_current_task(workspace_id="default")
+    if cancelled:
+        logger.info(
+            "[cc_workspace] 已为工作区控制操作强制终止运行中任务，workspace=%s source=%s",
+            workspace.id,
+            src or "unknown",
+        )
+    return {"cancelled": bool(cancelled), "source_chat_key": src or None, "elapsed_seconds": elapsed}
+
+
+async def _reset_workspace_session(workspace: DBWorkspace) -> dict:
+    """重置 CC 会话并清理 NA 侧相关缓存。"""
+    if workspace.status != "active":
+        raise ValueError("当前工作区未运行，无法重置会话。")
+
+    client = CCSandboxClient(workspace)
+    await client.reset_session("default")
+    await _broadcast_system_comm_log(
+        workspace.id,
+        "[会话重置] CC Workspace 会话已重置，后续委托将作为全新会话处理。",
+    )
+    deleted_count = await _clear_last_cc_task_prompts(workspace.id)
+    return {"cleared_prompt_cache": deleted_count}
 
 
 async def _broadcast_cc_status(workspace_id: int, running: bool, *, name: Optional[str] = None) -> None:
@@ -1324,6 +1618,210 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
     )
 
 
+@plugin.mount_command(
+    name="cc_help",
+    description="查看 CC 协作插件的使用帮助",
+    aliases=["cc-help", "cc_guide"],
+    permission=CommandPermission.USER,
+    usage="cc_help",
+    category="CC 协作",
+)
+async def cc_help_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """查看 CC 协作插件的常用命令和排查指引。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    workspace = await agent_ctx.get_bound_workspace()
+
+    status_hint = (
+        "当前频道尚未绑定 CC 工作区。请先在工作区页面绑定，或让 Agent 调用 `create_and_bind_workspace`。"
+        if workspace is None
+        else f"当前绑定工作区: {workspace.name}（状态: {_format_workspace_status(workspace.status)}）。"
+    )
+
+    message = (
+        "[CC 协作帮助]\n"
+        f"{status_hint}\n"
+        "\n常用命令:\n"
+        "- `cc_status` 查看状态\n"
+        "- `cc_context` 查看上下文\n"
+        "- `cc_recent [数量]` 查看最近记录\n"
+        "- `cc_abort` 强制中止当前运行任务\n"
+        "- `cc_reset_session` 重置 CC 会话\n"
+        "- `cc_restart` 重启当前沙盒\n"
+        "- `cc_stop` 停止当前沙盒\n"
+    )
+    return CmdCtl.success(
+        message,
+        data={
+            "chat_key": context.chat_key,
+            "workspace_bound": bool(workspace),
+            "workspace_id": workspace.id if workspace else None,
+        },
+    )
+
+
+@plugin.mount_command(
+    name="cc_status",
+    description="查看当前频道的 CC 协作状态摘要",
+    aliases=["cc-status"],
+    permission=CommandPermission.USER,
+    usage="cc_status",
+    category="CC 协作",
+)
+async def cc_status_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """查看当前频道绑定的 CC 工作区、容器健康和队列状态。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message, data = await _build_cc_status_message(agent_ctx)
+    return CmdCtl.success(message, data=data)
+
+
+@plugin.mount_command(
+    name="cc_context",
+    description="查看当前频道的 CC 协作上下文",
+    aliases=["cc-context"],
+    permission=CommandPermission.USER,
+    usage="cc_context",
+    category="CC 协作",
+)
+async def cc_context_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """查看当前频道最近一次委托摘要、任务状态和近期通讯记录。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message = await get_cc_context(agent_ctx)
+    return CmdCtl.success(
+        message,
+        data={
+            "chat_key": context.chat_key,
+            "workspace_bound": bool(await agent_ctx.get_bound_workspace()),
+        },
+    )
+
+
+@plugin.mount_command(
+    name="cc_recent",
+    description="查看当前频道最近的 CC 协作记录",
+    aliases=["cc-recent", "cc-log"],
+    permission=CommandPermission.USER,
+    usage="cc_recent [数量]",
+    category="CC 协作",
+)
+async def cc_recent_cmd(
+    context: CommandExecutionContext,
+    limit: Annotated[int, Arg("查看最近几条记录，范围 1-20", positional=True)] = 6,
+) -> CommandResponse:
+    """查看当前频道最近的 NA↔CC 协作主记录。"""
+    limit = max(1, min(limit, 20))
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message, data = await _build_cc_recent_logs_message(agent_ctx, limit)
+    return CmdCtl.success(message, data=data)
+
+
+@plugin.mount_command(
+    name="cc_abort",
+    description="强制中止当前绑定工作区正在运行的 CC 任务",
+    aliases=["cc-abort", "cc_kill", "cc-kill"],
+    permission=CommandPermission.USER,
+    usage="cc_abort",
+    category="CC 协作",
+)
+async def cc_abort_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """强制终止当前工作区正在执行的任务。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message = await force_cancel_cc_workspace(agent_ctx)
+    workspace = await agent_ctx.get_bound_workspace()
+    return CmdCtl.success(
+        message,
+        data={
+            "chat_key": context.chat_key,
+            "workspace_id": workspace.id if workspace else None,
+            "action": "force_cancel_current_task",
+        },
+    )
+
+
+@plugin.mount_command(
+    name="cc_reset_session",
+    description="重置当前绑定工作区的 CC 会话并清理旧委托摘要缓存",
+    aliases=["cc-reset-session", "cc_reset", "cc-reset"],
+    permission=CommandPermission.USER,
+    usage="cc_reset_session",
+    category="CC 协作",
+)
+async def cc_reset_session_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """重置当前工作区的 CC 会话。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message = await reset_cc_session(agent_ctx)
+    workspace = await agent_ctx.get_bound_workspace()
+    return CmdCtl.success(
+        message,
+        data={
+            "chat_key": context.chat_key,
+            "workspace_id": workspace.id if workspace else None,
+            "action": "reset_session",
+        },
+    )
+
+
+@plugin.mount_command(
+    name="cc_restart",
+    description="重启当前绑定工作区的 CC 沙盒容器",
+    aliases=["cc-restart"],
+    permission=CommandPermission.USER,
+    usage="cc_restart",
+    category="CC 协作",
+)
+async def cc_restart_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """重启当前工作区的 CC 沙盒。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    message = await restart_cc_sandbox(agent_ctx)
+    workspace = await agent_ctx.get_bound_workspace()
+    return CmdCtl.success(
+        message,
+        data={
+            "chat_key": context.chat_key,
+            "workspace_id": workspace.id if workspace else None,
+            "action": "restart_sandbox",
+        },
+    )
+
+
+@plugin.mount_command(
+    name="cc_stop",
+    description="停止当前绑定工作区的 CC 沙盒容器",
+    aliases=["cc-stop"],
+    permission=CommandPermission.USER,
+    usage="cc_stop",
+    category="CC 协作",
+)
+async def cc_stop_cmd(context: CommandExecutionContext) -> CommandResponse:
+    """停止当前工作区的 CC 沙盒。"""
+    agent_ctx = await _get_agent_ctx_from_command(context)
+    workspace = await _require_bound_workspace(agent_ctx)
+    if workspace.status != "active":
+        raise ValueError("当前工作区未运行，无需停止。")
+
+    cancelled = await _maybe_force_cancel_running_workspace_task(workspace)
+    await SandboxContainerManager.stop(workspace)
+    await workspace.refresh_from_db()
+    await _broadcast_system_comm_log(
+        workspace.id,
+        "[沙盒停止] CC Workspace 沙盒容器已停止。",
+    )
+    cancel_note = ""
+    if cancelled["cancelled"]:
+        cancel_note = (
+            f"\n停止前已强制终止来自频道 `{cancelled['source_chat_key']}` 的运行中任务"
+            f"（已运行 {cancelled['elapsed_seconds']}s）。"
+        )
+    return CmdCtl.success(
+        f"CC 沙盒已停止。\n工作区: {workspace.name}（ID: {workspace.id}）\n当前状态: {_format_workspace_status(workspace.status)}{cancel_note}",
+        data={
+            "chat_key": context.chat_key,
+            "workspace_id": workspace.id,
+            "action": "stop_sandbox",
+            "force_cancelled_task": cancelled["cancelled"],
+        },
+    )
+
+
 @plugin.mount_sandbox_method(
     SandboxMethodType.BEHAVIOR,
     "强制取消 CC Workspace 当前运行任务",
@@ -1369,6 +1867,62 @@ async def force_cancel_cc_workspace(_ctx: schemas.AgentCtx) -> str:
             f"该任务的执行结果将会丢失，频道 `{src}` 的委托任务将收到取消通知。"
         )
     raise ValueError("取消失败，任务可能已经执行完毕。")
+
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "重置 CC Workspace 会话",
+    description=(
+        "重置当前绑定工作区的 CC 会话，清空 CC 保留的对话上下文。"
+        "同时清理 NA 侧缓存的最近一次委托摘要，避免后续误把旧会话当作仍然有效。"
+        "适用于上下文污染、状态异常、需要从干净会话重新开始时。"
+    ),
+)
+async def reset_cc_session(_ctx: schemas.AgentCtx) -> str:
+    """Reset the bound CC Workspace session and clear related prompt cache."""
+    workspace = await _require_bound_workspace(_ctx)
+    result = await _reset_workspace_session(workspace)
+    return (
+        f"CC Workspace 会话已重置。\n"
+        f"工作区: {workspace.name}（ID: {workspace.id}）\n"
+        f"已清理 {result['cleared_prompt_cache']} 条委托摘要缓存。"
+    )
+
+
+@plugin.mount_sandbox_method(
+    SandboxMethodType.BEHAVIOR,
+    "重启 CC 沙盒容器",
+    description=(
+        "重启当前绑定工作区的 CC 沙盒容器。"
+        "若当前存在运行中的任务，会先尝试强制终止，随后执行容器重启。"
+        "适用于沙盒 API 卡死、健康检查异常或需要快速恢复服务时。"
+    ),
+)
+async def restart_cc_sandbox(_ctx: schemas.AgentCtx) -> str:
+    """Restart the bound CC sandbox container."""
+    workspace = await _require_bound_workspace(_ctx)
+    if workspace.status != "active":
+        raise ValueError("当前工作区未运行，无法重启沙盒。")
+
+    cancelled = await _maybe_force_cancel_running_workspace_task(workspace)
+    await SandboxContainerManager.restart(workspace)
+    await workspace.refresh_from_db()
+    await _broadcast_system_comm_log(
+        workspace.id,
+        "[沙盒重启] CC Workspace 沙盒容器已重启。",
+    )
+    cancel_note = ""
+    if cancelled["cancelled"]:
+        cancel_note = (
+            f"\n重启前已强制终止来自频道 `{cancelled['source_chat_key']}` 的运行中任务"
+            f"（已运行 {cancelled['elapsed_seconds']}s）。"
+        )
+    return (
+        f"CC 沙盒已重启。\n"
+        f"工作区: {workspace.name}（ID: {workspace.id}）\n"
+        f"当前状态: {_format_workspace_status(workspace.status)}"
+        f"{cancel_note}"
+    )
 
 
 @plugin.mount_sandbox_method(
@@ -1568,6 +2122,8 @@ async def _collect_cc_methods(ctx: schemas.AgentCtx) -> List:
         cancel_cc_task,
         get_cc_context,
         force_cancel_cc_workspace,
+        reset_cc_session,
+        restart_cc_sandbox,
         upload_file_to_cc,
         download_file_from_cc,
     ]
