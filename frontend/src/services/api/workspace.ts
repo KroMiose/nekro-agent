@@ -113,6 +113,40 @@ export interface WorkspaceListResponse {
   items: WorkspaceSummary[]
 }
 
+// ── MCP 结构化类型 ──
+
+export type McpServerType = 'stdio' | 'sse' | 'http'
+
+export interface McpServerConfig {
+  name: string
+  type: McpServerType
+  enabled: boolean
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  url?: string
+  headers?: Record<string, string>
+}
+
+export interface McpEnvKeyDef {
+  key: string
+  description: string
+  required: boolean
+}
+
+export interface McpRegistryItem {
+  id: string
+  name: string
+  description: string
+  icon?: string
+  type: McpServerType
+  command?: string
+  args?: string[]
+  env_keys?: McpEnvKeyDef[]
+  url?: string
+  tags?: string[]
+}
+
 export const workspaceApi = {
   // 工作区 CRUD
   getList: async (): Promise<WorkspaceSummary[]> => {
@@ -252,6 +286,24 @@ export const workspaceApi = {
     await axios.put(`/workspaces/${id}/mcp`, { mcp_config: mcpConfig })
   },
 
+  // MCP 结构化操作
+  getMcpServers: async (id: number): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>(`/workspaces/${id}/mcp/servers`)
+    return response.data.servers
+  },
+
+  addMcpServer: async (id: number, server: McpServerConfig): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/servers`, server)
+  },
+
+  updateMcpServer: async (id: number, oldName: string, server: McpServerConfig): Promise<void> => {
+    await axios.put(`/workspaces/${id}/mcp/servers/${encodeURIComponent(oldName)}`, server)
+  },
+
+  deleteMcpServer: async (id: number, name: string): Promise<void> => {
+    await axios.delete(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
+  },
+
   // CC 模型预设
   getCCModelPreset: async (id: number): Promise<{ preset_id: number | null; config_json: Record<string, unknown> | null }> => {
     const response = await axios.get<{ preset_id: number | null; config_json: Record<string, unknown> | null }>(
@@ -282,6 +334,14 @@ export const workspaceApi = {
 
   updateClaudeMdExtra: async (id: number, extra: string): Promise<void> => {
     await axios.put(`/workspaces/${id}/claude-md-extra`, { extra })
+  },
+}
+
+// MCP 注册表 API
+export const mcpApi = {
+  getRegistry: async (): Promise<McpRegistryItem[]> => {
+    const response = await axios.get<McpRegistryItem[]>('/mcp/registry')
+    return response.data
   },
 }
 

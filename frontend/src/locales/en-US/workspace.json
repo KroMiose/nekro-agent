@@ -285,6 +285,7 @@
       "comm": "Comm",
       "memory": "Memory",
       "extensions": "Extensions",
+      "mcp": "MCP Services",
       "prompt": "Prompt",
       "config": "Config"
     },
@@ -589,6 +590,52 @@
         "sendFailed": "Send failed: {{message}}",
         "cancelSuccess": "Force cancel command sent",
         "cancelFailed": "Force cancel failed: {{message}}"
+      }
+    },
+    "mcp": {
+      "title": "MCP Service Configuration",
+      "empty": "No MCP servers configured. Add from templates to get started.",
+      "fromTemplate": "From Template",
+      "addManual": "Add Manually",
+      "switchToJson": "Switch to JSON editor",
+      "switchToCards": "Switch to card view",
+      "save": "Save",
+      "saving": "Saving...",
+      "add": "Add",
+      "adding": "Adding...",
+      "edit": "Edit",
+      "delete": "Delete",
+      "enable": "Enable",
+      "disable": "Disable",
+      "addTitle": "Add MCP Server",
+      "editTitle": "Edit MCP Server",
+      "deleteTitle": "Delete MCP Server",
+      "deleteConfirm": "Are you sure you want to delete MCP server \"{{name}}\"?",
+      "addSuccess": "MCP server added",
+      "addFailed": "Failed to add: {{message}}",
+      "updateSuccess": "MCP server updated",
+      "updateFailed": "Failed to update: {{message}}",
+      "deleteSuccess": "MCP server deleted",
+      "deleteFailed": "Failed to delete: {{message}}",
+      "saveSuccess": "MCP configuration saved",
+      "saveFailed": "Failed to save: {{message}}",
+      "jsonError": "Invalid JSON format",
+      "jsonErrorFix": "Please fix JSON format errors first",
+      "jsonHint": "Supports JSONC format (// and /* */ comments), auto-converted to JSON on save",
+      "form": {
+        "name": "Server Name",
+        "command": "Command",
+        "args": "Arguments",
+        "argsHint": "Separate multiple arguments with spaces",
+        "envLabel": "Environment Variables",
+        "url": "Server URL",
+        "headersLabel": "HTTP Headers",
+        "cancel": "Cancel"
+      },
+      "registry": {
+        "title": "Add MCP Server from Template",
+        "search": "Search templates...",
+        "empty": "No matching templates"
       }
     },
     "prompt": {

@@ -285,6 +285,7 @@
       "comm": "沙盒通讯",
       "memory": "记忆库",
       "extensions": "扩展能力",
+      "mcp": "MCP 服务",
       "prompt": "提示词",
       "config": "配置"
     },
@@ -589,6 +590,52 @@
         "sendFailed": "发送失败：{{message}}",
         "cancelSuccess": "已发送强制中止指令",
         "cancelFailed": "强制中止失败：{{message}}"
+      }
+    },
+    "mcp": {
+      "title": "MCP 服务配置",
+      "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
+      "fromTemplate": "从模板添加",
+      "addManual": "手动添加",
+      "switchToJson": "切换到 JSON 编辑模式",
+      "switchToCards": "切换到卡片视图",
+      "save": "保存",
+      "saving": "保存中...",
+      "add": "添加",
+      "adding": "添加中...",
+      "edit": "编辑",
+      "delete": "删除",
+      "enable": "启用",
+      "disable": "禁用",
+      "addTitle": "添加 MCP 服务器",
+      "editTitle": "编辑 MCP 服务器",
+      "deleteTitle": "删除 MCP 服务器",
+      "deleteConfirm": "确定要删除 MCP 服务器「{{name}}」吗？",
+      "addSuccess": "MCP 服务器已添加",
+      "addFailed": "添加失败：{{message}}",
+      "updateSuccess": "MCP 服务器已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "deleteSuccess": "MCP 服务器已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "saveSuccess": "MCP 配置已保存",
+      "saveFailed": "保存失败：{{message}}",
+      "jsonError": "JSON 格式错误",
+      "jsonErrorFix": "请先修复 JSON 格式错误",
+      "jsonHint": "支持 JSONC 格式（// 和 /* */ 注释），保存时自动转换为 JSON",
+      "form": {
+        "name": "服务器名称",
+        "command": "命令",
+        "args": "参数",
+        "argsHint": "以空格分隔多个参数",
+        "envLabel": "环境变量",
+        "url": "服务器 URL",
+        "headersLabel": "HTTP 请求头",
+        "cancel": "取消"
+      },
+      "registry": {
+        "title": "从模板添加 MCP 服务器",
+        "search": "搜索模板...",
+        "empty": "没有匹配的模板"
       }
     },
     "prompt": {
