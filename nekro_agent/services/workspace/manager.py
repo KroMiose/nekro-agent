@@ -714,12 +714,19 @@ updated: "YYYY-MM-DD"
         """解析 metadata.mcp_config.mcpServers 为结构化服务器列表"""
         from nekro_agent.services.mcp.schemas import McpServerConfig, McpServerType
 
-        mcp_config: Dict[str, Any] = workspace.metadata.get("mcp_config", {})
+        mcp_config: Dict[str, Any] = (workspace.metadata or {}).get("mcp_config", {})
         mcp_servers: Dict[str, Any] = mcp_config.get("mcpServers", {})
         result: list[McpServerConfig] = []
         for name, cfg in mcp_servers.items():
-            # 判断类型：有 url 字段 → sse/http，否则 stdio
-            if "url" in cfg:
+            # 优先从显式 transport 字段派生类型，兼容旧配置
+            transport = cfg.get("transport")
+            if transport == "sse":
+                server_type = McpServerType.sse
+            elif transport == "http":
+                server_type = McpServerType.http
+            elif transport == "stdio":
+                server_type = McpServerType.stdio
+            elif "url" in cfg:
                 server_type = McpServerType.http
             else:
                 server_type = McpServerType.stdio
@@ -740,7 +747,7 @@ updated: "YYYY-MM-DD"
     @staticmethod
     async def add_mcp_server(workspace: DBWorkspace, server: Any) -> None:
         """添加一个 MCP 服务器到 mcpServers"""
-        mcp_config: Dict[str, Any] = dict(workspace.metadata.get("mcp_config", {}))
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
         mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
         if server.name in mcp_servers:
@@ -755,7 +762,7 @@ updated: "YYYY-MM-DD"
     @staticmethod
     async def update_mcp_server(workspace: DBWorkspace, old_name: str, server: Any) -> None:
         """更新指定的 MCP 服务器"""
-        mcp_config: Dict[str, Any] = dict(workspace.metadata.get("mcp_config", {}))
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
         mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
         if old_name not in mcp_servers:
@@ -773,7 +780,7 @@ updated: "YYYY-MM-DD"
     @staticmethod
     async def remove_mcp_server(workspace: DBWorkspace, name: str) -> None:
         """删除指定的 MCP 服务器"""
-        mcp_config: Dict[str, Any] = dict(workspace.metadata.get("mcp_config", {}))
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
         mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
 
         if name not in mcp_servers:
@@ -791,6 +798,8 @@ updated: "YYYY-MM-DD"
         raw: Dict[str, Any] = {}
         if not server.enabled:
             raw["enabled"] = False
+        # 持久化 transport 类型，确保 sse/http 能正确往返
+        raw["transport"] = server.type if isinstance(server.type, str) else server.type.value
         if server.url:
             # sse/http 类型
             raw["url"] = server.url
