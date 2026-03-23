@@ -22,12 +22,11 @@ import {
 import {
   Group as GroupIcon,
   Person as PersonIcon,
-  CheckCircle as CheckCircleIcon,
-  Cancel as CancelIcon,
   Refresh as RefreshIcon,
   Circle as CircleIcon,
   Sync as SyncIcon,
   ArrowBack as ArrowBackIcon,
+
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
@@ -59,9 +58,9 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
     queryFn: () => chatChannelApi.getDetail(chatKey),
   })
 
-  // 激活/停用聊天
-  const { mutate: toggleActive, isPending: isToggling } = useMutation({
-    mutationFn: (isActive: boolean) => chatChannelApi.setActive(chatKey, isActive),
+  // 设置频道状态
+  const { mutate: setChannelStatus, isPending: isToggling } = useMutation({
+    mutationFn: (status: 'active' | 'observe' | 'disabled') => chatChannelApi.setStatus(chatKey, status),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['chat-channel-detail', chatKey] })
       queryClient.invalidateQueries({ queryKey: ['chat-channels'] })
@@ -137,7 +136,11 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
                 <CircleIcon
                   sx={{
                     fontSize: 10,
-                    color: channel.is_active ? 'success.main' : 'text.disabled',
+                    color: channel.status === 'active'
+                      ? 'success.main'
+                      : channel.status === 'observe'
+                        ? 'warning.main'
+                        : 'text.disabled',
                   }}
                 />
               </Stack>
@@ -163,27 +166,39 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
               />
               <ButtonGroup variant="outlined" size="small">
                 <Button
-                  color={channel.is_active ? 'error' : 'success'}
-                  onClick={() => toggleActive(!channel.is_active)}
-                  disabled={isToggling}
-                  startIcon={channel.is_active ? <CancelIcon /> : <CheckCircleIcon />}
+                  color="success"
+                  variant={channel.status === 'active' ? 'contained' : 'outlined'}
+                  onClick={() => setChannelStatus('active')}
+                  disabled={isToggling || channel.status === 'active'}
                 >
-                  {isToggling ? (
-                    <CircularProgress size={16} />
-                  ) : channel.is_active ? (
-                    t('channelDetail.deactivate')
-                  ) : (
-                    t('channelDetail.activate')
-                  )}
+                  {isToggling ? <CircularProgress size={16} /> : t('channelDetail.activate')}
                 </Button>
                 <Button
                   color="warning"
-                  onClick={() => setResetDialogOpen(true)}
-                  startIcon={<RefreshIcon />}
+                  variant={channel.status === 'observe' ? 'contained' : 'outlined'}
+                  onClick={() => setChannelStatus('observe')}
+                  disabled={isToggling || channel.status === 'observe'}
                 >
-                  {t('channelDetail.reset')}
+                  {t('channelDetail.observe')}
+                </Button>
+                <Button
+                  color="error"
+                  variant={channel.status === 'disabled' ? 'contained' : 'outlined'}
+                  onClick={() => setChannelStatus('disabled')}
+                  disabled={isToggling || channel.status === 'disabled'}
+                >
+                  {t('channelDetail.deactivate')}
                 </Button>
               </ButtonGroup>
+              <Button
+                variant="outlined"
+                size="small"
+                color="warning"
+                onClick={() => setResetDialogOpen(true)}
+                startIcon={<RefreshIcon />}
+              >
+                {t('channelDetail.reset')}
+              </Button>
             </Stack>
           </Stack>
         </CardContent>

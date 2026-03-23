@@ -31,6 +31,7 @@ class DBChatChannel(Model):
 
     id = fields.IntField(pk=True, generated=True, description="ID")
     is_active = fields.BooleanField(default=True, description="是否激活")
+    observe_mode = fields.BooleanField(default=False, description="旁观模式")
     preset_id = fields.IntField(default=None, null=True, description="人设 ID")
     data = fields.TextField(description="频道数据")
 
@@ -122,6 +123,36 @@ class DBChatChannel(Model):
     async def set_active(self, is_active: bool):
         """设置频道是否激活"""
         self.is_active = is_active
+        if is_active:
+            self.observe_mode = False
+        await self.save()
+
+    @property
+    def channel_status(self) -> str:
+        """获取频道状态: active / observe / disabled"""
+        if self.is_active:
+            return "active"
+        if self.observe_mode:
+            return "observe"
+        return "disabled"
+
+    async def set_channel_status(self, status: str):
+        """设置频道状态
+
+        Args:
+            status: "active" / "observe" / "disabled"
+        """
+        if status == "active":
+            self.is_active = True
+            self.observe_mode = False
+        elif status == "observe":
+            self.is_active = False
+            self.observe_mode = True
+        elif status == "disabled":
+            self.is_active = False
+            self.observe_mode = False
+        else:
+            raise ValueError(f"无效的频道状态: {status}")
         await self.save()
 
     @property

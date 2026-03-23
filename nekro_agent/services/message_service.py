@@ -344,6 +344,7 @@ class MessageService:
             chat_key=message.chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
@@ -620,6 +621,7 @@ class MessageService:
             chat_key=chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
     async def push_system_message(
@@ -689,6 +691,7 @@ class MessageService:
             chat_key=chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
         if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:

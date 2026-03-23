@@ -44,7 +44,7 @@ async def collect_message(
     ):
         return
 
-    if not db_chat_channel.is_active:
+    if not db_chat_channel.is_active and not db_chat_channel.observe_mode:
         return
 
     # 用户处理

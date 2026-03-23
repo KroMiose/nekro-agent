@@ -21,7 +21,7 @@ from .ops import (
 )
 from .plugin_cmd import NaPluginsCommand, PluginCtlCommand, PluginInfoCommand, ResetPluginCommand
 from .quota_cmd import QuotaBoostCommand, QuotaCommand, QuotaResetCommand, QuotaSetCommand, QuotaWhitelistCommand
-from .switch import NaOffCommand, NaOnCommand
+from .switch import NaObserveCommand, NaOffCommand, NaOnCommand
 
 
 def register_built_in_commands() -> None:
@@ -37,6 +37,7 @@ def register_built_in_commands() -> None:
         # 开关类
         NaOnCommand(),
         NaOffCommand(),
+        NaObserveCommand(),
         # 配置类
         ConfShowCommand(),
         ConfSetCommand(),

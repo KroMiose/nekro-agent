@@ -12,6 +12,7 @@ export interface ChatChannel {
   chat_key: string
   channel_name: string | null
   is_active: boolean
+  status: 'active' | 'observe' | 'disabled'
   chat_type: string
   message_count: number
   create_time: string
@@ -136,6 +137,13 @@ export const chatChannelApi = {
     return response.data
   },
 
+  setStatus: async (chatKey: string, status: 'active' | 'observe' | 'disabled'): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/status`, null, {
+      params: { status },
+    })
+    return response.data
+  },
+
   reset: async (chatKey: string): Promise<ActionResponse> => {
     const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/reset`)
     return response.data
@@ -238,7 +246,7 @@ export const chatChannelApi = {
     return response.data
   },
 
-  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => void, onError?: (error: Error) => void): (() => void) => {
+  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null; status?: string | null }) => void, onError?: (error: Error) => void): (() => void) => {
     /**
      * Subscribe to real-time channel list updates using SSE
      * @param onMessage - Callback when a channel event is received (created, updated, deleted, activated, deactivated)
