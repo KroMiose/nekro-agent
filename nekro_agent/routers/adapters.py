@@ -4,7 +4,14 @@ from typing import List
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
-from nekro_agent.adapters import ADAPTER_DICT, loaded_adapters
+from nekro_agent.adapters import (
+    ADAPTER_REGISTRY,
+    adapter_load_errors,
+    get_adapter_config_path,
+    get_adapter_spec,
+    is_adapter_enabled,
+    loaded_adapters,
+)
 from nekro_agent.adapters.interface.base import AdapterMetadata
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.errors import NotFoundError, OperationFailedError
@@ -18,7 +25,7 @@ class AdapterInfo(BaseModel):
     key: str
     name: str
     description: str
-    status: str  # loaded, failed, disabled
+    status: str  # enabled, failed, disabled
     config_class: str
     chat_key_rules: List[str]
     has_config: bool
@@ -58,23 +65,25 @@ async def get_adapters_list(_current_user: DBUser = Depends(get_current_active_u
     """获取所有适配器的基本信息列表"""
     adapters: List[AdapterInfo] = []
 
-    for adapter_key in ADAPTER_DICT:
+    for adapter_key in ADAPTER_REGISTRY:
         adapter_instance = loaded_adapters.get(adapter_key)
+        spec = get_adapter_spec(adapter_key)
 
         if adapter_instance:
-            status = "loaded"
+            status = "enabled"
             config_class = adapter_instance.config.__class__.__name__
             chat_key_rules = adapter_instance.chat_key_rules
             has_config = hasattr(adapter_instance, "config") and adapter_instance.config is not None
             metadata = adapter_instance.metadata
         else:
-            status = "failed"
-            config_class = "Unknown"
+            status = "failed" if is_adapter_enabled(adapter_key) and adapter_key in adapter_load_errors else "disabled"
+            config_class = spec.config_path.rsplit(".", 1)[-1]
             chat_key_rules = []
-            has_config = False
+            has_config = True
             metadata = AdapterMetadata(
-                name=adapter_key.replace("_", " ").title(),
-                description=f"{adapter_key} 适配器",
+                name=spec.name,
+                description=spec.description,
+                tags=list(spec.tags),
             )
 
         adapters.append(
@@ -102,25 +111,27 @@ async def get_adapter_info(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> AdapterDetailInfo:
     """获取指定适配器的详细信息"""
-    if adapter_key not in ADAPTER_DICT:
+    if adapter_key not in ADAPTER_REGISTRY:
         raise NotFoundError(resource="适配器")
 
     adapter_instance = loaded_adapters.get(adapter_key)
+    spec = get_adapter_spec(adapter_key)
 
     if not adapter_instance:
         metadata = AdapterMetadata(
-            name=adapter_key.replace("_", " ").title(),
-            description=f"{adapter_key} 适配器",
+            name=spec.name,
+            description=spec.description,
+            tags=list(spec.tags),
         )
         return AdapterDetailInfo(
             key=adapter_key,
             name=metadata.name,
             description=metadata.description,
-            status="failed",
-            config_class="Unknown",
+            status="failed" if is_adapter_enabled(adapter_key) and adapter_key in adapter_load_errors else "disabled",
+            config_class=spec.config_path.rsplit(".", 1)[-1],
             chat_key_rules=[],
-            has_config=False,
-            config_path="",
+            has_config=True,
+            config_path=str(get_adapter_config_path(adapter_key)),
             has_router=False,
             router_prefix="",
             version=metadata.version,
@@ -133,7 +144,7 @@ async def get_adapter_info(
         key=adapter_key,
         name=metadata.name,
         description=metadata.description,
-        status="loaded",
+        status="enabled",
         config_class=adapter_instance.config.__class__.__name__,
         chat_key_rules=adapter_instance.chat_key_rules,
         has_config=hasattr(adapter_instance, "config") and adapter_instance.config is not None,
@@ -153,22 +164,23 @@ async def get_adapter_status(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> AdapterStatus:
     """获取指定适配器的运行状态"""
-    if adapter_key not in ADAPTER_DICT:
+    if adapter_key not in ADAPTER_REGISTRY:
         raise NotFoundError(resource="适配器")
 
     adapter_instance = loaded_adapters.get(adapter_key)
 
     if not adapter_instance:
         return AdapterStatus(
-            status="failed",
+            status="failed" if is_adapter_enabled(adapter_key) and adapter_key in adapter_load_errors else "disabled",
             loaded=False,
             initialized=False,
-            has_config=False,
-            error_message="适配器加载失败",
+            has_config=True,
+            config_file_exists=get_adapter_config_path(adapter_key).exists(),
+            error_message=adapter_load_errors.get(adapter_key),
         )
 
     return AdapterStatus(
-        status="loaded",
+        status="enabled",
         loaded=True,
         initialized=True,
         has_config=hasattr(adapter_instance, "config") and adapter_instance.config is not None,
@@ -185,7 +197,7 @@ async def get_adapter_docs(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> AdapterDocs:
     """获取指定适配器的说明文档"""
-    if adapter_key not in ADAPTER_DICT:
+    if adapter_key not in ADAPTER_REGISTRY:
         raise NotFoundError(resource="适配器")
 
     adapter_dir = Path(__file__).parent.parent / "adapters" / adapter_key

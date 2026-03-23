@@ -61,6 +61,21 @@ class CCWorkspaceConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    MEMORY_SUMMARY_MAX_LENGTH: int = Field(
+        default=1200,
+        title="记忆摘要最大长度",
+        description="CC 工作区记忆摘要（_na_context.md）在 prompt 中展示的最大字符数，超出时会提示 CC 整理摘要",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="记忆摘要最大长度",
+                en_US="Memory Summary Max Length",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="CC 工作区记忆摘要在 prompt 中展示的最大字符数，超出时会提示 CC 整理摘要",
+                en_US="Maximum characters for CC workspace memory summary in prompts; when exceeded, CC will be prompted to clean up the summary",
+            ),
+        ).model_dump(),
+    )
     MERGE_CC_AS_SELF: bool = Field(
         default=True,
         title="合并 CC 能力到主人设",

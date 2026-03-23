@@ -30,7 +30,6 @@ dependencies = [
     "python-multipart>=0.0.9,<1.0.0",
     "bcrypt>=4.2.0,<5.0.0",
     "toml>=0.10.2,<1.0.0",
-    "weave>=0.51.19,<1.0.0",
     "tortoise-orm>=0.24.0,<1.0.0",
     "asyncpg>=0.30.0,<1.0.0",
     "json5>=0.10.0,<1.0.0",
@@ -56,6 +55,7 @@ dependencies = [
     "chinesecalendar>=1.11.0",
     "aerich>=0.9.2",
     "lark-oapi>=1.4.0,<2.0.0",
+    "jinja2>=3.1.6",
 ]
 
 [project.optional-dependencies]

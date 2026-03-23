@@ -1,5 +1,8 @@
 {% macro history_first_start(enable_cot) %}
-Continue. Next is a real user conversation scene. Note that the sandbox before this has been cleaned up, and do not use the previously generated resources.
+The examples above have ended.
+Next is the REAL user conversation scene.
+Do NOT continue, mention, or reuse any example participant, event, or output from the examples above unless the real conversation explicitly asks for it.
+Note that the sandbox before this has been cleaned up, and do not use the previously generated resources.
 {% if enable_cot %}
 , but this time use 中文 in thinking content and keep thinking step by step carefully and comprehensively
 {% endif %}
@@ -20,4 +23,3 @@ Code Output: {{ code_output }}
 
 Please analyze the above information and DO NOT give any explanation or apology.
 {% endmacro %}
-

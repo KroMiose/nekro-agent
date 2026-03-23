@@ -17,6 +17,7 @@ from nekro_agent.services.plugin.generator import (
     generate_plugin_code_stream,
     generate_plugin_template,
 )
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -170,6 +171,7 @@ async def generate_code(
 @router.post("/generate/stream", summary="流式生成插件代码")
 @require_role(Role.Admin)
 async def generate_code_stream(
+    request: Request,
     body: GenerateCodeRequest,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
@@ -181,8 +183,12 @@ async def generate_code_stream(
             prompt=body.prompt,
             current_code=body.current_code,
         ):
+            if is_shutting_down() or await request.is_disconnected():
+                return
             yield json.dumps({"type": "content", "content": chunk})
 
+        if is_shutting_down() or await request.is_disconnected():
+            return
         yield json.dumps({"type": "done"})
 
     return EventSourceResponse(event_generator())

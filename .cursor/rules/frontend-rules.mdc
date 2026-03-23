@@ -16,6 +16,7 @@ alwaysApply: false
 * 涉及全局相关的样式/颜色/主题时，统一在 `frontend/src/theme` 中进行配置，不要在每个实现的地方硬编码颜色信息
 * API 调用统一放在 services/api 中
 * 统一通过 `axios` 拦截器处理错误与语言头，不要绕过封装直连请求
+* URL 设计、页面跳转、筛选参数映射遵循 [frontend-url-navigation.mdc](mdc:.cursor/rules/frontend-url-navigation.mdc)
 
 # 主题相关
 

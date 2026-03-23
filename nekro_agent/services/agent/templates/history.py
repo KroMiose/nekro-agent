@@ -45,6 +45,7 @@ async def render_history_data(
     db_chat_channel: DBChatChannel,
     one_time_code: str,
     config: CoreConfig,
+    plugin_injected_prompt: str = "",
     record_sta_timestamp: Optional[float] = None,
     model_group: Optional[ModelConfigGroup] = None,
 ) -> OpenAIChatMessage:
@@ -138,7 +139,7 @@ async def render_history_data(
     openai_chat_message: OpenAIChatMessage = OpenAIChatMessage.from_template(
         "user",
         HistoryPrompt(
-            plugin_injected_prompt="",
+            plugin_injected_prompt=plugin_injected_prompt,
             chat_key=chat_key,
             current_time=time.strftime("%Y-%m-%d %H:%M:%S %Z %A", time.localtime()),
             lunar_time=Lunar.fromDate(datetime.datetime.now()).toString(),

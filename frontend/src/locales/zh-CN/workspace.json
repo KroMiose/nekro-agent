@@ -125,6 +125,9 @@
       "nameReadonly": "名称创建后不可修改",
       "desc": "描述",
       "sectionApi": "API 配置",
+      "sourcePreset": "来源预设",
+      "sourcePresetHint": "自动填充官方确认的 Base URL 与推荐模型映射，随后只需填写密钥即可",
+      "sourcePresetCustom": "自定义（不套用预设）",
       "timeout": "超时 (ms)",
       "sectionModel": "模型配置",
       "modelType": "模型类型",
@@ -323,6 +326,10 @@
       "tooltips": {
         "switchConfig": "在配置页切换",
         "managePresets": "管理模型预设"
+      },
+      "ccPluginAlert": {
+        "message": "内置插件“Claude Code 协作”当前未启用，主 Agent 无法完整接入 CC Workspace 的任务委托、文件传递与状态查询能力。请先前往插件管理启用该插件，以使用 CC 沙盒的完整协作功能。",
+        "action": "前往启用"
       },
       "channels": {
         "title": "绑定频道",
@@ -665,19 +672,19 @@
         "checking": "检查中",
         "ready": "已就绪",
         "notPulled": "未拉取",
-          "pullDialog": {
-            "title": "拉取沙盒镜像",
-            "confirmTitle": "拉取沙盒镜像",
-            "confirmHint": "将从 Docker Hub 拉取以下镜像，首次拉取需要一定时间，请确认网络畅通：",
-            "cancel": "取消",
-            "image": "镜像",
-            "pulling": "正在拉取...",
-            "success": "拉取完成",
-            "failed": "拉取失败",
-            "close": "关闭",
-            "retry": "重试",
-            "pullBtn": "开始拉取"
-          }
+        "pullDialog": {
+          "title": "拉取沙盒镜像",
+          "confirmTitle": "拉取沙盒镜像",
+          "confirmHint": "将从 Docker Hub 拉取以下镜像，首次拉取需要一定时间，请确认网络畅通：",
+          "cancel": "取消",
+          "image": "镜像",
+          "pulling": "正在拉取...",
+          "success": "拉取完成",
+          "failed": "拉取失败",
+          "close": "关闭",
+          "retry": "重试",
+          "pullBtn": "开始拉取"
+        }
       }
     }
   },

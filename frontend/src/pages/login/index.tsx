@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Paper,
@@ -36,9 +36,11 @@ import { useGitHubStarStore } from '../../stores/githubStar'
 import logoImage from '../../assets/logo.png'
 import { useTranslation } from 'react-i18next'
 import LocaleToggleButton from '../../components/common/LocaleToggleButton'
+import { sanitizeRedirectTarget } from '../../router/routes'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setToken, setUserInfo } = useAuthStore()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -52,6 +54,7 @@ export default function LoginPage() {
   const isTablet = useMediaQuery(theme.breakpoints.down('md'))
   const notification = useNotification()
   const { t } = useTranslation('login')
+  const redirectPath = sanitizeRedirectTarget(searchParams.get('redirect'))
 
   // 使用壁纸store
   const { loginWallpaper, loginWallpaperMode, loginWallpaperBlur, loginWallpaperDim } =
@@ -133,8 +136,8 @@ export default function LoginPage() {
       // 启动异步检查
       checkGitHubStar()
 
-      // 跳转到首页
-      navigate('/')
+      // 登录成功后优先回到鉴权失效前的页面
+      navigate(redirectPath || '/')
     } catch (error) {
       if (error instanceof Error) {
         notification.error(error.message || t('errors.invalidCredentials'))

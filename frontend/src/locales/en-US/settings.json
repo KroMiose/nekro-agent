@@ -50,19 +50,6 @@
       "apiAddress": "https://api.nekro.ai/v1",
       "modelName": "gpt-4o"
     },
-    "providers": {
-      "nekroAI": "NekroAI Relay",
-      "googleGemini": "Google Gemini",
-      "tongyiQianwen": "Tongyi Qianwen",
-      "doubao": "Doubao",
-      "kimi": "Kimi",
-      "zhipuQingyan": "Zhipu Qingyan",
-      "baiduQianfan": "Baidu Qianfan",
-      "iflytekSpark": "iFlytek Spark",
-      "baichuan": "Baichuan",
-      "tencentHunyuan": "Tencent Hunyuan",
-      "sensetimeRixin": "SenseTime Rixin"
-    },
     "helpers": {
       "apiAddress": "Select from common providers or enter any OpenAl-compatible base URL",
       "modelName": "If list fetch fails, enter model name manually",

@@ -27,23 +27,37 @@ class WorkspaceService:
 
 ## 你是谁
 
-你是 **NekroAgent**（NA）系统中的执行层子 Agent，运行在 cc-sandbox 容器中。
-你的直接通信方是 **NA 主 Agent（Nekro）**，它负责与真实用户交互，并将具体任务委托给你执行。
-你的所有输出都由 NA 接收处理后再呈现给用户——对你来说，NA 就是"用户"。
+你是 **NekroAgent**（NA）系统中的执行层子 Agent，运行在独立的 cc-sandbox 容器中。
 
-**你的职责**：
-- 执行 NA 委托的编程、文件处理、命令执行、数据分析等任务
-- 在工作区持久化代码、数据和执行结果
-- 维护工作区的结构化记忆，方便跨任务的知识积累
-- 将执行结果以清晰结构返回给 NA 主 Agent
+**代理执行模型**（必须理解）：
+```
+[人类用户] ←IM聊天→ [NA 主 Agent] ←任务委托→ [你]
+     ↑                                        ↑
+  只能看到 NA 的消息               你的工作区用户完全无法访问
+```
+- 真正的最终用户在 IM 端，你应当默认其**无法访问**你的 `/workspace/` 目录、代码、文件或命令输出
+- NA 是你的直接通信方，负责将你的成果转化为用户可获取的形式
+- 任务"完成"的标准不是"代码改完了"，而是**用户能够获取/使用你的成果**
 
-**你是工作区的第一手知识持有者**：
-你比 NA 更了解工作区的实际文件结构、代码状态和执行历史。NA 对工作区的认知可能与现实不符（NA 无法主动读取你的工作区文件）。当 NA 的指令与工作区实际状态矛盾时，你有权基于现实情况调整执行方式，并在响应中说明原因。
+**你的职责**：执行编程、文件处理、命令执行等任务，并确保成果可交付。
 
-**你不应该**：
-- 修改 `settings.json`、`.mcp.json` 等配置文件（由 NA 统一管理）
-- 尝试访问 `/workspace/` 之外的系统资源
-- 盲目执行包含明显错误假设的精细化指令（如"修改 foo.py 第42行"但该文件或行并不存在）——应在响应中说明实际情况并提出澄清问题
+**你是工作区的第一手知识持有者**：NA 无法主动读取你的工作区。当 NA 指令与实际状态矛盾时，基于现实调整并说明原因。
+
+**你不应该**：修改 `settings.json`、`.mcp.json` 等配置文件；访问 `/workspace/` 外的资源；盲目执行包含错误假设的指令。
+
+## 成果交付（核心）
+
+**用户无法访问你的工作区。** 每次任务完成前必须确保成果可达：
+
+| 任务类型 | 交付方式 |
+|----------|----------|
+| 外部仓库代码修改 | 创建 PR 或推送分支，**响应中返回链接** |
+| 生成文件/报告 | 放入 `/workspace/default/shared/`，NA 会获取并发送给用户 |
+| 分析/调研 | 响应中详细说明；内容较长时同时写入 `shared/` |
+| 无远程权限的代码修改 | 生成 patch/压缩包到 `shared/`，或说明 clone 方式 |
+
+**错误示范** ❌：`我已修改了 src/utils.py`（用户无法访问）
+**正确示范** ✅：`已修改并创建 PR: https://github.com/xxx/repo/pull/42`
 
 ## 工作环境
 
@@ -53,7 +67,7 @@ class WorkspaceService:
 |------|------|------|
 | 工作目录（cwd） | `/workspace/default/` | Claude Code 默认工作目录 |
 | 共享目录 | `/workspace/default/shared/` | 与 NA 交换文件（NA 实时感知目录内容，将产出物放在这里） |
-| 技能目录 | `~/.claude/skills/` | builtin 内置 / user 用户 / dynamic 动态 |
+| 技能目录 | `~/.claude/skills/` | Claude Code 可发现的 workspace 本地技能目录 |
 | 记忆目录 | `/workspace/default/memory/` | 持久化记忆（你负责维护） |
 | 运行策略 | {runtime_policy} | 控制工具可用范围（agent/relaxed/strict） |
 
@@ -91,6 +105,11 @@ class WorkspaceService:
 **Node.js 开发**：
 - 直接运行 `node script.js` 或 `npx <包名>`
 - 安装包：`npm install <包名>` 或 `npm install -g <包名>`（全局）
+
+**Skills（Claude Code 技能）**：
+- Claude Code 从 `~/.claude/skills/<skill-name>/SKILL.md` 发现技能
+- 如需创建 workspace 本地技能，直接在 `~/.claude/skills/<skill-name>/` 下写入技能文件
+- 不要手动编造平台级来源元数据；若平台需要，它会在后续扫描、晋升或发布时自动补齐
 
 ## 记忆系统
 
@@ -624,40 +643,39 @@ updated: "YYYY-MM-DD"
 
     @staticmethod
     async def sync_skills(workspace: DBWorkspace) -> None:
-        """将 metadata['skills'] 中选中的技能同步到沙盒 .claude_home/skills/"""
+        """将 metadata['skills'] 中选中的技能同步到沙盒 .claude_home/skills/。
+
+        Claude Code only recognizes flat skill directories under ~/.claude/skills/<skill-name>/SKILL.md.
+        Workspace-local dynamic skills are also stored in this same directory. A skill without
+        .skill-origin.json is treated as a workspace-local dynamic skill.
+        """
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
         skills_home = ws_dir / ".claude_home" / "skills"
         skills_home.mkdir(parents=True, exist_ok=True)
 
+        # 旧结构已废弃：~/.claude/skills/{builtin,user,dynamic}/
+        for legacy_dir_name in ("builtin", "user", "dynamic"):
+            legacy_dir = skills_home / legacy_dir_name
+            if legacy_dir.exists() and legacy_dir.is_dir():
+                shutil.rmtree(legacy_dir)
+                logger.debug(f"清理旧版 skills 分层目录: {legacy_dir_name}")
+
         Path(SKILLS_LOCAL_DIR).mkdir(parents=True, exist_ok=True)
         Path(SKILLS_REPOS_DIR).mkdir(parents=True, exist_ok=True)
 
-        builtin_dst = skills_home / "builtin"
-        user_dst = skills_home / "user"
-        builtin_dst.mkdir(exist_ok=True)
-        user_dst.mkdir(exist_ok=True)
-
         selected_skills: List[str] = workspace.metadata.get("skills", [])
-        # 构建选中 skill 的目标目录名集合（仓库技能取最后一段）
-        selected_builtin_names: set[str] = set()
-        selected_user_names: set[str] = set()
-        for sid in selected_skills:
-            _, cat = WorkspaceService._resolve_skill_source(sid)
-            target_name = sid.split("/")[-1] if "/" in sid else sid
-            if cat == "builtin":
-                selected_builtin_names.add(target_name)
-            else:
-                selected_user_names.add(target_name)
+        selected_names = {sid.split("/")[-1] if "/" in sid else sid for sid in selected_skills}
 
-        # 清理不在选中列表的
-        for d in list(builtin_dst.iterdir()):
-            if d.is_dir() and d.name not in selected_builtin_names:
+        # 清理未选中的“受管理 skill”；未标记技能视为 workspace-local dynamic skill，保留。
+        for d in list(skills_home.iterdir()):
+            if not d.is_dir() or d.name.startswith("."):
+                continue
+            origin = WorkspaceService.read_skill_origin(d)
+            if not origin:
+                continue
+            if d.name not in selected_names:
                 shutil.rmtree(d)
-                logger.debug(f"清理内置 skill: {d.name}")
-        for d in list(user_dst.iterdir()):
-            if d.is_dir() and d.name not in selected_user_names:
-                shutil.rmtree(d)
-                logger.debug(f"清理用户 skill: {d.name}")
+                logger.debug(f"清理未选中的受管理 skill: {d.name}")
 
         # 复制/更新选中的 skill
         for skill_id in selected_skills:
@@ -666,15 +684,18 @@ updated: "YYYY-MM-DD"
                 logger.warning(f"skill 不存在: {skill_id}")
                 continue
             target_name = skill_id.split("/")[-1] if "/" in skill_id else skill_id
-            dst_parent = builtin_dst if cat == "builtin" else user_dst
-            dst = dst_parent / target_name
+            dst = skills_home / target_name
             if dst.exists():
+                existing_origin = WorkspaceService.read_skill_origin(dst)
+                if not existing_origin:
+                    logger.warning(
+                        f"跳过同步 skill（与 workspace-local dynamic skill 同名冲突）: {skill_id} -> {target_name}"
+                    )
+                    continue
                 shutil.rmtree(dst)
             shutil.copytree(src, dst)
-            logger.debug(f"同步 skill: {skill_id} → {dst_parent.name}/{target_name}")
-
-        # dynamic 目录仅确保存在，不做任何清理
-        (skills_home / "dynamic").mkdir(exist_ok=True)
+            WorkspaceService._write_skill_origin(dst, origin=cat, source_skill_id=skill_id)
+            logger.debug(f"同步 skill: {skill_id} → {target_name}")
 
     @staticmethod
     async def update_mcp_config(workspace: DBWorkspace, mcp_config: Dict[str, Any]) -> None:
@@ -796,18 +817,27 @@ updated: "YYYY-MM-DD"
         await workspace.save(update_fields=["metadata", "update_time"])
 
     @staticmethod
-    def get_dynamic_skills_dir(workspace_id: int) -> Path:
-        return WorkspaceService.get_workspace_dir(workspace_id) / ".claude_home" / "skills" / "dynamic"
+    def get_workspace_skills_dir(workspace_id: int) -> Path:
+        return WorkspaceService.get_workspace_dir(workspace_id) / ".claude_home" / "skills"
+
+    @staticmethod
+    def _is_workspace_local_dynamic_skill(skill_dir: Path) -> bool:
+        if not skill_dir.is_dir() or skill_dir.name.startswith("."):
+            return False
+        if not (skill_dir / "SKILL.md").exists():
+            return False
+        origin = WorkspaceService.read_skill_origin(skill_dir)
+        return not origin or origin.get("origin") == "dynamic"
 
     @staticmethod
     def list_dynamic_skills(workspace_id: int) -> List[Dict[str, str]]:
-        """列出工作区 dynamic tier 中所有 skill"""
-        dynamic_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id)
-        if not dynamic_dir.exists():
+        """列出工作区内所有未固化的 workspace-local dynamic skills。"""
+        skills_root = WorkspaceService.get_workspace_skills_dir(workspace_id)
+        if not skills_root.exists():
             return []
         skills: List[Dict[str, str]] = []
-        for skill_dir in sorted(dynamic_dir.iterdir()):
-            if not skill_dir.is_dir() or skill_dir.name.startswith("."):
+        for skill_dir in sorted(skills_root.iterdir()):
+            if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
                 continue
             meta = WorkspaceService._read_skill_meta(skill_dir)
             skills.append(
@@ -821,26 +851,31 @@ updated: "YYYY-MM-DD"
 
     @staticmethod
     def read_dynamic_skill(workspace_id: int, dir_name: str) -> Optional[str]:
-        """读取动态 skill 的 SKILL.md 内容，不存在时返回 None"""
-        skill_md = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name / "SKILL.md"
+        """读取 workspace-local dynamic skill 的 SKILL.md 内容，不存在时返回 None。"""
+        skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+        if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
+            return None
+        skill_md = skill_dir / "SKILL.md"
         if not skill_md.exists():
             return None
         return skill_md.read_text(encoding="utf-8")
 
     @staticmethod
     def write_dynamic_skill(workspace_id: int, dir_name: str, content: str) -> None:
-        """创建或更新动态 skill（写入 SKILL.md）"""
-        dynamic_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id)
-        dynamic_dir.mkdir(parents=True, exist_ok=True)
-        skill_dir = dynamic_dir / dir_name
+        """创建或更新 workspace-local dynamic skill（写入 SKILL.md）。"""
+        skills_root = WorkspaceService.get_workspace_skills_dir(workspace_id)
+        skills_root.mkdir(parents=True, exist_ok=True)
+        skill_dir = skills_root / dir_name
+        if skill_dir.exists() and not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
+            raise ValueError(f"技能 '{dir_name}' 已被受管理 skill 占用")
         skill_dir.mkdir(exist_ok=True)
         (skill_dir / "SKILL.md").write_text(content, encoding="utf-8")
 
     @staticmethod
     def delete_dynamic_skill(workspace_id: int, dir_name: str) -> bool:
-        """删除动态 skill，返回是否成功"""
-        skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-        if not skill_dir.exists() or not skill_dir.is_dir():
+        """删除 workspace-local dynamic skill，返回是否成功。"""
+        skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+        if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
             return False
         shutil.rmtree(skill_dir)
         return True
@@ -859,8 +894,8 @@ updated: "YYYY-MM-DD"
             ValueError: 源不存在或一致性校验失败
             ConflictError: 目标已存在且 force=False
         """
-        src = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-        if not src.exists() or not src.is_dir():
+        src = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+        if not WorkspaceService._is_workspace_local_dynamic_skill(src):
             raise ValueError(f"动态 skill 不存在: {dir_name}")
 
         # 一致性校验：frontmatter name 必须与 dir_name 一致
@@ -884,7 +919,12 @@ updated: "YYYY-MM-DD"
         shutil.copytree(src, dst)
 
         # 写入 .skill-origin.json
-        WorkspaceService._write_skill_origin(dst, origin="promoted", promoted_from_workspace=workspace_id)
+        WorkspaceService._write_skill_origin(
+            dst,
+            origin="promoted",
+            promoted_from_workspace=workspace_id,
+            source_skill_id=dir_name,
+        )
 
         return dir_name
 
@@ -1009,15 +1049,19 @@ updated: "YYYY-MM-DD"
         if src is None or not src.is_dir():
             logger.warning(f"全局 skill 不存在，无法同步: {skill_id}")
             return False
-        ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
         target_name = skill_id.split("/")[-1] if "/" in skill_id else skill_id
-        dst_parent = ws_dir / ".claude_home" / "skills" / ("builtin" if cat == "builtin" else "user")
+        dst_parent = WorkspaceService.get_workspace_skills_dir(workspace.id)
         dst_parent.mkdir(parents=True, exist_ok=True)
         dst = dst_parent / target_name
         if dst.exists():
+            existing_origin = WorkspaceService.read_skill_origin(dst)
+            if not existing_origin:
+                logger.warning(f"重新同步 skill 跳过：与 workspace-local dynamic skill 同名冲突: {skill_id}")
+                return False
             shutil.rmtree(dst)
         shutil.copytree(src, dst)
-        logger.debug(f"重新同步 skill: {skill_id} → {dst_parent.name}/{target_name}")
+        WorkspaceService._write_skill_origin(dst, origin=cat, source_skill_id=skill_id)
+        logger.debug(f"重新同步 skill: {skill_id} → {target_name}")
         return True
 
     @staticmethod
@@ -1025,6 +1069,7 @@ updated: "YYYY-MM-DD"
         skill_dir: Path,
         *,
         origin: str,
+        source_skill_id: Optional[str] = None,
         promoted_from_workspace: Optional[int] = None,
         repo_url: Optional[str] = None,
         community_id: Optional[str] = None,
@@ -1033,6 +1078,7 @@ updated: "YYYY-MM-DD"
         """在 skill 目录下写入 .skill-origin.json 来源追溯文件。"""
         data = {
             "origin": origin,
+            "source_skill_id": source_skill_id,
             "promoted_from_workspace": promoted_from_workspace,
             "repo_url": repo_url,
             "community_id": community_id,

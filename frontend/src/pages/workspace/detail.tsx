@@ -8,7 +8,7 @@ import {
   Tab,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import {
   workspaceApi,
   WorkspaceDetail as _WorkspaceDetail,
@@ -20,6 +20,14 @@ import { useTheme } from '@mui/material/styles'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useSystemEvents } from '../../hooks/useSystemEvents'
+import {
+  DEFAULT_WORKSPACE_DETAIL_TAB,
+  isWorkspaceDetailTab,
+  WORKSPACE_DETAIL_TABS,
+  workspaceDetailPath,
+  workspaceListPath,
+  type WorkspaceDetailTab,
+} from '../../router/routes'
 
 // Components
 import WorkspaceHeader from './components/WorkspaceHeader'
@@ -37,30 +45,35 @@ import ConfigTab from './tabs/ConfigTab'
 // Main: WorkspaceDetailPage
 // ──────────────────────────────────────────
 export default function WorkspaceDetailPage() {
-  const { id } = useParams<{ id: string }>()
+  const { id, tab } = useParams<{ id: string; tab: string }>()
   const workspaceId = Number(id)
   const navigate = useNavigate()
   const theme = useTheme()
   const { t } = useTranslation('workspace')
   const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState(0)
   const [commPrefill, setCommPrefill] = useState('')
-  const [searchParams, setSearchParams] = useSearchParams()
+  const activeTabKey: WorkspaceDetailTab = isWorkspaceDetailTab(tab)
+    ? tab
+    : DEFAULT_WORKSPACE_DETAIL_TAB
+  const activeTab = WORKSPACE_DETAIL_TABS.indexOf(activeTabKey)
 
-  // 支持从外部跳转时通过 ?tab=comm 自动切换到对应 tab（如 AgentActivityCard 点击跳转）
   useEffect(() => {
-    const tabParam = searchParams.get('tab')
-    if (tabParam === 'comm') {
-      setActiveTab(2)
-      setSearchParams({}, { replace: true })
+    if (tab !== undefined && !isWorkspaceDetailTab(tab) && !isNaN(workspaceId)) {
+      navigate(workspaceDetailPath(workspaceId), { replace: true })
     }
-  // 仅在页面挂载时执行一次
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [navigate, tab, workspaceId])
+
+  const navigateToTab = useCallback(
+    (nextTab: WorkspaceDetailTab) => {
+      if (isNaN(workspaceId)) return
+      navigate(workspaceDetailPath(workspaceId, nextTab))
+    },
+    [navigate, workspaceId]
+  )
 
   const handleNavigateToComm = (prefill: string) => {
     setCommPrefill(prefill)
-    setActiveTab(2)
+    navigateToTab('comm')
   }
 
   // 快速轮询：沙盒操作后开启 2s 间隔，30s 后恢复正常
@@ -199,8 +212,8 @@ export default function WorkspaceDetailPage() {
         sandboxStatus={effectiveSandboxStatus}
         ccWorking={ccWorking}
         ccCurrentTool={ccCurrentTool}
-        onBack={() => navigate('/workspace')}
-        onNavigateToSandbox={() => setActiveTab(1)}
+        onBack={() => navigate(workspaceListPath())}
+        onNavigateToSandbox={() => navigateToTab('sandbox')}
       />
 
       {/* Tab 导航 */}
@@ -208,7 +221,7 @@ export default function WorkspaceDetailPage() {
         <Card sx={CARD_VARIANTS.default.styles}>
           <Tabs
             value={activeTab}
-            onChange={(_, val: number) => setActiveTab(val)}
+            onChange={(_, val: number) => navigateToTab(WORKSPACE_DETAIL_TABS[val])}
             indicatorColor="primary"
             textColor="primary"
             sx={{
@@ -297,10 +310,10 @@ export default function WorkspaceDetailPage() {
             <OverviewTab
               workspace={workspace}
               sandboxStatus={effectiveSandboxStatus ?? null}
-              onNavigateToSandbox={() => setActiveTab(1)}
-              onNavigateToConfig={() => setActiveTab(6)}
-              onNavigateToExtensions={() => setActiveTab(4)}
-              onNavigateToComm={() => setActiveTab(2)}
+              onNavigateToSandbox={() => navigateToTab('sandbox')}
+              onNavigateToConfig={() => navigateToTab('config')}
+              onNavigateToExtensions={() => navigateToTab('extensions')}
+              onNavigateToComm={() => handleNavigateToComm('')}
             />
           )}
           {activeTab === 1 && (
@@ -308,7 +321,7 @@ export default function WorkspaceDetailPage() {
               workspace={workspace}
               sandboxStatus={effectiveSandboxStatus ?? null}
               onSandboxMutate={handleSandboxMutate}
-              onNavigateToOverview={() => setActiveTab(0)}
+              onNavigateToOverview={() => navigateToTab('overview')}
             />
           )}
           {activeTab === 2 && (
@@ -320,7 +333,7 @@ export default function WorkspaceDetailPage() {
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
           {activeTab === 5 && <PromptTab workspace={workspace} />}
           {activeTab === 6 && (
-            <ConfigTab workspace={workspace} onDeleted={() => navigate('/workspace')} />
+            <ConfigTab workspace={workspace} onDeleted={() => navigate(workspaceListPath())} />
           )}
         </motion.div>
       </Box>

@@ -58,6 +58,7 @@ from nekro_agent.api.plugin import (
 )
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import logger
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.tools.path_convertor import is_url_path
 
 plugin = NekroPlugin(
@@ -834,7 +835,7 @@ def create_router() -> APIRouter:
                 heartbeat_timer = 0
 
                 # 持续发送事件
-                while client.is_alive and not client_manager.is_shutting_down:
+                while client.is_alive and not client_manager.is_shutting_down and not is_shutting_down():
                     try:
                         # 检查请求是否断开
                         if await request.is_disconnected():
@@ -867,7 +868,7 @@ def create_router() -> APIRouter:
                         break
 
                 # 如果是因为关闭事件退出，尝试发送关闭信号
-                if client_manager.is_shutting_down:
+                if client_manager.is_shutting_down or is_shutting_down():
                     with contextlib.suppress(Exception):
                         yield '{"type": "server_shutdown"}\n\n'
 

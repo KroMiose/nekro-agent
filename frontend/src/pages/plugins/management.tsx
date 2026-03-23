@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useCallback, useMemo, useState, useEffect } from 'react'
 import {
   Box,
   List,
@@ -70,7 +70,7 @@ import { Method, Plugin, pluginsApi } from '../../services/api/plugins'
 
 import { unifiedConfigApi, createConfigService } from '../../services/api/unified-config'
 import ConfigTable from '../../components/common/ConfigTable'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   pluginTypeColors,
   methodTypeColors,
@@ -81,6 +81,7 @@ import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { getLocalizedText } from '../../services/api/types'
 import { copyText } from '../../utils/clipboard'
+import { pluginsManagementPath } from '../../router/routes'
 
 // 添加 server_addr 配置
 const server_addr = window.location.origin
@@ -1492,21 +1493,47 @@ function PluginDetails({
 }
 
 export default function PluginsManagementPage() {
-  const [selectedPluginId, setSelectedPluginId] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
+  const navigate = useNavigate()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const { pluginId } = useParams<{ pluginId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const notification = useNotification()
   const { t, i18n } = useTranslation('plugins')
+  const searchTerm = searchParams.get('search') ?? ''
+  const buildPluginsUrl = useCallback((nextPluginId?: string | null) => {
+    const basePath = pluginsManagementPath(nextPluginId)
+    const query = searchParams.toString()
+    return query ? `${basePath}?${query}` : basePath
+  }, [searchParams])
 
   // 获取插件列表 - 只获取基础列表，不获取详情
   const { data: plugins = [], isLoading } = useQuery({
     queryKey: ['plugins'],
     queryFn: () => pluginsApi.getPlugins(),
   })
+
+  const selectedPluginId = useMemo(() => {
+    if (!pluginId) return null
+
+    const target = plugins.find(
+      plugin =>
+        plugin.id === pluginId ||
+        plugin.id.endsWith(`.${pluginId}`) ||
+        plugin.moduleName === pluginId,
+    )
+    return target?.id ?? pluginId
+  }, [pluginId, plugins])
+
+  useEffect(() => {
+    if (!pluginId || plugins.length === 0 || !selectedPluginId) return
+    if (pluginId === selectedPluginId) return
+
+    navigate(buildPluginsUrl(selectedPluginId), { replace: true })
+  }, [buildPluginsUrl, navigate, pluginId, plugins.length, selectedPluginId])
 
   // 获取当前选中插件的详情
   const {
@@ -1543,7 +1570,7 @@ export default function PluginsManagementPage() {
 
   // 处理选择插件的逻辑
   const handleSelectPlugin = (plugin: Plugin) => {
-    setSelectedPluginId(plugin.id)
+    navigate(buildPluginsUrl(plugin.id))
     if (isMobile) {
       setDrawerOpen(false)
     }
@@ -1560,7 +1587,7 @@ export default function PluginsManagementPage() {
       notification.error(t('messages.pluginNotFound'))
       return
     }
-    handleSelectPlugin(target)
+    navigate(buildPluginsUrl(target.id))
   }
 
   // 获取插件类型
@@ -1570,8 +1597,6 @@ export default function PluginsManagementPage() {
     return 'local'
   }
 
-  const [searchTerm, setSearchTerm] = useState('')
-  const targetPluginId = searchParams.get('plugin_id')
   // 过滤插件列表
   const filteredPlugins = plugins
     .filter(
@@ -1622,20 +1647,15 @@ export default function PluginsManagementPage() {
       return getPluginName(a, i18n.language).localeCompare(getPluginName(b, i18n.language))
     })
 
-  useEffect(() => {
-    if (!targetPluginId || plugins.length === 0) return
-
-    const target = plugins.find(
-      plugin =>
-        plugin.id === targetPluginId ||
-        plugin.id.endsWith(`.${targetPluginId}`) ||
-        plugin.moduleName === targetPluginId,
-    )
-    if (!target) return
-
-    setSelectedPluginId(target.id)
-    setSearchParams({}, { replace: true })
-  }, [targetPluginId, plugins, setSearchParams])
+  const updateSearchTerm = (value: string) => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (value) {
+      nextParams.set('search', value)
+    } else {
+      nextParams.delete('search')
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
 
   const pluginListContent = (
     <>
@@ -1644,7 +1664,7 @@ export default function PluginsManagementPage() {
           placeholder={t('list.search')}
           size="small"
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={e => updateSearchTerm(e.target.value)}
           variant="outlined"
           fullWidth
           slotProps={{
@@ -1655,7 +1675,7 @@ export default function PluginsManagementPage() {
                     size="small"
                     edge="end"
                     aria-label={t('actions.clear')}
-                    onClick={() => setSearchTerm('')}
+                    onClick={() => updateSearchTerm('')}
                   >
                     <CloseIcon fontSize="small" />
                   </IconButton>
@@ -1823,7 +1843,7 @@ export default function PluginsManagementPage() {
               <PluginDetails
                 plugin={selectedPlugin}
                 activationStrategyLoading={activationStrategyLoading}
-                onBack={() => setSelectedPluginId(null)}
+                onBack={() => navigate(buildPluginsUrl())}
                 onToggleEnabled={handleToggleEnabled}
                 onOpenPlugin={handleOpenPlugin}
               />
@@ -1874,7 +1894,7 @@ export default function PluginsManagementPage() {
               <PluginDetails
                 plugin={selectedPlugin}
                 activationStrategyLoading={activationStrategyLoading}
-                onBack={() => setSelectedPluginId(null)}
+                onBack={() => navigate(buildPluginsUrl())}
                 onToggleEnabled={handleToggleEnabled}
                 onOpenPlugin={handleOpenPlugin}
               />

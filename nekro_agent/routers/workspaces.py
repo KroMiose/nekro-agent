@@ -46,6 +46,7 @@ from nekro_agent.schemas.workspace import (
     WorkspaceUpdate,
 )
 from nekro_agent.services.system_broadcast import WorkspaceStatusEvent, publish_system_event
+from nekro_agent.services.runtime_state import is_shutting_down
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
@@ -525,6 +526,7 @@ async def check_sandbox_image(
 @router.post("/{workspace_id}/sandbox/image/pull/stream", summary="拉取沙盒镜像（SSE 流式进度）")
 @require_role(Role.Admin)
 async def pull_sandbox_image_stream(
+    request: Request,
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> EventSourceResponse:
@@ -545,6 +547,8 @@ async def pull_sandbox_image_stream(
         _TERMINAL_STATUSES = {"Pull complete", "Already exists", "Download complete", "Verifying Checksum"}
         try:
             async for progress in docker.images.pull(image, stream=True):
+                if is_shutting_down() or await request.is_disconnected():
+                    return
                 if not isinstance(progress, dict):
                     continue
                 status: str = progress.get("status", "")
@@ -560,6 +564,8 @@ async def pull_sandbox_image_stream(
                     continue
                 layer_status[layer_id] = status
                 yield json.dumps({"type": "progress", "layer": layer_id, "status": status})
+            if is_shutting_down() or await request.is_disconnected():
+                return
             yield json.dumps({"type": "done", "data": f"镜像 {image} 拉取完成"})
         except aiodocker.exceptions.DockerError as e:
             yield json.dumps({"type": "error", "data": f"拉取失败：{e}"})
@@ -947,7 +953,10 @@ async def put_dynamic_skill(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if not dir_name or "/" in dir_name or ".." in dir_name or dir_name.startswith("."):
         raise ValidationError(reason=f"非法 skill 名称: {dir_name!r}")
-    WorkspaceService.write_dynamic_skill(workspace_id, dir_name, body.content)
+    try:
+        WorkspaceService.write_dynamic_skill(workspace_id, dir_name, body.content)
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
     return ActionOkResponse(ok=True)
 
 
@@ -1048,8 +1057,8 @@ async def list_dynamic_skill_dir(
     ws = await DBWorkspace.get_or_none(id=workspace_id)
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-    if not skill_dir.exists() or not skill_dir.is_dir():
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
         raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     entries = await asyncio.to_thread(_list_dynamic_dir, skill_dir, skill_dir)
     return DynamicSkillDirResponse(entries=entries)
@@ -1072,7 +1081,9 @@ async def get_dynamic_skill_file(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ".." in rel_path.split("/"):
         raise ValidationError(reason="路径不合法")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
+        raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     target = skill_dir / rel_path
     if not target.exists() or not target.is_file():
         raise NotFoundError(resource=f"文件 '{rel_path}'")
@@ -1097,8 +1108,8 @@ async def save_dynamic_skill_file(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ".." in body.rel_path.split("/"):
         raise ValidationError(reason="路径不合法")
-    skill_dir = WorkspaceService.get_dynamic_skills_dir(workspace_id) / dir_name
-    if not skill_dir.exists() or not skill_dir.is_dir():
+    skill_dir = WorkspaceService.get_workspace_skills_dir(workspace_id) / dir_name
+    if not WorkspaceService._is_workspace_local_dynamic_skill(skill_dir):
         raise NotFoundError(resource=f"动态 skill '{dir_name}'")
     target = skill_dir / body.rel_path
     target.parent.mkdir(parents=True, exist_ok=True)

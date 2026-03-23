@@ -52,6 +52,10 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/chat-channel')),
       },
       {
+        path: 'chat-channel/:chatKey',
+        element: lazyLoad(() => import('../pages/chat-channel')),
+      },
+      {
         path: 'user-manager',
         element: lazyLoad(() => import('../pages/user-manager')),
       },
@@ -72,6 +76,10 @@ const router = createHashRouter([
           },
           {
             path: 'management',
+            element: lazyLoad(() => import('../pages/plugins/management')),
+          },
+          {
+            path: 'management/:pluginId',
             element: lazyLoad(() => import('../pages/plugins/management')),
           },
           {
@@ -124,7 +132,7 @@ const router = createHashRouter([
           },
           {
             path: 'commands',
-            element: lazyLoad(() => import('../pages/settings/commands')),
+            element: <Navigate to="/commands/management" replace />,
           },
         ],
       },
@@ -182,7 +190,16 @@ const router = createHashRouter([
           },
           {
             path: ':id',
-            element: lazyLoad(() => import('../pages/workspace/detail')),
+            children: [
+              {
+                index: true,
+                element: <Navigate to="overview" replace />,
+              },
+              {
+                path: ':tab',
+                element: lazyLoad(() => import('../pages/workspace/detail')),
+              },
+            ],
           },
         ],
       },

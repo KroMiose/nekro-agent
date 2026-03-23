@@ -36,7 +36,7 @@
     "wxwork": "WeWork Bot"
   },
   "status": {
-    "loaded": "已加载",
+    "enabled": "已启用",
     "failed": "加载失败",
     "disabled": "已禁用",
     "unknown": "未知"
@@ -86,6 +86,7 @@
     "statusFailed": "加载失败",
     "statusDisabled": "已禁用",
     "statusUnknown": "未知状态",
+    "restartHint": "适配器启用状态及部分配置修改后需要重启应用才能生效。",
     "unknown": "未知",
     "loaded": "已加载",
     "initialized": "已初始化",

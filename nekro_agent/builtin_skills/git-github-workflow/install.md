@@ -1,4 +1,4 @@
-# gh CLI 安装指南
+# GitHub CLI 安装指南
 
 > **nekro-cc-sandbox 用户**：`gh` 已预装，此文件仅在工具不可用时参考。
 

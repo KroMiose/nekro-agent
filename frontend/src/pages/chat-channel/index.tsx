@@ -26,21 +26,25 @@ import {
   Info as InfoIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { chatChannelApi, type ChatChannelListResponse } from '../../services/api/chat-channel'
 import ChatChannelList from './components/ChatChannelList'
 import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import { chatChannelPath } from '../../router/routes'
+
+const DEFAULT_PAGE = 1
+const DEFAULT_PAGE_SIZE = 25
+
+const parsePositiveInt = (value: string | null, fallback: number) => {
+  if (!value) return fallback
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
 
 export default function ChatChannelPage() {
-  const [search, setSearch] = useState('')
-  const [chatType, setChatType] = useState<string>('')
-  const [isActive, setIsActive] = useState<string>('')
-  const [selectedChatKey, setSelectedChatKey] = useState<string | null>(null)
-  const [page, setPage] = useState(1)
-  const [pageSize, setPageSize] = useState(25)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   const theme = useTheme()
@@ -48,21 +52,41 @@ export default function ChatChannelPage() {
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const { t } = useTranslation('chat-channel')
   const queryClient = useQueryClient()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { chatKey } = useParams<{ chatKey: string }>()
+  const [searchParams] = useSearchParams()
+  const selectedChatKey = chatKey ?? null
+  const search = searchParams.get('search') ?? ''
+  const chatType = searchParams.get('chat_type') ?? ''
+  const isActive = searchParams.get('is_active') ?? ''
+  const page = parsePositiveInt(searchParams.get('page'), DEFAULT_PAGE)
+  const pageSize = parsePositiveInt(searchParams.get('page_size'), DEFAULT_PAGE_SIZE)
 
-  // 支持从外部跳转时通过 ?chat_key=xxx 自动选中频道（如 AgentActivityCard 点击跳转）
-  // HashRouter 下 query string 由 React Router 管理，必须用 useSearchParams 读取
   useEffect(() => {
-    const initKey = searchParams.get('chat_key')
-    if (initKey) {
-      setSelectedChatKey(initKey)
-      if (isMobile) setDrawerOpen(true)
-      // 清除 URL 参数，避免刷新后重复触发
-      setSearchParams({}, { replace: true })
+    const legacyChatKey = searchParams.get('chat_key')
+    if (!legacyChatKey) return
+
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('chat_key')
+    const nextQuery = nextParams.toString()
+    navigate(`${chatChannelPath(legacyChatKey)}${nextQuery ? `?${nextQuery}` : ''}`, { replace: true })
+  }, [navigate, searchParams])
+
+  const buildChannelUrl = (nextChatKey?: string | null, overrides?: Record<string, string | null>) => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (overrides) {
+      Object.entries(overrides).forEach(([key, value]) => {
+        if (value === null || value === '') {
+          nextParams.delete(key)
+        } else {
+          nextParams.set(key, value)
+        }
+      })
     }
-  // 仅在页面挂载时执行一次
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const query = nextParams.toString()
+    const basePath = chatChannelPath(nextChatKey)
+    return query ? `${basePath}?${query}` : basePath
+  }
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
@@ -139,31 +163,37 @@ export default function ChatChannelPage() {
 
   // 处理搜索
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearch(event.target.value)
-    setPage(1)
+    navigate(buildChannelUrl(selectedChatKey, { search: event.target.value, page: String(DEFAULT_PAGE) }), {
+      replace: true,
+    })
   }
 
   // 处理清除搜索
   const handleClearSearch = () => {
-    setSearch('')
-    setPage(1)
+    navigate(buildChannelUrl(selectedChatKey, { search: null, page: String(DEFAULT_PAGE) }), {
+      replace: true,
+    })
   }
 
   // 处理类型筛选
   const handleChatTypeChange = (event: SelectChangeEvent) => {
-    setChatType(event.target.value)
-    setPage(1)
+    navigate(
+      buildChannelUrl(selectedChatKey, { chat_type: event.target.value, page: String(DEFAULT_PAGE) }),
+      { replace: true }
+    )
   }
 
   // 处理状态筛选
   const handleActiveChange = (event: SelectChangeEvent) => {
-    setIsActive(event.target.value)
-    setPage(1)
+    navigate(
+      buildChannelUrl(selectedChatKey, { is_active: event.target.value, page: String(DEFAULT_PAGE) }),
+      { replace: true }
+    )
   }
 
   // 处理选择聊天
   const handleSelectChannel = (chatKey: string) => {
-    setSelectedChatKey(chatKey)
+    navigate(buildChannelUrl(chatKey))
     if (isMobile) {
       setDrawerOpen(false)
     }
@@ -171,7 +201,7 @@ export default function ChatChannelPage() {
 
   // 返回聊天列表（移动端）
   const handleBackToList = () => {
-    setSelectedChatKey(null)
+    navigate(buildChannelUrl())
   }
 
   // 渲染聊天列表组件
@@ -244,13 +274,18 @@ export default function ChatChannelPage() {
           page={page - 1}
           rowsPerPage={pageSize}
           onPageChange={(_: React.MouseEvent<HTMLButtonElement> | null, newPage: number) =>
-            setPage(newPage + 1)
+            navigate(buildChannelUrl(selectedChatKey, { page: String(newPage + 1) }), { replace: true })
           }
           onRowsPerPageChange={(
             event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
           ) => {
-            setPageSize(parseInt(event.target.value, 10))
-            setPage(1)
+            navigate(
+              buildChannelUrl(selectedChatKey, {
+                page_size: event.target.value,
+                page: String(DEFAULT_PAGE),
+              }),
+              { replace: true }
+            )
           }}
           loading={isLoading}
           showFirstLastPageButtons={false}

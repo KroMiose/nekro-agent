@@ -15,6 +15,7 @@
 
 import { forwardRef, useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { chatChannelPath, workspaceDetailPath } from '../../router/routes'
 import { Box, Avatar, Tooltip, Typography, useTheme } from '@mui/material'
 import { SmartToy as SmartToyIcon, Terminal as TerminalIcon } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -508,11 +509,11 @@ export default function AgentActivityCard({ agentActives, workspaceStatuses, wor
   }, [])
 
   const handleNavigateAgent = useCallback((chatKey: string) => {
-    navigate(`/chat-channel?chat_key=${encodeURIComponent(chatKey)}`)
+    navigate(chatChannelPath(chatKey))
   }, [navigate])
 
   const handleNavigateWorkspace = useCallback((wsId: number) => {
-    navigate(`/workspace/${wsId}?tab=comm`)
+    navigate(workspaceDetailPath(wsId, 'comm'))
   }, [navigate])
 
   // 过滤被临时隐藏的条目（dismissVersion 作为依赖触发重算）

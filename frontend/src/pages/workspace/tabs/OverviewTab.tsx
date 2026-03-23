@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -46,10 +47,12 @@ import {
 } from '../../../services/api/workspace'
 import { ccModelPresetApi } from '../../../services/api/cc-model-preset'
 import { chatChannelApi } from '../../../services/api/chat-channel'
+import { pluginsApi } from '../../../services/api/plugins'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS } from '../../../theme/variants'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
+import { pluginsManagementPath } from '../../../router/routes'
 
 function InfoRow({
   label,
@@ -217,6 +220,17 @@ export default function OverviewTab({
   const currentPreset = workspace.cc_model_preset_id != null
     ? allPresets.find(p => p.id === workspace.cc_model_preset_id)
     : allPresets.find(p => p.is_default)
+  const pluginsQuery = useQuery({
+    queryKey: ['plugins'],
+    queryFn: () => pluginsApi.getPlugins(),
+  })
+  const ccWorkspacePlugin = (pluginsQuery.data ?? []).find(
+    plugin =>
+      plugin.id === 'cc_workspace' ||
+      plugin.id.endsWith('.cc_workspace') ||
+      plugin.moduleName === 'cc_workspace',
+  )
+  const ccWorkspacePluginUnavailable = ccWorkspacePlugin ? !ccWorkspacePlugin.enabled : false
 
   // ── 频道绑定 ──
   const { data: channelList } = useQuery({
@@ -294,6 +308,23 @@ export default function OverviewTab({
 
   return (
     <Stack spacing={2}>
+      {ccWorkspacePluginUnavailable && (
+        <Alert
+          severity="warning"
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              onClick={() => navigate(pluginsManagementPath('cc_workspace'))}
+            >
+              {t('detail.overview.ccPluginAlert.action')}
+            </Button>
+          }
+        >
+          {t('detail.overview.ccPluginAlert.message')}
+        </Alert>
+      )}
+
       {/* ── 统计快览 ── */}
       <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
         <OverviewStatCard

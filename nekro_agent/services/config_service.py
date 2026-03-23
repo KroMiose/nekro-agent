@@ -255,6 +255,12 @@ class UnifiedConfigService:
                 path = Path(OsEnv.DATA_DIR) / "configs" / adapter_key / "overrides.yaml"
                 instance = OverridableConfig.load_from_path(path)
 
+            elif config_key.startswith("adapter_"):
+                adapter_key = config_key.replace("adapter_", "")
+                from nekro_agent.adapters import load_adapter_config
+
+                instance = load_adapter_config(adapter_key)
+
             elif config_key.startswith("channel_config_"):
                 chat_key = config_key.replace("channel_config_", "")
                 adapter_key = chat_key.split("-")[0]
@@ -396,7 +402,14 @@ class UnifiedConfigService:
     @staticmethod
     def get_all_config_keys() -> List[str]:
         """获取所有已注册的配置键"""
-        return ConfigManager.get_all_config_keys()
+        keys = set(ConfigManager.get_all_config_keys())
+        try:
+            from nekro_agent.adapters import ADAPTER_REGISTRY
+
+            keys.update(f"adapter_{adapter_key}" for adapter_key in ADAPTER_REGISTRY)
+        except Exception:
+            pass
+        return sorted(keys)
 
     @staticmethod
     def get_config_info(config_key: str) -> Optional[Dict[str, Any]]:

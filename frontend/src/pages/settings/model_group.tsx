@@ -53,24 +53,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Trans } from 'react-i18next'
 import { ModelGroupConfig } from '../../services/api/config'
 import { unifiedConfigApi } from '../../services/api/unified-config'
+import { getLocalizedText, OPENAI_COMPAT_PROVIDERS } from '../../config/model-presets'
 import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
-
-// 常用的 OpenAI 兼容供应商地址（可扩展）
-// 注意：供应商名称通过翻译键动态获取，见 EditDialog 组件内部
-const OPENAI_COMPAT_PROVIDERS: Array<{ key: string; url: string }> = [
-  { key: 'nekroAI', url: 'https://api.nekro.ai/v1' },
-  { key: 'googleGemini', url: 'https://generativelanguage.googleapis.com/v1beta/openai' },
-  { key: 'tongyiQianwen', url: 'https://dashscope.aliyuncs.com/compatible-mode/v1' },
-  { key: 'doubao', url: 'https://ark.cn-beijing.volces.com/api/v3' },
-  { key: 'kimi', url: 'https://api.moonshot.cn/v1' },
-  { key: 'zhipuQingyan', url: 'https://open.bigmodel.cn/api/paas/v4' },
-  { key: 'baiduQianfan', url: 'https://qianfan.baidubce.com/v2' },
-  { key: 'iflytekSpark', url: 'https://spark-api-open.xf-yun.com/v1' },
-  { key: 'baichuan', url: 'https://api.baichuan-ai.com/v1' },
-  { key: 'tencentHunyuan', url: 'https://api.hunyuan.cloud.tencent.com/v1' },
-  { key: 'sensetimeRixin', url: 'https://api.sensenova.cn/compatible-mode/v1' },
-]
 
 interface EditDialogProps {
   open: boolean
@@ -116,7 +101,7 @@ function EditDialog({
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
   const notification = useNotification()
-  const { t } = useTranslation('settings')
+  const { t, i18n } = useTranslation('settings')
 
   const [modelOptions, setModelOptions] = useState<string[]>([])
   const [fetchingModels, setFetchingModels] = useState(false)
@@ -131,10 +116,7 @@ function EditDialog({
   // 供应商快捷选项 - 使用翻译获取名称
   const providerOptions = OPENAI_COMPAT_PROVIDERS.map(p => p.url)
   const providerMetaByUrl = new Map(
-    OPENAI_COMPAT_PROVIDERS.map(p => [
-      p.url,
-      t(`modelGroup.providers.${p.key}`) || p.key,
-    ])
+    OPENAI_COMPAT_PROVIDERS.map(p => [p.url, getLocalizedText(p.label, i18n.resolvedLanguage)])
   )
 
   interface OpenAIModelListResponse {
@@ -520,9 +502,12 @@ function EditDialog({
                         color="text.secondary"
                         sx={{ fontSize: isSmall ? '0.7rem' : 'inherit' }}
                       >
-                        {t(`modelGroup.typeDescriptions.${type.value as 'chat' | 'embedding' | 'draw'}`, {
-                          defaultValue: type.description,
-                        })}
+                        {t(
+                          `modelGroup.typeDescriptions.${type.value as 'chat' | 'embedding' | 'draw'}`,
+                          {
+                            defaultValue: type.description,
+                          }
+                        )}
                       </Typography>
                     )}
                   </Box>

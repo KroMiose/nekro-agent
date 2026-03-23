@@ -85,6 +85,21 @@ class JudgementConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    ADMIN_CHAT_KEY: str = Field(
+        default="",
+        title="管理频道标识",
+        description="管理频道标识，用于发送禁言报告",
+        json_schema_extra=ExtraField(
+            i18n_title=i18n.i18n_text(
+                zh_CN="管理频道标识",
+                en_US="Admin Channel Key",
+            ),
+            i18n_description=i18n.i18n_text(
+                zh_CN="管理频道标识，用于发送禁言报告",
+                en_US="Admin Channel Key for sending mute reports",
+            ),
+        ).model_dump(),
+    )
 
 
 # 获取配置
@@ -125,9 +140,9 @@ async def mute_user(_ctx: AgentCtx, chat_key: str, user_qq: str, duration: int, 
         return f"禁言功能不支持 {chat_type} 的频道类型"
 
     # 发送禁言报告给管理员
-    if config_judgement.ENABLE_ADMIN_REPORT and config.ADMIN_CHAT_KEY:
+    if config_judgement.ENABLE_ADMIN_REPORT and config_judgement.ADMIN_CHAT_KEY:
         await message.send_text(
-            config.ADMIN_CHAT_KEY,
+            config_judgement.ADMIN_CHAT_KEY,
             f"[{chat_key}] 执行禁言用户 [qq:{user_qq}] {duration} 秒 (来自 {_ctx.chat_key})\n理由: {report}",
             _ctx,
         )

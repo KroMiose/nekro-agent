@@ -29,6 +29,13 @@ from .tools.convertor import get_channel_type
 class OnebotV11Config(BaseAdapterConfig):
     """Onebot V11 适配器配置"""
 
+    ENABLED: bool = Field(
+        default=True,
+        title="启用适配器",
+        description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+    )
+
     BOT_QQ: str = Field(
         default="",
         title="机器人 QQ 号",

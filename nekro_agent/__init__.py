@@ -1,7 +1,6 @@
 import asyncio
 import logging
 
-import weave
 from nonebot import get_app, get_driver
 from nonebot.adapters.onebot.v11 import Bot
 from nonebot.plugin import PluginMetadata
@@ -9,7 +8,6 @@ from pydantic import BaseModel
 
 from nekro_agent.adapters import cleanup_adapters, init_adapters
 from nekro_agent.core.args import Args
-from nekro_agent.core.config import config
 from nekro_agent.core.database import init_db
 from nekro_agent.core.db_migration import run_db_migrations
 from nekro_agent.core.logger import logger
@@ -26,15 +24,6 @@ logging.getLogger("passlib").setLevel(logging.ERROR)
 
 class _Config(BaseModel):
     pass
-
-
-if config.WEAVE_ENABLED:
-    logger.info("正在连接 Weave 服务...")
-    try:
-        weave.init(config.WEAVE_PROJECT_NAME)
-        logger.success("Weave 服务连接成功")
-    except Exception as e:
-        logger.error(f"Weave 服务连接失败: {e}")
 
 def _try_get_driver():
     try:

@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Optional
 import json5
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 from tortoise.expressions import Q
 
 from nekro_agent.adapters import get_adapter
@@ -14,7 +15,7 @@ from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.models.db_chat_message import DBChatMessage
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
-from nekro_agent.schemas.errors import NotFoundError
+from nekro_agent.schemas.errors import AdapterUnavailableError, NotFoundError
 from nekro_agent.services.config_resolver import config_resolver
 from nekro_agent.services.message_service import message_service
 from nekro_agent.services.user.deps import get_current_active_user
@@ -178,8 +179,6 @@ async def stream_chat_channel_list(
     """
     import json
 
-    from fastapi.responses import StreamingResponse
-
     from nekro_agent.services.channel_broadcaster import channel_broadcaster
     from nekro_agent.services.runtime_state import is_shutting_down
 
@@ -200,9 +199,8 @@ async def stream_chat_channel_list(
         finally:
             subscription.close()
 
-    return StreamingResponse(
+    return EventSourceResponse(
         event_generator(),
-        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
@@ -421,7 +419,7 @@ async def send_poke(
 
     try:
         adapter = get_adapter(channel.adapter_key)
-    except KeyError:
+    except AdapterUnavailableError:
         return ActionResponse(ok=False)
 
     if not hasattr(adapter, "send_poke"):
@@ -588,8 +586,8 @@ async def send_message_to_channel(
         adapter = get_adapter(channel.adapter_key)
         if not adapter.supports_webui_send:
             return SendMessageResponse(ok=False, error="当前适配器不支持从 WebUI 发送消息")
-    except KeyError:
-        return SendMessageResponse(ok=False, error="适配器未加载")
+    except AdapterUnavailableError as e:
+        return SendMessageResponse(ok=False, error=str(e))
 
     text = message.strip()
 
@@ -666,8 +664,6 @@ async def stream_chat_channel_messages(
     """
     import json
 
-    from fastapi.responses import StreamingResponse
-
     from nekro_agent.services.message_broadcaster import message_broadcaster
     from nekro_agent.services.runtime_state import is_shutting_down
 
@@ -727,9 +723,8 @@ async def stream_chat_channel_messages(
         finally:
             subscription.close()
 
-    return StreamingResponse(
+    return EventSourceResponse(
         event_generator(),
-        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",

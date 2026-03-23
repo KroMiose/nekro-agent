@@ -124,11 +124,15 @@ class Note(BaseModel):
     def render_prompts(self) -> str:
         time_diff = time.time() - self.start_time
         time_diff_str = time.strftime("%H:%M:%S", time.gmtime(time_diff))
-        extra_diff = time.time() - self.expire_time
-        if self.duration > 0 and extra_diff > 0:
-            extra_diff_str = f"expires in {time.strftime('%H:%M:%S', time.gmtime(extra_diff))}"
+        now = time.time()
+        remaining = self.expire_time - now
+        if self.duration > 0 and remaining > 0:
+            extra_diff_str = f"expires in {time.strftime('%H:%M:%S', time.gmtime(remaining))}"
+        elif self.duration > 0:
+            expired_since = now - self.expire_time
+            extra_diff_str = f"expired {time.strftime('%H:%M:%S', time.gmtime(expired_since))} ago (use `remove_note` to remove it)"
         else:
-            extra_diff_str = "expired (use `remove_note` to remove it)"
+            extra_diff_str = "no expiry"
         description_str: str = (
             self.description
             if len(self.description) < config.MAX_NOTE_LENGTH
@@ -192,7 +196,7 @@ class ChannelNoteData(BaseModel):
             else ""
         )
 
-        return "Current Notes:\n" + note_str + "\n" + note_warning_str
+        return note_str + ("\n" + note_warning_str if note_warning_str else "")
 
 
 # endregion: 笔记系统数据模型

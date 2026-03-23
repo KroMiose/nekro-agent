@@ -5,6 +5,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
 from nekro_agent.services.user.deps import get_current_active_user
@@ -154,8 +155,6 @@ async def stream_command_output(
     """
     import json
 
-    from fastapi.responses import StreamingResponse
-
     from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
     from nekro_agent.services.runtime_state import is_shutting_down
 
@@ -176,9 +175,8 @@ async def stream_command_output(
         finally:
             subscription.close()
 
-    return StreamingResponse(
+    return EventSourceResponse(
         event_generator(),
-        media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
