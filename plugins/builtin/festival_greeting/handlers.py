@@ -119,25 +119,42 @@ async def _festival_callback(festival_name: str, event_desc: str):
     # 每次触发时重新获取配置
     current_config: FestivalGreetingConfig = plugin.get_config(FestivalGreetingConfig)
 
-    channels = await DBChatChannel.filter(is_active=True).all()
-    skip_keys = set(current_config.SKIP_CHAT_KEYS)
+    target_chat_keys: List[str] = []
+
+    if current_config.AUTO_GREETING_ENABLED:
+        # 黑名单模式：向所有活跃频道发送，排除黑名单
+        all_active_channels = await DBChatChannel.filter(is_active=True).all()
+        blacklist = set(current_config.BLACKLIST_CHATS)
+        target_chat_keys = [
+            channel.chat_key
+            for channel in all_active_channels
+            if channel.chat_key not in blacklist and channel.chat_key != "group_0"
+        ]
+        logger.info(f"[黑名单模式] 节日祝福启动，共 {len(target_chat_keys)} 个目标频道")
+    else:
+        # 白名单模式：仅向白名单中的频道发送
+        whitelist = set(current_config.WHITELIST_CHATS)
+        target_chat_keys = [key for key in whitelist if key != "group_0"]
+        logger.info(f"[白名单模式] 节日祝福启动，共 {len(target_chat_keys)} 个目标频道")
+
+    if not target_chat_keys:
+        logger.info(f"没有需要发送祝福的目标频道，任务 {festival_name} 结束")
+        return
 
     sent_count = 0
-    for channel in channels:
-        # 跳过 group_0 和配置中指定跳过的频道
-        if channel.chat_key == "group_0" or channel.chat_key in skip_keys:
-            continue
+    for chat_key in target_chat_keys:
         try:
             await message_service.push_system_message(
-                chat_key=channel.chat_key,
+                chat_key=chat_key,
                 agent_messages=event_desc,
                 trigger_agent=True,
             )
             sent_count += 1
             # 每个聊天频道间隔随机时间，防止并发过高
-            await asyncio.sleep(random.randint(1, current_config.RANDOM_DELAY_MAX))
+            if current_config.RANDOM_DELAY_MAX > 0:
+                await asyncio.sleep(random.randint(1, current_config.RANDOM_DELAY_MAX))
         except Exception as e:
-            logger.error(f"向频道 {channel.chat_key} 发送 {festival_name} 祝福失败: {e}")
+            logger.error(f"向频道 {chat_key} 发送 {festival_name} 祝福失败: {e}")
 
     logger.info(f"节日祝福 {festival_name} 发送完成，共推送至 {sent_count} 个聊天频道")
 
