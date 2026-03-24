@@ -343,6 +343,15 @@ export const mcpApi = {
     const response = await axios.get<McpRegistryItem[]>('/mcp/registry')
     return response.data
   },
+
+  getAutoInject: async (): Promise<McpServerConfig[]> => {
+    const response = await axios.get<{ servers: McpServerConfig[] }>('/mcp/auto-inject')
+    return response.data.servers
+  },
+
+  setAutoInject: async (servers: McpServerConfig[]): Promise<void> => {
+    await axios.put('/mcp/auto-inject', { servers })
+  },
 }
 
 // Skills 库 API

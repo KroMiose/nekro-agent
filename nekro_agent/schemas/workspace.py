@@ -90,6 +90,14 @@ class AutoInjectSkillsResponse(BaseModel):
     skills: List[str]
 
 
+class AutoInjectMcpUpdate(BaseModel):
+    servers: List[Dict[str, Any]]
+
+
+class AutoInjectMcpResponse(BaseModel):
+    servers: List[Dict[str, Any]]
+
+
 # ── 沙盒通讯日志 ────────────────────────────────────────────────────────────
 
 

@@ -244,6 +244,40 @@ async def create_workspace(
             ws.metadata = metadata
             await ws.save(update_fields=["metadata"])
 
+    # 自动注入 MCP 服务
+    from nekro_agent.core.auto_inject_mcp import get_auto_inject_mcp_servers
+
+    auto_mcp = get_auto_inject_mcp_servers()
+    if auto_mcp:
+        metadata = ws.metadata or {}
+        mcp_config: Dict[str, Any] = metadata.get("mcp_config", {"mcpServers": {}})
+        if "mcpServers" not in mcp_config:
+            mcp_config["mcpServers"] = {}
+        for server in auto_mcp:
+            name = server.get("name", "")
+            if not name:
+                continue
+            raw: Dict[str, Any] = {}
+            srv_type = server.get("type", "stdio")
+            if not server.get("enabled", True):
+                raw["enabled"] = False
+            raw["transport"] = srv_type
+            if server.get("url"):
+                raw["url"] = server["url"]
+                if server.get("headers"):
+                    raw["headers"] = dict(server["headers"])
+            else:
+                if server.get("command"):
+                    raw["command"] = server["command"]
+                if server.get("args"):
+                    raw["args"] = list(server["args"])
+                if server.get("env"):
+                    raw["env"] = dict(server["env"])
+            mcp_config["mcpServers"][name] = raw
+        metadata["mcp_config"] = mcp_config
+        ws.metadata = metadata
+        await ws.save(update_fields=["metadata"])
+
     return await _detail_async(ws)
 
 
