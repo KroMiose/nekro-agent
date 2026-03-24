@@ -66,10 +66,10 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
     def build_chat_key(self, chat_id_or_chat) -> str:
         """重写基类方法，生成包含类型前缀的聊天标识
-        
+
         Args:
             chat_id_or_chat: 可以是 chat.id (int) 或 Chat 对象
-        
+
         Returns:
             str: 完整的聊天标识，格式为 telegram-{type}_{id}
         """
@@ -77,6 +77,8 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         if hasattr(chat_id_or_chat, 'type') and hasattr(chat_id_or_chat, 'id'):
             chat_type = "private" if chat_id_or_chat.type == "private" else "group"
             return f"{self.key}-{chat_type}_{chat_id_or_chat.id}"
+        # 如果传入的是整数 chat_id，无法判断类型，默认用 group 前缀
+        return f"{self.key}-group_{chat_id_or_chat}"
 
     def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
         """解析聊天标识（Telegram 特殊处理负数群组ID）
