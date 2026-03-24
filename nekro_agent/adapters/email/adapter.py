@@ -243,14 +243,19 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         Returns:
             imaplib.IMAP4_SSL: IMAP连接对象
         """
-        provider_config = EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
-        if not provider_config:
-            raise ValueError(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
-
-        imap_host = provider_config.get("imap_host")
-        if not imap_host:
-            raise ValueError(f"邮箱提供商 {account.EMAIL_ACCOUNT} 缺少 imap_host 配置")
-        imap_port = int(provider_config.get("imap_port", 993))
+        if account.EMAIL_ACCOUNT == "自定义":
+            imap_host = account.CUSTOM_IMAP_HOST
+            if not imap_host:
+                raise ValueError("自定义邮箱提供商必须填写 IMAP 主机地址")
+            imap_port = account.CUSTOM_IMAP_PORT
+        else:
+            provider_config = EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
+            if not provider_config:
+                raise ValueError(f"未知的邮箱提供商: {account.EMAIL_ACCOUNT}")
+            imap_host = provider_config.get("imap_host")
+            if not imap_host:
+                raise ValueError(f"邮箱提供商 {account.EMAIL_ACCOUNT} 缺少 imap_host 配置")
+            imap_port = int(provider_config.get("imap_port", 993))
 
         # 使用配置的超时时间
         conn = imaplib.IMAP4_SSL(imap_host, imap_port, timeout=self.config.IMAP_TIMEOUT)
@@ -775,6 +780,57 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             await collect_message(self, platform_channel, platform_user, platform_message)
             logger.info(f"成功处理账户 {account_username} 的邮件: {parsed.subject}")
 
+            # 写入本地缓存
+            try:
+                import json
+
+                from nekro_agent.models.db_email_cache import DBEmailCache
+
+                # 提取 In-Reply-To 和 References 头
+                in_reply_to = email_message.get("In-Reply-To", "") or ""
+                references_header = email_message.get("References", "") or ""
+                message_id_header = email_message.get("Message-ID", "") or ""
+
+                # 收件人列表
+                to_header = email_message.get("To", "") or ""
+                recipients_json = json.dumps([addr.strip() for addr in to_header.split(",") if addr.strip()])
+
+                # 正文截断到前 5000 字符
+                body_text = parsed.text_content or html_text_content or ""
+                body_text = body_text[:5000]
+
+                # 附件名称列表
+                attachment_names_json = json.dumps(parsed.attachments) if parsed.attachments else "[]"
+
+                # 解析邮件日期
+                email_date = None
+                try:
+                    from email.utils import parsedate_to_datetime
+
+                    if parsed.date_str:
+                        email_date = parsedate_to_datetime(parsed.date_str)
+                except Exception:
+                    pass
+
+                await DBEmailCache.update_or_create(
+                    defaults={
+                        "message_id": message_id_header[:512],
+                        "subject": parsed.subject[:1024],
+                        "sender": f"{parsed.sender_name} <{parsed.sender_addr}>"[:512],
+                        "recipients": recipients_json,
+                        "date": email_date,
+                        "body_text": body_text,
+                        "has_attachments": len(parsed.attachments) > 0,
+                        "attachment_names": attachment_names_json,
+                        "in_reply_to": in_reply_to[:512],
+                        "references": references_header,
+                    },
+                    account_username=account_username,
+                    email_uid=email_id.decode(),
+                )
+            except Exception as cache_exc:
+                logger.warning(f"写入邮件缓存失败: {cache_exc}")
+
             # 发送新邮件通知
             try:
                 await self._notify_new_email(account_username, chat_id, email_id, parsed)
@@ -839,9 +895,33 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
         """获取邮箱提供商配置"""
         return EMAIL_PROVIDER_CONFIGS.get(email_account, {})
 
+    def get_provider_config_for_account(self, account: EmailAccount) -> dict:
+        """获取邮箱提供商配置（支持自定义提供商）
+
+        当提供商为"自定义"时，从 account 的 CUSTOM_* 字段构建配置 dict；
+        否则走预设映射。供 adapter 内部和 email_utils 插件复用。
+        """
+        if account.EMAIL_ACCOUNT == "自定义":
+            return {
+                "imap_host": account.CUSTOM_IMAP_HOST,
+                "imap_port": str(account.CUSTOM_IMAP_PORT),
+                "smtp_host": account.CUSTOM_SMTP_HOST,
+                "smtp_port": str(account.CUSTOM_SMTP_PORT),
+                "smtp_ssl_port": str(account.CUSTOM_SMTP_SSL_PORT),
+                "smtp_use_ssl": str(account.CUSTOM_SMTP_USE_SSL).lower(),
+            }
+        return EMAIL_PROVIDER_CONFIGS.get(account.EMAIL_ACCOUNT, {})
+
     def _get_smtp_config(self, email_account: str) -> tuple[str, int]:
         """获取SMTP配置"""
         provider_config = self._get_provider_config(email_account)
+        smtp_host = provider_config.get("smtp_host", "")
+        smtp_port = int(provider_config.get("smtp_port", 587))
+        return smtp_host, smtp_port
+
+    def _get_smtp_config_for_account(self, account: EmailAccount) -> tuple[str, int]:
+        """获取SMTP配置（支持自定义提供商）"""
+        provider_config = self.get_provider_config_for_account(account)
         smtp_host = provider_config.get("smtp_host", "")
         smtp_port = int(provider_config.get("smtp_port", 587))
         return smtp_host, smtp_port
@@ -929,9 +1009,10 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 )
 
             # 获取SMTP配置
-            smtp_host, smtp_port = self._get_smtp_config(sender_account.EMAIL_ACCOUNT)
-            smtp_ssl_port = int(self._get_provider_config(sender_account.EMAIL_ACCOUNT).get("smtp_ssl_port", smtp_port))
-            use_ssl_preferred = bool(self._get_provider_config(sender_account.EMAIL_ACCOUNT).get("smtp_use_ssl", False))
+            smtp_host, smtp_port = self._get_smtp_config_for_account(sender_account)
+            provider_config = self.get_provider_config_for_account(sender_account)
+            smtp_ssl_port = int(provider_config.get("smtp_ssl_port", smtp_port))
+            use_ssl_preferred = provider_config.get("smtp_use_ssl", "false").lower() == "true"
 
             # 应用提供商的SMTP预处理
             smtp_host, smtp_port = self._apply_provider_smtp_preprocessing(

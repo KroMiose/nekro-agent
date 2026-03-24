@@ -93,7 +93,6 @@ import magic
 from pydantic import Field
 
 from nekro_agent.adapters.email.adapter import EmailAdapter, decode_mime_words
-from nekro_agent.adapters.email.base import EMAIL_PROVIDER_CONFIGS
 from nekro_agent.adapters.email.config import EmailAccount
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendRequest,
@@ -462,8 +461,8 @@ async def send_email(
         _raise_if_no_sender(sender_account)
         assert sender_account is not None  # Type narrowing for Pylance
 
-        # 获取SMTP配置
-        provider_config = EMAIL_PROVIDER_CONFIGS.get(sender_account.EMAIL_ACCOUNT, {})
+        # 获取SMTP配置（支持自定义提供商）
+        provider_config = email_adapter.get_provider_config_for_account(sender_account)
         smtp_host = provider_config.get("smtp_host", "")
         smtp_port = int(provider_config.get("smtp_port", 587))
         smtp_ssl_port = int(provider_config.get("smtp_ssl_port", smtp_port))
@@ -608,48 +607,77 @@ async def summarize_recent_emails(
         one_day_ago = datetime.now() - timedelta(days=1)
         timestamp_one_day_ago = one_day_ago.timestamp()
 
-        # 遍历每个账户的IMAP连接
-        for account in accounts_to_check:
-            account_username = account.USERNAME
-            if account_username in email_adapter.imap_connections:
-                # 获取该账户的锁，确保IMAP操作的线程安全
-                lock = email_adapter.imap_locks.get(account_username)
-                if not lock:
-                    # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
-                    logger.error(f"账户 {account_username} 的锁不存在，将为该账户创建新的锁（可能存在初始化/重连不一致）")
-                    lock = asyncio.Lock()
-                    email_adapter.imap_locks[account_username] = lock
+        # 优先从本地缓存查询
+        cache_hit = False
+        try:
+            from nekro_agent.models.db_email_cache import DBEmailCache
 
-                async with lock:
-                    try:
-                        # 使用适配器的辅助方法选择文件夹
-                        conn = await email_adapter.select_default_mailbox(account_username)
+            for account in accounts_to_check:
+                cached = await DBEmailCache.filter(
+                    account_username=account.USERNAME,
+                    date__gte=one_day_ago,
+                ).order_by("-date").limit(count)
+                for c in cached:
+                    import json
 
-                        search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
-                        # 使用适配器的 imap_search 辅助方法
-                        status, messages = await email_adapter.imap_search(conn, search_criteria)
+                    att_names = json.loads(c.attachment_names) if c.attachment_names else []
+                    recent_emails.append({
+                        "account": c.account_username,
+                        "subject": c.subject,
+                        "sender": c.sender,
+                        "date": c.date.isoformat() if c.date else "",
+                        "content": _trim_text(c.body_text, _SUMMARY_CONTENT_LIMIT),
+                        "attachments": [{"filename": n} for n in att_names],
+                        "uid": c.email_uid,
+                    })
+            if recent_emails:
+                cache_hit = True
+        except Exception as cache_err:
+            logger.debug(f"缓存查询失败，回退到 IMAP: {cache_err}")
 
-                        if status == "OK":
-                            email_ids = messages[0].split()
-                            email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
+        # 缓存未命中时走原有 IMAP 逻辑
+        if not cache_hit:
+            for account in accounts_to_check:
+                account_username = account.USERNAME
+                if account_username in email_adapter.imap_connections:
+                    # 获取该账户的锁，确保IMAP操作的线程安全
+                    lock = email_adapter.imap_locks.get(account_username)
+                    if not lock:
+                        # 如果锁不存在，这是初始化/重连的不一致状态，按需创建避免静默降级
+                        logger.error(f"账户 {account_username} 的锁不存在，将为该账户创建新的锁（可能存在初始化/重连不一致）")
+                        lock = asyncio.Lock()
+                        email_adapter.imap_locks[account_username] = lock
 
-                            # 顺序获取邮件内容，避免并发访问同一个 IMAP 连接导致状态混乱
-                            for email_id in email_ids:
-                                try:
-                                    result = await _fetch_email_content(
-                                        _ctx,
-                                        conn,
-                                        account_username,
-                                        email_id,
-                                        timestamp_one_day_ago,
-                                    )
-                                    if result is not None:
-                                        recent_emails.append(result)
-                                except Exception as e:
-                                    logger.warning(f"获取邮件内容时出错: {e}")
+                    async with lock:
+                        try:
+                            # 使用适配器的辅助方法选择文件夹
+                            conn = await email_adapter.select_default_mailbox(account_username)
 
-                    except Exception as e:
-                        logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
+                            search_criteria = f'SINCE {one_day_ago.strftime("%d-%b-%Y")}'
+                            # 使用适配器的 imap_search 辅助方法
+                            status, messages = await email_adapter.imap_search(conn, search_criteria)
+
+                            if status == "OK":
+                                email_ids = messages[0].split()
+                                email_ids = email_ids[-count:] if len(email_ids) > count else email_ids
+
+                                # 顺序获取邮件内容，避免并发访问同一个 IMAP 连接导致状态混乱
+                                for email_id in email_ids:
+                                    try:
+                                        result = await _fetch_email_content(
+                                            _ctx,
+                                            conn,
+                                            account_username,
+                                            email_id,
+                                            timestamp_one_day_ago,
+                                        )
+                                        if result is not None:
+                                            recent_emails.append(result)
+                                    except Exception as e:
+                                        logger.warning(f"获取邮件内容时出错: {e}")
+
+                        except Exception as e:
+                            logger.error(f"搜索账户 {account_username} 的邮件时出错: {e}")
 
         # 按时间排序并限制数量
         recent_emails.sort(key=lambda x: x["date"], reverse=True)
@@ -903,6 +931,39 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
             raise TypeError(f"邮件 {eid} 数据类型错误")
 
     try:
+        # 优先查询本地缓存
+        try:
+            from nekro_agent.models.db_email_cache import DBEmailCache
+
+            cache = await DBEmailCache.get_or_none(account_username=account_username, email_uid=email_id)
+            if cache:
+                import json
+
+                attachment_names_cached: list = json.loads(cache.attachment_names) if cache.attachment_names else []
+                attachments_list = []
+                for fname in attachment_names_cached:
+                    host_path = _ensure_attachment_path(account_username, email_id, fname)
+                    onebot_server_path = _build_onebot_path(host_path)
+                    attachments_list.append({"filename": fname, "onebot_server_path": onebot_server_path})
+
+                return {
+                    "success": True,
+                    "account": account_username,
+                    "email_id": email_id,
+                    "subject": cache.subject,
+                    "sender": cache.sender,
+                    "date": cache.date.isoformat() if cache.date else "",
+                    "text_content": cache.body_text,
+                    "html_content": "",
+                    "has_attachments": cache.has_attachments,
+                    "attachment_count": len(attachment_names_cached),
+                    "attachment_names": attachment_names_cached,
+                    "attachments": attachments_list,
+                    "from_cache": True,
+                }
+        except Exception as cache_err:
+            logger.debug(f"缓存查询失败，回退到 IMAP: {cache_err}")
+
         # 获取邮箱适配器
         base_adapter = adapter_utils.get_adapter("email")
         _raise_if_no_adapter(base_adapter)

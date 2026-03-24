@@ -1,5 +1,6 @@
 from .db_chat_channel import DBChatChannel  # noqa: F401
 from .db_chat_message import DBChatMessage  # noqa: F401
+from .db_email_cache import DBEmailCache  # noqa: F401
 from .db_exec_code import DBExecCode  # noqa: F401
 from .db_mem_entity import DBMemEntity  # noqa: F401
 from .db_mem_episode import DBMemEpisode  # noqa: F401
