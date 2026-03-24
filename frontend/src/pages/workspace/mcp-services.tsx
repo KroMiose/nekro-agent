@@ -14,8 +14,8 @@ import {
 import { useTheme } from '@mui/material/styles'
 import {
   Search as SearchIcon,
-  Terminal as TerminalIcon,
   Http as HttpIcon,
+  Terminal as TerminalIcon,
   Refresh as RefreshIcon,
   Close as CloseIcon,
   FilterAltOff as FilterAltOffIcon,

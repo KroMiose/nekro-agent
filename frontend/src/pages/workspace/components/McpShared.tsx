@@ -23,6 +23,9 @@ import {
   Switch,
   Tooltip,
   Alert,
+  Menu,
+  MenuItem,
+  ListItemIcon,
 } from '@mui/material'
 import {
   Delete as DeleteIcon,
@@ -33,6 +36,8 @@ import {
   ViewModule as ViewModuleIcon,
   FormatListBulleted as ListViewIcon,
   FileUpload as ImportIcon,
+  SyncOutlined as SyncIcon,
+  ArrowDropDown as ArrowDropDownIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useTheme } from '@mui/material/styles'
@@ -103,10 +108,15 @@ export function ServerFormDialog({
   const [form, setForm] = useState<McpServerConfig>(initial)
   useEffect(() => { if (open) setForm(initial) }, [open, initial])
 
+  const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx', 'bunx', 'pnpx'])
+
   const handleSubmit = () => {
     if (!form.name.trim()) return
+    if (form.type === 'stdio' && !ALLOWED_STDIO_CMDS.has((form.command ?? '').trim())) return
     onSubmit({ ...form, args: form.args ?? [], env: form.env ?? {}, headers: form.headers ?? {} })
   }
+
+  const stdioCommandInvalid = form.type === 'stdio' && (form.command ?? '').trim() !== '' && !ALLOWED_STDIO_CMDS.has((form.command ?? '').trim())
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
@@ -121,10 +131,11 @@ export function ServerFormDialog({
           </Box>
           {form.type === 'stdio' ? (
             <>
-              <TextField label={t('detail.mcp.form.command')} value={form.command ?? ''} onChange={e => setForm(f => ({ ...f, command: e.target.value }))} size="small" fullWidth placeholder="npx / uvx / node / python" />
+              <TextField label={t('detail.mcp.form.command')} value={form.command ?? ''} onChange={e => setForm(f => ({ ...f, command: e.target.value }))} size="small" fullWidth placeholder="npx / uvx / bunx / pnpx" error={stdioCommandInvalid} helperText={stdioCommandInvalid ? t('detail.mcp.form.stdioCommandError') : undefined} />
               <TextField label={t('detail.mcp.form.args')} value={(form.args ?? []).join(' ')} onChange={e => setForm(f => ({ ...f, args: e.target.value.split(' ').filter(Boolean) }))} size="small" fullWidth placeholder="-y @modelcontextprotocol/server-github" helperText={t('detail.mcp.form.argsHint')} />
               <Typography variant="caption" color="text.secondary">{t('detail.mcp.form.envLabel')}</Typography>
               <KeyValueEditor value={form.env ?? {}} onChange={env => setForm(f => ({ ...f, env }))} keyLabel="Key" valueLabel="Value" />
+              <Alert severity="info" sx={{ py: 0.5 }}>{t('detail.mcp.form.stdioHint')}</Alert>
             </>
           ) : (
             <>
@@ -137,7 +148,7 @@ export function ServerFormDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>{t('detail.mcp.form.cancel')}</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={!form.name.trim()}>{submitLabel}</Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={!form.name.trim() || stdioCommandInvalid}>{submitLabel}</Button>
       </DialogActions>
     </Dialog>
   )
@@ -192,6 +203,7 @@ export interface McpServerManagerProps {
   onDelete: (name: string) => Promise<void>
   onToggleEnabled: (server: McpServerConfig) => Promise<void>
   onImport: (servers: McpServerConfig[]) => Promise<void>
+  onSyncToSandbox?: () => Promise<void>
   // 卡片差异
   cardVariant?: 'workspace' | 'global'
   // 文本
@@ -212,6 +224,7 @@ export function McpServerManager({
   onDelete,
   onToggleEnabled,
   onImport,
+  onSyncToSandbox,
   cardVariant = 'workspace',
   emptyText,
   emptyHint,
@@ -233,6 +246,7 @@ export function McpServerManager({
   const [importOpen, setImportOpen] = useState(false)
   const [importText, setImportText] = useState('')
   const [importError, setImportError] = useState<string | null>(null)
+  const [addMenuAnchor, setAddMenuAnchor] = useState<null | HTMLElement>(null)
 
   // ── JSON text ──
   const jsonText = useMemo(() => {
@@ -273,12 +287,21 @@ export function McpServerManager({
       if (typeof mcpObj !== 'object' || Array.isArray(mcpObj)) {
         setImportError(t('mcpServices.import.formatError')); return
       }
-      const newServers: McpServerConfig[] = Object.entries(mcpObj).map(([name, cfg]) => {
+      const allServers: McpServerConfig[] = Object.entries(mcpObj).map(([name, cfg]) => {
         const c = cfg as Record<string, unknown>
         const tp = (c.transport_type as string) ?? (c.command ? 'stdio' : c.url ? 'http' : 'stdio')
         return { name, type: tp as McpServerType, enabled: true, command: (c.command as string) ?? '', args: (c.args as string[]) ?? [], env: (c.env as Record<string, string>) ?? {}, url: (c.url as string) ?? '', headers: (c.headers as Record<string, string>) ?? {} }
       })
-      if (newServers.length === 0) { setImportError(t('mcpServices.import.emptyError')); return }
+      if (allServers.length === 0) { setImportError(t('mcpServices.import.emptyError')); return }
+      // STDIO 仅允许包管理器命令（npx/uvx 等），其余拒绝导入
+      const ALLOWED_STDIO_CMDS = new Set(['npx', 'uvx', 'bunx', 'pnpx'])
+      const unsupported = allServers.filter(s =>
+        s.type === 'stdio' && !ALLOWED_STDIO_CMDS.has((s.command ?? '').trim())
+      )
+      const newServers = allServers.filter(s => !unsupported.includes(s))
+      if (newServers.length === 0) {
+        setImportError(t('mcpServices.import.allLocalFileError')); return
+      }
       setMutating(true)
       await onImport(newServers)
       setImportOpen(false); setImportText(''); setImportError(null)
@@ -293,14 +316,26 @@ export function McpServerManager({
           <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
             {t('detail.mcp.title')}
           </Typography>
-          {viewMode === 'cards' && (
+          {viewMode !== 'json' && (
             <>
-              <Button size="small" variant="outlined" startIcon={<ImportIcon />} onClick={() => { setImportOpen(true); setImportText(''); setImportError(null) }}>
-                {t('mcpServices.toolbar.importJson')}
+              {onSyncToSandbox && (
+                <Button size="small" variant="outlined" startIcon={<SyncIcon />} onClick={() => { onSyncToSandbox().catch(() => {}) }} disabled={mutating}>
+                  {t('detail.mcp.syncToSandbox')}
+                </Button>
+              )}
+              <Button size="small" variant="contained" startIcon={<AddIcon />} endIcon={<ArrowDropDownIcon />} onClick={e => setAddMenuAnchor(e.currentTarget)}>
+                {t('detail.mcp.addServer')}
               </Button>
-              <Button size="small" variant="contained" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>
-                {t('detail.mcp.addManual')}
-              </Button>
+              <Menu anchorEl={addMenuAnchor} open={!!addMenuAnchor} onClose={() => setAddMenuAnchor(null)}>
+                <MenuItem onClick={() => { setAddMenuAnchor(null); setAddOpen(true) }}>
+                  <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
+                  {t('detail.mcp.addManual')}
+                </MenuItem>
+                <MenuItem onClick={() => { setAddMenuAnchor(null); setImportOpen(true); setImportText(''); setImportError(null) }}>
+                  <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
+                  {t('mcpServices.toolbar.importJson')}
+                </MenuItem>
+              </Menu>
             </>
           )}
           <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>

@@ -316,6 +316,7 @@
       "parseError": "Failed to parse JSON, please check the format",
       "formatError": "Invalid format. Expected { mcpServers: { ... } } or { name: { ... } }",
       "emptyError": "No services found to import",
+      "allLocalFileError": "All STDIO services reference local file paths and cannot be imported. Only package manager commands (npx/uvx) are supported.",
       "success": "Successfully imported {{count}} services",
       "successWithSkip": "Imported {{count}} services, skipped {{skipped}} existing"
     },
@@ -662,9 +663,13 @@
       "empty": "No MCP servers configured. Add from templates to get started.",
       "fromTemplate": "From Template",
       "addManual": "Add Manually",
+      "addServer": "Add Server",
       "switchToJson": "Switch to JSON preview",
       "switchToCards": "Switch to card view",
       "switchToList": "Switch to list view",
+      "syncToSandbox": "Sync MCP config to sandbox",
+      "syncSuccess": "MCP config synced to sandbox",
+      "syncFailed": "Sync failed: {{message}}",
       "save": "Save",
       "saving": "Saving...",
       "add": "Add",
@@ -696,7 +701,9 @@
         "envLabel": "Environment Variables",
         "url": "Server URL",
         "headersLabel": "HTTP Headers",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "stdioHint": "Only package manager commands (npx / uvx / bunx / pnpx) are supported. Local file paths on the host are not supported.",
+        "stdioCommandError": "Only npx, uvx, bunx, pnpx commands are supported"
       },
       "registry": {
         "title": "Add MCP Server from Template",

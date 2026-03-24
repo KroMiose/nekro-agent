@@ -304,6 +304,10 @@ export const workspaceApi = {
     await axios.delete(`/workspaces/${id}/mcp/servers/${encodeURIComponent(name)}`)
   },
 
+  syncMcpToSandbox: async (id: number): Promise<void> => {
+    await axios.post(`/workspaces/${id}/mcp/sync`)
+  },
+
   // CC 模型预设
   getCCModelPreset: async (id: number): Promise<{ preset_id: number | null; config_json: Record<string, unknown> | null }> => {
     const response = await axios.get<{ preset_id: number | null; config_json: Record<string, unknown> | null }>(

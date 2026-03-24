@@ -316,6 +316,7 @@
       "parseError": "JSON 解析失败，请检查格式",
       "formatError": "格式不正确，需要 { mcpServers: { ... } } 或 { name: { ... } } 格式",
       "emptyError": "未找到可导入的服务",
+      "allLocalFileError": "所有 STDIO 服务均引用了本地文件路径，无法导入。仅支持 npx/uvx 等包管理器命令",
       "success": "成功导入 {{count}} 个服务",
       "successWithSkip": "成功导入 {{count}} 个服务，跳过 {{skipped}} 个已存在的服务"
     },
@@ -662,6 +663,10 @@
       "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
       "fromTemplate": "从模板添加",
       "addManual": "手动添加",
+      "addServer": "添加服务",
+      "syncToSandbox": "同步到沙盒",
+      "syncSuccess": "MCP 配置已同步到沙盒",
+      "syncFailed": "同步失败：{{message}}",
       "switchToJson": "切换到 JSON 预览",
       "switchToCards": "切换到卡片视图",
       "switchToList": "切换到列表视图",
@@ -696,7 +701,9 @@
         "envLabel": "环境变量",
         "url": "服务器 URL",
         "headersLabel": "HTTP 请求头",
-        "cancel": "取消"
+        "cancel": "取消",
+        "stdioHint": "仅支持 npx / uvx / bunx / pnpx 等包管理器命令，不支持引用宿主机本地文件路径",
+        "stdioCommandError": "仅支持 npx、uvx、bunx、pnpx 命令"
       },
       "registry": {
         "title": "从模板添加 MCP 服务器",

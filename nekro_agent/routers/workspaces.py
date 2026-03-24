@@ -1254,6 +1254,21 @@ async def delete_mcp_server(
     return ActionOkResponse(ok=True)
 
 
+@router.post("/{workspace_id}/mcp/sync", summary="同步 MCP 配置到沙盒", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def sync_mcp_to_sandbox(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    """将数据库中的 MCP 配置重新写入工作区目录的 .mcp.json，无需重启容器即可生效"""
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    mcp_config = (ws.metadata or {}).get("mcp_config", {"mcpServers": {}})
+    await WorkspaceService.update_mcp_config(ws, mcp_config)
+    return ActionOkResponse(ok=True)
+
+
 # ─────────────────────────────────────────────────────────────
 # CC 模型预设
 # ─────────────────────────────────────────────────────────────

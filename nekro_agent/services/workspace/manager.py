@@ -509,14 +509,6 @@ updated: "YYYY-MM-DD"
             )
             logger.debug(f"写入 .claude/settings.json: {claude_settings_path}")
 
-        # 写入 .mcp.json（来自 metadata.mcp_config，若无则写空配置）
-        mcp_config = workspace.metadata.get("mcp_config", {})
-        if not mcp_config:
-            mcp_config = {"mcpServers": {}}
-        mcp_path = ws_dir / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
-        logger.debug(f"写入 .mcp.json: {mcp_path}")
-
         # 同步 skills 目录
         await WorkspaceService.sync_skills(workspace)
 
@@ -531,6 +523,15 @@ updated: "YYYY-MM-DD"
         claude_home.mkdir(exist_ok=True)
         # 确保容器内的 appuser 有写入权限（bind mount 跨越用户边界时宿主机 owner 可能不匹配）
         claude_home.chmod(0o777)
+
+        # 写入 .mcp.json 到 CC 工作目录（/workspace/default/.mcp.json）
+        # 注意：与 CLAUDE.md 同理，必须放在 /workspace/default/ 下，CC 只在项目根目录查找
+        mcp_config = workspace.metadata.get("mcp_config", {})
+        if not mcp_config:
+            mcp_config = {"mcpServers": {}}
+        mcp_path = ws_dir / "default" / ".mcp.json"
+        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+        logger.debug(f"写入 .mcp.json: {mcp_path}")
 
         # 写入 CLAUDE.md 到 CC 工作目录（/workspace/default/CLAUDE.md）
         # 注意：不能放在 /workspace/CLAUDE.md，否则当 /workspace/default/ 成为 git 根目录时
@@ -706,7 +707,7 @@ updated: "YYYY-MM-DD"
         await workspace.save(update_fields=["metadata", "update_time"])
 
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
-        mcp_path = ws_dir / ".mcp.json"
+        mcp_path = ws_dir / "default" / ".mcp.json"
         mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
 
     @staticmethod

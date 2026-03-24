@@ -79,6 +79,16 @@ export default function MCPTab({ workspace }: { workspace: WorkspaceDetail }) {
     notification.success(t('mcpServices.import.success', { count: added }))
   }
 
+  const handleSyncToSandbox = async () => {
+    try {
+      await workspaceApi.syncMcpToSandbox(workspace.id)
+      notification.success(t('detail.mcp.syncSuccess'))
+    } catch (e) {
+      notification.error(t('detail.mcp.syncFailed', { message: (e as Error).message }))
+      throw e
+    }
+  }
+
   return (
     <McpServerManager
       servers={servers}
@@ -88,6 +98,7 @@ export default function MCPTab({ workspace }: { workspace: WorkspaceDetail }) {
       onDelete={handleDelete}
       onToggleEnabled={handleToggleEnabled}
       onImport={handleImport}
+      onSyncToSandbox={handleSyncToSandbox}
       cardVariant="workspace"
       emptyText={t('detail.mcp.empty')}
       jsonTitle={t('detail.mcp.title')}
