@@ -608,7 +608,7 @@ export default function LoginPage() {
                       </Link>{' '}
                       {t('agreement.and')}{' '}
                       <Link
-                        href="https://community.nekro.ai/terms"
+                        href="https://cloud.nekro.ai/terms"
                         target="_blank"
                         rel="noopener noreferrer"
                         sx={{ color: theme.palette.primary.main }}

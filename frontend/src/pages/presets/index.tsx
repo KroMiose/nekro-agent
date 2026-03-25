@@ -1238,7 +1238,7 @@ const PresetCard = ({
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   {t('cloud.termsConfirm')}{' '}
                   <Link
-                    href="https://community.nekro.ai/terms"
+                    href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
@@ -1351,7 +1351,7 @@ const PresetCard = ({
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   {t('cloud.termsConfirm')}{' '}
                   <Link
-                    href="https://community.nekro.ai/terms"
+                    href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}

@@ -98,7 +98,7 @@ class CoreConfig(ConfigBase):
     NEKRO_CLOUD_API_KEY: str = Field(
         default="",
         title="NekroAI 云服务 API Key",
-        description="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me'>NekroAI 社区</a> 获取",
+        description="NekroAI 云服务 API Key，可前往 <a href='https://cloud.nekro.ai/me'>NekroAI 社区</a> 获取",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="基础设置",
@@ -111,8 +111,8 @@ class CoreConfig(ConfigBase):
                 en_US="NekroAI Cloud Service API Key",
             ),
             i18n_description=i18n_text(
-                zh_CN="NekroAI 云服务 API Key，可前往 <a href='https://community.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI 社区</a> 获取",
-                en_US="NekroAI Cloud Service API Key, get it from <a href='https://community.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI Community</a>",
+                zh_CN="NekroAI 云服务 API Key，可前往 <a href='https://cloud.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI 社区</a> 获取",
+                en_US="NekroAI Cloud Service API Key, get it from <a href='https://cloud.nekro.ai/me' target='_blank' rel='noopener noreferrer'>NekroAI Community</a>",
             ),
         ).model_dump(),
     )

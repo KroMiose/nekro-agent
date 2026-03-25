@@ -55,7 +55,7 @@ class OsEnv:
     ADMIN_PASSWORD: str = OsEnvTypes.Str("ADMIN_PASSWORD", default="")
 
     """Nekro Cloud API"""
-    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://community.nekro.ai")
+    NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="https://cloud.nekro.ai")
     # NEKRO_CLOUD_API_BASE_URL: str = OsEnvTypes.Str("NEKRO_CLOUD_API_BASE_URL", default="http://localhost:8787")
 
     """OPENAPI 配置"""
