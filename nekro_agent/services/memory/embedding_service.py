@@ -14,8 +14,6 @@ from nekro_agent.services.agent.openai import gen_openai_embeddings
 
 logger = get_sub_logger("memory.embedding")
 
-# 默认配置
-DEFAULT_EMBEDDING_MODEL_GROUP = "text-embedding"
 DEFAULT_TIMEOUT = 30
 MAX_RETRIES = 3
 RETRY_DELAY = 1.0
@@ -23,7 +21,12 @@ RETRY_DELAY = 1.0
 
 def get_memory_embedding_dimension() -> int:
     """获取记忆系统当前配置的 embedding 维度"""
-    return max(1, int(getattr(config, "MEMORY_EMBEDDING_DIMENSION", 1024)))
+    return max(1, int(config.MEMORY_EMBEDDING_DIMENSION))
+
+
+def get_memory_embedding_model_group() -> str:
+    """获取记忆系统当前配置的 embedding 模型组"""
+    return config.MEMORY_EMBEDDING_MODEL_GROUP
 
 
 class EmbeddingService:
@@ -34,7 +37,7 @@ class EmbeddingService:
 
     def __init__(
         self,
-        model_group: str = DEFAULT_EMBEDDING_MODEL_GROUP,
+        model_group: str | None = None,
         dimension: int | None = None,
         timeout: int = DEFAULT_TIMEOUT,
     ):
@@ -47,10 +50,15 @@ class EmbeddingService:
         """解析当前应使用的 embedding 维度"""
         return self.dimension if self.dimension is not None else get_memory_embedding_dimension()
 
+    @property
+    def resolved_model_group(self) -> str:
+        """解析当前应使用的 embedding 模型组"""
+        return self.model_group if self.model_group is not None else get_memory_embedding_model_group()
+
     def _get_model_config(self) -> dict[str, Any]:
         """获取模型配置"""
         try:
-            model_info = config.get_model_group_info(self.model_group)
+            model_info = config.get_model_group_info(self.resolved_model_group)
             return {
                 "model": model_info.CHAT_MODEL,
                 "api_key": model_info.API_KEY,
@@ -58,7 +66,7 @@ class EmbeddingService:
             }
         except Exception as e:
             logger.error(f"获取 Embedding 模型配置失败: {e}")
-            raise ValueError(f"Embedding 模型组 '{self.model_group}' 配置无效") from e
+            raise ValueError(f"Embedding 模型组 '{self.resolved_model_group}' 配置无效") from e
 
     async def embed_text(self, text: str) -> list[float]:
         """生成单条文本的向量

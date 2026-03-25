@@ -29,6 +29,15 @@ from nekro_agent.services.memory.qdrant_manager import (
     MemoryQdrantManager,
     memory_qdrant_manager,
 )
+from nekro_agent.services.memory.query_service import (
+    MemoryDetailResponse,
+    MemoryObjectType,
+    MemoryOriginTraceResponse,
+    MemorySearchResponse,
+    get_workspace_memory_detail,
+    search_workspace_memories,
+    trace_workspace_memory_origin,
+)
 from nekro_agent.services.memory.retriever import (
     MemoryRecallQuery,
     MemoryRetriever,
@@ -63,6 +72,14 @@ __all__ = [
     "MEMORY_PARAGRAPH_COLLECTION",
     "MemoryQdrantManager",
     "memory_qdrant_manager",
+    # Query Service
+    "MemoryObjectType",
+    "MemorySearchResponse",
+    "MemoryDetailResponse",
+    "MemoryOriginTraceResponse",
+    "search_workspace_memories",
+    "get_workspace_memory_detail",
+    "trace_workspace_memory_origin",
     # Retriever
     "MemoryRetriever",
     "MemoryRecallQuery",

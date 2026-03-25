@@ -306,7 +306,6 @@ class CoreConfig(ConfigBase):
                 zh_CN="用于增强记忆检索规划的聊天模型组。留空时回退到默认聊天模型组",
                 en_US="Chat model group used for enhanced memory retrieval planning. Falls back to the default chat model group when empty",
             ),
-            placeholder="例: api-nekro-flash-2.5",
         ).model_dump(),
     )
     MEMORY_CONSOLIDATION_MODEL_GROUP: str = Field(
@@ -322,7 +321,6 @@ class CoreConfig(ConfigBase):
                 zh_CN="用于情景记忆沉淀提取的模型组名称。留空时回退到默认聊天模型组",
                 en_US="Model group for episodic memory consolidation. Falls back to the default chat model group when empty",
             ),
-            placeholder="例: api-nekro-flash-2.5",
         ).model_dump(),
     )
     MEMORY_CONSOLIDATION_FALLBACK_MODEL_GROUP: str = Field(
@@ -339,6 +337,22 @@ class CoreConfig(ConfigBase):
                 en_US="Fallback model group used on the final parse retry of episodic memory consolidation. Falls back to the primary consolidation model group when empty",
             ),
             placeholder="例: api-nekro-pro-2.5",
+        ).model_dump(),
+    )
+    MEMORY_EMBEDDING_MODEL_GROUP: str = Field(
+        default="text-embedding",
+        title="记忆 Embedding 模型组",
+        description="用于记忆系统向量化的 embedding 模型组。应选择 MODEL_TYPE 为 embedding 的模型组，并与向量维度配置保持一致",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="记忆系统", en_US="Memory System"),
+            ref_model_groups=True,
+            model_type="embedding",
+            i18n_title=i18n_text(zh_CN="记忆 Embedding 模型组", en_US="Memory Embedding Model Group"),
+            i18n_description=i18n_text(
+                zh_CN="用于记忆系统向量化的 embedding 模型组。应选择 MODEL_TYPE 为 embedding 的模型组，并与向量维度配置保持一致",
+                en_US="Embedding model group used by the memory system for vectorization. It should use a model group with MODEL_TYPE set to embedding and match the configured vector dimension",
+            ),
+            placeholder="例: text-embedding",
         ).model_dump(),
     )
     MEMORY_EMBEDDING_DIMENSION: int = Field(

@@ -311,46 +311,49 @@ class MemoryMaintenanceScheduler:
             logger.warning("沉淀处理器未设置，跳过任务")
             return
 
-        async with self._semaphore:
-            from nekro_agent.services.memory.rebuild import is_workspace_memory_rebuild_running
+        try:
+            async with self._semaphore:
+                from nekro_agent.services.memory.rebuild import is_workspace_memory_rebuild_running
 
-            if is_workspace_memory_rebuild_running(workspace_id):
-                logger.info(f"工作区记忆重建进行中，延后实时沉淀: workspace={workspace_id}")
-                async with self._lock:
-                    await self._schedule_consolidation(
-                        workspace_id,
-                        task.chat_key,
-                        task.priority,
-                        extra_delay_seconds=max(2.0, config.MEMORY_CONSOLIDATION_BATCH_COOLDOWN_SECONDS),
-                    )
-                return
+                if is_workspace_memory_rebuild_running(workspace_id):
+                    logger.info(f"工作区记忆重建进行中，延后实时沉淀: workspace={workspace_id}")
+                    async with self._lock:
+                        await self._schedule_consolidation(
+                            workspace_id,
+                            task.chat_key,
+                            task.priority,
+                            extra_delay_seconds=max(2.0, config.MEMORY_CONSOLIDATION_BATCH_COOLDOWN_SECONDS),
+                        )
+                    return
 
-            self._running_tasks.add(workspace_id)
-            try:
-                logger.info(f"开始执行沉淀: workspace={workspace_id}")
-                await self._consolidation_handler(workspace_id, task.chat_key)
+                self._running_tasks.add(workspace_id)
+                try:
+                    logger.info(f"开始执行沉淀: workspace={workspace_id}")
+                    await self._consolidation_handler(workspace_id, task.chat_key)
 
-                # 更新统计
-                async with self._lock:
-                    if workspace_id in self._workspace_stats:
-                        stats = self._workspace_stats[workspace_id]
-                        stats.pending_messages = 0
-                        stats.last_consolidation_at = datetime.now()
-                        stats.consecutive_skips = 0
+                    # 更新统计
+                    async with self._lock:
+                        if workspace_id in self._workspace_stats:
+                            stats = self._workspace_stats[workspace_id]
+                            stats.pending_messages = 0
+                            stats.last_consolidation_at = datetime.now()
+                            stats.consecutive_skips = 0
 
-                logger.info(f"沉淀完成: workspace={workspace_id}")
-                cooldown = max(0.0, float(config.MEMORY_CONSOLIDATION_BATCH_COOLDOWN_SECONDS))
-                if cooldown > 0:
-                    await asyncio.sleep(cooldown)
+                    logger.info(f"沉淀完成: workspace={workspace_id}")
+                    cooldown = max(0.0, float(config.MEMORY_CONSOLIDATION_BATCH_COOLDOWN_SECONDS))
+                    if cooldown > 0:
+                        await asyncio.sleep(cooldown)
 
-            except Exception as e:
-                logger.exception(f"沉淀任务失败: workspace={workspace_id}, error={e}")
-                # 增加跳过计数
-                async with self._lock:
-                    if workspace_id in self._workspace_stats:
-                        self._workspace_stats[workspace_id].consecutive_skips += 1
-            finally:
-                self._running_tasks.discard(workspace_id)
+                except Exception as e:
+                    logger.exception(f"沉淀任务失败: workspace={workspace_id}, error={e}")
+                    # 增加跳过计数
+                    async with self._lock:
+                        if workspace_id in self._workspace_stats:
+                            self._workspace_stats[workspace_id].consecutive_skips += 1
+                finally:
+                    self._running_tasks.discard(workspace_id)
+        except Exception as e:
+            logger.exception(f"沉淀任务调度执行异常: workspace={workspace_id}, error={e}")
 
     async def force_consolidation(self, workspace_id: int, chat_key: str) -> bool:
         """强制触发沉淀

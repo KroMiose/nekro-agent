@@ -704,3 +704,20 @@ async def recover_pending_memory_rebuilds() -> int:
     if recovered > 0:
         logger.info(f"已恢复未完成的记忆重建任务: {recovered} 个工作区")
     return recovered
+
+
+def is_workspace_memory_rebuild_running(workspace_id: int) -> bool:
+    """判断工作区是否存在正在执行中的记忆重建任务。
+
+    该函数用于兼容仍按旧接口调用的调度链路。当前真实状态来源
+    为文件状态机中的 active job 与 job state。
+    """
+
+    index = read_workspace_index(workspace_id)
+    job_id = index.active_job_id
+    if not job_id:
+        return False
+    state = read_job_state(job_id)
+    if state is None:
+        return False
+    return state.is_active() and state.status != RebuildJobStatus.STALLED
