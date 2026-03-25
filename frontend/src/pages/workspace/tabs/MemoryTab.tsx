@@ -27,8 +27,8 @@ import {
 import { alpha, useTheme, type Theme } from '@mui/material/styles'
 import {
   AcUnit as FreezeIcon,
-  AutoAwesome as MemoryIcon,
   ChevronLeft as CollapseIcon,
+  Close as CloseIcon,
   Delete as DeleteIcon,
   Edit as EditIcon,
   GppGood as ProtectIcon,
@@ -45,6 +45,7 @@ import {
 } from '@mui/icons-material'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import {
   memoryApi,
   MemoryDataResponse,
@@ -654,6 +655,7 @@ function StatChip({ label, color }: { label: string; color: string }) {
 
 export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail }) {
   const theme = useTheme()
+  const { t } = useTranslation('workspace')
   const queryClient = useQueryClient()
   const notification = useNotification()
   const [viewMode, setViewMode] = useState<AtlasViewMode>('episode')
@@ -678,6 +680,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
   const [searchText, setSearchText] = useState('')
   const [editSummary, setEditSummary] = useState('')
   const [editContent, setEditContent] = useState('')
+  const [dismissedRebuildJobId, setDismissedRebuildJobId] = useState<string | null>(null)
 
   const {
     data: memoryData,
@@ -975,8 +978,18 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
       : rebuildStatus?.is_running
         ? '重建进行中'
         : rebuildStatus?.status === 'completed'
-          ? '重建完成'
+        ? '重建完成'
           : '空闲'
+  const shouldShowRebuildCard = Boolean(
+    rebuildStatus &&
+      rebuildStatus.job_id !== dismissedRebuildJobId &&
+      (
+        rebuildStatus.is_running ||
+        rebuildStatus.status === 'failed' ||
+        rebuildStatus.status === 'cancel_requested' ||
+        rebuildStatus.status === 'stalled'
+      ),
+  )
   const visibleRebuildChannels = useMemo(
     () =>
       (rebuildStatus?.channels ?? [])
@@ -987,6 +1000,20 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
   )
 
   useEffect(() => {
+    if (!rebuildStatus?.job_id) {
+      setDismissedRebuildJobId(null)
+      return
+    }
+    if (rebuildStatus.is_running && rebuildStatus.job_id === dismissedRebuildJobId) {
+      setDismissedRebuildJobId(null)
+      return
+    }
+    if (dismissedRebuildJobId && rebuildStatus.job_id !== dismissedRebuildJobId) {
+      setDismissedRebuildJobId(null)
+    }
+  }, [dismissedRebuildJobId, rebuildStatus?.is_running, rebuildStatus?.job_id])
+
+  useEffect(() => {
     if (!selectedAtlasNode) return
     if (selectedAtlasNode.memory_type !== 'episode') return
     panRef.current = {
@@ -995,6 +1022,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
     }
     zoomRef.current = Math.max(zoomRef.current, 1.08)
     commitViewport()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedAtlasNode])
 
   const graphViewportRef = useRef<HTMLDivElement | null>(null)
@@ -1055,6 +1083,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
       element.removeEventListener('gesturechange', preventGesture)
       element.removeEventListener('gestureend', preventGesture)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const syncViewportState = () => {
@@ -1191,7 +1220,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           </Button>
         </Stack>
 
-        {!!rebuildStatus && (rebuildStatus.is_running || rebuildStatus.status === 'failed' || rebuildStatus.status === 'completed') && (
+        {shouldShowRebuildCard && !!rebuildStatus && (
           <Card
             sx={{
               position: 'absolute',
@@ -1224,9 +1253,22 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                     />
                     {rebuildStatus.is_running && <CircularProgress size={16} thickness={4} />}
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    {rebuildStatus.completed_channels}/{rebuildStatus.total_channels} 频道
-                  </Typography>
+                  <Stack direction="row" spacing={0.5} alignItems="center">
+                    <Typography variant="caption" color="text.secondary">
+                      {rebuildStatus.completed_channels}/{rebuildStatus.total_channels} 频道
+                    </Typography>
+                    {!rebuildStatus.is_running && (
+                      <Tooltip title={t('skills.drawer.close')}>
+                        <IconButton
+                          size="small"
+                          onClick={() => setDismissedRebuildJobId(rebuildStatus.job_id ?? null)}
+                          sx={{ ml: 0.25 }}
+                        >
+                          <CloseIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Stack>
                 </Stack>
 
                 <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
