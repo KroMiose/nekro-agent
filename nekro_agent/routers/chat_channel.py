@@ -192,10 +192,10 @@ async def stream_chat_channel_list(
                 try:
                     event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield {"comment": "ping"}
                     continue
 
-                yield f"data: {json.dumps(event.model_dump())}\n\n"
+                yield {"data": json.dumps(event.model_dump())}
         finally:
             subscription.close()
 
@@ -681,7 +681,7 @@ async def stream_chat_channel_messages(
                 try:
                     message = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield {"comment": "ping"}
                     continue
 
                 # 直接使用广播的消息对象，转换为可序列化的字典格式
@@ -716,7 +716,7 @@ async def stream_chat_channel_messages(
                         "ref_msg_id": getattr(message, "ref_msg_id", "") or "",
                     }
 
-                    yield f"data: {json.dumps(message_dict, ensure_ascii=False)}\n\n"
+                    yield {"data": json.dumps(message_dict, ensure_ascii=False)}
                 except Exception as e:
                     logger.error(f"SSE消息序列化失败: {e}")
                     continue

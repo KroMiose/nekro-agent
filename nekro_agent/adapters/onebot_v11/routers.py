@@ -166,7 +166,7 @@ async def stream_logs(
                 try:
                     item = await asyncio.wait_for(queue.get(), timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield {"comment": "ping"}
                     continue
                 if item is sentinel:
                     return

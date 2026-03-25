@@ -40,6 +40,7 @@ export const createEventStream = (options: StreamOptions) => {
   }
 
   let isFirstOpen = true
+  let retryDelayMs = 1000
 
   try {
     // 创建 EventSource 连接
@@ -52,8 +53,9 @@ export const createEventStream = (options: StreamOptions) => {
         Accept: 'text/event-stream',
       },
       body: body ? JSON.stringify(body) : undefined,
-      openWhenHidden: true,
+      openWhenHidden: false,
       async onopen() {
+        retryDelayMs = 1000
         if (isFirstOpen) {
           isFirstOpen = false
         } else {
@@ -67,7 +69,9 @@ export const createEventStream = (options: StreamOptions) => {
       onerror(err: Error) {
         if (signal?.aborted || controller.signal.aborted) return
         if (onError) onError(err)
-        // 不调用 controller.abort()，让 fetchEventSource 自动重连
+        const currentDelay = retryDelayMs
+        retryDelayMs = Math.min(retryDelayMs * 2, 5000)
+        return currentDelay
       },
     }).catch(err => {
       if (onError && err instanceof Error) {

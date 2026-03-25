@@ -29,6 +29,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
+from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.quota_service import quota_service
@@ -40,6 +41,22 @@ from nekro_agent.tools.common_util import (
 )
 
 logger = get_sub_logger("message_pipeline")
+
+
+async def _notify_memory_scheduler(chat_key: str, workspace_id: int | None, content_length: int) -> None:
+    """通知记忆调度器有新消息（非阻塞）"""
+    if workspace_id is None or not is_memory_system_enabled():
+        return
+    try:
+        from nekro_agent.services.memory.scheduler import memory_scheduler
+
+        await memory_scheduler.on_new_message(
+            chat_key=chat_key,
+            workspace_id=workspace_id,
+            content_length=content_length,
+        )
+    except Exception as e:
+        logger.debug(f"记忆调度器通知失败（可忽略）: {e}")
 
 
 class MessageService:
@@ -153,7 +170,8 @@ class MessageService:
 
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
         """执行agent任务"""
-        from nekro_agent.services.agent.run_agent import run_agent
+        from nekro_agent.services.agent.run_agent import AllLLMRequestsFailedError, run_agent
+        from nekro_agent.services.chat.universal_chat_service import universal_chat_service
         from nekro_agent.services.system_broadcast import AgentActiveEvent, publish_system_event
 
         db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
@@ -202,15 +220,22 @@ class MessageService:
 
             try:
                 async with asyncio.timeout(_max_total_timeout):
+                    last_exception: Optional[Exception] = None
                     for _i in range(3):
                         try:
                             await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
                         except Exception as e:
+                            last_exception = e
                             logger.exception(f"执行失败: {e}")
                         else:
                             break
                     else:
                         logger.error("Failed to Run Chat Agent.")
+                        if isinstance(last_exception, AllLLMRequestsFailedError) and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
+                            await universal_chat_service.send_operation_message(
+                                chat_key,
+                                "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ",
+                            )
             except TimeoutError:
                 logger.error(
                     f"[message_service] 频道 {chat_key} Agent 任务超过兜底超时 {_max_total_timeout}s，强制终止以释放频道锁"
@@ -299,6 +324,15 @@ class MessageService:
             raw_cq_code=message.raw_cq_code,
             ext_data=json.dumps(message.ext_data, ensure_ascii=False),
             send_timestamp=int(time.time()),  # 使用处理后的时间戳
+        )
+
+        # 通知记忆调度器（非阻塞）
+        asyncio.create_task(
+            _notify_memory_scheduler(
+                chat_key=message.chat_key,
+                workspace_id=db_chat_channel.workspace_id,
+                content_length=len(message.content_text),
+            ),
         )
 
         # 广播消息到所有订阅者
@@ -549,6 +583,15 @@ class MessageService:
             raw_cq_code="",
             ext_data=json.dumps(PlatformMessageExt(ref_msg_id=ref_msg_id or "").model_dump(), ensure_ascii=False),
             send_timestamp=int(time.time()),
+        )
+
+        # 通知记忆调度器（非阻塞）
+        asyncio.create_task(
+            _notify_memory_scheduler(
+                chat_key=chat_key,
+                workspace_id=db_chat_channel.workspace_id,
+                content_length=len(content_text),
+            ),
         )
 
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播

@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import fcntl
 import json
 import os
@@ -6,8 +7,9 @@ import pty
 import struct
 import subprocess
 import termios
+import time
 from datetime import datetime, timezone
-from typing import Any, AsyncGenerator, Dict, List, Literal, Optional
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Dict, List, Literal, Optional
 
 import aiodocker
 from fastapi import APIRouter, Depends, Query, Request, WebSocket, WebSocketDisconnect
@@ -45,13 +47,25 @@ from nekro_agent.schemas.workspace import (
     WorkspaceSummary,
     WorkspaceUpdate,
 )
-from nekro_agent.services.system_broadcast import WorkspaceStatusEvent, publish_system_event
+from nekro_agent.services.memory.feature_flags import (
+    MemoryOperation,
+    ensure_memory_system_enabled,
+    is_memory_system_enabled,
+)
+from nekro_agent.services.memory.maintenance import MemoryPruneResult, prune_workspace_memories
+from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+from nekro_agent.services.memory.retriever import retrieve_memories
+from nekro_agent.services.memory.semantic_writer import persist_cc_task_memory
 from nekro_agent.services.runtime_state import is_shutting_down
+from nekro_agent.services.system_broadcast import WorkspaceStatusEvent, publish_system_event
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
 from nekro_agent.services.workspace.container import ImageNotFoundError, SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
+
+if TYPE_CHECKING:
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
 
 router = APIRouter(prefix="/workspaces", tags=["Workspaces"])
 logger = get_sub_logger("workspaces")
@@ -138,6 +152,40 @@ async def _detail_async(ws: DBWorkspace) -> WorkspaceDetail:
     """异步版本的 _detail，自动查询绑定频道以填充 primary_channel_chat_key。"""
     channels = await WorkspaceService.get_bound_channels(ws.id)
     return _detail(ws, bound_chat_keys=[ch.chat_key for ch in channels])
+
+
+async def _build_cc_memory_handshake(workspace_id: int, instruction: str, limit: int = 6) -> str:
+    """为 CC 构造委托前记忆握手上下文。"""
+    if not is_memory_system_enabled():
+        return instruction
+
+    try:
+        memories = await retrieve_memories(
+            workspace_id=workspace_id,
+            query=instruction,
+            limit=limit,
+        )
+    except Exception as e:
+        logger.debug(f"构建 CC 记忆握手失败（检索异常，可忽略）: {e}")
+        return instruction
+
+    if not memories:
+        return instruction
+
+    memory_lines: List[str] = []
+    for idx, mem in enumerate(memories, start=1):
+        summary = mem.summary or mem.content[:120]
+        summary = summary.replace("\n", " ").strip()
+        memory_lines.append(f"{idx}. [{mem.cognitive_type}/{mem.knowledge_type}] {summary}")
+
+    handshake = (
+        "[统一记忆握手]\n"
+        "以下内容来自当前工作区的历史记忆，请在执行任务时优先参考；若与工作区现状冲突，以实际工作区状态为准。\n"
+        + "\n".join(memory_lines)
+        + "\n\n[当前任务]\n"
+        + instruction
+    )
+    return handshake
 
 
 def _detail(ws: DBWorkspace, *, bound_chat_keys: "List[str] | None" = None) -> WorkspaceDetail:
@@ -310,6 +358,22 @@ async def delete_workspace(
 
     if ws.status == "active" and ws.container_name:
         await SandboxContainerManager.stop(ws)
+
+    # 清理工作区相关的结构化记忆
+    try:
+        from nekro_agent.models.db_mem_entity import DBMemEntity
+        from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+        from nekro_agent.models.db_mem_reinforcement_log import DBMemReinforcementLog
+        from nekro_agent.models.db_mem_relation import DBMemRelation
+
+        await DBMemReinforcementLog.filter(workspace_id=workspace_id).delete()
+        await DBMemRelation.filter(workspace_id=workspace_id).delete()
+        await DBMemEntity.filter(workspace_id=workspace_id).delete()
+        await DBMemParagraph.filter(workspace_id=workspace_id).delete()
+        await memory_qdrant_manager.delete_by_workspace(workspace_id)
+        logger.info(f"工作区 {workspace_id} 的记忆数据已清理")
+    except Exception as e:
+        logger.warning(f"清理工作区记忆失败（非致命）: workspace_id={workspace_id}, error={e}")
 
     await ws.delete()
     return ActionOkResponse(ok=True)
@@ -1395,8 +1459,13 @@ async def workspace_terminal(
     sender_task = asyncio.create_task(_send_output())
 
     try:
-        while True:
-            text = await websocket.receive_text()
+        while not is_shutting_down():
+            try:
+                text = await asyncio.wait_for(websocket.receive_text(), timeout=1.0)
+            except asyncio.TimeoutError:
+                if proc.poll() is not None:
+                    break
+                continue
             msg = json.loads(text)
             if msg["type"] == "input":
                 os.write(master_fd, msg["data"].encode("utf-8"))
@@ -1409,8 +1478,13 @@ async def workspace_terminal(
     except (WebSocketDisconnect, Exception):
         pass
     finally:
-        loop.remove_reader(master_fd)
+        with contextlib.suppress(Exception):
+            await websocket.close(code=1012, reason="Server restarting")
+        with contextlib.suppress(Exception):
+            loop.remove_reader(master_fd)
         sender_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError, Exception):
+            await sender_task
         try:
             proc.terminate()
             proc.wait(timeout=3)
@@ -1424,114 +1498,239 @@ async def workspace_terminal(
 
 # ── 记忆系统端点 ────────────────────────────────────────────────────────────
 
-
-class MemoryFileMeta(BaseModel):
-    path: str
-    title: str
-    category: str
-    tags: List[str]
-    shared: bool
-    updated: str
-
-
-class MemoryTreeNode(BaseModel):
-    name: str
-    type: str  # "file" | "dir"
-    path: str
-    meta: Optional[MemoryFileMeta] = None
-    children: Optional[List["MemoryTreeNode"]] = None
-
-
-MemoryTreeNode.model_rebuild()
-
-
-class MemoryTreeResponse(BaseModel):
-    nodes: List[MemoryTreeNode]
-
-
-class MemoryFileContent(BaseModel):
-    path: str
-    raw: str
+class MemoryParagraphData(BaseModel):
+    id: int
+    summary: str
     content: str
-    meta: MemoryFileMeta
+    memory_source: str
+    cognitive_type: str
+    knowledge_type: str
+    base_weight: float
+    effective_weight: float
+    event_time: Optional[str] = None
+    origin_kind: str
+    origin_chat_key: Optional[str] = None
+    create_time: str
 
 
-class MemoryWriteBody(BaseModel):
-    path: str
-    raw: str  # 含 frontmatter 的完整内容
+class MemoryEntityData(BaseModel):
+    id: int
+    entity_type: str
+    canonical_name: str
+    appearance_count: int
+    source_hint: str
+    update_time: str
 
 
-class MemoryNaContextBody(BaseModel):
-    content: str  # 纯正文，不含 frontmatter
+class MemoryRelationData(BaseModel):
+    id: int
+    subject_entity_id: int
+    subject_name: str
+    predicate: str
+    object_entity_id: int
+    object_name: str
+    memory_source: str
+    cognitive_type: str
+    base_weight: float
+    effective_weight: float
+    paragraph_id: Optional[int] = None
+    update_time: str
 
 
-@router.get("/{workspace_id}/memory/tree", summary="获取记忆目录树", response_model=MemoryTreeResponse)
-async def get_memory_tree(
-    workspace_id: int,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> MemoryTreeResponse:
+class MemoryDataStats(BaseModel):
+    paragraph_count: int
+    episodic_count: int
+    semantic_count: int
+    episode_count: int
+    entity_count: int
+    relation_count: int
+    reinforcement_count_7d: int
+
+
+class MemoryDataResponse(BaseModel):
+    stats: MemoryDataStats
+    paragraphs: List[MemoryParagraphData]
+    entities: List[MemoryEntityData]
+    relations: List[MemoryRelationData]
+
+
+class MemoryListItem(BaseModel):
+    id: int
+    memory_type: str
+    title: str
+    subtitle: str = ""
+    status: str
+    cognitive_type: Optional[str] = None
+    base_weight: Optional[float] = None
+    effective_weight: Optional[float] = None
+    event_time: Optional[str] = None
+    create_time: str
+    update_time: str
+
+
+class MemoryListResponse(BaseModel):
+    total: int
+    items: List[MemoryListItem]
+
+
+def _compute_episode_effective_weight(episode: "DBMemEpisode", now_ts: float) -> float:
+    base = max(0.1, float(episode.base_weight or 0.0))
+    event_time = episode.time_end or episode.time_start
+    if event_time is None:
+        return base
+    age_seconds = max(0.0, now_ts - event_time.timestamp())
+    half_life_seconds = max(1.0, 30 * 24 * 3600)
+    decay_factor = 2 ** (-age_seconds / half_life_seconds)
+    return base * decay_factor
+
+
+class MemoryDetailResponse(BaseModel):
+    memory_type: str
+    data: Dict[str, Any]
+
+
+class MemoryEditBody(BaseModel):
+    summary: Optional[str] = None
+    content: Optional[str] = None
+
+
+class MemoryTraceMessage(BaseModel):
+    id: int
+    message_id: str
+    sender_nickname: str
+    content_text: str
+    send_timestamp: int
+
+
+class MemoryTraceResponse(BaseModel):
+    paragraph: Dict[str, Any]
+    messages: List[MemoryTraceMessage]
+    entities: List[MemoryEntityData]
+    relations: List[MemoryRelationData]
+
+
+class MemoryPruneResponse(BaseModel):
+    paragraphs_pruned: int
+    relations_pruned: int
+    entities_pruned: int
+
+
+class MemoryRebuildChannelStatusResponse(BaseModel):
+    chat_key: str
+    status: str
+    upper_bound_message_db_id: int
+    initial_cursor_db_id: int
+    last_cursor_db_id: int
+    message_count_total: int
+    messages_processed: int
+    completed: bool
+    progress_ratio: float
+    last_error: Optional[str] = None
+
+
+class MemoryRebuildStartResponse(BaseModel):
+    job_id: str
+    reused: bool
+    status: str
+    message: str
+
+
+class MemoryRebuildStatusResponse(BaseModel):
+    workspace_id: int
+    job_id: Optional[str] = None
+    is_running: bool
+    status: str
+    phase: Optional[str] = None
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    cutoff: Optional[str] = None
+    semantic_replayed: bool
+    cancel_requested: bool = False
+    current_chat_key: Optional[str] = None
+    last_heartbeat_at: Optional[str] = None
+    failure_code: Optional[str] = None
+    failure_reason: Optional[str] = None
+    overall_progress_percent: float = 0.0
+    total_channels: int
+    completed_channels: int
+    total_messages_processed: int
+    channels: List[MemoryRebuildChannelStatusResponse]
+
+
+class MemoryGraphNode(BaseModel):
+    id: str
+    memory_type: str
+    ref_id: int
+    label: str
+    subtitle: str = ""
+    status: str
+    cognitive_type: Optional[str] = None
+    weight: float = 0.0
+    size: float = 1.0
+    importance: float = 0.0
+    paragraph_id: Optional[int] = None
+    metadata: Dict[str, Any] = {}
+
+
+class MemoryGraphEdge(BaseModel):
+    id: str
+    source: str
+    target: str
+    edge_type: str
+    label: str = ""
+    weight: float = 0.0
+    strength: float = 0.0
+    status: str = "active"
+    cognitive_type: Optional[str] = None
+    metadata: Dict[str, Any] = {}
+
+
+class MemoryGraphResponse(BaseModel):
+    generated_at: str
+    node_count: int
+    edge_count: int
+    nodes: List[MemoryGraphNode]
+    edges: List[MemoryGraphEdge]
+
+
+class MemoryEpisodeDetailResponse(BaseModel):
+    id: int
+    title: str
+    narrative_summary: str
+    origin_chat_key: Optional[str] = None
+    time_start: Optional[str] = None
+    time_end: Optional[str] = None
+    paragraph_ids: List[int]
+    participant_entity_ids: List[int]
+    phase_mapping: Dict[str, List[int]]
+
+
+async def _ensure_workspace_exists(workspace_id: int) -> DBWorkspace:
     workspace = await DBWorkspace.get_or_none(id=workspace_id)
     if workspace is None:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
-    nodes_raw = WorkspaceService.list_memory_tree(workspace_id)
-
-    def _to_node(d: Dict[str, Any]) -> MemoryTreeNode:
-        meta = MemoryFileMeta(**d["meta"]) if d.get("meta") else None
-        children = [_to_node(c) for c in d["children"]] if d.get("children") is not None else None
-        return MemoryTreeNode(name=d["name"], type=d["type"], path=d["path"], meta=meta, children=children)
-
-    return MemoryTreeResponse(nodes=[_to_node(n) for n in nodes_raw])
+    return workspace
 
 
-@router.get("/{workspace_id}/memory/file", summary="读取记忆文件", response_model=MemoryFileContent)
-async def get_memory_file(
-    workspace_id: int,
-    path: str = Query(..., description="相对于 memory/ 的文件路径"),
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> MemoryFileContent:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    result = WorkspaceService.read_memory_file(workspace_id, path)
-    if result is None:
-        raise NotFoundError(resource=f"记忆文件 {path}")
-    return MemoryFileContent(
-        path=result["path"],
-        raw=result["raw"],
-        content=result["content"],
-        meta=MemoryFileMeta(**result["meta"]),
-    )
+async def _get_memory_target(workspace_id: int, memory_type: str, memory_id: int) -> Any:
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_relation import DBMemRelation
 
-
-@router.put("/{workspace_id}/memory/file", summary="创建/更新记忆文件", response_model=ActionOkResponse)
-async def put_memory_file(
-    workspace_id: int,
-    body: MemoryWriteBody,
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> ActionOkResponse:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    try:
-        WorkspaceService.write_memory_file(workspace_id, body.path, body.raw)
-    except ValueError as e:
-        raise ValidationError(message=str(e))
-    return ActionOkResponse(message="记忆文件已保存")
-
-
-@router.delete("/{workspace_id}/memory/file", summary="删除记忆文件", response_model=ActionOkResponse)
-async def delete_memory_file(
-    workspace_id: int,
-    path: str = Query(..., description="相对于 memory/ 的文件路径"),
-    _current_user: DBUser = Depends(get_current_active_user),
-) -> ActionOkResponse:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    deleted = WorkspaceService.delete_memory_file(workspace_id, path)
-    if not deleted:
-        raise NotFoundError(resource=f"记忆文件 {path}")
-    return ActionOkResponse(message="记忆文件已删除")
+    mapping = {
+        "paragraph": DBMemParagraph,
+        "entity": DBMemEntity,
+        "relation": DBMemRelation,
+        "episode": DBMemEpisode,
+    }
+    model = mapping.get(memory_type)
+    if model is None:
+        raise ValidationError(reason=f"不支持的记忆类型: {memory_type}")
+    target = await model.get_or_none(id=memory_id, workspace_id=workspace_id)
+    if target is None:
+        raise NotFoundError(resource=f"{memory_type} {memory_id}")
+    return target
 
 
 @router.post("/{workspace_id}/memory/reset", summary="清空工作区记忆库", response_model=ActionOkResponse)
@@ -1539,40 +1738,987 @@ async def reset_memory(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    deleted_count = WorkspaceService.reset_memory(workspace_id)
-    return ActionOkResponse(message=f"记忆库已清空，共删除 {deleted_count} 个文件")
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_reinforcement_log import DBMemReinforcementLog
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+    from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+
+    await _ensure_workspace_exists(workspace_id)
+    paragraph_count = await DBMemParagraph.filter(workspace_id=workspace_id).count()
+
+    await DBMemReinforcementLog.filter(workspace_id=workspace_id).delete()
+    await DBMemRelation.filter(workspace_id=workspace_id).delete()
+    await DBMemEntity.filter(workspace_id=workspace_id).delete()
+    await DBMemEpisode.filter(workspace_id=workspace_id).delete()
+    await DBMemParagraph.filter(workspace_id=workspace_id).delete()
+    await memory_qdrant_manager.delete_by_workspace(workspace_id)
+    return ActionOkResponse(message=f"结构化记忆已清空，共删除 {paragraph_count} 条段落记忆")
 
 
-@router.get("/{workspace_id}/memory/na-context", summary="读取 NA 上下文摘要", response_model=Dict[str, Any])
-async def get_na_context(
+@router.post("/{workspace_id}/memory/rebuild", summary="清空并重建工作区记忆库", response_model=MemoryRebuildStartResponse)
+async def rebuild_memory(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> Dict[str, Any]:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    content = WorkspaceService.read_na_context(workspace_id)
-    return {"content": content, "workspace_id": workspace_id}
+) -> MemoryRebuildStartResponse:
+    from nekro_agent.services.memory.rebuild import start_workspace_memory_rebuild
+
+    await _ensure_workspace_exists(workspace_id)
+    ensure_memory_system_enabled(MemoryOperation.REBUILD)
+    result = start_workspace_memory_rebuild(
+        workspace_id,
+        requested_by=str(_current_user.username or _current_user.id),
+        request_id=f"workspace:{workspace_id}:user:{_current_user.id}",
+    )
+    return MemoryRebuildStartResponse(
+        job_id=result.job_id,
+        reused=result.reused,
+        status=result.status,
+        message=result.message,
+    )
 
 
-@router.put("/{workspace_id}/memory/na-context", summary="更新 NA 上下文摘要", response_model=ActionOkResponse)
-async def put_na_context(
+@router.post("/{workspace_id}/memory/rebuild/cancel", summary="取消工作区记忆重建", response_model=MemoryRebuildStartResponse)
+async def cancel_memory_rebuild(
     workspace_id: int,
-    body: MemoryNaContextBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryRebuildStartResponse:
+    from nekro_agent.services.memory.rebuild import cancel_workspace_memory_rebuild
+
+    await _ensure_workspace_exists(workspace_id)
+    ensure_memory_system_enabled(MemoryOperation.REBUILD)
+    result = cancel_workspace_memory_rebuild(workspace_id)
+    return MemoryRebuildStartResponse(
+        job_id=result.job_id,
+        reused=result.reused,
+        status=result.status,
+        message=result.message,
+    )
+
+
+@router.get(
+    "/{workspace_id}/memory/rebuild/status",
+    summary="获取工作区记忆重建状态",
+    response_model=MemoryRebuildStatusResponse,
+)
+async def get_memory_rebuild_status(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryRebuildStatusResponse:
+    from nekro_agent.services.memory.rebuild import get_workspace_memory_rebuild_status
+
+    await _ensure_workspace_exists(workspace_id)
+    status = await get_workspace_memory_rebuild_status(workspace_id)
+    return MemoryRebuildStatusResponse(
+        workspace_id=status.workspace_id,
+        job_id=status.job_id,
+        is_running=status.is_running,
+        status=status.status,
+        phase=status.phase,
+        started_at=status.started_at,
+        finished_at=status.finished_at,
+        cutoff=status.cutoff,
+        semantic_replayed=status.semantic_replayed,
+        cancel_requested=status.cancel_requested,
+        current_chat_key=status.current_chat_key,
+        last_heartbeat_at=status.last_heartbeat_at,
+        failure_code=status.failure_code,
+        failure_reason=status.failure_reason,
+        overall_progress_percent=status.overall_progress_percent,
+        total_channels=status.total_channels,
+        completed_channels=status.completed_channels,
+        total_messages_processed=status.total_messages_processed,
+        channels=[
+            MemoryRebuildChannelStatusResponse(
+                chat_key=item.chat_key,
+                status=item.status,
+                upper_bound_message_db_id=item.upper_bound_message_db_id,
+                initial_cursor_db_id=item.initial_cursor_db_id,
+                last_cursor_db_id=item.last_cursor_db_id,
+                message_count_total=item.message_count_total,
+                messages_processed=item.messages_processed,
+                completed=item.completed,
+                progress_ratio=item.progress_ratio,
+                last_error=item.last_error,
+            )
+            for item in status.channels
+        ],
+    )
+
+
+@router.post("/{workspace_id}/memory/prune", summary="清理低价值结构化记忆", response_model=MemoryPruneResponse)
+async def prune_memory(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryPruneResponse:
+    await _ensure_workspace_exists(workspace_id)
+    ensure_memory_system_enabled(MemoryOperation.PRUNE)
+    result: MemoryPruneResult = await prune_workspace_memories(workspace_id)
+    return MemoryPruneResponse(
+        paragraphs_pruned=result.paragraphs_pruned,
+        relations_pruned=result.relations_pruned,
+        entities_pruned=result.entities_pruned,
+    )
+
+
+@router.get("/{workspace_id}/memory/data", summary="获取结构化记忆数据视图", response_model=MemoryDataResponse)
+async def get_memory_data(
+    workspace_id: int,
+    limit: int = Query(default=20, ge=5, le=100),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryDataResponse:
+    from datetime import timedelta
+
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import CognitiveType, DBMemParagraph
+    from nekro_agent.models.db_mem_reinforcement_log import DBMemReinforcementLog
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+
+    await _ensure_workspace_exists(workspace_id)
+
+    now_ts = time.time()
+    paragraph_count = await DBMemParagraph.filter(workspace_id=workspace_id).count()
+    episodic_count = await DBMemParagraph.filter(
+        workspace_id=workspace_id,
+        cognitive_type=CognitiveType.EPISODIC,
+    ).count()
+    semantic_count = await DBMemParagraph.filter(
+        workspace_id=workspace_id,
+        cognitive_type=CognitiveType.SEMANTIC,
+    ).count()
+    episode_count = await DBMemEpisode.filter(workspace_id=workspace_id, is_inactive=False).count()
+    entity_count = await DBMemEntity.filter(workspace_id=workspace_id).count()
+    relation_count = await DBMemRelation.filter(workspace_id=workspace_id).count()
+    reinforcement_count_7d = await DBMemReinforcementLog.filter(
+        workspace_id=workspace_id,
+        create_time__gte=datetime.now() - timedelta(days=7),
+    ).count()
+
+    paragraphs = await DBMemParagraph.filter(
+        workspace_id=workspace_id,
+    ).order_by("-create_time").limit(limit)
+    entities = await DBMemEntity.filter(
+        workspace_id=workspace_id,
+        is_inactive=False,
+    ).order_by("-appearance_count", "-update_time").limit(20)
+    relations = await DBMemRelation.filter(
+        workspace_id=workspace_id,
+        is_inactive=False,
+    ).order_by("-update_time").limit(20)
+    entity_map = {
+        entity.id: entity
+        for entity in await DBMemEntity.filter(
+            workspace_id=workspace_id,
+            id__in=[r.subject_entity_id for r in relations] + [r.object_entity_id for r in relations],
+        )
+    }
+
+    return MemoryDataResponse(
+        stats=MemoryDataStats(
+            paragraph_count=paragraph_count,
+            episodic_count=episodic_count,
+            semantic_count=semantic_count,
+            episode_count=episode_count,
+            entity_count=entity_count,
+            relation_count=relation_count,
+            reinforcement_count_7d=reinforcement_count_7d,
+        ),
+        paragraphs=[
+            MemoryParagraphData(
+                id=paragraph.id,
+                summary=paragraph.summary or "",
+                content=paragraph.content,
+                memory_source=paragraph.memory_source,
+                cognitive_type=paragraph.cognitive_type.value,
+                knowledge_type=paragraph.knowledge_type.value,
+                base_weight=paragraph.base_weight,
+                effective_weight=paragraph.compute_effective_weight(now_ts),
+                event_time=paragraph.event_time.isoformat() if paragraph.event_time else None,
+                origin_kind=paragraph.origin_kind.value,
+                origin_chat_key=paragraph.origin_chat_key,
+                create_time=paragraph.create_time.isoformat(),
+            )
+            for paragraph in paragraphs
+        ],
+        entities=[
+            MemoryEntityData(
+                id=entity.id,
+                entity_type=entity.entity_type.value,
+                canonical_name=entity.canonical_name,
+                appearance_count=entity.appearance_count,
+                source_hint=entity.source_hint.value,
+                update_time=entity.update_time.isoformat(),
+            )
+            for entity in entities
+        ],
+        relations=[
+            MemoryRelationData(
+                id=relation.id,
+                subject_entity_id=relation.subject_entity_id,
+                subject_name=entity_map[relation.subject_entity_id].canonical_name
+                if relation.subject_entity_id in entity_map else str(relation.subject_entity_id),
+                predicate=relation.predicate,
+                object_entity_id=relation.object_entity_id,
+                object_name=entity_map[relation.object_entity_id].canonical_name
+                if relation.object_entity_id in entity_map else str(relation.object_entity_id),
+                memory_source=relation.memory_source,
+                cognitive_type=relation.cognitive_type,
+                base_weight=relation.base_weight,
+                effective_weight=relation.compute_effective_weight(now_ts),
+                paragraph_id=relation.paragraph_id,
+                update_time=relation.update_time.isoformat(),
+            )
+            for relation in relations
+        ],
+    )
+
+
+@router.post("/{workspace_id}/memory/episode/aggregate", summary="手动触发 Episode 聚合", response_model=ActionOkResponse)
+async def aggregate_memory_episode(
+    workspace_id: int,
+    chat_key: Optional[str] = Query(default=None),
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionOkResponse:
-    workspace = await DBWorkspace.get_or_none(id=workspace_id)
-    if workspace is None:
-        raise NotFoundError(resource=f"工作区 {workspace_id}")
-    raw = f"---\ntitle: \"NA 上下文摘要\"\ncategory: context\nshared: true\nupdated: \"{__import__('datetime').date.today()}\"\n---\n\n{body.content}"
+    from nekro_agent.services.memory.episode_aggregator import aggregate_workspace_episodes
+
+    await _ensure_workspace_exists(workspace_id)
+    ensure_memory_system_enabled(MemoryOperation.EPISODE_AGGREGATION)
+    result = await aggregate_workspace_episodes(workspace_id, chat_key)
+    return ActionOkResponse(
+        message=f"Episode 聚合完成，新增 {result.episodes_created} 个事件，绑定 {result.paragraphs_bound} 条段落"
+    )
+
+
+@router.get("/{workspace_id}/memory/graph", summary="获取结构化记忆图谱", response_model=MemoryGraphResponse)
+async def get_memory_graph(
+    workspace_id: int,
+    limit: int = Query(default=240, ge=50, le=600),
+    include_inactive: bool = Query(default=False),
+    time_from: Optional[str] = Query(default=None),
+    time_to: Optional[str] = Query(default=None),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryGraphResponse:
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+
+    await _ensure_workspace_exists(workspace_id)
+    now_ts = time.time()
+    parsed_time_from: Optional[datetime] = None
+    parsed_time_to: Optional[datetime] = None
+
     try:
-        WorkspaceService.write_memory_file(workspace_id, "_na_context.md", raw)
+        if time_from:
+            parsed_time_from = datetime.fromisoformat(time_from.replace("Z", "+00:00"))
+        if time_to:
+            parsed_time_to = datetime.fromisoformat(time_to.replace("Z", "+00:00"))
     except ValueError as e:
-        raise ValidationError(message=str(e))
-    return ActionOkResponse(message="NA 上下文摘要已更新")
+        raise ValidationError(reason=f"时间参数格式无效: {e}") from e
+
+    paragraph_qs = DBMemParagraph.filter(workspace_id=workspace_id)
+    entity_qs = DBMemEntity.filter(workspace_id=workspace_id)
+    relation_qs = DBMemRelation.filter(workspace_id=workspace_id)
+    if not include_inactive:
+        paragraph_qs = paragraph_qs.filter(is_inactive=False)
+        entity_qs = entity_qs.filter(is_inactive=False)
+        relation_qs = relation_qs.filter(is_inactive=False)
+    if parsed_time_from:
+        paragraph_qs = paragraph_qs.filter(event_time__gte=parsed_time_from)
+    if parsed_time_to:
+        paragraph_qs = paragraph_qs.filter(event_time__lte=parsed_time_to)
+
+    paragraphs = await paragraph_qs.order_by("-update_time").limit(limit)
+    paragraph_ids = [paragraph.id for paragraph in paragraphs]
+
+    if parsed_time_from or parsed_time_to:
+        if paragraph_ids:
+            relation_qs = relation_qs.filter(paragraph_id__in=paragraph_ids)
+        else:
+            relation_qs = relation_qs.filter(paragraph_id=-1)
+    relations = await relation_qs.order_by("-update_time").limit(limit)
+    episode_qs = DBMemEpisode.filter(workspace_id=workspace_id)
+    if not include_inactive:
+        episode_qs = episode_qs.filter(is_inactive=False)
+    if parsed_time_from:
+        episode_qs = episode_qs.filter(time_end__gte=parsed_time_from)
+    if parsed_time_to:
+        episode_qs = episode_qs.filter(time_start__lte=parsed_time_to)
+    episodes = await episode_qs.order_by("-time_end", "-update_time").limit(max(20, limit // 2))
+    episode_entity_ids = [entity_id for episode in episodes for entity_id in (episode.participant_entity_ids or [])]
+
+    relation_entity_ids = [relation.subject_entity_id for relation in relations] + [relation.object_entity_id for relation in relations]
+    paragraph_relation_entity_ids = [
+        entity_id
+        for relation in relations
+        if relation.paragraph_id in paragraph_ids
+        for entity_id in (relation.subject_entity_id, relation.object_entity_id)
+    ]
+    entity_ids = list(set(relation_entity_ids + paragraph_relation_entity_ids + episode_entity_ids))
+    entities = []
+    if entity_ids:
+        entities = await entity_qs.filter(id__in=entity_ids).limit(limit)
+    entity_map = {entity.id: entity for entity in entities}
+
+    nodes: List[MemoryGraphNode] = []
+    edges: List[MemoryGraphEdge] = []
+    paragraph_entity_edges: set[tuple[int, int]] = set()
+
+    for paragraph in paragraphs:
+        effective_weight = paragraph.compute_effective_weight(now_ts)
+        nodes.append(
+            MemoryGraphNode(
+                id=f"paragraph-{paragraph.id}",
+                memory_type="paragraph",
+                ref_id=paragraph.id,
+                label=paragraph.summary or paragraph.content[:28],
+                subtitle=paragraph.knowledge_type.value,
+                status="inactive" if paragraph.is_inactive else "active",
+                cognitive_type=paragraph.cognitive_type.value,
+                weight=effective_weight,
+                size=min(1.8, 0.9 + max(0.0, effective_weight) * 0.45),
+                importance=effective_weight,
+                metadata={
+                    "memory_source": paragraph.memory_source,
+                    "is_frozen": paragraph.is_frozen,
+                    "is_protected": paragraph.is_protected,
+                    "origin_kind": paragraph.origin_kind.value,
+                    "episode_id": paragraph.episode_id,
+                    "episode_phase": paragraph.episode_phase.value if paragraph.episode_phase else None,
+                    "create_time": paragraph.create_time.isoformat(),
+                    "update_time": paragraph.update_time.isoformat(),
+                },
+            )
+        )
+
+    for episode in episodes:
+        episode_effective_weight = _compute_episode_effective_weight(episode, now_ts)
+        nodes.append(
+            MemoryGraphNode(
+                id=f"episode-{episode.id}",
+                memory_type="episode",
+                ref_id=episode.id,
+                label=episode.title,
+                subtitle=episode.narrative_summary[:80],
+                status="inactive" if episode.is_inactive else "active",
+                cognitive_type="episodic",
+                weight=episode_effective_weight,
+                size=min(2.0, 1.0 + len(episode.paragraph_ids or []) * 0.08),
+                importance=episode_effective_weight + len(episode.paragraph_ids or []) * 0.15,
+                metadata={
+                    "origin_chat_key": episode.origin_chat_key,
+                    "time_start": episode.time_start.isoformat() if episode.time_start else None,
+                    "time_end": episode.time_end.isoformat() if episode.time_end else None,
+                    "paragraph_ids": episode.paragraph_ids,
+                    "participant_entity_ids": episode.participant_entity_ids,
+                },
+            )
+        )
+
+    for entity in entities:
+        importance = float(entity.appearance_count)
+        nodes.append(
+            MemoryGraphNode(
+                id=f"entity-{entity.id}",
+                memory_type="entity",
+                ref_id=entity.id,
+                label=entity.canonical_name,
+                subtitle=entity.entity_type.value,
+                status="inactive" if entity.is_inactive else "active",
+                weight=importance,
+                size=min(1.6, 0.85 + min(entity.appearance_count, 10) * 0.06),
+                importance=importance,
+                metadata={
+                    "appearance_count": entity.appearance_count,
+                    "source_hint": entity.source_hint.value,
+                    "create_time": entity.create_time.isoformat(),
+                    "update_time": entity.update_time.isoformat(),
+                },
+            )
+        )
+
+    for relation in relations:
+        effective_weight = relation.compute_effective_weight(now_ts)
+        status = "inactive" if relation.is_inactive else "active"
+        subject = entity_map.get(relation.subject_entity_id)
+        obj = entity_map.get(relation.object_entity_id)
+        relation_node_id = f"relation-{relation.id}"
+        nodes.append(
+            MemoryGraphNode(
+                id=relation_node_id,
+                memory_type="relation",
+                ref_id=relation.id,
+                label=relation.predicate,
+                subtitle=f"{subject.canonical_name if subject else relation.subject_entity_id} -> {obj.canonical_name if obj else relation.object_entity_id}",
+                status=status,
+                cognitive_type=relation.cognitive_type,
+                weight=effective_weight,
+                size=min(1.5, 0.75 + max(0.0, effective_weight) * 0.4),
+                importance=effective_weight,
+                paragraph_id=relation.paragraph_id,
+                metadata={
+                    "memory_source": relation.memory_source,
+                    "paragraph_id": relation.paragraph_id,
+                    "create_time": relation.create_time.isoformat(),
+                    "update_time": relation.update_time.isoformat(),
+                },
+            )
+        )
+
+        if subject:
+            edges.append(
+                MemoryGraphEdge(
+                    id=f"relation-subject-{relation.id}-{subject.id}",
+                    source=relation_node_id,
+                    target=f"entity-{subject.id}",
+                    edge_type="relation_subject",
+                    label="主语",
+                    weight=effective_weight,
+                    strength=min(1.0, 0.25 + max(0.0, effective_weight) * 0.35),
+                    status=status,
+                    cognitive_type=relation.cognitive_type,
+                )
+            )
+        if obj:
+            edges.append(
+                MemoryGraphEdge(
+                    id=f"relation-object-{relation.id}-{obj.id}",
+                    source=relation_node_id,
+                    target=f"entity-{obj.id}",
+                    edge_type="relation_object",
+                    label="宾语",
+                    weight=effective_weight,
+                    strength=min(1.0, 0.25 + max(0.0, effective_weight) * 0.35),
+                    status=status,
+                    cognitive_type=relation.cognitive_type,
+                )
+            )
+        if relation.paragraph_id and relation.paragraph_id in paragraph_ids:
+            edges.append(
+                MemoryGraphEdge(
+                    id=f"relation-paragraph-{relation.id}-{relation.paragraph_id}",
+                    source=relation_node_id,
+                    target=f"paragraph-{relation.paragraph_id}",
+                    edge_type="relation_paragraph",
+                    label="来源段落",
+                    weight=effective_weight,
+                    strength=min(1.0, 0.2 + max(0.0, effective_weight) * 0.25),
+                    status=status,
+                    cognitive_type=relation.cognitive_type,
+                )
+            )
+            if subject:
+                paragraph_entity_edges.add((relation.paragraph_id, subject.id))
+            if obj:
+                paragraph_entity_edges.add((relation.paragraph_id, obj.id))
+
+    for paragraph_id, entity_id in paragraph_entity_edges:
+        edges.append(
+            MemoryGraphEdge(
+                id=f"paragraph-entity-{paragraph_id}-{entity_id}",
+                source=f"paragraph-{paragraph_id}",
+                target=f"entity-{entity_id}",
+                edge_type="paragraph_entity",
+                label="提及",
+                weight=0.5,
+                strength=0.35,
+                status="active",
+            )
+        )
+
+    paragraph_id_set = set(paragraph_ids)
+    for episode in episodes:
+        for paragraph_id in episode.paragraph_ids or []:
+            if paragraph_id in paragraph_id_set:
+                edges.append(
+                    MemoryGraphEdge(
+                        id=f"episode-paragraph-{episode.id}-{paragraph_id}",
+                        source=f"episode-{episode.id}",
+                        target=f"paragraph-{paragraph_id}",
+                        edge_type="episode_paragraph",
+                        label="包含段落",
+                        weight=episode.base_weight,
+                        strength=0.45,
+                        status="inactive" if episode.is_inactive else "active",
+                        cognitive_type="episodic",
+                    )
+                )
+        for entity_id in episode.participant_entity_ids or []:
+            if entity_id in entity_map:
+                edges.append(
+                    MemoryGraphEdge(
+                        id=f"episode-entity-{episode.id}-{entity_id}",
+                        source=f"episode-{episode.id}",
+                        target=f"entity-{entity_id}",
+                        edge_type="episode_entity",
+                        label="参与者",
+                        weight=episode.base_weight,
+                        strength=0.35,
+                        status="inactive" if episode.is_inactive else "active",
+                        cognitive_type="episodic",
+                    )
+                )
+
+    return MemoryGraphResponse(
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        node_count=len(nodes),
+        edge_count=len(edges),
+        nodes=nodes,
+        edges=edges,
+    )
+
+
+@router.get("/{workspace_id}/memory/list", summary="获取结构化记忆列表", response_model=MemoryListResponse)
+async def list_memories(
+    workspace_id: int,
+    memory_type: Optional[str] = Query(default=None, pattern="^(paragraph|entity|relation|episode)?$"),
+    status: Optional[str] = Query(default=None, pattern="^(active|inactive)?$"),
+    cognitive_type: Optional[str] = Query(default=None, pattern="^(episodic|semantic)?$"),
+    time_from: Optional[str] = Query(default=None),
+    time_to: Optional[str] = Query(default=None),
+    sort_by: str = Query(default="event_time"),
+    order: str = Query(default="desc", pattern="^(asc|desc)$"),
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryListResponse:
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+
+    await _ensure_workspace_exists(workspace_id)
+    now_ts = time.time()
+    items: List[MemoryListItem] = []
+    active_filter = None if status is None else (status == "inactive")
+    parsed_time_from: Optional[datetime] = None
+    parsed_time_to: Optional[datetime] = None
+
+    try:
+        if time_from:
+            parsed_time_from = datetime.fromisoformat(time_from.replace("Z", "+00:00"))
+        if time_to:
+            parsed_time_to = datetime.fromisoformat(time_to.replace("Z", "+00:00"))
+    except ValueError as e:
+        raise ValidationError(reason=f"时间参数格式无效: {e}") from e
+
+    if memory_type in (None, "paragraph"):
+        paragraph_qs = DBMemParagraph.filter(workspace_id=workspace_id)
+        if active_filter is not None:
+            paragraph_qs = paragraph_qs.filter(is_inactive=active_filter)
+        if cognitive_type:
+            paragraph_qs = paragraph_qs.filter(cognitive_type=cognitive_type)
+        if parsed_time_from:
+            paragraph_qs = paragraph_qs.filter(event_time__gte=parsed_time_from)
+        if parsed_time_to:
+            paragraph_qs = paragraph_qs.filter(event_time__lte=parsed_time_to)
+        paragraphs = await paragraph_qs.order_by("-event_time", "-update_time").offset(offset).limit(limit)
+        items.extend(
+            MemoryListItem(
+                id=paragraph.id,
+                memory_type="paragraph",
+                title=paragraph.summary or paragraph.content[:60],
+                subtitle=paragraph.knowledge_type.value,
+                status="inactive" if paragraph.is_inactive else "active",
+                cognitive_type=paragraph.cognitive_type.value,
+                base_weight=paragraph.base_weight,
+                effective_weight=paragraph.compute_effective_weight(now_ts),
+                event_time=paragraph.event_time.isoformat() if paragraph.event_time else None,
+                create_time=paragraph.create_time.isoformat(),
+                update_time=paragraph.update_time.isoformat(),
+            )
+            for paragraph in paragraphs
+        )
+
+    if memory_type in (None, "entity"):
+        entity_qs = DBMemEntity.filter(workspace_id=workspace_id)
+        if active_filter is not None:
+            entity_qs = entity_qs.filter(is_inactive=active_filter)
+        entities = await entity_qs.order_by("-update_time").offset(offset).limit(limit)
+        items.extend(
+            MemoryListItem(
+                id=entity.id,
+                memory_type="entity",
+                title=entity.canonical_name,
+                subtitle=entity.entity_type.value,
+                status="inactive" if entity.is_inactive else "active",
+                create_time=entity.create_time.isoformat(),
+                update_time=entity.update_time.isoformat(),
+            )
+            for entity in entities
+        )
+
+    if memory_type in (None, "relation"):
+        relation_qs = DBMemRelation.filter(workspace_id=workspace_id)
+        if active_filter is not None:
+            relation_qs = relation_qs.filter(is_inactive=active_filter)
+        if cognitive_type:
+            relation_qs = relation_qs.filter(cognitive_type=cognitive_type)
+        if parsed_time_from or parsed_time_to:
+            paragraph_time_qs = DBMemParagraph.filter(workspace_id=workspace_id)
+            if parsed_time_from:
+                paragraph_time_qs = paragraph_time_qs.filter(event_time__gte=parsed_time_from)
+            if parsed_time_to:
+                paragraph_time_qs = paragraph_time_qs.filter(event_time__lte=parsed_time_to)
+            paragraph_ids = await paragraph_time_qs.values_list("id", flat=True)
+            if paragraph_ids:
+                relation_qs = relation_qs.filter(paragraph_id__in=list(paragraph_ids))
+            else:
+                relation_qs = relation_qs.filter(paragraph_id=-1)
+        relations = await relation_qs.order_by("-update_time").offset(offset).limit(limit)
+        relation_paragraph_map = {
+            paragraph.id: paragraph
+            for paragraph in await DBMemParagraph.filter(
+                workspace_id=workspace_id,
+                id__in=[relation.paragraph_id for relation in relations if relation.paragraph_id],
+            )
+        }
+        entity_map = {
+            entity.id: entity
+            for entity in await DBMemEntity.filter(
+                workspace_id=workspace_id,
+                id__in=[r.subject_entity_id for r in relations] + [r.object_entity_id for r in relations],
+            )
+        }
+        items.extend(
+            MemoryListItem(
+                id=relation.id,
+                memory_type="relation",
+                title=(
+                    f"{entity_map[relation.subject_entity_id].canonical_name if relation.subject_entity_id in entity_map else relation.subject_entity_id} "
+                    f"- {relation.predicate} - "
+                    f"{entity_map[relation.object_entity_id].canonical_name if relation.object_entity_id in entity_map else relation.object_entity_id}"
+                ),
+                subtitle=relation.memory_source,
+                status="inactive" if relation.is_inactive else "active",
+                cognitive_type=relation.cognitive_type,
+                base_weight=relation.base_weight,
+                effective_weight=relation.compute_effective_weight(now_ts),
+                event_time=(
+                    relation_paragraph_map[relation.paragraph_id].event_time.isoformat()
+                    if relation.paragraph_id and relation.paragraph_id in relation_paragraph_map and relation_paragraph_map[relation.paragraph_id].event_time
+                    else None
+                ),
+                create_time=relation.create_time.isoformat(),
+                update_time=relation.update_time.isoformat(),
+            )
+            for relation in relations
+        )
+
+    if memory_type in (None, "episode"):
+        episode_qs = DBMemEpisode.filter(workspace_id=workspace_id)
+        if active_filter is not None:
+            episode_qs = episode_qs.filter(is_inactive=active_filter)
+        if parsed_time_from:
+            episode_qs = episode_qs.filter(time_end__gte=parsed_time_from)
+        if parsed_time_to:
+            episode_qs = episode_qs.filter(time_start__lte=parsed_time_to)
+        episodes = await episode_qs.order_by("-time_end", "-update_time").offset(offset).limit(limit)
+        items.extend(
+            MemoryListItem(
+                id=episode.id,
+                memory_type="episode",
+                title=episode.title,
+                subtitle=f"{len(episode.paragraph_ids or [])} 段落",
+                status="inactive" if episode.is_inactive else "active",
+                cognitive_type="episodic",
+                base_weight=episode.base_weight,
+                effective_weight=_compute_episode_effective_weight(episode, now_ts),
+                event_time=(episode.time_end or episode.time_start).isoformat() if (episode.time_end or episode.time_start) else None,
+                create_time=episode.create_time.isoformat(),
+                update_time=episode.update_time.isoformat(),
+            )
+            for episode in episodes
+        )
+
+    reverse = order != "asc"
+    if sort_by == "create_time":
+        items.sort(key=lambda item: item.create_time, reverse=reverse)
+    elif sort_by == "event_time":
+        items.sort(key=lambda item: item.event_time or item.update_time, reverse=reverse)
+    elif sort_by == "effective_weight":
+        items.sort(key=lambda item: item.effective_weight or 0.0, reverse=reverse)
+    else:
+        items.sort(key=lambda item: item.update_time, reverse=reverse)
+    return MemoryListResponse(total=len(items), items=items[:limit])
+
+
+@router.get("/{workspace_id}/memory/{memory_type}/{memory_id}", summary="获取结构化记忆详情", response_model=MemoryDetailResponse)
+async def get_memory_detail(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryDetailResponse:
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_episode import DBMemEpisode
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    data = target.to_dict()
+    if memory_type == "paragraph":
+        data["effective_weight"] = target.compute_effective_weight(time.time())
+    elif memory_type == "relation":
+        relation: DBMemRelation = target
+        subject = await DBMemEntity.get_or_none(id=relation.subject_entity_id)
+        obj = await DBMemEntity.get_or_none(id=relation.object_entity_id)
+        data["subject_name"] = subject.canonical_name if subject else None
+        data["object_name"] = obj.canonical_name if obj else None
+        data["effective_weight"] = relation.compute_effective_weight(time.time())
+    elif memory_type == "episode":
+        episode: DBMemEpisode = target
+        paragraphs = await DBMemParagraph.filter(
+            workspace_id=workspace_id,
+            id__in=episode.paragraph_ids or [],
+        ).order_by("event_time", "id")
+        entities = await DBMemEntity.filter(
+            workspace_id=workspace_id,
+            id__in=episode.participant_entity_ids or [],
+        )
+        data["participant_entities"] = [
+            {
+                "id": entity.id,
+                "name": entity.canonical_name,
+                "entity_type": entity.entity_type.value,
+            }
+            for entity in entities
+        ]
+        data["paragraphs"] = [
+            {
+                "id": paragraph.id,
+                "summary": paragraph.summary or paragraph.content[:72],
+                "knowledge_type": paragraph.knowledge_type.value,
+                "event_time": paragraph.event_time.isoformat() if paragraph.event_time else None,
+                "episode_phase": paragraph.episode_phase.value if paragraph.episode_phase else None,
+            }
+            for paragraph in paragraphs
+        ]
+    return MemoryDetailResponse(memory_type=memory_type, data=data)
+
+
+@router.get("/{workspace_id}/memory/paragraph/{memory_id}/trace", summary="获取段落记忆追溯", response_model=MemoryTraceResponse)
+async def get_memory_trace(
+    workspace_id: int,
+    memory_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> MemoryTraceResponse:
+    from nekro_agent.models.db_chat_message import DBChatMessage
+    from nekro_agent.models.db_mem_entity import DBMemEntity
+    from nekro_agent.models.db_mem_relation import DBMemRelation
+
+    paragraph = await _get_memory_target(workspace_id, "paragraph", memory_id)
+    message_ids = [msg_id for msg_id in [paragraph.anchor_msg_id, paragraph.anchor_msg_id_start, paragraph.anchor_msg_id_end] if msg_id]
+    messages = await DBChatMessage.filter(chat_key=paragraph.origin_chat_key, message_id__in=message_ids).order_by("send_timestamp")
+    relations = await DBMemRelation.filter(workspace_id=workspace_id, paragraph_id=paragraph.id, is_inactive=False).all()
+    entity_ids = list({
+        relation.subject_entity_id for relation in relations
+    } | {
+        relation.object_entity_id for relation in relations
+    })
+    entities = await DBMemEntity.filter(workspace_id=workspace_id, id__in=entity_ids).all()
+    entity_map = {entity.id: entity for entity in entities}
+
+    return MemoryTraceResponse(
+        paragraph=paragraph.to_dict() | {"effective_weight": paragraph.compute_effective_weight(time.time())},
+        messages=[
+            MemoryTraceMessage(
+                id=message.id,
+                message_id=message.message_id,
+                sender_nickname=message.sender_nickname,
+                content_text=message.content_text,
+                send_timestamp=message.send_timestamp,
+            )
+            for message in messages
+        ],
+        entities=[
+            MemoryEntityData(
+                id=entity.id,
+                entity_type=entity.entity_type.value,
+                canonical_name=entity.canonical_name,
+                appearance_count=entity.appearance_count,
+                source_hint=entity.source_hint.value,
+                update_time=entity.update_time.isoformat(),
+            )
+            for entity in entities
+        ],
+        relations=[
+            MemoryRelationData(
+                id=relation.id,
+                subject_entity_id=relation.subject_entity_id,
+                subject_name=entity_map[relation.subject_entity_id].canonical_name if relation.subject_entity_id in entity_map else str(relation.subject_entity_id),
+                predicate=relation.predicate,
+                object_entity_id=relation.object_entity_id,
+                object_name=entity_map[relation.object_entity_id].canonical_name if relation.object_entity_id in entity_map else str(relation.object_entity_id),
+                memory_source=relation.memory_source,
+                cognitive_type=relation.cognitive_type,
+                base_weight=relation.base_weight,
+                effective_weight=relation.compute_effective_weight(time.time()),
+                paragraph_id=relation.paragraph_id,
+                update_time=relation.update_time.isoformat(),
+            )
+            for relation in relations
+        ],
+    )
+
+
+@router.post("/{workspace_id}/memory/{memory_type}/{memory_id}/reinforce", summary="强化记忆", response_model=ActionOkResponse)
+async def reinforce_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    boost: float = Query(default=0.2, ge=0.05, le=1.0),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type == "paragraph":
+        await target.reinforce(boost)
+    elif memory_type == "relation":
+        await target.reinforce(boost)
+    else:
+        raise ValidationError(reason="实体暂不支持强化，请强化相关段落或关系")
+    return ActionOkResponse(message="记忆已强化")
+
+
+@router.post("/{workspace_id}/memory/{memory_type}/{memory_id}/demote", summary="降低记忆权重", response_model=ActionOkResponse)
+async def demote_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    delta: float = Query(default=0.2, ge=0.05, le=1.0),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type == "paragraph":
+        target.manual_weight_delta -= delta
+        target.last_manual_action = "demote"
+        target.last_manual_action_at = datetime.now(timezone.utc)
+        await target.save(update_fields=["manual_weight_delta", "last_manual_action", "last_manual_action_at", "update_time"])
+    elif memory_type == "relation":
+        target.base_weight = max(0.0, target.base_weight - delta)
+        await target.save(update_fields=["base_weight", "update_time"])
+    else:
+        raise ValidationError(reason="实体暂不支持降权，请调整相关段落或关系")
+    return ActionOkResponse(message="记忆权重已降低")
+
+
+@router.post("/{workspace_id}/memory/{memory_type}/{memory_id}/freeze", summary="冻结记忆", response_model=ActionOkResponse)
+async def freeze_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type != "paragraph":
+        raise ValidationError(reason="当前仅段落记忆支持冻结")
+    target.is_frozen = True
+    target.last_manual_action = "freeze"
+    target.last_manual_action_at = datetime.now(timezone.utc)
+    await target.save(update_fields=["is_frozen", "last_manual_action", "last_manual_action_at", "update_time"])
+    return ActionOkResponse(message="记忆已冻结")
+
+
+@router.post("/{workspace_id}/memory/{memory_type}/{memory_id}/unfreeze", summary="解冻记忆", response_model=ActionOkResponse)
+async def unfreeze_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type != "paragraph":
+        raise ValidationError(reason="当前仅段落记忆支持解冻")
+    target.is_frozen = False
+    target.last_manual_action = "unfreeze"
+    target.last_manual_action_at = datetime.now(timezone.utc)
+    await target.save(update_fields=["is_frozen", "last_manual_action", "last_manual_action_at", "update_time"])
+    return ActionOkResponse(message="记忆已解冻")
+
+
+@router.post("/{workspace_id}/memory/{memory_type}/{memory_id}/protect", summary="保护或取消保护记忆", response_model=ActionOkResponse)
+async def protect_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    protected: bool = Query(default=True),
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type != "paragraph":
+        raise ValidationError(reason="当前仅段落记忆支持保护")
+    target.is_protected = protected
+    target.last_manual_action = "protect" if protected else "unprotect"
+    target.last_manual_action_at = datetime.now(timezone.utc)
+    await target.save(update_fields=["is_protected", "last_manual_action", "last_manual_action_at", "update_time"])
+    return ActionOkResponse(message="记忆保护状态已更新")
+
+
+@router.put("/{workspace_id}/memory/{memory_type}/{memory_id}", summary="编辑结构化记忆", response_model=ActionOkResponse)
+async def edit_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    body: MemoryEditBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    from nekro_agent.services.memory.embedding_service import embed_text
+    from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    if memory_type != "paragraph":
+        raise ValidationError(reason="当前仅段落记忆支持编辑")
+
+    update_fields = ["update_time"]
+    content_updated = False
+    if body.summary is not None:
+        target.summary = body.summary[:512]
+        update_fields.append("summary")
+    if body.content is not None:
+        target.content = body.content
+        update_fields.append("content")
+        content_updated = True
+
+    target.last_manual_action = "edit"
+    target.last_manual_action_at = datetime.now(timezone.utc)
+    update_fields.extend(["last_manual_action", "last_manual_action_at"])
+    await target.save(update_fields=update_fields)
+    if target.embedding_ref and content_updated:
+        try:
+            embedding = await embed_text(target.content)
+            await memory_qdrant_manager.upsert_paragraph(
+                paragraph_id=target.id,
+                embedding=embedding,
+                payload=target.to_qdrant_payload(),
+            )
+        except Exception as e:
+            logger.warning(f"编辑后刷新段落向量失败: paragraph_id={target.id}, error={e}")
+    return ActionOkResponse(message="记忆已更新")
+
+
+@router.delete("/{workspace_id}/memory/{memory_type}/{memory_id}", summary="删除结构化记忆", response_model=ActionOkResponse)
+async def delete_memory(
+    workspace_id: int,
+    memory_type: str,
+    memory_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    from nekro_agent.models.db_mem_paragraph import DBMemParagraph
+    from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+
+    target = await _get_memory_target(workspace_id, memory_type, memory_id)
+    target.is_inactive = True
+    await target.save(update_fields=["is_inactive", "update_time"])
+    if memory_type == "paragraph":
+        await memory_qdrant_manager.delete_paragraph(memory_id)
+    elif memory_type == "episode":
+        await DBMemParagraph.filter(workspace_id=workspace_id, episode_id=memory_id).update(
+            episode_id=None,
+            episode_phase=None,
+        )
+    return ActionOkResponse(message="记忆已删除")
 
 
 # ── 沙盒通讯 ────────────────────────────────────────────────────────────────
@@ -1613,10 +2759,10 @@ async def stream_comm_log(
                 if await request.is_disconnected():
                     return
                 try:
-                    payload = await asyncio.wait_for(q.get(), timeout=20.0)
+                    payload = await asyncio.wait_for(q.get(), timeout=1.0)
                     yield payload
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"  # SSE keep-alive，防止 nginx/浏览器空闲断连
+                    yield {"comment": "ping"}  # SSE keep-alive，防止 nginx/浏览器空闲断连
         finally:
             comm_broadcast.unsubscribe(workspace_id, q)
 
@@ -1677,6 +2823,15 @@ async def user_send_to_cc(
     )
     await comm_broadcast.publish(workspace_id, _comm_log_to_dict(user_log))
 
+    delegated_content = await _build_cc_memory_handshake(workspace_id, body.content)
+    na_to_cc_log = await DBWorkspaceCommLog.create(
+        workspace_id=workspace_id,
+        direction="NA_TO_CC",
+        source_chat_key="__user__",
+        content=delegated_content,
+    )
+    await comm_broadcast.publish(workspace_id, _comm_log_to_dict(na_to_cc_log))
+
     # 2. fire-and-forget：CC 通信在后台 Task 完成，HTTP 请求立即返回
     #    所有后续事件（TOOL_CALL、TOOL_RESULT、CC_TO_NA、SYSTEM 错误）均通过 SSE 推送
     async def _cc_task() -> None:
@@ -1699,7 +2854,11 @@ async def user_send_to_cc(
         client = CCSandboxClient(ws)
         chunks: List[str] = []
         try:
-            async for chunk in client.stream_message(body.content, source_chat_key="__user__", env_vars=_get_env_vars_dict(ws)):
+            async for chunk in client.stream_message(
+                delegated_content,
+                source_chat_key="__user__",
+                env_vars=_get_env_vars_dict(ws),
+            ):
                 if isinstance(chunk, dict):
                     item_type = chunk.get("type")
                     if item_type in ("tool_call", "tool_result"):
@@ -1746,6 +2905,17 @@ async def user_send_to_cc(
             content=full_result,
         )
         await comm_broadcast.publish(workspace_id, _comm_log_to_dict(reply_log))
+        try:
+            await persist_cc_task_memory(
+                workspace_id=workspace_id,
+                task_content=body.content,
+                result_content=full_result,
+                source_chat_key="__user__",
+                origin_ref=str(reply_log.id),
+                event_time=reply_log.create_time,
+            )
+        except Exception as e:
+            logger.warning(f"CC 结果沉淀为语义记忆失败（可忽略）: {e}")
         await _status(False)
 
     asyncio.create_task(_cc_task())

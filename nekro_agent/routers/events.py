@@ -47,10 +47,10 @@ async def stream_system_events(
                 if await request.is_disconnected():
                     return
                 try:
-                    payload = await asyncio.wait_for(q.get(), timeout=25.0)
-                    yield payload
+                    payload = await asyncio.wait_for(q.get(), timeout=1.0)
+                    yield {"data": payload}
                 except asyncio.TimeoutError:
-                    yield ": ping"  # SSE keep-alive
+                    yield {"comment": "ping"}  # SSE keep-alive
         finally:
             unsubscribe_system_events(q)
 

@@ -26,6 +26,7 @@
 - 最大并发订阅者 ``_MAX_SUBSCRIBERS``
 """
 
+import asyncio
 from asyncio import Queue, QueueFull
 from typing import Annotated, Dict, List, Literal, Optional, Union
 
@@ -79,8 +80,38 @@ class AgentActiveEvent(BaseModel):
     max_duration_ms: int = Field(default=300_000, description="任务最大持续时间（ms），超时后前端自动降为 inactive")
 
 
+class MemoryRecallMatchedNode(BaseModel):
+    """记忆检索命中节点。"""
+
+    memory_type: Literal["paragraph", "relation", "episode"]
+    id: int
+    score: float = 0.0
+
+
+class MemoryRecallActivityEvent(BaseModel):
+    """记忆检索活动状态事件。"""
+
+    type: Literal["memory_recall_activity"] = "memory_recall_activity"
+    workspace_id: int
+    chat_key: str
+    active: bool
+    phase: Literal["query_built", "retrieving", "compiled", "applied"] = "query_built"
+    request_id: str
+    target_kind: Literal["na_history", "cc_handshake"] = "na_history"
+    focus_text: str = ""
+    query_text: str = ""
+    channel_name: Optional[str] = None
+    started_at: int = Field(default=0, description="客户端可恢复的开始时间戳（ms）")
+    expires_in_ms: int = Field(default=8000, description="前端展示有效期（ms）")
+    hit_count: int = 0
+    applied_count: int = 0
+    matched_nodes: List[MemoryRecallMatchedNode] = Field(default_factory=list)
+    query_embedding_time_ms: float = 0.0
+    search_time_ms: float = 0.0
+
+
 SystemEvent = Annotated[
-    Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent],
+    Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent, MemoryRecallActivityEvent],
     Field(discriminator="type"),
 ]
 
@@ -91,7 +122,7 @@ SystemEvent = Annotated[
 _state_store: Dict[str, Dict[str, dict]] = {}
 
 
-def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent]) -> None:
+def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent, MemoryRecallActivityEvent]) -> None:
     """根据事件类型更新内存状态快照。
 
     新增事件类型时在此处注册其状态提取逻辑即可。
@@ -134,6 +165,33 @@ def _update_state(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, Age
             # active=False 时从快照中移除该频道，避免晚到者看到已结束的任务
             _state_store.get(domain, {}).pop(key, None)
 
+    elif isinstance(event, MemoryRecallActivityEvent):
+        domain = "memory_recall_activity"
+        key = f"{event.workspace_id}:{event.chat_key}"
+        if event.active:
+            _state_store.setdefault(domain, {})[key] = {
+                "workspace_id": event.workspace_id,
+                "chat_key": event.chat_key,
+                "active": True,
+                "phase": event.phase,
+                "request_id": event.request_id,
+                "target_kind": event.target_kind,
+                "focus_text": event.focus_text,
+                "query_text": event.query_text,
+                "channel_name": event.channel_name,
+                "started_at": event.started_at,
+                "expires_in_ms": event.expires_in_ms,
+                "hit_count": event.hit_count,
+                "applied_count": event.applied_count,
+                "matched_nodes": [node.model_dump() for node in event.matched_nodes],
+                "query_embedding_time_ms": event.query_embedding_time_ms,
+                "search_time_ms": event.search_time_ms,
+            }
+        else:
+            current = _state_store.get(domain, {}).get(key)
+            if current is None or current.get("request_id") == event.request_id:
+                _state_store.get(domain, {}).pop(key, None)
+
 
 def get_state_snapshot() -> Dict[str, Dict[str, dict]]:
     """返回当前全部状态快照的深拷贝。
@@ -162,7 +220,7 @@ def _build_snapshot_payload() -> str:
     return json.dumps({"type": "snapshot", "data": get_state_snapshot()}, ensure_ascii=False)
 
 
-async def publish_system_event(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent]) -> None:
+async def publish_system_event(event: Union[WorkspaceStatusEvent, WorkspaceCcActiveEvent, AgentActiveEvent, MemoryRecallActivityEvent]) -> None:
     """向所有全局 SSE 订阅者广播事件，并同步更新状态快照。"""
     _update_state(event)
 
@@ -203,3 +261,25 @@ def unsubscribe_system_events(q: "Queue[str]") -> None:
     """注销订阅者。"""
     if q in _subscribers:
         _subscribers.remove(q)
+
+
+async def publish_memory_recall_activity(event: MemoryRecallActivityEvent) -> None:
+    """发布记忆检索活动状态，并在 TTL 到期后自动清理。"""
+    await publish_system_event(event)
+    if not event.active or event.phase != "applied" or event.expires_in_ms <= 0:
+        return
+
+    async def _clear_later() -> None:
+        await asyncio.sleep(event.expires_in_ms / 1000)
+        await publish_system_event(
+            MemoryRecallActivityEvent(
+                workspace_id=event.workspace_id,
+                chat_key=event.chat_key,
+                active=False,
+                phase=event.phase,
+                request_id=event.request_id,
+                target_kind=event.target_kind,
+            )
+        )
+
+    asyncio.create_task(_clear_later())

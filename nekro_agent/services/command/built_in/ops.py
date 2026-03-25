@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from collections.abc import AsyncIterator
 from datetime import datetime
 from pathlib import Path
 from typing import Annotated
@@ -341,3 +342,150 @@ class LogErrListCommand(BaseCommand):
         )
 
         return CmdCtl.success("\n".join(result_lines))
+
+
+class MemoryReindexCommand(BaseCommand):
+    """重建记忆向量索引"""
+
+    @property
+    def metadata(self) -> CommandMetadata:
+        return CommandMetadata(
+            name="memory_reindex",
+            aliases=["memory-reindex", "mem_reindex", "mem-reindex"],
+            description="重建记忆库向量索引",
+            i18n_description=i18n_text(zh_CN="重建记忆库向量索引", en_US="Rebuild memory vector index"),
+            usage="memory_reindex -y",
+            permission=CommandPermission.SUPER_USER,
+            category="运维",
+            i18n_category=i18n_text(zh_CN="运维", en_US="Operations"),
+            params_schema=self._auto_params_schema(),
+        )
+
+    async def execute(
+        self,
+        context: CommandExecutionContext,
+        args_str: Annotated[str, Arg("参数", positional=True, greedy=True)] = "",
+    ) -> AsyncIterator[CommandResponse]:
+        if "-y" not in args_str:
+            yield CmdCtl.failed("请输入 -y 确认重建记忆库索引")
+            return
+
+        from nekro_agent.core.config import config
+        from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+
+        yield CmdCtl.message(
+            f"开始重建记忆库索引，当前维度为 {config.MEMORY_EMBEDDING_DIMENSION}，这可能需要一些时间..."
+        )
+
+        try:
+            result = await memory_qdrant_manager.rebuild_collection()
+        except Exception as e:
+            yield CmdCtl.failed(f"重建记忆库索引失败: {e!s}")
+            return
+
+        yield CmdCtl.success(
+            "记忆库索引重建完成！\n"
+            f"维度: {result['dimension']}\n"
+            f"总计: {result['total']} 条\n"
+            f"成功: {result['success']} 条\n"
+            f"失败: {result['error']} 条\n"
+            f"跳过空内容: {result['skipped']} 条"
+        )
+
+
+class MemoryPruneCommand(BaseCommand):
+    """清理低价值记忆"""
+
+    @property
+    def metadata(self) -> CommandMetadata:
+        return CommandMetadata(
+            name="memory_prune",
+            aliases=["memory-prune", "mem_prune", "mem-prune"],
+            description="清理低价值结构化记忆",
+            i18n_description=i18n_text(zh_CN="清理低价值结构化记忆", en_US="Prune low-value structured memories"),
+            usage="memory_prune <workspace_id> -y",
+            permission=CommandPermission.SUPER_USER,
+            category="运维",
+            i18n_category=i18n_text(zh_CN="运维", en_US="Operations"),
+            params_schema=self._auto_params_schema(),
+        )
+
+    async def execute(
+        self,
+        context: CommandExecutionContext,
+        workspace_id: Annotated[int, Arg("工作区 ID", positional=True)] = 0,
+        args_str: Annotated[str, Arg("参数", positional=True, greedy=True)] = "",
+    ) -> AsyncIterator[CommandResponse]:
+        if workspace_id <= 0:
+            yield CmdCtl.failed("请输入有效的 workspace_id")
+            return
+        if "-y" not in args_str:
+            yield CmdCtl.failed("请输入 -y 确认清理结构化记忆")
+            return
+
+        from nekro_agent.services.memory.maintenance import prune_workspace_memories
+
+        yield CmdCtl.message(f"开始清理工作区 {workspace_id} 的低价值结构化记忆...")
+        try:
+            result = await prune_workspace_memories(workspace_id)
+        except Exception as e:
+            yield CmdCtl.failed(f"清理结构化记忆失败: {e!s}")
+            return
+
+        yield CmdCtl.success(
+            "结构化记忆清理完成！\n"
+            f"段落: {result.paragraphs_pruned} 条\n"
+            f"关系: {result.relations_pruned} 条\n"
+            f"实体: {result.entities_pruned} 条"
+        )
+
+
+class MemoryRebuildCommand(BaseCommand):
+    """清空并重建工作区记忆库"""
+
+    @property
+    def metadata(self) -> CommandMetadata:
+        return CommandMetadata(
+            name="memory_rebuild",
+            aliases=["memory-rebuild", "mem_rebuild", "mem-rebuild"],
+            description="清空并从历史数据重建工作区记忆库",
+            i18n_description=i18n_text(zh_CN="清空并从历史数据重建工作区记忆库", en_US="Rebuild workspace memory from history"),
+            usage="memory_rebuild <workspace_id> -y",
+            permission=CommandPermission.SUPER_USER,
+            category="运维",
+            i18n_category=i18n_text(zh_CN="运维", en_US="Operations"),
+            params_schema=self._auto_params_schema(),
+        )
+
+    async def execute(
+        self,
+        context: CommandExecutionContext,
+        workspace_id: Annotated[int, Arg("工作区 ID", positional=True)] = 0,
+        args_str: Annotated[str, Arg("参数", positional=True, greedy=True)] = "",
+    ) -> AsyncIterator[CommandResponse]:
+        if workspace_id <= 0:
+            yield CmdCtl.failed("请输入有效的 workspace_id")
+            return
+        if "-y" not in args_str:
+            yield CmdCtl.failed("请输入 -y 确认清空并重建工作区记忆库")
+            return
+
+        from nekro_agent.services.memory.rebuild import rebuild_workspace_memories
+
+        yield CmdCtl.message(f"开始重建工作区 {workspace_id} 的记忆库，这可能需要一些时间...")
+        try:
+            result = await rebuild_workspace_memories(workspace_id)
+        except Exception as e:
+            yield CmdCtl.failed(f"重建工作区记忆库失败: {e!s}")
+            return
+
+        yield CmdCtl.success(
+            "工作区记忆库重建完成！\n"
+            f"已清空段落: {result.paragraphs_deleted} 条\n"
+            f"重置频道: {result.channels_reset} 个\n"
+            f"已重建频道: {result.channels_rebuilt} 个\n"
+            f"重新处理消息: {result.messages_processed} 条\n"
+            f"情景记忆: {result.episodic_paragraphs_created} 条\n"
+            f"语义任务记忆: {result.semantic_tasks_replayed} 条\n"
+            f"事件: {result.episodes_created} 个"
+        )

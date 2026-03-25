@@ -48,6 +48,32 @@ interface AgentActiveEvent {
   max_duration_ms: number
 }
 
+interface MemoryRecallMatchedNode {
+  memory_type: 'paragraph' | 'relation' | 'episode'
+  id: number
+  score: number
+}
+
+interface MemoryRecallActivityEvent {
+  type: 'memory_recall_activity'
+  workspace_id: number
+  chat_key: string
+  active: boolean
+  phase: 'query_built' | 'retrieving' | 'compiled' | 'applied'
+  request_id: string
+  target_kind: 'na_history' | 'cc_handshake'
+  focus_text: string
+  query_text: string
+  channel_name?: string | null
+  started_at: number
+  expires_in_ms: number
+  hit_count: number
+  applied_count: number
+  matched_nodes: MemoryRecallMatchedNode[]
+  query_embedding_time_ms: number
+  search_time_ms: number
+}
+
 /** 后端 snapshot 事件的 data 结构：domain → key → value */
 interface SnapshotData {
   workspace_status?: Record<string, {
@@ -72,6 +98,24 @@ interface SnapshotData {
     preset_name?: string | null
     max_duration_ms: number
   }>
+  memory_recall_activity?: Record<string, {
+    workspace_id: number
+    chat_key: string
+    active: boolean
+    phase: 'query_built' | 'retrieving' | 'compiled' | 'applied'
+    request_id: string
+    target_kind: 'na_history' | 'cc_handshake'
+    focus_text: string
+    query_text: string
+    channel_name?: string | null
+    started_at: number
+    expires_in_ms: number
+    hit_count: number
+    applied_count: number
+    matched_nodes: MemoryRecallMatchedNode[]
+    query_embedding_time_ms: number
+    search_time_ms: number
+  }>
   // 未来新增 domain 在此扩展
   [domain: string]: Record<string, Record<string, unknown>> | undefined
 }
@@ -81,7 +125,7 @@ interface SnapshotEvent {
   data: SnapshotData
 }
 
-type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent | AgentActiveEvent | SnapshotEvent
+type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent | AgentActiveEvent | MemoryRecallActivityEvent | SnapshotEvent
 
 // ── 状态快照接口 ──────────────────────────────────────────────────────────────
 
@@ -110,11 +154,30 @@ export interface WorkspaceCcActiveInfo {
   name?: string | null
 }
 
+export interface MemoryRecallActivityInfo {
+  workspace_id: number
+  chat_key: string
+  phase: 'query_built' | 'retrieving' | 'compiled' | 'applied'
+  request_id: string
+  target_kind: 'na_history' | 'cc_handshake'
+  focus_text: string
+  query_text: string
+  channel_name?: string | null
+  started_at: number
+  expires_in_ms: number
+  hit_count: number
+  applied_count: number
+  matched_nodes: MemoryRecallMatchedNode[]
+  query_embedding_time_ms: number
+  search_time_ms: number
+}
+
 export interface SystemEvents {
   workspaceStatuses: Map<number, WorkspaceStatusSnapshot>
   workspaceCcActive: Map<number, WorkspaceCcActiveInfo>
   /** 当前活跃的 Agent 任务，key 为 chat_key */
   agentActives: Map<string, AgentActiveInfo>
+  memoryRecallActivities: Map<string, MemoryRecallActivityInfo>
 }
 
 // TTL 用于 cc_active / agent_active：若超时后未收到 active=false，自动清除
@@ -124,9 +187,11 @@ export function useSystemEvents(): SystemEvents {
   const [workspaceStatuses, setWorkspaceStatuses] = useState<Map<number, WorkspaceStatusSnapshot>>(new Map())
   const [workspaceCcActive, setWorkspaceCcActive] = useState<Map<number, WorkspaceCcActiveInfo>>(new Map())
   const [agentActives, setAgentActives] = useState<Map<string, AgentActiveInfo>>(new Map())
+  const [memoryRecallActivities, setMemoryRecallActivities] = useState<Map<string, MemoryRecallActivityInfo>>(new Map())
 
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const agentTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const recallTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     // ── snapshot 恢复函数 ─────────────────────────────────────────────────────
@@ -195,6 +260,48 @@ export function useSystemEvents(): SystemEvents {
       setAgentActives(next)
     }
 
+    const applySnapshotMemoryRecall = (entries: NonNullable<SnapshotData['memory_recall_activity']>) => {
+      for (const timer of recallTimers.current.values()) clearTimeout(timer)
+      recallTimers.current.clear()
+
+      const next = new Map<string, MemoryRecallActivityInfo>()
+      const now = Date.now()
+      for (const val of Object.values(entries)) {
+        if (!val.active) continue
+        const ttl = val.expires_in_ms ?? 8000
+        const endAt = val.started_at + ttl
+        if (endAt <= now) continue
+        const key = `${val.workspace_id}:${val.chat_key}`
+        next.set(key, {
+          workspace_id: val.workspace_id,
+          chat_key: val.chat_key,
+          phase: val.phase,
+          request_id: val.request_id,
+          target_kind: val.target_kind,
+          focus_text: val.focus_text,
+          query_text: val.query_text,
+          channel_name: val.channel_name,
+          started_at: val.started_at,
+          expires_in_ms: ttl,
+          hit_count: val.hit_count ?? 0,
+          applied_count: val.applied_count ?? 0,
+          matched_nodes: val.matched_nodes ?? [],
+          query_embedding_time_ms: val.query_embedding_time_ms ?? 0,
+          search_time_ms: val.search_time_ms ?? 0,
+        })
+        const timer = setTimeout(() => {
+          setMemoryRecallActivities(prev => {
+            const m = new Map(prev)
+            m.delete(key)
+            return m
+          })
+          recallTimers.current.delete(key)
+        }, endAt - now)
+        recallTimers.current.set(key, timer)
+      }
+      setMemoryRecallActivities(next)
+    }
+
     // ── delta 处理函数 ────────────────────────────────────────────────────────
 
     const handleAgentActiveDelta = (event: AgentActiveEvent) => {
@@ -227,6 +334,56 @@ export function useSystemEvents(): SystemEvents {
       }
     }
 
+    const handleMemoryRecallDelta = (event: MemoryRecallActivityEvent) => {
+      const key = `${event.workspace_id}:${event.chat_key}`
+      const oldTimer = recallTimers.current.get(key)
+      if (oldTimer !== undefined) clearTimeout(oldTimer)
+      recallTimers.current.delete(key)
+
+      if (!event.active) {
+        setMemoryRecallActivities(prev => {
+          const m = new Map(prev)
+          m.delete(key)
+          return m
+        })
+        return
+      }
+
+      const ttl = event.expires_in_ms ?? 8000
+      setMemoryRecallActivities(prev =>
+        new Map(prev).set(key, {
+          workspace_id: event.workspace_id,
+          chat_key: event.chat_key,
+          phase: event.phase,
+          request_id: event.request_id,
+          target_kind: event.target_kind,
+          focus_text: event.focus_text,
+          query_text: event.query_text,
+          channel_name: event.channel_name,
+          started_at: event.started_at,
+          expires_in_ms: ttl,
+          hit_count: event.hit_count ?? 0,
+          applied_count: event.applied_count ?? 0,
+          matched_nodes: event.matched_nodes ?? [],
+          query_embedding_time_ms: event.query_embedding_time_ms ?? 0,
+          search_time_ms: event.search_time_ms ?? 0,
+        })
+      )
+
+      const timer = setTimeout(() => {
+        setMemoryRecallActivities(prev => {
+          const m = new Map(prev)
+          const current = m.get(key)
+          if (current?.request_id === event.request_id) {
+            m.delete(key)
+          }
+          return m
+        })
+        recallTimers.current.delete(key)
+      }, ttl)
+      recallTimers.current.set(key, timer)
+    }
+
     // ── SSE 主循环 ────────────────────────────────────────────────────────────
 
     const cancel = createEventStream({
@@ -243,6 +400,7 @@ export function useSystemEvents(): SystemEvents {
             if (snapData.workspace_status) applySnapshotStatuses(snapData.workspace_status)
             if (snapData.workspace_cc_active) applySnapshotCcActive(snapData.workspace_cc_active)
             if (snapData.agent_active) applySnapshotAgentActives(snapData.agent_active)
+            if (snapData.memory_recall_activity) applySnapshotMemoryRecall(snapData.memory_recall_activity)
             return
           }
 
@@ -281,6 +439,8 @@ export function useSystemEvents(): SystemEvents {
             }
           } else if (event.type === 'agent_active') {
             handleAgentActiveDelta(event)
+          } else if (event.type === 'memory_recall_activity') {
+            handleMemoryRecallDelta(event)
           }
         } catch {
           // 忽略解析失败（keep-alive 等非 JSON 数据）
@@ -293,14 +453,17 @@ export function useSystemEvents(): SystemEvents {
 
     const ccTimersRef = ccTimers.current
     const agentTimersRef = agentTimers.current
+    const recallTimersRef = recallTimers.current
     return () => {
       cancel()
       for (const timer of ccTimersRef.values()) clearTimeout(timer)
       ccTimersRef.clear()
       for (const timer of agentTimersRef.values()) clearTimeout(timer)
       agentTimersRef.clear()
+      for (const timer of recallTimersRef.values()) clearTimeout(timer)
+      recallTimersRef.clear()
     }
   }, [])
 
-  return { workspaceStatuses, workspaceCcActive, agentActives }
+  return { workspaceStatuses, workspaceCcActive, agentActives, memoryRecallActivities }
 }

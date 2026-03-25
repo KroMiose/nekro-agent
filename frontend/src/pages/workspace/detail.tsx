@@ -286,7 +286,7 @@ export default function WorkspaceDetailPage() {
         sx={{
           flex: 1,
           minHeight: 0,
-          overflow: activeTab === 1 || activeTab === 3 ? 'hidden' : 'auto',
+          overflow: activeTab === 1 ? 'hidden' : 'auto',
           px: 2,
           py: 1.5,
           display: 'flex',
@@ -303,7 +303,7 @@ export default function WorkspaceDetailPage() {
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,
-            height: '100%',
+            height: activeTab === 1 || activeTab === 2 ? '100%' : 'auto',
           }}
         >
           {activeTab === 0 && (

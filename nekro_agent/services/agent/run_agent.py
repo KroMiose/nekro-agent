@@ -30,6 +30,10 @@ logger = get_sub_logger("agent_runtime")
 RECENT_ERR_LOGS = deque(maxlen=100)
 
 
+class AllLLMRequestsFailedError(ValueError):
+    """All LLM API retries are exhausted for a single agent request."""
+
+
 async def run_agent(
     chat_key: str,
     chat_message: Optional[ChatMessage] = None,
@@ -290,12 +294,6 @@ async def send_agent_request(
             json.dumps([message.to_dict() for message in messages], indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        if chat_key and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
-            from nekro_agent.services.chat.universal_chat_service import (
-                universal_chat_service,
-            )
-
-            await universal_chat_service.send_operation_message(chat_key, "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ")
-        raise ValueError("所有 LLM 请求失败")
+        raise AllLLMRequestsFailedError("所有 LLM 请求失败")
 
     return llm_response, used_model_group

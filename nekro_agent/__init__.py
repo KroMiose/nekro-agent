@@ -13,6 +13,8 @@ from nekro_agent.core.db_migration import run_db_migrations
 from nekro_agent.core.logger import logger
 from nekro_agent.routers import mount_api_routes, mount_middlewares
 from nekro_agent.services.mail.mail_service import send_bot_status_email
+from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
+from nekro_agent.services.memory.scheduler import memory_scheduler
 from nekro_agent.services.plugin.collector import init_plugins
 from nekro_agent.services.runtime_state import mark_shutting_down, mark_started
 from nekro_agent.services.timer.recurring_timer_service import recurring_timer_service
@@ -20,6 +22,38 @@ from nekro_agent.services.timer.timer_service import timer_service
 from nekro_agent.systems.cloud.scheduler import start_telemetry_task, stop_telemetry_task
 
 logging.getLogger("passlib").setLevel(logging.ERROR)
+
+
+async def _init_memory_scheduler() -> None:
+    """初始化记忆调度器"""
+    if not is_memory_system_enabled():
+        logger.info("记忆系统总开关关闭，跳过记忆调度器初始化")
+        return
+
+    from nekro_agent.services.memory.consolidator import consolidate_workspace
+    from nekro_agent.services.memory.embedding_service import get_memory_embedding_dimension
+    from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+
+    # 确保 Qdrant Collection 存在
+    try:
+        await memory_qdrant_manager.ensure_collection(get_memory_embedding_dimension())
+    except Exception as e:
+        logger.warning(f"记忆系统 Qdrant Collection 初始化失败（可能 Qdrant 未启用）: {e}")
+
+    async def consolidation_handler(workspace_id: int, chat_key: str) -> None:
+        """沉淀处理器"""
+        try:
+            result = await consolidate_workspace(workspace_id, chat_key)
+            logger.debug(
+                f"记忆沉淀完成: workspace={workspace_id}, "
+                f"paragraphs={result.paragraphs_created}, "
+                f"entities={result.entities_created}",
+            )
+        except Exception as e:
+            logger.warning(f"记忆沉淀失败: workspace={workspace_id}, error={e}")
+
+    memory_scheduler.set_consolidation_handler(consolidation_handler)
+    await memory_scheduler.start()
 
 
 class _Config(BaseModel):
@@ -95,6 +129,10 @@ if _driver is not None:
         await recurring_timer_service.start()
         logger.info("Recurring timer service initialized")
 
+        # 初始化记忆调度器
+        await _init_memory_scheduler()
+        logger.info("Memory scheduler initialized")
+
         # 遥测任务
         start_telemetry_task()
 
@@ -121,12 +159,22 @@ if _driver is not None:
             except Exception as e:
                 logger.error(f"[cc_workspace] CC 待投递结果恢复任务失败: {e}")
 
+            # 恢复因重启中断的工作区记忆重建任务
+            if is_memory_system_enabled():
+                try:
+                    from nekro_agent.services.memory.rebuild import recover_pending_memory_rebuilds
+
+                    await recover_pending_memory_rebuilds()
+                except Exception as e:
+                    logger.error(f"[memory] 记忆重建恢复任务失败: {e}")
+
         asyncio.create_task(_recover_cc_pending())
 
     @_driver.on_shutdown
     async def on_shutdown():
         mark_shutting_down()
         await stop_telemetry_task()
+        await memory_scheduler.stop()
         await recurring_timer_service.stop()
         await timer_service.stop()
         await cleanup_adapters(get_app())

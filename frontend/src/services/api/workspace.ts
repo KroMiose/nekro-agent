@@ -510,62 +510,336 @@ export const builtinSkillApi = {
 }
 
 // 记忆系统 API
-export interface MemoryFileMeta {
-  path: string
-  title: string
-  category: string
-  tags: string[]
-  shared: boolean
-  updated: string
+export interface MemoryDataStats {
+  paragraph_count: number
+  episodic_count: number
+  semantic_count: number
+  entity_count: number
+  relation_count: number
+  reinforcement_count_7d: number
 }
 
-export interface MemoryTreeNode {
-  name: string
-  type: 'file' | 'dir'
-  path: string
-  meta: MemoryFileMeta | null
-  children: MemoryTreeNode[] | null
-}
-
-export interface MemoryFileContent {
-  path: string
-  raw: string
+export interface MemoryParagraphData {
+  id: number
+  summary: string
   content: string
-  meta: MemoryFileMeta
+  memory_source: string
+  cognitive_type: string
+  knowledge_type: string
+  base_weight: number
+  effective_weight: number
+  event_time: string | null
+  origin_kind: string
+  origin_chat_key: string | null
+  create_time: string
+}
+
+export interface MemoryEntityData {
+  id: number
+  entity_type: string
+  canonical_name: string
+  appearance_count: number
+  source_hint: string
+  update_time: string
+}
+
+export interface MemoryRelationData {
+  id: number
+  subject_entity_id: number
+  subject_name: string
+  predicate: string
+  object_entity_id: number
+  object_name: string
+  memory_source: string
+  cognitive_type: string
+  base_weight: number
+  effective_weight: number
+  paragraph_id: number | null
+  update_time: string
+}
+
+export interface MemoryDataResponse {
+  stats: MemoryDataStats
+  paragraphs: MemoryParagraphData[]
+  entities: MemoryEntityData[]
+  relations: MemoryRelationData[]
+}
+
+export interface MemoryListItem {
+  id: number
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  title: string
+  subtitle: string
+  status: string
+  cognitive_type: string | null
+  base_weight: number | null
+  effective_weight: number | null
+  event_time: string | null
+  create_time: string
+  update_time: string
+}
+
+export interface MemoryListResponse {
+  total: number
+  items: MemoryListItem[]
+}
+
+export interface MemoryDetailResponse {
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  data: Record<string, unknown>
+}
+
+export interface MemoryTraceMessage {
+  id: number
+  message_id: string
+  sender_nickname: string
+  content_text: string
+  send_timestamp: number
+}
+
+export interface MemoryTraceResponse {
+  paragraph: Record<string, unknown>
+  messages: MemoryTraceMessage[]
+  entities: MemoryEntityData[]
+  relations: MemoryRelationData[]
+}
+
+export interface MemoryPruneResponse {
+  paragraphs_pruned: number
+  relations_pruned: number
+  entities_pruned: number
+}
+
+export interface MemoryRebuildChannelStatus {
+  chat_key: string
+  status: string
+  upper_bound_message_db_id: number
+  initial_cursor_db_id: number
+  last_cursor_db_id: number
+  message_count_total: number
+  messages_processed: number
+  completed: boolean
+  progress_ratio: number
+  last_error?: string | null
+}
+
+export interface MemoryRebuildStartResponse {
+  job_id: string
+  reused: boolean
+  status: string
+  message: string
+}
+
+export interface MemoryRebuildStatus {
+  workspace_id: number
+  job_id?: string | null
+  is_running: boolean
+  status: 'idle' | 'running' | 'completed' | 'failed' | string
+  phase?: string | null
+  started_at: string | null
+  finished_at: string | null
+  cutoff: string | null
+  semantic_replayed: boolean
+  cancel_requested: boolean
+  current_chat_key?: string | null
+  last_heartbeat_at?: string | null
+  failure_code?: string | null
+  failure_reason?: string | null
+  overall_progress_percent: number
+  total_channels: number
+  completed_channels: number
+  total_messages_processed: number
+  channels: MemoryRebuildChannelStatus[]
+}
+
+export interface MemoryGraphNode {
+  id: string
+  memory_type: 'paragraph' | 'entity' | 'relation' | 'episode'
+  ref_id: number
+  label: string
+  subtitle: string
+  status: 'active' | 'inactive'
+  cognitive_type: string | null
+  weight: number
+  size: number
+  importance: number
+  paragraph_id: number | null
+  metadata: Record<string, unknown>
+}
+
+export interface MemoryGraphEdge {
+  id: string
+  source: string
+  target: string
+  edge_type: 'relation_subject' | 'relation_object' | 'relation_paragraph' | 'paragraph_entity' | 'episode_paragraph' | 'episode_entity'
+  label: string
+  weight: number
+  strength: number
+  status: 'active' | 'inactive'
+  cognitive_type: string | null
+  metadata: Record<string, unknown>
+}
+
+export interface MemoryGraphResponse {
+  generated_at: string
+  node_count: number
+  edge_count: number
+  nodes: MemoryGraphNode[]
+  edges: MemoryGraphEdge[]
+}
+
+export interface MemoryListParams {
+  memory_type?: 'paragraph' | 'entity' | 'relation' | 'episode'
+  status?: 'active' | 'inactive'
+  cognitive_type?: 'episodic' | 'semantic'
+  time_from?: string
+  time_to?: string
+  sort_by?: 'update_time' | 'create_time' | 'effective_weight'
+  order?: 'asc' | 'desc'
+  limit?: number
+  offset?: number
 }
 
 export const memoryApi = {
-  getTree: async (workspaceId: number): Promise<MemoryTreeNode[]> => {
-    const response = await axios.get<{ nodes: MemoryTreeNode[] }>(`/workspaces/${workspaceId}/memory/tree`)
-    return response.data.nodes
-  },
-
-  getFile: async (workspaceId: number, path: string): Promise<MemoryFileContent> => {
-    const response = await axios.get<MemoryFileContent>(`/workspaces/${workspaceId}/memory/file`, {
-      params: { path },
+  getData: async (workspaceId: number, limit = 20): Promise<MemoryDataResponse> => {
+    const response = await axios.get<MemoryDataResponse>(`/workspaces/${workspaceId}/memory/data`, {
+      params: { limit },
     })
     return response.data
   },
 
-  putFile: async (workspaceId: number, path: string, raw: string): Promise<void> => {
-    await axios.put(`/workspaces/${workspaceId}/memory/file`, { path, raw })
+  getGraph: async (
+    workspaceId: number,
+    limit = 240,
+    includeInactive = false,
+    timeFrom?: string,
+    timeTo?: string,
+  ): Promise<MemoryGraphResponse> => {
+    const response = await axios.get<MemoryGraphResponse>(`/workspaces/${workspaceId}/memory/graph`, {
+      params: { limit, include_inactive: includeInactive, time_from: timeFrom, time_to: timeTo },
+    })
+    return response.data
   },
 
-  deleteFile: async (workspaceId: number, path: string): Promise<void> => {
-    await axios.delete(`/workspaces/${workspaceId}/memory/file`, { params: { path } })
+  list: async (workspaceId: number, params: MemoryListParams = {}): Promise<MemoryListResponse> => {
+    const response = await axios.get<MemoryListResponse>(`/workspaces/${workspaceId}/memory/list`, {
+      params: {
+        memory_type: params.memory_type,
+        status: params.status,
+        cognitive_type: params.cognitive_type,
+        time_from: params.time_from,
+        time_to: params.time_to,
+        sort_by: params.sort_by,
+        order: params.order,
+        limit: params.limit ?? 100,
+        offset: params.offset ?? 0,
+      },
+    })
+    return response.data
   },
 
-  getNaContext: async (workspaceId: number): Promise<string> => {
-    const response = await axios.get<{ content: string }>(`/workspaces/${workspaceId}/memory/na-context`)
-    return response.data.content
+  detail: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<MemoryDetailResponse> => {
+    const response = await axios.get<MemoryDetailResponse>(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`)
+    return response.data
   },
 
-  putNaContext: async (workspaceId: number, content: string): Promise<void> => {
-    await axios.put(`/workspaces/${workspaceId}/memory/na-context`, { content })
+  reinforce: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    boost = 0.2,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/reinforce`, null, {
+      params: { boost },
+    })
+  },
+
+  demote: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    delta = 0.2,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/demote`, null, {
+      params: { delta },
+    })
+  },
+
+  freeze: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/freeze`)
+  },
+
+  unfreeze: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/unfreeze`)
+  },
+
+  protect: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    protectedFlag = true,
+  ): Promise<void> => {
+    await axios.post(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}/protect`, null, {
+      params: { protected: protectedFlag },
+    })
+  },
+
+  trace: async (workspaceId: number, memoryId: number): Promise<MemoryTraceResponse> => {
+    const response = await axios.get<MemoryTraceResponse>(`/workspaces/${workspaceId}/memory/paragraph/${memoryId}/trace`)
+    return response.data
+  },
+
+  remove: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+  ): Promise<void> => {
+    await axios.delete(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`)
   },
 
   resetMemory: async (workspaceId: number): Promise<void> => {
     await axios.post(`/workspaces/${workspaceId}/memory/reset`)
+  },
+
+  rebuildMemory: async (workspaceId: number): Promise<MemoryRebuildStartResponse> => {
+    const response = await axios.post<MemoryRebuildStartResponse>(`/workspaces/${workspaceId}/memory/rebuild`)
+    return response.data
+  },
+
+  cancelRebuildMemory: async (workspaceId: number): Promise<MemoryRebuildStartResponse> => {
+    const response = await axios.post<MemoryRebuildStartResponse>(`/workspaces/${workspaceId}/memory/rebuild/cancel`)
+    return response.data
+  },
+
+  getRebuildStatus: async (workspaceId: number): Promise<MemoryRebuildStatus> => {
+    const response = await axios.get<MemoryRebuildStatus>(`/workspaces/${workspaceId}/memory/rebuild/status`)
+    return response.data
+  },
+
+  prune: async (workspaceId: number): Promise<MemoryPruneResponse> => {
+    const response = await axios.post<MemoryPruneResponse>(`/workspaces/${workspaceId}/memory/prune`)
+    return response.data
+  },
+
+  edit: async (
+    workspaceId: number,
+    memoryType: 'paragraph' | 'entity' | 'relation' | 'episode',
+    memoryId: number,
+    payload: { summary?: string; content?: string },
+  ): Promise<void> => {
+    await axios.put(`/workspaces/${workspaceId}/memory/${memoryType}/${memoryId}`, payload)
   },
 }
 

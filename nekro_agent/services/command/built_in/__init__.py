@@ -14,6 +14,9 @@ from .ops import (
     GithubStarsCheckCommand,
     InstanceIdCommand,
     LogErrListCommand,
+    MemoryPruneCommand,
+    MemoryRebuildCommand,
+    MemoryReindexCommand,
     ShCommand,
 )
 from .plugin_cmd import NaPluginsCommand, PluginCtlCommand, PluginInfoCommand, ResetPluginCommand
@@ -59,6 +62,9 @@ def register_built_in_commands() -> None:
         InstanceIdCommand(),
         GithubStarsCheckCommand(),
         LogErrListCommand(),
+        MemoryPruneCommand(),
+        MemoryRebuildCommand(),
+        MemoryReindexCommand(),
         # 配额类
         QuotaCommand(),
         QuotaBoostCommand(),

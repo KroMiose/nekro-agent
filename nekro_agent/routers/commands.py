@@ -168,10 +168,10 @@ async def stream_command_output(
                 try:
                     event = await subscription.get(timeout=1.0)
                 except asyncio.TimeoutError:
-                    yield ": ping\n\n"
+                    yield {"comment": "ping"}
                     continue
 
-                yield f"data: {json.dumps(event.model_dump(), ensure_ascii=False)}\n\n"
+                yield {"data": json.dumps(event.model_dump(), ensure_ascii=False)}
         finally:
             subscription.close()
 

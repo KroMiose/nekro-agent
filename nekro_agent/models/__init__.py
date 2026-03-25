@@ -1,6 +1,12 @@
 from .db_chat_channel import DBChatChannel  # noqa: F401
 from .db_chat_message import DBChatMessage  # noqa: F401
 from .db_exec_code import DBExecCode  # noqa: F401
+from .db_mem_entity import DBMemEntity  # noqa: F401
+from .db_mem_episode import DBMemEpisode  # noqa: F401
+from .db_mem_media_resource import DBMemMediaResource  # noqa: F401
+from .db_mem_paragraph import DBMemParagraph  # noqa: F401
+from .db_mem_reinforcement_log import DBMemReinforcementLog  # noqa: F401
+from .db_mem_relation import DBMemRelation  # noqa: F401
 from .db_plugin_data import DBPluginData  # noqa: F401
 from .db_preset import DBPreset  # noqa: F401
 from .db_recurring_timer_job import DBRecurringTimerJob  # noqa: F401
