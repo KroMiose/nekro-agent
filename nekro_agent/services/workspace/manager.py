@@ -509,14 +509,6 @@ updated: "YYYY-MM-DD"
             )
             logger.debug(f"写入 .claude/settings.json: {claude_settings_path}")
 
-        # 写入 .mcp.json（来自 metadata.mcp_config，若无则写空配置）
-        mcp_config = workspace.metadata.get("mcp_config", {})
-        if not mcp_config:
-            mcp_config = {"mcpServers": {}}
-        mcp_path = ws_dir / ".mcp.json"
-        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
-        logger.debug(f"写入 .mcp.json: {mcp_path}")
-
         # 同步 skills 目录
         await WorkspaceService.sync_skills(workspace)
 
@@ -531,6 +523,15 @@ updated: "YYYY-MM-DD"
         claude_home.mkdir(exist_ok=True)
         # 确保容器内的 appuser 有写入权限（bind mount 跨越用户边界时宿主机 owner 可能不匹配）
         claude_home.chmod(0o777)
+
+        # 写入 .mcp.json 到 CC 工作目录（/workspace/default/.mcp.json）
+        # 注意：与 CLAUDE.md 同理，必须放在 /workspace/default/ 下，CC 只在项目根目录查找
+        mcp_config = workspace.metadata.get("mcp_config", {})
+        if not mcp_config:
+            mcp_config = {"mcpServers": {}}
+        mcp_path = ws_dir / "default" / ".mcp.json"
+        mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+        logger.debug(f"写入 .mcp.json: {mcp_path}")
 
         # 写入 CLAUDE.md 到 CC 工作目录（/workspace/default/CLAUDE.md）
         # 注意：不能放在 /workspace/CLAUDE.md，否则当 /workspace/default/ 成为 git 根目录时
@@ -706,8 +707,114 @@ updated: "YYYY-MM-DD"
         await workspace.save(update_fields=["metadata", "update_time"])
 
         ws_dir = WorkspaceService.get_workspace_dir(workspace.id)
-        mcp_path = ws_dir / ".mcp.json"
+        mcp_path = ws_dir / "default" / ".mcp.json"
         mcp_path.write_text(json.dumps(mcp_config, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    @staticmethod
+    def list_mcp_servers(workspace: DBWorkspace) -> list[Any]:
+        """解析 metadata.mcp_config.mcpServers 为结构化服务器列表"""
+        from nekro_agent.services.mcp.schemas import McpServerConfig, McpServerType
+
+        mcp_config: Dict[str, Any] = (workspace.metadata or {}).get("mcp_config", {})
+        mcp_servers: Dict[str, Any] = mcp_config.get("mcpServers", {})
+        result: list[McpServerConfig] = []
+        for name, cfg in mcp_servers.items():
+            # 优先从显式 transport 字段派生类型，兼容旧配置
+            transport = cfg.get("transport")
+            if transport == "sse":
+                server_type = McpServerType.sse
+            elif transport == "http":
+                server_type = McpServerType.http
+            elif transport == "stdio":
+                server_type = McpServerType.stdio
+            elif "url" in cfg:
+                server_type = McpServerType.http
+            else:
+                server_type = McpServerType.stdio
+            result.append(
+                McpServerConfig(
+                    name=name,
+                    type=server_type,
+                    enabled=cfg.get("enabled", True),
+                    command=cfg.get("command"),
+                    args=cfg.get("args", []),
+                    env=cfg.get("env", {}),
+                    url=cfg.get("url"),
+                    headers=cfg.get("headers", {}),
+                )
+            )
+        return result
+
+    @staticmethod
+    async def add_mcp_server(workspace: DBWorkspace, server: Any) -> None:
+        """添加一个 MCP 服务器到 mcpServers"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if server.name in mcp_servers:
+            from nekro_agent.schemas.errors import ConflictError
+
+            raise ConflictError(resource=f"MCP 服务器 {server.name}")
+
+        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    async def update_mcp_server(workspace: DBWorkspace, old_name: str, server: Any) -> None:
+        """更新指定的 MCP 服务器"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if old_name not in mcp_servers:
+            from nekro_agent.schemas.errors import NotFoundError
+
+            raise NotFoundError(resource=f"MCP 服务器 {old_name}")
+
+        # 如果改名，删除旧的
+        if server.name != old_name:
+            del mcp_servers[old_name]
+        mcp_servers[server.name] = WorkspaceService._server_to_raw(server)
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    async def remove_mcp_server(workspace: DBWorkspace, name: str) -> None:
+        """删除指定的 MCP 服务器"""
+        mcp_config: Dict[str, Any] = dict((workspace.metadata or {}).get("mcp_config", {}))
+        mcp_servers: Dict[str, Any] = dict(mcp_config.get("mcpServers", {}))
+
+        if name not in mcp_servers:
+            from nekro_agent.schemas.errors import NotFoundError
+
+            raise NotFoundError(resource=f"MCP 服务器 {name}")
+
+        del mcp_servers[name]
+        mcp_config["mcpServers"] = mcp_servers
+        await WorkspaceService.update_mcp_config(workspace, mcp_config)
+
+    @staticmethod
+    def _server_to_raw(server: Any) -> Dict[str, Any]:
+        """将 McpServerConfig 转换为 .mcp.json 兼容的 raw dict"""
+        raw: Dict[str, Any] = {}
+        if not server.enabled:
+            raw["enabled"] = False
+        # 持久化 transport 类型，确保 sse/http 能正确往返
+        raw["transport"] = server.type if isinstance(server.type, str) else server.type.value
+        if server.url:
+            # sse/http 类型
+            raw["url"] = server.url
+            if server.headers:
+                raw["headers"] = dict(server.headers)
+        else:
+            # stdio 类型
+            if server.command:
+                raw["command"] = server.command
+            if server.args:
+                raw["args"] = list(server.args)
+            if server.env:
+                raw["env"] = dict(server.env)
+        return raw
 
     @staticmethod
     async def bind_channel(workspace: DBWorkspace, chat_key: str) -> None:

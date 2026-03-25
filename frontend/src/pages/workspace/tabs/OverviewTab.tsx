@@ -176,6 +176,7 @@ export default function OverviewTab({
   onNavigateToConfig,
   onNavigateToExtensions,
   onNavigateToComm,
+  onNavigateToMcp,
 }: {
   workspace: WorkspaceDetail
   sandboxStatus: SandboxStatus | null
@@ -183,6 +184,7 @@ export default function OverviewTab({
   onNavigateToConfig: () => void
   onNavigateToExtensions: () => void
   onNavigateToComm?: () => void
+  onNavigateToMcp?: () => void
 }) {
   const theme = useTheme()
   const navigate = useNavigate()
@@ -349,7 +351,7 @@ export default function OverviewTab({
           value={mcpServersCount}
           suffix={t('detail.overview.suffixes.count')}
           color={theme.palette.info?.main ?? theme.palette.primary.light}
-          onClick={onNavigateToExtensions}
+          onClick={onNavigateToMcp}
         />
         <OverviewStatCard
           icon={<ForumIcon sx={{ fontSize: 20 }} />}

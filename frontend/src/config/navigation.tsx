@@ -151,6 +151,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
       {
+        path: '/workspace/mcp-services',
+        text: t('menu.mcpServices'),
+        translationKey: 'menu.mcpServices',
+        icon: <HubIcon />,
+        parent: 'workspace',
+      },
+      {
         path: '/workspace/timers',
         text: t('menu.timers'),
         translationKey: 'menu.timers',
