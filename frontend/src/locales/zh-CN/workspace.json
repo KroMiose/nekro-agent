@@ -273,6 +273,72 @@
       "syncFailed": "同步失败：{{message}}"
     }
   },
+  "mcpServices": {
+    "pageTitle": "MCP 服务",
+    "pageDesc": "管理自动注入到新工作区的 MCP 服务，所有工作区创建时将自动添加这些服务",
+    "stats": {
+      "total": "自动注入总数",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "search": {
+      "placeholder": "搜索服务名称或命令..."
+    },
+    "filter": {
+      "all": "全部",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "toolbar": {
+      "fromTemplate": "从模板添加",
+      "addManual": "手动添加",
+      "refresh": "刷新",
+      "cardView": "卡片视图",
+      "listView": "列表视图",
+      "clearFilters": "清除筛选",
+      "jsonView": "JSON 视图",
+      "jsonViewTitle": "自动注入配置（JSON）",
+      "jsonViewHint": "此视图为只读，展示当前自动注入 MCP 服务的 JSON 配置，可复制到 Claude Desktop 等工具使用",
+      "readOnly": "只读",
+      "autoInjectTooltip": "开启后，新建工作区时将自动添加此 MCP 服务",
+      "autoInjectOn": "自动注入",
+      "autoInjectOff": "非自动注入",
+      "autoInject": "自动注入",
+      "addBtn": "添加服务",
+      "importJson": "从 JSON 导入"
+    },
+    "import": {
+      "title": "从 JSON 导入 MCP 服务",
+      "hint": "粘贴 Claude Desktop 格式的 MCP 配置 JSON（支持 JSONC 注释），将自动解析并添加到自动注入列表。已存在同名服务将被跳过。",
+      "importBtn": "导入",
+      "parseError": "JSON 解析失败，请检查格式",
+      "formatError": "格式不正确，需要 { mcpServers: { ... } } 或 { name: { ... } } 格式",
+      "emptyError": "未找到可导入的服务",
+      "allLocalFileError": "所有 STDIO 服务均引用了本地文件路径，无法导入。仅支持 npx/uvx 等包管理器命令",
+      "success": "成功导入 {{count}} 个服务",
+      "successWithSkip": "成功导入 {{count}} 个服务，跳过 {{skipped}} 个已存在的服务"
+    },
+    "empty": {
+      "title": "暂无自动注入的 MCP 服务",
+      "hint": "点击「手动添加」或「从模板添加」添加第一个自动注入服务",
+      "noMatch": "没有匹配的服务"
+    },
+    "notifications": {
+      "addSuccess": "MCP 服务已添加到自动注入列表",
+      "addFailed": "添加失败：{{message}}",
+      "updateSuccess": "MCP 服务已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "deleteSuccess": "MCP 服务已从自动注入列表移除",
+      "deleteFailed": "移除失败：{{message}}",
+      "toggleSuccess": "已更新启用状态"
+    },
+    "deleteDialog": {
+      "title": "移除自动注入服务",
+      "content": "确定要从自动注入列表中移除「{{name}}」吗？已有工作区中的配置不受影响。"
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "返回列表",
@@ -285,6 +351,7 @@
       "comm": "沙盒通讯",
       "memory": "记忆图谱",
       "extensions": "扩展能力",
+      "mcp": "MCP 服务",
       "prompt": "提示词",
       "config": "配置"
     },
@@ -590,6 +657,64 @@
         "cancelSuccess": "已发送强制中止指令",
         "cancelFailed": "强制中止失败：{{message}}"
       }
+    },
+    "mcp": {
+      "title": "MCP 服务配置",
+      "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
+      "fromTemplate": "从模板添加",
+      "addManual": "手动添加",
+      "addServer": "添加服务",
+      "syncToSandbox": "同步到沙盒",
+      "syncSuccess": "MCP 配置已同步到沙盒",
+      "syncFailed": "同步失败：{{message}}",
+      "switchToJson": "切换到 JSON 预览",
+      "switchToCards": "切换到卡片视图",
+      "switchToList": "切换到列表视图",
+      "save": "保存",
+      "saving": "保存中...",
+      "add": "添加",
+      "adding": "添加中...",
+      "edit": "编辑",
+      "delete": "删除",
+      "enable": "启用",
+      "disable": "禁用",
+      "addTitle": "添加 MCP 服务器",
+      "editTitle": "编辑 MCP 服务器",
+      "deleteTitle": "删除 MCP 服务器",
+      "deleteConfirm": "确定要删除 MCP 服务器「{{name}}」吗？",
+      "addSuccess": "MCP 服务器已添加",
+      "addFailed": "添加失败：{{message}}",
+      "updateSuccess": "MCP 服务器已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "deleteSuccess": "MCP 服务器已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "saveSuccess": "MCP 配置已保存",
+      "saveFailed": "保存失败：{{message}}",
+      "jsonError": "JSON 格式错误",
+      "jsonErrorFix": "请先修复 JSON 格式错误",
+      "jsonHint": "支持 JSONC 格式（// 和 /* */ 注释），保存时自动转换为 JSON",
+      "form": {
+        "name": "服务器名称",
+        "command": "命令",
+        "args": "参数",
+        "argsHint": "以空格分隔多个参数",
+        "envLabel": "环境变量",
+        "url": "服务器 URL",
+        "headersLabel": "HTTP 请求头",
+        "cancel": "取消",
+        "stdioHint": "仅支持 npx / uvx / bunx / pnpx 等包管理器命令，不支持引用宿主机本地文件路径",
+        "stdioCommandError": "仅支持 npx、uvx、bunx、pnpx 命令"
+      },
+      "registry": {
+        "title": "从模板添加 MCP 服务器",
+        "search": "搜索模板...",
+        "empty": "没有匹配的模板"
+      },
+      "autoInject": "自动注入",
+      "setAutoInject": "设为自动注入",
+      "removeAutoInject": "取消自动注入",
+      "autoInjectSuccess": "已更新自动注入配置",
+      "autoInjectFailed": "更新自动注入配置失败：{{message}}"
     },
     "prompt": {
       "systemPromptTitle": "系统提示词（只读）",

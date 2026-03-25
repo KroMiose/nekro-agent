@@ -47,6 +47,7 @@ from nekro_agent.schemas.workspace import (
     WorkspaceSummary,
     WorkspaceUpdate,
 )
+from nekro_agent.services.mcp.schemas import McpServerConfig
 from nekro_agent.services.memory.feature_flags import (
     MemoryOperation,
     ensure_memory_system_enabled,
@@ -238,9 +239,7 @@ async def list_workspaces(
 
     # 批量查询频道绑定（避免 N+1 查询），同时取 channel_name 用于显示
     ws_ids = [ws.id for ws in workspaces]
-    channels_all = await DBChatChannel.filter(workspace_id__in=ws_ids).values(
-        "workspace_id", "chat_key", "channel_name"
-    )
+    channels_all = await DBChatChannel.filter(workspace_id__in=ws_ids).values("workspace_id", "chat_key", "channel_name")
     channels_by_ws: Dict[int, List[str]] = {}
     display_by_ws: Dict[int, List[str]] = {}
     for ch in channels_all:
@@ -292,6 +291,40 @@ async def create_workspace(
             metadata["skills"] = injected
             ws.metadata = metadata
             await ws.save(update_fields=["metadata"])
+
+    # 自动注入 MCP 服务
+    from nekro_agent.core.auto_inject_mcp import get_auto_inject_mcp_servers
+
+    auto_mcp = get_auto_inject_mcp_servers()
+    if auto_mcp:
+        metadata = ws.metadata or {}
+        mcp_config: Dict[str, Any] = metadata.get("mcp_config", {"mcpServers": {}})
+        if "mcpServers" not in mcp_config:
+            mcp_config["mcpServers"] = {}
+        for server in auto_mcp:
+            name = server.get("name", "")
+            if not name:
+                continue
+            raw: Dict[str, Any] = {}
+            srv_type = server.get("type", "stdio")
+            if not server.get("enabled", True):
+                raw["enabled"] = False
+            raw["transport"] = srv_type
+            if server.get("url"):
+                raw["url"] = server["url"]
+                if server.get("headers"):
+                    raw["headers"] = dict(server["headers"])
+            else:
+                if server.get("command"):
+                    raw["command"] = server["command"]
+                if server.get("args"):
+                    raw["args"] = list(server["args"])
+                if server.get("env"):
+                    raw["env"] = dict(server["env"])
+            mcp_config["mcpServers"][name] = raw
+        metadata["mcp_config"] = mcp_config
+        ws.metadata = metadata
+        await ws.save(update_fields=["metadata"])
 
     return await _detail_async(ws)
 
@@ -400,11 +433,13 @@ async def get_bound_channels(
     items: List[BoundChannelInfo] = []
     for ch in channels:
         ann = annotations.get(ch.chat_key)
-        items.append(BoundChannelInfo(
-            chat_key=ch.chat_key,
-            description=ann.description if ann else "",
-            is_primary=(ch.chat_key == primary_key),
-        ))
+        items.append(
+            BoundChannelInfo(
+                chat_key=ch.chat_key,
+                description=ann.description if ann else "",
+                is_primary=(ch.chat_key == primary_key),
+            )
+        )
     return BoundChannelsResponse(channels=items)
 
 
@@ -481,13 +516,15 @@ async def start_sandbox(
         ws = await SandboxContainerManager.create_and_start(ws)
     except ImageNotFoundError as e:
         raise ValidationError(reason=f"镜像 {e.image} 在本地不存在，请先在概览页拉取镜像后再启动容器")
-    await publish_system_event(WorkspaceStatusEvent(
-        workspace_id=ws.id,
-        status=ws.status,  # type: ignore[arg-type]
-        name=ws.name,
-        container_name=ws.container_name,
-        host_port=ws.host_port,
-    ))
+    await publish_system_event(
+        WorkspaceStatusEvent(
+            workspace_id=ws.id,
+            status=ws.status,  # type: ignore[arg-type]
+            name=ws.name,
+            container_name=ws.container_name,
+            host_port=ws.host_port,
+        )
+    )
     return await _detail_async(ws)
 
 
@@ -502,13 +539,15 @@ async def stop_sandbox(
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     await SandboxContainerManager.stop(ws)
     await ws.refresh_from_db()
-    await publish_system_event(WorkspaceStatusEvent(
-        workspace_id=ws.id,
-        status=ws.status,  # type: ignore[arg-type]
-        name=ws.name,
-        container_name=ws.container_name,
-        host_port=ws.host_port,
-    ))
+    await publish_system_event(
+        WorkspaceStatusEvent(
+            workspace_id=ws.id,
+            status=ws.status,  # type: ignore[arg-type]
+            name=ws.name,
+            container_name=ws.container_name,
+            host_port=ws.host_port,
+        )
+    )
     return ActionOkResponse(ok=True)
 
 
@@ -526,13 +565,15 @@ async def restart_sandbox(
     await SandboxContainerManager.restart(ws)
     # restart() 内部会在健康检查失败时修改 status，需要重新查询
     await ws.refresh_from_db()
-    await publish_system_event(WorkspaceStatusEvent(
-        workspace_id=ws.id,
-        status=ws.status,  # type: ignore[arg-type]
-        name=ws.name,
-        container_name=ws.container_name,
-        host_port=ws.host_port,
-    ))
+    await publish_system_event(
+        WorkspaceStatusEvent(
+            workspace_id=ws.id,
+            status=ws.status,  # type: ignore[arg-type]
+            name=ws.name,
+            container_name=ws.container_name,
+            host_port=ws.host_port,
+        )
+    )
     return ActionOkResponse(ok=True)
 
 
@@ -549,13 +590,15 @@ async def rebuild_sandbox(
         ws = await SandboxContainerManager.rebuild(ws)
     except ImageNotFoundError as e:
         raise ValidationError(reason=f"镜像 {e.image} 在本地不存在，请先在概览页拉取镜像后再重建容器")
-    await publish_system_event(WorkspaceStatusEvent(
-        workspace_id=ws.id,
-        status=ws.status,  # type: ignore[arg-type]
-        name=ws.name,
-        container_name=ws.container_name,
-        host_port=ws.host_port,
-    ))
+    await publish_system_event(
+        WorkspaceStatusEvent(
+            workspace_id=ws.id,
+            status=ws.status,  # type: ignore[arg-type]
+            name=ws.name,
+            container_name=ws.container_name,
+            host_port=ws.host_port,
+        )
+    )
     return await _detail_async(ws)
 
 
@@ -738,16 +781,19 @@ async def reset_session(
             is_streaming=False,
             task_id=None,
         )
-        await comm_broadcast.publish(workspace_id, {
-            "id": sys_log.id,
-            "workspace_id": sys_log.workspace_id,
-            "direction": sys_log.direction,
-            "source_chat_key": sys_log.source_chat_key,
-            "content": sys_log.content,
-            "is_streaming": sys_log.is_streaming,
-            "task_id": sys_log.task_id,
-            "create_time": sys_log.create_time.isoformat(),
-        })
+        await comm_broadcast.publish(
+            workspace_id,
+            {
+                "id": sys_log.id,
+                "workspace_id": sys_log.workspace_id,
+                "direction": sys_log.direction,
+                "source_chat_key": sys_log.source_chat_key,
+                "content": sys_log.content,
+                "is_streaming": sys_log.is_streaming,
+                "task_id": sys_log.task_id,
+                "create_time": sys_log.create_time.isoformat(),
+            },
+        )
     except Exception as e:
         logger.warning(f"写入会话重置 CommLog 失败: {e}")
 
@@ -766,10 +812,7 @@ async def reset_session(
                 data_key="last_cc_task_prompt",
             ).delete()
             if deleted_count:
-                logger.info(
-                    f"会话重置：已清理 {deleted_count} 条 last_cc_task_prompt 缓存 "
-                    f"workspace_id={workspace_id}"
-                )
+                logger.info(f"会话重置：已清理 {deleted_count} 条 last_cc_task_prompt 缓存 " f"workspace_id={workspace_id}")
     except Exception as e:
         logger.warning(f"清理 last_cc_task_prompt 缓存失败: {e}")
 
@@ -857,7 +900,9 @@ async def update_workspace_skills(
     return ActionOkResponse(ok=True)
 
 
-@router.post("/{workspace_id}/skills/{skill_name:path}/sync", summary="从全局库重新同步单个 skill", response_model=ActionOkResponse)
+@router.post(
+    "/{workspace_id}/skills/{skill_name:path}/sync", summary="从全局库重新同步单个 skill", response_model=ActionOkResponse
+)
 @require_role(Role.Admin)
 async def sync_workspace_skill(
     workspace_id: int,
@@ -888,9 +933,7 @@ async def get_workspace_env_vars(
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     env_list = (ws.metadata or {}).get("env_vars", [])
-    return WorkspaceEnvVarsResponse(
-        env_vars=[WorkspaceEnvVar(**item) for item in env_list if item.get("key")]
-    )
+    return WorkspaceEnvVarsResponse(env_vars=[WorkspaceEnvVar(**item) for item in env_list if item.get("key")])
 
 
 @router.put("/{workspace_id}/env-vars", summary="更新工作区环境变量列表", response_model=ActionOkResponse)
@@ -1044,7 +1087,11 @@ class PromoteBody(BaseModel):
     force: bool = False
 
 
-@router.post("/{workspace_id}/dynamic-skills/{dir_name}/promote", summary="晋升动态 skill 为全局用户 skill", response_model=ActionOkResponse)
+@router.post(
+    "/{workspace_id}/dynamic-skills/{dir_name}/promote",
+    summary="晋升动态 skill 为全局用户 skill",
+    response_model=ActionOkResponse,
+)
 @require_role(Role.Admin)
 async def promote_dynamic_skill(
     workspace_id: int,
@@ -1211,6 +1258,80 @@ async def update_mcp_config(
     return ActionOkResponse(ok=True)
 
 
+class McpServersResponse(BaseModel):
+    servers: List[McpServerConfig]
+
+
+@router.get("/{workspace_id}/mcp/servers", summary="获取结构化 MCP 服务器列表", response_model=McpServersResponse)
+@require_role(Role.Admin)
+async def list_mcp_servers(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> McpServersResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    servers = WorkspaceService.list_mcp_servers(ws)
+    return McpServersResponse(servers=servers)
+
+
+@router.post("/{workspace_id}/mcp/servers", summary="添加 MCP 服务器", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def add_mcp_server(
+    workspace_id: int,
+    server: McpServerConfig,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    await WorkspaceService.add_mcp_server(ws, server)
+    return ActionOkResponse(ok=True)
+
+
+@router.put("/{workspace_id}/mcp/servers/{server_name}", summary="更新 MCP 服务器", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_mcp_server(
+    workspace_id: int,
+    server_name: str,
+    server: McpServerConfig,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    await WorkspaceService.update_mcp_server(ws, server_name, server)
+    return ActionOkResponse(ok=True)
+
+
+@router.delete("/{workspace_id}/mcp/servers/{server_name}", summary="删除 MCP 服务器", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def delete_mcp_server(
+    workspace_id: int,
+    server_name: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    await WorkspaceService.remove_mcp_server(ws, server_name)
+    return ActionOkResponse(ok=True)
+
+
+@router.post("/{workspace_id}/mcp/sync", summary="同步 MCP 配置到沙盒", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def sync_mcp_to_sandbox(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    """将数据库中的 MCP 配置重新写入工作区目录的 .mcp.json，无需重启容器即可生效"""
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+    mcp_config = (ws.metadata or {}).get("mcp_config", {"mcpServers": {}})
+    await WorkspaceService.update_mcp_config(ws, mcp_config)
+    return ActionOkResponse(ok=True)
+
 
 # ─────────────────────────────────────────────────────────────
 # CC 模型预设
@@ -1345,7 +1466,11 @@ async def stream_sandbox_logs(
             if not current_container:
                 # 容器不存在（可能正在重建），等待并提示
                 if not waiting_notified:
-                    msg = "[容器正在重建，等待新容器启动...]\n" if last_container_name is not None else "[容器未运行，等待启动...]\n"
+                    msg = (
+                        "[容器正在重建，等待新容器启动...]\n"
+                        if last_container_name is not None
+                        else "[容器未运行，等待启动...]\n"
+                    )
                     yield json.dumps({"type": "info", "data": msg})
                     waiting_notified = True
                     last_container_name = None
@@ -1450,9 +1575,7 @@ async def workspace_terminal(
         while True:
             data = await output_queue.get()
             try:
-                await websocket.send_text(
-                    json.dumps({"type": "output", "data": data.decode("utf-8", errors="replace")})
-                )
+                await websocket.send_text(json.dumps({"type": "output", "data": data.decode("utf-8", errors="replace")}))
             except Exception:
                 break
 
@@ -2837,16 +2960,19 @@ async def user_send_to_cc(
     async def _cc_task() -> None:
         async def _status(running: bool) -> None:
             try:
-                await comm_broadcast.publish(workspace_id, {
-                    "id": 0,
-                    "workspace_id": workspace_id,
-                    "direction": "CC_STATUS",
-                    "source_chat_key": "",
-                    "content": json.dumps({"running": running}),
-                    "is_streaming": False,
-                    "task_id": None,
-                    "create_time": datetime.now(timezone.utc).isoformat(),
-                })
+                await comm_broadcast.publish(
+                    workspace_id,
+                    {
+                        "id": 0,
+                        "workspace_id": workspace_id,
+                        "direction": "CC_STATUS",
+                        "source_chat_key": "",
+                        "content": json.dumps({"running": running}),
+                        "is_streaming": False,
+                        "task_id": None,
+                        "create_time": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
             except Exception:
                 pass
 
@@ -2864,6 +2990,7 @@ async def user_send_to_cc(
                     if item_type in ("tool_call", "tool_result"):
                         try:
                             import json as _json
+
                             direction = "TOOL_CALL" if item_type == "tool_call" else "TOOL_RESULT"
                             log = await DBWorkspaceCommLog.create(
                                 workspace_id=workspace_id,
@@ -2981,6 +3108,7 @@ async def force_cancel_comm_task(
     # 向 CommTab 广播 SYSTEM 通知，让前端状态及时复位
     try:
         from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
+
         notice = "[强制中止] 用户通过管理界面手动中止了 CC 当前任务。"
         notice_log = await DBWorkspaceCommLog.create(
             workspace_id=workspace_id,
@@ -2996,16 +3124,19 @@ async def force_cancel_comm_task(
     # 广播 CC_STATUS False，驱动前端状态指示条立即隐藏
     # （_cc_delegate_task 的 except 路径也会广播，此处确保后台任务场景下也能及时更新）
     try:
-        await comm_broadcast.publish(workspace_id, {
-            "id": 0,
-            "workspace_id": workspace_id,
-            "direction": "CC_STATUS",
-            "source_chat_key": "",
-            "content": json.dumps({"running": False}),
-            "is_streaming": False,
-            "task_id": None,
-            "create_time": datetime.now(timezone.utc).isoformat(),
-        })
+        await comm_broadcast.publish(
+            workspace_id,
+            {
+                "id": 0,
+                "workspace_id": workspace_id,
+                "direction": "CC_STATUS",
+                "source_chat_key": "",
+                "content": json.dumps({"running": False}),
+                "is_streaming": False,
+                "task_id": None,
+                "create_time": datetime.now(timezone.utc).isoformat(),
+            },
+        )
     except Exception as e:
         logger.warning(f"广播 CC_STATUS false 失败: {e}")
 

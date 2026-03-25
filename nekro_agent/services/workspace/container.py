@@ -273,9 +273,14 @@ class SandboxContainerManager:
 
     @staticmethod
     async def restart(workspace: DBWorkspace) -> None:
-        """重启容器（进程级恢复）"""
+        """重启容器（进程级恢复），重启前同步配置文件"""
         if not workspace.container_name:
             raise RuntimeError("容器未运行")
+
+        # 重启前重新写入配置文件，确保数据库与磁盘一致
+        cc_preset = await SandboxContainerManager._resolve_preset(workspace)
+        await WorkspaceService.init_workspace_dir(workspace, cc_preset=cc_preset)
+
         docker = aiodocker.Docker()
         try:
             container = await docker.containers.get(workspace.container_name)

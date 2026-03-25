@@ -38,6 +38,7 @@ import SandboxTab from './tabs/SandboxTab'
 import CommTab from './tabs/CommTab'
 import MemoryTab from './tabs/MemoryTab'
 import ExtensionsTab from './tabs/ExtensionsTab'
+import MCPTab from './tabs/MCPTab'
 import PromptTab from './tabs/PromptTab'
 import ConfigTab from './tabs/ConfigTab'
 
@@ -275,6 +276,7 @@ export default function WorkspaceDetailPage() {
             />
             <Tab label={t('detail.tabs.memory')} />
             <Tab label={t('detail.tabs.extensions')} />
+            <Tab label={t('detail.tabs.mcp')} />
             <Tab label={t('detail.tabs.prompt')} />
             <Tab label={t('detail.tabs.config')} />
           </Tabs>
@@ -314,6 +316,7 @@ export default function WorkspaceDetailPage() {
               onNavigateToConfig={() => navigateToTab('config')}
               onNavigateToExtensions={() => navigateToTab('extensions')}
               onNavigateToComm={() => handleNavigateToComm('')}
+              onNavigateToMcp={() => navigateToTab('mcp')}
             />
           )}
           {activeTab === 1 && (
@@ -331,8 +334,9 @@ export default function WorkspaceDetailPage() {
           )}
           {activeTab === 3 && <MemoryTab workspace={workspace} />}
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
-          {activeTab === 5 && <PromptTab workspace={workspace} />}
-          {activeTab === 6 && (
+          {activeTab === 5 && <MCPTab workspace={workspace} />}
+          {activeTab === 6 && <PromptTab workspace={workspace} />}
+          {activeTab === 7 && (
             <ConfigTab workspace={workspace} onDeleted={() => navigate(workspaceListPath())} />
           )}
         </motion.div>

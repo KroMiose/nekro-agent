@@ -273,6 +273,72 @@
       "syncFailed": "Sync failed: {{message}}"
     }
   },
+  "mcpServices": {
+    "pageTitle": "MCP Services",
+    "pageDesc": "Manage MCP services auto-injected into new workspaces. These services are automatically added when creating workspaces.",
+    "stats": {
+      "total": "Auto-Inject Total",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "search": {
+      "placeholder": "Search service name or command..."
+    },
+    "filter": {
+      "all": "All",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "toolbar": {
+      "fromTemplate": "From Template",
+      "addManual": "Add Manually",
+      "refresh": "Refresh",
+      "cardView": "Card View",
+      "listView": "List View",
+      "clearFilters": "Clear Filters",
+      "jsonView": "JSON View",
+      "jsonViewTitle": "Auto-Inject Config (JSON)",
+      "jsonViewHint": "This view is read-only. It shows the current auto-inject MCP services as JSON, which you can copy to use with Claude Desktop or other tools.",
+      "readOnly": "Read-only",
+      "autoInjectTooltip": "When enabled, this MCP service will be automatically added to new workspaces",
+      "autoInjectOn": "Auto-Inject",
+      "autoInjectOff": "Not Auto-Inject",
+      "autoInject": "Auto-Inject",
+      "addBtn": "Add Service",
+      "importJson": "Import JSON"
+    },
+    "import": {
+      "title": "Import MCP Services from JSON",
+      "hint": "Paste Claude Desktop format MCP config JSON (JSONC comments supported). Servers will be parsed and added to the auto-inject list. Existing servers with the same name will be skipped.",
+      "importBtn": "Import",
+      "parseError": "Failed to parse JSON, please check the format",
+      "formatError": "Invalid format. Expected { mcpServers: { ... } } or { name: { ... } }",
+      "emptyError": "No services found to import",
+      "allLocalFileError": "All STDIO services reference local file paths and cannot be imported. Only package manager commands (npx/uvx) are supported.",
+      "success": "Successfully imported {{count}} services",
+      "successWithSkip": "Imported {{count}} services, skipped {{skipped}} existing"
+    },
+    "empty": {
+      "title": "No auto-inject MCP services",
+      "hint": "Click \"Add Manually\" or \"From Template\" to add the first auto-inject service",
+      "noMatch": "No matching services"
+    },
+    "notifications": {
+      "addSuccess": "MCP service added to auto-inject list",
+      "addFailed": "Failed to add: {{message}}",
+      "updateSuccess": "MCP service updated",
+      "updateFailed": "Failed to update: {{message}}",
+      "deleteSuccess": "MCP service removed from auto-inject list",
+      "deleteFailed": "Failed to remove: {{message}}",
+      "toggleSuccess": "Enabled status updated"
+    },
+    "deleteDialog": {
+      "title": "Remove Auto-Inject Service",
+      "content": "Remove \"{{name}}\" from the auto-inject list? Existing workspace configurations will not be affected."
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "Back to List",
@@ -285,6 +351,7 @@
       "comm": "Comm",
       "memory": "Memory Graph",
       "extensions": "Extensions",
+      "mcp": "MCP Services",
       "prompt": "Prompt",
       "config": "Config"
     },
@@ -590,6 +657,64 @@
         "cancelSuccess": "Force cancel command sent",
         "cancelFailed": "Force cancel failed: {{message}}"
       }
+    },
+    "mcp": {
+      "title": "MCP Service Configuration",
+      "empty": "No MCP servers configured. Add from templates to get started.",
+      "fromTemplate": "From Template",
+      "addManual": "Add Manually",
+      "addServer": "Add Server",
+      "switchToJson": "Switch to JSON preview",
+      "switchToCards": "Switch to card view",
+      "switchToList": "Switch to list view",
+      "syncToSandbox": "Sync MCP config to sandbox",
+      "syncSuccess": "MCP config synced to sandbox",
+      "syncFailed": "Sync failed: {{message}}",
+      "save": "Save",
+      "saving": "Saving...",
+      "add": "Add",
+      "adding": "Adding...",
+      "edit": "Edit",
+      "delete": "Delete",
+      "enable": "Enable",
+      "disable": "Disable",
+      "addTitle": "Add MCP Server",
+      "editTitle": "Edit MCP Server",
+      "deleteTitle": "Delete MCP Server",
+      "deleteConfirm": "Are you sure you want to delete MCP server \"{{name}}\"?",
+      "addSuccess": "MCP server added",
+      "addFailed": "Failed to add: {{message}}",
+      "updateSuccess": "MCP server updated",
+      "updateFailed": "Failed to update: {{message}}",
+      "deleteSuccess": "MCP server deleted",
+      "deleteFailed": "Failed to delete: {{message}}",
+      "saveSuccess": "MCP configuration saved",
+      "saveFailed": "Failed to save: {{message}}",
+      "jsonError": "Invalid JSON format",
+      "jsonErrorFix": "Please fix JSON format errors first",
+      "jsonHint": "Supports JSONC format (// and /* */ comments), auto-converted to JSON on save",
+      "form": {
+        "name": "Server Name",
+        "command": "Command",
+        "args": "Arguments",
+        "argsHint": "Separate multiple arguments with spaces",
+        "envLabel": "Environment Variables",
+        "url": "Server URL",
+        "headersLabel": "HTTP Headers",
+        "cancel": "Cancel",
+        "stdioHint": "Only package manager commands (npx / uvx / bunx / pnpx) are supported. Local file paths on the host are not supported.",
+        "stdioCommandError": "Only npx, uvx, bunx, pnpx commands are supported"
+      },
+      "registry": {
+        "title": "Add MCP Server from Template",
+        "search": "Search templates...",
+        "empty": "No matching templates"
+      },
+      "autoInject": "Auto-Inject",
+      "setAutoInject": "Set as Auto-Inject",
+      "removeAutoInject": "Remove Auto-Inject",
+      "autoInjectSuccess": "Auto-inject configuration updated",
+      "autoInjectFailed": "Failed to update auto-inject: {{message}}"
     },
     "prompt": {
       "systemPromptTitle": "System Prompt (Read-only)",

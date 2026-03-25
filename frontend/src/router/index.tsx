@@ -185,6 +185,10 @@ const router = createHashRouter([
             element: lazyLoad(() => import('../pages/workspace/cc-models')),
           },
           {
+            path: 'mcp-services',
+            element: lazyLoad(() => import('../pages/workspace/mcp-services')),
+          },
+          {
             path: 'timers',
             element: lazyLoad(() => import('../pages/workspace/timers')),
           },
