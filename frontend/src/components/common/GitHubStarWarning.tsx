@@ -205,7 +205,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   color="primary"
                   startIcon={<LoginIcon />}
                   onClick={() => {
-                    window.open('https://community.nekro.ai/me', '_blank')
+                    window.open('https://cloud.nekro.ai/me', '_blank')
                     setActiveStep(2)
                   }}
                   sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1 }}

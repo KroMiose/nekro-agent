@@ -1513,7 +1513,7 @@ const CreatePluginDialog = ({
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                   我已阅读并接受{' '}
                   <Link
-                    href="https://community.nekro.ai/terms"
+                    href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
@@ -2255,7 +2255,7 @@ export default function PluginsMarket() {
                   <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
                     我已阅读并接受{' '}
                     <Link
-                      href="https://community.nekro.ai/terms"
+                      href="https://cloud.nekro.ai/terms"
                       target="_blank"
                       underline="hover"
                       sx={{ ml: 0.5 }}
