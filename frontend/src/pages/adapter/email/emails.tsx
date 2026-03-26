@@ -25,9 +25,19 @@ interface Email {
   subject: string
   sender: string
   date: string | null
-  body_text: string
+  body_preview: string
   has_attachments: boolean
   create_time: string
+}
+
+interface EmailListResponse {
+  items: Email[]
+  pagination: {
+    offset: number
+    limit: number
+    total: number
+    has_more: boolean
+  }
 }
 
 export default function EmailsPage() {
@@ -35,7 +45,7 @@ export default function EmailsPage() {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(25)
 
-  const { data: emails, isLoading, error } = useQuery<Email[]>({
+  const { data, isLoading, error } = useQuery<EmailListResponse>({
     queryKey: ['emails', page, rowsPerPage],
     queryFn: async () => {
       const response = await fetch(
@@ -98,8 +108,8 @@ export default function EmailsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {emails && emails.length > 0 ? (
-              emails.map(email => (
+            {data?.items && data.items.length > 0 ? (
+              data.items.map(email => (
                 <TableRow key={email.id} hover>
                   <TableCell>
                     <Typography variant="body2" noWrap sx={{ maxWidth: 300 }}>
@@ -135,7 +145,7 @@ export default function EmailsPage() {
         </Table>
         <TablePaginationStyled
           component="div"
-          count={-1}
+          count={data?.pagination.total ?? -1}
           page={page}
           onPageChange={handleChangePage}
           rowsPerPage={rowsPerPage}
