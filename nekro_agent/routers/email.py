@@ -29,16 +29,16 @@ class EmailDetail(BaseModel):
     id: int
     account_username: str
     email_uid: str
+    message_id: str
     subject: str
     sender: str
     recipients: str
-    cc: str
-    bcc: str
     date: Optional[str] = None
     body_text: str
-    body_html: str
     has_attachments: bool
-    attachment_count: int
+    attachment_names: str
+    in_reply_to: str
+    references: str
     create_time: str
 
 
@@ -119,15 +119,15 @@ async def get_email_detail(
         id=email.id,
         account_username=email.account_username,
         email_uid=email.email_uid,
+        message_id=email.message_id,
         subject=email.subject,
         sender=email.sender,
         recipients=email.recipients,
-        cc=email.cc,
-        bcc=email.bcc,
         date=email.date.isoformat() if email.date else None,
         body_text=email.body_text,
-        body_html=email.body_html,
         has_attachments=email.has_attachments,
-        attachment_count=email.attachment_count,
+        attachment_names=email.attachment_names,
+        in_reply_to=email.in_reply_to,
+        references=email.references,
         create_time=email.create_time.isoformat(),
     )
