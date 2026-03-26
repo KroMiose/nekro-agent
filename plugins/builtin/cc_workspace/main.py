@@ -2028,9 +2028,8 @@ async def download_file_from_cc(_ctx: schemas.AgentCtx, cc_file_path: str, dest_
 
     Example:
         ```python
-        path = download_file_from_cc("shared/summary.json")
-        # path = "/app/shared/summary.json"
-        send_file(path)  # Send the file to the user
+        file_path = download_file_from_cc("shared/summary.json")  # file_path = "/app/shared/summary.json"
+        send_msg_file(file_path)  # Send the file to the chat
         ```
     """
     workspace = await _ctx.get_bound_workspace()
