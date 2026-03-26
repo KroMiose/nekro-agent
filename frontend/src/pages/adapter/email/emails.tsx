@@ -12,12 +12,12 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  TablePagination,
 } from '@mui/material'
 import { AttachFile as AttachFileIcon } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import TablePaginationStyled from '../../../components/common/TablePaginationStyled'
 
 interface Email {
   id: number
@@ -133,7 +133,7 @@ export default function EmailsPage() {
             )}
           </TableBody>
         </Table>
-        <TablePagination
+        <TablePaginationStyled
           component="div"
           count={-1}
           page={page}
