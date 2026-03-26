@@ -780,7 +780,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             try:
                 import json
 
-                from nekro_agent.models.db_email_cache import DBEmailCache
+                from nekro_agent.models.db_email import DBEmail
 
                 # 提取 In-Reply-To 和 References 头
                 in_reply_to = email_message.get("In-Reply-To", "") or ""
@@ -808,7 +808,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
                 except Exception:
                     pass
 
-                await DBEmailCache.update_or_create(
+                await DBEmail.update_or_create(
                     defaults={
                         "message_id": message_id_header[:512],
                         "subject": parsed.subject[:1024],

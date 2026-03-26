@@ -2,8 +2,8 @@ from tortoise import fields
 from tortoise.models import Model
 
 
-class DBEmailCache(Model):
-    """邮件缓存模型，用于本地缓存已处理的邮件信息"""
+class DBEmail(Model):
+    """邮件模型，用于存储已处理的邮件信息"""
 
     id = fields.IntField(pk=True, generated=True, description="ID")
     account_username = fields.CharField(max_length=256, index=True, description="所属邮箱账户")
@@ -18,10 +18,10 @@ class DBEmailCache(Model):
     attachment_names = fields.TextField(default="", description="附件文件名列表(JSON)")
     in_reply_to = fields.CharField(max_length=512, default="", description="In-Reply-To 头")
     references = fields.TextField(default="", description="References 头")
-    fetched_at = fields.DatetimeField(auto_now_add=True, description="缓存时间")
+    fetched_at = fields.DatetimeField(auto_now_add=True, description="获取时间")
     create_time = fields.DatetimeField(auto_now_add=True, description="创建时间")
     update_time = fields.DatetimeField(auto_now=True, description="更新时间")
 
     class Meta:  # type: ignore
-        table = "email_cache"
+        table = "email"
         unique_together = (("account_username", "email_uid"),)

@@ -610,10 +610,10 @@ async def summarize_recent_emails(
         # 优先从本地缓存查询
         cache_hit = False
         try:
-            from nekro_agent.models.db_email_cache import DBEmailCache
+            from nekro_agent.models.db_email import DBEmail
 
             for account in accounts_to_check:
-                cached = await DBEmailCache.filter(
+                cached = await DBEmail.filter(
                     account_username=account.USERNAME,
                     date__gte=one_day_ago,
                 ).order_by("-date").limit(count)
@@ -933,9 +933,9 @@ async def get_email_content(_ctx: AgentCtx, account_username: str, email_id: str
     try:
         # 优先查询本地缓存
         try:
-            from nekro_agent.models.db_email_cache import DBEmailCache
+            from nekro_agent.models.db_email import DBEmail
 
-            cache = await DBEmailCache.get_or_none(account_username=account_username, email_uid=email_id)
+            cache = await DBEmail.get_or_none(account_username=account_username, email_uid=email_id)
             if cache:
                 import json
 
