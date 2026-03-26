@@ -197,14 +197,16 @@ class MessageService:
 
             # 广播 Agent 开始处理
             try:
-                await publish_system_event(AgentActiveEvent(
-                    chat_key=chat_key,
-                    active=True,
-                    channel_name=db_channel.channel_name,
-                    chat_type=db_channel.channel_type,
-                    preset_id=preset_id,
-                    preset_name=preset_name,
-                ))
+                await publish_system_event(
+                    AgentActiveEvent(
+                        chat_key=chat_key,
+                        active=True,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                    )
+                )
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
 
@@ -261,14 +263,16 @@ class MessageService:
 
             # 广播 Agent 处理结束
             try:
-                await publish_system_event(AgentActiveEvent(
-                    chat_key=chat_key,
-                    active=False,
-                    channel_name=db_channel.channel_name,
-                    chat_type=db_channel.channel_type,
-                    preset_id=preset_id,
-                    preset_name=preset_name,
-                ))
+                await publish_system_event(
+                    AgentActiveEvent(
+                        chat_key=chat_key,
+                        active=False,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                    )
+                )
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentActive 结束事件失败: {_e}")
 
@@ -373,9 +377,8 @@ class MessageService:
                 return
 
             # 配额豁免检查（用户白名单/管理员）
-            _is_quota_exempt = (
-                message.sender_id in config.AI_CHAT_QUOTA_WHITELIST_USERS
-                or (config.AI_CHAT_QUOTA_SUPER_USERS_EXEMPT and message.sender_id in config.SUPER_USERS)
+            _is_quota_exempt = message.sender_id in config.AI_CHAT_QUOTA_WHITELIST_USERS or (
+                config.AI_CHAT_QUOTA_SUPER_USERS_EXEMPT and message.sender_id in config.SUPER_USERS
             )
 
             if not _is_quota_exempt:
@@ -388,16 +391,18 @@ class MessageService:
 
                     # 查询今日已回复数
                     today_start = time.time() - (time.time() % 86400)  # UTC 当天零点
-                    daily_count = await DBChatMessage.filter(
-                        chat_key=message.chat_key,
-                        sender_id=-1,
-                        send_timestamp__gte=int(today_start),
-                    ).exclude(sender_name="SYSTEM").count()
+                    daily_count = (
+                        await DBChatMessage.filter(
+                            chat_key=message.chat_key,
+                            sender_id=-1,
+                            send_timestamp__gte=int(today_start),
+                        )
+                        .exclude(sender_name="SYSTEM")
+                        .count()
+                    )
 
                     if daily_count >= effective_limit:
-                        logger.info(
-                            f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
-                        )
+                        logger.info(f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复")
                         # 通过适配器发送可见通知
                         quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
                         try:
@@ -422,16 +427,18 @@ class MessageService:
                     if effective_config.AI_CHAT_ENABLE_HOURLY_LIMIT:
                         hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
                         hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
-                        hourly_count = await DBChatMessage.filter(
-                            chat_key=message.chat_key,
-                            sender_id=-1,
-                            send_timestamp__gte=int(hour_start),
-                        ).exclude(sender_name="SYSTEM").count()
+                        hourly_count = (
+                            await DBChatMessage.filter(
+                                chat_key=message.chat_key,
+                                sender_id=-1,
+                                send_timestamp__gte=int(hour_start),
+                            )
+                            .exclude(sender_name="SYSTEM")
+                            .count()
+                        )
 
                         if hourly_count >= hourly_limit:
-                            logger.info(
-                                f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
-                            )
+                            logger.info(f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复")
                             hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
                             try:
                                 adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
@@ -705,7 +712,6 @@ class MessageService:
 
             if db_chat_channel.observe_mode:
                 logger.info(f"聊天频道 {chat_key} 处于旁观模式，跳过 Agent 触发...")
-                return
                 return
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")
