@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING, Optional, Union
 
 from pydantic import BaseModel
@@ -17,6 +18,14 @@ from nekro_agent.services.plugin.collector import plugin_collector
 if TYPE_CHECKING:
     from nekro_agent.adapters.interface.base import BaseAdapter
     from nekro_agent.core.config import CoreConfig
+
+
+class ChannelStatus(StrEnum):
+    """频道状态枚举"""
+
+    ACTIVE = "active"
+    OBSERVE = "observe"
+    DISABLED = "disabled"
 
 
 class DefaultPreset(BaseModel):
@@ -123,32 +132,33 @@ class DBChatChannel(Model):
     async def set_active(self, is_active: bool):
         """设置频道是否激活"""
         self.is_active = is_active
-        if is_active:
+        if not is_active:
             self.observe_mode = False
         await self.save()
 
     @property
-    def channel_status(self) -> str:
-        """获取频道状态: active / observe / disabled"""
-        if self.is_active:
-            return "active"
+    def channel_status(self) -> ChannelStatus:
+        """获取频道状态"""
+        if not self.is_active:
+            return ChannelStatus.DISABLED
         if self.observe_mode:
-            return "observe"
-        return "disabled"
+            return ChannelStatus.OBSERVE
+        return ChannelStatus.ACTIVE
 
-    async def set_channel_status(self, status: str):
+    async def set_channel_status(self, status: ChannelStatus | str):
         """设置频道状态
 
         Args:
-            status: "active" / "observe" / "disabled"
+            status: ChannelStatus 枚举值或字符串
         """
-        if status == "active":
+        status = ChannelStatus(status)
+        if status == ChannelStatus.ACTIVE:
             self.is_active = True
             self.observe_mode = False
-        elif status == "observe":
-            self.is_active = False
+        elif status == ChannelStatus.OBSERVE:
+            self.is_active = True
             self.observe_mode = True
-        elif status == "disabled":
+        elif status == ChannelStatus.DISABLED:
             self.is_active = False
             self.observe_mode = False
         else:

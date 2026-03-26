@@ -16,14 +16,12 @@ from html.parser import HTMLParser
 from pathlib import Path
 from typing import Dict, List, Optional, Type
 
-
 import aiofiles
 from fastapi import APIRouter
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
-
     PlatformChannel,
     PlatformMessage,
     PlatformMessageExt,
@@ -31,7 +29,6 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformSendResponse,
     PlatformUser,
 )
-from nekro_agent.core import config as core_config
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
@@ -40,7 +37,6 @@ from nekro_agent.services.message_service import message_service
 from .base import EMAIL_PROVIDER_CONFIGS
 from .config import EmailAccount, EmailConfig
 from .routers import router, set_email_adapter
-
 
 logger = get_sub_logger("adapter.email")
 def decode_mime_words(s):
@@ -1012,7 +1008,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             smtp_host, smtp_port = self._get_smtp_config_for_account(sender_account)
             provider_config = self.get_provider_config_for_account(sender_account)
             smtp_ssl_port = int(provider_config.get("smtp_ssl_port", smtp_port))
-            use_ssl_preferred = provider_config.get("smtp_use_ssl", "false").lower() == "true"
+            use_ssl_preferred = str(provider_config.get("smtp_use_ssl", False)).lower() == "true"
 
             # 应用提供商的SMTP预处理
             smtp_host, smtp_port = self._apply_provider_smtp_preprocessing(

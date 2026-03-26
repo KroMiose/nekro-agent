@@ -6,8 +6,7 @@ RUN_IN_TRANSACTION = True
 async def upgrade(db: BaseDBAsyncClient) -> str:
     return """
         ALTER TABLE "chat_channel" ADD "observe_mode" BOOL NOT NULL DEFAULT False;
-        COMMENT ON COLUMN "chat_channel"."observe_mode" IS '旁观模式';
-        DROP TABLE IF EXISTS "quota_record";"""
+        COMMENT ON COLUMN "chat_channel"."observe_mode" IS '旁观模式';"""
 
 
 async def downgrade(db: BaseDBAsyncClient) -> str:

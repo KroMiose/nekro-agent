@@ -364,6 +364,10 @@ class MessageService:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
+            if db_chat_channel.observe_mode:
+                logger.info(f"聊天频道 {message.chat_key} 处于旁观模式，跳过 Agent 触发...")
+                return
+
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
@@ -697,6 +701,11 @@ class MessageService:
         if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
+                return
+
+            if db_chat_channel.observe_mode:
+                logger.info(f"聊天频道 {chat_key} 处于旁观模式，跳过 Agent 触发...")
+                return
                 return
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")

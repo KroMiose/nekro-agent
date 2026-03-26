@@ -31,7 +31,7 @@ class ChatChannelItem(BaseModel):
     chat_key: str
     channel_name: Optional[str]
     is_active: bool
-    status: str  # 'active', 'observe', 'disabled'
+    status: str
     chat_type: str
     message_count: int
     create_time: str
@@ -290,7 +290,11 @@ async def set_chat_channel_status(
     if not channel:
         raise NotFoundError(resource="聊天频道")
 
-    if status not in ("active", "observe", "disabled"):
+    from nekro_agent.models.db_chat_channel import ChannelStatus
+
+    try:
+        ChannelStatus(status)
+    except ValueError:
         return ActionResponse(ok=False)
 
     await channel.set_channel_status(status)
