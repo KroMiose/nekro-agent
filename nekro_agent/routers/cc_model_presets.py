@@ -11,6 +11,7 @@ from nekro_agent.schemas.cc_model_preset import (
 from nekro_agent.schemas.errors import ConflictError, NotFoundError, OperationFailedError
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
+from nekro_agent.services.workspace.manager import WorkspaceService
 
 router = APIRouter(prefix="/cc-model-presets", tags=["CC Model Presets"])
 
@@ -76,6 +77,9 @@ async def update_preset(
         if cc_presets_store.name_exists(data["name"], exclude_id=preset_id):
             raise ConflictError(resource=f"CC 模型预设 '{data['name']}'")
     updated = cc_presets_store.update(preset_id, **data)
+    if updated is None:
+        raise OperationFailedError(operation="更新 CC 模型预设", detail=f"预设 {preset_id} 更新失败")
+    await WorkspaceService.sync_workspace_settings_for_preset(updated.id, updated)
     return _to_info(updated)
 
 

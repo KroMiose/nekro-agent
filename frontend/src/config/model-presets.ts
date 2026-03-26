@@ -223,6 +223,63 @@ export const CC_MODEL_SOURCE_PRESETS: CCModelSourcePreset[] = [
     },
   },
   {
+    id: 'kimi-code-plan',
+    label: {
+      'zh-CN': 'Kimi K2.5（KimiCode 登月计划）',
+      'en-US': 'Kimi K2.5 (KimiCode Lunar Program)',
+    },
+    note: {
+      'zh-CN':
+        'Kimi 官方编码助手端点（api.kimi.com/coding），全部角色与子代理统一映射到 kimi-k2.5。仅适用于在 Kimi 官网订阅了登月计划的用户，密钥格式通常为 sk-kimi-xxxxx。',
+      'en-US':
+        "Kimi's official coding assistant endpoint (api.kimi.com/coding) with all roles and subagent mapped to kimi-k2.5. Only for users subscribed to the KimiCode Lunar Program, API key format is usually sk-kimi-xxxxx.",
+    },
+    form: {
+      base_url: 'https://api.kimi.com/coding',
+      api_timeout_ms: '3000000',
+      model_type: 'manual',
+      preset_model: 'opus',
+      anthropic_model: 'kimi-k2.5',
+      small_fast_model: 'kimi-k2.5',
+      default_sonnet: 'kimi-k2.5',
+      default_opus: 'kimi-k2.5',
+      default_haiku: 'kimi-k2.5',
+      extra_env: [
+        ...DEFAULT_CC_EXTRA_ENV,
+        { key: 'CLAUDE_CODE_SUBAGENT_MODEL', value: 'kimi-k2.5' },
+      ],
+    },
+  },
+  {
+    id: 'moonshot-kimi-k2.5',
+    label: {
+      'zh-CN': 'Kimi K2.5（Moonshot Anthropic 兼容）',
+      'en-US': 'Kimi K2.5 (Moonshot Anthropic compatible)',
+    },
+    note: {
+      'zh-CN':
+        '月之暗面官方 Anthropic 兼容入口（api.moonshot.cn），全部角色与子代理统一映射到 kimi-k2.5；关闭工具搜索以匹配官方 Claude Code 启动示例。适用于 Moonshot 平台按需计费用户。',
+      'en-US':
+        "Moonshot's official Anthropic-compatible endpoint (api.moonshot.cn) with all roles and subagent mapped to kimi-k2.5; tool search disabled to match the official Claude Code launch example. For Moonshot platform pay-as-you-go users.",
+    },
+    form: {
+      base_url: 'https://api.moonshot.cn/anthropic',
+      api_timeout_ms: '3000000',
+      model_type: 'manual',
+      preset_model: 'opus',
+      anthropic_model: 'kimi-k2.5',
+      small_fast_model: 'kimi-k2.5',
+      default_sonnet: 'kimi-k2.5',
+      default_opus: 'kimi-k2.5',
+      default_haiku: 'kimi-k2.5',
+      extra_env: [
+        ...DEFAULT_CC_EXTRA_ENV,
+        { key: 'CLAUDE_CODE_SUBAGENT_MODEL', value: 'kimi-k2.5' },
+        { key: 'ENABLE_TOOL_SEARCH', value: 'false' },
+      ],
+    },
+  },
+  {
     id: 'zhipu-glm5-latest',
     label: {
       'zh-CN': '智谱 GLM-5（最新旗舰）',

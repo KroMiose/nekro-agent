@@ -238,6 +238,45 @@ class WorkspaceService:
             logger.debug(f"热更新 .claude/settings.json: {claude_settings_path}")
 
     @staticmethod
+    def get_effective_cc_preset_id(workspace: "DBWorkspace") -> Optional[int]:
+        """获取工作区当前生效的 CC 模型预设 ID（未显式绑定时回退默认预设）。"""
+        from nekro_agent.core.cc_model_presets import cc_presets_store
+
+        raw_preset_id = (workspace.metadata or {}).get("cc_model_preset_id")
+        if raw_preset_id is not None:
+            try:
+                return int(raw_preset_id)
+            except (TypeError, ValueError):
+                logger.warning(f"工作区 {workspace.id} 的 cc_model_preset_id 非法: {raw_preset_id!r}")
+                return None
+
+        default = cc_presets_store.get_default()
+        return default.id if default else None
+
+    @staticmethod
+    async def sync_workspace_settings_for_preset(
+        preset_id: int,
+        cc_preset: "CCModelPresetItem",
+    ) -> int:
+        """将预设变更反向同步到所有引用该预设的工作区磁盘配置。"""
+        workspaces = await DBWorkspace.all()
+        synced_count = 0
+
+        for workspace in workspaces:
+            if WorkspaceService.get_effective_cc_preset_id(workspace) != preset_id:
+                continue
+            try:
+                WorkspaceService.update_workspace_settings(workspace, cc_preset)
+                synced_count += 1
+            except Exception as e:
+                logger.warning(
+                    f"同步工作区 CC 模型预设失败: workspace_id={workspace.id}, preset_id={preset_id}, error={e}"
+                )
+
+        logger.info(f"CC 模型预设 {preset_id} 已同步到 {synced_count} 个工作区")
+        return synced_count
+
+    @staticmethod
     def _parse_frontmatter(raw: str) -> "tuple[Dict[str, Any], str]":
         """解析 YAML frontmatter，返回 (meta_dict, body)。不依赖 pyyaml，使用行解析。"""
         if raw.startswith("---"):

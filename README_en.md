@@ -65,6 +65,17 @@ NekroAgent uses a powerful and flexible prompt construction system to guide the 
 - **Cloud Resource Sharing**: Includes plugins, personas, and more, driven by a strong and friendly community.
 - **Full-featured Visual Interface**: Offers a powerful application management and monitoring dashboard.
 
+## 🧪 Preview Features
+
+The following items highlight major capabilities currently available on `main` / `preview`:
+
+- **New Workspace / Claude Code Sandbox System (Preview)**: A unified workspace for prompts, skills, model presets, files, extensions, MCP, sandbox execution, and runtime status.
+- **Memory System for Long-term Context (Preview)**: Adds entities, relations, paragraphs, episodes, vector retrieval, and maintenance/rebuild flows for persistent agent memory.
+- **Structured MCP Service Management (Preview)**: Introduces a registry and card-based UI to make MCP and external tool integration more structured and operable.
+- **Reworked Command System (Preview)**: Command registration, parsing, grouping, completion, output viewing, and WebUI management have been upgraded into a dedicated system.
+- **Timers and Runtime Governance (Preview)**: Adds timer management, stop-reply flow, channel quotas, and plugin activation strategy controls.
+- **Upgraded WebUI and Realtime UX (Preview)**: Chat rendering, SSE realtime updates, system events, agent activity cards, workspace navigation, and localization all improved significantly.
+
 ## 🏛️ Architecture Overview
 
 The core of Nekro Agent is designed around **input/output streams**. Adapters act as bridges to external platforms, only needing to implement message reception (input stream) and sending (output stream) for a specific platform. All complex business logic, such as session management, plugin execution, and sandbox calls, is automatically handled by the Nekro Agent core engine. This design ensures high extensibility and maintainability, allowing developers to focus on the adapter's functionality without worrying about the complex core implementation.
@@ -165,6 +176,10 @@ Nekro Agent offers a variety of application scenarios, from emotional companions
 - ✅ **Event Support**: Can respond to various platform event notifications and understand their context.
 - ✅ External Chain of Thought (CoT) capability support.
 - ✅ Comprehensive third-party plugin capabilities and AI-generated plugins.
+- 🧪 **Workspace / Claude Code Sandbox (Preview)**: Unified management for sandbox tasks, prompts, skills, model presets, files, and extensions.
+- 🧪 **Memory System (Preview)**: Long-term memory, vector retrieval, maintenance pipelines, and visual management panels.
+- 🧪 **Structured MCP Management (Preview)**: MCP service registration, shared configuration, and card-based management UI.
+- 🧪 **Command Center (Preview)**: New command system, command output page, and visual management interface.
 
 ## 🎁 Quick Deployment
 
