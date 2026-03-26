@@ -41,14 +41,11 @@ COMMENT ON COLUMN "email"."references" IS 'References 头';
 COMMENT ON COLUMN "email"."fetched_at" IS '获取时间';
 COMMENT ON COLUMN "email"."create_time" IS '创建时间';
 COMMENT ON COLUMN "email"."update_time" IS '更新时间';
-COMMENT ON TABLE "email" IS '邮件模型，用于存储已处理的邮件信息';
-        ALTER TABLE "chat_channel" ADD "observe_mode" BOOL NOT NULL DEFAULT False;
-        COMMENT ON COLUMN "chat_channel"."observe_mode" IS '旁观模式';"""
+COMMENT ON TABLE "email" IS '邮件模型，用于存储已处理的邮件信息';"""
 
 
 async def downgrade(db: BaseDBAsyncClient) -> str:
     return """
-        ALTER TABLE "chat_channel" DROP COLUMN "observe_mode";
         DROP TABLE IF EXISTS "email";"""
 
 
