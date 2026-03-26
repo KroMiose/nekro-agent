@@ -2,7 +2,7 @@ from fastapi import APIRouter, Query
 
 from nekro_agent.models.db_email import DBEmail
 
-router = APIRouter(prefix="/api/emails", tags=["emails"])
+router = APIRouter(prefix="/emails", tags=["emails"])
 
 
 @router.get("")

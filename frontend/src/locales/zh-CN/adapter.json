@@ -20,7 +20,8 @@
     "overrides": "覆盖配置",
     "advanced": "高级",
     "logs": "容器日志",
-    "napcat": "NapCat"
+    "napcat": "NapCat",
+    "emails": "邮件列表"
   },
   "names": {
     "default": "通用适配器",
@@ -105,5 +106,16 @@
     "chatRules": "聊天标识规则",
     "chatRulesDesc": "该适配器使用以下格式来标识不同的聊天频道：",
     "errorMsg": "错误信息"
+  },
+  "emails": {
+    "title": "邮件列表",
+    "subject": "主题",
+    "sender": "发件人",
+    "account": "账户",
+    "date": "日期",
+    "attachments": "附件",
+    "noSubject": "(无主题)",
+    "noEmails": "暂无邮件",
+    "loadError": "加载邮件列表失败"
   }
 }

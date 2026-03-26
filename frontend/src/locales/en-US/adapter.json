@@ -20,7 +20,8 @@
     "overrides": "Overrides",
     "advanced": "Advanced",
     "logs": "Container Logs",
-    "napcat": "NapCat"
+    "napcat": "NapCat",
+    "emails": "Emails"
   },
   "names": {
     "default": "Default Adapter",
@@ -105,5 +106,16 @@
     "chatRules": "Chat Key Rules",
     "chatRulesDesc": "This adapter uses the following format to identify chat channels:",
     "errorMsg": "Error Message"
+  },
+  "emails": {
+    "title": "Email List",
+    "subject": "Subject",
+    "sender": "Sender",
+    "account": "Account",
+    "date": "Date",
+    "attachments": "Attachments",
+    "noSubject": "(No Subject)",
+    "noEmails": "No emails",
+    "loadError": "Failed to load email list"
   }
 }
