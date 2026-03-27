@@ -30,6 +30,7 @@ import AdapterAdvancedPage from '../pages/adapter/AdapterAdvancedPage'
 import AdapterOverrideConfigPage from '../pages/adapter/AdapterOverrideConfigPage'
 import OneBotV11NapCatPage from '../pages/adapter/onebot_v11/napcat'
 import OneBotV11LogsPage from '../pages/adapter/onebot_v11/logs'
+import EmailsPage from '../pages/adapter/email/emails'
 
 export interface AdapterTabConfig {
   label: string
@@ -405,6 +406,13 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
         icon: <StyleIcon fontSize="small" />,
         path: 'overrides',
         component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.emails',
+        value: 'emails',
+        icon: <EmailIcon fontSize="small" />,
+        path: 'emails',
+        component: <EmailsPage />,
       },
       {
         label: 'tabs.advanced',

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -74,37 +73,6 @@ async def get_email_accounts(adapter=Depends(get_email_adapter)):
 async def get_polling_status(adapter=Depends(get_email_adapter)):
     """获取邮箱适配器轮询状态"""
     return adapter.get_polling_status()
-
-
-@router.get("/folders/{account_username}")
-async def get_account_folders(account_username: str, adapter=Depends(get_email_adapter)):
-    """获取指定账户的文件夹列表"""
-    # 查找账户对应的IMAP连接
-    if account_username not in adapter.imap_connections:
-        raise HTTPException(status_code=404, detail=f"Account {account_username} not found or not connected")
-
-    conn = adapter.imap_connections[account_username]
-    try:
-        # 获取文件夹列表
-        folders = await adapter._get_mailbox_folders(account_username, conn)  # noqa: SLF001
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to get folders: {e!s}") from e
-    else:
-        return {"account": account_username, "folders": folders}
-
-
-@router.get("/folders")
-async def get_all_account_folders(adapter=Depends(get_email_adapter)):
-    """获取所有账户的文件夹列表"""
-    result = {}
-    for account_username, conn in adapter.imap_connections.items():
-        try:
-            folders = await adapter._get_mailbox_folders(account_username, conn)  # noqa: SLF001
-            result[account_username] = folders
-        except Exception as e:
-            result[account_username] = {"error": str(e)}
-
-    return {"accounts": result}
 
 
 @router.get("/attachments/status")

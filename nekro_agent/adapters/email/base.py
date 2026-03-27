@@ -33,4 +33,5 @@ EMAIL_PROVIDER_CONFIGS: Dict[str, Dict[str, str]] = {
         "smtp_port": "587",
         "smtp_ssl_port": "587",
     },
+    "自定义": {},
 }

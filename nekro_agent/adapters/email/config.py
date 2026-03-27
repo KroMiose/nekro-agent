@@ -11,7 +11,37 @@ class EmailAccount(BaseModel):
     EMAIL_ACCOUNT: str = Field(
         default="QQ邮箱",
         title="邮箱提供商",
-        description="填写邮箱提供商，现在支持QQ邮箱、163邮箱（填写时注意大小写）",
+        description="填写邮箱提供商：QQ邮箱、163邮箱、Gmail、Outlook、自定义（选择'自定义'时需填写下方自定义服务器配置）",
+    )
+    CUSTOM_IMAP_HOST: str = Field(
+        default="",
+        title="自定义 IMAP 主机",
+        description="仅当邮箱提供商为'自定义'时需要填写，例如 imap.example.com",
+    )
+    CUSTOM_IMAP_PORT: int = Field(
+        default=993,
+        title="自定义 IMAP 端口",
+        description="仅当邮箱提供商为'自定义'时生效，默认 993（SSL）",
+    )
+    CUSTOM_SMTP_HOST: str = Field(
+        default="",
+        title="自定义 SMTP 主机",
+        description="仅当邮箱提供商为'自定义'时需要填写，例如 smtp.example.com",
+    )
+    CUSTOM_SMTP_PORT: int = Field(
+        default=587,
+        title="自定义 SMTP 端口",
+        description="仅当邮箱提供商为'自定义'时生效，默认 587（STARTTLS）",
+    )
+    CUSTOM_SMTP_SSL_PORT: int = Field(
+        default=465,
+        title="自定义 SMTP SSL 端口",
+        description="仅当邮箱提供商为'自定义'时生效，默认 465",
+    )
+    CUSTOM_SMTP_USE_SSL: bool = Field(
+        default=True,
+        title="自定义 SMTP 使用 SSL",
+        description="仅当邮箱提供商为'自定义'时生效，是否优先使用 SSL 连接 SMTP",
     )
     ENABLED: bool = Field(
         default=True,

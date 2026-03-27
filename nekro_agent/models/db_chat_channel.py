@@ -1,5 +1,6 @@
 import json
 from datetime import datetime
+from enum import StrEnum
 from typing import TYPE_CHECKING, Optional, Union
 
 from pydantic import BaseModel
@@ -19,6 +20,14 @@ if TYPE_CHECKING:
     from nekro_agent.core.config import CoreConfig
 
 
+class ChannelStatus(StrEnum):
+    """频道状态枚举"""
+
+    ACTIVE = "active"
+    OBSERVE = "observe"
+    DISABLED = "disabled"
+
+
 class DefaultPreset(BaseModel):
     """默认人设"""
 
@@ -31,6 +40,7 @@ class DBChatChannel(Model):
 
     id = fields.IntField(pk=True, generated=True, description="ID")
     is_active = fields.BooleanField(default=True, description="是否激活")
+    observe_mode = fields.BooleanField(default=False, description="旁观模式")
     preset_id = fields.IntField(default=None, null=True, description="人设 ID")
     data = fields.TextField(description="频道数据")
 
@@ -122,6 +132,37 @@ class DBChatChannel(Model):
     async def set_active(self, is_active: bool):
         """设置频道是否激活"""
         self.is_active = is_active
+        if not is_active:
+            self.observe_mode = False
+        await self.save()
+
+    @property
+    def channel_status(self) -> ChannelStatus:
+        """获取频道状态"""
+        if not self.is_active:
+            return ChannelStatus.DISABLED
+        if self.observe_mode:
+            return ChannelStatus.OBSERVE
+        return ChannelStatus.ACTIVE
+
+    async def set_channel_status(self, status: ChannelStatus | str):
+        """设置频道状态
+
+        Args:
+            status: ChannelStatus 枚举值或字符串
+        """
+        status = ChannelStatus(status)
+        if status == ChannelStatus.ACTIVE:
+            self.is_active = True
+            self.observe_mode = False
+        elif status == ChannelStatus.OBSERVE:
+            self.is_active = True
+            self.observe_mode = True
+        elif status == ChannelStatus.DISABLED:
+            self.is_active = False
+            self.observe_mode = False
+        else:
+            raise ValueError(f"无效的频道状态: {status}")
         await self.save()
 
     @property

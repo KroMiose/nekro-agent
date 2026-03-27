@@ -103,7 +103,7 @@ export default function ChatChannelPage() {
 
   // 实时频道列表更新订阅 (SSE)
   useEffect(() => {
-    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => {
+    const handleChannelUpdate = (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null; status?: string | null }) => {
       const { event_type, chat_key } = event
 
       // 更新频道列表缓存
@@ -123,6 +123,7 @@ export default function ChatChannelPage() {
             chat_key,
             channel_name: event.channel_name ?? null,
             is_active: event.is_active ?? true,
+            status: (event.status as 'active' | 'observe' | 'disabled') ?? 'active',
             chat_type: '',
             message_count: 0,
             create_time: new Date().toISOString(),
@@ -140,6 +141,9 @@ export default function ChatChannelPage() {
             }
             if (event.is_active != null) {
               channel.is_active = event.is_active
+            }
+            if (event.status != null) {
+              channel.status = event.status as 'active' | 'observe' | 'disabled'
             }
             channel.update_time = new Date().toISOString()
             channel.last_message_time = new Date().toISOString()

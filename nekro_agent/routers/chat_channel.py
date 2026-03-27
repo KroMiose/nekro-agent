@@ -31,6 +31,7 @@ class ChatChannelItem(BaseModel):
     chat_key: str
     channel_name: Optional[str]
     is_active: bool
+    status: str
     chat_type: str
     message_count: int
     create_time: str
@@ -143,6 +144,7 @@ async def get_chat_channel_list(
                 chat_key=channel.chat_key,
                 channel_name=channel.channel_name,
                 is_active=channel.is_active,
+                status=channel.channel_status,
                 chat_type=channel.chat_type.value,
                 message_count=info["message_count"],
                 create_time=channel.create_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -242,6 +244,7 @@ async def get_chat_channel_detail(chat_key: str, _current_user: DBUser = Depends
         chat_key=channel.chat_key,
         channel_name=channel.channel_name,
         is_active=channel.is_active,
+        status=channel.channel_status,
         chat_type=channel.chat_type.value,
         message_count=message_count,
         unique_users=len(unique_users),
@@ -262,12 +265,39 @@ async def set_chat_channel_active(
     is_active: bool,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionResponse:
-    """设置聊天频道激活状态"""
+    """设置聊天频道激活状态（兼容旧接口）"""
     channel = await DBChatChannel.get_or_none(chat_key=chat_key)
     if not channel:
         raise NotFoundError(resource="聊天频道")
 
-    await channel.set_active(is_active)
+    await channel.set_channel_status("active" if is_active else "disabled")
+    return ActionResponse(ok=True)
+
+
+@router.post("/{chat_key}/status", summary="设置聊天频道状态")
+@require_role(Role.Admin)
+async def set_chat_channel_status(
+    chat_key: str,
+    status: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionResponse:
+    """设置聊天频道状态
+
+    Args:
+        status: 频道状态，可选值: active（激活）, observe（旁观）, disabled（停用）
+    """
+    channel = await DBChatChannel.get_or_none(chat_key=chat_key)
+    if not channel:
+        raise NotFoundError(resource="聊天频道")
+
+    from nekro_agent.models.db_chat_channel import ChannelStatus
+
+    try:
+        ChannelStatus(status)
+    except ValueError:
+        return ActionResponse(ok=False)
+
+    await channel.set_channel_status(status)
     return ActionResponse(ok=True)
 
 
