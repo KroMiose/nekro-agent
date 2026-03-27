@@ -18,7 +18,7 @@ plugin = NekroPlugin(
         zh_CN="为主 Agent 提供工作区统一记忆系统的主动检索、详情查看和来源追溯能力",
         en_US="Provides active workspace memory search, detail inspection, and origin tracing tools for the main Agent",
     ),
-    allow_sleep=True,
+    allow_sleep=False,
     sleep_brief="用于在工作区内主动搜索历史记忆、展开记忆详情和追溯记忆来源，适合处理“之前说过什么”“以前怎么解决过”“历史偏好/决策/经验”这类问题。",
 )
 

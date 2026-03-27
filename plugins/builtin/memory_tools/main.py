@@ -39,8 +39,7 @@ async def memory_tools_prompt(_ctx: AgentCtx) -> str:
 
         return (
             "[Memory Tools]\n"
-            "Use workspace memory tools when you need prior decisions, earlier solutions, historical preferences, or earlier task context.\n"
-            "Available tools: search memories, inspect memory details, trace memory origin."
+            "Use workspace memory tools when you need prior decisions, earlier solutions, historical preferences, or earlier task context."
         )
     except Exception:
         logger.exception("构建主动记忆工具提示词失败")

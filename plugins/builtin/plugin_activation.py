@@ -10,6 +10,7 @@ from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.prompt_activation import (
     activate_module_for_chat,
     extend_module_for_chat,
+    get_activation_state,
     is_sleep_effective,
     render_plugin_prompt_for_agent,
 )
@@ -68,6 +69,14 @@ async def activate_plugin(_ctx: AgentCtx, module_name: str, rounds: int = 5) -> 
     target = _get_sleepable_plugin(module_name)
     if not target:
         return f"Plugin `{module_name}` is missing, disabled, or not managed by activation scheduling."
+
+    state = await get_activation_state(_ctx.chat_key)
+    current_rounds = max(0, state.module_rounds.get(module_name, 0))
+    if current_rounds > 0:
+        return (
+            f"Plugin `{module_name}` is already active with {current_rounds} runs remaining. "
+            "Use `extend_plugin_activation(module_name, rounds)` if you need to keep it visible longer."
+        )
 
     final_rounds = await activate_module_for_chat(_ctx.chat_key, module_name, rounds)
     plugin_block = await render_plugin_prompt_for_agent(target, _ctx, rounds_left=final_rounds)

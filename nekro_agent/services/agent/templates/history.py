@@ -1,10 +1,11 @@
 import datetime
 import json
+import re
 import time
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from lunar_python import Lunar
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import ValidationError
 
 from nekro_agent.core.config import CoreConfig, ModelConfigGroup, config
 from nekro_agent.core.logger import get_sub_logger
@@ -14,6 +15,16 @@ from nekro_agent.schemas.chat_message import (
     ChatMessageSegmentImage,
 )
 from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
+from nekro_agent.services.memory.recall_contract import (
+    ENHANCED_RECALL_SYSTEM_PROMPT,
+    MemoryAnswerStyle,
+    MemoryIntentType,
+    MemoryKnowledgeHint,
+    MemoryRecallPlan,
+    MemoryRecallQuerySpec,
+    MemoryTypeHint,
+    build_enhanced_recall_user_prompt,
+)
 from nekro_agent.tools.common_util import compress_image
 from nekro_agent.tools.path_convertor import (
     convert_filename_to_access_path,
@@ -26,17 +37,72 @@ from .base import PromptTemplate, env, register_template
 logger = get_sub_logger("agent_runtime")
 
 
-class MemoryRecallQuerySpec(BaseModel):
-    query_text: str
-    focus_text: str = ""
-    focus_points: list[str] = Field(default_factory=list)
-    context_texts: list[str] = Field(default_factory=list)
-    time_from: datetime.datetime | None = None
-    time_to: datetime.datetime | None = None
+def _preview_text(value: str, limit: int = 160) -> str:
+    compact = " ".join(value.strip().split())
+    if len(compact) <= limit:
+        return compact
+    return compact[:limit] + "..."
 
 
-class MemoryRecallPlan(BaseModel):
-    queries: list[MemoryRecallQuerySpec] = Field(default_factory=list)
+def _normalize_hint_list(values: list[str], limit: int = 4) -> list[str]:
+    normalized: list[str] = []
+    for value in values:
+        text = value.strip()
+        if not text or text in normalized:
+            continue
+        normalized.append(text[:120])
+        if len(normalized) >= limit:
+            break
+    return normalized
+
+
+def _message_information_score(message: DBChatMessage) -> float:
+    text = message.content_text.strip()
+    if not text:
+        return 0.0
+
+    compact = re.sub(r"\s+", "", text)
+    if not compact:
+        return 0.0
+
+    unique_chars = len(set(compact))
+    alpha_numeric_chars = len(re.findall(r"[\w\u4e00-\u9fff]", compact))
+    sentence_markers = len(re.findall(r"[。！？.!?;；:\n,，]", text))
+
+    length_score = min(len(compact), 120) / 120
+    diversity_score = min(unique_chars, 48) / 48
+    semantic_density = min(alpha_numeric_chars, 72) / 72
+    sentence_bonus = min(sentence_markers, 4) * 0.08
+    ref_bonus = 0.15 if message.ext_data_obj.ref_msg_id else 0.0
+    recency_bias = 0.18
+
+    return round(length_score * 0.42 + diversity_score * 0.22 + semantic_density * 0.18 + sentence_bonus + ref_bonus + recency_bias, 4)
+
+
+def _select_focus_message(non_bot_messages: list[DBChatMessage]) -> DBChatMessage:
+    trailing_messages = non_bot_messages[-4:]
+    scored_messages: list[tuple[float, DBChatMessage]] = []
+    for offset, message in enumerate(reversed(trailing_messages)):
+        recency_weight = max(0.0, 0.18 - offset * 0.04)
+        score = _message_information_score(message) + recency_weight
+        scored_messages.append((score, message))
+    scored_messages.sort(key=lambda item: item[0], reverse=True)
+    return scored_messages[0][1] if scored_messages else non_bot_messages[-1]
+
+
+def _build_default_rule_plan(
+    focus_points: list[str],
+    context_texts: list[str],
+) -> tuple[MemoryIntentType, MemoryAnswerStyle, list[MemoryTypeHint], list[MemoryKnowledgeHint], list[MemoryKnowledgeHint], list[str]]:
+    del focus_points
+    return (
+        MemoryIntentType.MIXED,
+        MemoryAnswerStyle.CORE_PLUS_EVIDENCE,
+        [MemoryTypeHint.PARAGRAPH, MemoryTypeHint.EPISODE, MemoryTypeHint.RELATION],
+        [MemoryKnowledgeHint.DECISION, MemoryKnowledgeHint.FACT, MemoryKnowledgeHint.EXPERIENCE],
+        [MemoryKnowledgeHint.EMOTION],
+        _normalize_hint_list(context_texts),
+    )
 
 
 def _build_rule_based_memory_recall_query(recent_messages: List[DBChatMessage]) -> MemoryRecallQuerySpec | None:
@@ -53,11 +119,12 @@ def _build_rule_based_memory_recall_query(recent_messages: List[DBChatMessage]) 
         if msg.sender_id != "-1" and msg.content_text and msg.content_text.strip()
     ]
     if not non_bot_messages:
+        logger.debug("规则记忆检索规划跳过: 最近消息中没有可用的非机器人文本")
         return None
 
     focus_messages: list[str] = []
     focus_points: list[str] = []
-    focus_message = non_bot_messages[-1]
+    focus_message = _select_focus_message(non_bot_messages)
     focus_text = focus_message.content_text.strip()[:180]
     focus_messages.append(focus_text)
     focus_points.append(focus_text)
@@ -84,16 +151,34 @@ def _build_rule_based_memory_recall_query(recent_messages: List[DBChatMessage]) 
         if len(focus_messages) >= 6:
             break
 
-    return MemoryRecallQuerySpec(
+    (
+        intent_type,
+        _answer_style,
+        target_memory_types,
+        target_knowledge_types,
+        _avoid_knowledge_types,
+        entity_hints,
+    ) = _build_default_rule_plan(focus_points, focus_messages)
+    query_spec = MemoryRecallQuerySpec(
         query_text="\n".join(focus_messages),
         focus_text=focus_text,
         focus_points=focus_points[:4],
         context_texts=focus_messages,
+        target_memory_types=target_memory_types,
+        target_knowledge_types=target_knowledge_types,
+        importance=1.0,
     )
+    logger.debug(
+        f"规则记忆检索规划完成: focus={_preview_text(query_spec.focus_text)}, "
+        f"points={len(query_spec.focus_points)}, contexts={len(query_spec.context_texts)}, "
+        f"intent={intent_type}, entity_hints={entity_hints}",
+    )
+    return query_spec
 
 
 async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage]) -> MemoryRecallPlan | None:
     if not config.MEMORY_ENABLE_ENHANCED_RETRIEVAL:
+        logger.debug("增强记忆检索规划跳过: MEMORY_ENABLE_ENHANCED_RETRIEVAL=false")
         return None
 
     conversation_lines: list[str] = []
@@ -107,37 +192,10 @@ async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage
         conversation_lines.append(f"[{sender}] {content}")
 
     if not conversation_lines:
+        logger.debug("增强记忆检索规划跳过: 最近对话没有可用文本")
         return None
 
-    prompt = (
-        "请根据最近对话，为记忆检索生成结构化检索计划。\n"
-        "目标：找出与当前用户真实关注点相关的历史记忆，而不是机械重复最后一句话。\n"
-        "要求：\n"
-        "1. 结合最近多轮对话理解用户当前任务。\n"
-        "2. 如果最后一句是唤醒词、续接词、确认词或指代弱的短句，需要向前补全真实关注点。\n"
-        "3. 可以输出 1 到 3 组 queries，用于不同角度召回。\n"
-        "4. 每组 query_text 必须是自然语言检索语句，避免只有关键词堆砌。\n"
-        "5. focus_points 应提炼关键约束、实体、目标或问题点。\n"
-        "6. context_texts 应包含支撑该检索意图的近期上下文短句。\n"
-        "7. 只有在最近对话明确出现时间线索时，才填写 time_from / time_to，否则填 null。\n"
-        '8. 严格输出 JSON，对象格式为 {"queries":[...] }。\n'
-        "9. 如果最近对话不足以构造有效检索计划，返回空数组 queries。\n\n"
-        "JSON Schema:\n"
-        "{\n"
-        '  "queries": [\n'
-        "    {\n"
-        '      "query_text": "自然语言检索语句",\n'
-        '      "focus_text": "本组检索的核心关注点",\n'
-        '      "focus_points": ["关键点1", "关键点2"],\n'
-        '      "context_texts": ["相关上下文1", "相关上下文2"],\n'
-        '      "time_from": null,\n'
-        '      "time_to": null\n'
-        "    }\n"
-        "  ]\n"
-        "}\n\n"
-        "最近对话：\n"
-        + "\n".join(conversation_lines)
-    )
+    prompt = build_enhanced_recall_user_prompt(conversation_lines)
 
     try:
         from nekro_agent.services.agent.openai import gen_openai_chat_response, parse_extra_body
@@ -153,7 +211,7 @@ async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage
         response = await gen_openai_chat_response(
             model=model_group.CHAT_MODEL,
             messages=[
-                {"role": "system", "content": "你是一个记忆检索规划助手，负责为历史记忆检索生成结构化查询计划。"},
+                {"role": "system", "content": ENHANCED_RECALL_SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
             api_key=model_group.API_KEY,
@@ -171,8 +229,23 @@ async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage
             if query.query_text.strip() and (query.context_texts or query.focus_text.strip())
         ][:3]
         if not normalized_queries:
+            logger.debug("增强记忆检索规划结果为空: 模型返回了无效 queries")
             return None
-        return MemoryRecallPlan(queries=normalized_queries)
+        normalized_plan = MemoryRecallPlan(
+            intent_type=plan.intent_type,
+            answer_style=plan.answer_style,
+            prefer_memory_types=plan.prefer_memory_types[:3],
+            prefer_knowledge_types=plan.prefer_knowledge_types[:4],
+            avoid_knowledge_types=plan.avoid_knowledge_types[:4],
+            entity_hints=_normalize_hint_list(plan.entity_hints, limit=4),
+            queries=normalized_queries,
+        )
+        logger.debug(
+            f"增强记忆检索规划完成: model_group={model_group_name}, "
+            f"intent={normalized_plan.intent_type}, answer_style={normalized_plan.answer_style}, "
+            f"queries={len(normalized_queries)}, first_query={_preview_text(normalized_queries[0].query_text)}",
+        )
+        return normalized_plan
     except (json.JSONDecodeError, ValidationError) as e:
         logger.warning(f"增强记忆检索规划解析失败，已回退规则检索: {e}")
         return None
@@ -184,12 +257,34 @@ async def _build_enhanced_memory_recall_plan(recent_messages: List[DBChatMessage
 async def _build_memory_recall_plan(recent_messages: List[DBChatMessage]) -> MemoryRecallPlan:
     enhanced_plan = await _build_enhanced_memory_recall_plan(recent_messages)
     if enhanced_plan is not None:
+        logger.debug(f"记忆检索规划采用增强模式: queries={len(enhanced_plan.queries)}")
         return enhanced_plan
 
     fallback_query = _build_rule_based_memory_recall_query(recent_messages)
     if fallback_query is None:
+        logger.debug("记忆检索规划为空: 增强模式未产出且规则模式也无法构造 query")
         return MemoryRecallPlan()
-    return MemoryRecallPlan(queries=[fallback_query])
+    (
+        intent_type,
+        answer_style,
+        prefer_memory_types,
+        prefer_knowledge_types,
+        avoid_knowledge_types,
+        entity_hints,
+    ) = _build_default_rule_plan(fallback_query.focus_points, fallback_query.context_texts)
+    logger.debug(
+        f"记忆检索规划采用规则模式: intent={intent_type}, "
+        f"query={_preview_text(fallback_query.query_text)}",
+    )
+    return MemoryRecallPlan(
+        intent_type=intent_type,
+        answer_style=answer_style,
+        prefer_memory_types=prefer_memory_types,
+        prefer_knowledge_types=prefer_knowledge_types,
+        avoid_knowledge_types=avoid_knowledge_types,
+        entity_hints=entity_hints,
+        queries=[fallback_query],
+    )
 
 
 async def _inject_memory_context(
@@ -209,7 +304,11 @@ async def _inject_memory_context(
     Returns:
         记忆上下文字符串
     """
-    if workspace_id is None or not is_memory_system_enabled():
+    if workspace_id is None:
+        logger.debug("跳过记忆注入: 当前频道未绑定工作区")
+        return ""
+    if not is_memory_system_enabled():
+        logger.debug("跳过记忆注入: 记忆系统总开关关闭")
         return ""
     if max_length is None:
         max_length = config.MEMORY_CONTEXT_MAX_LENGTH
@@ -223,21 +322,46 @@ async def _inject_memory_context(
 
         recall_plan = await _build_memory_recall_plan(recent_messages)
         if not recall_plan.queries:
+            logger.debug(
+                f"跳过记忆注入: 未生成可用检索计划, workspace={workspace_id}, "
+                f"recent_messages={len(recent_messages)}",
+            )
             return ""
 
         aggregated_focus_points: list[str] = []
         aggregated_context_texts: list[str] = []
         aggregated_focus_text = ""
+        aggregated_target_memory_types: list[MemoryTypeHint] = []
+        aggregated_target_knowledge_types: list[MemoryKnowledgeHint] = []
         deduped_memories: dict[tuple[str, int], Any] = {}
 
-        for query_spec in recall_plan.queries:
+        logger.debug(
+            f"开始记忆注入检索: workspace={workspace_id}, queries={len(recall_plan.queries)}, "
+            f"max_memories={max_memories}, max_length={max_length}",
+        )
+
+        for index, query_spec in enumerate(recall_plan.queries, 1):
             recall_query = MemoryRecallQuery(
                 query_text=query_spec.query_text,
                 focus_text=query_spec.focus_text,
                 focus_points=query_spec.focus_points,
                 context_texts=query_spec.context_texts,
+                intent_type=recall_plan.intent_type,
+                answer_style=recall_plan.answer_style,
+                prefer_memory_types=query_spec.target_memory_types or recall_plan.prefer_memory_types,
+                prefer_knowledge_types=query_spec.target_knowledge_types or recall_plan.prefer_knowledge_types,
+                avoid_knowledge_types=recall_plan.avoid_knowledge_types,
+                entity_hints=recall_plan.entity_hints,
                 time_from=query_spec.time_from,
                 time_to=query_spec.time_to,
+            )
+            logger.debug(
+                f"执行记忆注入检索[{index}/{len(recall_plan.queries)}]: "
+                f"query={_preview_text(recall_query.query_text)}, "
+                f"focus={_preview_text(recall_query.focus_text)}, "
+                f"points={len(recall_query.focus_points)}, contexts={len(recall_query.context_texts)}, "
+                f"time_from={recall_query.time_from.isoformat() if recall_query.time_from else None}, "
+                f"time_to={recall_query.time_to.isoformat() if recall_query.time_to else None}",
             )
             if not aggregated_focus_text and recall_query.focus_text.strip():
                 aggregated_focus_text = recall_query.focus_text
@@ -249,6 +373,12 @@ async def _inject_memory_context(
                 normalized_text = text.strip()
                 if normalized_text and normalized_text not in aggregated_context_texts:
                     aggregated_context_texts.append(normalized_text)
+            for memory_type in recall_query.prefer_memory_types or []:
+                if memory_type not in aggregated_target_memory_types:
+                    aggregated_target_memory_types.append(memory_type)
+            for knowledge_type in recall_query.prefer_knowledge_types or []:
+                if knowledge_type not in aggregated_target_knowledge_types:
+                    aggregated_target_knowledge_types.append(knowledge_type)
 
             memories = await retrieve_memories(
                 workspace_id=workspace_id,
@@ -256,6 +386,13 @@ async def _inject_memory_context(
                 limit=max_memories,
                 time_from=recall_query.time_from,
                 time_to=recall_query.time_to,
+            )
+            if query_spec.importance > 0 and query_spec.importance != 1.0:
+                for memory in memories:
+                    memory.effective_weight *= max(0.2, min(2.0, query_spec.importance))
+            logger.debug(
+                f"记忆注入检索结果[{index}/{len(recall_plan.queries)}]: "
+                f"workspace={workspace_id}, results={len(memories)}",
             )
             for memory in memories:
                 dedupe_key = (memory.source_type, memory.target_id)
@@ -270,6 +407,7 @@ async def _inject_memory_context(
         )[:max_memories]
 
         if not memories:
+            logger.debug(f"跳过记忆注入: 检索完成但无可用记忆, workspace={workspace_id}")
             return ""
 
         compiled_recall_query = MemoryRecallQuery(
@@ -277,16 +415,32 @@ async def _inject_memory_context(
             focus_text=aggregated_focus_text,
             focus_points=aggregated_focus_points[:6],
             context_texts=aggregated_context_texts[:8],
+            intent_type=recall_plan.intent_type,
+            answer_style=recall_plan.answer_style,
+            prefer_memory_types=aggregated_target_memory_types[:3] or recall_plan.prefer_memory_types,
+            prefer_knowledge_types=aggregated_target_knowledge_types[:4] or recall_plan.prefer_knowledge_types,
+            avoid_knowledge_types=recall_plan.avoid_knowledge_types,
+            entity_hints=recall_plan.entity_hints,
         )
         memory_context = await compile_memories_for_context(
             recall_query=compiled_recall_query,
             memories=memories,
             max_length=max_length,
         )
+        if not memory_context:
+            logger.debug(
+                f"跳过记忆注入: 记忆编排结果为空, workspace={workspace_id}, "
+                f"deduped_memories={len(memories)}",
+            )
+            return ""
+        logger.debug(
+            f"记忆注入完成: workspace={workspace_id}, deduped_memories={len(memories)}, "
+            f"context_length={len(memory_context)}",
+        )
         return memory_context + "\n\n" if memory_context else ""
 
     except Exception as e:
-        logger.debug(f"记忆注入失败（可忽略）: {e}")
+        logger.debug(f"记忆注入失败（可忽略）: workspace={workspace_id}, error={e}")
         return ""
 
 
@@ -452,7 +606,10 @@ async def render_history_data(
         recent_messages=recent_chat_messages,
     )
     if memory_context:
+        logger.debug(f"历史提示词已注入记忆块: workspace={db_chat_channel.workspace_id}, length={len(memory_context)}")
         openai_chat_message.add(ContentSegment.text_content(memory_context))
+    else:
+        logger.debug(f"历史提示词未注入记忆块: workspace={db_chat_channel.workspace_id}")
 
     openai_chat_message.add(
         ContentSegment.text_content(

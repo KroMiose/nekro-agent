@@ -1073,7 +1073,6 @@ async def cc_workspace_status(_ctx: schemas.AgentCtx) -> str:
         f"{multi_channel_hint}"
         f"{task_hint}"
         f"{shared_files_hint}"
-        f"Available methods: `delegate_to_cc` (async delegation) / `upload_file_to_cc` / `download_file_from_cc` / `get_cc_context`\n"
         f"\n"
         f"[Delegation Preconditions]\n"
         f"- Use `delegate_to_cc` only for tasks that **you have already defined clearly**. Do not dump a vague problem onto CC and expect it to infer the task.\n"

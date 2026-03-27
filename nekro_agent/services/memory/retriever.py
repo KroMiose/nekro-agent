@@ -26,6 +26,17 @@ from nekro_agent.models.db_mem_relation import DBMemRelation
 from nekro_agent.services.memory.embedding_service import embed_text
 from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
+from nekro_agent.services.memory.recall_contract import (
+    MEMORY_CONTEXT_BLOCK_TITLE,
+    MEMORY_CONTEXT_CATEGORY_LABELS,
+    MEMORY_CONTEXT_CORE_SECTION,
+    MEMORY_CONTEXT_EVIDENCE_SECTION,
+    MEMORY_CONTEXT_FOCUS_TITLE,
+    MemoryAnswerStyle,
+    MemoryIntentType,
+    MemoryKnowledgeHint,
+    MemoryTypeHint,
+)
 
 logger = get_sub_logger("memory.retriever")
 
@@ -67,6 +78,12 @@ class MemoryRecallQuery:
     focus_text: str
     focus_points: list[str]
     context_texts: list[str]
+    intent_type: MemoryIntentType = MemoryIntentType.MIXED
+    answer_style: MemoryAnswerStyle = MemoryAnswerStyle.CORE_PLUS_EVIDENCE
+    prefer_memory_types: list[MemoryTypeHint] | None = None
+    prefer_knowledge_types: list[MemoryKnowledgeHint] | None = None
+    avoid_knowledge_types: list[MemoryKnowledgeHint] | None = None
+    entity_hints: list[str] | None = None
     time_from: datetime | None = None
     time_to: datetime | None = None
 
@@ -609,18 +626,20 @@ async def compile_memories_for_context(
 ) -> str:
     """将检索候选编排为真正用于 prompt 注入的上下文块。"""
     if not memories:
+        logger.debug("记忆上下文编排跳过: 输入 memories 为空")
         return ""
 
-    selected = _select_context_memories(memories)
+    selected = _select_context_memories(memories, recall_query)
     if not selected:
+        logger.debug("记忆上下文编排跳过: 经过筛选后没有可注入的记忆")
         return ""
 
-    lines: list[str] = ["[相关记忆]"]
+    lines: list[str] = [MEMORY_CONTEXT_BLOCK_TITLE]
     current_length = len(lines[0])
 
     focus_points = [point for point in recall_query.focus_points if point.strip()]
     if focus_points:
-        title = "当前关注："
+        title = MEMORY_CONTEXT_FOCUS_TITLE
         if current_length + len(title) + 1 <= max_length:
             lines.append(title)
             current_length += len(title) + 1
@@ -636,31 +655,24 @@ async def compile_memories_for_context(
             lines.append(focus_line)
             current_length += len(focus_line) + 1
 
-    category_order = ["decision", "fact", "preference", "experience", "conversation", "emotion", "relation"]
-    category_titles = {
-        "decision": "相关决策",
-        "fact": "相关事实",
-        "preference": "相关偏好",
-        "experience": "相关经验",
-        "conversation": "相关对话",
-        "emotion": "相关情绪",
-        "relation": "相关关系",
-    }
+    primary_items: list[RetrievedMemory] = []
+    supporting_items: list[RetrievedMemory] = []
+    for index, mem in enumerate(selected):
+        if index < 3 and mem.source_type != "relation":
+            primary_items.append(mem)
+        else:
+            supporting_items.append(mem)
 
-    grouped: dict[str, list[RetrievedMemory]] = {key: [] for key in category_order}
-    for mem in selected:
-        key = "relation" if mem.source_type == "relation" else mem.knowledge_type
-        grouped.setdefault(key, []).append(mem)
+    sections: list[tuple[str, list[RetrievedMemory]]] = []
+    if primary_items:
+        sections.append((MEMORY_CONTEXT_CORE_SECTION, primary_items))
+    if supporting_items:
+        sections.append((MEMORY_CONTEXT_EVIDENCE_SECTION, supporting_items[:4]))
 
-    for key in category_order:
-        items = grouped.get(key) or []
-        if not items:
-            continue
-
-        title = category_titles.get(key, "相关记忆")
+    for title, items in sections:
         if current_length + len(title) + 1 > max_length:
             break
-        lines.append(f"{title}：")
+        lines.append(title)
         current_length += len(title) + 1
 
         for mem in items:
@@ -670,7 +682,13 @@ async def compile_memories_for_context(
             lines.append(line)
             current_length += len(line) + 1
 
-    return "\n".join(lines)
+    context = "\n".join(lines)
+    query_preview = recall_query.query_text.strip().replace("\n", " ")[:120]
+    logger.debug(
+        f"记忆上下文编排完成: input={len(memories)}, selected={len(selected)}, "
+        f"length={len(context)}, query={query_preview}",
+    )
+    return context
 
 
 async def format_memories_for_context(
@@ -695,65 +713,138 @@ async def format_memories_for_context(
 
 def _select_context_memories(memories: list[RetrievedMemory]) -> list[RetrievedMemory]:
     """按类型和价值选出用于上下文编排的候选。"""
-    paragraph_memories = [mem for mem in memories if mem.source_type == "paragraph"]
-    episode_memories = [mem for mem in memories if mem.source_type == "episode"]
-    relation_memories = [mem for mem in memories if mem.source_type == "relation"]
+    return memories
 
-    episode_memories.sort(key=lambda mem: (-mem.similarity_score, -mem.effective_weight))
-    paragraph_memories.sort(
+
+def _resolve_context_category(mem: RetrievedMemory) -> MemoryKnowledgeHint:
+    if mem.source_type == "relation":
+        return MemoryKnowledgeHint.RELATION
+    if mem.knowledge_type == "task":
+        return MemoryKnowledgeHint.DECISION
+    if mem.knowledge_type in {"skill", "experience"}:
+        return MemoryKnowledgeHint.EXPERIENCE
+    if mem.knowledge_type in {"fact", "preference"}:
+        return MemoryKnowledgeHint(mem.knowledge_type)
+    if mem.knowledge_type == "profile":
+        return MemoryKnowledgeHint.FACT
+    if mem.cognitive_type == CognitiveType.EPISODIC.value:
+        return MemoryKnowledgeHint.CONVERSATION
+    return MemoryKnowledgeHint.CONVERSATION
+
+
+def _memory_type_rank(mem: RetrievedMemory, preferred_types: set[MemoryTypeHint]) -> int:
+    if not preferred_types:
+        return 0
+    return 0 if mem.source_type in preferred_types else 1
+
+
+def _category_rank(mem: RetrievedMemory, preferred_categories: set[MemoryKnowledgeHint], avoided_categories: set[MemoryKnowledgeHint]) -> int:
+    category = _resolve_context_category(mem)
+    if category in avoided_categories:
+        return 2
+    if preferred_categories:
+        return 0 if category in preferred_categories else 1
+    return 0
+
+
+def _build_context_quotas(recall_query: MemoryRecallQuery) -> tuple[dict[str, int], dict[MemoryKnowledgeHint, int]]:
+    if recall_query.answer_style == MemoryAnswerStyle.CORE_ONLY:
+        return {"paragraph": 3, "episode": 1, "relation": 1}, {
+            MemoryKnowledgeHint.DECISION: 2,
+            MemoryKnowledgeHint.FACT: 2,
+            MemoryKnowledgeHint.PREFERENCE: 1,
+            MemoryKnowledgeHint.EXPERIENCE: 1,
+            MemoryKnowledgeHint.CONVERSATION: 1,
+            MemoryKnowledgeHint.EMOTION: 0,
+            MemoryKnowledgeHint.RELATION: 1,
+        }
+    if recall_query.answer_style == MemoryAnswerStyle.PREFERENCE_SUMMARY:
+        return {"paragraph": 3, "episode": 0, "relation": 1}, {
+            MemoryKnowledgeHint.DECISION: 1,
+            MemoryKnowledgeHint.FACT: 1,
+            MemoryKnowledgeHint.PREFERENCE: 3,
+            MemoryKnowledgeHint.EXPERIENCE: 1,
+            MemoryKnowledgeHint.CONVERSATION: 1,
+            MemoryKnowledgeHint.EMOTION: 0,
+            MemoryKnowledgeHint.RELATION: 1,
+        }
+    if recall_query.answer_style == MemoryAnswerStyle.TIMELINE:
+        return {"paragraph": 4, "episode": 3, "relation": 1}, {
+            MemoryKnowledgeHint.DECISION: 1,
+            MemoryKnowledgeHint.FACT: 1,
+            MemoryKnowledgeHint.PREFERENCE: 1,
+            MemoryKnowledgeHint.EXPERIENCE: 3,
+            MemoryKnowledgeHint.CONVERSATION: 3,
+            MemoryKnowledgeHint.EMOTION: 0,
+            MemoryKnowledgeHint.RELATION: 1,
+        }
+    return {"paragraph": 4, "episode": 2, "relation": 2}, {
+        MemoryKnowledgeHint.DECISION: 3,
+        MemoryKnowledgeHint.FACT: 2,
+        MemoryKnowledgeHint.PREFERENCE: 1,
+        MemoryKnowledgeHint.EXPERIENCE: 2,
+        MemoryKnowledgeHint.CONVERSATION: 2,
+        MemoryKnowledgeHint.EMOTION: 0,
+        MemoryKnowledgeHint.RELATION: 2,
+    }
+
+
+def _select_context_memories(memories: list[RetrievedMemory], recall_query: MemoryRecallQuery) -> list[RetrievedMemory]:
+    """按当前检索意图选出用于上下文编排的候选。"""
+    preferred_types = set(recall_query.prefer_memory_types or [])
+    preferred_categories = set(recall_query.prefer_knowledge_types or [])
+    avoided_categories = set(recall_query.avoid_knowledge_types or [])
+    type_quota, category_quota = _build_context_quotas(recall_query)
+
+    sorted_memories = sorted(
+        memories,
         key=lambda mem: (
+            _category_rank(mem, preferred_categories, avoided_categories),
+            _memory_type_rank(mem, preferred_types),
             -mem.similarity_score,
             -mem.effective_weight,
-            0 if mem.cognitive_type == "semantic" else 1,
-        )
+            0 if mem.cognitive_type == CognitiveType.SEMANTIC.value else 1,
+        ),
     )
-    relation_memories.sort(key=lambda mem: (-mem.similarity_score, -mem.effective_weight))
 
     selected: list[RetrievedMemory] = []
     seen_ids: set[tuple[str, int]] = set()
-    quota_by_type = {"decision": 3, "fact": 3, "preference": 2, "experience": 4, "conversation": 2, "emotion": 1}
-    used_by_type = {key: 0 for key in quota_by_type}
+    used_type_quota = {key: 0 for key in type_quota}
+    used_category_quota = {key: 0 for key in category_quota}
 
-    for mem in episode_memories[:3]:
+    for mem in sorted_memories:
         memory_key = (mem.source_type, mem.target_id)
         if memory_key in seen_ids:
             continue
-        selected.append(mem)
-        seen_ids.add(memory_key)
-        used_by_type["experience"] = min(quota_by_type["experience"], used_by_type["experience"] + 1)
+        category = _resolve_context_category(mem)
+        if category in avoided_categories:
+            continue
+        if used_type_quota.get(mem.source_type, 0) >= type_quota.get(mem.source_type, 0):
+            continue
+        if used_category_quota.get(category, 0) >= category_quota.get(category, 0):
+            continue
 
-    for mem in paragraph_memories:
-        memory_key = (mem.source_type, mem.target_id)
-        if memory_key in seen_ids:
-            continue
-        knowledge_type = mem.knowledge_type if mem.knowledge_type in quota_by_type else "conversation"
-        if used_by_type[knowledge_type] >= quota_by_type[knowledge_type]:
-            continue
         selected.append(mem)
         seen_ids.add(memory_key)
-        used_by_type[knowledge_type] += 1
-        if len(selected) >= 9:
+        used_type_quota[mem.source_type] = used_type_quota.get(mem.source_type, 0) + 1
+        used_category_quota[category] = used_category_quota.get(category, 0) + 1
+        if len(selected) >= 8:
             break
-
-    for mem in relation_memories[:3]:
-        memory_key = (mem.source_type, mem.target_id)
-        if memory_key in seen_ids:
-            continue
-        selected.append(mem)
-        seen_ids.add(memory_key)
 
     return selected
 
 
 def _format_compiled_memory_line(mem: RetrievedMemory) -> str:
     """将单条记忆编排为更适合 prompt 的上下文行。"""
+    category = _resolve_context_category(mem)
+    label = MEMORY_CONTEXT_CATEGORY_LABELS.get(category, "记忆")
     if mem.source_type == "relation":
-        return f"- {mem.summary}"
+        return f"- [{label}] {mem.summary}"
     if mem.source_type == "episode":
         time_str = mem.event_time.strftime("%m-%d %H:%M") if mem.event_time else "未知时间"
         title = re.sub(r"\s+", " ", (mem.summary or "").strip()) or "事件"
         narrative = re.sub(r"\s+", " ", (mem.content or "").strip())[:160]
-        return f"- [事件 {time_str}] {title}：{narrative}"
+        return f"- [{label} {time_str}] {title}：{narrative}"
 
     time_str = mem.event_time.strftime("%m-%d %H:%M") if mem.event_time else "未知时间"
     content = re.sub(r"\s+", " ", (mem.content or "").strip())
@@ -762,4 +853,4 @@ def _format_compiled_memory_line(mem: RetrievedMemory) -> str:
     if summary and summary not in body and len(summary) > 6:
         body = f"{summary}：{body}"
     body = body[:140]
-    return f"- [{time_str}] {body}"
+    return f"- [{label} {time_str}] {body}"
