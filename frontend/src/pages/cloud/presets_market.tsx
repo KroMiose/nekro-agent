@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material'
 import { presetsMarketApi, CloudPreset } from '../../services/api/cloud/presets_market'
 import { useSnackbar } from 'notistack'
-import { formatLastActiveTime } from '../../utils/time'
+import { formatLastActiveTimeFromInput } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useNavigate } from 'react-router-dom'
 import { UI_STYLES } from '../../theme/themeConfig'
@@ -318,7 +318,7 @@ const PresetDetailDialog = ({
                     {t('presetsMarket.createdAt')}:
                   </Typography>
                   <Typography variant="body2">
-                    {formatLastActiveTime(new Date(preset.create_time).getTime() / 1000)}
+                    {formatLastActiveTimeFromInput(preset.create_time)}
                   </Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -326,7 +326,7 @@ const PresetDetailDialog = ({
                     {t('presetsMarket.updatedAt')}:
                   </Typography>
                   <Typography variant="body2">
-                    {formatLastActiveTime(new Date(preset.update_time).getTime() / 1000)}
+                    {formatLastActiveTimeFromInput(preset.update_time)}
                   </Typography>
                 </Box>
               </Box>

@@ -63,7 +63,7 @@ import {
   PluginRepoInfo,
 } from '../../services/api/cloud/plugins_market'
 import { removePackage, updatePackage } from '../../services/api/plugins'
-import { formatLastActiveTime } from '../../utils/time'
+import { formatLastActiveTimeFromInput } from '../../utils/time'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { UI_STYLES, BORDER_RADIUS } from '../../theme/themeConfig'
 import { CARD_VARIANTS } from '../../theme/variants'
@@ -502,6 +502,8 @@ const PluginDetailDialog = ({
   if (!plugin) return null
 
   const compatibility = isPluginCompatible(plugin, naVersion)
+  const createdAtDisplay = formatLastActiveTimeFromInput(repoInfo?.createdAt ?? plugin.createdAt)
+  const updatedAtDisplay = formatLastActiveTimeFromInput(repoInfo?.updatedAt ?? plugin.updatedAt)
 
   return (
     <Dialog
@@ -689,17 +691,13 @@ const PluginDetailDialog = ({
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
                     {t('presetsMarket.createdAt')}:
                   </Typography>
-                  <Typography variant="body2">
-                    {formatLastActiveTime(new Date(plugin.createdAt).getTime() / 1000)}
-                  </Typography>
+                  <Typography variant="body2">{createdAtDisplay}</Typography>
                 </Box>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography variant="body2" color="text.secondary" fontWeight={500}>
                     {t('presetsMarket.updatedAt')}:
                   </Typography>
-                  <Typography variant="body2">
-                    {formatLastActiveTime(new Date(plugin.updatedAt).getTime() / 1000)}
-                  </Typography>
+                  <Typography variant="body2">{updatedAtDisplay}</Typography>
                 </Box>
               </Box>
             </Box>
@@ -838,8 +836,7 @@ const PluginDetailDialog = ({
                               sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}
                             >
                               <Typography variant="caption" color="text.secondary">
-                                更新于{' '}
-                                {formatLastActiveTime(new Date(issue.updatedAt).getTime() / 1000)}
+                                更新于 {formatLastActiveTimeFromInput(issue.updatedAt)}
                               </Typography>
                               {issue.comments > 0 && (
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
