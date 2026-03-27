@@ -84,7 +84,11 @@ export default function ChatChannelList({
                 <CircleIcon
                   sx={{
                     fontSize: 8,
-                    color: channel.is_active ? 'success.main' : 'text.disabled',
+                    color: channel.status === 'active'
+                      ? 'success.main'
+                      : channel.status === 'observe'
+                        ? 'warning.main'
+                        : 'text.disabled',
                   }}
                   className="flex-shrink-0"
                 />

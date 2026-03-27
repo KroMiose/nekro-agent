@@ -75,6 +75,7 @@
     "group": "Group",
     "private": "Private",
     "activate": "Activate",
+    "observe": "Observe",
     "deactivate": "Deactivate",
     "reset": "Reset",
     "tabs": {

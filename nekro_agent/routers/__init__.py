@@ -29,6 +29,7 @@ from .commands import router as commands_router
 from .common import router as common_router
 from .config import router as config_router
 from .dashboard import router as dashboard_router
+from .email import router as email_router
 from .events import router as events_router
 from .logs import router as logs_router
 from .mcp import router as mcp_router
@@ -97,6 +98,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(events_router)
     api.include_router(commands_router)
     api.include_router(mcp_router)
+    api.include_router(email_router)
 
     api.include_router(load_adapters_api())
 
