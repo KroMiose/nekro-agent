@@ -1,5 +1,5 @@
 import axios from './axios'
-import { createEventStream } from './utils/stream'
+import { createEventStream, createSharedEventStreamManager } from './utils/stream'
 
 export interface ActionResponse {
   ok: boolean
@@ -112,6 +112,11 @@ export interface ChatPluginDataResponse {
   plugin_keys: string[]
   plugin_names: Record<string, string>
 }
+
+const channelListStreamManager = createSharedEventStreamManager({
+  endpoint: '/chat-channel/list/stream',
+  closeDelayMs: 1500,
+})
 
 export const chatChannelApi = {
   getList: async (params: {
@@ -253,8 +258,7 @@ export const chatChannelApi = {
      * @param onError - Optional error callback
      * @returns Cleanup function to unsubscribe
      */
-    return createEventStream({
-      endpoint: '/chat-channel/list/stream',
+    return channelListStreamManager.subscribe({
       onMessage: (data: string) => {
         const trimmedData = data.trim()
         if (!trimmedData || !trimmedData.startsWith('{')) return

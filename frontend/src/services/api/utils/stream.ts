@@ -14,6 +14,11 @@ export interface StreamOptions {
   signal?: AbortSignal
 }
 
+export interface SharedStreamSubscriber {
+  onMessage: (data: string) => void
+  onError?: (error: Error) => void
+}
+
 /**
  * 创建一个 EventSource 流式连接
  * @param options 配置选项
@@ -87,5 +92,79 @@ export const createEventStream = (options: StreamOptions) => {
     }
   } catch (_error) {
     throw new Error('无法连接到流式服务')
+  }
+}
+
+interface SharedEventStreamManager {
+  subscribe: (subscriber: SharedStreamSubscriber) => () => void
+}
+
+interface SharedEventStreamOptions {
+  endpoint: string
+  baseUrl?: string
+  method?: 'GET' | 'POST'
+  body?: Record<string, unknown>
+  closeDelayMs?: number
+}
+
+export const createSharedEventStreamManager = (options: SharedEventStreamOptions): SharedEventStreamManager => {
+  const {
+    endpoint,
+    baseUrl,
+    method,
+    body,
+    closeDelayMs = 1000,
+  } = options
+
+  const subscribers = new Set<SharedStreamSubscriber>()
+  let closeTimer: ReturnType<typeof setTimeout> | null = null
+  let cleanup: (() => void) | null = null
+
+  const ensureConnected = () => {
+    if (cleanup !== null) return
+    cleanup = createEventStream({
+      endpoint,
+      baseUrl,
+      method,
+      body,
+      onMessage: (data) => {
+        for (const subscriber of subscribers) {
+          subscriber.onMessage(data)
+        }
+      },
+      onError: (error) => {
+        for (const subscriber of subscribers) {
+          subscriber.onError?.(error)
+        }
+      },
+    })
+  }
+
+  const scheduleClose = () => {
+    if (closeTimer !== null) clearTimeout(closeTimer)
+    closeTimer = setTimeout(() => {
+      if (subscribers.size > 0) return
+      cleanup?.()
+      cleanup = null
+      closeTimer = null
+    }, closeDelayMs)
+  }
+
+  return {
+    subscribe(subscriber) {
+      if (closeTimer !== null) {
+        clearTimeout(closeTimer)
+        closeTimer = null
+      }
+      subscribers.add(subscriber)
+      ensureConnected()
+
+      return () => {
+        subscribers.delete(subscriber)
+        if (subscribers.size === 0) {
+          scheduleClose()
+        }
+      }
+    },
   }
 }

@@ -47,15 +47,18 @@ import {
 import { useDevModeStore } from '../stores/devMode'
 import { useSecretCode } from '../hooks/useSecretCode'
 import LocaleToggleButton from '../components/common/LocaleToggleButton'
-import { useSystemEvents } from '../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../contexts/SystemEventsContext'
 import CommunityAvatar from '../components/common/CommunityAvatar'
 import AgentActivityCard from '../components/common/AgentActivityCard'
+import SystemEventsProvider from '../components/providers/SystemEventsProvider'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
+let initialLocaleSyncPromise: Promise<void> | null = null
+let initialVersionPromise: Promise<string> | null = null
 
-export default function MainLayout() {
+function MainLayoutContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const { userInfo, logout } = useAuthStore()
@@ -71,11 +74,16 @@ export default function MainLayout() {
   const { devMode, toggleDevMode } = useDevModeStore()
   const { t } = useTranslation()
   const { currentLocale, syncFromBackend } = useLocaleStore()
-  const { agentActives, workspaceStatuses, workspaceCcActive } = useSystemEvents()
+  const { agentActives, agentRuntimeStatuses, workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses } = useSystemEventsContext()
 
   // 初始化时从后端同步语言设置
   useEffect(() => {
-    syncFromBackend()
+    if (initialLocaleSyncPromise === null) {
+      initialLocaleSyncPromise = syncFromBackend().catch((error) => {
+        initialLocaleSyncPromise = null
+        throw error
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -482,9 +490,13 @@ export default function MainLayout() {
   }, [])
 
   useEffect(() => {
-    // 获取版本信息
-    configApi
-      .getVersion()
+    if (initialVersionPromise === null) {
+      initialVersionPromise = configApi.getVersion().catch((error) => {
+        initialVersionPromise = null
+        throw error
+      })
+    }
+    initialVersionPromise
       .then(version => {
         setVersion(version)
       })
@@ -645,7 +657,13 @@ export default function MainLayout() {
       </AppBar>
 
       {/* AI 响应活动播报卡片（FPS 风格，全局可见） */}
-      <AgentActivityCard agentActives={agentActives} workspaceStatuses={workspaceStatuses} workspaceCcActive={workspaceCcActive} />
+      <AgentActivityCard
+        agentActives={agentActives}
+        agentRuntimeStatuses={agentRuntimeStatuses}
+        workspaceStatuses={workspaceStatuses}
+        workspaceCcActive={workspaceCcActive}
+        workspaceCcRuntimeStatuses={workspaceCcRuntimeStatuses}
+      />
       <Box
         component="nav"
         sx={{
@@ -752,5 +770,13 @@ export default function MainLayout() {
         </motion.div>
       </Box>
     </Box>
+  )
+}
+
+export default function MainLayout() {
+  return (
+    <SystemEventsProvider>
+      <MainLayoutContent />
+    </SystemEventsProvider>
   )
 }

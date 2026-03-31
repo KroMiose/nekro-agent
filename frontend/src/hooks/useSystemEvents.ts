@@ -3,25 +3,14 @@
  *
  * 订阅 GET /api/events/stream，连接建立时后端先推送 type=snapshot 全量快照，
  * 之后持续推送增量 delta 事件。断线重连时同样先收到 snapshot，自动恢复状态。
- *
- * 事件类型：
- * - snapshot:            {type, data: {domain: {key: value}}}  — 全量状态快照
- * - workspace_status:    {type, workspace_id, status, name, ...}
- * - workspace_cc_active: {type, workspace_id, active, max_duration_ms}
- * - agent_active:        {type, chat_key, active, channel_name, chat_type, preset_id, preset_name, ...}
- *
- * 返回值保持稳定接口，新增 domain 只需在本 hook 中扩展 handler 即可。
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { createEventStream } from '../services/api/utils/stream'
+import { createSharedEventStreamManager } from '../services/api/utils/stream'
 
 export type SystemEventWorkspaceStatus = 'active' | 'stopped' | 'failed' | 'deleting'
 
-// ── 事件 payload 接口（与后端 Pydantic 模型对应） ────────────────────────────
-
-interface WorkspaceStatusEvent {
-  type: 'workspace_status'
+interface WorkspaceStatusPayload {
   workspace_id: number
   status: SystemEventWorkspaceStatus
   name: string
@@ -29,23 +18,58 @@ interface WorkspaceStatusEvent {
   host_port?: number | null
 }
 
-interface WorkspaceCcActiveEvent {
-  type: 'workspace_cc_active'
+interface WorkspaceCcActivePayload {
   workspace_id: number
   active: boolean
   name?: string | null
+  started_at: number
   max_duration_ms: number
 }
 
-interface AgentActiveEvent {
-  type: 'agent_active'
+interface WorkspaceCcRuntimeStatusPayload {
+  workspace_id: number
+  active: boolean
+  name?: string | null
+  started_at: number
+  updated_at: number
+  phase: 'queued' | 'running' | 'responding' | 'completed' | 'failed' | 'cancelled'
+  current_tool?: string | null
+  source_chat_key?: string | null
+  queue_length: number
+  operation_block_count: number
+  last_block_kind?: 'tool_call' | 'tool_result' | 'text_chunk' | null
+  last_block_summary?: string | null
+  error_summary?: string | null
+}
+
+interface AgentActivePayload {
   chat_key: string
   active: boolean
   channel_name?: string | null
   chat_type?: string | null
   preset_id?: number | null
   preset_name?: string | null
+  started_at: number
   max_duration_ms: number
+}
+
+interface AgentRuntimePhasePayload {
+  chat_key: string
+  active: boolean
+  channel_name?: string | null
+  chat_type?: string | null
+  preset_id?: number | null
+  preset_name?: string | null
+  started_at: number
+  updated_at: number
+  phase: 'llm_generating' | 'llm_retrying' | 'sandbox_running' | 'sandbox_stopped' | 'iterating' | 'completed' | 'failed'
+  iteration_index: number
+  iteration_total: number
+  llm_retry_index: number
+  llm_retry_total: number
+  sandbox_stop_type?: number | null
+  model_name?: string | null
+  error_summary?: string | null
 }
 
 interface MemoryRecallMatchedNode {
@@ -54,8 +78,7 @@ interface MemoryRecallMatchedNode {
   score: number
 }
 
-interface MemoryRecallActivityEvent {
-  type: 'memory_recall_activity'
+interface MemoryRecallActivityPayload {
   workspace_id: number
   chat_key: string
   active: boolean
@@ -74,50 +97,37 @@ interface MemoryRecallActivityEvent {
   search_time_ms: number
 }
 
-/** 后端 snapshot 事件的 data 结构：domain → key → value */
+interface WorkspaceStatusEvent extends WorkspaceStatusPayload {
+  type: 'workspace_status'
+}
+
+interface WorkspaceCcActiveEvent extends WorkspaceCcActivePayload {
+  type: 'workspace_cc_active'
+}
+
+interface WorkspaceCcRuntimeStatusEvent extends WorkspaceCcRuntimeStatusPayload {
+  type: 'workspace_cc_runtime_status'
+}
+
+interface AgentActiveEvent extends AgentActivePayload {
+  type: 'agent_active'
+}
+
+interface AgentRuntimeStatusEvent extends AgentRuntimePhasePayload {
+  type: 'agent_runtime_status'
+}
+
+interface MemoryRecallActivityEvent extends MemoryRecallActivityPayload {
+  type: 'memory_recall_activity'
+}
+
 interface SnapshotData {
-  workspace_status?: Record<string, {
-    workspace_id: number
-    status: SystemEventWorkspaceStatus
-    name: string
-    container_name?: string | null
-    host_port?: number | null
-  }>
-  workspace_cc_active?: Record<string, {
-    workspace_id: number
-    active: boolean
-    name?: string | null
-    max_duration_ms: number
-  }>
-  agent_active?: Record<string, {
-    chat_key: string
-    active: boolean
-    channel_name?: string | null
-    chat_type?: string | null
-    preset_id?: number | null
-    preset_name?: string | null
-    max_duration_ms: number
-  }>
-  memory_recall_activity?: Record<string, {
-    workspace_id: number
-    chat_key: string
-    active: boolean
-    phase: 'query_built' | 'retrieving' | 'compiled' | 'applied'
-    request_id: string
-    target_kind: 'na_history' | 'cc_handshake'
-    focus_text: string
-    query_text: string
-    channel_name?: string | null
-    started_at: number
-    expires_in_ms: number
-    hit_count: number
-    applied_count: number
-    matched_nodes: MemoryRecallMatchedNode[]
-    query_embedding_time_ms: number
-    search_time_ms: number
-  }>
-  // 未来新增 domain 在此扩展
-  [domain: string]: Record<string, Record<string, unknown>> | undefined
+  workspace_status?: Record<string, WorkspaceStatusPayload>
+  workspace_cc_active?: Record<string, WorkspaceCcActivePayload>
+  workspace_cc_runtime_status?: Record<string, WorkspaceCcRuntimeStatusPayload>
+  agent_active?: Record<string, AgentActivePayload>
+  agent_runtime_status?: Record<string, AgentRuntimePhasePayload>
+  memory_recall_activity?: Record<string, MemoryRecallActivityPayload>
 }
 
 interface SnapshotEvent {
@@ -125,9 +135,14 @@ interface SnapshotEvent {
   data: SnapshotData
 }
 
-type SystemEvent = WorkspaceStatusEvent | WorkspaceCcActiveEvent | AgentActiveEvent | MemoryRecallActivityEvent | SnapshotEvent
-
-// ── 状态快照接口 ──────────────────────────────────────────────────────────────
+type SystemEvent =
+  | WorkspaceStatusEvent
+  | WorkspaceCcActiveEvent
+  | WorkspaceCcRuntimeStatusEvent
+  | AgentActiveEvent
+  | AgentRuntimeStatusEvent
+  | MemoryRecallActivityEvent
+  | SnapshotEvent
 
 export interface WorkspaceStatusSnapshot {
   status: SystemEventWorkspaceStatus
@@ -136,22 +151,54 @@ export interface WorkspaceStatusSnapshot {
   host_port?: number | null
 }
 
-/** Agent 活跃状态快照，附带前端计时信息 */
+export interface WorkspaceCcActiveInfo {
+  active: true
+  name?: string | null
+  started_at: number
+  max_duration_ms: number
+}
+
+export interface WorkspaceCcRuntimeStatusInfo {
+  workspace_id: number
+  name?: string | null
+  started_at: number
+  updated_at: number
+  phase: 'queued' | 'running' | 'responding' | 'completed' | 'failed' | 'cancelled'
+  current_tool?: string | null
+  source_chat_key?: string | null
+  queue_length: number
+  operation_block_count: number
+  last_block_kind?: 'tool_call' | 'tool_result' | 'text_chunk' | null
+  last_block_summary?: string | null
+  error_summary?: string | null
+}
+
 export interface AgentActiveInfo {
   chat_key: string
   channel_name?: string | null
   chat_type?: string | null
   preset_id?: number | null
   preset_name?: string | null
-  /** 任务开始时的客户端时间戳（ms），用于计算已处理时长 */
-  start_time: number
+  started_at: number
   max_duration_ms: number
 }
 
-/** CC 沙盒活跃状态快照 */
-export interface WorkspaceCcActiveInfo {
-  active: boolean
-  name?: string | null
+export interface AgentRuntimeStatusInfo {
+  chat_key: string
+  channel_name?: string | null
+  chat_type?: string | null
+  preset_id?: number | null
+  preset_name?: string | null
+  started_at: number
+  updated_at: number
+  phase: 'llm_generating' | 'llm_retrying' | 'sandbox_running' | 'sandbox_stopped' | 'iterating' | 'completed' | 'failed'
+  iteration_index: number
+  iteration_total: number
+  llm_retry_index: number
+  llm_retry_total: number
+  sandbox_stop_type?: number | null
+  model_name?: string | null
+  error_summary?: string | null
 }
 
 export interface MemoryRecallActivityInfo {
@@ -175,18 +222,42 @@ export interface MemoryRecallActivityInfo {
 export interface SystemEvents {
   workspaceStatuses: Map<number, WorkspaceStatusSnapshot>
   workspaceCcActive: Map<number, WorkspaceCcActiveInfo>
-  /** 当前活跃的 Agent 任务，key 为 chat_key */
+  workspaceCcRuntimeStatuses: Map<number, WorkspaceCcRuntimeStatusInfo>
   agentActives: Map<string, AgentActiveInfo>
+  agentRuntimeStatuses: Map<string, AgentRuntimeStatusInfo>
   memoryRecallActivities: Map<string, MemoryRecallActivityInfo>
 }
 
-// TTL 用于 cc_active / agent_active：若超时后未收到 active=false，自动清除
+export const EMPTY_SYSTEM_EVENTS: SystemEvents = {
+  workspaceStatuses: new Map(),
+  workspaceCcActive: new Map(),
+  workspaceCcRuntimeStatuses: new Map(),
+  agentActives: new Map(),
+  agentRuntimeStatuses: new Map(),
+  memoryRecallActivities: new Map(),
+}
+
 const DEFAULT_TTL = 300_000
+const DEFAULT_MEMORY_RECALL_TTL = 8000
+const systemEventsStreamManager = createSharedEventStreamManager({
+  endpoint: '/events/stream',
+  closeDelayMs: 1500,
+})
+
+function normalizeStartedAt(startedAt: number | undefined, fallbackNow: number): number {
+  return typeof startedAt === 'number' && startedAt > 0 ? startedAt : fallbackNow
+}
+
+function getRemainingMs(startedAt: number, ttlMs: number, now: number): number {
+  return startedAt + ttlMs - now
+}
 
 export function useSystemEvents(): SystemEvents {
   const [workspaceStatuses, setWorkspaceStatuses] = useState<Map<number, WorkspaceStatusSnapshot>>(new Map())
   const [workspaceCcActive, setWorkspaceCcActive] = useState<Map<number, WorkspaceCcActiveInfo>>(new Map())
+  const [workspaceCcRuntimeStatuses, setWorkspaceCcRuntimeStatuses] = useState<Map<number, WorkspaceCcRuntimeStatusInfo>>(new Map())
   const [agentActives, setAgentActives] = useState<Map<string, AgentActiveInfo>>(new Map())
+  const [agentRuntimeStatuses, setAgentRuntimeStatuses] = useState<Map<string, AgentRuntimeStatusInfo>>(new Map())
   const [memoryRecallActivities, setMemoryRecallActivities] = useState<Map<string, MemoryRecallActivityInfo>>(new Map())
 
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
@@ -194,144 +265,324 @@ export function useSystemEvents(): SystemEvents {
   const recallTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
-    // ── snapshot 恢复函数 ─────────────────────────────────────────────────────
+    const clearTimers = <T,>(timers: Map<T, ReturnType<typeof setTimeout>>) => {
+      for (const timer of timers.values()) clearTimeout(timer)
+      timers.clear()
+    }
 
-    const applySnapshotStatuses = (entries: NonNullable<SnapshotData['workspace_status']>) => {
+    const scheduleWorkspaceCcExpiry = (workspaceId: number, info: WorkspaceCcActiveInfo, now: number) => {
+      const remaining = getRemainingMs(info.started_at, info.max_duration_ms, now)
+      if (remaining <= 0) {
+        return false
+      }
+      const timer = setTimeout(() => {
+        setWorkspaceCcActive(prev => {
+          const next = new Map(prev)
+          next.delete(workspaceId)
+          return next
+        })
+        ccTimers.current.delete(workspaceId)
+      }, remaining)
+      ccTimers.current.set(workspaceId, timer)
+      return true
+    }
+
+    const scheduleAgentExpiry = (chatKey: string, info: AgentActiveInfo, now: number) => {
+      const remaining = getRemainingMs(info.started_at, info.max_duration_ms, now)
+      if (remaining <= 0) {
+        return false
+      }
+      const timer = setTimeout(() => {
+        setAgentActives(prev => {
+          const next = new Map(prev)
+          next.delete(chatKey)
+          return next
+        })
+        agentTimers.current.delete(chatKey)
+      }, remaining)
+      agentTimers.current.set(chatKey, timer)
+      return true
+    }
+
+    const scheduleRecallExpiry = (key: string, startedAt: number, ttlMs: number, requestId: string, now: number) => {
+      const remaining = getRemainingMs(startedAt, ttlMs, now)
+      if (remaining <= 0) {
+        return false
+      }
+      const timer = setTimeout(() => {
+        setMemoryRecallActivities(prev => {
+          const next = new Map(prev)
+          const current = next.get(key)
+          if (current?.request_id === requestId) {
+            next.delete(key)
+          }
+          return next
+        })
+        recallTimers.current.delete(key)
+      }, remaining)
+      recallTimers.current.set(key, timer)
+      return true
+    }
+
+    const applySnapshotStatuses = (entries: Record<string, WorkspaceStatusPayload>) => {
       const next = new Map<number, WorkspaceStatusSnapshot>()
-      for (const val of Object.values(entries)) {
-        next.set(val.workspace_id, {
-          status: val.status,
-          name: val.name,
-          container_name: val.container_name,
-          host_port: val.host_port,
+      for (const value of Object.values(entries)) {
+        next.set(value.workspace_id, {
+          status: value.status,
+          name: value.name,
+          container_name: value.container_name,
+          host_port: value.host_port,
         })
       }
       setWorkspaceStatuses(next)
     }
 
-    const applySnapshotCcActive = (entries: NonNullable<SnapshotData['workspace_cc_active']>) => {
-      for (const timer of ccTimers.current.values()) clearTimeout(timer)
-      ccTimers.current.clear()
-
+    const applySnapshotCcActive = (entries: Record<string, WorkspaceCcActivePayload>) => {
+      clearTimers(ccTimers.current)
       const next = new Map<number, WorkspaceCcActiveInfo>()
-      for (const val of Object.values(entries)) {
-        next.set(val.workspace_id, { active: val.active, name: val.name })
-        if (val.active) {
-          const ttl = val.max_duration_ms ?? DEFAULT_TTL
-          const wsId = val.workspace_id
-          const timer = setTimeout(() => {
-            setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active: false, name: val.name }))
-            ccTimers.current.delete(wsId)
-          }, ttl)
-          ccTimers.current.set(wsId, timer)
+      const now = Date.now()
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        const startedAt = normalizeStartedAt(value.started_at, now)
+        const info: WorkspaceCcActiveInfo = {
+          active: true,
+          name: value.name,
+          started_at: startedAt,
+          max_duration_ms: value.max_duration_ms ?? DEFAULT_TTL,
+        }
+        if (scheduleWorkspaceCcExpiry(value.workspace_id, info, now)) {
+          next.set(value.workspace_id, info)
         }
       }
       setWorkspaceCcActive(next)
     }
 
-    const applySnapshotAgentActives = (entries: NonNullable<SnapshotData['agent_active']>) => {
-      for (const timer of agentTimers.current.values()) clearTimeout(timer)
-      agentTimers.current.clear()
+    const applySnapshotCcRuntimeStatuses = (entries: Record<string, WorkspaceCcRuntimeStatusPayload>) => {
+      const next = new Map<number, WorkspaceCcRuntimeStatusInfo>()
+      const now = Date.now()
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        next.set(value.workspace_id, {
+          workspace_id: value.workspace_id,
+          name: value.name,
+          started_at: normalizeStartedAt(value.started_at, now),
+          updated_at: value.updated_at,
+          phase: value.phase,
+          current_tool: value.current_tool,
+          source_chat_key: value.source_chat_key,
+          queue_length: value.queue_length ?? 0,
+          operation_block_count: value.operation_block_count ?? 0,
+          last_block_kind: value.last_block_kind,
+          last_block_summary: value.last_block_summary,
+          error_summary: value.error_summary,
+        })
+      }
+      setWorkspaceCcRuntimeStatuses(next)
+    }
 
+    const applySnapshotAgentActives = (entries: Record<string, AgentActivePayload>) => {
+      clearTimers(agentTimers.current)
       const next = new Map<string, AgentActiveInfo>()
       const now = Date.now()
-      for (const val of Object.values(entries)) {
-        if (!val.active) continue
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
         const info: AgentActiveInfo = {
-          chat_key: val.chat_key,
-          channel_name: val.channel_name,
-          chat_type: val.chat_type,
-          preset_id: val.preset_id,
-          preset_name: val.preset_name,
-          // snapshot 恢复时无法知道确切开始时间，用当前时间替代
-          start_time: now,
-          max_duration_ms: val.max_duration_ms ?? DEFAULT_TTL,
+          chat_key: value.chat_key,
+          channel_name: value.channel_name,
+          chat_type: value.chat_type,
+          preset_id: value.preset_id,
+          preset_name: value.preset_name,
+          started_at: normalizeStartedAt(value.started_at, now),
+          max_duration_ms: value.max_duration_ms ?? DEFAULT_TTL,
         }
-        next.set(val.chat_key, info)
-
-        const ttl = val.max_duration_ms ?? DEFAULT_TTL
-        const chatKey = val.chat_key
-        const timer = setTimeout(() => {
-          setAgentActives(prev => { const m = new Map(prev); m.delete(chatKey); return m })
-          agentTimers.current.delete(chatKey)
-        }, ttl)
-        agentTimers.current.set(chatKey, timer)
+        if (scheduleAgentExpiry(value.chat_key, info, now)) {
+          next.set(value.chat_key, info)
+        }
       }
       setAgentActives(next)
     }
 
-    const applySnapshotMemoryRecall = (entries: NonNullable<SnapshotData['memory_recall_activity']>) => {
-      for (const timer of recallTimers.current.values()) clearTimeout(timer)
-      recallTimers.current.clear()
+    const applySnapshotAgentRuntimeStatuses = (entries: Record<string, AgentRuntimePhasePayload>) => {
+      const next = new Map<string, AgentRuntimeStatusInfo>()
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        next.set(value.chat_key, {
+          chat_key: value.chat_key,
+          channel_name: value.channel_name,
+          chat_type: value.chat_type,
+          preset_id: value.preset_id,
+          preset_name: value.preset_name,
+          started_at: value.started_at,
+          updated_at: value.updated_at,
+          phase: value.phase,
+          iteration_index: value.iteration_index,
+          iteration_total: value.iteration_total,
+          llm_retry_index: value.llm_retry_index,
+          llm_retry_total: value.llm_retry_total,
+          sandbox_stop_type: value.sandbox_stop_type,
+          model_name: value.model_name,
+          error_summary: value.error_summary,
+        })
+      }
+      setAgentRuntimeStatuses(next)
+    }
 
+    const applySnapshotMemoryRecall = (entries: Record<string, MemoryRecallActivityPayload>) => {
+      clearTimers(recallTimers.current)
       const next = new Map<string, MemoryRecallActivityInfo>()
       const now = Date.now()
-      for (const val of Object.values(entries)) {
-        if (!val.active) continue
-        const ttl = val.expires_in_ms ?? 8000
-        const endAt = val.started_at + ttl
-        if (endAt <= now) continue
-        const key = `${val.workspace_id}:${val.chat_key}`
-        next.set(key, {
-          workspace_id: val.workspace_id,
-          chat_key: val.chat_key,
-          phase: val.phase,
-          request_id: val.request_id,
-          target_kind: val.target_kind,
-          focus_text: val.focus_text,
-          query_text: val.query_text,
-          channel_name: val.channel_name,
-          started_at: val.started_at,
-          expires_in_ms: ttl,
-          hit_count: val.hit_count ?? 0,
-          applied_count: val.applied_count ?? 0,
-          matched_nodes: val.matched_nodes ?? [],
-          query_embedding_time_ms: val.query_embedding_time_ms ?? 0,
-          search_time_ms: val.search_time_ms ?? 0,
-        })
-        const timer = setTimeout(() => {
-          setMemoryRecallActivities(prev => {
-            const m = new Map(prev)
-            m.delete(key)
-            return m
-          })
-          recallTimers.current.delete(key)
-        }, endAt - now)
-        recallTimers.current.set(key, timer)
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        const ttlMs = value.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+        const startedAt = normalizeStartedAt(value.started_at, now)
+        const key = `${value.workspace_id}:${value.chat_key}`
+        const info: MemoryRecallActivityInfo = {
+          workspace_id: value.workspace_id,
+          chat_key: value.chat_key,
+          phase: value.phase,
+          request_id: value.request_id,
+          target_kind: value.target_kind,
+          focus_text: value.focus_text,
+          query_text: value.query_text,
+          channel_name: value.channel_name,
+          started_at: startedAt,
+          expires_in_ms: ttlMs,
+          hit_count: value.hit_count ?? 0,
+          applied_count: value.applied_count ?? 0,
+          matched_nodes: value.matched_nodes ?? [],
+          query_embedding_time_ms: value.query_embedding_time_ms ?? 0,
+          search_time_ms: value.search_time_ms ?? 0,
+        }
+        if (scheduleRecallExpiry(key, startedAt, ttlMs, value.request_id, now)) {
+          next.set(key, info)
+        }
       }
       setMemoryRecallActivities(next)
     }
 
-    // ── delta 处理函数 ────────────────────────────────────────────────────────
+    const handleWorkspaceCcActiveDelta = (event: WorkspaceCcActiveEvent) => {
+      const workspaceId = event.workspace_id
+      const oldTimer = ccTimers.current.get(workspaceId)
+      if (oldTimer !== undefined) clearTimeout(oldTimer)
+      ccTimers.current.delete(workspaceId)
+
+      if (!event.active) {
+        setWorkspaceCcActive(prev => {
+          const next = new Map(prev)
+          next.delete(workspaceId)
+          return next
+        })
+        return
+      }
+
+      const now = Date.now()
+      const info: WorkspaceCcActiveInfo = {
+        active: true,
+        name: event.name,
+        started_at: normalizeStartedAt(event.started_at, now),
+        max_duration_ms: event.max_duration_ms ?? DEFAULT_TTL,
+      }
+      if (!scheduleWorkspaceCcExpiry(workspaceId, info, now)) {
+        setWorkspaceCcActive(prev => {
+          const next = new Map(prev)
+          next.delete(workspaceId)
+          return next
+        })
+        return
+      }
+      setWorkspaceCcActive(prev => new Map(prev).set(workspaceId, info))
+    }
+
+    const handleWorkspaceCcRuntimeStatusDelta = (event: WorkspaceCcRuntimeStatusEvent) => {
+      const workspaceId = event.workspace_id
+      if (!event.active) {
+        setWorkspaceCcRuntimeStatuses(prev => {
+          const next = new Map(prev)
+          next.delete(workspaceId)
+          return next
+        })
+        return
+      }
+      const now = Date.now()
+      setWorkspaceCcRuntimeStatuses(prev => new Map(prev).set(workspaceId, {
+        workspace_id: workspaceId,
+        name: event.name,
+        started_at: normalizeStartedAt(event.started_at, now),
+        updated_at: event.updated_at,
+        phase: event.phase,
+        current_tool: event.current_tool,
+        source_chat_key: event.source_chat_key,
+        queue_length: event.queue_length ?? 0,
+        operation_block_count: event.operation_block_count ?? 0,
+        last_block_kind: event.last_block_kind,
+        last_block_summary: event.last_block_summary,
+        error_summary: event.error_summary,
+      }))
+    }
 
     const handleAgentActiveDelta = (event: AgentActiveEvent) => {
       const chatKey = event.chat_key
-
       const oldTimer = agentTimers.current.get(chatKey)
       if (oldTimer !== undefined) clearTimeout(oldTimer)
       agentTimers.current.delete(chatKey)
 
-      if (event.active) {
-        const info: AgentActiveInfo = {
-          chat_key: chatKey,
-          channel_name: event.channel_name,
-          chat_type: event.chat_type,
-          preset_id: event.preset_id,
-          preset_name: event.preset_name,
-          start_time: Date.now(),
-          max_duration_ms: event.max_duration_ms ?? DEFAULT_TTL,
-        }
-        setAgentActives(prev => new Map(prev).set(chatKey, info))
-
-        const ttl = event.max_duration_ms ?? DEFAULT_TTL
-        const timer = setTimeout(() => {
-          setAgentActives(prev => { const m = new Map(prev); m.delete(chatKey); return m })
-          agentTimers.current.delete(chatKey)
-        }, ttl)
-        agentTimers.current.set(chatKey, timer)
-      } else {
-        setAgentActives(prev => { const m = new Map(prev); m.delete(chatKey); return m })
+      if (!event.active) {
+        setAgentActives(prev => {
+          const next = new Map(prev)
+          next.delete(chatKey)
+          return next
+        })
+        return
       }
+
+      const now = Date.now()
+      const info: AgentActiveInfo = {
+        chat_key: chatKey,
+        channel_name: event.channel_name,
+        chat_type: event.chat_type,
+        preset_id: event.preset_id,
+        preset_name: event.preset_name,
+        started_at: normalizeStartedAt(event.started_at, now),
+        max_duration_ms: event.max_duration_ms ?? DEFAULT_TTL,
+      }
+      if (!scheduleAgentExpiry(chatKey, info, now)) {
+        setAgentActives(prev => {
+          const next = new Map(prev)
+          next.delete(chatKey)
+          return next
+        })
+        return
+      }
+      setAgentActives(prev => new Map(prev).set(chatKey, info))
+    }
+
+    const handleAgentRuntimeStatusDelta = (event: AgentRuntimeStatusEvent) => {
+      const chatKey = event.chat_key
+      if (!event.active) {
+        setAgentRuntimeStatuses(prev => {
+          const next = new Map(prev)
+          next.delete(chatKey)
+          return next
+        })
+        return
+      }
+      setAgentRuntimeStatuses(prev => new Map(prev).set(chatKey, {
+        chat_key: chatKey,
+        channel_name: event.channel_name,
+        chat_type: event.chat_type,
+        preset_id: event.preset_id,
+        preset_name: event.preset_name,
+        started_at: event.started_at,
+        updated_at: event.updated_at,
+        phase: event.phase,
+        iteration_index: event.iteration_index,
+        iteration_total: event.iteration_total,
+        llm_retry_index: event.llm_retry_index,
+        llm_retry_total: event.llm_retry_total,
+        sandbox_stop_type: event.sandbox_stop_type,
+        model_name: event.model_name,
+        error_summary: event.error_summary,
+      }))
     }
 
     const handleMemoryRecallDelta = (event: MemoryRecallActivityEvent) => {
@@ -342,112 +593,102 @@ export function useSystemEvents(): SystemEvents {
 
       if (!event.active) {
         setMemoryRecallActivities(prev => {
-          const m = new Map(prev)
-          m.delete(key)
-          return m
+          const next = new Map(prev)
+          next.delete(key)
+          return next
         })
         return
       }
 
-      const ttl = event.expires_in_ms ?? 8000
-      setMemoryRecallActivities(prev =>
-        new Map(prev).set(key, {
-          workspace_id: event.workspace_id,
-          chat_key: event.chat_key,
-          phase: event.phase,
-          request_id: event.request_id,
-          target_kind: event.target_kind,
-          focus_text: event.focus_text,
-          query_text: event.query_text,
-          channel_name: event.channel_name,
-          started_at: event.started_at,
-          expires_in_ms: ttl,
-          hit_count: event.hit_count ?? 0,
-          applied_count: event.applied_count ?? 0,
-          matched_nodes: event.matched_nodes ?? [],
-          query_embedding_time_ms: event.query_embedding_time_ms ?? 0,
-          search_time_ms: event.search_time_ms ?? 0,
-        })
-      )
-
-      const timer = setTimeout(() => {
+      const now = Date.now()
+      const ttlMs = event.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+      const startedAt = normalizeStartedAt(event.started_at, now)
+      const info: MemoryRecallActivityInfo = {
+        workspace_id: event.workspace_id,
+        chat_key: event.chat_key,
+        phase: event.phase,
+        request_id: event.request_id,
+        target_kind: event.target_kind,
+        focus_text: event.focus_text,
+        query_text: event.query_text,
+        channel_name: event.channel_name,
+        started_at: startedAt,
+        expires_in_ms: ttlMs,
+        hit_count: event.hit_count ?? 0,
+        applied_count: event.applied_count ?? 0,
+        matched_nodes: event.matched_nodes ?? [],
+        query_embedding_time_ms: event.query_embedding_time_ms ?? 0,
+        search_time_ms: event.search_time_ms ?? 0,
+      }
+      if (!scheduleRecallExpiry(key, startedAt, ttlMs, event.request_id, now)) {
         setMemoryRecallActivities(prev => {
-          const m = new Map(prev)
-          const current = m.get(key)
-          if (current?.request_id === event.request_id) {
-            m.delete(key)
-          }
-          return m
+          const next = new Map(prev)
+          next.delete(key)
+          return next
         })
-        recallTimers.current.delete(key)
-      }, ttl)
-      recallTimers.current.set(key, timer)
+        return
+      }
+      setMemoryRecallActivities(prev => new Map(prev).set(key, info))
     }
 
-    // ── SSE 主循环 ────────────────────────────────────────────────────────────
-
-    const cancel = createEventStream({
-      endpoint: '/events/stream',
+    const cancel = systemEventsStreamManager.subscribe({
       onMessage: (data: string) => {
         if (!data || data === ': ping') return
         try {
           const event = JSON.parse(data) as SystemEvent
           if (!event.type) return
 
-          // snapshot：全量状态恢复
           if (event.type === 'snapshot') {
-            const snapData = event.data
-            if (snapData.workspace_status) applySnapshotStatuses(snapData.workspace_status)
-            if (snapData.workspace_cc_active) applySnapshotCcActive(snapData.workspace_cc_active)
-            if (snapData.agent_active) applySnapshotAgentActives(snapData.agent_active)
-            if (snapData.memory_recall_activity) applySnapshotMemoryRecall(snapData.memory_recall_activity)
+            const snapshot = event.data
+            applySnapshotStatuses(snapshot.workspace_status ?? {})
+            applySnapshotCcActive(snapshot.workspace_cc_active ?? {})
+            applySnapshotCcRuntimeStatuses(snapshot.workspace_cc_runtime_status ?? {})
+            applySnapshotAgentActives(snapshot.agent_active ?? {})
+            applySnapshotAgentRuntimeStatuses(snapshot.agent_runtime_status ?? {})
+            applySnapshotMemoryRecall(snapshot.memory_recall_activity ?? {})
             return
           }
 
-          // delta：增量更新
           if (event.type === 'workspace_status') {
-            const wsId = event.workspace_id
-            setWorkspaceStatuses(prev => {
-              const next = new Map(prev)
-              next.set(wsId, {
-                status: event.status,
-                name: event.name,
-                container_name: event.container_name ?? prev.get(wsId)?.container_name,
-                host_port: event.host_port ?? prev.get(wsId)?.host_port,
-              })
-              return next
-            })
-          } else if (event.type === 'workspace_cc_active') {
-            const wsId = event.workspace_id
-            const active = event.active
-            const name = event.name ?? null
-            const ttl = event.max_duration_ms ?? DEFAULT_TTL
+            const workspaceId = event.workspace_id
+            setWorkspaceStatuses(prev => new Map(prev).set(workspaceId, {
+              status: event.status,
+              name: event.name,
+              container_name: event.container_name ?? prev.get(workspaceId)?.container_name,
+              host_port: event.host_port ?? prev.get(workspaceId)?.host_port,
+            }))
+            return
+          }
 
-            const oldTimer = ccTimers.current.get(wsId)
-            if (oldTimer !== undefined) clearTimeout(oldTimer)
+          if (event.type === 'workspace_cc_active') {
+            handleWorkspaceCcActiveDelta(event)
+            return
+          }
 
-            setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active, name }))
+          if (event.type === 'workspace_cc_runtime_status') {
+            handleWorkspaceCcRuntimeStatusDelta(event)
+            return
+          }
 
-            if (active) {
-              const timer = setTimeout(() => {
-                setWorkspaceCcActive(prev => new Map(prev).set(wsId, { active: false, name }))
-                ccTimers.current.delete(wsId)
-              }, ttl)
-              ccTimers.current.set(wsId, timer)
-            } else {
-              ccTimers.current.delete(wsId)
-            }
-          } else if (event.type === 'agent_active') {
+          if (event.type === 'agent_active') {
             handleAgentActiveDelta(event)
-          } else if (event.type === 'memory_recall_activity') {
+            return
+          }
+
+          if (event.type === 'agent_runtime_status') {
+            handleAgentRuntimeStatusDelta(event)
+            return
+          }
+
+          if (event.type === 'memory_recall_activity') {
             handleMemoryRecallDelta(event)
           }
         } catch {
-          // 忽略解析失败（keep-alive 等非 JSON 数据）
+          // 忽略 keep-alive 等非 JSON 数据
         }
       },
-      onReconnect: () => {
-        // 重连后后端会自动推送 snapshot 全量快照，无需额外处理
+      onError: () => {
+        // 共享流统一重连；当前 hook 无需额外错误处理
       },
     })
 
@@ -456,14 +697,11 @@ export function useSystemEvents(): SystemEvents {
     const recallTimersRef = recallTimers.current
     return () => {
       cancel()
-      for (const timer of ccTimersRef.values()) clearTimeout(timer)
-      ccTimersRef.clear()
-      for (const timer of agentTimersRef.values()) clearTimeout(timer)
-      agentTimersRef.clear()
-      for (const timer of recallTimersRef.values()) clearTimeout(timer)
-      recallTimersRef.clear()
+      clearTimers(ccTimersRef)
+      clearTimers(agentTimersRef)
+      clearTimers(recallTimersRef)
     }
   }, [])
 
-  return { workspaceStatuses, workspaceCcActive, agentActives, memoryRecallActivities }
+  return { workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses, agentActives, agentRuntimeStatuses, memoryRecallActivities }
 }
