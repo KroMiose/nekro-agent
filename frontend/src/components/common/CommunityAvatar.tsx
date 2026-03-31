@@ -9,6 +9,9 @@ import { useTranslation } from 'react-i18next'
 import AnnouncementDetailDialog from './AnnouncementDetailDialog'
 import { LoggedInContent, NotConfiguredContent } from './CommunityAvatarContent'
 
+let initialCommunityBootstrapPromise: Promise<void> | null = null
+let initialAnnouncementCheckPromise: Promise<void> | null = null
+
 export default function CommunityAvatar() {
   const { userInfo, loading: userLoading, fetchUserProfile } = useCommunityUserStore()
   const {
@@ -35,12 +38,22 @@ export default function CommunityAvatar() {
   const badgeCount = unreadCount()
 
   useEffect(() => {
-    fetchUserProfile()
+    if (initialCommunityBootstrapPromise === null) {
+      initialCommunityBootstrapPromise = fetchUserProfile().catch((error) => {
+        initialCommunityBootstrapPromise = null
+        throw error
+      })
+    }
   }, [fetchUserProfile])
 
   // 组件挂载时检查公告更新，之后每 5 分钟定时检查
   useEffect(() => {
-    checkForUpdates()
+    if (initialAnnouncementCheckPromise === null) {
+      initialAnnouncementCheckPromise = checkForUpdates().catch((error) => {
+        initialAnnouncementCheckPromise = null
+        throw error
+      })
+    }
     const timer = setInterval(checkForUpdates, 5 * 60 * 1000)
     return () => clearInterval(timer)
   }, [checkForUpdates])

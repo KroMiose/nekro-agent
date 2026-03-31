@@ -56,6 +56,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
   const { data: channel, isLoading } = useQuery({
     queryKey: ['chat-channel-detail', chatKey],
     queryFn: () => chatChannelApi.getDetail(chatKey),
+    staleTime: 30_000,
   })
 
   // 设置频道状态

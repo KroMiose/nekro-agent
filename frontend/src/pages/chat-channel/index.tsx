@@ -99,6 +99,7 @@ export default function ChatChannelPage() {
         chat_type: chatType || undefined,
         is_active: isActive === '' ? undefined : isActive === 'true',
       }),
+    staleTime: 30_000,
   })
 
   // 实时频道列表更新订阅 (SSE)
