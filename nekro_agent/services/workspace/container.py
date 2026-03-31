@@ -122,6 +122,20 @@ async def _find_free_port() -> int:
 
 class SandboxContainerManager:
     @staticmethod
+    async def _ensure_internal_api_token(workspace: DBWorkspace) -> str:
+        """确保工作区存在沙盒内部 API 鉴权 token。"""
+        metadata = dict(workspace.metadata or {})
+        token = metadata.get("sandbox_api_token")
+        if isinstance(token, str) and token.strip():
+            return token
+
+        token = secrets.token_urlsafe(32)
+        metadata["sandbox_api_token"] = token
+        workspace.metadata = metadata
+        await workspace.save(update_fields=["metadata", "update_time"])
+        return token
+
+    @staticmethod
     async def _resolve_preset(workspace: DBWorkspace):
         """从工作区 metadata 读取 CC 模型预设，fallback 到默认预设"""
         from nekro_agent.core.cc_model_presets import cc_presets_store
@@ -158,6 +172,7 @@ class SandboxContainerManager:
 
         # 解析 CC 模型预设并初始化工作区目录
         cc_preset = await SandboxContainerManager._resolve_preset(workspace)
+        api_token = await SandboxContainerManager._ensure_internal_api_token(workspace)
         await WorkspaceService.init_workspace_dir(workspace, cc_preset=cc_preset)
 
         docker = aiodocker.Docker()
@@ -189,7 +204,7 @@ class SandboxContainerManager:
                     "Binds": binds,
                     "PortBindings": {
                         f"{config.CC_SANDBOX_INTERNAL_PORT}/tcp": [
-                            {"HostIp": "0.0.0.0", "HostPort": str(host_port)}
+                            {"HostIp": "127.0.0.1", "HostPort": str(host_port)}
                         ]
                     },
                     "RestartPolicy": {"Name": "no"},
@@ -199,6 +214,7 @@ class SandboxContainerManager:
                     f"SETTINGS_PATH={CONTAINER_WORKSPACE_PATH}/settings.json",
                     f"RUNTIME_POLICY={workspace.runtime_policy}",
                     "SKIP_PERMISSIONS=true",
+                    f"INTERNAL_API_TOKEN={api_token}",
                     f"PORT={config.CC_SANDBOX_INTERNAL_PORT}",
                     "HOST=0.0.0.0",
                     f"TZ={host_tz}",
