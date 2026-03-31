@@ -61,7 +61,7 @@ import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/variants'
 import NameGeneratorDialog from '../../components/common/NameGeneratorDialog'
 import { useTranslation } from 'react-i18next'
-import { useSystemEvents } from '../../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
 
 type BatchOp = 'start' | 'stop' | 'restart' | 'rebuild' | 'resetSession'
 
@@ -311,7 +311,6 @@ function WorkspaceCard({
           variant="body2"
           color={ws.description ? 'text.secondary' : 'text.disabled'}
           sx={{
-            mb: 1.25,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
@@ -330,7 +329,7 @@ function WorkspaceCard({
         <Box
           sx={{
             pt: 1,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
             display: 'flex',
             flexDirection: 'column',
             gap: 0.6,
@@ -477,7 +476,7 @@ export default function WorkspaceListPage() {
   const [batchPresetRunning, setBatchPresetRunning] = useState(false)
 
   // 全局 SSE 实时状态
-  const { workspaceStatuses, workspaceCcActive } = useSystemEvents()
+  const { workspaceStatuses, workspaceCcActive } = useSystemEventsContext()
 
   const { data: workspaces = [], isLoading, error } = useQuery({
     queryKey: ['workspaces'],
@@ -723,7 +722,7 @@ export default function WorkspaceListPage() {
           {workspaces.map(ws => {
             const sseSnap = workspaceStatuses.get(ws.id)
             const effectiveStatus = (sseSnap?.status ?? ws.status) as WorkspaceSummary['status']
-            const ccActive = workspaceCcActive.get(ws.id) ?? false
+            const ccActive = workspaceCcActive.get(ws.id)?.active ?? false
             return (
               <Grid2 size={{ xs: 12, sm: 6, md: 4 }} key={ws.id}>
                 <WorkspaceCard

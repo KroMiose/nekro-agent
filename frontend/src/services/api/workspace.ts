@@ -963,6 +963,19 @@ export interface CommHistoryResponse {
   items: CommLogEntry[]
 }
 
+export interface WorkspaceCommQueueTask {
+  task_id: string | null
+  source_chat_key: string | null
+  started_at: number | null
+  enqueued_at: number | null
+}
+
+export interface WorkspaceCommQueueResponse {
+  current_task: WorkspaceCommQueueTask | null
+  queued_tasks: WorkspaceCommQueueTask[]
+  queue_length: number
+}
+
 export const commApi = {
   getHistory: async (wsId: number, limit = 100, beforeId?: number): Promise<CommHistoryResponse> => {
     const params: Record<string, unknown> = { limit }
@@ -976,8 +989,8 @@ export const commApi = {
     return r.data
   },
 
-  getQueue: async (wsId: number): Promise<{ current_task: Record<string, unknown> | null; queue_length: number }> => {
-    const r = await axios.get<{ current_task: Record<string, unknown> | null; queue_length: number }>(
+  getQueue: async (wsId: number): Promise<WorkspaceCommQueueResponse> => {
+    const r = await axios.get<WorkspaceCommQueueResponse>(
       `/workspaces/${wsId}/comm/queue`,
     )
     return r.data

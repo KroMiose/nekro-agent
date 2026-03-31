@@ -70,7 +70,17 @@
     "channelMore": "+{{n}} more",
     "model": "Model",
     "skillMcp": "Skill/MCP",
-    "ccActive": "CC Running"
+    "ccActive": "CC Running",
+    "runtime": {
+      "queued": "Queued",
+      "running": "Running",
+      "responding": "Responding",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "queue": "Queue {{count}}",
+      "blocks": "{{count}} blocks"
+    }
   },
   "createDialog": {
     "title": "Create Workspace",
@@ -343,6 +353,15 @@
     "header": {
       "backTooltip": "Back to List",
       "ccWorking": "CC Working",
+      "ccQueued": "Queued",
+      "ccRunning": "Running",
+      "ccResponding": "Responding",
+      "ccCompleted": "Completed",
+      "ccFailed": "Failed",
+      "ccCancelled": "Cancelled",
+      "ccElapsed": "{{seconds}}s",
+      "ccQueuedCount": "Queue {{count}}",
+      "ccBlockCount": "Blocks {{count}}",
       "viewSandboxTooltip": "View Sandbox"
     },
     "tabs": {

@@ -70,7 +70,17 @@
     "channelMore": "等{{n}}个",
     "model": "模型",
     "skillMcp": "Skill/MCP",
-    "ccActive": "CC 执行中"
+    "ccActive": "CC 执行中",
+    "runtime": {
+      "queued": "排队中",
+      "running": "执行中",
+      "responding": "回传结果",
+      "completed": "已完成",
+      "failed": "执行失败",
+      "cancelled": "已中止",
+      "queue": "队列 {{count}}",
+      "blocks": "{{count}} 块"
+    }
   },
   "createDialog": {
     "title": "创建工作区",
@@ -343,6 +353,15 @@
     "header": {
       "backTooltip": "返回列表",
       "ccWorking": "CC 执行中",
+      "ccQueued": "排队中",
+      "ccRunning": "执行中",
+      "ccResponding": "回传结果",
+      "ccCompleted": "已完成",
+      "ccFailed": "执行失败",
+      "ccCancelled": "已中止",
+      "ccElapsed": "{{seconds}}s",
+      "ccQueuedCount": "队列 {{count}}",
+      "ccBlockCount": "累计块 {{count}}",
       "viewSandboxTooltip": "查看沙盒容器"
     },
     "tabs": {

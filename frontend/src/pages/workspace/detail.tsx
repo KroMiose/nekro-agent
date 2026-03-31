@@ -19,7 +19,7 @@ import { CARD_VARIANTS } from '../../theme/variants'
 import { useTheme } from '@mui/material/styles'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { useSystemEvents } from '../../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
 import {
   DEFAULT_WORKSPACE_DETAIL_TAB,
   isWorkspaceDetailTab,
@@ -107,8 +107,9 @@ export default function WorkspaceDetailPage() {
   })
 
   // 全局 SSE 实时状态（驱动 status / container_name / host_port）
-  const { workspaceStatuses } = useSystemEvents()
+  const { workspaceStatuses, workspaceCcActive } = useSystemEventsContext()
   const sseSnapshot = workspaceStatuses.get(workspaceId)
+  const globalCcActive = workspaceCcActive.get(workspaceId)
 
   // sandbox/status 轮询：仅用于获取 session_id / cc_version / claude_code_version
   // status/container_name/host_port 已由 SSE 驱动，此处轮询频率大幅降低
@@ -140,10 +141,14 @@ export default function WorkspaceDetailPage() {
     enabled: !!workspace && workspace.status === 'active',
   })
   useEffect(() => {
+    if (globalCcActive?.active) {
+      setCcWorking(true)
+      return
+    }
     if (commQueueStatus !== undefined) {
       setCcWorking((commQueueStatus.current_task ?? null) !== null)
     }
-  }, [commQueueStatus])
+  }, [commQueueStatus, globalCcActive])
 
   // CC 完成时清除工具名
   useEffect(() => {
