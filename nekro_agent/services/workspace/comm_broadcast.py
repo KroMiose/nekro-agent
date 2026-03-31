@@ -8,7 +8,9 @@
 
 import json
 from asyncio import Queue, QueueFull
-from typing import Dict, List
+from typing import Any, Dict, List, Mapping
+
+from pydantic import BaseModel
 
 from nekro_agent.core.logger import logger
 
@@ -16,9 +18,10 @@ _subscribers: Dict[int, List[Queue]] = {}
 _MAX_QUEUE_SIZE = 1000
 
 
-async def publish(workspace_id: int, event: dict) -> None:
+async def publish(workspace_id: int, event: BaseModel | Mapping[str, Any]) -> None:
     """向指定工作区的所有订阅者广播事件。"""
-    payload = json.dumps(event, ensure_ascii=False)
+    payload_data = event.model_dump() if isinstance(event, BaseModel) else dict(event)
+    payload = json.dumps(payload_data, ensure_ascii=False)
     stale: list[Queue] = []
     for q in list(_subscribers.get(workspace_id, [])):
         try:

@@ -172,7 +172,11 @@ class MessageService:
         """执行agent任务"""
         from nekro_agent.services.agent.run_agent import AllLLMRequestsFailedError, run_agent
         from nekro_agent.services.chat.universal_chat_service import universal_chat_service
-        from nekro_agent.services.system_broadcast import AgentActiveEvent, publish_system_event
+        from nekro_agent.services.system_broadcast import (
+            AgentActiveEvent,
+            AgentRuntimeStatusEvent,
+            publish_system_event,
+        )
 
         db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
         preset = await db_channel.get_preset()
@@ -194,6 +198,7 @@ class MessageService:
             # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
             _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
             _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
+            started_at = int(time.time() * 1000)
 
             # 广播 Agent 开始处理
             try:
@@ -205,6 +210,7 @@ class MessageService:
                         chat_type=db_channel.channel_type,
                         preset_id=preset_id,
                         preset_name=preset_name,
+                        started_at=started_at,
                     )
                 )
             except Exception as _e:
@@ -271,10 +277,26 @@ class MessageService:
                         chat_type=db_channel.channel_type,
                         preset_id=preset_id,
                         preset_name=preset_name,
+                        started_at=started_at,
                     )
                 )
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentActive 结束事件失败: {_e}")
+            try:
+                await publish_system_event(
+                    AgentRuntimeStatusEvent(
+                        chat_key=chat_key,
+                        active=False,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                        started_at=started_at,
+                        updated_at=int(time.time() * 1000),
+                    )
+                )
+            except Exception as _e:
+                logger.warning(f"[message_service] 广播 AgentRuntime 结束事件失败: {_e}")
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:

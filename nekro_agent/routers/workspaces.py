@@ -35,8 +35,11 @@ from nekro_agent.schemas.workspace import (
     CommHistoryResponse,
     CommLogEntry,
     CommSendBody,
+    CommStatusPayload,
     SandboxStatus,
     ToolsResponse,
+    WorkspaceCommQueueResponse,
+    WorkspaceCommQueueTask,
     WorkspaceCreate,
     WorkspaceDetail,
     WorkspaceEnvVar,
@@ -58,7 +61,12 @@ from nekro_agent.services.memory.qdrant_manager import memory_qdrant_manager
 from nekro_agent.services.memory.retriever import retrieve_memories
 from nekro_agent.services.memory.semantic_writer import persist_cc_task_memory
 from nekro_agent.services.runtime_state import is_shutting_down
-from nekro_agent.services.system_broadcast import WorkspaceStatusEvent, publish_system_event
+from nekro_agent.services.system_broadcast import (
+    WorkspaceCcActiveEvent,
+    WorkspaceCcRuntimeStatusEvent,
+    WorkspaceStatusEvent,
+    publish_system_event,
+)
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
@@ -97,9 +105,105 @@ class McpConfigUpdate(BaseModel):
     mcp_config: Dict[str, Any]
 
 
+class SandboxQueuedChunk(BaseModel):
+    type: Literal["queued"]
+    queue_length: int = 0
+
+
+class SandboxToolChunk(BaseModel):
+    type: Literal["tool_call", "tool_result"]
+    name: Optional[str] = None
+    tool_use_id: Optional[str] = None
+
+
+def _summarize_comm_block_text(value: str, max_length: int = 48) -> str:
+    normalized = " ".join(value.strip().split())
+    if not normalized:
+        return ""
+    if len(normalized) <= max_length:
+        return normalized
+    return f"{normalized[: max_length - 1]}…"
+
+
 # ─────────────────────────────────────────────────────────────
 # 辅助函数
 # ─────────────────────────────────────────────────────────────
+
+
+def _utc_now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _normalize_timestamp_ms(value: object) -> Optional[int]:
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, (int, float)):
+        numeric = float(value)
+        if numeric <= 0:
+            return None
+        if numeric < 1_000_000_000_000:
+            numeric *= 1000
+        return int(numeric)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        try:
+            numeric = float(text)
+        except ValueError:
+            try:
+                parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            except ValueError:
+                return None
+            return int(parsed.timestamp() * 1000)
+        if numeric <= 0:
+            return None
+        if numeric < 1_000_000_000_000:
+            numeric *= 1000
+        return int(numeric)
+    return None
+
+
+def _parse_comm_queue_task(raw: object) -> Optional[WorkspaceCommQueueTask]:
+    if not isinstance(raw, dict):
+        return None
+    return WorkspaceCommQueueTask(
+        task_id=str(raw.get("task_id")) if raw.get("task_id") is not None else None,
+        source_chat_key=str(raw.get("source_chat_key")) if raw.get("source_chat_key") is not None else None,
+        started_at=_normalize_timestamp_ms(raw.get("started_at")),
+        enqueued_at=_normalize_timestamp_ms(raw.get("enqueued_at")),
+    )
+
+
+def _parse_comm_queue_response(raw: object) -> WorkspaceCommQueueResponse:
+    if not isinstance(raw, dict):
+        return WorkspaceCommQueueResponse()
+    queue_length_raw = raw.get("queue_length")
+    queue_length = int(queue_length_raw) if isinstance(queue_length_raw, (int, float)) and not isinstance(queue_length_raw, bool) else 0
+    parsed_tasks = [_parse_comm_queue_task(item) for item in raw.get("queued_tasks", []) if isinstance(raw.get("queued_tasks"), list)]
+    return WorkspaceCommQueueResponse(
+        current_task=_parse_comm_queue_task(raw.get("current_task")),
+        queued_tasks=[task for task in parsed_tasks if task is not None],
+        queue_length=max(queue_length, 0),
+    )
+
+
+def _build_cc_status_entry(
+    workspace_id: int,
+    *,
+    running: bool,
+    started_at: Optional[int],
+) -> CommLogEntry:
+    return CommLogEntry(
+        id=0,
+        workspace_id=workspace_id,
+        direction="CC_STATUS",
+        source_chat_key="",
+        content=CommStatusPayload(running=running, started_at=started_at).model_dump_json(),
+        is_streaming=False,
+        task_id=None,
+        create_time=_utc_now_iso(),
+    )
 
 
 def _summary(
@@ -2958,40 +3062,100 @@ async def user_send_to_cc(
     # 2. fire-and-forget：CC 通信在后台 Task 完成，HTTP 请求立即返回
     #    所有后续事件（TOOL_CALL、TOOL_RESULT、CC_TO_NA、SYSTEM 错误）均通过 SSE 推送
     async def _cc_task() -> None:
+        started_at = int(time.time() * 1000)
+        current_tool_name: Optional[str] = None
+        operation_block_count = 0
+
+        async def _runtime_status(
+            *,
+            phase: Literal["queued", "running", "responding", "completed", "failed", "cancelled"],
+            current_tool: Optional[str] = None,
+            queue_length: int = 0,
+            last_block_kind: Optional[Literal["tool_call", "tool_result", "text_chunk"]] = None,
+            last_block_summary: Optional[str] = None,
+            error_summary: Optional[str] = None,
+        ) -> None:
+            try:
+                await publish_system_event(
+                    WorkspaceCcRuntimeStatusEvent(
+                        workspace_id=workspace_id,
+                        active=True,
+                        name=ws.name,
+                        started_at=started_at,
+                        updated_at=int(time.time() * 1000),
+                        phase=phase,
+                        current_tool=current_tool,
+                        source_chat_key="__user__",
+                        queue_length=queue_length,
+                        operation_block_count=operation_block_count,
+                        last_block_kind=last_block_kind,
+                        last_block_summary=last_block_summary,
+                        error_summary=error_summary,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"广播 workspace_cc_runtime_status 失败: {e}")
+
         async def _status(running: bool) -> None:
             try:
                 await comm_broadcast.publish(
                     workspace_id,
-                    {
-                        "id": 0,
-                        "workspace_id": workspace_id,
-                        "direction": "CC_STATUS",
-                        "source_chat_key": "",
-                        "content": json.dumps({"running": running}),
-                        "is_streaming": False,
-                        "task_id": None,
-                        "create_time": datetime.now(timezone.utc).isoformat(),
-                    },
+                    _build_cc_status_entry(
+                        workspace_id,
+                        running=running,
+                        started_at=started_at,
+                    ),
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning(f"广播 CC_STATUS 失败: {e}")
+            try:
+                await publish_system_event(
+                    WorkspaceCcActiveEvent(
+                        workspace_id=workspace_id,
+                        active=running,
+                        name=ws.name,
+                        started_at=started_at,
+                    )
+                )
+            except Exception as e:
+                logger.warning(f"广播 workspace_cc_active 失败: {e}")
+            if not running:
+                try:
+                    await publish_system_event(
+                        WorkspaceCcRuntimeStatusEvent(
+                            workspace_id=workspace_id,
+                            active=False,
+                            name=ws.name,
+                            started_at=started_at,
+                            updated_at=int(time.time() * 1000),
+                        )
+                    )
+                except Exception as e:
+                    logger.warning(f"广播 workspace_cc_runtime_status false 失败: {e}")
 
         await _status(True)
+        await _runtime_status(phase="running")
         client = CCSandboxClient(ws)
         chunks: List[str] = []
         try:
             async for chunk in client.stream_message(
                 delegated_content,
                 source_chat_key="__user__",
+                on_queued=lambda data: _runtime_status(
+                    phase="queued",
+                    current_tool=current_tool_name,
+                    queue_length=SandboxQueuedChunk.model_validate(data).queue_length,
+                ),
                 env_vars=_get_env_vars_dict(ws),
             ):
                 if isinstance(chunk, dict):
-                    item_type = chunk.get("type")
-                    if item_type in ("tool_call", "tool_result"):
+                    tool_chunk = SandboxToolChunk.model_validate(chunk)
+                    if tool_chunk.type in ("tool_call", "tool_result"):
                         try:
                             import json as _json
 
-                            direction = "TOOL_CALL" if item_type == "tool_call" else "TOOL_RESULT"
+                            operation_block_count += 1
+                            direction = "TOOL_CALL" if tool_chunk.type == "tool_call" else "TOOL_RESULT"
                             log = await DBWorkspaceCommLog.create(
                                 workspace_id=workspace_id,
                                 direction=direction,
@@ -2999,9 +3163,40 @@ async def user_send_to_cc(
                                 content=_json.dumps(chunk, ensure_ascii=False),
                             )
                             await comm_broadcast.publish(workspace_id, _comm_log_to_dict(log))
+                            if tool_chunk.type == "tool_call":
+                                current_tool_name = tool_chunk.name
+                                await _runtime_status(
+                                    phase="running",
+                                    current_tool=current_tool_name,
+                                    last_block_kind="tool_call",
+                                    last_block_summary=current_tool_name,
+                                )
+                            elif current_tool_name is not None:
+                                await _runtime_status(
+                                    phase="running",
+                                    current_tool=None,
+                                    last_block_kind="tool_result",
+                                    last_block_summary=current_tool_name,
+                                )
+                                current_tool_name = None
+                            else:
+                                await _runtime_status(
+                                    phase="running",
+                                    current_tool=None,
+                                    last_block_kind="tool_result",
+                                    last_block_summary=tool_chunk.name,
+                                )
                         except Exception:
                             pass
                 else:
+                    operation_block_count += 1
+                    if current_tool_name is not None:
+                        current_tool_name = None
+                    await _runtime_status(
+                        phase="responding",
+                        last_block_kind="text_chunk",
+                        last_block_summary=_summarize_comm_block_text(chunk),
+                    )
                     chunks.append(chunk)
         except CCSandboxError as e:
             err_log = await DBWorkspaceCommLog.create(
@@ -3011,6 +3206,7 @@ async def user_send_to_cc(
                 content=f"[错误] CC 返回错误: {e}",
             )
             await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await _runtime_status(phase="failed", error_summary=str(e)[:180])
             await _status(False)
             return
         except Exception as e:
@@ -3021,6 +3217,7 @@ async def user_send_to_cc(
                 content=f"[错误] 任务异常: {e}",
             )
             await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await _runtime_status(phase="failed", error_summary=str(e)[:180])
             await _status(False)
             return
 
@@ -3043,18 +3240,19 @@ async def user_send_to_cc(
             )
         except Exception as e:
             logger.warning(f"CC 结果沉淀为语义记忆失败（可忽略）: {e}")
+        await _runtime_status(phase="completed")
         await _status(False)
 
     asyncio.create_task(_cc_task())
     return {"ok": True}
 
 
-@router.get("/{workspace_id}/comm/queue", summary="查询 CC 工作区当前任务队列状态")
+@router.get("/{workspace_id}/comm/queue", summary="查询 CC 工作区当前任务队列状态", response_model=WorkspaceCommQueueResponse)
 @require_role(Role.Admin)
 async def get_comm_queue(
     workspace_id: int,
     _current_user: DBUser = Depends(get_current_active_user),
-) -> dict:
+) -> WorkspaceCommQueueResponse:
     """代理 CC 沙盒的真实队列状态，供前端判断 CC 是否真正在处理任务。
 
     返回字段：
@@ -3066,12 +3264,12 @@ async def get_comm_queue(
     if not ws:
         raise NotFoundError(resource=f"工作区 {workspace_id}")
     if ws.status != "active":
-        return {"current_task": None, "queued_tasks": [], "queue_length": 0}
+        return WorkspaceCommQueueResponse()
     try:
         client = CCSandboxClient(ws)
-        return await client.get_workspace_queue(workspace_id="default")
+        return _parse_comm_queue_response(await client.get_workspace_queue(workspace_id="default"))
     except Exception:
-        return {"current_task": None, "queued_tasks": [], "queue_length": 0}
+        return WorkspaceCommQueueResponse()
 
 
 @router.delete("/{workspace_id}/comm/queue/current", summary="强制中止 CC 工作区当前任务")
@@ -3124,18 +3322,42 @@ async def force_cancel_comm_task(
     # 广播 CC_STATUS False，驱动前端状态指示条立即隐藏
     # （_cc_delegate_task 的 except 路径也会广播，此处确保后台任务场景下也能及时更新）
     try:
+        started_at = int(time.time() * 1000)
+        await publish_system_event(
+            WorkspaceCcRuntimeStatusEvent(
+                workspace_id=workspace_id,
+                active=True,
+                name=ws.name,
+                started_at=started_at,
+                updated_at=started_at,
+                phase="cancelled",
+                source_chat_key=source_chat_key,
+            )
+        )
         await comm_broadcast.publish(
             workspace_id,
-            {
-                "id": 0,
-                "workspace_id": workspace_id,
-                "direction": "CC_STATUS",
-                "source_chat_key": "",
-                "content": json.dumps({"running": False}),
-                "is_streaming": False,
-                "task_id": None,
-                "create_time": datetime.now(timezone.utc).isoformat(),
-            },
+            _build_cc_status_entry(
+                workspace_id,
+                running=False,
+                started_at=started_at,
+            ),
+        )
+        await publish_system_event(
+            WorkspaceCcActiveEvent(
+                workspace_id=workspace_id,
+                active=False,
+                name=ws.name,
+                started_at=started_at,
+            )
+        )
+        await publish_system_event(
+            WorkspaceCcRuntimeStatusEvent(
+                workspace_id=workspace_id,
+                active=False,
+                name=ws.name,
+                started_at=started_at,
+                updated_at=started_at,
+            )
         )
     except Exception as e:
         logger.warning(f"广播 CC_STATUS false 失败: {e}")

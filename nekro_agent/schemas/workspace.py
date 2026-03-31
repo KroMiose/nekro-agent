@@ -101,10 +101,31 @@ class AutoInjectMcpResponse(BaseModel):
 # ── 沙盒通讯日志 ────────────────────────────────────────────────────────────
 
 
+CommDirection = Literal["NA_TO_CC", "CC_TO_NA", "USER_TO_CC", "SYSTEM", "TOOL_CALL", "TOOL_RESULT", "CC_STATUS"]
+
+
+class CommStatusPayload(BaseModel):
+    running: bool
+    started_at: Optional[int] = None
+
+
+class WorkspaceCommQueueTask(BaseModel):
+    task_id: Optional[str] = None
+    source_chat_key: Optional[str] = None
+    started_at: Optional[int] = None
+    enqueued_at: Optional[int] = None
+
+
+class WorkspaceCommQueueResponse(BaseModel):
+    current_task: Optional[WorkspaceCommQueueTask] = None
+    queued_tasks: List[WorkspaceCommQueueTask] = Field(default_factory=list)
+    queue_length: int = 0
+
+
 class CommLogEntry(BaseModel):
     id: int
     workspace_id: int
-    direction: str  # NA_TO_CC | CC_TO_NA | USER_TO_CC | SYSTEM
+    direction: CommDirection
     source_chat_key: str
     content: str
     is_streaming: bool
