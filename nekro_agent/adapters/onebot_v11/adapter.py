@@ -225,8 +225,6 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
                 if not image_path.exists():
                     logger.warning(f"[ForwardMsg] 图片不存在，跳过: {image_path}")
                     continue
-                if not current_message:
-                    current_message.append(MessageSegment.text(config.AI_COMMAND_OUTPUT_PREFIX.strip()))
                 current_message.append(MessageSegment.image(file=image_path.read_bytes()))
                 flush_current()
 

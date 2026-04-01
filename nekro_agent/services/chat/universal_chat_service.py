@@ -5,6 +5,7 @@
 协议端特定的逻辑通过 adapter.forward_message 接口委托给各自的适配器实现。
 """
 
+import asyncio
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -153,8 +154,9 @@ class UniversalChatService:
 
         for agent_message in messages:
             content = agent_message.content
+            agent_message_type = AgentMessageSegmentType(agent_message.type)
 
-            if agent_message.type == AgentMessageSegmentType.TEXT.value:
+            if agent_message_type == AgentMessageSegmentType.TEXT:
                 # 处理文本消息 - 只做基本的修复，不解析@
                 content = fix_raw_response(content)
 
@@ -163,13 +165,13 @@ class UniversalChatService:
 
                 logger.info(f"Sending agent message: {content}")
 
-            elif agent_message.type in (
-                AgentMessageSegmentType.IMAGE.value,
-                AgentMessageSegmentType.FILE.value,
+            elif agent_message_type in (
+                AgentMessageSegmentType.IMAGE,
+                AgentMessageSegmentType.FILE,
             ):
                 segment_type = (
                     PlatformSendSegmentType.IMAGE
-                    if agent_message.type == AgentMessageSegmentType.IMAGE.value
+                    if agent_message_type == AgentMessageSegmentType.IMAGE
                     else (PlatformSendSegmentType.FILE if file_mode else PlatformSendSegmentType.IMAGE)
                 )
                 processed_segment = await self._preprocess_file_segment(
@@ -224,9 +226,14 @@ class UniversalChatService:
 
             logger.info(f"Sending agent file: {processed_file_path}")
             return [PlatformSendSegment(type=segment_type, file_path=processed_file_path)]
+        except asyncio.CancelledError:
+            raise
         except ValueError as e:
             logger.error(f"Path conversion error: {e}")
             return [PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=str(e))]
+        except Exception as e:
+            logger.exception(f"Unexpected file preprocessing error: {e}")
+            return [PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=f"File processing failed: {e}")]
 
 
 # 全局实例
