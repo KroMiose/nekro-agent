@@ -6,7 +6,11 @@
 from typing import Optional, Union
 
 from nekro_agent.schemas.i18n import I18nDict, resolve_i18n
-from nekro_agent.services.command.schemas import CommandResponse, CommandResponseStatus
+from nekro_agent.services.command.schemas import (
+    CommandOutputSegment,
+    CommandResponse,
+    CommandResponseStatus,
+)
 
 
 class CmdCtl:
@@ -24,12 +28,17 @@ class CmdCtl:
     """
 
     @staticmethod
-    def message(text: Union[str, I18nDict] = "", data: Optional[dict] = None) -> CommandResponse:
+    def message(
+        text: Union[str, I18nDict] = "",
+        data: Optional[dict] = None,
+        output_segments: Optional[list[CommandOutputSegment]] = None,
+    ) -> CommandResponse:
         """过程输出 - 中间状态反馈，不中断命令执行"""
         return CommandResponse(
             status=CommandResponseStatus.PROCESSING,
             message=resolve_i18n(text),
             data=data,
+            output_segments=output_segments,
         )
 
     @staticmethod
@@ -65,22 +74,26 @@ class CmdCtl:
     def success(
         message: Union[str, I18nDict] = "",
         data: Optional[dict] = None,
+        output_segments: Optional[list[CommandOutputSegment]] = None,
     ) -> CommandResponse:
         """成功终态"""
         return CommandResponse(
             status=CommandResponseStatus.SUCCESS,
             message=resolve_i18n(message),
             data=data,
+            output_segments=output_segments,
         )
 
     @staticmethod
     def failed(
         message: Union[str, I18nDict] = "",
         data: Optional[dict] = None,
+        output_segments: Optional[list[CommandOutputSegment]] = None,
     ) -> CommandResponse:
         """失败终态"""
         return CommandResponse(
             status=CommandResponseStatus.ERROR,
             message=resolve_i18n(message),
             data=data,
+            output_segments=output_segments,
         )

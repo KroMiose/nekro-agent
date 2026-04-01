@@ -58,8 +58,11 @@ class AgentToolExporter:
         final_status = "error"
         final_message = ""
         final_data: Optional[dict[str, Any]] = None
+        output_segments = []
 
         for resp in responses:
+            if resp.output_segments:
+                output_segments.extend(segment.model_dump() for segment in resp.output_segments)
             if resp.status == CommandResponseStatus.PROCESSING:
                 process_lines.append(resp.message)
             elif resp.status == CommandResponseStatus.WAITING:
@@ -86,6 +89,8 @@ class AgentToolExporter:
         result["message"] = final_message
         if final_data is not None:
             result["data"] = final_data
+        if output_segments:
+            result["output_segments"] = output_segments
 
         return result
 

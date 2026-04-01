@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
+from nekro_agent.services.command.schemas import CommandOutputSegment
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 
@@ -196,9 +197,15 @@ class WebUIExecuteRequest(BaseModel):
     raw_args: str = ""
 
 
+class WebUIExecuteResponseItem(BaseModel):
+    status: str
+    message: str
+    output_segments: list[CommandOutputSegment] | None = None
+
+
 class WebUIExecuteResponse(BaseModel):
     ok: bool = True
-    responses: list[dict] = []
+    responses: list[WebUIExecuteResponseItem] = []
 
 
 @router.post("/webui-execute", summary="WebUI 执行命令（不转发到平台）")
@@ -210,6 +217,7 @@ async def webui_execute_command(
     """从 WebUI 直接执行命令，结果仅通过 SSE 广播到 WebUI，不发送到聊天平台"""
     from nekro_agent.core.config import config
     from nekro_agent.schemas.i18n import SupportedLang
+    from nekro_agent.services.command.output import materialize_command_response
     from nekro_agent.services.command.registry import command_registry
     from nekro_agent.services.command.schemas import CommandExecutionContext, CommandRequest
     from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
@@ -225,15 +233,23 @@ async def webui_execute_command(
     )
     request = CommandRequest(context=context, command_name=req.command_name, raw_args=req.raw_args)
 
-    results: list[dict] = []
-    async for response in command_registry.execute(request):
+    results: list[WebUIExecuteResponseItem] = []
+    async for raw_response in command_registry.execute(request):
+        response = await materialize_command_response(req.chat_key, raw_response)
         await command_output_broadcaster.publish(
             chat_key=req.chat_key,
             command_name=req.command_name,
             status=response.status.value,
             message=response.message,
+            output_segments=response.output_segments,
         )
-        results.append({"status": response.status.value, "message": response.message})
+        results.append(
+            WebUIExecuteResponseItem(
+                status=response.status.value,
+                message=response.message,
+                output_segments=response.output_segments,
+            )
+        )
 
     return WebUIExecuteResponse(ok=True, responses=results)
 

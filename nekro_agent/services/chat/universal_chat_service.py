@@ -31,6 +31,8 @@ from nekro_agent.tools.path_convertor import (
 )
 
 logger = get_sub_logger("message_pipeline")
+
+
 class UniversalChatService:
     """通用消息服务 - 处理跨平台的消息发送逻辑"""
 
@@ -161,49 +163,70 @@ class UniversalChatService:
 
                 logger.info(f"Sending agent message: {content}")
 
-            elif agent_message.type == AgentMessageSegmentType.FILE.value:
-                # 处理文件消息
-                try:
-                    # 处理URL下载
-                    if is_url_path(content):
-                        file_path, _ = await download_file(content, from_chat_key=chat_key)
-                        processed_file_path = file_path
-                        agent_message.content = str(file_path)
-                    else:
-                        # 转换为宿主机路径
-                        host_path = convert_to_host_path(
-                            Path(content),
-                            chat_key=chat_key,
-                            container_key=ctx.container_key if ctx else None,
-                        )
-
-                        if host_path and host_path.exists():
-                            processed_file_path = str(host_path)
-                            agent_message.content = str(host_path)
-                        else:
-                            logger.warning(f"Invalid or non-existent file path: {content}")
-                            # 添加错误文本消息
-                            processed_segments.append(
-                                PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=f"Invalid file path: {content}"),
-                            )
-                            continue
-
-                    logger.info(f"Sending agent file: {processed_file_path}")
-
-                    # 根据 file_mode 决定生成 FILE 还是 IMAGE 类型的消息段
-                    # 这里只是根据用户意图决定类型，具体的发送方式由协议端决定
-                    segment_type = PlatformSendSegmentType.FILE if file_mode else PlatformSendSegmentType.IMAGE
-
-                    processed_segments.append(PlatformSendSegment(type=segment_type, file_path=processed_file_path))
-
-                except ValueError as e:
-                    logger.error(f"Path conversion error: {e}")
-                    # 添加错误文本消息
-                    processed_segments.append(PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=str(e)))
+            elif agent_message.type in (
+                AgentMessageSegmentType.IMAGE.value,
+                AgentMessageSegmentType.FILE.value,
+            ):
+                segment_type = (
+                    PlatformSendSegmentType.IMAGE
+                    if agent_message.type == AgentMessageSegmentType.IMAGE.value
+                    else (PlatformSendSegmentType.FILE if file_mode else PlatformSendSegmentType.IMAGE)
+                )
+                processed_segment = await self._preprocess_file_segment(
+                    agent_message=agent_message,
+                    chat_key=chat_key,
+                    ctx=ctx,
+                    content=content,
+                    segment_type=segment_type,
+                )
+                processed_segments.extend(processed_segment)
             else:
                 raise ValueError(f"Invalid agent message type: {agent_message.type}")
 
         return processed_segments
+
+    async def _preprocess_file_segment(
+        self,
+        agent_message: AgentMessageSegment,
+        chat_key: str,
+        ctx: Optional[AgentCtx],
+        content: str,
+        segment_type: PlatformSendSegmentType,
+    ) -> List[PlatformSendSegment]:
+        """预处理图片/文件类消息段。"""
+        try:
+            if is_url_path(content):
+                file_path, _ = await download_file(content, from_chat_key=chat_key)
+                processed_file_path = file_path
+                agent_message.content = str(file_path)
+            else:
+                content_path = Path(content)
+                if content_path.is_absolute() and content_path.exists():
+                    host_path = content_path
+                else:
+                    host_path = convert_to_host_path(
+                        content_path,
+                        chat_key=chat_key,
+                        container_key=ctx.container_key if ctx else None,
+                    )
+
+                if host_path and host_path.exists():
+                    processed_file_path = str(host_path)
+                    agent_message.content = str(host_path)
+                else:
+                    logger.warning(f"Invalid or non-existent file path: {content}")
+                    return [
+                        PlatformSendSegment(
+                            type=PlatformSendSegmentType.TEXT,
+                            content=f"Invalid file path: {content}",
+                        ),
+                    ]
+
+            logger.info(f"Sending agent file: {processed_file_path}")
+            return [PlatformSendSegment(type=segment_type, file_path=processed_file_path)]
+        except ValueError as e:
+            logger.error(f"Path conversion error: {e}")
+            return [PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=str(e))]
 
 
 # 全局实例

@@ -22,14 +22,17 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import CommandOutputSegments from '../../components/common/CommandOutputSegments'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import { commandsApi } from '../../services/api/commands'
+import type { CommandOutputSegment } from '../../services/api/commands'
 import { CARD_VARIANTS } from '../../theme/variants'
 
 interface OutputEntry {
   command_name: string
   status: string
   message: string
+  output_segments?: CommandOutputSegment[] | null
   timestamp: number
 }
 
@@ -142,6 +145,7 @@ export default function CommandOutputPage() {
         command_name: variables.name,
         status: r.status,
         message: r.message,
+        output_segments: r.output_segments,
         timestamp: now + i * 0.001,
       }))
       setEntries((prev) => {
@@ -246,17 +250,25 @@ export default function CommandOutputPage() {
                       '& .MuiChip-label': { px: 0.5 },
                     }}
                   />
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontSize: 'inherit',
-                      color: ev.status === 'error' ? 'error.main' : 'text.primary',
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    {ev.message}
-                  </Typography>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    {ev.message ? (
+                      <Typography
+                        component="div"
+                        sx={{
+                          fontSize: 'inherit',
+                          color: ev.status === 'error' ? 'error.main' : 'text.primary',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {ev.message}
+                      </Typography>
+                    ) : null}
+                    <CommandOutputSegments
+                      segments={ev.output_segments}
+                      textColor={ev.status === 'error' ? 'error.main' : 'text.primary'}
+                    />
+                  </Box>
                 </Box>
               ))
             )}

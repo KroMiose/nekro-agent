@@ -18,7 +18,9 @@ from nekro_agent.core import config, logger
 from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
+from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.services.command.schemas import CommandResponse
 
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
@@ -116,6 +118,27 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         else:
             return True
 
+    async def _try_send_enhanced_command_response(
+        self,
+        chat_key: str,
+        response: CommandResponse,
+        messages: list[AgentMessageSegment],
+    ) -> bool:
+        """OneBot V11: 以合并转发消息形式发送图文命令输出。"""
+        if not response.output_segments:
+            return False
+
+        if any(msg.type == AgentMessageSegmentType.FILE for msg in messages):
+            return False
+
+        try:
+            await self._send_forward_segments(chat_key, messages)
+        except Exception as e:
+            logger.warning(f"[ForwardMsg] 富媒体命令输出发送失败: {e}")
+            return False
+        else:
+            return True
+
     async def _send_forward_message(self, chat_key: str, text: str) -> None:
         """以合并转发消息形式发送长文本，智能拆分段落"""
         bot: Bot = get_bot()
@@ -155,6 +178,62 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
 
         if not nodes:
             raise ValueError("无法拆分消息内容")
+
+        if chat_type is ChatType.GROUP:
+            await bot.call_api("send_group_forward_msg", group_id=chat_id, messages=nodes)
+        elif chat_type is ChatType.PRIVATE:
+            await bot.call_api("send_private_forward_msg", user_id=chat_id, messages=nodes)
+        else:
+            raise ValueError(f"不支持的聊天类型: {chat_type}")
+
+    async def _send_forward_segments(self, chat_key: str, messages: list[AgentMessageSegment]) -> None:
+        """以合并转发消息形式发送图文消息段。"""
+        bot: Bot = get_bot()
+        db_chat_channel = await DBChatChannel.get_channel(chat_key=chat_key)
+        chat_type = db_chat_channel.chat_type
+        chat_id = int(db_chat_channel.channel_id.split("_")[1])
+
+        nodes: list[dict[str, Any]] = []
+        current_message = Message()
+
+        def flush_current() -> None:
+            if current_message:
+                nodes.append(
+                    {
+                        "type": "node",
+                        "data": {
+                            "name": "NekroAgent",
+                            "uin": bot.self_id,
+                            "content": current_message.copy(),
+                        },
+                    }
+                )
+                current_message.clear()
+
+        for item in messages:
+            if item.type == AgentMessageSegmentType.TEXT:
+                text = item.content.strip()
+                if not text:
+                    continue
+                if current_message:
+                    flush_current()
+                current_message.append(MessageSegment.text(text))
+                continue
+
+            if item.type == AgentMessageSegmentType.IMAGE:
+                image_path = Path(item.content)
+                if not image_path.exists():
+                    logger.warning(f"[ForwardMsg] 图片不存在，跳过: {image_path}")
+                    continue
+                if not current_message:
+                    current_message.append(MessageSegment.text(config.AI_COMMAND_OUTPUT_PREFIX.strip()))
+                current_message.append(MessageSegment.image(file=image_path.read_bytes()))
+                flush_current()
+
+        flush_current()
+
+        if not nodes:
+            raise ValueError("无法构建合并转发节点")
 
         if chat_type is ChatType.GROUP:
             await bot.call_api("send_group_forward_msg", group_id=chat_id, messages=nodes)

@@ -2,6 +2,15 @@ import axios from './axios'
 import type { I18nDict } from './types'
 import { createEventStream } from './utils/stream'
 
+export interface CommandOutputSegment {
+  type: 'text' | 'image' | 'file'
+  text?: string
+  file_path?: string
+  file_name?: string
+  mime_type?: string
+  web_url?: string
+}
+
 export interface CommandState {
   name: string
   namespace: string
@@ -24,7 +33,14 @@ export interface CommandOutputEvent {
   command_name: string
   status: string
   message: string
+  output_segments?: CommandOutputSegment[] | null
   timestamp: number
+}
+
+export interface WebUIExecuteResponseItem {
+  status: string
+  message: string
+  output_segments?: CommandOutputSegment[] | null
 }
 
 export const commandsApi = {
@@ -82,10 +98,10 @@ export const commandsApi = {
     commandName: string,
     chatKey: string,
     rawArgs: string = '',
-  ): Promise<{ ok: boolean; responses: Array<{ status: string; message: string }> }> => {
+  ): Promise<{ ok: boolean; responses: WebUIExecuteResponseItem[] }> => {
     const response = await axios.post<{
       ok: boolean
-      responses: Array<{ status: string; message: string }>
+      responses: WebUIExecuteResponseItem[]
     }>('/commands/webui-execute', {
       command_name: commandName,
       chat_key: chatKey,

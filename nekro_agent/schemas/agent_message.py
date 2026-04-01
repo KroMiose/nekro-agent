@@ -8,6 +8,7 @@ class AgentMessageSegmentType(str, Enum):
     """消息段类型枚举"""
 
     TEXT = "text"
+    IMAGE = "image"
     FILE = "file"
 
 
@@ -21,6 +22,7 @@ class AgentMessageSegment(BaseModel):
     Example:
         ```python
         AgentMessageSegment(type=AgentMessageSegmentType.TEXT, content="Hello, world!")  # 文本消息段
+        AgentMessageSegment(type=AgentMessageSegmentType.IMAGE, content="shared/image.png")  # 图片消息段
         AgentMessageSegment(type=AgentMessageSegmentType.FILE, content="shared/file.txt")  # 文件消息段
         ```
     """
@@ -34,6 +36,9 @@ class AgentMessageSegment(BaseModel):
     def get_prompt(self):
         if self.type == AgentMessageSegmentType.TEXT:
             return f"{self.content}"
+
+        if self.type == AgentMessageSegmentType.IMAGE:
+            return f"[Image: {self.content}]"
 
         if self.type == AgentMessageSegmentType.FILE:
             return f"[File: {self.content}]"
