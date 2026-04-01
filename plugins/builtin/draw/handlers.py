@@ -13,6 +13,7 @@ from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core import logger
 from nekro_agent.core.config import config as global_config
 from nekro_agent.services.agent.creator import ContentSegment, OpenAIChatMessage
+from nekro_agent.tools.common_util import limited_text_output
 from nekro_agent.tools.path_convertor import convert_to_host_path
 
 from .models import ImageReference, MultiImageDrawRequest
@@ -444,13 +445,32 @@ async def generate_chat_response_with_image_support(
 
                                 delta = choices[0].get("delta", {})
 
-                                # 优先检查 image 字段
+                                # 检查是否有拒绝内容（安全过滤）
+                                refusal = delta.get("refusal") or delta.get("guard_content")
+                                if refusal:
+                                    logger.warning(f"模型返回安全过滤内容: {limited_text_output(str(refusal))}")
+
+                                # 优先检查 image 字段 (OpenAI 多模态格式)
                                 image_data = delta.get("image")
                                 if image_data and isinstance(image_data, list) and image_data:
                                     # 取第一张图片的 base64 数据
                                     collected_image_data = image_data[0].get("data")
                                     if isinstance(collected_image_data, str):
                                         logger.debug(f"找到 image 字段，数据长度: {len(collected_image_data)}")
+
+                                # 检查 image_url 字段 (某些模型的响应格式)
+                                image_url = delta.get("image_url")
+                                if image_url and isinstance(image_url, str) and not collected_image_data:
+                                    collected_image_data = image_url
+                                    logger.debug(f"找到 image_url 字段: {limited_text_output(str(image_url))}")
+
+                                # 检查 image_urls 字段 (URL 列表格式)
+                                image_urls = delta.get("image_urls")
+                                if image_urls and isinstance(image_urls, list) and image_urls and not collected_image_data:
+                                    first_url = image_urls[0].get("url") if isinstance(image_urls[0], dict) else image_urls[0]
+                                    if first_url:
+                                        collected_image_data = first_url
+                                        logger.debug(f"找到 image_urls 字段: {limited_text_output(str(first_url))}")
 
                                 # 收集 content 内容作为备选
                                 content_data = delta.get("content")
@@ -474,10 +494,29 @@ async def generate_chat_response_with_image_support(
                 if choices:
                     message = choices[0].get("message", {})
 
-                    # 检查是否有 image 字段
+                    # 检查是否有拒绝内容（安全过滤）
+                    refusal = message.get("refusal") or message.get("guard_content")
+                    if refusal:
+                        logger.warning(f"模型返回安全过滤内容: {limited_text_output(str(refusal))}")
+
+                    # 检查是否有 image 字段 (OpenAI 多模态格式)
                     image_data = message.get("image")
                     if image_data and isinstance(image_data, list) and image_data:
-                        collected_image_data = image_data[0]
+                        collected_image_data = image_data[0].get("data") if isinstance(image_data[0], dict) else image_data[0]
+
+                    # 检查 image_url 字段 (某些模型的响应格式)
+                    image_url = message.get("image_url")
+                    if image_url and isinstance(image_url, str) and not collected_image_data:
+                        collected_image_data = image_url
+                        logger.debug(f"找到 image_url 字段: {limited_text_output(str(image_url))}")
+
+                    # 检查 image_urls 字段 (URL 列表格式)
+                    image_urls = message.get("image_urls")
+                    if image_urls and isinstance(image_urls, list) and image_urls and not collected_image_data:
+                        first_url = image_urls[0].get("url") if isinstance(image_urls[0], dict) else image_urls[0]
+                        if first_url:
+                            collected_image_data = first_url
+                            logger.debug(f"找到 image_urls 字段: {limited_text_output(str(first_url))}")
 
                     # 收集 content 内容
                     content_data = message.get("content")
@@ -492,10 +531,20 @@ async def generate_chat_response_with_image_support(
     # 回退到从 content 中提取图片信息
     if collected_content:
         logger.info("从 content 中提取图片信息")
-        return extract_image_from_content(collected_content)
+        try:
+            return extract_image_from_content(collected_content)
+        except Exception as e:
+            # 增强错误信息，帮助调试
+            content_preview = limited_text_output(collected_content, max_length=300)
+            raise Exception(
+                f"无法从 content 中提取图片。收到内容类型: {type(collected_content)}, "
+                f"内容摘要: {content_preview}。请检查：1) API Key 是否有效 2) 模型是否支持图像生成 3) 是否触发安全过滤"
+            ) from e
 
     # 都没有找到
-    raise Exception("未找到图片内容，请检查模型响应或调整提示词")
+    raise Exception(
+        "未找到图片内容。请检查：1) API Key 是否有效 2) 模型是否支持图像生成 3) 是否触发安全过滤"
+    )
 
 
 async def generate_chat_mode_image(model_group, prompt: str, size: str, refer_image: str, source_image_data: str) -> str:
