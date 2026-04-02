@@ -23,6 +23,15 @@ import { ReactElement } from 'react'
 import { Theme } from '@mui/material'
 import { Avatar, SxProps } from '@mui/material'
 import { UI_STYLES } from '../theme/themeConfig'
+import minecraftIcon from '../assets/adapters/minecraft.svg'
+import telegramIcon from '../assets/adapters/telegram.svg'
+import bilibiliIcon from '../assets/adapters/bilibili.svg'
+import discordIcon from '../assets/adapters/discord.svg'
+import emailIcon from '../assets/adapters/email.svg'
+import qqIcon from '../assets/adapters/qq.svg'
+import feishuIcon from '../assets/adapters/feishu.svg'
+import wechatIcon from '../assets/adapters/wechat.svg'
+import sseIcon from '../assets/adapters/sse.svg'
 
 import AdapterHomePage from '../pages/adapter/AdapterHomePage'
 import AdapterConfigPage from '../pages/adapter/AdapterConfigPage'
@@ -64,6 +73,17 @@ export interface AdapterStatusDisplay {
   getBgColor: (theme: Theme) => string
 }
 
+const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
+  onebot_v11: qqIcon,
+  minecraft: minecraftIcon,
+  bilibili_live: bilibiliIcon,
+  discord: discordIcon,
+  sse: sseIcon,
+  wechatpad: wechatIcon,
+  telegram: telegramIcon,
+  email: emailIcon,
+  feishu: feishuIcon,
+}
 // 适配器配置映射
 export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
   // OneBot V11 适配器配置
@@ -669,6 +689,7 @@ export const createAdapterIcon = (
   size: number = 48
 ): ReactElement => {
   const iconText = getAdapterIconText(adapterKey)
+  const iconAsset = ADAPTER_ICON_ASSETS[adapterKey]
 
   const iconSx: SxProps<Theme> = {
     width: size,
@@ -680,5 +701,13 @@ export const createAdapterIcon = (
     color: theme.palette.text.primary,
   }
 
-  return <Avatar sx={iconSx}>{iconText}</Avatar>
+  return (
+    <Avatar
+      src={iconAsset}
+      sx={iconSx}
+      imgProps={{ style: { objectFit: 'contain', padding: size < 40 ? 6 : 8 } }}
+    >
+      {iconText}
+    </Avatar>
+  )
 }

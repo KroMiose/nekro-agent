@@ -2,6 +2,34 @@
   "loading": "加载适配器信息中...",
   "loadFailed": "加载失败",
   "loadAdapterFailed": "加载适配器信息失败",
+  "hub": {
+    "title": "适配器总览",
+    "backToHub": "返回总览",
+    "searchPlaceholder": "搜索适配器名称、描述、标签或配置类",
+    "searchAction": "搜索",
+    "clearSearch": "清空搜索",
+    "statusLabel": "状态",
+    "statusAll": "全部状态",
+    "emptyTitle": "没有符合条件的适配器",
+    "emptyDescription": "调整搜索词或状态筛选后再试。",
+    "open": "进入适配器",
+    "configClass": "配置类",
+    "ruleCount": "频道规则",
+    "rules": "{{count}} 条",
+    "noDescription": "暂无适配器描述",
+    "statsLabel": {
+      "total": "适配器总数",
+      "enabled": "已启用",
+      "failed": "加载失败",
+      "disabled": "已禁用"
+    },
+    "stats": {
+      "total": "共 {{count}} 个",
+      "enabled": "{{count}} 已启用",
+      "failed": "{{count}} 加载失败",
+      "disabled": "{{count}} 已禁用"
+    }
+  },
   "home": {
     "version": "版本",
     "author": "作者",
