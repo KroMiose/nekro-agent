@@ -6,6 +6,7 @@ Telegram 适配器实现
 import asyncio
 import contextlib
 import os
+import re
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
@@ -25,6 +26,9 @@ from nekro_agent.core.logger import get_sub_logger
 
 from .config import TelegramConfig
 from .message_processor import MessageProcessor
+
+# Telegram 消息长度限制
+TELEGRAM_MAX_MESSAGE_LENGTH = 4096
 
 logger = get_sub_logger("adapter.telegram")
 if TYPE_CHECKING:
@@ -223,12 +227,14 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             for segment in request.segments:
                 if segment.type == PlatformSendSegmentType.TEXT:
                     if segment.content and segment.content.strip():
-                        message = await bot.send_message(
+                        # 使用长文本发送方法，自动处理消息拆分
+                        sent_ids = await self._send_long_text(
+                            bot=bot,
                             chat_id=chat_id,
                             text=segment.content,
                             reply_to_message_id=int(request.ref_msg_id) if request.ref_msg_id else None,
                         )
-                        message_ids.append(str(message.message_id))
+                        message_ids.extend(str(mid) for mid in sent_ids)
 
                 elif segment.type == PlatformSendSegmentType.AT:
                     # Telegram @ 功能通过在文本中包含 @username 或用户ID来实现
@@ -385,6 +391,90 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 channel_name=channel_id,
                 channel_type=chat_type,
             )
+
+    def _split_text(self, text: str, max_length: int = TELEGRAM_MAX_MESSAGE_LENGTH) -> List[str]:
+        """将长文本拆分为多个适合发送的消息段
+
+        拆分策略：
+        1. 优先按段落分隔符（\n\n）拆分
+        2. 其次按行（\n）拆分
+        3. 最后按字符硬截断
+
+        Args:
+            text: 要拆分的文本
+            max_length: 每条消息的最大长度，默认 4096
+
+        Returns:
+            List[str]: 拆分后的文本列表
+        """
+        if len(text) <= max_length:
+            return [text]
+
+        result = []
+        current_text = text
+
+        while current_text:
+            if len(current_text) <= max_length:
+                result.append(current_text)
+                break
+
+            # 尝试在段落边界拆分
+            split_pos = current_text.rfind("\n\n", 0, max_length)
+            if split_pos == -1:
+                # 尝试在行边界拆分
+                split_pos = current_text.rfind("\n", 0, max_length)
+            if split_pos == -1:
+                # 硬截断（尽量在空格处）
+                split_pos = current_text.rfind(" ", max_length - 100, max_length)
+            if split_pos == -1 or split_pos == 0:
+                # 实在找不到就硬截断
+                split_pos = max_length
+
+            result.append(current_text[:split_pos])
+            current_text = current_text[split_pos:].lstrip()
+
+        return result
+
+    async def _send_long_text(
+        self,
+        bot: Bot,
+        chat_id: int,
+        text: str,
+        reply_to_message_id: Optional[int] = None
+    ) -> List[int]:
+        """发送长文本消息，自动拆分
+
+        Args:
+            bot: Telegram Bot 实例
+            chat_id: 聊天 ID
+            text: 要发送的文本
+            reply_to_message_id: 回复的消息 ID（只有第一条会回复）
+
+        Returns:
+            List[int]: 发送的消息 ID 列表
+        """
+        chunks = self._split_text(text)
+        message_ids = []
+        first_reply_id = reply_to_message_id
+
+        for i, chunk in enumerate(chunks):
+            if not chunk.strip():
+                continue
+
+            try:
+                message = await bot.send_message(
+                    chat_id=chat_id,
+                    text=chunk,
+                    reply_to_message_id=first_reply_id if i == 0 else None,
+                )
+                message_ids.append(message.message_id)
+                # 后续消息不再回复
+                first_reply_id = None
+            except Exception as e:
+                logger.error(f"发送长文本消息块失败 (块 {i+1}/{len(chunks)}): {e}")
+                raise
+
+        return message_ids
 
     def detect_command(self, text: str) -> Optional[Tuple[str, str]]:
         """Telegram 命令检测 — 去掉 @botname 后缀"""
