@@ -431,7 +431,17 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
                 split_pos = max_length
 
             result.append(current_text[:split_pos])
-            current_text = current_text[split_pos:].lstrip()
+            remainder = current_text[split_pos:]
+
+            # 只移除已知的分隔符，避免破坏用户格式
+            if remainder.startswith("\n\n"):
+                remainder = remainder[2:]
+            elif remainder.startswith("\n"):
+                remainder = remainder[1:]
+            elif remainder.startswith(" "):
+                remainder = remainder[1:]
+
+            current_text = remainder
 
         return result
 
@@ -455,21 +465,19 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         """
         chunks = self._split_text(text)
         message_ids = []
-        first_reply_id = reply_to_message_id
 
         for i, chunk in enumerate(chunks):
             if not chunk.strip():
                 continue
 
             try:
+                # 只有第一条实际发送的消息才回复引用原消息
                 message = await bot.send_message(
                     chat_id=chat_id,
                     text=chunk,
-                    reply_to_message_id=first_reply_id if i == 0 else None,
+                    reply_to_message_id=reply_to_message_id if not message_ids else None,
                 )
                 message_ids.append(message.message_id)
-                # 后续消息不再回复
-                first_reply_id = None
             except Exception as e:
                 logger.error(f"发送长文本消息块失败 (块 {i+1}/{len(chunks)}): {e}")
                 raise
