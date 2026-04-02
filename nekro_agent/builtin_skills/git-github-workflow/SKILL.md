@@ -107,6 +107,74 @@ allowed-tools: Read,Write,Bash
 
 不要只在自己的仓库里创建与用户仓库无关的 PR。目标应是从自己的 fork 向用户仓库提交 PR。
 
+## 原子化提交与单一职责规范 (硬性要求)
+
+### 核心原则
+
+> **一个 Commit 只解决一个 Logic Point，严禁跨模块混改。**
+
+这是本项目铁的纪律，违反者将被要求 force-push 清理。
+
+### 提交前强制检查清单
+
+每次 `git commit` 前**必须**执行：
+
+```bash
+# Check 1: 变更范围自检
+git diff --staged --stat
+# 通过标准: 所有变更文件必须与 commit message 描述一致
+
+# Check 2: 职责单一性验证
+# 自问: 这个 commit 是否只解决了一个问题？
+# 自问: 如果回滚，是否会影响不相关的功能？
+# 自问: 每个文件的变更是否都与 commit message 相关？
+# 任一答案为"否" → 拆分 commit
+
+# Check 3: Commit Message 规范
+# 格式: <type>(<scope>): <subject>
+# 示例: fix(telegram): 修复长消息发送失败
+# 禁止: "fix: 修复问题" (范围不明)、"refactor: 优化代码" (内容含糊)
+```
+
+### PR 职责边界
+
+| 规则 | 说明 | 违规示例 |
+|------|------|----------|
+| **单一职责** | 一个 PR 只解决一个问题 | PR 同时修复 Telegram + 重构 Auth |
+| **模块隔离** | 不同模块的变更分开提交 | 同一 commit 修改 adapter.py 和 db.py |
+| **Bug 另开** | 发现无关 Bug 必须另开分支 | "顺手"修复了另一个问题 |
+
+### 违规补救流程
+
+如果已经混入了无关变更：
+
+```bash
+# 方案 1: 撤销 staging，重新选择文件
+git reset HEAD
+git add <相关文件>
+git commit -m "type(scope): message"
+
+# 方案 2: 拆分已提交的 commit
+git reset HEAD~1
+git add <文件1>
+git commit -m "type(scope1): message1"
+git add <文件2>
+git commit -m "type(scope2): message2"
+
+# 方案 3: 已 push 到远程，强制更新（仅限 PR 分支）
+git reset --soft HEAD~1
+git checkout <无关文件>  # 恢复原始状态
+git commit -m "type(scope): clean message"
+git push --force-with-lease
+```
+
+### 历史教训
+
+- **PR #219**: 包含不相关文件 → 审核困难
+- **PR #226**: Telegram 修复混入 Auth 重构 → 被批评为"混改"，需 force-push 清理
+
+> **"今天偷懒的 git add -A，明天要花 10 倍精力清理。"**
+
 ## PR 处理规则
 
 - 创建 PR 前确认 base repo、base branch、head repo、head branch 都正确。
