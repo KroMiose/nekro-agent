@@ -64,7 +64,10 @@ export default function ChatChannelPage() {
   const selectedTab = isChatChannelDetailTab(tab) ? tab : null
   const search = searchParams.get('search') ?? ''
   const chatType = searchParams.get('chat_type') ?? ''
-  const isActive = searchParams.get('is_active') ?? ''
+  const legacyIsActive = searchParams.get('is_active')
+  const status = searchParams.get('status') ?? (
+    legacyIsActive === 'true' ? 'active' : legacyIsActive === 'false' ? 'disabled' : ''
+  )
   const page = parsePositiveInt(searchParams.get('page'), DEFAULT_PAGE)
   const pageSize = parsePositiveInt(searchParams.get('page_size'), DEFAULT_PAGE_SIZE)
 
@@ -109,14 +112,14 @@ export default function ChatChannelPage() {
 
   // 查询聊天列表
   const { data: channelList, isLoading } = useQuery({
-    queryKey: ['chat-channels', search, chatType, isActive, page, pageSize],
+    queryKey: ['chat-channels', search, chatType, status, page, pageSize],
     queryFn: () =>
       chatChannelApi.getList({
         page,
         page_size: pageSize,
         search: search || undefined,
         chat_type: chatType || undefined,
-        is_active: isActive === '' ? undefined : isActive === 'true',
+        status: status === '' ? undefined : status as 'active' | 'observe' | 'disabled',
       }),
     staleTime: 30_000,
   })
@@ -127,7 +130,7 @@ export default function ChatChannelPage() {
       const { event_type, chat_key } = event
 
       // 更新频道列表缓存
-      queryClient.setQueryData<ChatChannelListResponse | undefined>(['chat-channels', search, chatType, isActive, page, pageSize], (oldData) => {
+      queryClient.setQueryData<ChatChannelListResponse | undefined>(['chat-channels', search, chatType, status, page, pageSize], (oldData) => {
         if (!oldData?.items) return oldData
 
         const newItems = [...oldData.items]
@@ -183,7 +186,7 @@ export default function ChatChannelPage() {
     })
 
     return () => cleanup?.()
-  }, [queryClient, search, chatType, isActive, page, pageSize])
+  }, [queryClient, search, chatType, status, page, pageSize])
 
   // 处理搜索
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -213,9 +216,13 @@ export default function ChatChannelPage() {
   }
 
   // 处理状态筛选
-  const handleActiveChange = (event: SelectChangeEvent) => {
+  const handleStatusChange = (event: SelectChangeEvent) => {
     navigate(
-      buildChannelUrl(selectedChatKey, selectedTab, { is_active: event.target.value, page: String(DEFAULT_PAGE) }),
+      buildChannelUrl(selectedChatKey, selectedTab, {
+        status: event.target.value,
+        is_active: null,
+        page: String(DEFAULT_PAGE),
+      }),
       { replace: true }
     )
   }
@@ -273,10 +280,11 @@ export default function ChatChannelPage() {
             </FormControl>
             <FormControl size="small" fullWidth>
               <InputLabel>{t('filters.status')}</InputLabel>
-              <Select value={isActive} label={t('filters.status')} onChange={handleActiveChange}>
+              <Select value={status} label={t('filters.status')} onChange={handleStatusChange}>
                 <MenuItem value="">{t('filters.all')}</MenuItem>
-                <MenuItem value="true">{t('filters.active')}</MenuItem>
-                <MenuItem value="false">{t('filters.inactive')}</MenuItem>
+                <MenuItem value="active">{t('filters.active')}</MenuItem>
+                <MenuItem value="observe">{t('filters.observe')}</MenuItem>
+                <MenuItem value="disabled">{t('filters.inactive')}</MenuItem>
               </Select>
             </FormControl>
           </Stack>

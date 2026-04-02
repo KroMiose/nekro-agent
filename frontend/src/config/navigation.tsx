@@ -5,6 +5,7 @@ import {
   Tune as TuneIcon,
   Extension as ExtensionIcon,
   Chat as ChatIcon,
+  Campaign as CampaignIcon,
   Code as CodeIcon,
   Dashboard as DashboardIcon,
   Group as GroupIcon,
@@ -78,10 +79,26 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <DashboardIcon />,
   },
   {
-    path: '/chat-channel',
-    text: t('menu.chatChannel'),
-    translationKey: 'menu.chatChannel',
+    key: 'chatManagement',
+    text: t('menu.chatManagement'),
+    translationKey: 'menu.chatManagement',
     icon: <ChatIcon />,
+    children: [
+      {
+        path: '/chat-channel/management',
+        text: t('menu.channelManagement'),
+        translationKey: 'menu.channelManagement',
+        icon: <ChatIcon />,
+        parent: 'chatManagement',
+      },
+      {
+        path: '/chat-channel/announcement',
+        text: t('menu.botAnnouncement'),
+        translationKey: 'menu.botAnnouncement',
+        icon: <CampaignIcon />,
+        parent: 'chatManagement',
+      },
+    ],
   },
   {
     path: '/user-manager',

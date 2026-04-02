@@ -46,6 +46,7 @@ export const chatChannelPath = (chatKey?: string | null, tab?: ChatChannelDetail
       ? `/chat-channel/${encodeURIComponent(chatKey)}/${tab}`
       : `/chat-channel/${encodeURIComponent(chatKey)}`
     : '/chat-channel'
+export const chatChannelAnnouncementPath = () => '/chat-channel/announcement'
 
 export const loginPath = (redirectTo?: string | null) =>
   redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'

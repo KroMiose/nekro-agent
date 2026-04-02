@@ -111,6 +111,13 @@ const chatMarkdownSx = {
   overflowWrap: 'break-word',
 } as const
 
+const inlineMarkdownSx = {
+  ...chatMarkdownSx,
+  display: 'inline',
+  '& p': { m: 0, display: 'inline', lineHeight: 1.6, color: 'text.primary' },
+  '& p + p': { mt: 0 },
+} as const
+
 /** 从 local_path 提取文件名 */
 function extractFileName(localPath: string): string {
   const parts = localPath.replace(/\\/g, '/').split('/')
@@ -147,6 +154,88 @@ function getFileTypeInfo(fileName: string): { IconComponent: React.ElementType; 
     default:
       return { IconComponent: InsertDriveFileIcon, color: '#78909c', label: ext ? ext.toUpperCase() : 'FILE' }
   }
+}
+
+function getRenderableSegments(segments: ChatMessageSegment[]): ChatMessageSegment[] {
+  const hasForward = segments.some(segment => segment.type === 'forward')
+  return segments.filter(segment => {
+    if (hasForward && segment.type === 'text') return false
+    if (segment.type === 'text') return Boolean(segment.text.trim())
+    return true
+  })
+}
+
+function isInlineFriendlyTextSegment(segment: ChatMessageSegment): boolean {
+  if (segment.type !== 'text') return false
+  const text = segment.text.trim()
+  if (!text) return false
+  if (text.includes('\n')) return false
+  return !/```|^\s*(?:[#>*-]|\d+\.)/m.test(text)
+}
+
+function isImageOnlyMessage(message: ChatMessage): boolean {
+  const segments = getRenderableSegments(message.content_data || [])
+  return segments.length > 0 && segments.every(segment => segment.type === 'image')
+}
+
+function MessageImage({
+  src,
+  alt,
+  maxHeight = 300,
+  onClick,
+}: {
+  src: string
+  alt: string
+  maxHeight?: number
+  onClick?: () => void
+}) {
+  const theme = useTheme()
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+
+  if (!src || failed) return null
+
+  return (
+    <Box sx={{ my: 0.5, position: 'relative', width: 'fit-content', maxWidth: '100%' }}>
+      {loading && (
+        <Box
+          sx={{
+            minWidth: 160,
+            minHeight: 112,
+            maxWidth: '100%',
+            borderRadius: 2,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            bgcolor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+            border: `1px dashed ${theme.palette.divider}`,
+          }}
+        >
+          <CircularProgress size={24} />
+        </Box>
+      )}
+
+      <Box
+        component="img"
+        src={src}
+        alt={alt}
+        loading="lazy"
+        onClick={onClick}
+        onLoad={() => setLoading(false)}
+        onError={() => {
+          setFailed(true)
+          setLoading(false)
+        }}
+        sx={{
+          display: loading ? 'none' : 'block',
+          maxWidth: '100%',
+          maxHeight,
+          borderRadius: 2,
+          cursor: onClick ? 'pointer' : 'default',
+        }}
+      />
+    </Box>
+  )
 }
 
 /** 文件卡片组件 */
@@ -237,13 +326,38 @@ function AtMention({ segment, isDark }: { segment: ChatMessageSegment; isDark: b
         fontWeight: 600,
         fontSize: '12px',
         height: 24,
-        my: 0.3,
+        my: 0,
         bgcolor: isDark ? 'rgba(33, 150, 243, 0.15)' : 'rgba(33, 150, 243, 0.1)',
         borderColor: theme.palette.primary.main,
         color: theme.palette.primary.main,
         cursor: 'default',
+        display: 'inline-flex',
       }}
     />
+  )
+}
+
+function InlineSegmentGroup({
+  segments,
+  isDark,
+}: {
+  segments: ChatMessageSegment[]
+  isDark: boolean
+}) {
+  return (
+    <Box sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 0.5 }}>
+      {segments.map((segment, index) => {
+        if (segment.type === 'at') {
+          return <AtMention key={`${segment.type}-${index}`} segment={segment} isDark={isDark} />
+        }
+
+        return (
+          <MarkdownRenderer key={`${segment.type}-${index}`} sx={inlineMarkdownSx}>
+            {segment.text}
+          </MarkdownRenderer>
+        )
+      })}
+    </Box>
   )
 }
 
@@ -440,13 +554,11 @@ function ForwardMessageCard({
                 const src = `/api/common/uploads/${encodeURIComponent(chatKey)}/${encodeURIComponent(fileName)}`
                 return (
                   <Box key={j} sx={{ my: 0.5 }}>
-                    <img
+                    <MessageImage
                       src={src}
                       alt={fileName}
-                      onClick={(e) => { e.stopPropagation(); setPreviewSrc(src) }}
-                      style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, cursor: 'pointer', display: 'block' }}
-                      loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      maxHeight={200}
+                      onClick={() => setPreviewSrc(src)}
                     />
                   </Box>
                 )
@@ -514,10 +626,7 @@ function MessageContent({
   const theme = useTheme()
   const [previewSrc, setPreviewSrc] = useState<string | null>(null)
 
-  const segments = message.content_data || []
-
-  // 存在合并转发段时跳过纯文本段（NapCat 会同时发送转发卡片预览文本和完整转发内容，导致重复渲染）
-  const hasForward = segments.some(s => s.type === 'forward')
+  const segments = getRenderableSegments(message.content_data || [])
 
   // 没有 content_data 时回退到纯文本
   if (segments.length === 0) {
@@ -534,32 +643,40 @@ function MessageContent({
     return <MarkdownRenderer sx={chatMarkdownSx}>{message.content}</MarkdownRenderer>
   }
 
-  return (
-    <>
-      {segments.map((seg, i) => {
+  const renderedSegments: React.ReactNode[] = []
+  let inlineGroup: ChatMessageSegment[] = []
+
+  const flushInlineGroup = () => {
+    if (inlineGroup.length === 0) return
+    renderedSegments.push(
+      <InlineSegmentGroup
+        key={`inline-${renderedSegments.length}`}
+        segments={inlineGroup}
+        isDark={theme.palette.mode === 'dark'}
+      />
+    )
+    inlineGroup = []
+  }
+
+  segments.forEach((seg, i) => {
+    if (seg.type === 'at' || isInlineFriendlyTextSegment(seg)) {
+      inlineGroup.push(seg)
+      return
+    }
+
+    flushInlineGroup()
+
+    renderedSegments.push((() => {
         if (seg.type === 'image') {
           const src = getUploadUrl(message.chat_key, seg)
           if (!src) return null
           return (
-            <Box key={i} sx={{ my: 0.5 }}>
-              <img
-                src={src}
-                alt={seg.file_name || 'image'}
-                onClick={() => setPreviewSrc(src)}
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: 300,
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  display: 'block',
-                }}
-                loading="lazy"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.style.display = 'none'
-                }}
-              />
-            </Box>
+            <MessageImage
+              key={i}
+              src={src}
+              alt={seg.file_name || 'image'}
+              onClick={() => setPreviewSrc(src)}
+            />
           )
         }
 
@@ -574,14 +691,7 @@ function MessageContent({
         }
 
         if (seg.type === 'at') {
-          return (
-            <Box key={i} sx={{ display: 'inline-block', mr: 0.5 }}>
-              <AtMention
-                segment={seg}
-                isDark={theme.palette.mode === 'dark'}
-              />
-            </Box>
-          )
+          return <AtMention key={i} segment={seg} isDark={theme.palette.mode === 'dark'} />
         }
 
         if (seg.type === 'json_card') {
@@ -640,8 +750,6 @@ function MessageContent({
 
         // text：渲染文本（支持 Markdown）
         if (seg.text) {
-          // 存在 FORWARD 段时跳过纯文本段（避免转发卡片预览与完整内容重复）
-          if (hasForward && seg.type === 'text') return null
           return (
             <MarkdownRenderer key={i} sx={chatMarkdownSx}>
               {seg.text}
@@ -650,7 +758,14 @@ function MessageContent({
         }
 
         return null
-      })}
+      })())
+  })
+
+  flushInlineGroup()
+
+  return (
+    <>
+      {renderedSegments}
 
       {/* 图片预览弹窗 */}
       {previewSrc && (
@@ -1040,6 +1155,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             {allMessages.map((message, index) => {
               const isBot = message.sender_id === BOT_SENDER_ID && message.sender_name !== 'SYSTEM'
               const isSystem = message.sender_name === 'SYSTEM'
+              const imageOnly = isImageOnlyMessage(message)
               const prevMsg = index > 0 ? allMessages[index - 1] : null
               const showDivider = prevMsg && needTimeDivider(prevMsg, message)
               // 同一发送者连续消息合并头像（需同时匹配 sender_id 和 sender_name，避免 SYSTEM 与 Bot 合并）
@@ -1273,32 +1389,38 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
                         <Box
                           sx={{
                             position: 'relative',
-                            background: isBot
-                              ? isDark
-                                ? 'rgba(56, 139, 253, 0.18)'
-                                : 'rgba(56, 139, 253, 0.08)'
-                              : isDark
-                                ? 'rgba(255, 255, 255, 0.09)'
-                                : 'rgba(0, 0, 0, 0.04)',
-                            borderRadius: isBot
-                              ? isContinuation
-                                ? '12px'
-                                : '12px 2px 12px 12px'
-                              : isContinuation
-                                ? '12px'
-                                : '2px 12px 12px 12px',
-                            px: 1.5,
-                            py: 0.8,
+                            background: imageOnly
+                              ? 'transparent'
+                              : isBot
+                                ? isDark
+                                  ? 'rgba(56, 139, 253, 0.18)'
+                                  : 'rgba(56, 139, 253, 0.08)'
+                                : isDark
+                                  ? 'rgba(255, 255, 255, 0.09)'
+                                  : 'rgba(0, 0, 0, 0.04)',
+                            borderRadius: imageOnly
+                              ? 0
+                              : isBot
+                                ? isContinuation
+                                  ? '12px'
+                                  : '12px 2px 12px 12px'
+                                : isContinuation
+                                  ? '12px'
+                                  : '2px 12px 12px 12px',
+                            px: imageOnly ? 0 : 1.5,
+                            py: imageOnly ? 0 : 0.8,
                             maxWidth: '100%',
                             transition: 'background 0.15s',
                             '&:hover': {
-                              background: isBot
-                                ? isDark
-                                  ? 'rgba(56, 139, 253, 0.25)'
-                                  : 'rgba(56, 139, 253, 0.13)'
-                                : isDark
-                                  ? 'rgba(255, 255, 255, 0.13)'
-                                  : 'rgba(0, 0, 0, 0.06)',
+                              background: imageOnly
+                                ? 'transparent'
+                                : isBot
+                                  ? isDark
+                                    ? 'rgba(56, 139, 253, 0.25)'
+                                    : 'rgba(56, 139, 253, 0.13)'
+                                  : isDark
+                                    ? 'rgba(255, 255, 255, 0.13)'
+                                    : 'rgba(0, 0, 0, 0.06)',
                             },
                           }}
                         >

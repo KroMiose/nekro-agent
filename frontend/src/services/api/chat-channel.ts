@@ -7,6 +7,21 @@ export interface ActionResponse {
   error?: string
 }
 
+export interface ChatAnnouncementResultItem {
+  chat_key: string
+  channel_name: string | null
+  ok: boolean
+  error: string
+}
+
+export interface ChatAnnouncementResponse {
+  ok: boolean
+  total: number
+  success_count: number
+  failure_count: number
+  results: ChatAnnouncementResultItem[]
+}
+
 export interface ChatChannel {
   id: number
   chat_key: string
@@ -124,6 +139,7 @@ export const chatChannelApi = {
     page_size: number
     search?: string
     chat_type?: string
+    status?: 'active' | 'observe' | 'disabled'
     is_active?: boolean
   }): Promise<ChatChannelListResponse> => {
     const response = await axios.get<ChatChannelListResponse>('/chat-channel/list', { params })
@@ -191,6 +207,17 @@ export const chatChannelApi = {
     const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/send`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    return response.data
+  },
+
+  sendAnnouncementMessage: async (payload: {
+    chat_keys: string[]
+    message: string
+  }): Promise<ChatAnnouncementResponse> => {
+    const response = await axios.post<ChatAnnouncementResponse>(
+      '/chat-channel/announcement/send',
+      payload
+    )
     return response.data
   },
 

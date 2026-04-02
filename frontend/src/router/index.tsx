@@ -49,7 +49,24 @@ const router = createHashRouter([
       },
       {
         path: 'chat-channel',
-        element: lazyLoad(() => import('../pages/chat-channel')),
+        children: [
+          {
+            index: true,
+            element: <Navigate to="management" replace />,
+          },
+          {
+            path: 'management',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'management/:chatKey',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'announcement',
+            element: lazyLoad(() => import('../pages/chat-channel/announcement')),
+          },
+        ],
       },
       {
         path: 'chat-channel/:chatKey',

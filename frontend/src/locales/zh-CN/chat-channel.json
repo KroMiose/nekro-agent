@@ -11,6 +11,7 @@
     "group": "群聊",
     "private": "私聊",
     "active": "已激活",
+    "observe": "旁观中",
     "inactive": "未激活"
   },
   "list": {
