@@ -20,26 +20,12 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
 
+from nekro_agent.core.avatar_manager import get_avatar_manager
+
 from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
-
-
-# 懒加载导入头像管理器，避免循环依赖
-_avatar_manager = None
-
-
-def _get_avatar_manager():
-    """获取头像管理器（延迟加载）"""
-    global _avatar_manager
-    if _avatar_manager is None:
-        try:
-            from nekro_agent.core.avatar_manager import get_avatar_manager as _get_mgr
-            _avatar_manager = _get_mgr()
-        except ImportError:
-            return None
-    return _avatar_manager
 
 
 class OnebotV11Config(BaseAdapterConfig):
@@ -140,14 +126,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
         chat_id = int(db_chat_channel.channel_id.split("_")[1])
 
         # 获取动态头像名称
-        sender_name = "NekroAgent"
-        avatar_mgr = _get_avatar_manager()
-        if avatar_mgr is not None:
-            try:
-                sender_info = await avatar_mgr.get_sender_info()
-                sender_name = sender_info.get("name", "NekroAgent")
-            except Exception:
-                pass  # 降级使用默认名称
+        sender_name = get_avatar_manager().get_name()
 
         # 智能拆分：优先按 ====== 分隔符，其次按双换行，最后按固定行数
         sections: List[str] = []
