@@ -395,11 +395,7 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
     theme.palette.success.main,
   )
   const phaseLabel = getWorkspacePhaseLabel(runtimeInfo, (key, options) => t(key, options))
-  const detailLabel = runtimeInfo.current_tool
-    ?? runtimeInfo.last_block_summary
-    ?? (runtimeInfo.queue_length > 0
-      ? t('workspaceActivity.queueLength', { count: runtimeInfo.queue_length })
-      : null)
+  const currentToolLabel = runtimeInfo.current_tool
   const RuntimeIcon = runtimeInfo.phase === 'queued'
     ? HourglassBottomIcon
     : runtimeInfo.phase === 'responding'
@@ -525,7 +521,7 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
           >
             {displayName}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, mb: detailLabel ? 0.15 : 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, mb: currentToolLabel ? 0.15 : 0 }}>
             <Typography
               variant="caption"
               noWrap
@@ -533,15 +529,6 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
             >
               {phaseLabel}
             </Typography>
-            {detailLabel && (
-              <Typography
-                variant="caption"
-                noWrap
-                sx={{ minWidth: 0, color: theme.palette.text.secondary, fontSize: '0.64rem', fontWeight: 600 }}
-              >
-                {detailLabel}
-              </Typography>
-            )}
             {runtimeInfo.operation_block_count > 0 && (
               <InlineIconCounter
                 icon={<BuildIcon sx={{ fontSize: 11 }} />}
@@ -550,7 +537,7 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
               />
             )}
           </Box>
-          {detailLabel && (
+          {currentToolLabel && (
             <Typography
               variant="caption"
               noWrap
@@ -563,7 +550,7 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
                 lineHeight: 1.2,
               }}
             >
-              {detailLabel}
+              {currentToolLabel}
             </Typography>
           )}
         </Box>
