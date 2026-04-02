@@ -1,0 +1,25 @@
+{% macro history_first_start(enable_cot) %}
+以上示例已经结束。
+接下来是真实的用户对话场景。
+除非真实对话明确要求，否则不要继续、提及或复用上方示例中的任何参与者、事件或输出。
+注意，在这之前的沙盒已经被清理，不要使用先前生成的资源。
+{% if enable_cot %}
+，但这一次请在思考内容中使用中文，并且逐步、谨慎、全面地进行思考
+{% endif %}
+{% endmacro %}
+
+{% macro history_data(plugin_injected_prompt, chat_key, current_time, lunar_time) %}
+{{ plugin_injected_prompt }}
+
+当前聊天键：{{ chat_key }}
+当前时间：{{ current_time }} | 农历：{{ lunar_time }}
+{% endmacro %}
+
+{% macro history_debug_prompt(runout_reason, code_output) %}
+看起来代码执行被中断了。以下是详细信息：
+
+中断原因：{{ runout_reason }}
+代码输出：{{ code_output }}
+
+请分析以上信息，并且不要给出任何解释或道歉。
+{% endmacro %}
