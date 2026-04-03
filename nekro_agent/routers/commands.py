@@ -4,7 +4,7 @@ import asyncio
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
 from nekro_agent.models.db_user import DBUser
@@ -205,7 +205,7 @@ class WebUIExecuteResponseItem(BaseModel):
 
 class WebUIExecuteResponse(BaseModel):
     ok: bool = True
-    responses: list[WebUIExecuteResponseItem] = []
+    responses: list[WebUIExecuteResponseItem] = Field(default_factory=list)
 
 
 @router.post("/webui-execute", summary="WebUI 执行命令（不转发到平台）")

@@ -10,10 +10,220 @@ import {
 import { useTranslation } from 'react-i18next'
 import type { CommandOutputSegment } from '../../services/api/commands'
 
+const SIZE_PRESETS = {
+  compact: {
+    imageSize: 72,
+    fileNameFontSize: '0.68rem',
+    textFontSize: '0.72rem',
+    paddingX: 0.75,
+    paddingY: 0.5,
+  },
+  regular: {
+    imageSize: 144,
+    fileNameFontSize: '0.75rem',
+    textFontSize: '0.78rem',
+    paddingX: 1,
+    paddingY: 0.75,
+  },
+} as const
+
 interface CommandOutputSegmentsProps {
   segments?: CommandOutputSegment[] | null
   compact?: boolean
   textColor?: string
+}
+
+interface SegmentSizes {
+  imageSize: number
+  fileNameFontSize: string
+  textFontSize: string
+  paddingX: number
+  paddingY: number
+}
+
+interface SegmentLabels {
+  download: string
+  fileUnavailable: string
+  imageUnavailable: string
+  previewImage: string
+}
+
+function buildSegmentKeyBase(segment: CommandOutputSegment, index: number): string {
+  const stablePart =
+    segment.web_url ||
+    segment.file_name ||
+    (segment.type === 'text' ? segment.text?.trim() : undefined)
+
+  if (!stablePart) {
+    return `${segment.type}-${index}`
+  }
+
+  return `${segment.type}-${stablePart}`
+}
+
+function TextSegment({
+  text,
+  fontSize,
+  textColor,
+}: {
+  text: string
+  fontSize: string
+  textColor: string
+}) {
+  if (!text.trim()) {
+    return null
+  }
+
+  return (
+    <Typography
+      component="div"
+      sx={{
+        fontSize,
+        color: textColor,
+        whiteSpace: 'pre-wrap',
+        wordBreak: 'break-word',
+      }}
+    >
+      {text}
+    </Typography>
+  )
+}
+
+function ImageSegment({
+  segment,
+  imageSize,
+  imageUnavailable,
+  previewImage,
+  onPreview,
+}: {
+  segment: CommandOutputSegment
+  imageSize: number
+  imageUnavailable: string
+  previewImage: string
+  onPreview: (src: string | null) => void
+}) {
+  if (!segment.web_url) {
+    return (
+      <Typography variant="caption" color="text.secondary">
+        {imageUnavailable}
+      </Typography>
+    )
+  }
+
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={() => onPreview(segment.web_url || null)}
+      sx={{
+        width: imageSize,
+        height: imageSize,
+        p: 0,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1,
+        overflow: 'hidden',
+        background: 'transparent',
+        cursor: 'zoom-in',
+        alignSelf: 'flex-start',
+      }}
+    >
+      <Box
+        component="img"
+        src={segment.web_url}
+        alt={segment.file_name || previewImage}
+        sx={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          display: 'block',
+        }}
+      />
+    </Box>
+  )
+}
+
+function FileSegment({
+  segment,
+  sizes,
+  labels,
+}: {
+  segment: CommandOutputSegment
+  sizes: SegmentSizes
+  labels: SegmentLabels
+}) {
+  return (
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        flexWrap: 'wrap',
+        px: sizes.paddingX,
+        py: sizes.paddingY,
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 1,
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Typography
+        variant="body2"
+        sx={{
+          fontSize: sizes.fileNameFontSize,
+          fontFamily: 'monospace',
+          wordBreak: 'break-all',
+        }}
+      >
+        {segment.file_name || labels.fileUnavailable}
+      </Typography>
+      {segment.web_url ? (
+        <Link
+          href={segment.web_url}
+          target="_blank"
+          rel="noreferrer"
+          underline="hover"
+          sx={{ fontSize: sizes.fileNameFontSize }}
+        >
+          {labels.download}
+        </Link>
+      ) : (
+        <Typography variant="caption" color="text.secondary">
+          {labels.fileUnavailable}
+        </Typography>
+      )}
+    </Box>
+  )
+}
+
+function ImagePreviewDialog({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string | null
+  alt: string
+  onClose: () => void
+}) {
+  return (
+    <Dialog open={!!src} onClose={onClose} maxWidth="lg" fullWidth>
+      <DialogContent sx={{ p: 1.5, bgcolor: 'black' }}>
+        {src && (
+          <Box
+            component="img"
+            src={src}
+            alt={alt}
+            sx={{
+              width: '100%',
+              maxHeight: '80vh',
+              objectFit: 'contain',
+              display: 'block',
+            }}
+          />
+        )}
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 export default function CommandOutputSegments({
@@ -28,143 +238,64 @@ export default function CommandOutputSegments({
     return null
   }
 
-  const imageSize = compact ? 72 : 144
-  const fileNameFontSize = compact ? '0.68rem' : '0.75rem'
-  const textFontSize = compact ? '0.72rem' : '0.78rem'
+  const sizes = compact ? SIZE_PRESETS.compact : SIZE_PRESETS.regular
+  const labels: SegmentLabels = {
+    download: t('actions.download', { ns: 'common' }),
+    fileUnavailable: t('commandSidebar.fileUnavailable', { ns: 'chat-channel' }),
+    imageUnavailable: t('commandSidebar.imageUnavailable', { ns: 'chat-channel' }),
+    previewImage: t('commandSidebar.previewImage', { ns: 'chat-channel' }),
+  }
+  const keyCounts = new Map<string, number>()
 
   return (
     <>
       <Stack spacing={0.75} sx={{ mt: 0.75, width: '100%' }}>
         {segments.map((segment, index) => {
+          const baseKey = buildSegmentKeyBase(segment, index)
+          const keyCount = keyCounts.get(baseKey) || 0
+          keyCounts.set(baseKey, keyCount + 1)
+          const key = keyCount > 0 ? `${baseKey}-${keyCount}` : baseKey
+
           if (segment.type === 'text') {
-            if (!segment.text?.trim()) return null
             return (
-              <Typography
-                key={`${segment.type}-${index}`}
-                component="div"
-                sx={{
-                  fontSize: textFontSize,
-                  color: textColor,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {segment.text}
-              </Typography>
+              <TextSegment
+                key={key}
+                text={segment.text || ''}
+                fontSize={sizes.textFontSize}
+                textColor={textColor}
+              />
             )
           }
 
           if (segment.type === 'image') {
-            return segment.web_url ? (
-              <Box
-                key={`${segment.type}-${index}`}
-                component="button"
-                type="button"
-                onClick={() => setPreviewSrc(segment.web_url || null)}
-                sx={{
-                  width: imageSize,
-                  height: imageSize,
-                  p: 0,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 1,
-                  overflow: 'hidden',
-                  background: 'transparent',
-                  cursor: 'zoom-in',
-                  alignSelf: 'flex-start',
-                }}
-              >
-                <Box
-                  component="img"
-                  src={segment.web_url}
-                  alt={segment.file_name || t('commandSidebar.previewImage', { ns: 'chat-channel' })}
-                  sx={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block',
-                  }}
-                />
-              </Box>
-            ) : (
-              <Typography
-                key={`${segment.type}-${index}`}
-                variant="caption"
-                color="text.secondary"
-              >
-                {t('commandSidebar.imageUnavailable', { ns: 'chat-channel' })}
-              </Typography>
+            return (
+              <ImageSegment
+                key={key}
+                segment={segment}
+                imageSize={sizes.imageSize}
+                imageUnavailable={labels.imageUnavailable}
+                previewImage={labels.previewImage}
+                onPreview={setPreviewSrc}
+              />
             )
           }
 
           return (
-            <Box
-              key={`${segment.type}-${index}`}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                flexWrap: 'wrap',
-                px: compact ? 0.75 : 1,
-                py: compact ? 0.5 : 0.75,
-                border: '1px solid',
-                borderColor: 'divider',
-                borderRadius: 1,
-                bgcolor: 'background.paper',
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: fileNameFontSize,
-                  fontFamily: 'monospace',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {segment.file_name || t('commandSidebar.fileUnavailable', { ns: 'chat-channel' })}
-              </Typography>
-              {segment.web_url ? (
-                <Link
-                  href={segment.web_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  underline="hover"
-                  sx={{ fontSize: fileNameFontSize }}
-                >
-                  {t('actions.download', { ns: 'common' })}
-                </Link>
-              ) : (
-                <Typography variant="caption" color="text.secondary">
-                  {t('commandSidebar.fileUnavailable', { ns: 'chat-channel' })}
-                </Typography>
-              )}
-            </Box>
+            <FileSegment
+              key={key}
+              segment={segment}
+              sizes={sizes}
+              labels={labels}
+            />
           )
         })}
       </Stack>
 
-      <Dialog
-        open={!!previewSrc}
+      <ImagePreviewDialog
+        src={previewSrc}
+        alt={labels.previewImage}
         onClose={() => setPreviewSrc(null)}
-        maxWidth="lg"
-        fullWidth
-      >
-        <DialogContent sx={{ p: 1.5, bgcolor: 'black' }}>
-          {previewSrc && (
-            <Box
-              component="img"
-              src={previewSrc}
-              alt={t('commandSidebar.previewImage', { ns: 'chat-channel' })}
-              sx={{
-                width: '100%',
-                maxHeight: '80vh',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
+      />
     </>
   )
 }
