@@ -50,7 +50,6 @@ import {
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Trans } from 'react-i18next'
 import { ModelGroupConfig } from '../../services/api/config'
 import { unifiedConfigApi } from '../../services/api/unified-config'
 import { getLocalizedText, OPENAI_COMPAT_PROVIDERS } from '../../config/model-presets'
@@ -903,20 +902,11 @@ export default function ModelGroupsPage() {
         }}
       >
         <Alert severity="info">
-          <Trans
-            i18nKey="modelGroup.alert.providerSupport"
-            t={t}
-            components={{
-              link: (
-                <Link
-                  href="https://api.nekro.ai"
-                  target="_blank"
-                  rel="noopener"
-                  style={{ cursor: 'pointer' }}
-                />
-              ),
-            }}
-          />
+          {t('modelGroup.alert.providerSupportBefore')}
+          <Link href="https://api.nekro.ai" target="_blank" rel="noopener noreferrer">
+            {t('modelGroup.alert.providerSupportLink')}
+          </Link>
+          {t('modelGroup.alert.providerSupportAfter')}
         </Alert>
         <Button
           variant="contained"

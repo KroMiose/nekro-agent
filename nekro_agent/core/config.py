@@ -144,7 +144,7 @@ class CoreConfig(ConfigBase):
     SUPER_USERS: List[str] = Field(
         default=[],
         title="管理员列表",
-        description="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 `123456`",
+        description="此处指定的管理员用户可在 OneBot V11 适配器频道中使用指令 (填写 QQ 号)",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
                 zh_CN="基础设置",
@@ -155,8 +155,8 @@ class CoreConfig(ConfigBase):
                 en_US="Administrator List",
             ),
             i18n_description=i18n_text(
-                zh_CN="此处指定的管理员用户可使用指令和登陆 WebUI, 初始密码为 123456",
-                en_US="Administrators specified here can use commands and login to WebUI, initial password is 123456",
+                zh_CN="此处指定的管理员用户可在 OneBot V11 适配器频道中使用指令 (填写 QQ 号)",
+                en_US="Administrators specified here can use commands in the OneBot V11 adapter channel (fill in QQ number)",
             ),
         ).model_dump(),
     )
@@ -1470,6 +1470,26 @@ class CoreConfig(ConfigBase):
             i18n_description=i18n_text(
                 zh_CN="启用后上下文中将始终呈现所有消息的 ID，允许 AI 更灵活地引用消息",
                 en_US="When enabled, all message IDs will be included in context for flexible referencing",
+            ),
+        ).model_dump(),
+    )
+    AI_INCLUDE_TOME_INDICATOR: bool = Field(
+        default=False,
+        title="在历史消息中标注消息指向标记",
+        description="启用后，群聊历史中每条人类消息会附加 tome:true/false 标记，表示该消息是否通过固定规则（如 @ 提及）判断为直接指向当前 Bot。AI 会将其作为辅助参考，不会盲信该标记，仍会结合上下文综合判断。",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="在历史消息中标注消息指向标记",
+                en_US="Include Message Addressee Indicator",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后群聊历史中每条人类消息会附加 tome:true/false 标记，辅助 AI 识别消息归属，避免多 Bot 场景下错误接话",
+                en_US="When enabled, each human message in group chat history will include a tome:true/false indicator to help AI identify message ownership in multi-bot scenarios",
             ),
         ).model_dump(),
     )

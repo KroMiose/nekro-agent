@@ -97,7 +97,9 @@
       "actions": "操作"
     },
     "alert": {
-      "providerSupport": "支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问 <link>NekroAI 中转</link> 获取专属密钥哦～"
+      "providerSupportBefore": "支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问 ",
+      "providerSupportLink": "NekroAI 中转",
+      "providerSupportAfter": " 获取专属密钥哦～"
     },
     "chips": {
       "visionSupported": "支持视觉功能",

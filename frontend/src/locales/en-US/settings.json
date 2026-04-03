@@ -97,7 +97,9 @@
       "actions": "Actions"
     },
     "alert": {
-      "providerSupport": "Supports any OpenAI compatible provider. If you need one or want to support us, visit <link>NekroAI Relay</link> to get a key!"
+      "providerSupportBefore": "Supports any OpenAI compatible provider. If you need one or want to support us, visit ",
+      "providerSupportLink": "NekroAI Relay",
+      "providerSupportAfter": " to get a key!"
     },
     "chips": {
       "visionSupported": "Vision Supported",
