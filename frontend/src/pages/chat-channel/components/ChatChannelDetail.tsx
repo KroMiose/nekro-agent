@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   Box,
   Typography,
@@ -37,16 +37,25 @@ import PluginData from './detail-tabs/PluginData'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
 import { useTranslation } from 'react-i18next'
+import { type ChatChannelDetailTab } from '../../../router/routes'
 
 interface ChatChannelDetailProps {
   chatKey: string
+  currentTab: ChatChannelDetailTab
+  onTabChange: (tab: ChatChannelDetailTab) => void
   onBack?: () => void
 }
 
-export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetailProps) {
-  const [currentTab, setCurrentTab] = useState(0)
-  const [resetDialogOpen, setResetDialogOpen] = useState(false)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+const CHAT_CHANNEL_TAB_ORDER: ChatChannelDetailTab[] = [
+  'basic-info',
+  'override-settings',
+  'message-history',
+  'plugin-data',
+]
+
+export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, onBack }: ChatChannelDetailProps) {
+  const [resetDialogOpen, setResetDialogOpen] = React.useState(false)
+  const [isRefreshing, setIsRefreshing] = React.useState(false)
   const queryClient = useQueryClient()
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
@@ -90,8 +99,11 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
 
   // 处理标签切换
   const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setCurrentTab(newValue)
+    const nextTab = CHAT_CHANNEL_TAB_ORDER[newValue]
+    if (nextTab) onTabChange(nextTab)
   }
+
+  const currentTabIndex = Math.max(CHAT_CHANNEL_TAB_ORDER.indexOf(currentTab), 0)
 
   if (isLoading || !channel) {
     return (
@@ -208,7 +220,7 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
       {/* 标签页 */}
       <Card sx={CARD_VARIANTS.default.styles}>
         <Tabs
-          value={currentTab}
+          value={currentTabIndex}
           onChange={handleTabChange}
           variant="fullWidth"
           sx={{
@@ -230,22 +242,22 @@ export default function ChatChannelDetail({ chatKey, onBack }: ChatChannelDetail
 
       {/* 标签内容 */}
       <Box className="flex-1 overflow-hidden">
-        {currentTab === 0 && (
+        {currentTab === 'basic-info' && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
             <BasicInfo channel={channel} />
           </Card>
         )}
-        {currentTab === 1 && (
+        {currentTab === 'override-settings' && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
             <OverrideSettings chatKey={chatKey} />
           </Card>
         )}
-        {currentTab === 2 && (
+        {currentTab === 'message-history' && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
             <MessageHistory chatKey={chatKey} canSend={channel?.can_send ?? false} aiAlwaysIncludeMsgId={channel?.ai_always_include_msg_id ?? false} />
           </Card>
         )}
-        {currentTab === 3 && (
+        {currentTab === 'plugin-data' && (
           <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
             <PluginData chatKey={chatKey} />
           </Card>

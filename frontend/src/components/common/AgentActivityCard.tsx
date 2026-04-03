@@ -890,7 +890,7 @@ export default function AgentActivityCard({
   }, [])
 
   const handleNavigateAgent = useCallback((chatKey: string) => {
-    navigate(chatChannelPath(chatKey))
+    navigate(chatChannelPath(chatKey, 'message-history'))
   }, [navigate])
 
   const handleNavigateWorkspace = useCallback((wsId: number) => {

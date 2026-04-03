@@ -75,6 +75,11 @@ function MainLayoutContent() {
   const { t } = useTranslation()
   const { currentLocale, syncFromBackend } = useLocaleStore()
   const { agentActives, agentRuntimeStatuses, workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses } = useSystemEventsContext()
+  const pageTransitionBaseKey = (() => {
+    const segments = location.pathname.split('/').filter(Boolean)
+    if (segments[0] === 'chat-channel') return '/chat-channel'
+    return `/${segments.slice(0, 3).join('/')}`
+  })()
 
   // 初始化时从后端同步语言设置
   useEffect(() => {
@@ -724,7 +729,7 @@ function MainLayoutContent() {
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
-          key={`${location.pathname.split('/').slice(0, 3).join('/')}-${refreshKey}`}
+          key={`${pageTransitionBaseKey}-${refreshKey}`}
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{

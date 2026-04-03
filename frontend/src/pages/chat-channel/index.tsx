@@ -33,7 +33,12 @@ import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
-import { chatChannelPath } from '../../router/routes'
+import {
+  chatChannelPath,
+  DEFAULT_CHAT_CHANNEL_DETAIL_TAB,
+  isChatChannelDetailTab,
+  type ChatChannelDetailTab,
+} from '../../router/routes'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 25
@@ -53,9 +58,10 @@ export default function ChatChannelPage() {
   const { t } = useTranslation('chat-channel')
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { chatKey } = useParams<{ chatKey: string }>()
+  const { chatKey, tab } = useParams<{ chatKey: string; tab: string }>()
   const [searchParams] = useSearchParams()
   const selectedChatKey = chatKey ?? null
+  const selectedTab = isChatChannelDetailTab(tab) ? tab : null
   const search = searchParams.get('search') ?? ''
   const chatType = searchParams.get('chat_type') ?? ''
   const isActive = searchParams.get('is_active') ?? ''
@@ -69,10 +75,23 @@ export default function ChatChannelPage() {
     const nextParams = new URLSearchParams(searchParams)
     nextParams.delete('chat_key')
     const nextQuery = nextParams.toString()
-    navigate(`${chatChannelPath(legacyChatKey)}${nextQuery ? `?${nextQuery}` : ''}`, { replace: true })
+    navigate(`${chatChannelPath(legacyChatKey, DEFAULT_CHAT_CHANNEL_DETAIL_TAB)}${nextQuery ? `?${nextQuery}` : ''}`, { replace: true })
   }, [navigate, searchParams])
 
-  const buildChannelUrl = (nextChatKey?: string | null, overrides?: Record<string, string | null>) => {
+  useEffect(() => {
+    if (!selectedChatKey || selectedTab) return
+    const nextQuery = searchParams.toString()
+    navigate(
+      `${chatChannelPath(selectedChatKey, DEFAULT_CHAT_CHANNEL_DETAIL_TAB)}${nextQuery ? `?${nextQuery}` : ''}`,
+      { replace: true },
+    )
+  }, [navigate, searchParams, selectedChatKey, selectedTab])
+
+  const buildChannelUrl = (
+    nextChatKey?: string | null,
+    nextTab?: ChatChannelDetailTab | null,
+    overrides?: Record<string, string | null>,
+  ) => {
     const nextParams = new URLSearchParams(searchParams)
     if (overrides) {
       Object.entries(overrides).forEach(([key, value]) => {
@@ -84,7 +103,7 @@ export default function ChatChannelPage() {
       })
     }
     const query = nextParams.toString()
-    const basePath = chatChannelPath(nextChatKey)
+    const basePath = chatChannelPath(nextChatKey, nextChatKey ? (nextTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB) : null)
     return query ? `${basePath}?${query}` : basePath
   }
 
@@ -168,14 +187,14 @@ export default function ChatChannelPage() {
 
   // 处理搜索
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    navigate(buildChannelUrl(selectedChatKey, { search: event.target.value, page: String(DEFAULT_PAGE) }), {
+    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: event.target.value, page: String(DEFAULT_PAGE) }), {
       replace: true,
     })
   }
 
   // 处理清除搜索
   const handleClearSearch = () => {
-    navigate(buildChannelUrl(selectedChatKey, { search: null, page: String(DEFAULT_PAGE) }), {
+    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: null, page: String(DEFAULT_PAGE) }), {
       replace: true,
     })
   }
@@ -183,22 +202,27 @@ export default function ChatChannelPage() {
   // 处理类型筛选
   const handleChatTypeChange = (event: SelectChangeEvent) => {
     navigate(
-      buildChannelUrl(selectedChatKey, { chat_type: event.target.value, page: String(DEFAULT_PAGE) }),
+      buildChannelUrl(selectedChatKey, selectedTab, { chat_type: event.target.value, page: String(DEFAULT_PAGE) }),
       { replace: true }
     )
+  }
+
+  const handleDetailTabChange = (nextTab: ChatChannelDetailTab) => {
+    if (!selectedChatKey) return
+    navigate(buildChannelUrl(selectedChatKey, nextTab))
   }
 
   // 处理状态筛选
   const handleActiveChange = (event: SelectChangeEvent) => {
     navigate(
-      buildChannelUrl(selectedChatKey, { is_active: event.target.value, page: String(DEFAULT_PAGE) }),
+      buildChannelUrl(selectedChatKey, selectedTab, { is_active: event.target.value, page: String(DEFAULT_PAGE) }),
       { replace: true }
     )
   }
 
   // 处理选择聊天
   const handleSelectChannel = (chatKey: string) => {
-    navigate(buildChannelUrl(chatKey))
+    navigate(buildChannelUrl(chatKey, selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB))
     if (isMobile) {
       setDrawerOpen(false)
     }
@@ -279,13 +303,13 @@ export default function ChatChannelPage() {
           page={page - 1}
           rowsPerPage={pageSize}
           onPageChange={(_: React.MouseEvent<HTMLButtonElement> | null, newPage: number) =>
-            navigate(buildChannelUrl(selectedChatKey, { page: String(newPage + 1) }), { replace: true })
+            navigate(buildChannelUrl(selectedChatKey, selectedTab, { page: String(newPage + 1) }), { replace: true })
           }
           onRowsPerPageChange={(
             event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
           ) => {
             navigate(
-              buildChannelUrl(selectedChatKey, {
+              buildChannelUrl(selectedChatKey, selectedTab, {
                 page_size: event.target.value,
                 page: String(DEFAULT_PAGE),
               }),
@@ -304,7 +328,12 @@ export default function ChatChannelPage() {
   const renderChannelDetail = () => (
     <>
       {selectedChatKey ? (
-        <ChatChannelDetail chatKey={selectedChatKey} onBack={handleBackToList} />
+        <ChatChannelDetail
+          chatKey={selectedChatKey}
+          currentTab={selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB}
+          onTabChange={handleDetailTabChange}
+          onBack={handleBackToList}
+        />
       ) : (
         <Card
           sx={{
@@ -341,7 +370,12 @@ export default function ChatChannelPage() {
           {/* 主内容区 - 根据是否选择聊天，显示详情或提示 */}
           <Box className="w-full flex-1 overflow-hidden">
             {selectedChatKey ? (
-              <ChatChannelDetail chatKey={selectedChatKey} onBack={handleBackToList} />
+              <ChatChannelDetail
+                chatKey={selectedChatKey}
+                currentTab={selectedTab ?? DEFAULT_CHAT_CHANNEL_DETAIL_TAB}
+                onTabChange={handleDetailTabChange}
+                onBack={handleBackToList}
+              />
             ) : (
               <Card
                 sx={{

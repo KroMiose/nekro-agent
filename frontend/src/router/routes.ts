@@ -26,8 +26,26 @@ export const workspaceDetailPath = (
 export const pluginsManagementPath = (pluginId?: string | null) =>
   pluginId ? `/plugins/management/${encodeURIComponent(pluginId)}` : '/plugins/management'
 
-export const chatChannelPath = (chatKey?: string | null) =>
-  chatKey ? `/chat-channel/${encodeURIComponent(chatKey)}` : '/chat-channel'
+export const CHAT_CHANNEL_DETAIL_TABS = [
+  'basic-info',
+  'override-settings',
+  'message-history',
+  'plugin-data',
+] as const
+
+export type ChatChannelDetailTab = (typeof CHAT_CHANNEL_DETAIL_TABS)[number]
+
+export const DEFAULT_CHAT_CHANNEL_DETAIL_TAB: ChatChannelDetailTab = 'basic-info'
+
+export const isChatChannelDetailTab = (value: string | null | undefined): value is ChatChannelDetailTab =>
+  value !== undefined && value !== null && CHAT_CHANNEL_DETAIL_TABS.includes(value as ChatChannelDetailTab)
+
+export const chatChannelPath = (chatKey?: string | null, tab?: ChatChannelDetailTab | null) =>
+  chatKey
+    ? tab
+      ? `/chat-channel/${encodeURIComponent(chatKey)}/${tab}`
+      : `/chat-channel/${encodeURIComponent(chatKey)}`
+    : '/chat-channel'
 
 export const loginPath = (redirectTo?: string | null) =>
   redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'
