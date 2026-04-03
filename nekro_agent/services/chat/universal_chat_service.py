@@ -5,7 +5,6 @@
 协议端特定的逻辑通过 adapter.forward_message 接口委托给各自的适配器实现。
 """
 
-import asyncio
 from pathlib import Path
 from typing import List, Optional, Union
 
@@ -202,15 +201,11 @@ class UniversalChatService:
                 processed_file_path = file_path
                 agent_message.content = str(file_path)
             else:
-                content_path = Path(content)
-                if content_path.is_absolute() and content_path.exists():
-                    host_path = content_path
-                else:
-                    host_path = convert_to_host_path(
-                        content_path,
-                        chat_key=chat_key,
-                        container_key=ctx.container_key if ctx else None,
-                    )
+                host_path = convert_to_host_path(
+                    Path(content),
+                    chat_key=chat_key,
+                    container_key=ctx.container_key if ctx else None,
+                )
 
                 if host_path and host_path.exists():
                     processed_file_path = str(host_path)
@@ -226,14 +221,9 @@ class UniversalChatService:
 
             logger.info(f"Sending agent file: {processed_file_path}")
             return [PlatformSendSegment(type=segment_type, file_path=processed_file_path)]
-        except asyncio.CancelledError:
-            raise
         except ValueError as e:
             logger.error(f"Path conversion error: {e}")
             return [PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=str(e))]
-        except Exception as e:
-            logger.exception(f"Unexpected file preprocessing error: {e}")
-            return [PlatformSendSegment(type=PlatformSendSegmentType.TEXT, content=f"File processing failed: {e}")]
 
 
 # 全局实例
