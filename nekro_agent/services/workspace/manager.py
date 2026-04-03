@@ -135,6 +135,7 @@ class WorkspaceService:
 8. **态度认真**：对于来自 NA 的任何指示，必须进行足够深入的分析、思考与研究，时刻思考**我是否真的高质量地完成了任务?**，严禁敷衍了事或形式完成！
 
 {env_vars_section}
+{shared_section}
 {extra_section}"""
 
     @staticmethod
@@ -168,11 +169,19 @@ class WorkspaceService:
         env_vars: List[Dict[str, Any]] = workspace.metadata.get("env_vars", [])
         env_vars_section = WorkspaceService._generate_env_vars_section(env_vars)
         raw_extra = (workspace.metadata.get("claude_md_extra") or "").strip()
+        prompt_layers = workspace.metadata.get("prompt_layers", {})
+        shared_rules = ""
+        if isinstance(prompt_layers, dict):
+            shared_layer = prompt_layers.get("shared_manual_rules")
+            if isinstance(shared_layer, dict):
+                shared_rules = str(shared_layer.get("content") or "").strip()
+        shared_section = f"## 共享固定事实\n\n{shared_rules}" if shared_rules else ""
         extra_section = f"## 自定义附加指令\n\n{raw_extra}" if raw_extra else ""
         return (
             WorkspaceService._CLAUDE_MD_TEMPLATE
             .replace("{runtime_policy}", workspace.runtime_policy or "agent")
             .replace("{env_vars_section}", env_vars_section)
+            .replace("{shared_section}", shared_section)
             .replace("{extra_section}", extra_section)
         )
 
@@ -433,6 +442,30 @@ class WorkspaceService:
         raw = na_context_path.read_text(encoding="utf-8")
         meta, body = WorkspaceService._parse_frontmatter(raw)
         return body[:1800], str(meta.get("updated", ""))
+
+    @staticmethod
+    def write_na_context(
+        workspace_id: int,
+        body: str,
+        *,
+        updated_by: str = "manual",
+        title: str = "协作现状摘要",
+    ) -> None:
+        """写入 _na_context.md，自动生成最小 frontmatter。"""
+        memory_root = WorkspaceService.get_memory_root(workspace_id)
+        memory_root.mkdir(parents=True, exist_ok=True)
+        na_context_path = memory_root / "_na_context.md"
+        updated = datetime.now(timezone.utc).isoformat()
+        frontmatter = "\n".join([
+            "---",
+            f'title: "{title}"',
+            'category: "coordination"',
+            f'updated: "{updated}"',
+            f'updated_by: "{updated_by}"',
+            "---",
+            "",
+        ])
+        na_context_path.write_text(frontmatter + body.strip() + "\n", encoding="utf-8")
 
     @staticmethod
     def get_capability_summary(workspace: "DBWorkspace") -> str:

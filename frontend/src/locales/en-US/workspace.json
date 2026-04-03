@@ -371,7 +371,7 @@
       "memory": "Memory Graph",
       "extensions": "Extensions",
       "mcp": "MCP Services",
-      "prompt": "Prompt",
+      "prompt": "Collab Context",
       "config": "Config"
     },
     "overview": {
@@ -736,17 +736,56 @@
       "autoInjectFailed": "Failed to update auto-inject: {{message}}"
     },
     "prompt": {
+      "summaryCards": {
+        "naContext": {
+          "title": "Collaboration State",
+          "description": "Current status and latest progress."
+        },
+        "ccRules": {
+          "title": "Execution Rules",
+          "description": "Manage long-lived rules for both CC and NA.",
+          "subtitle": "CC / NA configured separately",
+          "tooltip": "This section contains two layers: execution rules for CC and wording / communication rules visible only to NA."
+        },
+        "sharedFacts": {
+          "title": "Fixed Facts",
+          "description": "Stable facts shared by both sides."
+        }
+      },
       "systemPromptTitle": "System Prompt (Read-only)",
-      "systemPromptHint": "Click to expand and view the full CLAUDE.md content injected into the CC sandbox",
+      "systemPromptHint": "Expand to view the current content",
       "expandTooltip": "Expand preview",
       "collapseTooltip": "Collapse preview",
+      "naContextTitle": "Collaboration State Summary (_na_context)",
+      "naContextHint": "Current status, latest progress, temporary notes",
+      "naContextDesc": "Use this for time-sensitive information. Later tasks may continue updating it.",
+      "naContextPlaceholder": "For example:\n- The current main task is reorganizing workspace guidance\n- A new entry path and key file locations have been confirmed\n- A file for explanation is already available in the shared directory",
+      "sharedFactsTitle": "Shared Fixed Facts",
+      "sharedFactsHint": "Shared by both sides and kept stable",
+      "sharedFactsDesc": "Use this for long-lived facts and constraints. Put anything here that should not be changed automatically.",
+      "sharedFactsPlaceholder": "For example:\n- Frontend checks must be completed before submission\n- Direct pushes to the main branch are forbidden\n- Page copy should stay clear and avoid too many internal terms",
       "extraTitle": "Custom Append Prompt",
-      "extraHint": "Appended to the end of CLAUDE.md and takes effect on each conversation",
+      "extraHint": "Visible only to CC",
+      "ccRulesDesc": "Use this for coding style, delivery preferences, and output format requirements.",
       "extraPlaceholder": "Enter custom instructions here, e.g.:\n\n## Personal Preferences\n\n- Use English for all code comments\n- Prefer Python for problem solving",
+      "naRulesTitle": "NA-only Rules",
+      "naRulesHint": "Visible only to NA",
+      "naRulesDesc": "Use this for wording style, communication boundaries, and response preferences.",
+      "naRulesPlaceholder": "For example:\n- Start with the conclusion before going into detail\n- When mentioning the collaboration summary, remind the user that it may continue to be updated later",
+      "editorGuideTitle": "Editing Guide",
+      "editorGuideItems": [
+        "If you are correcting what the workspace is like right now, write it in the collaboration state summary.",
+        "If you are declaring a stable fact or hard constraint that should continue to hold, write it in shared fixed facts.",
+        "If you only want to constrain CC behavior, write it in execution rules instead of mixing it into _na_context."
+      ],
+      "naContextWarning": "_na_context can be updated automatically by CC. If a piece of information must not be rewritten, move it to Shared Fixed Facts or NA-only Rules.",
       "saveBtn": "Save",
       "notifications": {
         "saveSuccess": "Custom prompt saved",
-        "saveFailed": "Save failed: {{message}}"
+        "saveFailed": "Save failed: {{message}}",
+        "naContextSaveSuccess": "Collaboration state summary saved. Future CC delegations will be reminded to review the latest version first.",
+        "sharedRulesSaveSuccess": "Shared fixed facts saved",
+        "naRulesSaveSuccess": "NA-only rules saved"
       }
     },
     "config": {

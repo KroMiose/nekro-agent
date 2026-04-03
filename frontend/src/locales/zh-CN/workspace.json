@@ -371,7 +371,7 @@
       "memory": "记忆图谱",
       "extensions": "扩展能力",
       "mcp": "MCP 服务",
-      "prompt": "提示词",
+      "prompt": "协作上下文",
       "config": "配置"
     },
     "overview": {
@@ -736,17 +736,56 @@
       "autoInjectFailed": "更新自动注入配置失败：{{message}}"
     },
     "prompt": {
+      "summaryCards": {
+        "naContext": {
+          "title": "协作现状",
+          "description": "记录当前状态与最新进展。"
+        },
+        "ccRules": {
+          "title": "执行规则",
+          "description": "分别管理 CC 与 NA 的长期要求。",
+          "subtitle": "CC / NA 分开配置",
+          "tooltip": "这里包含两层内容：给 CC 的执行规则，以及只给 NA 的表达与沟通规则。"
+        },
+        "sharedFacts": {
+          "title": "固定事实",
+          "description": "双方共用的稳定事实与约束。"
+        }
+      },
       "systemPromptTitle": "系统提示词（只读）",
-      "systemPromptHint": "点击展开查看注入到 CC 沙盒的完整 CLAUDE.md 内容",
+      "systemPromptHint": "展开查看当前生效内容",
       "expandTooltip": "展开预览",
       "collapseTooltip": "收起预览",
+      "naContextTitle": "协作现状摘要（_na_context）",
+      "naContextHint": "当前状态、最新进展、临时说明",
+      "naContextDesc": "适合写高时效信息。后续任务中，这部分内容可能继续更新。",
+      "naContextPlaceholder": "例如：\n- 当前主要任务是整理工作区提示信息\n- 最近确认了新的页面入口和关键文件位置\n- 已经产出一份可供说明的文件，放在 shared 目录中",
+      "sharedFactsTitle": "共享固定事实",
+      "sharedFactsHint": "双方共用，默认保持稳定",
+      "sharedFactsDesc": "适合放长期有效的事实与约束。不希望被自动改动的内容建议写在这里。",
+      "sharedFactsPlaceholder": "例如：\n- 提交前必须完成前端检查\n- 主分支禁止直接推送\n- 页面文案应尽量直白，避免使用过多内部术语",
       "extraTitle": "自定义追加提示词",
-      "extraHint": "追加内容将附加在 CLAUDE.md 末尾，在每次对话时生效",
+      "extraHint": "仅对 CC 生效",
+      "ccRulesDesc": "适合放代码风格、交付偏好、输出格式等要求。",
       "extraPlaceholder": "在此输入自定义指令，例如：\n\n## 个性化偏好\n\n- 代码注释使用中文\n- 优先使用 Python 解决问题",
+      "naRulesTitle": "NA 专属规则",
+      "naRulesHint": "仅 NA 可见",
+      "naRulesDesc": "适合放表达方式、转述边界、沟通偏好等要求。",
+      "naRulesPlaceholder": "例如：\n- 回复时先概括结论，再补充细节\n- 涉及协作现状摘要时，提醒用户该内容后续可能继续更新",
+      "editorGuideTitle": "编辑建议",
+      "editorGuideItems": [
+        "如果你是在更正“当前工作区现在是什么状态”，优先写到协作现状摘要。",
+        "如果你是在声明“以后都成立的稳定事实或硬约束”，优先写到共享固定事实。",
+        "如果你只是想约束 CC 的执行行为，请写到执行规则，不要混进 _na_context。"
+      ],
+      "naContextWarning": "_na_context 可由 CC 自动更新。若你不希望某段信息被改写，请改写到“共享固定事实”或“NA 专属规则”中。",
       "saveBtn": "保存",
       "notifications": {
         "saveSuccess": "自定义提示词已保存",
-        "saveFailed": "保存失败：{{message}}"
+        "saveFailed": "保存失败：{{message}}",
+        "naContextSaveSuccess": "协作现状摘要已保存，下次委托 CC 时会提醒其先查看最新版本",
+        "sharedRulesSaveSuccess": "共享固定事实已保存",
+        "naRulesSaveSuccess": "NA 专属规则已保存"
       }
     },
     "config": {

@@ -1537,6 +1537,20 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
     except Exception:
         pass
 
+    try:
+        prompt_layers = (workspace.metadata or {}).get("prompt_layers") or {}
+        na_context_meta = prompt_layers.get("na_context_meta") if isinstance(prompt_layers, dict) else {}
+        if isinstance(na_context_meta, dict) and na_context_meta.get("last_editor") == "manual":
+            task_prompt = (
+                f"{task_prompt}\n\n"
+                "---\n"
+                "[系统附加] `_na_context.md` 最近由用户手动修订。请在开始任务前先查看该文件的最新版本，"
+                "将其视为 NA 与 CC 的协作现状摘要；若其中信息与实际工作区状态不一致，以当前工作区现实为准并按需更新。"
+                "如果某些内容应保持人工固定、不应继续改写，请提醒用户改写到固定事实层而不是 `_na_context.md`。"
+            )
+    except Exception:
+        pass
+
     # on_terminal 异步辅助：在任务终态时读取存储的原始提示词并推送给主 Agent
     async def _push_result(ctl: TaskCtl) -> None:
         stored_prompt = await plugin.store.get(chat_key=chat_key, store_key="last_cc_task_prompt") or ""

@@ -36,6 +36,9 @@ from nekro_agent.schemas.workspace import (
     CommLogEntry,
     CommSendBody,
     CommStatusPayload,
+    PromptComposerResponse,
+    PromptLayerItem,
+    PromptLayerUpdate,
     SandboxStatus,
     ToolsResponse,
     WorkspaceCommQueueResponse,
@@ -318,6 +321,39 @@ def _get_env_vars_dict(workspace: DBWorkspace) -> "Dict[str, str]":
     """从 workspace.metadata["env_vars"] 提取 {key: value} 字典，用于注入 CC 请求。"""
     env_list: List[Dict[str, str]] = (workspace.metadata or {}).get("env_vars", [])
     return {item["key"]: item["value"] for item in env_list if item.get("key") and item.get("value")}
+
+
+def _get_prompt_layers_metadata(workspace: DBWorkspace) -> dict[str, Any]:
+    metadata = dict(workspace.metadata or {})
+    prompt_layers = metadata.get("prompt_layers")
+    return prompt_layers if isinstance(prompt_layers, dict) else {}
+
+
+def _build_prompt_layer_item(
+    *,
+    key: str,
+    title: str,
+    target: Literal["cc", "na", "shared"],
+    maintainer: Literal["manual", "cc", "na", "manual+cc", "manual+na"],
+    content: str,
+    description: str,
+    editable_by_cc: bool,
+    auto_inject: bool,
+    updated_at: str | None = None,
+    updated_by: str | None = None,
+) -> PromptLayerItem:
+    return PromptLayerItem(
+        key=key,
+        title=title,
+        target=target,
+        maintainer=maintainer,
+        content=content,
+        description=description,
+        editable_by_cc=editable_by_cc,
+        auto_inject=auto_inject,
+        updated_at=updated_at,
+        updated_by=updated_by,
+    )
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1093,6 +1129,139 @@ async def update_claude_md_extra(
     ws.metadata = metadata
     await ws.save(update_fields=["metadata", "update_time"])
     WorkspaceService.update_claude_md(ws)
+    return ActionOkResponse(ok=True)
+
+
+@router.get("/{workspace_id}/prompt-composer", summary="获取工作区提示词编排信息", response_model=PromptComposerResponse)
+@require_role(Role.Admin)
+async def get_prompt_composer(
+    workspace_id: int,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> PromptComposerResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    prompt_layers = _get_prompt_layers_metadata(ws)
+    claude_md_extra: str = (ws.metadata or {}).get("claude_md_extra") or ""
+    na_context_body, na_context_updated = WorkspaceService.read_na_context(workspace_id)
+
+    shared_layer = prompt_layers.get("shared_manual_rules") if isinstance(prompt_layers.get("shared_manual_rules"), dict) else {}
+    na_layer = prompt_layers.get("na_manual_rules") if isinstance(prompt_layers.get("na_manual_rules"), dict) else {}
+    na_context_meta = prompt_layers.get("na_context_meta") if isinstance(prompt_layers.get("na_context_meta"), dict) else {}
+
+    return PromptComposerResponse(
+        claude_md_content=WorkspaceService._generate_claude_md_content(ws),
+        claude_md_extra=claude_md_extra,
+        na_context=_build_prompt_layer_item(
+            key="na_context",
+            title="协作现状摘要",
+            target="na",
+            maintainer="manual+cc",
+            content=na_context_body,
+            description="给 NA 理解 CC 当前工作区状态使用，CC 在后续任务中可能继续维护。",
+            editable_by_cc=True,
+            auto_inject=True,
+            updated_at=na_context_updated or na_context_meta.get("last_manual_override_at"),
+            updated_by=na_context_meta.get("last_editor") or "cc",
+        ),
+        shared_manual_rules=_build_prompt_layer_item(
+            key="shared_manual_rules",
+            title="共享固定事实",
+            target="shared",
+            maintainer="manual",
+            content=str(shared_layer.get("content") or ""),
+            description="同时提供给 NA 与 CC 的稳定知识、明确约束和人工确认事实。",
+            editable_by_cc=False,
+            auto_inject=True,
+            updated_at=shared_layer.get("updated_at"),
+            updated_by=shared_layer.get("updated_by") or "manual",
+        ),
+        na_manual_rules=_build_prompt_layer_item(
+            key="na_manual_rules",
+            title="NA 专属规则",
+            target="na",
+            maintainer="manual",
+            content=str(na_layer.get("content") or ""),
+            description="仅提供给 NA 的长期提示或纠偏规则，不会暴露给 CC。",
+            editable_by_cc=False,
+            auto_inject=True,
+            updated_at=na_layer.get("updated_at"),
+            updated_by=na_layer.get("updated_by") or "manual",
+        ),
+    )
+
+
+@router.put("/{workspace_id}/prompt-composer/na-context", summary="更新协作现状摘要", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_prompt_composer_na_context(
+    workspace_id: int,
+    body: PromptLayerUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    WorkspaceService.write_na_context(workspace_id, body.content, updated_by="manual")
+    metadata = dict(ws.metadata or {})
+    prompt_layers = _get_prompt_layers_metadata(ws)
+    prompt_layers["na_context_meta"] = {
+        **(prompt_layers.get("na_context_meta") if isinstance(prompt_layers.get("na_context_meta"), dict) else {}),
+        "last_editor": "manual",
+        "last_manual_override_at": datetime.now(timezone.utc).isoformat(),
+    }
+    metadata["prompt_layers"] = prompt_layers
+    ws.metadata = metadata
+    await ws.save(update_fields=["metadata", "update_time"])
+    return ActionOkResponse(ok=True)
+
+
+@router.put("/{workspace_id}/prompt-composer/shared-manual-rules", summary="更新共享固定事实", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_prompt_composer_shared_rules(
+    workspace_id: int,
+    body: PromptLayerUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    metadata = dict(ws.metadata or {})
+    prompt_layers = _get_prompt_layers_metadata(ws)
+    prompt_layers["shared_manual_rules"] = {
+        "content": body.content,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": "manual",
+    }
+    metadata["prompt_layers"] = prompt_layers
+    ws.metadata = metadata
+    await ws.save(update_fields=["metadata", "update_time"])
+    return ActionOkResponse(ok=True)
+
+
+@router.put("/{workspace_id}/prompt-composer/na-manual-rules", summary="更新 NA 专属规则", response_model=ActionOkResponse)
+@require_role(Role.Admin)
+async def update_prompt_composer_na_rules(
+    workspace_id: int,
+    body: PromptLayerUpdate,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ActionOkResponse:
+    ws = await DBWorkspace.get_or_none(id=workspace_id)
+    if not ws:
+        raise NotFoundError(resource=f"工作区 {workspace_id}")
+
+    metadata = dict(ws.metadata or {})
+    prompt_layers = _get_prompt_layers_metadata(ws)
+    prompt_layers["na_manual_rules"] = {
+        "content": body.content,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": "manual",
+    }
+    metadata["prompt_layers"] = prompt_layers
+    ws.metadata = metadata
+    await ws.save(update_fields=["metadata", "update_time"])
     return ActionOkResponse(ok=True)
 
 
@@ -3051,16 +3220,11 @@ async def user_send_to_cc(
     await comm_broadcast.publish(workspace_id, _comm_log_to_dict(user_log))
 
     delegated_content = await _build_cc_memory_handshake(workspace_id, body.content)
-    na_to_cc_log = await DBWorkspaceCommLog.create(
-        workspace_id=workspace_id,
-        direction="NA_TO_CC",
-        source_chat_key="__user__",
-        content=delegated_content,
-    )
-    await comm_broadcast.publish(workspace_id, _comm_log_to_dict(na_to_cc_log))
 
     # 2. fire-and-forget：CC 通信在后台 Task 完成，HTTP 请求立即返回
     #    所有后续事件（TOOL_CALL、TOOL_RESULT、CC_TO_NA、SYSTEM 错误）均通过 SSE 推送
+    #    注意：这里不额外落库/广播 NA_TO_CC。用户直发模式不经过 NA，
+    #    delegated_content 仅作为发给 CC 的内部上下文增强，前端应只看到 USER_TO_CC。
     async def _cc_task() -> None:
         started_at = int(time.time() * 1000)
         current_tool_name: Optional[str] = None

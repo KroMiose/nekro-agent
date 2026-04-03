@@ -101,6 +101,27 @@ export interface WorkspaceEnvVarsResponse {
   env_vars: WorkspaceEnvVar[]
 }
 
+export interface PromptLayerItem {
+  key: string
+  title: string
+  target: 'cc' | 'na' | 'shared'
+  maintainer: 'manual' | 'cc' | 'na' | 'manual+cc' | 'manual+na'
+  content: string
+  description: string
+  editable_by_cc: boolean
+  auto_inject: boolean
+  updated_at: string | null
+  updated_by: string | null
+}
+
+export interface PromptComposerResponse {
+  claude_md_content: string
+  claude_md_extra: string
+  na_context: PromptLayerItem
+  shared_manual_rules: PromptLayerItem
+  na_manual_rules: PromptLayerItem
+}
+
 export interface UpdateWorkspaceBody {
   name?: string
   description?: string
@@ -338,6 +359,23 @@ export const workspaceApi = {
 
   updateClaudeMdExtra: async (id: number, extra: string): Promise<void> => {
     await axios.put(`/workspaces/${id}/claude-md-extra`, { extra })
+  },
+
+  getPromptComposer: async (id: number): Promise<PromptComposerResponse> => {
+    const response = await axios.get<PromptComposerResponse>(`/workspaces/${id}/prompt-composer`)
+    return response.data
+  },
+
+  updatePromptComposerNaContext: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/na-context`, { content })
+  },
+
+  updatePromptComposerSharedRules: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/shared-manual-rules`, { content })
+  },
+
+  updatePromptComposerNaRules: async (id: number, content: string): Promise<void> => {
+    await axios.put(`/workspaces/${id}/prompt-composer/na-manual-rules`, { content })
   },
 }
 

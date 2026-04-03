@@ -168,6 +168,31 @@ class ClaudeMdExtraUpdate(BaseModel):
     extra: str
 
 
+class PromptLayerItem(BaseModel):
+    key: str
+    title: str
+    target: Literal["cc", "na", "shared"]
+    maintainer: Literal["manual", "cc", "na", "manual+cc", "manual+na"]
+    content: str
+    description: str = ""
+    editable_by_cc: bool = False
+    auto_inject: bool = True
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+class PromptComposerResponse(BaseModel):
+    claude_md_content: str
+    claude_md_extra: str
+    na_context: PromptLayerItem
+    shared_manual_rules: PromptLayerItem
+    na_manual_rules: PromptLayerItem
+
+
+class PromptLayerUpdate(BaseModel):
+    content: str
+
+
 # ── 频道注解 ─────────────────────────────────────────────────────────────────
 
 
