@@ -77,7 +77,10 @@ function MainLayoutContent() {
   const { agentActives, agentRuntimeStatuses, workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses } = useSystemEventsContext()
   const pageTransitionBaseKey = (() => {
     const segments = location.pathname.split('/').filter(Boolean)
+
     if (segments[0] === 'chat-channel') return '/chat-channel'
+    if (segments[0] === 'plugins' && segments[1] === 'management') return '/plugins/management'
+
     return `/${segments.slice(0, 3).join('/')}`
   })()
 
