@@ -29,12 +29,14 @@ import {
   Face as FaceIcon,
   Search as SearchIcon,
   CloudDownload as CloudDownloadIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { ChatChannelDetail, chatChannelApi } from '../../../../services/api/chat-channel'
 import { Preset, presetsApi } from '../../../../services/api/presets'
 import { useSnackbar } from 'notistack'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { copyText } from '../../../../utils/clipboard'
 
 interface BasicInfoProps {
   channel: ChatChannelDetail
@@ -119,6 +121,16 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleCopyChannelId = async () => {
+    const success = await copyText(channel.chat_key)
+    if (success) {
+      enqueueSnackbar('频道 ID 已复制到剪贴板', { variant: 'success' })
+      return
+    }
+
+    enqueueSnackbar('复制失败，请稍后重试', { variant: 'error' })
   }
 
   const InfoItem = ({
@@ -212,6 +224,25 @@ export default function BasicInfo({ channel }: BasicInfoProps) {
           icon={<UpdateIcon color="warning" />}
           label={t('basicInfo.lastActiveTime')}
           value={channel.last_message_time || t('basicInfo.noMessages')}
+        />
+        <InfoItem
+          icon={<PersonIcon color="action" />}
+          label="频道 ID"
+          value={
+            <Typography component="div" sx={{ fontFamily: 'monospace', wordBreak: 'break-all' }}>
+              {channel.chat_key}
+            </Typography>
+          }
+          action={
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<ContentCopyIcon />}
+              onClick={handleCopyChannelId}
+            >
+              复制 ID
+            </Button>
+          }
         />
       </Stack>
 

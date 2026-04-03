@@ -35,8 +35,8 @@
   },
   "detail": {
     "selectChat": "请选择一个聊天查看详情",
-    "basicInfo": "基本信息",
-    "messageHistory": "消息历史",
+    "basicInfo": "频道详情",
+    "messageHistory": "实时消息",
     "overrideSettings": "覆盖设置"
   },
   "messages": {
@@ -79,9 +79,9 @@
     "deactivate": "停用",
     "reset": "重置",
     "tabs": {
-      "basicInfo": "基础信息",
+      "basicInfo": "频道详情",
       "overrideSettings": "覆盖配置",
-      "messageHistory": "消息记录",
+      "messageHistory": "实时消息",
       "pluginData": "插件数据"
     },
     "resetDialog": {

@@ -35,8 +35,8 @@
   },
   "detail": {
     "selectChat": "Please select a chat to view details",
-    "basicInfo": "Basic Info",
-    "messageHistory": "Message History",
+    "basicInfo": "Channel Details",
+    "messageHistory": "Live Messages",
     "overrideSettings": "Override Settings"
   },
   "messages": {
@@ -79,9 +79,9 @@
     "deactivate": "Deactivate",
     "reset": "Reset",
     "tabs": {
-      "basicInfo": "Basic Info",
+      "basicInfo": "Channel Details",
       "overrideSettings": "Override Settings",
-      "messageHistory": "Message History",
+      "messageHistory": "Live Messages",
       "pluginData": "Plugin Data"
     },
     "resetDialog": {
