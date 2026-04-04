@@ -62,7 +62,8 @@
     "telegram": "Telegram",
     "email": "Email",
     "feishu": "飞书",
-    "wxwork": "WeWork Bot"
+    "wxwork": "企业微信 AI Bot",
+    "wxwork_corp_app": "企业微信自建应用"
   },
   "status": {
     "enabled": "已启用",

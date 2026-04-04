@@ -83,7 +83,7 @@ plugin = NekroPlugin(
         en_US="Provides basic chat messaging, image/file sending and other fundamental features",
     ),
     # 开放给各适配器使用（文本/文件发送可用，头像工具仅在 OneBot 下提供）
-    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu"],
+    support_adapter=["onebot_v11", "minecraft", "sse", "discord", "wechatpad", "telegram", "feishu", "wxwork", "wxwork_corp_app"],
     allow_sleep=False,
     sleep_brief="提供发送文本、文件和基础互动能力，是多数对话都会依赖的基础插件。",
 )
@@ -529,6 +529,8 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
         methods = [send_msg_text]
     elif _ctx.adapter_key == "sse":
         methods = [send_msg_text, send_msg_file]
+    elif _ctx.adapter_key in {"wxwork", "wxwork_corp_app"}:
+        methods = [send_msg_text]
     elif _ctx.adapter_key == "onebot_v11":
         # 仅 OneBot 提供头像工具
         methods = [send_msg_text, send_msg_file, get_user_avatar]

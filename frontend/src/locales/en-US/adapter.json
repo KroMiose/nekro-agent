@@ -62,7 +62,8 @@
     "telegram": "Telegram",
     "email": "Email",
     "feishu": "Feishu",
-    "wxwork": "WeWork Bot"
+    "wxwork": "WeCom AI Bot",
+    "wxwork_corp_app": "WeCom Corp App"
   },
   "status": {
     "enabled": "Enabled",

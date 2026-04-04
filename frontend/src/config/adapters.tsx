@@ -486,49 +486,89 @@ export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
     ],
   },
 
-  // // 企业微信智能机器人适配器配置
-  // 目前企业微信智能机器人只能被动回复消息，暂不实现该适配器
-  // 文档: https://developer.work.weixin.qq.com/document/path/101031
-  // wxwork: {
-  //   key: 'wxwork',
-  //   visual: {
-  //     displayName: 'WeWork Bot',
-  //     iconText: '企微',
-  //     navIcon: <ChatIcon />,
-  //     description: '企业微信智能机器人适配器，支持在企业内部与成员进行智能交互',
-  //     tags: ['企业微信', 'WeWork', '智能机器人', 'IM'],
-  //   },
-  //   tabs: [
-  //     {
-  //       label: '主页',
-  //       value: 'home',
-  //       icon: <HomeIcon fontSize="small" />,
-  //       path: '',
-  //       component: <AdapterHomePage />,
-  //     },
-  //     {
-  //       label: '适配器配置',
-  //       value: 'config',
-  //       icon: <SettingsIcon fontSize="small" />,
-  //       path: 'config',
-  //       component: <AdapterConfigPage />,
-  //     },
-  //     {
-  //       label: '覆盖配置',
-  //       value: 'overrides',
-  //       icon: <StyleIcon fontSize="small" />,
-  //       path: 'overrides',
-  //       component: <AdapterOverrideConfigPage />,
-  //     },
-  //     {
-  //       label: '高级',
-  //       value: 'advanced',
-  //       icon: <EngineeringIcon fontSize="small" />,
-  //       path: 'advanced',
-  //       component: <AdapterAdvancedPage />,
-  //     },
-  //   ],
-  // },
+  // 企业微信智能机器人适配器配置
+  wxwork: {
+    key: 'wxwork',
+    visual: {
+      displayName: 'names.wxwork',
+      iconText: '企微AI',
+      navIcon: <ChatIcon />,
+      description: '企业微信 AI Bot 长连接适配器，使用 Bot ID 与 Secret 收发消息',
+      tags: ['企业微信', 'WeWork', 'WeCom', 'AI Bot', 'WebSocket'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
+
+  // 企业微信自建应用适配器配置
+  wxwork_corp_app: {
+    key: 'wxwork_corp_app',
+    visual: {
+      displayName: 'names.wxwork_corp_app',
+      iconText: '企微应用',
+      navIcon: <ChatIcon />,
+      description: '企业微信自建应用适配器，使用回调接收消息并通过应用 API 发送',
+      tags: ['企业微信', 'WeWork', 'WeCom', 'Corp App', 'IM'],
+    },
+    tabs: [
+      {
+        label: 'tabs.home',
+        value: 'home',
+        icon: <HomeIcon fontSize="small" />,
+        path: '',
+        component: <AdapterHomePage />,
+      },
+      {
+        label: 'tabs.config',
+        value: 'config',
+        icon: <SettingsIcon fontSize="small" />,
+        path: 'config',
+        component: <AdapterConfigPage />,
+      },
+      {
+        label: 'tabs.overrides',
+        value: 'overrides',
+        icon: <StyleIcon fontSize="small" />,
+        path: 'overrides',
+        component: <AdapterOverrideConfigPage />,
+      },
+      {
+        label: 'tabs.advanced',
+        value: 'advanced',
+        icon: <EngineeringIcon fontSize="small" />,
+        path: 'advanced',
+        component: <AdapterAdvancedPage />,
+      },
+    ],
+  },
 
   // 默认适配器配置（用于其他适配器）
   default: {
