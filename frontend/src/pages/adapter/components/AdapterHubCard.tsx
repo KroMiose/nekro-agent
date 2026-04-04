@@ -4,7 +4,7 @@ import { alpha } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { createAdapterIcon, getAdapterStatusDisplay } from '../../../config/adapters'
 import type { AdapterInfo } from '../../../services/api/adapters'
-import { BUTTON_VARIANTS, CARD_VARIANTS } from '../../../theme/variants'
+import { CARD_VARIANTS } from '../../../theme/variants'
 import { UI_STYLES } from '../../../theme/themeConfig'
 
 const getStatusColor = (status: AdapterInfo['status'], success: string, error: string, warning: string) => {
@@ -53,9 +53,11 @@ export default function AdapterHubCard({ adapter, onOpen }: AdapterHubCardProps)
     <Card
       sx={{
         ...CARD_VARIANTS.default.styles,
-        minHeight: 200,
+        minHeight: 210,
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        overflow: 'hidden',
       }}
     >
       <CardContent
@@ -65,104 +67,118 @@ export default function AdapterHubCard({ adapter, onOpen }: AdapterHubCardProps)
           pb: 1,
           display: 'flex',
           flexDirection: 'column',
-          gap: 1,
+          justifyContent: 'space-between',
+          gap: 1.25,
         }}
       >
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-            {createAdapterIcon(adapter.key, theme, 48)}
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.25 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
+              {createAdapterIcon(adapter.key, theme, 48)}
 
-            <Box sx={{ overflow: 'hidden', flex: 1 }}>
-              <Typography
-                variant="h6"
-                component="h2"
-                sx={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {adapter.name}
-              </Typography>
-              <Box
-                sx={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 0.75,
-                  mt: 0.25,
-                }}
-              >
-                <StatusDot color={statusColor} />
+              <Box sx={{ overflow: 'hidden', flex: 1 }}>
                 <Typography
-                  variant="body2"
-                  color="text.secondary"
+                  variant="h6"
+                  component="h2"
                   sx={{
-                    fontSize: '0.8rem',
+                    fontSize: '1rem',
+                    fontWeight: 600,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {t(statusDisplay.text)}
+                  {adapter.name}
                 </Typography>
-                {adapter.version ? (
-                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
-                    · v{adapter.version}
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.75,
+                    mt: 0.25,
+                  }}
+                >
+                  <StatusDot color={statusColor} />
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontSize: '0.8rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t(statusDisplay.text)}
                   </Typography>
-                ) : null}
+                  {adapter.version ? (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: '0.8rem' }}>
+                      · v{adapter.version}
+                    </Typography>
+                  ) : null}
+                </Box>
               </Box>
             </Box>
           </Box>
-        </Box>
 
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            mb: 1.5,
-            minHeight: '2.5em',
-            fontSize: '0.85rem',
-          }}
-        >
-          {adapter.description || t('hub.noDescription')}
-        </Typography>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-          <Chip
-            label={adapter.config_class}
-            size="small"
+          <Typography
+            variant="body2"
+            color="text.secondary"
             sx={{
-              height: 24,
-              fontSize: '0.75rem',
-              bgcolor: alpha(statusColor, 0.1),
-              color: statusColor,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              minHeight: '2.7em',
+              fontSize: '0.85rem',
             }}
-          />
-          {adapter.tags.slice(0, 2).map(tag => (
+          >
+            {adapter.description || t('hub.noDescription')}
+          </Typography>
+
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'nowrap',
+              gap: 0.75,
+              minHeight: 24,
+              overflow: 'hidden',
+            }}
+          >
             <Chip
-              key={`${adapter.key}-${tag}`}
-              label={tag}
+              label={adapter.config_class}
               size="small"
               sx={{
                 height: 24,
                 fontSize: '0.75rem',
-                bgcolor: alpha(theme.palette.text.primary, 0.06),
+                bgcolor: alpha(statusColor, 0.1),
+                color: statusColor,
+                flexShrink: 0,
               }}
             />
-          ))}
+            {adapter.tags.slice(0, 2).map(tag => (
+              <Chip
+                key={`${adapter.key}-${tag}`}
+                label={tag}
+                size="small"
+                sx={{
+                  height: 24,
+                  fontSize: '0.75rem',
+                  bgcolor: alpha(theme.palette.text.primary, 0.06),
+                  flexShrink: 0,
+                }}
+              />
+            ))}
+          </Box>
         </Box>
       </CardContent>
 
       <CardActions
         sx={{
           justifyContent: 'space-between',
-          p: 1.25,
+          px: 1.25,
+          py: 1,
+          minHeight: 46,
           bgcolor: UI_STYLES.SELECTED,
           borderTop: '1px solid',
           borderColor: 'divider',
@@ -181,11 +197,26 @@ export default function AdapterHubCard({ adapter, onOpen }: AdapterHubCardProps)
           endIcon={<ArrowForwardRoundedIcon />}
           onClick={() => onOpen(adapter.key)}
           sx={{
-            ...BUTTON_VARIANTS.primary.styles,
             minWidth: 'fit-content',
-            px: 1.25,
-            minHeight: 30,
+            px: 1.5,
+            minHeight: 28,
+            borderRadius: '999px',
+            boxShadow: 'none',
+            backgroundColor: theme.palette.primary.main,
+            color: '#fff',
             whiteSpace: 'nowrap',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            '& .MuiButton-endIcon': {
+              ml: 0.5,
+              '& svg': {
+                fontSize: '0.95rem',
+              },
+            },
+            '&:hover': {
+              backgroundColor: theme.palette.primary.dark,
+              boxShadow: 'none',
+            },
           }}
         >
           {t('hub.open')}

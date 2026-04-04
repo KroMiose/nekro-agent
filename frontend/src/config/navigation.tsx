@@ -19,7 +19,6 @@ import {
   ListAlt as ListAltIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material'
-import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
 
 export interface PageConfig {
@@ -190,11 +189,10 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <CodeIcon />,
   },
   {
-    key: 'adapters',
+    path: '/adapters',
     text: t('menu.adapters'),
     translationKey: 'menu.adapters',
     icon: <HubIcon />,
-    children: getAdapterNavigationConfigs(),
   },
   {
     key: 'settings',

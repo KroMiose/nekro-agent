@@ -31,6 +31,7 @@ import emailIcon from '../assets/adapters/email.svg'
 import qqIcon from '../assets/adapters/qq.svg'
 import feishuIcon from '../assets/adapters/feishu.svg'
 import wechatIcon from '../assets/adapters/wechat.svg'
+import wecomIcon from '../assets/adapters/wecom.svg'
 import sseIcon from '../assets/adapters/sse.svg'
 
 import AdapterHomePage from '../pages/adapter/AdapterHomePage'
@@ -83,6 +84,8 @@ const ADAPTER_ICON_ASSETS: Partial<Record<string, string>> = {
   telegram: telegramIcon,
   email: emailIcon,
   feishu: feishuIcon,
+  wxwork: wecomIcon,
+  wxwork_corp_app: wecomIcon,
 }
 // 适配器配置映射
 export const ADAPTER_CONFIGS: Record<string, AdapterConfig> = {
@@ -668,14 +671,22 @@ export const getAdapterTabPath = (adapterKey: string, tabPath: string): string =
  * @returns 导航配置数组
  */
 export const getAdapterNavigationConfigs = () => {
-  return Object.values(ADAPTER_CONFIGS)
+  return [
+    {
+      path: '/adapters',
+      text: i18next.t('menu.adaptersHub', { ns: 'navigation' }),
+      icon: <ApiIcon />,
+      parent: 'adapters',
+    },
+    ...Object.values(ADAPTER_CONFIGS)
     .filter(config => config.key !== 'default')
     .map(config => ({
       path: `/adapters/${config.key}`,
       text: i18next.t(config.visual.displayName, { ns: 'adapter' }),
       icon: config.visual.navIcon,
       parent: 'adapters',
-    }))
+    })),
+  ]
 }
 
 /**

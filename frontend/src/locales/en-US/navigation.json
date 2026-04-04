@@ -16,6 +16,7 @@
     "logs": "System Logs",
     "sandboxLogs": "Sandbox Logs",
     "adapters": "Adapters",
+    "adaptersHub": "Adapter Hub",
     "settings": "System Settings",
     "systemSettings": "System Settings",
     "modelGroups": "Model Groups",

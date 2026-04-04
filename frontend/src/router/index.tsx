@@ -114,16 +114,25 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/sandbox')),
       },
       {
-        path: 'adapters/:adapterKey',
-        element: <AdapterLayout />,
+        path: 'adapters',
         children: [
           {
             index: true,
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            element: lazyLoad(() => import('../pages/adapter')),
           },
           {
-            path: '*',
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            path: ':adapterKey',
+            element: <AdapterLayout />,
+            children: [
+              {
+                index: true,
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+              {
+                path: '*',
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+            ],
           },
         ],
       },

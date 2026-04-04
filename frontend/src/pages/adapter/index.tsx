@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Box } from '@mui/material'
+import { Box, CircularProgress, Typography } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
-import { adaptersApi } from '../../services/api/adapters'
-import AdapterHubContent from './components/AdapterHubContent'
+import { adaptersApi, type AdapterInfo } from '../../services/api/adapters'
+import AdapterHubCard from './components/AdapterHubCard'
 import AdapterHubFilters from './components/AdapterHubFilters'
 import AdapterHubStats from './components/AdapterHubStats'
+import { useTranslation } from 'react-i18next'
 
 export default function AdapterHubPage() {
   const navigate = useNavigate()
   const [searchInput, setSearchInput] = useState('')
   const [searchKeyword, setSearchKeyword] = useState('')
+  const { t } = useTranslation('adapter')
 
   const { data: adapters = [], isLoading } = useQuery({
     queryKey: ['adapter-list'],
@@ -67,7 +69,7 @@ export default function AdapterHubPage() {
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        overflow: 'hidden',
+        overflow: 'auto',
         boxSizing: 'border-box',
         bgcolor: 'background.default',
       }}
@@ -82,11 +84,60 @@ export default function AdapterHubPage() {
           setSearchKeyword('')
         }}
       />
-      <AdapterHubContent
-        adapters={filteredAdapters}
-        isLoading={isLoading}
-        onOpen={adapterKey => navigate(`/adapters/${adapterKey}`)}
-      />
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: '1fr',
+            sm: 'repeat(2, minmax(0, 1fr))',
+            lg: 'repeat(3, minmax(0, 1fr))',
+            xl: 'repeat(4, minmax(0, 1fr))',
+          },
+          gap: 2,
+          alignContent: 'start',
+        }}
+      >
+        {isLoading ? (
+          <Box
+            sx={{
+              gridColumn: '1 / -1',
+              minHeight: 240,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        ) : filteredAdapters.length > 0 ? (
+          filteredAdapters.map((adapter: AdapterInfo) => (
+            <AdapterHubCard
+              key={adapter.key}
+              adapter={adapter}
+              onOpen={adapterKey => navigate(`/adapters/${adapterKey}`)}
+            />
+          ))
+        ) : (
+          <Box
+            sx={{
+              gridColumn: '1 / -1',
+              minHeight: 240,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 1,
+            }}
+          >
+            <Typography variant="h6">{t('hub.emptyTitle')}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {t('hub.emptyDescription')}
+            </Typography>
+          </Box>
+        )}
+      </Box>
     </Box>
   )
 }

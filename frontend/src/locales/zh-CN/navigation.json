@@ -16,6 +16,7 @@
     "logs": "系统日志",
     "sandboxLogs": "沙盒日志",
     "adapters": "适配器",
+    "adaptersHub": "适配器总览",
     "settings": "系统配置",
     "systemSettings": "基本配置",
     "modelGroups": "模型组",
