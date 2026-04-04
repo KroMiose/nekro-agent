@@ -33,7 +33,6 @@
 import asyncio
 import hashlib
 import json
-import mimetypes
 import time
 from pathlib import Path
 from typing import Annotated, Any, AsyncIterator, Dict, List, Optional, Tuple
@@ -725,8 +724,6 @@ async def emo_search_cmd(
             CommandOutputSegment(
                 type=CommandOutputSegmentType.IMAGE,
                 file_path=str(file_path),
-                file_name=file_path.name,
-                mime_type=mimetypes.guess_type(file_path.name)[0] or "application/octet-stream",
             )
         )
         found_count += 1
@@ -734,10 +731,13 @@ async def emo_search_cmd(
     if not found_count:
         return CmdCtl.failed(f"没有找到和「{keyword}」相关的可用表情包")
 
-    return CmdCtl.success(
-        f"和「{keyword}」相关的表情包，共 {found_count} 个",
-        output_segments=output_segments,
-    )
+    return CmdCtl.success([
+        CommandOutputSegment(
+            type=CommandOutputSegmentType.TEXT,
+            text=f"和「{keyword}」相关的表情包，共 {found_count} 个",
+        ),
+        *output_segments,
+    ])
 
 
 @plugin.mount_command(
@@ -848,8 +848,6 @@ async def emo_list_cmd(
             CommandOutputSegment(
                 type=CommandOutputSegmentType.IMAGE,
                 file_path=str(file_path),
-                file_name=file_path.name,
-                mime_type=mimetypes.guess_type(file_path.name)[0] or "application/octet-stream",
             )
         )
         preview_count += 1
@@ -857,10 +855,13 @@ async def emo_list_cmd(
     if preview_count == 0:
         return CmdCtl.failed(f"第 {page}/{total_pages} 页没有可预览的表情包图片")
 
-    return CmdCtl.success(
-        f"第 {page}/{total_pages} 页表情包预览，共 {preview_count} 个，使用 emo_list <页码> 查看其他页面",
-        output_segments=output_segments,
-    )
+    return CmdCtl.success([
+        CommandOutputSegment(
+            type=CommandOutputSegmentType.TEXT,
+            text=f"第 {page}/{total_pages} 页表情包预览，共 {preview_count} 个，使用 emo_list <页码> 查看其他页面",
+        ),
+        *output_segments,
+    ])
 
 
 @plugin.mount_command(

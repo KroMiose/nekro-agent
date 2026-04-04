@@ -106,7 +106,7 @@ class LegacyMatcher:
         self._pending_responses: list[CommandResponse] = []
 
     async def send(self, message: str = "", data: Optional[dict[str, Any]] = None) -> None:
-        self._pending_responses.append(CmdCtl.message(message, data))
+        self._pending_responses.append(CmdCtl.message(message, data=data))
 
     async def finish(
         self,
@@ -118,9 +118,9 @@ class LegacyMatcher:
         response: Optional[CommandResponse] = None
         if message or data is not None or status != CommandResponseStatus.SUCCESS:
             if status == CommandResponseStatus.SUCCESS:
-                response = CmdCtl.success(message, data)
+                response = CmdCtl.success(message, data=data)
             elif status == CommandResponseStatus.ERROR:
-                response = CmdCtl.failed(message, data)
+                response = CmdCtl.failed(message, data=data)
             else:
                 response = CommandResponse(status=status, message=message, data=data)
         raise LegacyCommandFinished(response)
