@@ -29,6 +29,7 @@ class NaInfoCommand(BaseCommand):
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=context.chat_key)
         preset = await db_chat_channel.get_preset()
+        effective_config = await db_chat_channel.get_effective_config()
         version = get_app_version()
 
         title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
@@ -46,7 +47,7 @@ class NaInfoCommand(BaseCommand):
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
-            f"{model_group_label}: {config.USE_MODEL_GROUP}"
+            f"{model_group_label}: {effective_config.USE_MODEL_GROUP}"
         )
 
         return CmdCtl.success(
@@ -55,7 +56,7 @@ class NaInfoCommand(BaseCommand):
                 "version": version,
                 "in_docker": OsEnv.RUN_IN_DOCKER,
                 "preset": preset.name,
-                "model_group": config.USE_MODEL_GROUP,
+                "model_group": effective_config.USE_MODEL_GROUP,
             },
         )
 
