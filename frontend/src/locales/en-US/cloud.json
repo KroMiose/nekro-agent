@@ -33,7 +33,9 @@
       "title": "No presets found matching your criteria",
       "hint1": "Try using different keywords or wait a moment and try again.",
       "hint2": "Newly uploaded presets may take some time before they can be searched."
-    }
+    },
+    "favorite": "Favorite",
+    "favorited": "Favorited"
   },
   "pluginsMarket": {
     "title": "Plugins Market",
@@ -42,6 +44,8 @@
     "search": "Search",
     "loading": "Loading...",
     "author": "Author",
+    "moduleName": "Module Name",
+    "hasWebhook": "Supports Webhook",
     "version": "Version",
     "noDescription": "No description",
     "unknownAuthor": "Unknown",
@@ -83,6 +87,7 @@
     "removeFailed": "Remove failed",
     "delistSuccess": "Plugin delisted successfully",
     "delistFailed": "Delist failed",
+    "edit": "Edit",
     "fetchFailed": "Failed to fetch plugins list. Please check your network connection or contact administrator.",
     "noResults": {
       "title": "No plugins found matching your criteria",
@@ -102,7 +107,43 @@
     "incompatibleVersion": "Incompatible with current NA version",
     "requiresNaVersion": "Requires NA ≥ {{version}}",
     "maxNaVersionLimit": "Requires NA < {{version}}",
-    "maxNaVersionHint": "Leave empty for no limit"
+    "maxNaVersionHint": "Leave empty for no limit",
+    "favorite": "Favorite",
+    "favorited": "Favorited"
+  },
+  "profile": {
+    "title": "My Profile",
+    "myPublished": "My Published",
+    "myFavorites": "My Favorites",
+    "plugins": "Plugins",
+    "presets": "Presets",
+    "plugin": "Plugin",
+    "preset": "Preset",
+    "favorites": "Favorites",
+    "noPublishedPlugins": "No published plugins",
+    "noPublishedPresets": "No published presets",
+    "noFavorites": "No favorites yet",
+    "collectedAt": "Collected at",
+    "removeFavorite": "Remove Favorite",
+    "addFavorite": "Add Favorite",
+    "removeFavoriteSuccess": "Removed from favorites",
+    "fetchFailed": "Failed to fetch data",
+    "operationFailed": "Operation failed",
+    "loading": "Loading...",
+    "noBio": "No bio available",
+    "noDescription": "No description",
+    "author": "Author",
+    "viewDetail": "View Details",
+    "favoriteDetail": "Favorite Details",
+    "description": "Description",
+    "noPluginFavorites": "No plugin favorites",
+    "noPresetFavorites": "No preset favorites",
+    "featureNotAvailable": "Feature coming soon",
+    "stats": {
+      "publishedPlugins": "Published Plugins",
+      "publishedPresets": "Published Presets",
+      "totalFavorites": "Total Favorites"
+    }
   },
   "telemetry": {
     "title": "Community Statistics",

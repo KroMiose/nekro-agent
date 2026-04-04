@@ -1,7 +1,7 @@
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_user import DBUser
@@ -33,6 +33,8 @@ router = APIRouter(prefix="/cloud/plugins-market", tags=["Cloud Plugins Market"]
 
 
 class CloudPlugin(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
     id: str
     name: str
     moduleName: str
@@ -50,6 +52,8 @@ class CloudPlugin(BaseModel):
     can_update: Optional[bool] = None
     icon: Optional[str] = None
     isOwner: Optional[bool] = None
+    favoriteCount: Optional[int] = None  # 收藏数量
+    isFavorited: Optional[bool] = None  # 是否已收藏
     minNaVersion: Optional[str] = None
     maxNaVersion: Optional[str] = None
 
@@ -66,6 +70,7 @@ class UserPlugin(BaseModel):
     id: str
     name: str
     moduleName: str
+    icon: Optional[str] = None
 
 
 class ActionResponse(BaseModel):
@@ -135,6 +140,8 @@ async def get_cloud_plugins_list(
                 can_update=can_update,
                 icon=item.icon,
                 isOwner=getattr(item, "isOwner", False),
+                favoriteCount=getattr(item, "favoriteCount", None),
+                isFavorited=getattr(item, "isFavorited", None),
                 minNaVersion=getattr(item, "minNaVersion", None),
                 maxNaVersion=getattr(item, "maxNaVersion", None),
             ),
@@ -163,17 +170,18 @@ async def get_user_plugins(
     if not response.data or not response.data.items:
         return []
 
+    # v2 接口直接返回 icon
     return [UserPlugin(**item.model_dump()) for item in response.data.items]
 
 
-@router.get("/detail/{plugin_id}", summary="获取插件详情")
+@router.get("/detail/{module_name}", summary="获取插件详情")
 @require_role(Role.Admin)
 async def get_plugin_detail(
-    plugin_id: str,
+    module_name: str,
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> CloudPlugin:
     """获取插件详情"""
-    response = await get_plugin(plugin_id)
+    response = await get_plugin(module_name)
 
     if not response.success or not response.data:
         raise CloudServiceError(reason=str(response.error or response.message or "未知错误"))
@@ -198,6 +206,8 @@ async def get_plugin_detail(
         can_update=False,
         icon=plugin_data.icon,
         isOwner=plugin_data.isOwner,
+        favoriteCount=plugin_data.favoriteCount,
+        isFavorited=plugin_data.isFavorited,
         minNaVersion=plugin_data.minNaVersion,
         maxNaVersion=plugin_data.maxNaVersion,
     )

@@ -33,7 +33,9 @@
       "title": "没有找到符合条件的人设",
       "hint1": "尝试使用其他关键词搜索，或等待一段时间后再次尝试。",
       "hint2": "新上传的人设可能需要一些时间才能被检索到。"
-    }
+    },
+    "favorite": "收藏",
+    "favorited": "已收藏"
   },
   "pluginsMarket": {
     "title": "插件市场",
@@ -42,6 +44,8 @@
     "search": "搜索",
     "loading": "加载中...",
     "author": "作者",
+    "moduleName": "模块名称",
+    "hasWebhook": "支持 Webhook",
     "version": "版本",
     "noDescription": "无描述",
     "unknownAuthor": "未知",
@@ -83,6 +87,7 @@
     "removeFailed": "移除失败",
     "delistSuccess": "插件下架成功",
     "delistFailed": "下架失败",
+    "edit": "编辑",
     "fetchFailed": "获取插件列表失败，请检查网络连接或联系管理员",
     "noResults": {
       "title": "没有找到符合条件的插件",
@@ -102,7 +107,43 @@
     "incompatibleVersion": "当前 NA 版本不兼容",
     "requiresNaVersion": "需要 NA ≥ {{version}}",
     "maxNaVersionLimit": "需要 NA < {{version}}",
-    "maxNaVersionHint": "不填代表无限制"
+    "maxNaVersionHint": "不填代表无限制",
+    "favorite": "收藏",
+    "favorited": "已收藏"
+  },
+  "profile": {
+    "title": "个人中心",
+    "myPublished": "我的发布",
+    "myFavorites": "我的收藏",
+    "plugins": "插件",
+    "presets": "人设",
+    "plugin": "插件",
+    "preset": "人设",
+    "favorites": "收藏",
+    "noPublishedPlugins": "暂无发布的插件",
+    "noPublishedPresets": "暂无发布的人设",
+    "noFavorites": "暂无收藏内容",
+    "collectedAt": "收藏于",
+    "removeFavorite": "取消收藏",
+    "addFavorite": "添加收藏",
+    "removeFavoriteSuccess": "取消收藏成功",
+    "fetchFailed": "获取数据失败",
+    "operationFailed": "操作失败",
+    "loading": "加载中...",
+    "noBio": "暂无简介",
+    "noDescription": "暂无描述",
+    "author": "作者",
+    "viewDetail": "查看详情",
+    "favoriteDetail": "收藏详情",
+    "description": "描述",
+    "noPluginFavorites": "暂无插件收藏",
+    "noPresetFavorites": "暂无人设收藏",
+    "featureNotAvailable": "功能开发中",
+    "stats": {
+      "publishedPlugins": "发布插件",
+      "publishedPresets": "发布人设",
+      "totalFavorites": "收藏数量"
+    }
   },
   "telemetry": {
     "title": "社区统计",

@@ -123,7 +123,7 @@ async def list_plugins(
         has_webhook: 是否有webhook
 
     Returns:
-        PluginListResponse: 插件列表响应
+        PluginListResponse: 插件列表响应，包含 isFavorited 字段
     """
     try:
         params: Dict[str, Union[str, int, bool]] = {
@@ -138,7 +138,8 @@ async def list_plugins(
         if not config.ENSURE_SFW_CONTENT:
             params["allowNsfw"] = True
 
-        async with get_client() as client:
+        # 使用认证客户端，云端会返回 isFavorited 字段
+        async with get_client(require_auth=True) as client:
             response = await client.get(
                 url=PLUGIN_API,
                 params=params,

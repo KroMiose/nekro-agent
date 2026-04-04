@@ -17,6 +17,7 @@ import {
   Workspaces as WorkspacesIcon,
   ListAlt as ListAltIcon,
   Schedule as ScheduleIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material'
 import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
@@ -67,6 +68,13 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         text: t('menu.pluginsMarket'),
         translationKey: 'menu.pluginsMarket',
         icon: <ExtensionIcon />,
+        parent: 'cloud',
+      },
+      {
+        path: '/cloud/profile',
+        text: t('menu.cloudProfile'),
+        translationKey: 'menu.cloudProfile',
+        icon: <PersonIcon />,
         parent: 'cloud',
       },
     ],

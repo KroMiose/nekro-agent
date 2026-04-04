@@ -174,6 +174,10 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/cloud/plugins_market')),
       },
       {
+        path: 'cloud/profile',
+        element: lazyLoad(() => import('../pages/cloud/profile')),
+      },
+      {
         path: 'workspace',
         children: [
           {
