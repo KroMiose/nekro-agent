@@ -1,4 +1,5 @@
 import hashlib
+from pathlib import Path
 from typing import Any, List, Optional, Type
 
 from nekro_agent.adapters.interface.base import AdapterMetadata, BaseAdapter
@@ -20,6 +21,7 @@ from .tools import SegAt, parse_at_from_text
 
 
 logger = get_sub_logger("adapter.wxwork")
+WXWORK_MAX_TEXT_LINES_PER_MESSAGE = 2000
 
 
 class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
@@ -47,7 +49,7 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
             name="企业微信智能机器人",
             description="企业微信 AI Bot 长连接适配器，使用 Bot ID + Secret 建立 WebSocket 长连接。",
             version="1.0.0",
-            author="KroMiose",
+            author="liugu",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["wxwork", "wecom", "企业微信", "智能机器人", "aibot"],
         )
@@ -114,16 +116,10 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
 
         try:
             _, channel_id = self.parse_chat_key(request.chat_key)
-            content, mentioned_list = self._build_text_payload(request)
-            if not content:
-                return PlatformSendResponse(success=False, error_message="没有可发送的文本内容")
-
             chatid = self._extract_chatid(channel_id)
-            response = await self.client.send_text_message(
-                chatid=chatid,
-                content=content,
-                mentioned_list=mentioned_list,
-            )
+            response = await self._send_request_segments(chatid=chatid, request=request)
+            if response is None:
+                return PlatformSendResponse(success=False, error_message="没有可发送的内容")
             message_id = self._normalize_message_id(response)
             return PlatformSendResponse(success=True, message_id=str(message_id))
         except Exception as e:
@@ -185,6 +181,100 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
                 return normalized
 
         return ""
+
+    async def _send_request_segments(
+        self,
+        *,
+        chatid: str,
+        request: PlatformSendRequest,
+    ) -> dict[str, Any] | None:
+        if self.client is None:
+            return None
+
+        text_parts: list[str] = []
+        mentioned_list: list[str] = []
+        last_response: dict[str, Any] | None = None
+
+        async def flush_text() -> None:
+            nonlocal last_response, text_parts, mentioned_list
+            content = "".join(text_parts).strip()
+            if not content:
+                text_parts = []
+                mentioned_list = []
+                return
+
+            for chunk in self._split_text_message_chunks(content):
+                last_response = await self.client.send_text_message(
+                    chatid=chatid,
+                    content=chunk,
+                    mentioned_list=mentioned_list,
+                )
+            text_parts = []
+            mentioned_list = []
+
+        for seg in request.segments:
+            if seg.type == PlatformSendSegmentType.TEXT:
+                parsed_segments = parse_at_from_text(seg.content)
+                for parsed_seg in parsed_segments:
+                    if isinstance(parsed_seg, str):
+                        text_parts.append(parsed_seg)
+                    elif isinstance(parsed_seg, SegAt):
+                        display_name = parsed_seg.nickname or parsed_seg.platform_user_id
+                        text_parts.append(f"@{display_name}")
+                        if parsed_seg.platform_user_id not in mentioned_list:
+                            mentioned_list.append(parsed_seg.platform_user_id)
+            elif seg.type == PlatformSendSegmentType.AT and seg.at_info:
+                nickname = seg.at_info.nickname or seg.at_info.platform_user_id
+                text_parts.append(f"@{nickname}")
+                if seg.at_info.platform_user_id not in mentioned_list:
+                    mentioned_list.append(seg.at_info.platform_user_id)
+            elif seg.type == PlatformSendSegmentType.IMAGE:
+                await flush_text()
+                if not seg.file_path:
+                    raise ValueError("企业微信 AI Bot 图片消息缺少 file_path")
+                try:
+                    last_response = await self.client.send_media_message(
+                        chatid=chatid,
+                        media_type="image",
+                        file_path=seg.file_path,
+                    )
+                except Exception as exc:
+                    error_text = str(exc)
+                    if "暂不支持发送" not in error_text:
+                        raise
+                    file_name = Path(seg.file_path).name
+                    logger.info(f"企业微信 AI Bot 跳过不支持的图片格式: path={seg.file_path}, error={error_text}")
+                    last_response = await self.client.send_text_message(
+                        chatid=chatid,
+                        content=f"[图片未发送：{file_name} 格式不受支持，当前仅支持 jpg/jpeg/png]",
+                    )
+            elif seg.type == PlatformSendSegmentType.FILE:
+                await flush_text()
+                if not seg.file_path:
+                    raise ValueError("企业微信 AI Bot 文件消息缺少 file_path")
+                last_response = await self.client.send_media_message(
+                    chatid=chatid,
+                    media_type="file",
+                    file_path=seg.file_path,
+                )
+
+        await flush_text()
+        return last_response
+
+    def _split_text_message_chunks(self, content: str) -> list[str]:
+        if not content:
+            return []
+
+        lines = content.splitlines()
+        if not lines or len(lines) <= WXWORK_MAX_TEXT_LINES_PER_MESSAGE:
+            return [content]
+
+        chunks: list[str] = []
+        for start in range(0, len(lines), WXWORK_MAX_TEXT_LINES_PER_MESSAGE):
+            chunk = "\n".join(lines[start : start + WXWORK_MAX_TEXT_LINES_PER_MESSAGE]).strip("\n")
+            if chunk:
+                chunks.append(chunk)
+        return chunks or [content]
 
     def _build_text_payload(self, request: PlatformSendRequest) -> tuple[str, list[str]]:
         parts: list[str] = []

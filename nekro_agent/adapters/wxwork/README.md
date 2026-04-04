@@ -7,7 +7,6 @@
 ```yaml
 BOT_ID: "your-bot-id"
 BOT_SECRET: "your-bot-secret"
-WS_URL: "wss://openws.work.weixin.qq.com"
 ```
 
 ## 说明
@@ -17,10 +16,11 @@ WS_URL: "wss://openws.work.weixin.qq.com"
   - `aibot_msg_callback`
   - `aibot_event_callback`
   - `aibot_send_msg`
+- WebSocket 地址固定为官方地址 `wss://openws.work.weixin.qq.com`
 - 不需要公网回调地址
 
 ## 当前限制
 
-- 发送侧当前优先支持文本消息
-- 图片、文件等媒体消息后续再补齐
+- 主动发送支持 Markdown、图片、文件
+- 语音、视频、模板卡片后续再补齐
 - 用户名和群名暂以原始 ID 为主，后续再结合真实事件结构补全

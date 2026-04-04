@@ -1,4 +1,5 @@
 import json
+import re
 import time
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -14,6 +15,9 @@ class ParsedWxWorkMessage:
     channel: PlatformChannel
     user: PlatformUser
     message: PlatformMessage
+
+
+WXWORK_GROUP_MENTION_PREFIX_RE = re.compile(r"^\s*@\S+\s*")
 
 
 def parse_message_frame(frame: Mapping[str, Any], *, treat_all_as_tome: bool = True) -> ParsedWxWorkMessage | None:
@@ -34,6 +38,10 @@ def parse_message_frame(frame: Mapping[str, Any], *, treat_all_as_tome: bool = T
 
     chat_type_value = _get_str(body, "chattype") or "single"
     chat_type = ChatType.GROUP if chat_type_value == "group" else ChatType.PRIVATE
+    if chat_type == ChatType.GROUP:
+        content_text = _strip_group_mention_prefix(content_text)
+        if not content_text:
+            return None
 
     sender = body.get("from")
     sender_id = _get_str(sender, "userid") if isinstance(sender, Mapping) else ""
@@ -171,6 +179,11 @@ def _extract_content_text(body: Mapping[str, Any]) -> str:
                         texts.append(text)
             return "\n".join(texts).strip()
     return ""
+
+
+def _strip_group_mention_prefix(content_text: str) -> str:
+    stripped = WXWORK_GROUP_MENTION_PREFIX_RE.sub("", content_text, count=1)
+    return stripped.strip()
 
 
 def _safe_mapping(data: Mapping[str, Any] | Any, key: str) -> Mapping[str, Any]:

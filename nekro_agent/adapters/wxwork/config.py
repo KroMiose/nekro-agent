@@ -28,16 +28,6 @@ class WxWorkConfig(BaseAdapterConfig):
         ).model_dump(),
     )
 
-    WS_URL: str = Field(
-        default="wss://openws.work.weixin.qq.com",
-        title="WebSocket 地址",
-        description="企业微信智能机器人长连接地址；私有化部署时可替换为企业管理端提供的地址",
-        json_schema_extra=ExtraField(
-            placeholder="wss://openws.work.weixin.qq.com",
-            i18n_category=i18n_text(zh_CN="AI Bot 模式", en_US="AI Bot Mode"),
-        ).model_dump(),
-    )
-
     HEARTBEAT_INTERVAL_SECONDS: int = Field(
         default=30,
         title="心跳间隔",
