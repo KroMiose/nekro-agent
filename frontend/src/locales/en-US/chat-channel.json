@@ -130,7 +130,10 @@
     "argsPlaceholder": "Enter arguments...",
     "noArgsNeeded": "No arguments needed",
     "selectChannelHint": "Please select a channel to view command output",
-    "inputPlaceholder": "Enter command, e.g. help"
+    "inputPlaceholder": "Enter command, e.g. help",
+    "previewImage": "Preview image",
+    "imageUnavailable": "Image preview unavailable",
+    "fileUnavailable": "File unavailable"
   },
   "pluginData": {
     "filterByPlugin": "Filter by Plugin",

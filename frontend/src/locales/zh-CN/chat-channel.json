@@ -130,7 +130,10 @@
     "argsPlaceholder": "输入参数...",
     "noArgsNeeded": "该命令无需参数",
     "selectChannelHint": "请先选择一个频道以查看命令输出",
-    "inputPlaceholder": "输入命令，如 help"
+    "inputPlaceholder": "输入命令，如 help",
+    "previewImage": "预览图片",
+    "imageUnavailable": "图片暂不可预览",
+    "fileUnavailable": "文件暂不可访问"
   },
   "pluginData": {
     "filterByPlugin": "按插件筛选",

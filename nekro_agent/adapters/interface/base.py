@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 if TYPE_CHECKING:
+    from nekro_agent.schemas.agent_message import AgentMessageSegment
     from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
@@ -280,6 +281,9 @@ class BaseAdapter(ABC, Generic[TConfig]):
     ) -> Optional[List["CommandResponse"]]:
         """执行命令并消费流式输出 - 自动检查适配器级开关"""
         from nekro_agent.services.command.registry import command_registry
+        from nekro_agent.services.command.output import (
+            materialize_command_response,
+        )
         from nekro_agent.services.command.schemas import (
             CommandExecutionContext,
             CommandRequest,
@@ -311,14 +315,15 @@ class BaseAdapter(ABC, Generic[TConfig]):
         from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
 
         responses: List[CommandResponse] = []
-        async for response in command_registry.execute(request):
+        async for raw_response in command_registry.execute(request):
+            response = await materialize_command_response(chat_key, raw_response)
             responses.append(response)
             if response.status == CommandResponseStatus.PROCESSING:
-                await self._send_command_message(chat_key, response.message)
+                await self._send_command_response(chat_key, response)
             elif response.status == CommandResponseStatus.WAITING:
                 await self._handle_command_wait(chat_key, user_id, response)
             elif response.status in (CommandResponseStatus.SUCCESS, CommandResponseStatus.ERROR):
-                await self._send_command_message(chat_key, response.message)
+                await self._send_command_response(chat_key, response)
             elif response.status == CommandResponseStatus.UNAUTHORIZED:
                 if self.config.COMMAND_UNAUTHORIZED_OUTPUT:
                     await self._send_command_message(chat_key, response.message)
@@ -329,6 +334,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
                 command_name=command_name,
                 status=response.status.value,
                 message=response.message,
+                output_segments=response.output_segments,
             )
         return responses
 
@@ -390,11 +396,65 @@ class BaseAdapter(ABC, Generic[TConfig]):
             message=message,
         )
 
+    async def _send_command_response(
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+    ) -> None:
+        """发送命令响应到频道。"""
+        from nekro_agent.services.command.output import (
+            build_command_output_messages,
+            build_command_output_platform_segments,
+        )
+
+        if response.output_segments:
+            enhanced_messages = build_command_output_messages(response)
+            if enhanced_messages and self.config.COMMAND_ENHANCED_OUTPUT:
+                sent = await self._try_send_enhanced_command_response(
+                    chat_key,
+                    response,
+                    enhanced_messages,
+                )
+                if sent:
+                    return
+
+            platform_segments = build_command_output_platform_segments(response)
+            if platform_segments:
+                plt_response = await self.forward_message(
+                    PlatformSendRequest(chat_key=chat_key, segments=platform_segments),
+                )
+                if not plt_response.success:
+                    raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
+                return
+
+        await self._send_command_plain_if_any(chat_key, response)
+
+    async def _send_command_plain_if_any(
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+    ) -> None:
+        """存在纯文本摘要时发送普通命令消息。"""
+        if response.message:
+            await self._send_command_message(chat_key, response.message)
+
     async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:  # noqa: ARG002
         """尝试以平台增强格式发送命令消息
 
         子类可重写此方法，利用平台特性（合并转发、卡片等）优化长消息展示。
         返回 True 表示发送成功，False 表示不支持或失败（将回退为普通文本）。
+        """
+        return False
+
+    async def _try_send_enhanced_command_response(  # noqa: ARG002
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+        messages: list["AgentMessageSegment"],
+    ) -> bool:
+        """尝试以平台增强格式发送富媒体命令响应。
+
+        默认不处理，回退到普通命令发送链路。
         """
         return False
 

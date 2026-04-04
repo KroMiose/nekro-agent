@@ -502,7 +502,7 @@ class MessageService:
 
         content_data = []
         for msg in agent_messages:
-            if msg.type == AgentMessageSegmentType.FILE:
+            if msg.type in (AgentMessageSegmentType.FILE, AgentMessageSegmentType.IMAGE):
                 # 使用magic库检测文件MIME类型
                 file_path = Path(msg.content)
                 if file_path.exists():
@@ -514,7 +514,7 @@ class MessageService:
                         from_chat_key=chat_key,
                     )
 
-                    if mime_type.startswith("image/"):
+                    if msg.type == AgentMessageSegmentType.IMAGE or mime_type.startswith("image/"):
                         content_data.append(
                             {
                                 "type": "image",
