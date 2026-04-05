@@ -909,7 +909,7 @@ export default function ThemeConfigPage() {
   }
 
   return (
-    <Box className="h-full flex flex-col overflow-auto p-4">
+    <Box className="h-full flex flex-col overflow-auto p-4 box-border">
       {/* 主标题和内容容器 */}
       <Box sx={{ mb: 4 }}>
         {/* 主题模式控制 */}

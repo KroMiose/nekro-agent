@@ -244,12 +244,13 @@ export default function ChatAnnouncementPage() {
     <Box
       sx={{
         p: 2,
-        height: { xs: 'auto', xl: 'calc(100vh - 64px)' },
-        minHeight: 'calc(100vh - 64px)',
+        height: '100%',
+        minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        overflowY: { xs: 'auto', xl: 'hidden' },
+        overflow: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
       <Card
@@ -379,7 +380,7 @@ export default function ChatAnnouncementPage() {
           gap: 2,
           flex: 1,
           minHeight: 0,
-          overflow: { xs: 'visible', xl: 'hidden' },
+          overflow: 'hidden',
           gridTemplateColumns: {
             xs: '1fr',
             xl: 'minmax(360px, 420px) minmax(0, 1fr)',
@@ -444,7 +445,7 @@ export default function ChatAnnouncementPage() {
             flexDirection: 'column',
             gap: 2,
             minHeight: 0,
-            overflowY: { xs: 'visible', xl: 'auto' },
+            overflowY: 'auto',
             pr: { xl: 0.5 },
           }}
         >

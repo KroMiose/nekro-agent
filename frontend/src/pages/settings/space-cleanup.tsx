@@ -629,7 +629,7 @@ export default function SpaceCleanupPage() {
   const sortedCategories = scanResult ? sortResources(scanResult.categories) : []
 
   return (
-    <Box className="h-full flex flex-col overflow-auto p-4">
+    <Box className="h-full flex flex-col overflow-auto p-4 box-border">
       <Box sx={{ mb: 4 }}>
         {/* 扫描控制区域 */}
         <Paper className="p-4 mb-4" sx={CARD_VARIANTS.default.styles}>

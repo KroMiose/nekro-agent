@@ -69,7 +69,7 @@ export default function AdapterHubPage() {
         display: 'flex',
         flexDirection: 'column',
         gap: 2,
-        overflow: 'auto',
+        overflow: 'hidden',
         boxSizing: 'border-box',
         bgcolor: 'background.default',
       }}
@@ -97,6 +97,7 @@ export default function AdapterHubPage() {
           },
           gap: 2,
           alignContent: 'start',
+          overflow: 'auto',
         }}
       >
         {isLoading ? (

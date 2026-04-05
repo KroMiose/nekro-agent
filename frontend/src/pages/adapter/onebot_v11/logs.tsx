@@ -206,7 +206,7 @@ export default function OneBotV11LogsPage() {
   }
 
   return (
-    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2, boxSizing: 'border-box' }}>
       <Stack spacing={2}>
         <Alert
           severity={status?.running ? 'success' : 'error'}
