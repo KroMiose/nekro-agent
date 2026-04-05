@@ -1,11 +1,10 @@
 import json
 import pickle
 
-from fastapi import APIRouter, Depends, Header, Request, Response
+from fastapi import APIRouter, Depends, Header, Query, Request, Response
 
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.errors import NotFoundError, UnauthorizedError
 from nekro_agent.schemas.rpc import RPCRequest
 from nekro_agent.services.message_service import message_service
@@ -13,15 +12,19 @@ from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.plugin.schema import SandboxMethodType
 from nekro_agent.services.plugin.utils import get_sandbox_method_type
 from nekro_agent.services.rpc_service import decode_rpc_request, execute_rpc_method
+from nekro_agent.services.sandbox.rpc_token_registry import rpc_token_registry
 
 logger = get_sub_logger("rpc_bridge")
 router = APIRouter(prefix="/ext", tags=["Tools"])
 
 
-async def verify_rpc_token(x_rpc_token: str = Header(...)):
-    """验证 RPC 调用令牌"""
-    if not OsEnv.RPC_SECRET_KEY or x_rpc_token != OsEnv.RPC_SECRET_KEY:
-        logger.warning("非法的 RPC 调用令牌")
+async def verify_rpc_token(
+    container_key: str = Query(...),
+    x_rpc_token: str = Header(...),
+):
+    """验证 RPC 调用令牌 — 使用 per-container 临时令牌而非全局密钥"""
+    if not rpc_token_registry.validate_token(container_key, x_rpc_token):
+        logger.warning("非法的 RPC 调用令牌 (container_key=%s)", container_key)
         raise UnauthorizedError
     return True
 
