@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 import time
@@ -15,6 +16,12 @@ class ParsedWxWorkMessage:
     channel: PlatformChannel
     user: PlatformUser
     message: PlatformMessage
+
+
+@dataclass(slots=True)
+class ParsedWxWorkKfEvent:
+    token: str
+    open_kfid: str
 
 
 WXWORK_GROUP_MENTION_PREFIX_RE = re.compile(r"^\s*@\S+\s*")
@@ -99,6 +106,21 @@ def dump_frame_for_log(frame: Mapping[str, Any]) -> str:
     return json.dumps(frame, ensure_ascii=False, separators=(",", ":"), default=str)
 
 
+def parse_corp_app_kf_event(xml_text: str) -> ParsedWxWorkKfEvent | None:
+    root = ET.fromstring(xml_text)
+    if _xml_text(root, "MsgType") != "event":
+        return None
+    if _xml_text(root, "Event") != "kf_msg_or_event":
+        return None
+
+    token = _xml_text(root, "Token")
+    open_kfid = _xml_text(root, "OpenKfId")
+    if not token or not open_kfid:
+        return None
+
+    return ParsedWxWorkKfEvent(token=token, open_kfid=open_kfid)
+
+
 def parse_corp_app_xml_message(xml_text: str, *, treat_all_as_tome: bool = True) -> ParsedWxWorkMessage | None:
     root = ET.fromstring(xml_text)
 
@@ -121,8 +143,11 @@ def parse_corp_app_xml_message(xml_text: str, *, treat_all_as_tome: bool = True)
         return None
 
     chat_id = _xml_text(root, "ChatId")
-    chat_type = ChatType.GROUP if chat_id else ChatType.PRIVATE
-    channel_id = f"group_{chat_id}" if chat_id else f"private_{sender_id}"
+    if chat_id:
+        return None
+
+    chat_type = ChatType.PRIVATE
+    channel_id = f"private_{sender_id}"
 
     ext_data = PlatformMessageExt(
         ref_msg_id=_xml_text(root, "MsgId"),
@@ -131,7 +156,7 @@ def parse_corp_app_xml_message(xml_text: str, *, treat_all_as_tome: bool = True)
     return ParsedWxWorkMessage(
         channel=PlatformChannel(
             channel_id=channel_id,
-            channel_name=chat_id or sender_id,
+            channel_name=sender_id,
             channel_type=chat_type,
         ),
         user=PlatformUser(
@@ -158,6 +183,48 @@ def parse_corp_app_xml_message(xml_text: str, *, treat_all_as_tome: bool = True)
     )
 
 
+def parse_corp_app_kf_message(message: Mapping[str, Any], *, treat_all_as_tome: bool = True) -> ParsedWxWorkMessage | None:
+    external_userid = _get_str(message, "external_userid")
+    if not external_userid:
+        return None
+
+    msg_type = _get_str(message, "msgtype")
+    content_text = _extract_kf_content_text(message, msg_type)
+    if not content_text:
+        return None
+
+    return ParsedWxWorkMessage(
+        channel=PlatformChannel(
+            channel_id=_build_kf_channel_id(external_userid),
+            channel_name=external_userid,
+            channel_type=ChatType.PRIVATE,
+        ),
+        user=PlatformUser(
+            platform_name="wxwork_corp_app",
+            user_id=external_userid,
+            user_name=external_userid,
+        ),
+        message=PlatformMessage(
+            message_id=_get_str(message, "msgid") or f"wxwork-corp-app-kf-{int(time.time() * 1000)}",
+            sender_id=external_userid,
+            sender_name=external_userid,
+            sender_nickname=external_userid,
+            content_data=[
+                ChatMessageSegment(
+                    type=ChatMessageSegmentType.TEXT,
+                    text=content_text,
+                )
+            ],
+            content_text=content_text,
+            is_tome=treat_all_as_tome or True,
+            timestamp=_get_int(message, "send_time") or int(time.time()),
+            ext_data=PlatformMessageExt(
+                ref_msg_id=_get_str(message, "msgid"),
+            ),
+        ),
+    )
+
+
 def _extract_content_text(body: Mapping[str, Any]) -> str:
     msg_type = _get_str(body, "msgtype")
     if msg_type == "text":
@@ -179,6 +246,33 @@ def _extract_content_text(body: Mapping[str, Any]) -> str:
                         texts.append(text)
             return "\n".join(texts).strip()
     return ""
+
+
+def _extract_kf_content_text(message: Mapping[str, Any], msg_type: str) -> str:
+    if msg_type == "text":
+        return _get_str(_safe_mapping(message, "text"), "content")
+    if msg_type == "image":
+        return "[图片]"
+    if msg_type == "file":
+        return "[文件]"
+    if msg_type == "voice":
+        return "[语音]"
+    if msg_type == "video":
+        return "[视频]"
+    if msg_type == "link":
+        link = _safe_mapping(message, "link")
+        title = _get_str(link, "title")
+        url = _get_str(link, "url")
+        return f"[链接] {title or url}".strip()
+    if msg_type == "location":
+        location = _safe_mapping(message, "location")
+        return f"[位置] {_get_str(location, 'address') or _get_str(location, 'name')}".strip()
+    return ""
+
+
+def _build_kf_channel_id(external_userid: str) -> str:
+    digest = hashlib.sha1(external_userid.encode("utf-8")).hexdigest()[:16]
+    return f"private_kf_{digest}"
 
 
 def _strip_group_mention_prefix(content_text: str) -> str:

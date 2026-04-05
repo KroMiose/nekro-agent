@@ -532,7 +532,7 @@ async def collect_available_methods(_ctx: AgentCtx) -> List[Callable]:
     elif _ctx.adapter_key == "wxwork":
         methods = [send_msg_text, send_msg_file]
     elif _ctx.adapter_key == "wxwork_corp_app":
-        methods = [send_msg_text]
+        methods = [send_msg_text, send_msg_file]
     elif _ctx.adapter_key == "onebot_v11":
         # 仅 OneBot 提供头像工具
         methods = [send_msg_text, send_msg_file, get_user_avatar]

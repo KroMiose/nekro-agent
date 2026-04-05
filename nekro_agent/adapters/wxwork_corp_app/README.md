@@ -27,5 +27,5 @@ CORP_API_BASE_URL: "https://qyapi.weixin.qq.com"
 
 - URL 验证与消息接收都走同一回调地址
 - 私聊发送走 `/cgi-bin/message/send`
-- 群聊发送尝试走 `/cgi-bin/appchat/send`
-- 普通内部群 `chatid` 是否可直接复用于自建应用群发，取决于企业微信应用侧能力
+- 当前仅支持私聊消息收发
+- 群聊 `ChatId` 与 `/cgi-bin/appchat/send` 暂不启用
