@@ -40,6 +40,35 @@ def _detect_path_location(path: Path) -> Optional[PathLocation]:
         return None
 
 
+def _validate_host_path(host_path: Path, allowed_base: Path) -> Path:
+    """
+    验证转换后的宿主机路径是否在允许的基础目录内。
+
+    通过解析 '..' 等相对组件后，检查最终路径是否仍在
+    allowed_base 目录下，防止路径遍历攻击。
+
+    Args:
+        host_path (Path): 待验证的宿主机路径
+        allowed_base (Path): 允许的基础目录
+
+    Returns:
+        Path: 验证通过的原始路径
+
+    Raises:
+        ValueError: 当路径遍历出允许的基础目录时
+    """
+    # Use Path.resolve() on the base to normalize it, then check that the
+    # resolved host_path starts with the resolved base.  We must resolve
+    # the base to handle cases where the base itself has symlinks.
+    resolved_base = allowed_base.resolve()
+    resolved_path = host_path.resolve()
+    if not resolved_path.is_relative_to(resolved_base):
+        raise ValueError(
+            f"Path traversal detected: {host_path} resolves outside allowed directory {allowed_base}"
+        )
+    return host_path
+
+
 def convert_to_host_path(
     sandbox_path: Path,
     chat_key: str,
@@ -113,10 +142,14 @@ def convert_to_host_path(
 
     # 根据位置类型构建宿主机路径
     if location == PathLocation.UPLOADS:
-        return uploads_dir / chat_key / relative_path
+        host_path = uploads_dir / chat_key / relative_path
+        allowed_base = uploads_dir / chat_key
+        return _validate_host_path(host_path, allowed_base)
     if location == PathLocation.SHARED:
         _validate_shared_path(container_key)
-        return shared_dir / str(container_key) / relative_path
+        host_path = shared_dir / str(container_key) / relative_path
+        allowed_base = shared_dir / str(container_key)
+        return _validate_host_path(host_path, allowed_base)
     raise ValueError(f"Invalid path location: {location}, make sure your path is valid shared path or upload path")
 
 
