@@ -52,8 +52,14 @@ async def rpc_exec(container_key: str, from_chat_key: str, data: Request) -> Res
         await message_service.push_system_message(chat_key=from_chat_key, agent_messages=str(result))
     if method_type == SandboxMethodType.MULTIMODAL_AGENT:
         result = f"<AGENT_RESULT>{json.dumps(result, ensure_ascii=False)}</AGENT_RESULT>"
+
+    if error_message:
+        content = json.dumps({"error": error_message}, ensure_ascii=False)
+    else:
+        content = json.dumps(result, ensure_ascii=False)
+
     return Response(
-        content=error_message or json.dumps(result, ensure_ascii=False),
+        content=content,
         media_type="application/json",
         headers={"Method-Type": method_type.value, "Run-Error": "True" if error_message else "False"},
     )

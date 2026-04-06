@@ -42,8 +42,10 @@ def __extension_method_proxy(method: Callable):
         )
         if response.status_code == 200:
             if response.headers.get("Run-Error") and response.headers["Run-Error"].lower() == "true":
+                error_data = _json.loads(response.content)
+                error_msg = error_data.get("error", response.text) if isinstance(error_data, dict) else response.text
                 print(
-                    f"The method `{method.__name__}` returned an error:\n{response.text}",
+                    f"The method `{method.__name__}` returned an error:\n{error_msg}",
                 )
                 exit(1)
             ret_data = _json.loads(response.content)
