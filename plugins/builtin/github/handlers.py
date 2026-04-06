@@ -268,7 +268,14 @@ async def _handle_issues_event(repo_full_name: str, body: Dict) -> None:
 
 
 async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
-    """处理GitHub Pull Request事件
+    """处理GitHub Pull Request事件 - 深度增强版
+
+    增强点:
+    1. 分支流向明确化: [目标分支 <- 来源分支] 格式
+    2. 变更规模可视化: +additions/-deletions 紧凑格式
+    3. 状态标签增强: 使用emoji和明确的中文状态描述
+    4. 元数据补充: Commit数量、Labels标签
+    5. 结构优化: 更符合中文阅读习惯的排版
 
     Args:
         repo_full_name: 仓库全名
@@ -308,42 +315,85 @@ async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
         deletions = pr.get("deletions", 0)
         changed_files = pr.get("changed_files", 0)
 
-        # 格式化消息
-        message = "📢 GitHub Pull Request 事件\n\n"
-        message += f"仓库: {repo_full_name}\n"
-        message += f"动作: {action}\n"
-        message += f"PR #{pr_number}: {pr_title}\n"
-        message += f"创建者: {pr_creator_name}\n"
+        # 提取Commit数量
+        commits_count = pr.get("commits", 0)
 
-        # 显示分支信息，包括所有者
-        message += f"分支: {head_repo_owner}:{head_branch} → {base_repo_owner}:{base_branch}\n"
+        # 提取Labels标签
+        labels = pr.get("labels", [])
+        label_names = [label.get("name", "") for label in labels if label.get("name")]
 
-        # 显示PR状态
-        if pr_state == "closed":
+        # 格式化消息 - 使用更清晰的结构和中文阅读习惯
+        message = f"📢 GitHub Pull Request #{pr_number}\n"
+        message += f"━━━━━━━━━━━━━━━━━━━━\n"
+
+        # 第一行: 状态和动作标签（最显眼的位置）
+        # 注意: GitHub的action字段在closed时不会区分merged/unmerged，需要手动判断
+        if action == "closed":
             if pr_merged:
-                message += f"状态: 已合并 (由 {merged_by_name} 合并)\n"
+                action_display = "✅ 已合并"
+                action_detail = f"由 {merged_by_name} 执行合并"
             else:
-                message += "状态: 已关闭\n"
+                action_display = "❌ 已关闭(未合入)"
+                action_detail = "PR被关闭，代码未进入目标分支"
+        elif action == "opened":
+            action_display = "🆕 新建"
+            action_detail = f"由 {pr_creator_name} 发起"
+        elif action == "reopened":
+            action_display = "🔄 重新开启"
+            action_detail = f"由 {pr_creator_name} 重新打开"
         else:
-            message += "状态: 开放中\n"
+            action_display = f"📝 {action}"
+            action_detail = "PR状态变更"
 
-        # 显示代码变更统计
-        message += f"变更统计: +{additions} -{deletions} 个修改，涉及 {changed_files} 个文件\n"
+        message += f"【{action_display}】{action_detail}\n"
+        message += f"━━━━━━━━━━━━━━━━━━━━\n"
 
-        # 添加链接
-        message += f"链接: {pr_url}\n"
+        # PR标题和链接
+        message += f"📌 {pr_title}\n"
+        message += f"🔗 {pr_url}\n"
 
-        # 添加内容预览（如果不是太长）
-        if len(pr_body) > 200:
-            pr_body = pr_body[:200] + "..."
-        message += f"\n内容预览:\n{pr_body}\n"
+        # 分支流向: 明确显示 [目标分支 <- 来源分支]
+        # 格式: [base_repo:base_branch] <- [head_repo:head_branch]
+        # 这种格式让Agent一眼看出代码流向
+        if head_repo_owner == base_repo_owner:
+            # 同仓库PR，简化显示
+            branch_flow = f"[{base_branch}] <- [{head_branch}]"
+        else:
+            # 跨仓库PR，显示完整信息
+            branch_flow = f"[{base_repo_owner}:{base_branch}] <- [{head_repo_owner}:{head_branch}]"
+        message += f"🌿 {branch_flow}\n"
 
-        # 如果是合并操作，添加合并相关信息
-        if action == "closed" and pr_merged:
-            # 获取合并提交信息
+        # 代码变更统计: 使用 +123/-45 的紧凑可视化格式
+        # 绿色 additions 在前，红色 deletions 在后，符合GitHub习惯
+        message += f"📊 变更: +{additions}/-{deletions} ({changed_files} 个文件)"
+        if commits_count > 0:
+            message += f" | {commits_count} 个提交"
+        message += "\n"
+
+        # Labels标签（如果有）
+        if label_names:
+            labels_str = ", ".join(label_names[:5])  # 最多显示5个标签
+            if len(label_names) > 5:
+                labels_str += f" 等{len(label_names)}个标签"
+            message += f"🏷️ 标签: {labels_str}\n"
+
+        # 创建者信息（如果不是创建动作，补充显示）
+        if action not in ["opened", "reopened"]:
+            message += f"👤 创建者: {pr_creator_name}\n"
+
+        # 内容预览（如果不是太长）
+        if pr_body and pr_body != "无内容":
+            if len(pr_body) > 150:
+                pr_body = pr_body[:150] + "..."
+            message += f"━━━━━━━━━━━━━━━━━━━━\n"
+            message += f"📝 内容:\n{pr_body}\n"
+
+        # 合并相关信息（仅当合并时显示）
+        if pr_merged:
             merge_commit_sha = pr.get("merge_commit_sha", "")
             if merge_commit_sha:
-                message += f"合并提交: {merge_commit_sha[:7]}\n"
+                message += f"━━━━━━━━━━━━━━━━━━━━\n"
+                message += f"🔀 合并提交: {merge_commit_sha[:7]}\n"
 
         # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "pull_request", message)
