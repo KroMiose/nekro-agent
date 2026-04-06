@@ -160,7 +160,7 @@ export default function CommandOutputPage() {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2, boxSizing: 'border-box' }}>
       {/* 顶部：频道选择 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2 }}>

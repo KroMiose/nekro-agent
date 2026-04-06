@@ -12,7 +12,9 @@ import {
   useTheme,
   useMediaQuery,
   Badge,
+  Button,
 } from '@mui/material'
+import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { adaptersApi, AdapterDetailInfo } from '../services/api/adapters'
@@ -188,6 +190,32 @@ export default function AdapterLayout() {
                   size="small"
                   sx={{ height: 24, fontWeight: 400 }}
                 />
+                <Box sx={{ flex: 1 }} />
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<ArrowBackRoundedIcon fontSize="small" />}
+                  onClick={() => navigate('/adapters')}
+                  sx={{
+                    alignSelf: 'center',
+                    whiteSpace: 'nowrap',
+                    ml: 'auto',
+                    flexShrink: 0,
+                    minHeight: 28,
+                    px: 1.25,
+                    borderRadius: '999px',
+                    borderColor: 'divider',
+                    backgroundColor: 'background.paper',
+                    boxShadow: 'none',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      backgroundColor: 'action.hover',
+                      boxShadow: 'none',
+                    },
+                  }}
+                >
+                  {t('hub.backToHub')}
+                </Button>
               </Box>
             </Box>
           </Box>

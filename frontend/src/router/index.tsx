@@ -49,7 +49,24 @@ const router = createHashRouter([
       },
       {
         path: 'chat-channel',
-        element: lazyLoad(() => import('../pages/chat-channel')),
+        children: [
+          {
+            index: true,
+            element: <Navigate to="management" replace />,
+          },
+          {
+            path: 'management',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'management/:chatKey',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'announcement',
+            element: lazyLoad(() => import('../pages/chat-channel/announcement')),
+          },
+        ],
       },
       {
         path: 'chat-channel/:chatKey',
@@ -97,16 +114,25 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/sandbox')),
       },
       {
-        path: 'adapters/:adapterKey',
-        element: <AdapterLayout />,
+        path: 'adapters',
         children: [
           {
             index: true,
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            element: lazyLoad(() => import('../pages/adapter')),
           },
           {
-            path: '*',
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            path: ':adapterKey',
+            element: <AdapterLayout />,
+            children: [
+              {
+                index: true,
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+              {
+                path: '*',
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+            ],
           },
         ],
       },

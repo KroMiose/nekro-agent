@@ -109,11 +109,11 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const statusOptions: Array<{
     value: 'active' | 'observe' | 'disabled'
     label: string
-    color: 'success' | 'warning' | 'error'
+    color: 'success' | 'warning' | 'disabled'
   }> = [
     { value: 'active', label: t('channelDetail.activate'), color: 'success' },
     { value: 'observe', label: t('channelDetail.observe'), color: 'warning' },
-    { value: 'disabled', label: t('channelDetail.deactivate'), color: 'error' },
+    { value: 'disabled', label: t('channelDetail.deactivate'), color: 'disabled' },
   ]
 
   const handleStatusChange = (event: SelectChangeEvent<'active' | 'observe' | 'disabled'>) => {
@@ -229,7 +229,12 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                         {isToggling ? (
                           <CircularProgress size={14} />
                         ) : (
-                          <CircleIcon sx={{ fontSize: 10, color: `${current.color}.main` }} />
+                          <CircleIcon
+                            sx={{
+                              fontSize: 10,
+                              color: current.color === 'disabled' ? 'text.disabled' : `${current.color}.main`,
+                            }}
+                          />
                         )}
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {current.label}
@@ -241,7 +246,12 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                   {statusOptions.map(option => (
                     <MenuItem key={option.value} value={option.value}>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <CircleIcon sx={{ fontSize: 10, color: `${option.color}.main` }} />
+                        <CircleIcon
+                          sx={{
+                            fontSize: 10,
+                            color: option.color === 'disabled' ? 'text.disabled' : `${option.color}.main`,
+                          }}
+                        />
                         <Typography variant="body2">{option.label}</Typography>
                       </Stack>
                     </MenuItem>

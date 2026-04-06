@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="sse-gradient" x1="12" y1="10" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06B6D4" />
+      <stop offset="1" stop-color="#2563EB" />
+    </linearGradient>
+  </defs>
+  <rect x="6" y="6" width="52" height="52" rx="18" fill="url(#sse-gradient)" />
+  <rect x="16" y="18" width="16" height="28" rx="6" fill="#F8FAFC" />
+  <path d="M20.5 25H27.5" stroke="#1D4ED8" stroke-width="2.75" stroke-linecap="round" />
+  <path d="M20.5 31.5H27.5" stroke="#1D4ED8" stroke-width="2.75" stroke-linecap="round" />
+  <path d="M20.5 38H25" stroke="#1D4ED8" stroke-width="2.75" stroke-linecap="round" />
+  <path
+    d="M32 32H39M39 32L46 23.5M39 32L49 32M39 32L46 40.5"
+    stroke="#FFFFFF"
+    stroke-width="3.5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="48" cy="22" r="3.5" fill="#FFFFFF" />
+  <circle cx="51" cy="32" r="3.75" fill="#FFFFFF" />
+  <circle cx="48" cy="42" r="3.5" fill="#FFFFFF" />
+</svg>

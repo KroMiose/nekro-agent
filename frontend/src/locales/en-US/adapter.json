@@ -2,6 +2,34 @@
   "loading": "Loading adapter information...",
   "loadFailed": "Loading Failed",
   "loadAdapterFailed": "Failed to load adapter information",
+  "hub": {
+    "title": "Adapter Hub",
+    "backToHub": "Back to Hub",
+    "searchPlaceholder": "Search adapter name, description, tags, or config class",
+    "searchAction": "Search",
+    "clearSearch": "Clear search",
+    "statusLabel": "Status",
+    "statusAll": "All Statuses",
+    "emptyTitle": "No adapters match the current filters",
+    "emptyDescription": "Try a different keyword or status filter.",
+    "open": "Open Adapter",
+    "configClass": "Config Class",
+    "ruleCount": "Channel Rules",
+    "rules": "{{count}} rules",
+    "noDescription": "No adapter description",
+    "statsLabel": {
+      "total": "Total adapters",
+      "enabled": "Enabled",
+      "failed": "Failed",
+      "disabled": "Disabled"
+    },
+    "stats": {
+      "total": "{{count}} total",
+      "enabled": "{{count}} enabled",
+      "failed": "{{count}} failed",
+      "disabled": "{{count}} disabled"
+    }
+  },
   "home": {
     "version": "Version",
     "author": "Author",
@@ -34,7 +62,8 @@
     "telegram": "Telegram",
     "email": "Email",
     "feishu": "Feishu",
-    "wxwork": "WeWork Bot"
+    "wxwork": "WeCom AI Bot",
+    "wxwork_corp_app": "WeCom Corp App"
   },
   "status": {
     "enabled": "Enabled",

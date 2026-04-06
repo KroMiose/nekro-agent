@@ -73,7 +73,7 @@ export default function OneBotV11NapCatPage() {
   }
 
   return (
-    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', boxSizing: 'border-box' }}>
       {(onebotToken || napcatToken) && (
         <Stack
           direction={{ xs: 'column', md: 'row' }}

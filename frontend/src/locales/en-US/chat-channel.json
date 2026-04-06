@@ -11,6 +11,7 @@
     "group": "Group",
     "private": "Private",
     "active": "Active",
+    "observe": "Observe",
     "inactive": "Inactive"
   },
   "list": {

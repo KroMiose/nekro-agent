@@ -101,6 +101,22 @@ ADAPTER_REGISTRY: Dict[str, AdapterSpec] = {
         description="飞书适配器",
         tags=("feishu",),
     ),
+    "wxwork": AdapterSpec(
+        key="wxwork",
+        adapter_path="nekro_agent.adapters.wxwork.adapter.WxWorkAdapter",
+        config_path="nekro_agent.adapters.wxwork.config.WxWorkConfig",
+        name="WeCom AI Bot",
+        description="企业微信智能机器人（AI Bot）适配器",
+        tags=("wxwork", "wecom", "wechat_work"),
+    ),
+    "wxwork_corp_app": AdapterSpec(
+        key="wxwork_corp_app",
+        adapter_path="nekro_agent.adapters.wxwork_corp_app.adapter.WxWorkCorpAppAdapter",
+        config_path="nekro_agent.adapters.wxwork_corp_app.config.WxWorkCorpAppConfig",
+        name="WeCom Corp App",
+        description="企业微信自建应用适配器",
+        tags=("wxwork", "wecom", "corp_app"),
+    ),
 }
 
 ADAPTER_DICT: Dict[str, str] = {key: spec.adapter_path for key, spec in ADAPTER_REGISTRY.items()}

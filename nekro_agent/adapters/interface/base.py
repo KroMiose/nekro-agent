@@ -406,26 +406,28 @@ class BaseAdapter(ABC, Generic[TConfig]):
             build_command_output_messages,
             build_command_output_platform_segments,
         )
+        if not response.output_segments:
+            await self._send_command_plain_if_any(chat_key, response)
+            return
 
-        if response.output_segments:
-            enhanced_messages = build_command_output_messages(response)
-            if enhanced_messages and self.config.COMMAND_ENHANCED_OUTPUT:
-                sent = await self._try_send_enhanced_command_response(
-                    chat_key,
-                    response,
-                    enhanced_messages,
-                )
-                if sent:
-                    return
-
-            platform_segments = build_command_output_platform_segments(response)
-            if platform_segments:
-                plt_response = await self.forward_message(
-                    PlatformSendRequest(chat_key=chat_key, segments=platform_segments),
-                )
-                if not plt_response.success:
-                    raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
+        enhanced_messages = build_command_output_messages(response)
+        if enhanced_messages and self.config.COMMAND_ENHANCED_OUTPUT:
+            sent = await self._try_send_enhanced_command_response(
+                chat_key,
+                response,
+                enhanced_messages,
+            )
+            if sent:
                 return
+
+        platform_segments = build_command_output_platform_segments(response)
+        if platform_segments:
+            plt_response = await self.forward_message(
+                PlatformSendRequest(chat_key=chat_key, segments=platform_segments),
+            )
+            if not plt_response.success:
+                raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
+            return
 
         await self._send_command_plain_if_any(chat_key, response)
 
