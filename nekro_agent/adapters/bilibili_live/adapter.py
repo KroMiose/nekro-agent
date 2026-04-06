@@ -18,6 +18,7 @@ from nekro_agent.adapters.interface.base import (
     AdapterMetadata,
     BaseAdapter,
     BaseAdapterConfig,
+    adapter_extra_field,
 )
 from nekro_agent.adapters.interface.collector import collect_message
 from nekro_agent.adapters.interface.schemas.platform import (
@@ -29,7 +30,6 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.config import config
-from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentImage,
@@ -52,11 +52,28 @@ class BilibiliLiveConfig(BaseAdapterConfig):
         default=False,
         title="启用 Bilibili 直播适配器",
         description="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
+        json_schema_extra=adapter_extra_field(
+            title_zh="启用 Bilibili 直播适配器",
+            title_en="Enable Bilibili Live Adapter",
+            description_zh="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
+            description_en="When enabled, the adapter will connect to the Bilibili live room WebSocket to receive danmaku messages.",
+            category_zh="直播连接",
+            category_en="Live Connection",
+        ),
     )
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",
         description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+        json_schema_extra=adapter_extra_field(
+            title_zh="VTube Studio 控制端 WebSocket 地址",
+            title_en="VTube Studio Controller WebSocket URLs",
+            description_zh="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+            description_en="WebSocket URLs of the VTube Studio controller, used to control VTube Studio.",
+            category_zh="直播连接",
+            category_en="Live Connection",
+            required=True,
+        ),
     )
 
 
@@ -79,7 +96,7 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
             name="Bilibili Live",
             description="Bilibili 直播适配器，实时接收直播间弹幕消息、礼物信息和用户互动事件",
             version="1.0.0",
-            author="Zaxpris",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["bilibili", "live", "stream", "danmaku", "realtime"],
         )

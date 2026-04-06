@@ -53,7 +53,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             name="Telegram",
             description="基于 python-telegram-bot 的 Telegram 适配器",
             version="2.0.0",
-            author="nekro-agent",
+            author="NekroAI",
             tags=["telegram", "chat", "bot"],
         )
 

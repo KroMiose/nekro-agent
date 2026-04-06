@@ -78,7 +78,7 @@ class WxWorkCorpAppAdapter(BaseAdapter[WxWorkCorpAppConfig]):
             name="企业微信自建应用",
             description="企业微信自建应用适配器，通过回调接收消息并通过应用 API 发送消息。",
             version="1.0.0",
-            author="liugu",
+            author="NekroAI",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["wxwork", "wecom", "企业微信", "corp_app"],
         )

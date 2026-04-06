@@ -32,7 +32,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.schemas.chat_message import ChatType
 
-from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
+from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig, adapter_extra_field
 from .commands import set_client_manager
 from .core.client import SseClientManager
 from .core.message import SseMessageConverter
@@ -47,28 +47,92 @@ class SSEConfig(BaseAdapterConfig):
         default="",
         title="访问密钥",
         description="连接SSE服务所需的访问密钥，如果设置，客户端必须提供一致的密钥",
+        json_schema_extra=adapter_extra_field(
+            title_zh="访问密钥",
+            title_en="Access Key",
+            description_zh="连接SSE服务所需的访问密钥，如果设置，客户端必须提供一致的密钥",
+            description_en="Access key required to connect to the SSE service. If set, clients must provide the same key.",
+            category_zh="鉴权",
+            category_en="Authentication",
+        ),
     )
-    ALLOW_FILE_TRANSFER: bool = Field(default=False, title="是否允许文件传输", description="是否允许文件传输")
-    MAX_FILE_SIZE: int = Field(default=10 * 1024 * 1024, title="最大文件大小（字节）", description="最大文件大小（字节）")
+    ALLOW_FILE_TRANSFER: bool = Field(
+        default=False,
+        title="是否允许文件传输",
+        description="是否允许文件传输",
+        json_schema_extra=adapter_extra_field(
+            title_zh="是否允许文件传输",
+            title_en="Allow File Transfer",
+            description_zh="是否允许文件传输",
+            description_en="Whether file transfer is allowed.",
+            category_zh="文件传输",
+            category_en="File Transfer",
+        ),
+    )
+    MAX_FILE_SIZE: int = Field(
+        default=10 * 1024 * 1024,
+        title="最大文件大小（字节）",
+        description="最大文件大小（字节）",
+        json_schema_extra=adapter_extra_field(
+            title_zh="最大文件大小（字节）",
+            title_en="Max File Size (Bytes)",
+            description_zh="最大文件大小（字节）",
+            description_en="Maximum allowed file size in bytes.",
+            category_zh="文件传输",
+            category_en="File Transfer",
+        ),
+    )
     ALLOWED_FILE_TYPES: List[str] = Field(
         default=["image/*", "application/*", "text/*"],
         title="允许的文件类型",
         description="允许的文件类型",
+        json_schema_extra=adapter_extra_field(
+            title_zh="允许的文件类型",
+            title_en="Allowed File Types",
+            description_zh="允许的文件类型",
+            description_en="Allowed MIME types for file transfer.",
+            category_zh="文件传输",
+            category_en="File Transfer",
+        ),
     )
     RESPONSE_TIMEOUT: float = Field(
         default=30.0,
         title="响应超时时间（秒）",
         description="等待客户端回执的超时时间，单位为秒。如果客户端在此时间内未响应，将认为发送失败",
+        json_schema_extra=adapter_extra_field(
+            title_zh="响应超时时间（秒）",
+            title_en="Response Timeout (s)",
+            description_zh="等待客户端回执的超时时间，单位为秒。如果客户端在此时间内未响应，将认为发送失败",
+            description_en="Time to wait for a client acknowledgement, in seconds. If the client does not respond within this time, the send attempt will be considered failed.",
+            category_zh="消息投递",
+            category_en="Message Delivery",
+        ),
     )
     IGNORE_RESPONSE: bool = Field(
         default=False,
         title="忽略客户端回执",
         description="启用后将不等待客户端回执，直接判定发送成功。仅用于特殊场景的临时放行，可能导致消息实际未发送但系统认为成功",
+        json_schema_extra=adapter_extra_field(
+            title_zh="忽略客户端回执",
+            title_en="Ignore Client Acknowledgement",
+            description_zh="启用后将不等待客户端回执，直接判定发送成功。仅用于特殊场景的临时放行，可能导致消息实际未发送但系统认为成功",
+            description_en="When enabled, the system will not wait for a client acknowledgement and will consider the message sent immediately. Only use this as a temporary bypass in special cases, as the message may actually fail to send.",
+            category_zh="消息投递",
+            category_en="Message Delivery",
+        ),
     )
     SELF_INFO_CACHE_TTL: int = Field(
         default=3600,
         title="自身信息缓存时长（秒）",
         description="缓存机器人自身信息的时长，单位为秒。默认3600秒（60分钟）。设置为0则禁用缓存，每次都请求客户端",
+        json_schema_extra=adapter_extra_field(
+            title_zh="自身信息缓存时长（秒）",
+            title_en="Self Info Cache TTL (s)",
+            description_zh="缓存机器人自身信息的时长，单位为秒。默认3600秒（60分钟）。设置为0则禁用缓存，每次都请求客户端",
+            description_en="Duration for caching the bot's self info, in seconds. The default is 3600 seconds (60 minutes). Set to 0 to disable caching and request the client every time.",
+            category_zh="缓存",
+            category_en="Cache",
+        ),
     )
 
 
@@ -130,7 +194,7 @@ class SSEAdapter(BaseAdapter[SSEConfig]):
             name="SSE",
             description="基于 Server-Sent Events 的实时通信适配器，支持通用 HTTP 协议的多客户端接入",
             version="1.0.0",
-            author="NekroAgent",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["sse", "http", "realtime", "api"],
         )

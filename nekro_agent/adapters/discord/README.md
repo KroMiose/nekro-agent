@@ -1,55 +1,14 @@
 # Discord 适配器
 
-本适配器用于将 Nekro Agent 连接到 Discord 平台，使其能够作为 Discord Bot 与服务器内的用户进行实时交互。
+适合在 Discord 社区里放一个长期在线的 Agent，承担答疑、互动、资料发送和频道管理辅助。
 
-## 功能特性
+## 你可以用它做什么
 
-- **实时消息**：接收并响应服务器频道和私聊消息。
-- **富文本支持**：支持发送和接收文本、文件、图片以及 @提及。
-- **多服务器支持**：可以被邀请到多个 Discord 服务器中同时工作。
+- 在服务器频道和私聊中接收并回复消息
+- 支持图片、文件、回复和 @提及等常见互动方式
+- 可以给消息添加反馈，提升交流中的即时感
+- 适合社区运营、兴趣群组、知识答疑和公告通知场景
 
-## 配置指南
+详细接入、配置步骤和注意事项请查看文档站：
 
-要使用此适配器，您需要先在 Discord 开发者平台创建一个应用程序和对应的 Bot。
-
-### 1. 创建 Discord 应用程序
-
-1.  访问 [Discord Developer Portal](https://discord.com/developers/applications)。
-2.  点击右上角的 **"New Application"**。
-3.  为您的应用命名，然后点击 **"Create"**。
-
-### 2. 创建 Bot
-
-1.  在应用页面，点击左侧菜单的 **"Bot"** 选项。
-2.  点击 **"Add Bot"**，然后确认创建。
-3.  在 Bot 设置页面，您可以自定义 Bot 的用户名和头像。
-
-### 3. 获取 Bot Token
-
-- 在 Bot 设置页面，找到 **"TOKEN"** 部分，点击 **"Reset Token"** (如果是首次创建则为 "View Token" 或 "Copy")。
-- **请妥善保管此 Token，不要泄露给任何人！** 这是控制您 Bot 的唯一凭证。
-
-### 4. 配置特权网关意图 (Privileged Gateway Intents)
-
-为了让您的 Bot 能够读取消息内容，必须开启必要的 "Intents"。
-
-- 在 Bot 设置页面，向下滚动找到 **"Privileged Gateway Intents"** 部分。
-- 开启以下两个选项：
-    - **PRESENCE INTENT**
-    - **MESSAGE CONTENT INTENT** (最重要！)
-
-### 5. 邀请 Bot 到您的服务器
-
-1.  在应用页面，点击左侧菜单的 **"OAuth2"** -> **"URL Generator"**。
-2.  在 **"SCOPES"** 中，勾选 `bot` 和 `applications.commands`。
-3.  在下方出现的 **"BOT PERMISSIONS"** 中，勾选以下推荐权限：
-    - `Read Messages/View Channels`
-    - `Send Messages`
-    - `Send Messages in Threads`
-    - `Embed Links`
-    - `Attach Files`
-    - `Read Message History`
-    - `Mention @everyone, @here, and All Roles`
-    - `Use External Emojis`
-    - `Add Reactions`
-4.  复制页面底部生成的 **URL**，在浏览器中打开，然后选择您想邀请 Bot 加入的服务器。
+<https://doc.nekro.ai/docs/02_quick_start/adapters/discord.html>

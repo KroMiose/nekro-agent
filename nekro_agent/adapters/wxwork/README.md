@@ -1,26 +1,14 @@
 # 企业微信 AI Bot 适配器
 
-企业微信智能机器人（AI Bot）长连接模式，使用官方 WebSocket 协议收发消息。
+适合在企业微信里放一个面向团队成员的智能助手，用来承接问答、通知、资料发送和内部协同。
 
-## 必填配置
+## 你可以用它做什么
 
-```yaml
-BOT_ID: "your-bot-id"
-BOT_SECRET: "your-bot-secret"
-```
+- 在企业微信单聊和群聊里接收并回复消息
+- 发送文字、图片和文件，满足常见办公沟通场景
+- 让团队成员直接在熟悉的聊天入口里使用 Agent
+- 适合内部问答、流程提醒、信息播报和轻量助手场景
 
-## 说明
+详细接入、配置步骤和注意事项请查看文档站：
 
-- 使用官方长连接命令：
-  - `aibot_subscribe`
-  - `aibot_msg_callback`
-  - `aibot_event_callback`
-  - `aibot_send_msg`
-- WebSocket 地址固定为官方地址 `wss://openws.work.weixin.qq.com`
-- 不需要公网回调地址
-
-## 当前限制
-
-- 主动发送支持 Markdown、图片、文件
-- 语音、视频、模板卡片后续再补齐
-- 用户名和群名暂以原始 ID 为主，后续再结合真实事件结构补全
+<https://doc.nekro.ai/docs/02_quick_start/adapters/wecom_bot.html>

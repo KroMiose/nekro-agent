@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Dict, Generic, List, Optional, Tuple, Type, TypeVar, cast
 
 from fastapi import APIRouter
 from jinja2 import Environment
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
 
 from .schemas.platform import (
@@ -35,6 +36,29 @@ class AdapterMetadata(BaseModel):
     tags: List[str] = []
 
 
+def adapter_extra_field(
+    *,
+    title_zh: str,
+    title_en: str,
+    description_zh: Optional[str] = None,
+    description_en: Optional[str] = None,
+    category_zh: Optional[str] = None,
+    category_en: Optional[str] = None,
+    enable_toggle: Optional[str] = None,
+    **kwargs: Any,
+) -> Dict[str, Any]:
+    extra = ExtraField(**kwargs)
+    extra.i18n_title = i18n_text(zh_CN=title_zh, en_US=title_en)
+    if description_zh is not None and description_en is not None:
+        extra.i18n_description = i18n_text(zh_CN=description_zh, en_US=description_en)
+    if category_zh is not None and category_en is not None:
+        extra.i18n_category = i18n_text(zh_CN=category_zh, en_US=category_en)
+    payload = extra.model_dump()
+    if enable_toggle:
+        payload["enable_toggle"] = enable_toggle
+    return payload
+
+
 class BaseAdapterConfig(ConfigBase):
     """适配器配置基类"""
 
@@ -42,18 +66,42 @@ class BaseAdapterConfig(ConfigBase):
         default=False,
         title="启用适配器",
         description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+        json_schema_extra=adapter_extra_field(
+            title_zh="启用适配器",
+            title_en="Enable Adapter",
+            description_zh="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+            description_en="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
+            category_zh="基础设置",
+            category_en="Basic Settings",
+            is_need_restart=True,
+        ),
     )
 
     SESSION_ENABLE_AT: bool = Field(
         default=True,
         title="启用 @用户 功能",
         description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+        json_schema_extra=adapter_extra_field(
+            title_zh="启用 @用户 功能",
+            title_en="Enable @User Mention",
+            description_zh="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+            description_en="When disabled, @user mentions sent by AI will be converted to plain text usernames to avoid repeatedly disturbing users.",
+            category_zh="交互",
+            category_en="Interaction",
+        ),
     )
     SESSION_PROCESSING_WITH_EMOJI: bool = Field(
         default=True,
         title="显示处理中表情反馈",
         description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+        json_schema_extra=adapter_extra_field(
+            title_zh="显示处理中表情反馈",
+            title_en="Show Processing Emoji Feedback",
+            description_zh="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+            description_en="When AI starts processing a message, a processing emoji reaction will be shown on the corresponding message.",
+            category_zh="交互",
+            category_en="Interaction",
+        ),
     )
 
     # 命令系统配置
@@ -61,26 +109,66 @@ class BaseAdapterConfig(ConfigBase):
         default="/",
         title="命令前缀",
         description="触发命令的前缀字符，如 / 或 !",
+        json_schema_extra=adapter_extra_field(
+            title_zh="命令前缀",
+            title_en="Command Prefix",
+            description_zh="触发命令的前缀字符，如 / 或 !",
+            description_en="Prefix character used to trigger commands, such as / or !.",
+            category_zh="命令",
+            category_en="Commands",
+        ),
     )
     COMMAND_ENABLED: bool = Field(
         default=True,
         title="启用命令系统",
         description="关闭后该适配器不再识别和处理命令",
+        json_schema_extra=adapter_extra_field(
+            title_zh="启用命令系统",
+            title_en="Enable Command System",
+            description_zh="关闭后该适配器不再识别和处理命令",
+            description_en="When disabled, this adapter will stop recognizing and processing commands.",
+            category_zh="命令",
+            category_en="Commands",
+        ),
     )
     COMMAND_UNAUTHORIZED_OUTPUT: bool = Field(
         default=True,
         title="权限不足提示",
         description="权限不足时是否向用户输出提示信息",
+        json_schema_extra=adapter_extra_field(
+            title_zh="权限不足提示",
+            title_en="Show Permission Denied Notice",
+            description_zh="权限不足时是否向用户输出提示信息",
+            description_en="Whether to output a notice to users when permissions are insufficient.",
+            category_zh="命令",
+            category_en="Commands",
+        ),
     )
     COMMAND_ENHANCED_OUTPUT: bool = Field(
         default=False,
         title="命令增强输出",
         description="启用后，较长的命令输出将使用平台特性进行优化展示（如合并转发、卡片等）",
+        json_schema_extra=adapter_extra_field(
+            title_zh="命令增强输出",
+            title_en="Enhanced Command Output",
+            description_zh="启用后，较长的命令输出将使用平台特性进行优化展示（如合并转发、卡片等）",
+            description_en="When enabled, longer command outputs will use platform-specific optimized display methods such as forward messages or cards.",
+            category_zh="命令",
+            category_en="Commands",
+        ),
     )
     COMMAND_ENHANCED_OUTPUT_MIN_LENGTH: int = Field(
         default=200,
         title="增强输出触发字数",
         description="命令输出超过此字数时触发增强输出（需启用命令增强输出）",
+        json_schema_extra=adapter_extra_field(
+            title_zh="增强输出触发字数",
+            title_en="Enhanced Output Threshold",
+            description_zh="命令输出超过此字数时触发增强输出（需启用命令增强输出）",
+            description_en="Enhanced output will be triggered when command output exceeds this length. Requires enhanced command output to be enabled.",
+            category_zh="命令",
+            category_en="Commands",
+        ),
     )
 
 

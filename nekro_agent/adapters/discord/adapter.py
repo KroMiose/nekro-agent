@@ -57,7 +57,7 @@ class DiscordAdapter(BaseAdapter[DiscordConfig]):
             name="Discord",
             description="连接到 Discord 平台的适配器，允许通过 Bot 与服务器和用户进行交互。",
             version="1.0.0",
-            author="KroMiose",
+            author="NekroAI",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["discord", "chat", "im"],
         )

@@ -15,14 +15,13 @@ from nekro_agent.adapters.interface.schemas.platform import (
 )
 from nekro_agent.adapters.onebot_v11.matchers.message import register_matcher
 from nekro_agent.core import config, logger
-from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
 from nekro_agent.services.command.schemas import CommandResponse
 
-from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
+from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig, adapter_extra_field
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
@@ -35,18 +34,43 @@ class OnebotV11Config(BaseAdapterConfig):
         default=True,
         title="启用适配器",
         description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+        json_schema_extra=adapter_extra_field(
+            title_zh="启用适配器",
+            title_en="Enable Adapter",
+            description_zh="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+            description_en="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
+            category_zh="基础设置",
+            category_en="Basic Settings",
+            is_need_restart=True,
+        ),
     )
 
     BOT_QQ: str = Field(
         default="",
         title="机器人 QQ 号",
-        json_schema_extra=ExtraField(required=True).model_dump(),
+        description="当前 OneBot 机器人的 QQ 号",
+        json_schema_extra=adapter_extra_field(
+            title_zh="机器人 QQ 号",
+            title_en="Bot QQ Number",
+            description_zh="当前 OneBot 机器人的 QQ 号",
+            description_en="QQ number of the current OneBot bot.",
+            category_zh="OneBot",
+            category_en="OneBot",
+            required=True,
+        ),
     )
     RESOLVE_CQ_CODE: bool = Field(
         default=False,
         title="是否解析 CQ 码",
         description="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+        json_schema_extra=adapter_extra_field(
+            title_zh="是否解析 CQ 码",
+            title_en="Parse CQ Codes",
+            description_zh="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+            description_en="When enabled, CQ codes in AI-generated messages will no longer be treated as plain text and will instead be parsed into rich messages by the protocol implementation.",
+            category_zh="OneBot",
+            category_en="OneBot",
+        ),
     )
 
     """NAPCAT 配置"""
@@ -54,9 +78,29 @@ class OnebotV11Config(BaseAdapterConfig):
         default="http://127.0.0.1:6099/webui",
         title="NapCat WebUI 访问地址",
         description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
-        json_schema_extra=ExtraField(placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui").model_dump(),
+        json_schema_extra=adapter_extra_field(
+            title_zh="NapCat WebUI 访问地址",
+            title_en="NapCat WebUI URL",
+            description_zh="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
+            description_en="WebUI URL of NapCat. Make sure the corresponding port is accessible.",
+            category_zh="NapCat",
+            category_en="NapCat",
+            placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui",
+        ),
     )
-    NAPCAT_CONTAINER_NAME: str = Field(default="nekro_napcat", title="NapCat 容器名称")
+    NAPCAT_CONTAINER_NAME: str = Field(
+        default="nekro_napcat",
+        title="NapCat 容器名称",
+        description="NapCat 容器名称，用于容器相关集成功能",
+        json_schema_extra=adapter_extra_field(
+            title_zh="NapCat 容器名称",
+            title_en="NapCat Container Name",
+            description_zh="NapCat 容器名称，用于容器相关集成功能",
+            description_en="Container name of NapCat, used by container-related integration features.",
+            category_zh="NapCat",
+            category_en="NapCat",
+        ),
+    )
 
 
 class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
@@ -76,7 +120,7 @@ class OnebotV11Adapter(BaseAdapter[OnebotV11Config]):
             name="OneBot V11",
             description="OneBot V11 协议适配器，支持与兼容 OneBot V11 标准的 QQ 机器人实现进行通信",
             version="1.0.0",
-            author="NekroAgent",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["qq", "onebot", "v11", "chat", "messaging"],
         )

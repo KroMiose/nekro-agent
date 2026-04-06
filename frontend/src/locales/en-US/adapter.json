@@ -33,6 +33,8 @@
   "home": {
     "version": "Version",
     "author": "Author",
+    "expandSummary": "Expand Summary",
+    "collapseSummary": "Collapse Summary",
     "loadingDocs": "Loading documentation...",
     "loadDocsFailed": "Failed to load documentation",
     "adapterDocs": "Adapter Documentation",

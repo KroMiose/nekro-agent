@@ -1,31 +1,14 @@
 # 企业微信自建应用适配器
 
-企业微信自建应用模式，使用回调 URL 接收消息，并通过企业微信应用 API 发送消息。
+适合把 Agent 作为企业微信自建应用能力的一部分，用在内部业务助手、服务通知和一对一沟通场景。
 
-## 必填配置
+## 你可以用它做什么
 
-```yaml
-CORP_ID: "wwxxxxxxxxxxxxxxxx"
-CORP_APP_SECRET: "your-app-secret"
-CORP_APP_AGENT_ID: "1000002"
-CALLBACK_TOKEN: "your-callback-token"
-CALLBACK_ENCODING_AES_KEY: "your-encoding-aes-key"
-CORP_API_BASE_URL: "https://qyapi.weixin.qq.com"
-```
+- 在企业微信里承接一对一消息沟通
+- 发送文字、图片和文件，满足常见业务反馈场景
+- 适合作为内部业务助手、客服式答疑或服务通知入口
+- 当前更适合私聊类场景使用
 
-## 回调地址
+详细接入、配置步骤和注意事项请查看文档站：
 
-在企业微信后台配置：
-
-`/api/adapters/wxwork_corp_app/callback`
-
-例如：
-
-`https://your-domain.example.com/api/adapters/wxwork_corp_app/callback`
-
-## 说明
-
-- URL 验证与消息接收都走同一回调地址
-- 私聊发送走 `/cgi-bin/message/send`
-- 当前仅支持私聊消息收发
-- 群聊 `ChatId` 与 `/cgi-bin/appchat/send` 暂不启用
+<https://doc.nekro.ai/docs/02_quick_start/adapters/wecom_app.html>
