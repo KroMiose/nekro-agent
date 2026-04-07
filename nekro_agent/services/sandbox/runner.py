@@ -48,7 +48,8 @@ CONTAINER_SHARE_DIR = "/app/shared"  # 容器内共享目录 (读写)
 CONTAINER_UPLOAD_DIR = "/app/uploads"  # 容器上传目录 (只读)
 CONTAINER_WORK_DIR = "/app"  # 容器工作目录
 CONTAINER_PIP_CACHE_DIR = "/app/.pip_cache"  # 容器pip缓存目录
-CONTAINER_PACKAGE_DIR = "/app/packages"  # 容器包缓存目录
+CONTAINER_PACKAGE_DIR = "/app/packages"  # 容器包缓存目录 (只读, 共享)
+CONTAINER_LOCAL_PACKAGE_DIR = "/app/local_packages"  # 容器本地包目录 (读写, 每沙盒隔离)
 
 CODE_FILENAME = "run_script.py.code"  # 要执行的代码文件名
 RUN_CODE_FILENAME = "run_script.py"  # 要执行的代码文件名
@@ -157,6 +158,10 @@ async def run_code_in_sandbox(
     HOST_PACKAGE_DIR.mkdir(parents=True, exist_ok=True)
     HOST_PIP_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+    # 创建每沙盒隔离的本地包目录 (用于动态安装)
+    sandbox_pkg_dir = Path(HOST_SHARED_DIR / container_key / ".local_packages")
+    sandbox_pkg_dir.mkdir(parents=True, exist_ok=True)
+
     # 写入预置依赖代码
     api_caller_file_path = Path(host_shared_dir) / API_CALLER_FILENAME
     api_caller_file_path.write_text(
@@ -172,10 +177,11 @@ async def run_code_in_sandbox(
     try:
         Path.chmod(host_shared_dir, 0o777)
         logger.debug(f"设置目录权限: {host_shared_dir} 777")
-        Path.chmod(HOST_PIP_CACHE_DIR, 0o777)
-        logger.debug(f"设置目录权限: {HOST_PIP_CACHE_DIR} 777")
-        Path.chmod(HOST_PACKAGE_DIR, 0o777)
-        logger.debug(f"设置目录权限: {HOST_PACKAGE_DIR} 777")
+        # 共享目录使用 0o755 防止沙盒容器写入
+        Path.chmod(HOST_PIP_CACHE_DIR, 0o755)
+        logger.debug(f"设置目录权限: {HOST_PIP_CACHE_DIR} 755")
+        Path.chmod(HOST_PACKAGE_DIR, 0o755)
+        logger.debug(f"设置目录权限: {HOST_PACKAGE_DIR} 755")
     except Exception as e:
         logger.error(f"设置目录权限失败: {e}")
 
@@ -212,8 +218,9 @@ async def run_code_in_sandbox(
                 "Cmd": ["bash", "-c", EXEC_SCRIPT],
                 "HostConfig": {
                     "Binds": [
-                        f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:rw",
-                        f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:rw",
+                        f"{HOST_PIP_CACHE_DIR}:{CONTAINER_PIP_CACHE_DIR}:ro",
+                        f"{HOST_PACKAGE_DIR}:{CONTAINER_PACKAGE_DIR}:ro",
+                        f"{sandbox_pkg_dir}:{CONTAINER_LOCAL_PACKAGE_DIR}:rw",
                         f"{host_shared_dir}:{CONTAINER_SHARE_DIR}:rw",
                         f"{USER_UPLOAD_DIR}/{from_chat_key}:{CONTAINER_UPLOAD_DIR}:ro",
                     ],

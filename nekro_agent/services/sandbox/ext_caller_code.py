@@ -23,6 +23,9 @@ CONTAINER_KEY = "{CONTAINER_KEY}"
 FROM_CHAT_KEY = "{FROM_CHAT_KEY}"
 RPC_SECRET_KEY = "{RPC_SECRET_KEY}"
 
+# 共享包目录 (只读, 预装包可从此处导入)
+SHARED_PACKAGE_DIR = "/app/packages"
+
 
 def __extension_method_proxy(method: Callable):
     """扩展方法代理执行器"""
@@ -63,13 +66,19 @@ def __extension_method_proxy(method: Callable):
     return acutely_call_method
 
 
+# 将共享包目录 (只读) 添加到 sys.path 以便导入已有的共享包
+for _shared_path in [SHARED_PACKAGE_DIR, SHARED_PACKAGE_DIR + "/site-packages"]:
+    if Path(_shared_path).is_dir() and _shared_path not in sys.path:
+        sys.path.append(_shared_path)
+
+
 def dynamic_importer(
     package_spec: str,
     import_name: Optional[str] = None,
     mirror: Optional[str] = "https://mirrors.aliyun.com/pypi/simple",
     trusted_host: bool = True,
     timeout: int = 300,
-    repo_dir: Optional[str] = "/app/packages",
+    repo_dir: Optional[str] = "/app/local_packages",
 ) -> Any:
     """动态安装并导入Python包
 
@@ -110,13 +119,17 @@ def dynamic_importer(
             if path not in sys.path:
                 sys.path.insert(0, path)
 
-    # 检查是否已安装符合条件的版本
+    # 检查是否已安装符合条件的版本 (检查本地和共享目录)
     need_install = True
+    check_paths = []
+    if repo_dir:
+        check_paths.append(repo_dir)
+    if Path(SHARED_PACKAGE_DIR).is_dir():
+        check_paths.append(SHARED_PACKAGE_DIR)
+
     try:
-        # 处理distributions函数的path参数
-        if repo_dir:
-            path_list = [repo_dir]
-            dists = distributions(path=path_list)
+        if check_paths:
+            dists = distributions(path=check_paths)
         else:
             dists = distributions()
 
