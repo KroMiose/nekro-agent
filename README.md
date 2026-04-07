@@ -33,7 +33,7 @@ Switch to [English](./README_en.md)
   <br/>
   🚅 源自首批大模型机器人应用 <a href="https://github.com/KroMiose/nonebot_plugin_naturel_gpt">Naturel GPT</a> 的 Agent 升级重构续作 🌈<br/>
   📚 <a href="https://doc.nekro.ai">Nekro Agent 文档中心</a> 提供完整的入门指南与开发文档 📚<br/>
-  💬 技术交流/答疑 -> 加入社区 QQ 交流群:<a href="https://qm.qq.com/q/eT30LxDcSA"> 636925153 (1群|将满)</a>  | <a href="https://qm.qq.com/q/ZQ6QHdkXu0"> 679808796 (2群|新开)</a>  | <a href="https://discord.gg/eMsgwFnxUB">Discord Channel</a> 🗨️ <br/>
+  💬 技术交流/答疑 -> 加入社区 QQ 交流群:<a href="https://qm.qq.com/q/eT30LxDcSA"> 636925153 (1群)</a> | <a href="https://discord.gg/eMsgwFnxUB">Discord Channel</a> 🗨️ <br/>
   🚀 <a href="https://cloud.nekro.ai">NekroAI 云社区</a> 提供插件和人设实时自由共享，生态观测功能等你体验！ 🚀<br/>
 </div>
 
