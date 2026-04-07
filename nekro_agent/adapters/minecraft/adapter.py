@@ -13,7 +13,6 @@ from nekro_agent.adapters.interface.base import (
     AdapterMetadata,
     BaseAdapter,
     BaseAdapterConfig,
-    adapter_extra_field,
 )
 from nekro_agent.adapters.interface.schemas.platform import (
     PlatformChannel,
@@ -23,8 +22,10 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
 
 
 logger = get_sub_logger("adapter.minecraft")
@@ -50,93 +51,93 @@ class MinecraftConfig(BaseAdapterConfig):
         default=False,
         title="启用 @用户 功能",
         description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
-        json_schema_extra=adapter_extra_field(
-            title_zh="启用 @用户 功能",
-            title_en="Enable @User Mention",
-            description_zh="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
-            description_en="When disabled, @user mentions sent by AI will be converted to plain text usernames to avoid repeatedly disturbing users.",
-            category_zh="交互",
-            category_en="Interaction",
+        json_schema_extra=ExtraField(
             is_hidden=True,
-        ),
+            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
+            i18n_title=i18n_text(zh_CN="启用 @用户 功能", en_US="Enable @User Mention"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+                en_US="When disabled, @user mentions sent by AI will be converted to plain text usernames to avoid repeatedly disturbing users.",
+            ),
+        ).model_dump(),
     )
     SESSION_PROCESSING_WITH_EMOJI: bool = Field(
         default=False,
         title="显示处理中表情反馈",
         description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
-        json_schema_extra=adapter_extra_field(
-            title_zh="显示处理中表情反馈",
-            title_en="Show Processing Emoji Feedback",
-            description_zh="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
-            description_en="When AI starts processing a message, a processing emoji reaction will be shown on the corresponding message.",
-            category_zh="交互",
-            category_en="Interaction",
+        json_schema_extra=ExtraField(
             is_hidden=True,
-        ),
+            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
+            i18n_title=i18n_text(zh_CN="显示处理中表情反馈", en_US="Show Processing Emoji Feedback"),
+            i18n_description=i18n_text(
+                zh_CN="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+                en_US="When AI starts processing a message, a processing emoji reaction will be shown on the corresponding message.",
+            ),
+        ).model_dump(),
     )
     SERVERS: List[ServerConfig] = Field(
         default_factory=list,
         title="服务器列表",
         description="在这里配置你的 Minecraft 服务器",
-        json_schema_extra=adapter_extra_field(
-            title_zh="服务器列表",
-            title_en="Server List",
-            description_zh="在这里配置你的 Minecraft 服务器",
-            description_en="Configure your Minecraft servers here.",
-            category_zh="服务器",
-            category_en="Servers",
+        json_schema_extra=ExtraField(
             required=True,
             is_need_restart=True,
-        ),
+            i18n_category=i18n_text(zh_CN="服务器", en_US="Servers"),
+            i18n_title=i18n_text(zh_CN="服务器列表", en_US="Server List"),
+            i18n_description=i18n_text(
+                zh_CN="在这里配置你的 Minecraft 服务器",
+                en_US="Configure your Minecraft servers here.",
+            ),
+        ).model_dump(),
     )
     MINECRAFT_WS_URLS: str = Field(
         default="{}",
         title="Minecraft 服务器 WebSocket 地址",
         description="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
-        json_schema_extra=adapter_extra_field(
-            title_zh="Minecraft 服务器 WebSocket 地址",
-            title_en="Minecraft Server WebSocket URLs",
-            description_zh="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
-            description_en="WebSocket URLs of Minecraft servers. Multiple servers can be configured.",
-            category_zh="兼容",
-            category_en="Compatibility",
+        json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_ws_urls",
             is_textarea=True,
             is_hidden=True,
-        ),
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 WebSocket 地址", en_US="Minecraft Server WebSocket URLs"),
+            i18n_description=i18n_text(
+                zh_CN="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
+                en_US="WebSocket URLs of Minecraft servers. Multiple servers can be configured.",
+            ),
+        ).model_dump(),
     )
     MINECRAFT_ACCESS_TOKEN: str = Field(
         default="",
         title="Minecraft 服务器 WebSocket 认证密钥",
         description="用于验证连接",
-        json_schema_extra=adapter_extra_field(
-            title_zh="Minecraft 服务器 WebSocket 认证密钥",
-            title_en="Minecraft Server WebSocket Access Token",
-            description_zh="用于验证连接",
-            description_en="Access token used to verify WebSocket connections.",
-            category_zh="兼容",
-            category_en="Compatibility",
+        json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_access_token",
-        ),
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 WebSocket 认证密钥", en_US="Minecraft Server WebSocket Access Token"),
+            i18n_description=i18n_text(
+                zh_CN="用于验证连接",
+                en_US="Access token used to verify WebSocket connections.",
+            ),
+        ).model_dump(),
     )
     MINECRAFT_SERVER_RCON: str = Field(
         default="{}",
         title="Minecraft 服务器 RCON 地址",
         description="Minecraft 服务器 RCON 地址，用于远程执行指令",
-        json_schema_extra=adapter_extra_field(
-            title_zh="Minecraft 服务器 RCON 地址",
-            title_en="Minecraft Server RCON Addresses",
-            description_zh="Minecraft 服务器 RCON 地址，用于远程执行指令",
-            description_en="RCON addresses of Minecraft servers, used to execute commands remotely.",
-            category_zh="兼容",
-            category_en="Compatibility",
+        json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_server_rcon",
             is_textarea=True,
             is_hidden=True,
-        ),
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 RCON 地址", en_US="Minecraft Server RCON Addresses"),
+            i18n_description=i18n_text(
+                zh_CN="Minecraft 服务器 RCON 地址，用于远程执行指令",
+                en_US="RCON addresses of Minecraft servers, used to execute commands remotely.",
+            ),
+        ).model_dump(),
     )
 
     @model_validator(mode="after")

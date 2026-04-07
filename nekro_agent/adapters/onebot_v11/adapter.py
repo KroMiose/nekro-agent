@@ -19,9 +19,11 @@ from nekro_agent.core.os_env import OsEnv
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.agent_message import AgentMessageSegment, AgentMessageSegmentType
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.command.schemas import CommandResponse
+from nekro_agent.core.core_utils import ExtraField
 
-from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig, adapter_extra_field
+from ..interface.base import AdapterMetadata, BaseAdapter, BaseAdapterConfig
 from .core.bot import get_bot
 from .tools.at_parser import SegAt, parse_at_from_text
 from .tools.convertor import get_channel_type
@@ -34,43 +36,43 @@ class OnebotV11Config(BaseAdapterConfig):
         default=True,
         title="启用适配器",
         description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-        json_schema_extra=adapter_extra_field(
-            title_zh="启用适配器",
-            title_en="Enable Adapter",
-            description_zh="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-            description_en="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
-            category_zh="基础设置",
-            category_en="Basic Settings",
+        json_schema_extra=ExtraField(
             is_need_restart=True,
-        ),
+            i18n_category=i18n_text(zh_CN="基础设置", en_US="Basic Settings"),
+            i18n_title=i18n_text(zh_CN="启用适配器", en_US="Enable Adapter"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+                en_US="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
+            ),
+        ).model_dump(),
     )
 
     BOT_QQ: str = Field(
         default="",
         title="机器人 QQ 号",
         description="当前 OneBot 机器人的 QQ 号",
-        json_schema_extra=adapter_extra_field(
-            title_zh="机器人 QQ 号",
-            title_en="Bot QQ Number",
-            description_zh="当前 OneBot 机器人的 QQ 号",
-            description_en="QQ number of the current OneBot bot.",
-            category_zh="OneBot",
-            category_en="OneBot",
+        json_schema_extra=ExtraField(
             required=True,
-        ),
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="机器人 QQ 号", en_US="Bot QQ Number"),
+            i18n_description=i18n_text(
+                zh_CN="当前 OneBot 机器人的 QQ 号",
+                en_US="QQ number of the current OneBot bot.",
+            ),
+        ).model_dump(),
     )
     RESOLVE_CQ_CODE: bool = Field(
         default=False,
         title="是否解析 CQ 码",
         description="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
-        json_schema_extra=adapter_extra_field(
-            title_zh="是否解析 CQ 码",
-            title_en="Parse CQ Codes",
-            description_zh="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
-            description_en="When enabled, CQ codes in AI-generated messages will no longer be treated as plain text and will instead be parsed into rich messages by the protocol implementation.",
-            category_zh="OneBot",
-            category_en="OneBot",
-        ),
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="OneBot", en_US="OneBot"),
+            i18n_title=i18n_text(zh_CN="是否解析 CQ 码", en_US="Parse CQ Codes"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，AI 发送的消息中的 CQ 码不再被视为纯文本，而是会被协议实现端解析为对应的富文本消息",
+                en_US="When enabled, CQ codes in AI-generated messages will no longer be treated as plain text and will instead be parsed into rich messages by the protocol implementation.",
+            ),
+        ).model_dump(),
     )
 
     """NAPCAT 配置"""
@@ -78,28 +80,28 @@ class OnebotV11Config(BaseAdapterConfig):
         default="http://127.0.0.1:6099/webui",
         title="NapCat WebUI 访问地址",
         description="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
-        json_schema_extra=adapter_extra_field(
-            title_zh="NapCat WebUI 访问地址",
-            title_en="NapCat WebUI URL",
-            description_zh="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
-            description_en="WebUI URL of NapCat. Make sure the corresponding port is accessible.",
-            category_zh="NapCat",
-            category_en="NapCat",
+        json_schema_extra=ExtraField(
             placeholder="例: http://<服务器 IP>:<NapCat 端口>/webui",
-        ),
+            i18n_category=i18n_text(zh_CN="NapCat", en_US="NapCat"),
+            i18n_title=i18n_text(zh_CN="NapCat WebUI 访问地址", en_US="NapCat WebUI URL"),
+            i18n_description=i18n_text(
+                zh_CN="NapCat 的 WebUI 地址，请确保对应端口已开放访问",
+                en_US="WebUI URL of NapCat. Make sure the corresponding port is accessible.",
+            ),
+        ).model_dump(),
     )
     NAPCAT_CONTAINER_NAME: str = Field(
         default="nekro_napcat",
         title="NapCat 容器名称",
         description="NapCat 容器名称，用于容器相关集成功能",
-        json_schema_extra=adapter_extra_field(
-            title_zh="NapCat 容器名称",
-            title_en="NapCat Container Name",
-            description_zh="NapCat 容器名称，用于容器相关集成功能",
-            description_en="Container name of NapCat, used by container-related integration features.",
-            category_zh="NapCat",
-            category_en="NapCat",
-        ),
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="NapCat", en_US="NapCat"),
+            i18n_title=i18n_text(zh_CN="NapCat 容器名称", en_US="NapCat Container Name"),
+            i18n_description=i18n_text(
+                zh_CN="NapCat 容器名称，用于容器相关集成功能",
+                en_US="Container name of NapCat, used by container-related integration features.",
+            ),
+        ).model_dump(),
     )
 
 
