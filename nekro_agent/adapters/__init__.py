@@ -1,4 +1,5 @@
 import importlib
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict
@@ -192,9 +193,15 @@ async def init_adapters(_app: FastAPI):
 
 
 async def cleanup_adapters(_app: FastAPI):
+    cleanup_started_at = time.perf_counter()
+    logger.debug(f"Adapter cleanup begin, total={len(loaded_adapters)}")
     for adapter_key, adapter in loaded_adapters.items():
+        adapter_started_at = time.perf_counter()
+        logger.debug(f"Adapter {adapter_key} cleanup begin")
         await adapter.cleanup()
+        logger.debug(f"Adapter {adapter_key} cleanup finished in {time.perf_counter() - adapter_started_at:.3f}s")
         logger.info(f"Adapter {adapter_key} cleaned up")
+    logger.debug(f"Adapter cleanup finished in {time.perf_counter() - cleanup_started_at:.3f}s")
 
 
 def get_adapter(adapter_key: str) -> BaseAdapter:
