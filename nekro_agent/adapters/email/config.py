@@ -181,7 +181,8 @@ class EmailConfig(BaseAdapterConfig):
     - MAX_PER_POLL：单次轮询最大抓取数，防止突发大量邮件造成阻塞
     - MARK_AS_SEEN_AFTER_FETCH：读取后标记邮件为已读
     - IMAP_TIMEOUT：IMAP 连接和操作的超时时间
-    - SESSION_ENABLE_AT / SESSION_PROCESSING_WITH_EMOJI：聊天相关功能已禁用（只读适配器不需要）
+    - SESSION_ENABLE_AT：聊天中的 @ 功能已禁用（邮箱场景不需要）
+    - SESSION_PROCESSING_WITH_EMOJI：沿用适配器基类配置，是否生效取决于适配器是否支持
     """
 
     RECEIVE_ACCOUNTS: List[EmailAccount] = Field(
@@ -308,21 +309,6 @@ class EmailConfig(BaseAdapterConfig):
             ),
         ).model_dump(),
     )
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
-        default=False,
-        title="禁用处理中表情",
-        description="邮箱适配器不需要处理表情反馈，固定禁用并隐藏",
-        json_schema_extra=ExtraField(
-            is_hidden=True,
-            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
-            i18n_title=i18n_text(zh_CN="禁用处理中表情", en_US="Disable Processing Emoji Feedback"),
-            i18n_description=i18n_text(
-                zh_CN="邮箱适配器不需要处理表情反馈，固定禁用并隐藏",
-                en_US="The email adapter does not need processing emoji feedback, so this option is fixed to disabled and hidden.",
-            ),
-        ).model_dump(),
-    )
-
     @model_validator(mode="after")
     def _validate_mode(self):
         # 不强制报错，允许未配置情况下正常加载配置文件，保持行为不变

@@ -50,17 +50,3 @@ class WeChatPadConfig(BaseAdapterConfig):
             ),
         ).model_dump(),
     )
-
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
-        default=False,
-        title="显示处理中表情反馈",
-        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈（微信不支持此功能）",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
-            i18n_title=i18n_text(zh_CN="显示处理中表情反馈", en_US="Show Processing Emoji Feedback"),
-            i18n_description=i18n_text(
-                zh_CN="当 AI 开始处理消息时，对应消息会显示处理中表情反馈（微信不支持此功能）",
-                en_US="When AI starts processing a message, a processing emoji reaction would be shown on the corresponding message. This is not supported by WeChat.",
-            ),
-        ).model_dump(),
-    )

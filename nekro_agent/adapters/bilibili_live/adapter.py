@@ -8,7 +8,6 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import Field
 
 from nekro_agent.adapters.bilibili_live.templates.practice import (
-
     PracticePrompt_question_1,
     PracticePrompt_question_2,
     PracticePrompt_response_1,
@@ -47,21 +46,11 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 
 
 logger = get_sub_logger("adapter.bilibili_live")
+
+
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
-    ENABLED: bool = Field(
-        default=False,
-        title="启用 Bilibili 直播适配器",
-        description="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
-        json_schema_extra=ExtraField(
-            i18n_category=i18n_text(zh_CN="直播连接", en_US="Live Connection"),
-            i18n_title=i18n_text(zh_CN="启用 Bilibili 直播适配器", en_US="Enable Bilibili Live Adapter"),
-            i18n_description=i18n_text(
-                zh_CN="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
-                en_US="When enabled, the adapter will connect to the Bilibili live room WebSocket to receive danmaku messages.",
-            ),
-        ).model_dump(),
-    )
+
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",
