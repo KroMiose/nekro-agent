@@ -182,6 +182,9 @@ async def run_code_in_sandbox(
         logger.debug(f"设置目录权限: {HOST_PIP_CACHE_DIR} 755")
         Path.chmod(HOST_PACKAGE_DIR, 0o755)
         logger.debug(f"设置目录权限: {HOST_PACKAGE_DIR} 755")
+        # 每沙盒包目录需要可写权限以便容器内 nobody 用户安装包
+        Path.chmod(sandbox_pkg_dir, 0o777)
+        logger.debug(f"设置目录权限: {sandbox_pkg_dir} 777")
     except Exception as e:
         logger.error(f"设置目录权限失败: {e}")
 

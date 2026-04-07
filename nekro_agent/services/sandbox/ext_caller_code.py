@@ -124,8 +124,15 @@ def dynamic_importer(
     check_paths = []
     if repo_dir:
         check_paths.append(repo_dir)
+        repo_site_packages = repo_dir + "/site-packages"
+        if Path(repo_site_packages).is_dir():
+            check_paths.append(repo_site_packages)
     if Path(SHARED_PACKAGE_DIR).is_dir():
         check_paths.append(SHARED_PACKAGE_DIR)
+        # Also check site-packages subdir where dist-info may reside
+        shared_site_packages = SHARED_PACKAGE_DIR + "/site-packages"
+        if Path(shared_site_packages).is_dir():
+            check_paths.append(shared_site_packages)
 
     try:
         if check_paths:
