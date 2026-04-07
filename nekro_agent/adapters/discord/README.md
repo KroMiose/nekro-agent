@@ -1,55 +1,42 @@
 # Discord 适配器
 
-本适配器用于将 Nekro Agent 连接到 Discord 平台，使其能够作为 Discord Bot 与服务器内的用户进行实时交互。
+适合在 Discord 社区里放一个长期在线的 Agent，承担答疑、互动、资料发送和频道管理辅助。  
+如果你的社群以频道协作、长期运营和成员互动为主，这类适配器会比较贴合使用习惯。
 
-## 功能特性
+## 适合什么场景
 
-- **实时消息**：接收并响应服务器频道和私聊消息。
-- **富文本支持**：支持发送和接收文本、文件、图片以及 @提及。
-- **多服务器支持**：可以被邀请到多个 Discord 服务器中同时工作。
+- 社区运营：在频道里做答疑、引导、公告补充和秩序辅助
+- 兴趣群组：提供资料说明、命令入口和长期陪伴式互动
+- 多服务器管理：在多个服务器中复用同一类能力
+- 私聊支持：在频道外继续做一对一补充沟通
 
-## 配置指南
+## 你可以用它做什么
 
-要使用此适配器，您需要先在 Discord 开发者平台创建一个应用程序和对应的 Bot。
+- 在服务器频道和私聊中接收并回复消息
+- 支持图片、文件、回复和 @提及等常见互动方式
+- 可以给消息添加反馈，提升交流中的即时感
+- 适合社区运营、兴趣群组、知识答疑和公告通知场景
 
-### 1. 创建 Discord 应用程序
+## 使用前你需要准备
 
-1.  访问 [Discord Developer Portal](https://discord.com/developers/applications)。
-2.  点击右上角的 **"New Application"**。
-3.  为您的应用命名，然后点击 **"Create"**。
+- 一个已经创建好的 Discord Bot
+- Bot 已加入目标服务器并具有必要权限
+- 你希望交给 Agent 负责的频道类型和互动方式
 
-### 2. 创建 Bot
+## 使用体验上有什么特点
 
-1.  在应用页面，点击左侧菜单的 **"Bot"** 选项。
-2.  点击 **"Add Bot"**，然后确认创建。
-3.  在 Bot 设置页面，您可以自定义 Bot 的用户名和头像。
+- 很适合频道式社区，不同用途可以拆到不同频道里处理
+- 回复、附件、提及这些能力都比较适合社区管理和协作
+- 对成员来说使用门槛低，尤其适合公开社群或兴趣群组
 
-### 3. 获取 Bot Token
+## 使用时建议注意
 
-- 在 Bot 设置页面，找到 **"TOKEN"** 部分，点击 **"Reset Token"** (如果是首次创建则为 "View Token" 或 "Copy")。
-- **请妥善保管此 Token，不要泄露给任何人！** 这是控制您 Bot 的唯一凭证。
+- 先规划哪些频道允许机器人活跃，避免打扰正常讨论
+- 如果是公开社区，建议设计好触发方式和安全边界
+- 对于管理型场景，建议先小范围试运行再推广到多个服务器
 
-### 4. 配置特权网关意图 (Privileged Gateway Intents)
+## 获取完整文档
 
-为了让您的 Bot 能够读取消息内容，必须开启必要的 "Intents"。
+更详细的接入方式、配置说明和注意事项，请查看文档站：
 
-- 在 Bot 设置页面，向下滚动找到 **"Privileged Gateway Intents"** 部分。
-- 开启以下两个选项：
-    - **PRESENCE INTENT**
-    - **MESSAGE CONTENT INTENT** (最重要！)
-
-### 5. 邀请 Bot 到您的服务器
-
-1.  在应用页面，点击左侧菜单的 **"OAuth2"** -> **"URL Generator"**。
-2.  在 **"SCOPES"** 中，勾选 `bot` 和 `applications.commands`。
-3.  在下方出现的 **"BOT PERMISSIONS"** 中，勾选以下推荐权限：
-    - `Read Messages/View Channels`
-    - `Send Messages`
-    - `Send Messages in Threads`
-    - `Embed Links`
-    - `Attach Files`
-    - `Read Message History`
-    - `Mention @everyone, @here, and All Roles`
-    - `Use External Emojis`
-    - `Add Reactions`
-4.  复制页面底部生成的 **URL**，在浏览器中打开，然后选择您想邀请 Bot 加入的服务器。
+<https://doc.nekro.ai/docs/02_quick_start/adapters/discord.html>

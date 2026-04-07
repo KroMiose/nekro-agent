@@ -1,31 +1,42 @@
 # 企业微信自建应用适配器
 
-企业微信自建应用模式，使用回调 URL 接收消息，并通过企业微信应用 API 发送消息。
+适合把 Agent 作为企业微信自建应用能力的一部分，用在内部业务助手、服务通知和一对一沟通场景。  
+如果你更看重企业内部可控性、业务接入和应用级整合，这类方式通常比通用机器人更贴近正式业务流程。
 
-## 必填配置
+## 适合什么场景
 
-```yaml
-CORP_ID: "wwxxxxxxxxxxxxxxxx"
-CORP_APP_SECRET: "your-app-secret"
-CORP_APP_AGENT_ID: "1000002"
-CALLBACK_TOKEN: "your-callback-token"
-CALLBACK_ENCODING_AES_KEY: "your-encoding-aes-key"
-CORP_API_BASE_URL: "https://qyapi.weixin.qq.com"
-```
+- 内部业务助手：把业务答疑、反馈、处理结果直接发到企业微信
+- 服务通知：把审批结果、流程节点、系统提醒同步给相关人员
+- 一对一沟通：更适合私聊式服务入口、内部客服或专属助手
+- 业务集成：作为企业微信应用能力的一部分嵌入现有流程
 
-## 回调地址
+## 你可以用它做什么
 
-在企业微信后台配置：
+- 在企业微信里承接一对一消息沟通
+- 发送文字、图片和文件，满足常见业务反馈场景
+- 适合作为内部业务助手、客服式答疑或服务通知入口
+- 当前更适合私聊类场景使用
 
-`/api/adapters/wxwork_corp_app/callback`
+## 使用前你需要准备
 
-例如：
+- 一个已经创建好的企业微信自建应用
+- 应用具备接收消息、发送消息所需的配置和权限
+- 一个可被成员稳定访问的业务使用场景
 
-`https://your-domain.example.com/api/adapters/wxwork_corp_app/callback`
+## 使用体验上有什么特点
 
-## 说明
+- 更贴近正式业务入口，而不只是聊天机器人
+- 适合“问一句、查一下、收到结果”的任务型交互
+- 对内部流程通知、结果回执、资料反馈这类场景比较友好
 
-- URL 验证与消息接收都走同一回调地址
-- 私聊发送走 `/cgi-bin/message/send`
-- 当前仅支持私聊消息收发
-- 群聊 `ChatId` 与 `/cgi-bin/appchat/send` 暂不启用
+## 使用时建议注意
+
+- 先定义清楚它服务谁、处理什么问题，不要一开始就做成“大而全”
+- 更推荐从私聊场景起步，体验更容易控住
+- 如果涉及业务通知，建议先确认消息格式、时机和频率
+
+## 获取完整文档
+
+更详细的接入方式、配置说明和注意事项，请查看文档站：
+
+<https://doc.nekro.ai/docs/02_quick_start/adapters/wecom_app.html>

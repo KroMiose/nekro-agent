@@ -52,7 +52,7 @@ class FeishuAdapter(BaseAdapter[FeishuConfig]):
             name="飞书",
             description="飞书开放平台适配器，通过 WebSocket 长连接接收和发送消息，支持群聊和私聊。",
             version="1.0.0",
-            author="yang208115",
+            author="NekroAI",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["feishu", "lark", "im"],
         )

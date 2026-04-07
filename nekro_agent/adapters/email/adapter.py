@@ -320,7 +320,7 @@ class EmailAdapter(BaseAdapter[EmailConfig]):
             name="Email",
             description="邮箱适配器，支持通过IMAP/SMTP协议收发邮件",
             version="1.0.0",
-            author="liugu",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["email", "imap", "smtp", "mail"],
         )

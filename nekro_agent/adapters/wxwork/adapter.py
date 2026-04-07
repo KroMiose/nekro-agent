@@ -49,7 +49,7 @@ class WxWorkAdapter(BaseAdapter[WxWorkConfig]):
             name="企业微信智能机器人",
             description="企业微信 AI Bot 长连接适配器，使用 Bot ID + Secret 建立 WebSocket 长连接。",
             version="1.0.0",
-            author="liugu",
+            author="NekroAI",
             homepage="https://github.com/KroMiose/nekro-agent",
             tags=["wxwork", "wecom", "企业微信", "智能机器人", "aibot"],
         )
