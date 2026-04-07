@@ -1,6 +1,7 @@
 """旧版 OneBot 命令系统兼容层。"""
 
 import inspect
+import sys
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Annotated, Any, Optional
@@ -387,6 +388,32 @@ def _find_plugin(globals_dict: dict[str, Any]) -> Optional[NekroPlugin]:
     for value in globals_dict.values():
         if isinstance(value, NekroPlugin):
             return value
+
+    module_candidates: list[str] = []
+    module_name = globals_dict.get("__name__")
+    if isinstance(module_name, str) and module_name:
+        module_candidates.append(module_name)
+        if "." in module_name:
+            parent_module = module_name.rsplit(".", 1)[0]
+            module_candidates.append(parent_module)
+            module_candidates.append(f"{parent_module}.plugin")
+
+    package_name = globals_dict.get("__package__")
+    if isinstance(package_name, str) and package_name:
+        module_candidates.append(package_name)
+        module_candidates.append(f"{package_name}.plugin")
+
+    seen: set[str] = set()
+    for candidate in module_candidates:
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        module = sys.modules.get(candidate)
+        if module is None:
+            continue
+        package_plugin = getattr(module, "plugin", None)
+        if isinstance(package_plugin, NekroPlugin):
+            return package_plugin
     return None
 
 
