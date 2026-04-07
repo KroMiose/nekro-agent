@@ -404,3 +404,71 @@ const theme = useTheme()
 - 错误/失败 → `theme.palette.error.main`
 - 主色/强调 → `theme.palette.primary.main`
 - 次要/停止 → `theme.palette.text.secondary`
+
+---
+
+## 背景色规范（高频错误，务必遵守）
+
+### 禁止在组件内硬编码背景颜色
+
+**错误写法（已在项目中清除，绝对禁止再写）**：
+
+```tsx
+// ❌ 硬编码 rgba/grey，无法跟随品牌主色变化
+bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.50'
+backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : ...
+backgroundColor: mode === 'light' ? 'rgba(245, 245, 245, 0.85)' : ...
+```
+
+**正确方式：使用 `background.paper` token 或 `UNIFIED_TABLE_STYLES` 预定义样式**：
+
+```tsx
+// ✅ 通过 palette token
+const palette = getCurrentExtendedPalette()
+backgroundColor: mode === 'light' ? palette.background.paper : alpha(palette.background.paper, 0.95)
+
+// ✅ 直接使用预定义变体
+<Paper elevation={0} sx={UNIFIED_TABLE_STYLES.paper as SxProps<Theme>} />
+<Box sx={UNIFIED_TABLE_STYLES.pageTabContainer as object} />
+```
+
+### `background.paper` 是表格/卡片容器的唯一正确背景 token
+
+`palette.background.paper`（亮色 `#fafafa`，暗色 `#2f2f2f`）由 `palette.ts` 的 `generateBackgroundColors` 统一生成，是主题系统设计的唯一表格/卡片层背景。使用它能保证：
+1. 亮色和暗色模式下视觉层次一致
+2. 将来切换品牌主色时，背景自动跟随
+3. 不同页面的表格区域背景完全一致
+
+### 多页面共用同一结构时，样式必须收敛到 `variants.ts` 或 `themeConfig.ts`
+
+**禁止在多个页面/组件里各自复制相同的 `sx` 样式块**。当发现同一样式在两处以上出现，必须：
+
+1. 提取到 `UNIFIED_TABLE_STYLES`（表格系列）、`CARD_VARIANTS`（卡片系列）或新建专用变体
+2. 页面只引用变体名，不持有颜色逻辑
+
+当前已有的可复用变体（涵盖高频场景）：
+
+| 变体 | 用途 |
+|------|------|
+| `UNIFIED_TABLE_STYLES.paper` | 表格外层 Paper 容器 |
+| `UNIFIED_TABLE_STYLES.header` | 表格列头单元格 |
+| `UNIFIED_TABLE_STYLES.row` | 表格行 hover/斑马纹 |
+| `UNIFIED_TABLE_STYLES.cell` | 普通数据单元格 |
+| `UNIFIED_TABLE_STYLES.scrollbar` | 滚动条样式 |
+| `UNIFIED_TABLE_STYLES.pageTabContainer` | 页面顶部 Tabs 容器（配置页/模型管理页等） |
+| `CHIP_VARIANTS.getCustomColorChip(color, isSmall)` | 带颜色的 Chip（含 icon 颜色） |
+
+### `pageTabContainer` 专项说明
+
+凡是「页面顶部有 Tabs 分类导航」的设置/管理页，Tab 容器背景**必须使用 `UNIFIED_TABLE_STYLES.pageTabContainer`**，禁止各页各自写背景色：
+
+```tsx
+// ✅ 正确
+<Box sx={{ mb: 2, flexShrink: 0, ...(UNIFIED_TABLE_STYLES.pageTabContainer as object) }}>
+  <Tabs ...>...</Tabs>
+</Box>
+
+// ❌ 错误：各自写 bgcolor / background
+<Box sx={{ bgcolor: theme => theme.palette.mode === 'dark' ? '...' : 'grey.50' }}>
+```
+

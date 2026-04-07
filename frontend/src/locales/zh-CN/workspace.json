@@ -106,38 +106,65 @@
     "deleteFailed": "删除失败：{{message}}"
   },
   "ccModels": {
-    "infoAlert": "管理 Claude Code (CC) 沙盒使用的模型预设配置，在工作区配置页中选择预设以生成注入配置。",
-    "createBtn": "新建预设",
+    "infoAlert": "管理 Claude Code (CC) 沙盒使用的 CC 模型组，需要支持 Anthropic 兼容 API 的模型供应商（如官方 Anthropic、Vertex AI、AWS Bedrock 等）。在工作区配置页中选择模型组以生成注入配置。",
+    "createBtn": "新建模型组",
+    "actions": {
+      "searchPlaceholder": "搜索模型组、地址或描述",
+      "clearSelection": "清空选择",
+      "batchTest": "批量测试模型（{{count}}）"
+    },
     "table": {
       "headers": {
-        "name": "预设名称",
+        "name": "模型组名称",
         "desc": "描述",
         "type": "类型",
         "model": "模型",
         "baseUrl": "Base URL",
+        "usage": "工作区引用",
+        "health": "测速",
         "actions": "操作"
       },
-      "empty": "暂无预设，点击「新建预设」添加",
+      "empty": "暂无匹配的模型组",
       "defaultChip": "默认",
       "typePreset": "预设",
       "typeManual": "手动",
       "multiModel": "(多模型)",
+      "usageBound": "已绑定 {{count}} 个",
+      "usageIdle": "未绑定",
       "tooltips": {
         "edit": "编辑",
+        "copy": "复制",
+        "test": "测试模型",
+        "testDisabled": "请先补全 Base URL、Auth Token 和可测试模型",
         "delete": "删除",
-        "defaultCannotDelete": "默认预设不可删除"
+        "defaultCannotDelete": "默认模型组不可删除",
+        "boundCannotDelete": "已有 {{count}} 个工作区绑定，不能直接删除"
       }
     },
+    "health": {
+      "notTested": "未测试",
+      "testing": "测试中",
+      "ok": "{{ms}}ms",
+      "failed": "失败",
+      "tooltipPassed": "模型测试通过",
+      "tooltipFailed": "模型测试失败",
+      "tooltipModel": "实际模型：{{model}}",
+      "tooltipLatency": "耗时：{{ms}}ms",
+      "tooltipTokens": "Token：输入 {{input}} / 输出 {{output}}",
+      "tooltipReply": "模型回复：{{text}}",
+      "tooltipError": "错误信息：{{error}}"
+    },
     "dialog": {
-      "titleCreate": "新建 CC 模型预设",
-      "titleEdit": "编辑 CC 模型预设",
-      "name": "预设名称",
+      "titleCreate": "新建 CC 模型组",
+      "titleEdit": "编辑 CC 模型组",
+      "titleCopy": "复制 CC 模型组",
+      "name": "模型组名称",
       "nameReadonly": "名称创建后不可修改",
       "desc": "描述",
       "sectionApi": "API 配置",
-      "sourcePreset": "来源预设",
+      "sourcePreset": "来源模板",
       "sourcePresetHint": "自动填充官方确认的 Base URL 与推荐模型映射，随后只需填写密钥即可",
-      "sourcePresetCustom": "自定义（不套用预设）",
+      "sourcePresetCustom": "自定义（不套用模板）",
       "timeout": "超时 (ms)",
       "sectionModel": "模型配置",
       "modelType": "模型类型",
@@ -155,18 +182,24 @@
       "create": "创建"
     },
     "deleteDialog": {
-      "title": "确认删除预设",
-      "content": "确定要删除预设 {{name}} 吗？此操作不可撤销。",
+      "title": "确认删除模型组",
+      "content": "确定要删除模型组 {{name}} 吗？此操作不可撤销。",
+      "boundHint": "当前仍有 {{count}} 个工作区绑定：{{names}}",
       "cancel": "取消",
       "delete": "删除"
     },
     "notifications": {
-      "created": "预设已创建",
+      "created": "模型组已创建",
       "createFailed": "创建失败：{{message}}",
-      "saved": "预设已保存",
+      "saved": "模型组已保存",
       "saveFailed": "保存失败：{{message}}",
-      "deleted": "预设已删除",
-      "deleteFailed": "删除失败：{{message}}"
+      "deleted": "模型组已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "noTestableGroups": "当前选择中没有可测试的 CC 模型组",
+      "testNoResults": "模型测试未返回结果，请检查请求链路",
+      "testAllPassed": "模型测试通过",
+      "testCompleted": "模型测试完成，请查看结果",
+      "testFailed": "模型测试失败"
     }
   },
   "skills": {

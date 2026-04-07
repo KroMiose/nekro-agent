@@ -145,12 +145,16 @@ const router = createHashRouter([
             element: <Navigate to="system" />,
           },
           {
+            path: 'models',
+            element: lazyLoad(() => import('../pages/settings/models')),
+          },
+          {
             path: 'system',
             element: lazyLoad(() => import('../pages/settings/system')),
           },
           {
             path: 'model-groups',
-            element: lazyLoad(() => import('../pages/settings/model_group')),
+            element: <Navigate to="/settings/models?tab=basic" replace />,
           },
           {
             path: 'theme',
@@ -212,7 +216,7 @@ const router = createHashRouter([
           },
           {
             path: 'cc-models',
-            element: lazyLoad(() => import('../pages/workspace/cc-models')),
+            element: <Navigate to="/settings/models?tab=cc" replace />,
           },
           {
             path: 'mcp-services',

@@ -533,7 +533,7 @@ export default function OverviewTab({
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t('detail.overview.tooltips.managePresets')}>
-                    <IconButton size="small" onClick={() => navigate('/workspace/cc-models')}>
+                    <IconButton size="small" onClick={() => navigate('/settings/models?tab=cc')}>
                       <OpenInNewIcon sx={{ fontSize: 14 }} />
                     </IconButton>
                   </Tooltip>

@@ -363,8 +363,7 @@ function renderFieldInput(
           InputProps={{
             style: fieldSchema.is_secret
               ? ({
-                  '-webkit-text-security': 'disc',
-                  'text-security': 'disc',
+                  WebkitTextSecurity: 'disc',
                 } as React.CSSProperties)
               : undefined,
           }}
@@ -1212,7 +1211,7 @@ export default function ConfigTable({
               }
               size="small"
               endIcon={<LaunchIcon fontSize={isSmall ? 'small' : 'inherit'} />}
-              onClick={() => navigate('/settings/model-groups')}
+              onClick={() => navigate('/settings/models?tab=basic')}
               sx={{
                 flexShrink: 0,
                 borderRadius: 999,
@@ -1559,8 +1558,7 @@ export default function ConfigTable({
               style:
                 isSecret && !visibleSecrets[config.key]
                   ? ({
-                      '-webkit-text-security': 'disc',
-                      'text-security': 'disc',
+                      WebkitTextSecurity: 'disc',
                     } as React.CSSProperties)
                   : undefined,
               endAdornment: isSecret ? (

@@ -13,6 +13,24 @@ export interface ConfigInfo {
   field_count: number
 }
 
+export interface FetchModelsRequest {
+  base_url: string
+  api_key: string
+  proxy_url?: string
+}
+
+export interface ModelGroupTestItem {
+  group_name: string
+  model_name: string
+  success: boolean
+  latency_ms: number
+  used_model?: string | null
+  response_text?: string | null
+  input_tokens?: number
+  output_tokens?: number
+  error_message?: string | null
+}
+
 export const unifiedConfigApi = {
   // 获取所有配置键
   getConfigKeys: async (): Promise<string[]> => {
@@ -88,6 +106,18 @@ export const unifiedConfigApi = {
 
   deleteModelGroup: async (groupName: string): Promise<void> => {
     await axios.delete(`/config/model-groups/${groupName}`)
+  },
+
+  fetchModels: async (body: FetchModelsRequest): Promise<string[]> => {
+    const response = await axios.post<{ models: string[] }>('/config/model-groups/actions/fetch-models', body)
+    return response.data.models
+  },
+
+  testModelGroups: async (groupNames: string[]): Promise<ModelGroupTestItem[]> => {
+    const response = await axios.post<{ items: ModelGroupTestItem[] }>('/config/model-groups/actions/test', {
+      group_names: groupNames,
+    })
+    return response.data.items
   },
 }
 

@@ -160,13 +160,6 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
       {
-        path: '/workspace/cc-models',
-        text: t('menu.ccModels'),
-        translationKey: 'menu.ccModels',
-        icon: <StorageIcon />,
-        parent: 'workspace',
-      },
-      {
         path: '/workspace/mcp-services',
         text: t('menu.mcpServices'),
         translationKey: 'menu.mcpServices',
@@ -208,7 +201,7 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'settings',
       },
       {
-        path: '/settings/model-groups',
+        path: '/settings/models',
         text: t('menu.modelGroups'),
         translationKey: 'menu.modelGroups',
         icon: <StorageIcon />,

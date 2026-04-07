@@ -252,6 +252,9 @@ export const CHIP_VARIANTS = {
     backgroundColor: alpha(color, 0.12),
     color: color,
     borderColor: alpha(color, 0.2),
+    '& .MuiChip-icon': {
+      color: color,
+    },
   }),
 
   // 获取状态类型的Chip样式 - 使用纯函数而非Hooks
@@ -270,6 +273,9 @@ export const CHIP_VARIANTS = {
       backgroundColor: alpha(color, 0.12),
       color: color,
       borderColor: alpha(color, 0.2),
+      '& .MuiChip-icon': {
+        color: color,
+      },
     }
   },
 
@@ -424,8 +430,7 @@ export const UNIFIED_TABLE_STYLES = {
     const palette = getCurrentExtendedPalette()
     const mode = getCurrentThemeMode()
     return {
-      backgroundColor:
-        mode === 'light' ? 'rgba(255, 255, 255, 0.78)' : alpha(palette.background.paper, 0.75),
+      backgroundColor: mode === 'light' ? palette.background.paper : alpha(palette.background.paper, 0.75),
       borderRadius: BORDER_RADIUS.DEFAULT,
       border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
       boxShadow: UI_STYLES.getShadow('light'),
@@ -457,8 +462,9 @@ export const UNIFIED_TABLE_STYLES = {
       top: 0,
       zIndex: 10,
       fontWeight: 600,
-      backgroundColor:
-        mode === 'light' ? 'rgba(245, 245, 245, 0.85)' : alpha(palette.primary.darker, 0.5),
+      backgroundColor: mode === 'light'
+        ? alpha(palette.primary.main, 0.04)
+        : alpha(palette.primary.darker, 0.5),
       backdropFilter: 'blur(8px)',
       WebkitBackdropFilter: 'blur(8px)',
       boxShadow:
@@ -501,8 +507,7 @@ export const UNIFIED_TABLE_STYLES = {
     const palette = getCurrentExtendedPalette()
     const mode = getCurrentThemeMode()
     return {
-      backgroundColor:
-        mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : alpha(palette.background.paper, 0.95),
+      backgroundColor: mode === 'light' ? palette.background.paper : alpha(palette.background.paper, 0.95),
       boxShadow: UI_STYLES.getShadow('light'),
       borderRadius: BORDER_RADIUS.DEFAULT,
       border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
@@ -534,8 +539,7 @@ export const UNIFIED_TABLE_STYLES = {
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      backgroundColor:
-        mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : alpha(palette.background.paper, 0.95),
+      backgroundColor: mode === 'light' ? palette.background.paper : alpha(palette.background.paper, 0.95),
       boxShadow: UI_STYLES.getShadow('light'),
       borderRadius: BORDER_RADIUS.DEFAULT,
       border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
@@ -634,6 +638,22 @@ export const UNIFIED_TABLE_STYLES = {
         backgroundColor: mode === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
         borderRadius: '4px',
       },
+    }
+  },
+
+  // 页面顶部 Tab 栏容器样式（用于 ModelsPage / SettingsPage 等）
+  get pageTabContainer(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+    return {
+      px: 1,
+      py: 0.75,
+      border: 1,
+      borderColor: 'divider',
+      borderRadius: 2,
+      backgroundColor: mode === 'dark'
+        ? alpha(palette.background.paper, 0.4)
+        : alpha(palette.primary.main, 0.03),
     }
   },
 

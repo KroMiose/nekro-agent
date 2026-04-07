@@ -9,6 +9,7 @@ import { getLocalizedText } from '../../services/api/types'
 import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
+import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -169,12 +170,7 @@ export default function SettingsPage() {
         sx={{
           mb: 2,
           flexShrink: 0,
-          px: 1,
-          py: 0.75,
-          border: 1,
-          borderColor: 'divider',
-          borderRadius: 2,
-          bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.50',
+          ...(UNIFIED_TABLE_STYLES.pageTabContainer as object),
         }}
       >
         <Tabs

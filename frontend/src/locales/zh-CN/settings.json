@@ -2,7 +2,7 @@
   "title": "系统设置",
   "tabs": {
     "system": "基本配置",
-    "modelGroups": "模型组",
+    "modelGroups": "模型管理",
     "theme": "调色盘",
     "spaceCleanup": "空间回收"
   },
@@ -10,17 +10,31 @@
     "emptyMessage": "暂无系统配置项",
     "otherCategory": "其他"
   },
+  "models": {
+    "title": "模型管理",
+    "subtitle": "统一管理基础模型组与 CC 模型组，后续检测、批量操作与连通性验证都将在这里集中处理。",
+    "tabs": {
+      "basic": "基础模型组",
+      "cc": "CC模型组"
+    },
+    "insights": {
+      "chatGroups": "聊天基础模型组 {{count}} 个",
+      "visionGroups": "支持视觉 {{count}} 个",
+      "boundWorkspaces": "绑定 CC 模型组的工作区 {{count}} 个",
+      "idleCcGroups": "未被工作区使用的 CC 模型组 {{count}} 个"
+    }
+  },
   "modelGroup": {
-    "title": "模型组管理",
-    "addGroup": "添加模型组",
-    "editGroup": "编辑模型组",
-    "deleteGroup": "删除模型组",
-    "name": "模型组名称",
+    "title": "基础模型组管理",
+    "addGroup": "添加基础模型组",
+    "editGroup": "编辑基础模型组",
+    "deleteGroup": "删除基础模型组",
+    "name": "基础模型组名称",
     "description": "描述",
-    "emptyMessage": "暂无模型组",
-    "deleteConfirm": "确定要删除此模型组吗？",
-    "deleteSuccess": "模型组删除成功",
-    "saveSuccess": "模型组保存成功",
+    "emptyMessage": "暂无基础模型组",
+    "deleteConfirm": "确定要删除此基础模型组吗？",
+    "deleteSuccess": "基础模型组删除成功",
+    "saveSuccess": "基础模型组保存成功",
     "types": {
       "chat": "聊天",
       "embedding": "嵌入",
@@ -69,32 +83,51 @@
       "extraBody": "额外的请求参数 (JSON 格式)"
     },
     "actions": {
-      "fetchModels": "获取可用模型",
+      "fetchModels": "拉取模型列表",
       "fetching": "正在获取",
       "createCopy": "创建副本",
-      "saveFailed": "保存失败"
+      "saveFailed": "保存失败",
+      "searchPlaceholder": "搜索组名、模型名或地址",
+      "selectAllTestable": "全选可检测项（{{count}}）",
+      "clearSelection": "清空选择",
+      "batchTest": "批量测试模型（{{count}}）",
+      "test": "连接测试"
     },
     "validation": {
       "nameRequired": "组名不能为空",
       "nameInvalid": "组名不能包含URL特殊字符 (如 / ? & # = %)",
-      "nameExists": "模型组名称 \"{{name}}\" 已存在，请使用其他名称",
+      "nameExists": "基础模型组名称 \"{{name}}\" 已存在，请使用其他名称",
       "fetchSuccess": "已获取到 {{count}} 个可用模型",
       "fetchEmpty": "未获取到模型列表，请手动输入模型名称",
       "fetchError": "获取模型列表失败：{{error}}。请手动输入模型名称"
     },
     "dialog": {
-      "createTitle": "新建模型组",
-      "editTitle": "编辑模型组",
-      "copyTitle": "复制模型组"
+      "createTitle": "新建基础模型组",
+      "editTitle": "编辑基础模型组",
+      "copyTitle": "复制基础模型组"
     },
     "table": {
       "groupName": "组名",
       "modelName": "模型名称",
       "modelType": "模型类型",
       "apiAddress": "API地址",
-      "proxyAddress": "代理地址",
+      "proxyAddress": "代理",
       "features": "功能",
+      "health": "测速",
       "actions": "操作"
+    },
+    "health": {
+      "notTested": "未测试",
+      "testing": "测试中",
+      "ok": "{{ms}}ms",
+      "failed": "失败",
+      "tooltipPassed": "模型测试通过",
+      "tooltipFailed": "模型测试失败",
+      "tooltipModel": "实际模型：{{model}}",
+      "tooltipLatency": "耗时：{{ms}}ms",
+      "tooltipTokens": "Token：输入 {{input}} / 输出 {{output}}",
+      "tooltipReply": "模型回复：{{text}}",
+      "tooltipError": "错误信息：{{error}}"
     },
     "alert": {
       "providerSupportBefore": "支持任意 OpenAI 兼容模型供应商，如果您没有可用供应商或希望支持我们，可访问 ",
@@ -112,20 +145,29 @@
     "tooltips": {
       "visitProvider": "访问API提供商",
       "edit": "编辑模型组",
+      "test": "测速",
+      "testOnlyChat": "仅支持聊天类型模型测速",
       "copy": "复制模型组",
       "delete": "删除模型组",
       "defaultDelete": "默认模型组不可删除"
     },
     "notifications": {
-      "deleteSuccess": "模型组 \"{{name}}\" 已删除！",
+      "deleteSuccess": "基础模型组 \"{{name}}\" 已删除！",
       "deleteFailed": "删除失败",
-      "saveSuccess": "保存模型配置成功",
-      "copySuccess": "模型组 \"{{name}}\" 复制模型配置成功",
-      "nameExists": "模型组名称 \"{{name}}\" 已存在，请换一个名称～ (>﹏<)"
+      "saveSuccess": "基础模型组保存成功",
+      "copySuccess": "基础模型组 \"{{name}}\" 复制成功",
+      "nameExists": "基础模型组名称 \"{{name}}\" 已存在，请换一个名称～ (>﹏<)",
+      "noTestableGroups": "当前选择中没有可测试的聊天模型组",
+      "testNoResults": "模型测试未返回结果，请检查请求链路",
+      "testAllPassed": "模型测试通过",
+      "testCompleted": "模型测试完成，请查看结果",
+      "testFailed": "模型测试失败，请检查配置",
+      "testPassed": "模型连通性测试通过",
+      "testError": "测速请求失败"
     },
     "deleteDialog": {
-      "title": "确认删除模型组",
-      "content": "确定要删除模型组 \"{{name}}\" 吗？此操作不可恢复！",
+      "title": "确认删除基础模型组",
+      "content": "确定要删除基础模型组 \"{{name}}\" 吗？此操作不可恢复！",
       "confirm": "确认删除"
     }
   },
