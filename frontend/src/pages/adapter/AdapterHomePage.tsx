@@ -1,12 +1,4 @@
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Alert,
-  useTheme,
-  CircularProgress,
-} from '@mui/material'
+import { Box, Card, CardContent, Typography, Alert, useTheme, CircularProgress } from '@mui/material'
 import { Description as DescriptionIcon } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
 import { useOutletContext, useParams } from 'react-router-dom'
@@ -21,7 +13,7 @@ interface AdapterContextType {
 
 export default function AdapterHomePage() {
   const { adapterKey } = useParams<{ adapterKey: string }>()
-  const { adapterInfo } = useOutletContext<AdapterContextType>()
+  useOutletContext<AdapterContextType>()
   const theme = useTheme()
   const { t } = useTranslation('adapter')
 
@@ -49,24 +41,6 @@ export default function AdapterHomePage() {
         },
       }}
     >
-      {/* 适配器基本信息 */}
-      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 3 }}>
-        <CardContent sx={{ p: 3 }}>
-          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
-            {adapterInfo.name}
-          </Typography>
-          <Typography variant="body1" color="text.secondary" sx={{ lineHeight: 1.6 }}>
-            {adapterInfo.description}
-          </Typography>
-          {adapterInfo.version && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              {t('home.version')}: {adapterInfo.version}
-              {adapterInfo.author && ` • ${t('home.author')}: ${adapterInfo.author}`}
-            </Typography>
-          )}
-        </CardContent>
-      </Card>
-
       {/* 适配器文档 */}
       {docsLoading ? (
         <Card sx={CARD_VARIANTS.default.styles}>

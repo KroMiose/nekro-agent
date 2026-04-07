@@ -33,6 +33,8 @@
   "home": {
     "version": "版本",
     "author": "作者",
+    "expandSummary": "展开简介",
+    "collapseSummary": "收起简介",
     "loadingDocs": "加载文档中...",
     "loadDocsFailed": "加载文档失败",
     "adapterDocs": "适配器文档",

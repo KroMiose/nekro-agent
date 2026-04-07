@@ -15,6 +15,8 @@ import {
   Button,
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { adaptersApi, AdapterDetailInfo } from '../services/api/adapters'
@@ -25,7 +27,7 @@ import {
   createAdapterIcon,
   getAdapterStatusDisplay,
 } from '../config/adapters'
-import { Suspense } from 'react'
+import { Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 export default function AdapterLayout() {
@@ -35,6 +37,7 @@ export default function AdapterLayout() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const { t } = useTranslation('adapter')
+  const [headerExpanded, setHeaderExpanded] = useState(true)
 
   // 获取当前适配器的选项卡配置
   const adapterConfig = getAdapterConfig(adapterKey || '')
@@ -137,12 +140,13 @@ export default function AdapterLayout() {
         <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
           <Box
             sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.5,
+              display: 'grid',
+              gridTemplateColumns: 'auto minmax(0, 1fr)',
+              columnGap: 1.5,
+              rowGap: headerExpanded ? 1.25 : 0,
+              alignItems: 'start',
             }}
           >
-            {/* 适配器图标和状态 */}
             <Badge
               overlap="circular"
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
@@ -157,67 +161,125 @@ export default function AdapterLayout() {
                   }}
                 />
               }
+              sx={{ gridColumn: '1 / 2', gridRow: '1 / 2' }}
             >
               {createAdapterIcon(adapterKey!, theme, 40)}
             </Badge>
 
-            {/* 适配器信息 */}
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography
-                  variant="h6"
-                  component="h1"
-                  sx={{
-                    fontWeight: 600,
-                    fontSize: { xs: '1.125rem', md: '1.25rem' },
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {adapterInfo.name}
-                </Typography>
-                <Chip
-                  icon={statusDisplay.icon}
-                  label={t(statusDisplay.text)}
-                  color={statusDisplay.color}
-                  variant="filled"
-                  size="small"
-                  sx={{ height: 24, fontWeight: 500 }}
-                />
-                <Chip
-                  label={adapterInfo.config_class}
-                  color="primary"
-                  variant="outlined"
-                  size="small"
-                  sx={{ height: 24, fontWeight: 400 }}
-                />
-                <Box sx={{ flex: 1 }} />
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ArrowBackRoundedIcon fontSize="small" />}
-                  onClick={() => navigate('/adapters')}
-                  sx={{
-                    alignSelf: 'center',
-                    whiteSpace: 'nowrap',
-                    ml: 'auto',
-                    flexShrink: 0,
-                    minHeight: 28,
-                    px: 1.25,
-                    borderRadius: '999px',
-                    borderColor: 'divider',
-                    backgroundColor: 'background.paper',
+            <Box
+              sx={{
+                gridColumn: '2 / 3',
+                gridRow: '1 / 2',
+                minWidth: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                flexWrap: 'wrap',
+              }}
+            >
+              <Typography
+                variant="h6"
+                component="h1"
+                sx={{
+                  fontWeight: 600,
+                  fontSize: { xs: '1.125rem', md: '1.25rem' },
+                  lineHeight: 1.2,
+                }}
+              >
+                {adapterInfo.name}
+              </Typography>
+              <Chip
+                icon={statusDisplay.icon}
+                label={t(statusDisplay.text)}
+                color={statusDisplay.color}
+                variant="filled"
+                size="small"
+                sx={{ height: 24, fontWeight: 500 }}
+              />
+              <Chip
+                label={adapterInfo.config_class}
+                color="primary"
+                variant="outlined"
+                size="small"
+                sx={{ height: 24, fontWeight: 400 }}
+              />
+              <Box sx={{ flex: 1 }} />
+              <Button
+                size="small"
+                variant="text"
+                startIcon={headerExpanded ? <ExpandLessRoundedIcon fontSize="small" /> : <ExpandMoreRoundedIcon fontSize="small" />}
+                onClick={() => setHeaderExpanded(prev => !prev)}
+                sx={{
+                  alignSelf: 'center',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                  minHeight: 28,
+                  px: 1,
+                  borderRadius: '999px',
+                  color: 'text.secondary',
+                  backgroundColor: 'action.hover',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    color: 'primary.main',
+                    backgroundColor: 'action.selected',
                     boxShadow: 'none',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      backgroundColor: 'action.hover',
-                      boxShadow: 'none',
-                    },
+                  },
+                }}
+              >
+                {headerExpanded ? t('home.collapseSummary') : t('home.expandSummary')}
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<ArrowBackRoundedIcon fontSize="small" />}
+                onClick={() => navigate('/adapters')}
+                sx={{
+                  alignSelf: 'center',
+                  whiteSpace: 'nowrap',
+                  ml: 'auto',
+                  flexShrink: 0,
+                  minHeight: 28,
+                  px: 1.25,
+                  borderRadius: '999px',
+                  borderColor: 'divider',
+                  backgroundColor: 'background.paper',
+                  boxShadow: 'none',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    backgroundColor: 'action.hover',
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                {t('hub.backToHub')}
+              </Button>
+            </Box>
+            {headerExpanded && (
+              <Box
+                sx={{
+                  gridColumn: '1 / -1',
+                  gridRow: '2 / 3',
+                  minWidth: 0,
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    lineHeight: 1.6,
+                    wordBreak: 'break-word',
                   }}
                 >
-                  {t('hub.backToHub')}
-                </Button>
+                  {adapterInfo.description}
+                </Typography>
+                {adapterInfo.version && (
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block' }}>
+                    {t('home.version')}: {adapterInfo.version}
+                    {adapterInfo.author && ` • ${t('home.author')}: ${adapterInfo.author}`}
+                  </Typography>
+                )}
               </Box>
-            </Box>
+            )}
           </Box>
         </CardContent>
       </Card>
