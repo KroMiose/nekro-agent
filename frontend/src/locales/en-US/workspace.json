@@ -106,7 +106,11 @@
     "deleteFailed": "Delete failed: {{message}}"
   },
   "ccModels": {
-    "infoAlert": "Manage CC model groups used by the Claude Code (CC) sandbox. Requires an Anthropic-compatible API provider (e.g. official Anthropic, Vertex AI, AWS Bedrock). Select a model group in the workspace config page to generate the inject config.",
+    "alert": {
+      "providerSupportBefore": "CC model groups work with any Anthropic-compatible provider (e.g. official Anthropic). If you don’t have a provider or want to support us, visit ",
+      "providerSupportLink": "NekroAI Relay",
+      "providerSupportAfter": " to get your dedicated key!"
+    },
     "createBtn": "New Group",
     "actions": {
       "searchPlaceholder": "Search group, endpoint or description",

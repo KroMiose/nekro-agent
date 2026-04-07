@@ -23,6 +23,7 @@ import {
   CircularProgress,
   Tooltip,
   Alert,
+  Link,
   SxProps,
   Theme,
   useTheme,
@@ -724,7 +725,11 @@ export default function CCModelsPage() {
     >
       {/* 顶部提示 */}
       <Alert severity="info" sx={{ mb: 1.5, flexShrink: 0 }}>
-        {t('ccModels.infoAlert')}
+        {t('ccModels.alert.providerSupportBefore')}
+        <Link href="https://api.nekro.ai" target="_blank" rel="noopener noreferrer">
+          {t('ccModels.alert.providerSupportLink')}
+        </Link>
+        {t('ccModels.alert.providerSupportAfter')}
       </Alert>
 
       <Box

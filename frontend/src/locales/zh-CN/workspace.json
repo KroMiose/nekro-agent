@@ -106,7 +106,11 @@
     "deleteFailed": "删除失败：{{message}}"
   },
   "ccModels": {
-    "infoAlert": "管理 Claude Code (CC) 沙盒使用的 CC 模型组，需要支持 Anthropic 兼容 API 的模型供应商（如官方 Anthropic、Vertex AI、AWS Bedrock 等）。在工作区配置页中选择模型组以生成注入配置。",
+    "alert": {
+      "providerSupportBefore": "CC 模型组支持任意 Anthropic 兼容模型供应商（如官方 Anthropic 等）。如果您没有可用供应商或想支持我们，可访问 ",
+      "providerSupportLink": "NekroAI 中转",
+      "providerSupportAfter": " 获取专属密钥哦～"
+    },
     "createBtn": "新建模型组",
     "actions": {
       "searchPlaceholder": "搜索模型组、地址或描述",
