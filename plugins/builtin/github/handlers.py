@@ -10,6 +10,7 @@ from nekro_agent.services.message_service import message_service
 
 from .models import ChatSubscriptions
 from .plugin import config, plugin, store
+from .pr_message import build_pull_request_event_summary, render_pull_request_event_message
 
 
 @plugin.mount_webhook_method(endpoint="github", name="处理GitHub webhook事件")
@@ -275,75 +276,8 @@ async def _handle_pull_request_event(repo_full_name: str, body: Dict) -> None:
         body: GitHub Pull Request事件的webhook请求体
     """
     try:
-        # 提取PR信息
-        action = body.get("action", "unknown")
-        pr = body.get("pull_request", {})
-        pr_number = pr.get("number", "?")
-        pr_title = pr.get("title", "无标题")
-        pr_body = pr.get("body", "无内容") or "无内容"
-        pr_url = pr.get("html_url", "")
-        pr_merged = pr.get("merged", False)
-        pr_state = pr.get("state", "unknown")
-
-        # 提取PR创建者信息
-        pr_creator = pr.get("user", {})
-        pr_creator_name = pr_creator.get("login", "Unknown")
-
-        # 提取合并者信息（如果已合并）
-        merged_by = pr.get("merged_by", {})
-        merged_by_name = merged_by.get("login", "Unknown") if merged_by else "Unknown"
-
-        # 提取分支信息
-        head_branch = pr.get("head", {}).get("ref", "unknown")
-        base_branch = pr.get("base", {}).get("ref", "unknown")
-
-        # 提取分支所属者信息
-        head_repo = pr.get("head", {}).get("repo", {})
-        head_repo_owner = head_repo.get("owner", {}).get("login", "Unknown") if head_repo else "Unknown"
-        base_repo = pr.get("base", {}).get("repo", {})
-        base_repo_owner = base_repo.get("owner", {}).get("login", "Unknown") if base_repo else "Unknown"
-
-        # 提取代码变更统计
-        additions = pr.get("additions", 0)
-        deletions = pr.get("deletions", 0)
-        changed_files = pr.get("changed_files", 0)
-
-        # 格式化消息
-        message = "📢 GitHub Pull Request 事件\n\n"
-        message += f"仓库: {repo_full_name}\n"
-        message += f"动作: {action}\n"
-        message += f"PR #{pr_number}: {pr_title}\n"
-        message += f"创建者: {pr_creator_name}\n"
-
-        # 显示分支信息，包括所有者
-        message += f"分支: {head_repo_owner}:{head_branch} → {base_repo_owner}:{base_branch}\n"
-
-        # 显示PR状态
-        if pr_state == "closed":
-            if pr_merged:
-                message += f"状态: 已合并 (由 {merged_by_name} 合并)\n"
-            else:
-                message += "状态: 已关闭\n"
-        else:
-            message += "状态: 开放中\n"
-
-        # 显示代码变更统计
-        message += f"变更统计: +{additions} -{deletions} 个修改，涉及 {changed_files} 个文件\n"
-
-        # 添加链接
-        message += f"链接: {pr_url}\n"
-
-        # 添加内容预览（如果不是太长）
-        if len(pr_body) > 200:
-            pr_body = pr_body[:200] + "..."
-        message += f"\n内容预览:\n{pr_body}\n"
-
-        # 如果是合并操作，添加合并相关信息
-        if action == "closed" and pr_merged:
-            # 获取合并提交信息
-            merge_commit_sha = pr.get("merge_commit_sha", "")
-            if merge_commit_sha:
-                message += f"合并提交: {merge_commit_sha[:7]}\n"
+        summary = build_pull_request_event_summary(repo_full_name=repo_full_name, body=body)
+        message = render_pull_request_event_message(summary)
 
         # 向所有订阅的频道发送消息
         await send_to_subscribers(repo_full_name, "pull_request", message)
