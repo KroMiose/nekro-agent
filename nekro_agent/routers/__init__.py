@@ -48,6 +48,7 @@ from .timers import router as timers_router
 from .user import router as user_router
 from .user_manager import router as user_manager_router
 from .webhook import router as webhook_router
+from .workspace_kb import router as workspace_kb_router
 from .workspaces import router as workspaces_router
 
 # 注意：插件路由现在通过插件路由管理器动态挂载，支持热重载
@@ -146,6 +147,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(space_cleanup_router)
     api.include_router(timers_router)
     api.include_router(workspaces_router)
+    api.include_router(workspace_kb_router)
     api.include_router(skills_router)
     api.include_router(cc_model_presets_router)
     api.include_router(events_router)

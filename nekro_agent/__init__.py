@@ -57,6 +57,16 @@ async def _init_memory_scheduler() -> None:
     await memory_scheduler.start()
 
 
+async def _init_kb_collection() -> None:
+    """初始化知识库向量 Collection。"""
+    try:
+        from nekro_agent.services.kb.index_service import ensure_kb_collection
+
+        await ensure_kb_collection()
+    except Exception as e:
+        logger.warning(f"知识库 Qdrant Collection 初始化失败（可能 Qdrant 未启用）: {e}")
+
+
 class _Config(BaseModel):
     pass
 
@@ -133,6 +143,10 @@ if _driver is not None:
         # 初始化记忆调度器
         await _init_memory_scheduler()
         logger.info("Memory scheduler initialized")
+
+        # 初始化知识库 Collection
+        await _init_kb_collection()
+        logger.info("Knowledge base collection initialized")
 
         # 遥测任务
         start_telemetry_task()

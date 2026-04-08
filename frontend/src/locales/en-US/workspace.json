@@ -406,6 +406,7 @@
       "sandbox": "Sandbox",
       "comm": "Comm",
       "memory": "Memory Graph",
+      "knowledge": "Knowledge Base",
       "extensions": "Extensions",
       "mcp": "MCP Services",
       "resources": "Resource Mounts",
@@ -1028,6 +1029,118 @@
           "pullBtn": "Start Pull"
         }
       }
+    }
+  },
+  "knowledge": {
+    "title": "Workspace Knowledge Base",
+    "description": "Manage static knowledge files inside the workspace, including import, search, full-text viewing, and raw file download.",
+    "actions": {
+      "refresh": "Refresh",
+      "search": "Search",
+      "clearSearch": "Clear Search",
+      "reindexAll": "Reindex All",
+      "createText": "New Text Doc",
+      "uploadFile": "Upload File",
+      "cancel": "Cancel",
+      "create": "Create",
+      "creating": "Creating...",
+      "upload": "Upload",
+      "uploading": "Uploading...",
+      "chooseFile": "Choose File",
+      "reindex": "Reindex",
+      "downloadRaw": "Download Raw",
+      "delete": "Delete",
+      "enable": "Enable Search",
+      "disable": "Disable Search",
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "stats": {
+      "documents": "{{count}} docs",
+      "ready": "{{count}} ready",
+      "failed": "{{count}} issues"
+    },
+    "status": {
+      "pending": "Pending",
+      "extracting": "Extracting",
+      "indexing": "Indexing",
+      "ready": "Ready",
+      "failed": "Failed"
+    },
+    "badges": {
+      "extract": "Extract: {{status}}",
+      "sync": "Index: {{status}}"
+    },
+    "sections": {
+      "documents": "Documents",
+      "searchResults": "Search Results"
+    },
+    "list": {
+      "total": "{{count}} documents",
+      "noPreview": "No preview available"
+    },
+    "search": {
+      "placeholder": "Search rules, FAQ, manuals, design docs...",
+      "empty": "No matching knowledge entries",
+      "resultCount": "{{count}} hits"
+    },
+    "empty": "There are no knowledge documents in this workspace yet. Create a text document or upload a file first.",
+    "detail": {
+      "noSelection": "Select a document on the left to view details.",
+      "loadFailed": "Failed to load knowledge document details.",
+      "noSummary": "No summary",
+      "noTags": "No tags",
+      "paths": "Paths",
+      "sourcePath": "Source Relative Path",
+      "workspaceSourcePath": "Workspace Source Path",
+      "normalizedPath": "Normalized Fulltext Path",
+      "metadata": "Metadata",
+      "category": "Category",
+      "fileName": "File Name",
+      "fileSize": "File Size",
+      "chunkCount": "Chunk Count",
+      "updatedAt": "Updated At",
+      "indexedAt": "Indexed At",
+      "preview": "Preview"
+    },
+    "preview": {
+      "normalized": "Normalized Fulltext",
+      "source": "Source Text",
+      "empty": "No content available for this preview."
+    },
+    "form": {
+      "title": "Title",
+      "format": "Text Format",
+      "sourcePath": "Target Path",
+      "sourcePathPlaceholder": "e.g. faq/getting-started.md",
+      "fileName": "File Name",
+      "category": "Category",
+      "tags": "Tags",
+      "tagsPlaceholder": "Separate tags with commas",
+      "summary": "Summary",
+      "content": "Content"
+    },
+    "dialogs": {
+      "createTitle": "Create Text Knowledge",
+      "uploadTitle": "Upload Knowledge File",
+      "deleteTitle": "Confirm Delete",
+      "deleteContent": "Delete knowledge document \"{{title}}\"? This action cannot be undone."
+    },
+    "notifications": {
+      "createSuccess": "Knowledge document created",
+      "createFailed": "Create failed: {{message}}",
+      "uploadSuccess": "Knowledge file uploaded",
+      "uploadFailed": "Upload failed: {{message}}",
+      "deleteSuccess": "Knowledge document deleted",
+      "deleteFailed": "Delete failed: {{message}}",
+      "reindexSuccess": "Document reindexed",
+      "reindexFailed": "Reindex failed: {{message}}",
+      "reindexAllSuccess": "Reindex completed: {{success}} succeeded, {{failed}} failed",
+      "reindexAllFailed": "Reindex all failed: {{message}}",
+      "searchFailed": "Search failed: {{message}}",
+      "updateSuccess": "Knowledge document updated",
+      "updateFailed": "Update failed: {{message}}",
+      "downloadFailed": "Download failed: {{message}}"
     }
   },
   "timers": {

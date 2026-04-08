@@ -406,6 +406,7 @@
       "sandbox": "沙盒容器",
       "comm": "沙盒通讯",
       "memory": "记忆图谱",
+      "knowledge": "知识库",
       "extensions": "扩展能力",
       "mcp": "MCP 服务",
       "resources": "资源挂载",
@@ -1028,6 +1029,118 @@
           "pullBtn": "开始拉取"
         }
       }
+    }
+  },
+  "knowledge": {
+    "title": "工作区知识库",
+    "description": "统一管理工作区内的静态知识文件，支持导入、搜索、查看全文和下载源文件。",
+    "actions": {
+      "refresh": "刷新",
+      "search": "搜索",
+      "clearSearch": "清空搜索",
+      "reindexAll": "全量重建索引",
+      "createText": "新建文本知识",
+      "uploadFile": "上传知识文件",
+      "cancel": "取消",
+      "create": "创建",
+      "creating": "创建中...",
+      "upload": "上传",
+      "uploading": "上传中...",
+      "chooseFile": "选择文件",
+      "reindex": "重建索引",
+      "downloadRaw": "下载原文件",
+      "delete": "删除",
+      "enable": "启用检索",
+      "disable": "禁用检索",
+      "enabled": "启用",
+      "disabled": "禁用"
+    },
+    "stats": {
+      "documents": "文档 {{count}}",
+      "ready": "已就绪 {{count}}",
+      "failed": "异常 {{count}}"
+    },
+    "status": {
+      "pending": "待处理",
+      "extracting": "抽取中",
+      "indexing": "索引中",
+      "ready": "已就绪",
+      "failed": "失败"
+    },
+    "badges": {
+      "extract": "抽取：{{status}}",
+      "sync": "索引：{{status}}"
+    },
+    "sections": {
+      "documents": "文档列表",
+      "searchResults": "搜索结果"
+    },
+    "list": {
+      "total": "共 {{count}} 份文档",
+      "noPreview": "暂无预览"
+    },
+    "search": {
+      "placeholder": "搜索规则、FAQ、手册、设计文档...",
+      "empty": "没有匹配到知识条目",
+      "resultCount": "命中 {{count}} 条"
+    },
+    "empty": "当前工作区还没有知识文档，先创建文本知识或上传文件。",
+    "detail": {
+      "noSelection": "请选择左侧文档查看详情。",
+      "loadFailed": "知识库文档详情加载失败。",
+      "noSummary": "暂无摘要",
+      "noTags": "无标签",
+      "paths": "路径信息",
+      "sourcePath": "源文件相对路径",
+      "workspaceSourcePath": "工作区源文件路径",
+      "normalizedPath": "规范化全文路径",
+      "metadata": "文档元数据",
+      "category": "分类",
+      "fileName": "文件名",
+      "fileSize": "文件大小",
+      "chunkCount": "Chunk 数量",
+      "updatedAt": "更新时间",
+      "indexedAt": "最近索引时间",
+      "preview": "内容预览"
+    },
+    "preview": {
+      "normalized": "规范化全文",
+      "source": "源文本",
+      "empty": "当前视图暂无内容。"
+    },
+    "form": {
+      "title": "标题",
+      "format": "文本格式",
+      "sourcePath": "目标路径",
+      "sourcePathPlaceholder": "例如 faq/getting-started.md",
+      "fileName": "文件名",
+      "category": "分类",
+      "tags": "标签",
+      "tagsPlaceholder": "多个标签用逗号分隔",
+      "summary": "摘要",
+      "content": "正文内容"
+    },
+    "dialogs": {
+      "createTitle": "新建文本知识",
+      "uploadTitle": "上传知识文件",
+      "deleteTitle": "确认删除",
+      "deleteContent": "确定要删除知识文档“{{title}}”吗？此操作不可恢复。"
+    },
+    "notifications": {
+      "createSuccess": "知识文档已创建",
+      "createFailed": "创建失败：{{message}}",
+      "uploadSuccess": "知识文件已上传",
+      "uploadFailed": "上传失败：{{message}}",
+      "deleteSuccess": "知识文档已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "reindexSuccess": "文档索引已重建",
+      "reindexFailed": "重建失败：{{message}}",
+      "reindexAllSuccess": "全量索引完成：成功 {{success}}，失败 {{failed}}",
+      "reindexAllFailed": "全量重建失败：{{message}}",
+      "searchFailed": "搜索失败：{{message}}",
+      "updateSuccess": "知识文档已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "downloadFailed": "下载失败：{{message}}"
     }
   },
   "timers": {

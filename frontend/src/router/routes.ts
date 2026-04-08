@@ -3,6 +3,7 @@ export const WORKSPACE_DETAIL_TABS = [
   'sandbox',
   'comm',
   'memory',
+  'knowledge',
   'extensions',
   'mcp',
   'resources',

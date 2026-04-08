@@ -137,6 +137,140 @@ export interface WorkspaceListResponse {
   items: WorkspaceSummary[]
 }
 
+export type KBFormat = 'markdown' | 'text' | 'html' | 'json' | 'yaml' | 'csv' | 'pdf' | 'docx'
+export type KBStatus = 'pending' | 'extracting' | 'indexing' | 'ready' | 'failed'
+
+export interface KBDocumentListItem {
+  id: number
+  workspace_id: number
+  title: string
+  category: string
+  tags: string[]
+  summary: string
+  file_name: string
+  file_ext: string
+  mime_type: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  is_enabled: boolean
+  extract_status: KBStatus
+  sync_status: KBStatus
+  chunk_count: number
+  file_size: number
+  last_error: string | null
+  last_indexed_at: string | null
+  update_time: string
+  create_time: string
+}
+
+export interface KBDocumentListResponse {
+  total: number
+  items: KBDocumentListItem[]
+}
+
+export interface KBTreeNode {
+  name: string
+  path: string
+  type: 'dir' | 'file'
+  document_id: number | null
+  children: KBTreeNode[] | null
+}
+
+export interface KBTreeResponse {
+  nodes: KBTreeNode[]
+}
+
+export interface KBDocumentDetailResponse {
+  document: KBDocumentListItem
+  source_content: string | null
+  normalized_content: string | null
+}
+
+export interface KBFullTextResponse {
+  document_id: number
+  title: string
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  content: string
+  truncated: boolean
+}
+
+export interface KBSearchItem {
+  document_id: number
+  chunk_id: number
+  title: string
+  file_name: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  heading_path: string
+  category: string
+  tags: string[]
+  content_preview: string
+  score: number
+}
+
+export interface KBSearchResponse {
+  workspace_id: number
+  query: string
+  total: number
+  items: KBSearchItem[]
+}
+
+export interface KBCreateTextDocumentBody {
+  title: string
+  content: string
+  source_path?: string
+  file_name?: string
+  format: 'markdown' | 'text'
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
+export interface KBUpdateDocumentBody {
+  title?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+  source_path?: string
+  content?: string
+}
+
+export interface KBSearchRequest {
+  query: string
+  limit?: number
+  max_chunks_per_document?: number
+  category?: string
+  tags?: string[]
+}
+
+export interface KBReindexResponse {
+  ok: boolean
+  total: number
+  success: number
+  failed: number
+}
+
+export interface KBUploadFilePayload {
+  file: File
+  title?: string
+  source_path?: string
+  category?: string
+  tags?: string[]
+  summary?: string
+  is_enabled?: boolean
+}
+
 // ── MCP 结构化类型 ──
 
 export type McpServerType = 'stdio' | 'sse' | 'http'
@@ -516,6 +650,94 @@ export const workspaceApi = {
   getOverviewStats: async (id: number): Promise<WorkspaceOverviewStats> => {
     const response = await axios.get<WorkspaceOverviewStats>(`/workspaces/${id}/overview-stats`)
     return response.data
+  },
+}
+
+export const knowledgeBaseApi = {
+  list: async (workspaceId: number): Promise<KBDocumentListItem[]> => {
+    const response = await axios.get<KBDocumentListResponse>(`/workspaces/${workspaceId}/kb/documents`)
+    return response.data.items
+  },
+
+  getTree: async (workspaceId: number): Promise<KBTreeNode[]> => {
+    const response = await axios.get<KBTreeResponse>(`/workspaces/${workspaceId}/kb/tree`)
+    return response.data.nodes
+  },
+
+  getDocument: async (workspaceId: number, documentId: number): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.get<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}`)
+    return response.data
+  },
+
+  createText: async (workspaceId: number, body: KBCreateTextDocumentBody): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.post<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents`, body)
+    return response.data
+  },
+
+  uploadFile: async (workspaceId: number, payload: KBUploadFilePayload): Promise<KBDocumentDetailResponse> => {
+    const formData = new FormData()
+    formData.append('file', payload.file)
+    if (payload.title) formData.append('title', payload.title)
+    if (payload.source_path) formData.append('source_path', payload.source_path)
+    if (payload.category) formData.append('category', payload.category)
+    if (payload.tags?.length) formData.append('tags', payload.tags.join(','))
+    if (payload.summary) formData.append('summary', payload.summary)
+    formData.append('is_enabled', String(payload.is_enabled ?? true))
+    const response = await axios.post<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/files`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  updateDocument: async (
+    workspaceId: number,
+    documentId: number,
+    body: KBUpdateDocumentBody
+  ): Promise<KBDocumentDetailResponse> => {
+    const response = await axios.put<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}`, body)
+    return response.data
+  },
+
+  deleteDocument: async (workspaceId: number, documentId: number): Promise<void> => {
+    await axios.delete(`/workspaces/${workspaceId}/kb/documents/${documentId}`)
+  },
+
+  getFulltext: async (workspaceId: number, documentId: number, maxChars = 20000): Promise<KBFullTextResponse> => {
+    const response = await axios.get<KBFullTextResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}/fulltext`, {
+      params: { max_chars: maxChars },
+    })
+    return response.data
+  },
+
+  search: async (workspaceId: number, body: KBSearchRequest): Promise<KBSearchResponse> => {
+    const response = await axios.post<KBSearchResponse>(`/workspaces/${workspaceId}/kb/search`, body)
+    return response.data
+  },
+
+  reindexDocument: async (workspaceId: number, documentId: number): Promise<KBReindexResponse> => {
+    const response = await axios.post<KBReindexResponse>(`/workspaces/${workspaceId}/kb/documents/${documentId}/reindex`)
+    return response.data
+  },
+
+  reindexAll: async (workspaceId: number): Promise<KBReindexResponse> => {
+    const response = await axios.post<KBReindexResponse>(`/workspaces/${workspaceId}/kb/reindex`)
+    return response.data
+  },
+
+  downloadRawFile: async (
+    workspaceId: number,
+    documentId: number,
+  ): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> => {
+    const response = await axios.get<Blob>(`/workspaces/${workspaceId}/kb/documents/${documentId}/raw`, {
+      responseType: 'blob',
+    })
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const match = disposition?.match(/filename="?([^"]+)"?/)
+    return {
+      blob: response.data,
+      filename: match?.[1] ?? null,
+      contentType: response.headers['content-type'] as string | null,
+    }
   },
 }
 
