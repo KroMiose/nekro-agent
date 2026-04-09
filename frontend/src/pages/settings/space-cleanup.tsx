@@ -1864,7 +1864,7 @@ export default function SpaceCleanupPage() {
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
-            {t('actions.cancel')}
+            {t('actions.cancel', { ns: 'common' })}
           </Button>
           <Button
             onClick={handleConfirmCleanup}
