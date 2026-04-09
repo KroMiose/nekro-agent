@@ -1860,10 +1860,16 @@ export default function SpaceCleanupPage() {
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
+<<<<<<< HEAD
             {t('actions.cancel')}
           </ActionButton>
           <ActionButton
             tone="danger"
+=======
+            {t('actions.cancel', { ns: 'common' })}
+          </Button>
+          <Button
+>>>>>>> d2c88f81f7512d19f80cdea1ee9d8282eb64ed18
             onClick={handleConfirmCleanup}
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
