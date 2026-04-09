@@ -73,6 +73,34 @@ allowed-tools: Read,Write,Bash
   - 若相关，明确说明你将基于现有改动继续。
 - 工作完成后再次检查 diff，确保只包含本任务需要的修改。
 
+### 分支创建（强制要求）
+
+创建新分支时，**必须同时指定分支名和起始点**：
+
+```bash
+# ✅ 正确：从远端 main 最新状态创建
+git fetch <远端名> <分支名>
+git checkout -b <新分支名> <远端名>/<分支名>
+
+# ❌ 错误：只指定分支名，不指定起始点
+git checkout -b <新分支名>   # 会从当前 HEAD 创建，继承所有历史 commit！
+```
+
+**实际场景示例**（假设 origin 指向用户主仓库）：
+```bash
+# 第一步：确认远端和当前分支
+git remote -v && git branch -vv
+
+# 第二步：从 origin/main 最新状态创建新分支
+git fetch origin main
+git checkout -b fix/this-bug origin/main
+
+# 第三步：验证新分支基于正确的起点
+git log --oneline -1   # 应与 origin/main 最新提交一致
+```
+
+**远端确认规则**：如果 `origin` 指向个人 fork 而非用户主仓库（可通过 `git remote -v` 判断），必须从 `origin/main`（用户主仓库）的最新 commit 创建分支，不能从 fork 的本地分支创建。
+
 ## 产出质量要求
 
 - 开始修改前先阅读足够的相关代码、配置、测试和调用链，不要基于猜测实现。
