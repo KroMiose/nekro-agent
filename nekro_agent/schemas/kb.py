@@ -111,10 +111,15 @@ class KBChunkContextResponse(BaseModel):
     heading_path: str = ""
     chunk_char_start: int
     chunk_char_end: int
+    window_start: int
+    window_size: int
     excerpt_char_start: int
     excerpt_char_end: int
     before_truncated: bool = False
     after_truncated: bool = False
+    includes_hit: bool = True
+    prev_window_start: Optional[int] = None
+    next_window_start: Optional[int] = None
     match_text: str
     annotated_excerpt: str
 

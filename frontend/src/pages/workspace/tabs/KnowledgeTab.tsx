@@ -1,4 +1,4 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Alert,
   Box,
@@ -7,6 +7,7 @@ import {
   CardContent,
   Chip,
   CircularProgress,
+  LinearProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -48,6 +49,7 @@ import {
   WorkspaceDetail,
 } from '../../../services/api/workspace'
 import { useNotification } from '../../../hooks/useNotification'
+import { KbIndexProgressInfo, useSystemEventsContext } from '../../../contexts/SystemEventsContext'
 import { CARD_VARIANTS } from '../../../theme/variants'
 
 type PreviewTab = 'normalized' | 'source'
@@ -58,6 +60,18 @@ const TEXT_FORMAT_OPTIONS: Array<{ value: 'markdown' | 'text'; label: string }> 
 ]
 
 const EMPTY_DOCUMENTS: KBDocumentDetailResponse['document'][] = []
+const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.pdf', '.docx']
+
+
+function getFileExtension(fileName: string): string {
+  const match = fileName.toLowerCase().match(/(\.[^.]+)$/)
+  return match?.[1] ?? ''
+}
+
+
+function isSupportedUploadFile(file: File): boolean {
+  return SUPPORTED_UPLOAD_EXTENSIONS.includes(getFileExtension(file.name))
+}
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '-'
@@ -85,6 +99,57 @@ function getEffectiveStatus(document: KBDocumentDetailResponse['document']): str
   return document.sync_status
 }
 
+function getDerivedStatuses(
+  document: KBDocumentDetailResponse['document'],
+  progress: KbIndexProgressInfo | null | undefined
+): { extractStatus: string; syncStatus: string; overallStatus: string } {
+  if (!progress) {
+    return {
+      extractStatus: document.extract_status,
+      syncStatus: document.sync_status,
+      overallStatus: getEffectiveStatus(document),
+    }
+  }
+
+  if (progress.phase === 'failed') {
+    return {
+      extractStatus: 'failed',
+      syncStatus: 'failed',
+      overallStatus: 'failed',
+    }
+  }
+
+  if (progress.phase === 'queued') {
+    return {
+      extractStatus: document.extract_status === 'ready' ? 'ready' : 'pending',
+      syncStatus: 'pending',
+      overallStatus: 'pending',
+    }
+  }
+
+  if (progress.phase === 'extracting') {
+    return {
+      extractStatus: 'extracting',
+      syncStatus: 'pending',
+      overallStatus: 'extracting',
+    }
+  }
+
+  if (progress.phase === 'ready') {
+    return {
+      extractStatus: 'ready',
+      syncStatus: 'ready',
+      overallStatus: 'ready',
+    }
+  }
+
+  return {
+    extractStatus: 'ready',
+    syncStatus: 'indexing',
+    overallStatus: 'indexing',
+  }
+}
+
 function normalizeTagsInput(raw: string): string[] {
   return raw
     .split(',')
@@ -98,11 +163,18 @@ function previewContent(detail: KBDocumentDetailResponse | undefined, tab: Previ
   return detail.normalized_content ?? ''
 }
 
+
+function kbProgressLabel(phase: string, t: (key: string, options?: Record<string, unknown>) => string): string {
+  return t(`knowledge.progress.phase.${phase}`, { defaultValue: phase })
+}
+
 export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail }) {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const { kbIndexProgresses } = useSystemEventsContext()
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
+  const lastProgressTerminalRef = useRef('')
 
   const [selectedDocumentId, setSelectedDocumentId] = useState<number | null>(null)
   const [previewTab, setPreviewTab] = useState<PreviewTab>('normalized')
@@ -127,7 +199,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadTitle, setUploadTitle] = useState('')
-  const [uploadSourcePath, setUploadSourcePath] = useState('')
   const [uploadCategory, setUploadCategory] = useState('')
   const [uploadSummary, setUploadSummary] = useState('')
   const [uploadTagsInput, setUploadTagsInput] = useState('')
@@ -160,12 +231,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     enabled: selectedDocumentId != null,
   })
 
-  const refreshAll = async () => {
+  const refreshAll = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['kb-documents', workspace.id] }),
       queryClient.invalidateQueries({ queryKey: ['kb-document', workspace.id] }),
     ])
-  }
+  }, [queryClient, workspace.id])
 
   const createMutation = useMutation({
     mutationFn: (body: KBCreateTextDocumentBody) => knowledgeBaseApi.createText(workspace.id, body),
@@ -198,7 +269,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       setUploadOpen(false)
       setUploadFile(null)
       setUploadTitle('')
-      setUploadSourcePath('')
       setUploadCategory('')
       setUploadSummary('')
       setUploadTagsInput('')
@@ -293,10 +363,18 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const handleUploadSubmit = () => {
     if (!uploadFile) return
+    if (!isSupportedUploadFile(uploadFile)) {
+      notification.error(
+        t('knowledge.notifications.unsupportedFormat', {
+          name: uploadFile.name,
+          formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', '),
+        })
+      )
+      return
+    }
     uploadMutation.mutate({
       file: uploadFile,
       title: uploadTitle,
-      source_path: uploadSourcePath,
       category: uploadCategory,
       summary: uploadSummary,
       tags: normalizeTagsInput(uploadTagsInput),
@@ -306,17 +384,65 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
 
   const handleFileInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] ?? null
+    if (file && !isSupportedUploadFile(file)) {
+      setUploadFile(null)
+      event.target.value = ''
+      notification.error(
+        t('knowledge.notifications.unsupportedFormat', {
+          name: file.name,
+          formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', '),
+        })
+      )
+      return
+    }
     setUploadFile(file)
     if (file && !uploadTitle.trim()) {
       setUploadTitle(file.name.replace(/\.[^.]+$/, ''))
     }
   }
 
-  const activeList = searchResult?.items?.length ? searchResult.items.map(item => item.document_id) : documents.map(item => item.id)
-  const listTitle = searchResult ? t('knowledge.sections.searchResults') : t('knowledge.sections.documents')
+  const hasSearchResult = searchResult != null
+  const searchDocuments = searchResult?.documents ?? []
+  const suggestedDocumentIds = new Set(searchResult?.suggested_document_ids ?? [])
+  const activeList = hasSearchResult ? searchDocuments.map(item => item.document_id) : documents.map(item => item.id)
+  const listItems = hasSearchResult ? searchDocuments : documents
+  const listTitle = hasSearchResult ? t('knowledge.sections.searchResults') : t('knowledge.sections.documents')
   const detail = detailQuery.data
   const preview = previewContent(detail, previewTab)
   const statusLabel = (status: string) => t(`knowledge.status.${status}`, { defaultValue: status })
+  const selectedProgress = selectedDocumentId != null ? kbIndexProgresses.get(`${workspace.id}:${selectedDocumentId}`) ?? null : null
+  const selectedDerivedStatuses = detail ? getDerivedStatuses(detail.document, selectedProgress) : null
+  const workspaceProgresses = useMemo(
+    () => Array.from(kbIndexProgresses.values()).filter(item => item.workspace_id === workspace.id),
+    [kbIndexProgresses, workspace.id]
+  )
+  const progressByDocumentId = useMemo(() => {
+    const next = new Map<number, KbIndexProgressInfo>()
+    for (const item of workspaceProgresses) {
+      const current = next.get(item.document_id)
+      if (!current || current.updated_at < item.updated_at) {
+        next.set(item.document_id, item)
+      }
+    }
+    return next
+  }, [workspaceProgresses])
+  const workspaceTerminalSignature = useMemo(
+    () =>
+      workspaceProgresses
+        .filter(item => item.phase === 'ready' || item.phase === 'failed')
+        .map(item => `${item.document_id}:${item.phase}:${item.updated_at}`)
+        .sort()
+        .join('|'),
+    [workspaceProgresses]
+  )
+
+  useEffect(() => {
+    if (!workspaceTerminalSignature) return
+    const signature = workspaceTerminalSignature
+    if (lastProgressTerminalRef.current === signature) return
+    lastProgressTerminalRef.current = signature
+    void refreshAll()
+  }, [refreshAll, workspaceTerminalSignature])
 
   return (
     <Stack spacing={2}>
@@ -399,6 +525,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 ),
               }}
             />
+            {searchResult && <Alert severity="info">{searchResult.next_action_hint}</Alert>}
           </Stack>
         </CardContent>
       </Card>
@@ -420,7 +547,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 {searchResult
-                  ? t('knowledge.search.resultCount', { count: searchResult.items.length })
+                  ? t('knowledge.search.resultCount', { count: searchResult.document_total })
                   : t('knowledge.list.total', { count: documents.length })}
               </Typography>
             </Box>
@@ -431,27 +558,30 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               </Box>
             ) : activeList.length ? (
               <List sx={{ maxHeight: 720, overflowY: 'auto', py: 0 }}>
-                {(searchResult?.items ?? documents).map(item => {
+                {listItems.map(item => {
                   const documentId = 'document_id' in item ? item.document_id : item.id
-                  const subtitle = 'content_preview' in item ? item.content_preview : item.summary || item.source_path
+                  const isSearchDocument = 'document_score' in item
+                  const subtitle = isSearchDocument ? item.best_match_excerpt : item.summary || item.source_path
                   const isSelected = selectedDocumentId === documentId
-                  const status = 'sync_status' in item ? getEffectiveStatus(item) : 'ready'
-                  const isSearchItem = 'chunk_id' in item
+                  const status = 'sync_status' in item ? getDerivedStatuses(item, progressByDocumentId.get(documentId)).overallStatus : 'ready'
                   return (
                     <ListItemButton
-                      key={`${documentId}-${'chunk_id' in item ? item.chunk_id : 'doc'}`}
+                      key={`${documentId}-${isSearchDocument ? 'search-doc' : 'doc'}`}
                       selected={isSelected}
                       onClick={() => setSelectedDocumentId(documentId)}
                       sx={{ alignItems: 'flex-start', py: 1.25 }}
                     >
                       <ListItemText
                         primary={
-                          <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                          <Stack spacing={0.75}>
                             <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.35, minWidth: 0 }}>
                               {item.title}
                             </Typography>
-                            <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
-                              {isSearchItem && <Chip size="small" label={item.format.toUpperCase()} variant="outlined" />}
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                              {'format' in item && <Chip size="small" label={item.format.toUpperCase()} variant="outlined" />}
+                              {isSearchDocument && suggestedDocumentIds.has(documentId) && (
+                                <Chip size="small" label="Suggested" color="primary" variant="outlined" />
+                              )}
                               <Chip size="small" label={statusLabel(status)} color={statusColor(status)} />
                             </Stack>
                           </Stack>
@@ -461,24 +591,48 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                             <Typography variant="caption" color="text.secondary">
                               {'source_path' in item ? item.source_path : ''}
                             </Typography>
-                            {isSearchItem && (
+                            {isSearchDocument && (
                               <>
-                                {!!item.heading_path && (
+                                {!!item.headings.length && (
                                   <Typography variant="caption" color="text.secondary">
-                                    {item.heading_path}
+                                    {item.headings.join(' / ')}
                                   </Typography>
                                 )}
+                                <Typography variant="caption" color="text.secondary">
+                                  {`Score ${item.document_score.toFixed(3)} · ${item.matched_chunk_count} chunks`}
+                                </Typography>
                                 <Typography
                                   variant="body2"
                                   color="text.secondary"
                                   sx={{
                                     display: '-webkit-box',
-                                    WebkitLineClamp: 2,
+                                    WebkitLineClamp: 3,
                                     WebkitBoxOrient: 'vertical',
                                     overflow: 'hidden',
                                   }}
                                 >
                                   {subtitle || t('knowledge.list.noPreview')}
+                                </Typography>
+                              </>
+                            )}
+                            {!isSearchDocument && (
+                              <>
+                                {!!item.summary && (
+                                  <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                    sx={{
+                                      display: '-webkit-box',
+                                      WebkitLineClamp: 2,
+                                      WebkitBoxOrient: 'vertical',
+                                      overflow: 'hidden',
+                                    }}
+                                  >
+                                    {item.summary}
+                                  </Typography>
+                                )}
+                                <Typography variant="caption" color="text.secondary">
+                                  {`${item.chunk_count} chunks`}
                                 </Typography>
                               </>
                             )}
@@ -517,23 +671,23 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                   spacing={1.5}
                 >
                   <Box sx={{ minWidth: 0 }}>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                      <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                        {detail.document.title}
-                      </Typography>
+                    <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.35, wordBreak: 'break-word' }}>
+                      {detail.document.title}
+                    </Typography>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center" sx={{ mt: 1 }}>
                       <Chip label={detail.document.format.toUpperCase()} />
-                      {detail.document.extract_status === detail.document.sync_status ? (
-                        <Chip label={statusLabel(detail.document.sync_status)} color={statusColor(detail.document.sync_status)} />
+                      {selectedDerivedStatuses != null && selectedDerivedStatuses.extractStatus === selectedDerivedStatuses.syncStatus ? (
+                        <Chip label={statusLabel(selectedDerivedStatuses.syncStatus)} color={statusColor(selectedDerivedStatuses.syncStatus)} />
                       ) : (
                         <>
                           <Chip
-                            label={t('knowledge.badges.extract', { status: statusLabel(detail.document.extract_status) })}
-                            color={statusColor(detail.document.extract_status)}
+                            label={t('knowledge.badges.extract', { status: statusLabel(selectedDerivedStatuses?.extractStatus ?? detail.document.extract_status) })}
+                            color={statusColor(selectedDerivedStatuses?.extractStatus ?? detail.document.extract_status)}
                             variant="outlined"
                           />
                           <Chip
-                            label={t('knowledge.badges.sync', { status: statusLabel(detail.document.sync_status) })}
-                            color={statusColor(detail.document.sync_status)}
+                            label={t('knowledge.badges.sync', { status: statusLabel(selectedDerivedStatuses?.syncStatus ?? detail.document.sync_status) })}
+                            color={statusColor(selectedDerivedStatuses?.syncStatus ?? detail.document.sync_status)}
                           />
                         </>
                       )}
@@ -567,6 +721,40 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                   </Stack>
                 </Stack>
 
+                {selectedProgress && (
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Stack spacing={1}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={1}>
+                          <Typography variant="subtitle2">
+                            {t('knowledge.progress.title')}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {`${kbProgressLabel(selectedProgress.phase, t)} · ${selectedProgress.progress_percent}%`}
+                          </Typography>
+                        </Stack>
+                        <LinearProgress
+                          variant="determinate"
+                          value={selectedProgress.progress_percent}
+                          color={selectedProgress.phase === 'failed' ? 'error' : selectedProgress.phase === 'ready' ? 'success' : 'primary'}
+                          sx={{ height: 8, borderRadius: 999 }}
+                        />
+                        <Typography variant="caption" color="text.secondary">
+                          {selectedProgress.total_chunks > 0
+                            ? t('knowledge.progress.detail', {
+                                processed: selectedProgress.processed_chunks,
+                                total: selectedProgress.total_chunks,
+                              })
+                            : t('knowledge.progress.pending')}
+                        </Typography>
+                        {selectedProgress.error_summary && (
+                          <Alert severity="error">{selectedProgress.error_summary}</Alert>
+                        )}
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                )}
+
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   {detail.document.tags.map(tag => (
                     <Chip key={tag} size="small" label={tag} variant="outlined" />
@@ -575,23 +763,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     <Chip size="small" label={t('knowledge.detail.noTags')} variant="outlined" />
                   )}
                 </Stack>
-
-                <Card variant="outlined">
-                  <CardContent>
-                    <Stack spacing={1}>
-                      <Typography variant="subtitle2">{t('knowledge.detail.paths')}</Typography>
-                      <TextField label={t('knowledge.detail.sourcePath')} size="small" fullWidth value={detail.document.source_path} InputProps={{ readOnly: true }} />
-                      <TextField label={t('knowledge.detail.workspaceSourcePath')} size="small" fullWidth value={detail.document.source_workspace_path} InputProps={{ readOnly: true }} />
-                      <TextField
-                        label={t('knowledge.detail.normalizedPath')}
-                        size="small"
-                        fullWidth
-                        value={detail.document.normalized_workspace_path ?? '-'}
-                        InputProps={{ readOnly: true }}
-                      />
-                    </Stack>
-                  </CardContent>
-                </Card>
 
                 <Card variant="outlined">
                   <CardContent>
@@ -739,6 +910,9 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             <Button variant="outlined" startIcon={<FolderOpenIcon />} onClick={() => uploadInputRef.current?.click()}>
               {uploadFile ? uploadFile.name : t('knowledge.actions.chooseFile')}
             </Button>
+            <Alert severity="info">
+              {t('knowledge.form.supportedFormats', { formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', ') })}
+            </Alert>
             <input
               ref={uploadInputRef}
               type="file"
@@ -747,13 +921,6 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               accept=".md,.txt,.html,.htm,.json,.yaml,.yml,.csv,.pdf,.docx"
             />
             <TextField label={t('knowledge.form.title')} fullWidth value={uploadTitle} onChange={event => setUploadTitle(event.target.value)} />
-            <TextField
-              label={t('knowledge.form.sourcePath')}
-              fullWidth
-              value={uploadSourcePath}
-              onChange={event => setUploadSourcePath(event.target.value)}
-              placeholder={t('knowledge.form.sourcePathPlaceholder')}
-            />
             <TextField label={t('knowledge.form.category')} fullWidth value={uploadCategory} onChange={event => setUploadCategory(event.target.value)} />
             <TextField
               label={t('knowledge.form.tags')}

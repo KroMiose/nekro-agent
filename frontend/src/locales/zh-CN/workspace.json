@@ -1108,11 +1108,26 @@
       "source": "源文本",
       "empty": "当前视图暂无内容。"
     },
+    "progress": {
+      "title": "索引进度",
+      "pending": "正在准备索引任务…",
+      "detail": "已处理 {{processed}} / {{total}} 个 chunk",
+      "phase": {
+        "queued": "排队中",
+        "extracting": "抽取中",
+        "chunking": "切块中",
+        "embedding": "向量化中",
+        "upserting": "写入索引中",
+        "ready": "已完成",
+        "failed": "失败"
+      }
+    },
     "form": {
       "title": "标题",
       "format": "文本格式",
       "sourcePath": "目标路径",
       "sourcePathPlaceholder": "例如 faq/getting-started.md",
+      "supportedFormats": "支持上传的文件格式：{{formats}}",
       "fileName": "文件名",
       "category": "分类",
       "tags": "标签",
@@ -1140,7 +1155,8 @@
       "searchFailed": "搜索失败：{{message}}",
       "updateSuccess": "知识文档已更新",
       "updateFailed": "更新失败：{{message}}",
-      "downloadFailed": "下载失败：{{message}}"
+      "downloadFailed": "下载失败：{{message}}",
+      "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
     }
   },
   "timers": {

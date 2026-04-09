@@ -97,6 +97,22 @@ interface MemoryRecallActivityPayload {
   search_time_ms: number
 }
 
+interface KbIndexProgressPayload {
+  workspace_id: number
+  document_id: number
+  active: boolean
+  title: string
+  source_path: string
+  phase: 'queued' | 'extracting' | 'chunking' | 'embedding' | 'upserting' | 'ready' | 'failed'
+  started_at: number
+  updated_at: number
+  progress_percent: number
+  total_chunks: number
+  processed_chunks: number
+  expires_in_ms: number
+  error_summary: string
+}
+
 interface WorkspaceStatusEvent extends WorkspaceStatusPayload {
   type: 'workspace_status'
 }
@@ -121,6 +137,10 @@ interface MemoryRecallActivityEvent extends MemoryRecallActivityPayload {
   type: 'memory_recall_activity'
 }
 
+interface KbIndexProgressEvent extends KbIndexProgressPayload {
+  type: 'kb_index_progress'
+}
+
 interface SnapshotData {
   workspace_status?: Record<string, WorkspaceStatusPayload>
   workspace_cc_active?: Record<string, WorkspaceCcActivePayload>
@@ -128,6 +148,7 @@ interface SnapshotData {
   agent_active?: Record<string, AgentActivePayload>
   agent_runtime_status?: Record<string, AgentRuntimePhasePayload>
   memory_recall_activity?: Record<string, MemoryRecallActivityPayload>
+  kb_index_progress?: Record<string, KbIndexProgressPayload>
 }
 
 interface SnapshotEvent {
@@ -142,6 +163,7 @@ type SystemEvent =
   | AgentActiveEvent
   | AgentRuntimeStatusEvent
   | MemoryRecallActivityEvent
+  | KbIndexProgressEvent
   | SnapshotEvent
 
 export interface WorkspaceStatusSnapshot {
@@ -219,6 +241,21 @@ export interface MemoryRecallActivityInfo {
   search_time_ms: number
 }
 
+export interface KbIndexProgressInfo {
+  workspace_id: number
+  document_id: number
+  title: string
+  source_path: string
+  phase: 'queued' | 'extracting' | 'chunking' | 'embedding' | 'upserting' | 'ready' | 'failed'
+  started_at: number
+  updated_at: number
+  progress_percent: number
+  total_chunks: number
+  processed_chunks: number
+  expires_in_ms: number
+  error_summary: string
+}
+
 export interface SystemEvents {
   workspaceStatuses: Map<number, WorkspaceStatusSnapshot>
   workspaceCcActive: Map<number, WorkspaceCcActiveInfo>
@@ -226,6 +263,7 @@ export interface SystemEvents {
   agentActives: Map<string, AgentActiveInfo>
   agentRuntimeStatuses: Map<string, AgentRuntimeStatusInfo>
   memoryRecallActivities: Map<string, MemoryRecallActivityInfo>
+  kbIndexProgresses: Map<string, KbIndexProgressInfo>
 }
 
 export const EMPTY_SYSTEM_EVENTS: SystemEvents = {
@@ -235,6 +273,7 @@ export const EMPTY_SYSTEM_EVENTS: SystemEvents = {
   agentActives: new Map(),
   agentRuntimeStatuses: new Map(),
   memoryRecallActivities: new Map(),
+  kbIndexProgresses: new Map(),
 }
 
 const DEFAULT_TTL = 300_000
@@ -259,10 +298,12 @@ export function useSystemEvents(): SystemEvents {
   const [agentActives, setAgentActives] = useState<Map<string, AgentActiveInfo>>(new Map())
   const [agentRuntimeStatuses, setAgentRuntimeStatuses] = useState<Map<string, AgentRuntimeStatusInfo>>(new Map())
   const [memoryRecallActivities, setMemoryRecallActivities] = useState<Map<string, MemoryRecallActivityInfo>>(new Map())
+  const [kbIndexProgresses, setKbIndexProgresses] = useState<Map<string, KbIndexProgressInfo>>(new Map())
 
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const agentTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const recallTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const kbIndexTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     const clearTimers = <T,>(timers: Map<T, ReturnType<typeof setTimeout>>) => {
@@ -460,6 +501,57 @@ export function useSystemEvents(): SystemEvents {
       setMemoryRecallActivities(next)
     }
 
+    const scheduleKbIndexExpiry = (key: string, startedAt: number, ttlMs: number, now: number) => {
+      const remaining = getRemainingMs(startedAt, ttlMs, now)
+      if (remaining <= 0) {
+        return false
+      }
+      const timer = setTimeout(() => {
+        setKbIndexProgresses(prev => {
+          const next = new Map(prev)
+          next.delete(key)
+          return next
+        })
+        kbIndexTimers.current.delete(key)
+      }, remaining)
+      kbIndexTimers.current.set(key, timer)
+      return true
+    }
+
+    const applySnapshotKbIndexProgress = (entries: Record<string, KbIndexProgressPayload>) => {
+      clearTimers(kbIndexTimers.current)
+      const next = new Map<string, KbIndexProgressInfo>()
+      const now = Date.now()
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        const key = `${value.workspace_id}:${value.document_id}`
+        const ttlMs = value.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+        const startedAt = normalizeStartedAt(value.started_at, now)
+        const info: KbIndexProgressInfo = {
+          workspace_id: value.workspace_id,
+          document_id: value.document_id,
+          title: value.title,
+          source_path: value.source_path,
+          phase: value.phase,
+          started_at: startedAt,
+          updated_at: value.updated_at,
+          progress_percent: value.progress_percent ?? 0,
+          total_chunks: value.total_chunks ?? 0,
+          processed_chunks: value.processed_chunks ?? 0,
+          expires_in_ms: ttlMs,
+          error_summary: value.error_summary ?? '',
+        }
+        if (value.phase === 'ready' || value.phase === 'failed') {
+          if (scheduleKbIndexExpiry(key, startedAt, ttlMs, now)) {
+            next.set(key, info)
+          }
+        } else {
+          next.set(key, info)
+        }
+      }
+      setKbIndexProgresses(next)
+    }
+
     const handleWorkspaceCcActiveDelta = (event: WorkspaceCcActiveEvent) => {
       const workspaceId = event.workspace_id
       const oldTimer = ccTimers.current.get(workspaceId)
@@ -631,6 +723,51 @@ export function useSystemEvents(): SystemEvents {
       setMemoryRecallActivities(prev => new Map(prev).set(key, info))
     }
 
+    const handleKbIndexProgressDelta = (event: KbIndexProgressEvent) => {
+      const key = `${event.workspace_id}:${event.document_id}`
+      const oldTimer = kbIndexTimers.current.get(key)
+      if (oldTimer !== undefined) clearTimeout(oldTimer)
+      kbIndexTimers.current.delete(key)
+
+      if (!event.active) {
+        setKbIndexProgresses(prev => {
+          const next = new Map(prev)
+          next.delete(key)
+          return next
+        })
+        return
+      }
+
+      const now = Date.now()
+      const ttlMs = event.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+      const startedAt = normalizeStartedAt(event.started_at, now)
+      const info: KbIndexProgressInfo = {
+        workspace_id: event.workspace_id,
+        document_id: event.document_id,
+        title: event.title,
+        source_path: event.source_path,
+        phase: event.phase,
+        started_at: startedAt,
+        updated_at: event.updated_at,
+        progress_percent: event.progress_percent ?? 0,
+        total_chunks: event.total_chunks ?? 0,
+        processed_chunks: event.processed_chunks ?? 0,
+        expires_in_ms: ttlMs,
+        error_summary: event.error_summary ?? '',
+      }
+      if (event.phase === 'ready' || event.phase === 'failed') {
+        if (!scheduleKbIndexExpiry(key, startedAt, ttlMs, now)) {
+          setKbIndexProgresses(prev => {
+            const next = new Map(prev)
+            next.delete(key)
+            return next
+          })
+          return
+        }
+      }
+      setKbIndexProgresses(prev => new Map(prev).set(key, info))
+    }
+
     const cancel = systemEventsStreamManager.subscribe({
       onMessage: (data: string) => {
         if (!data || data === ': ping') return
@@ -646,6 +783,7 @@ export function useSystemEvents(): SystemEvents {
             applySnapshotAgentActives(snapshot.agent_active ?? {})
             applySnapshotAgentRuntimeStatuses(snapshot.agent_runtime_status ?? {})
             applySnapshotMemoryRecall(snapshot.memory_recall_activity ?? {})
+            applySnapshotKbIndexProgress(snapshot.kb_index_progress ?? {})
             return
           }
 
@@ -682,6 +820,11 @@ export function useSystemEvents(): SystemEvents {
 
           if (event.type === 'memory_recall_activity') {
             handleMemoryRecallDelta(event)
+            return
+          }
+
+          if (event.type === 'kb_index_progress') {
+            handleKbIndexProgressDelta(event)
           }
         } catch {
           // 忽略 keep-alive 等非 JSON 数据
@@ -695,13 +838,23 @@ export function useSystemEvents(): SystemEvents {
     const ccTimersRef = ccTimers.current
     const agentTimersRef = agentTimers.current
     const recallTimersRef = recallTimers.current
+    const kbIndexTimersRef = kbIndexTimers.current
     return () => {
       cancel()
       clearTimers(ccTimersRef)
       clearTimers(agentTimersRef)
       clearTimers(recallTimersRef)
+      clearTimers(kbIndexTimersRef)
     }
   }, [])
 
-  return { workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses, agentActives, agentRuntimeStatuses, memoryRecallActivities }
+  return {
+    workspaceStatuses,
+    workspaceCcActive,
+    workspaceCcRuntimeStatuses,
+    agentActives,
+    agentRuntimeStatuses,
+    memoryRecallActivities,
+    kbIndexProgresses,
+  }
 }

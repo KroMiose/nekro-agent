@@ -217,11 +217,40 @@ export interface KBSearchItem {
   score: number
 }
 
+export interface KBSearchSnippet {
+  chunk_id: number
+  heading_path: string
+  content_preview: string
+  score: number
+}
+
+export interface KBSearchDocument {
+  document_id: number
+  title: string
+  file_name: string
+  format: KBFormat
+  source_path: string
+  source_workspace_path: string
+  normalized_text_path: string | null
+  normalized_workspace_path: string | null
+  category: string
+  tags: string[]
+  document_score: number
+  matched_chunk_count: number
+  headings: string[]
+  best_match_excerpt: string
+  snippets: KBSearchSnippet[]
+}
+
 export interface KBSearchResponse {
   workspace_id: number
   query: string
   total: number
   items: KBSearchItem[]
+  document_total: number
+  documents: KBSearchDocument[]
+  suggested_document_ids: number[]
+  next_action_hint: string
 }
 
 export interface KBCreateTextDocumentBody {

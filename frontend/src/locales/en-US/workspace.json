@@ -1108,11 +1108,26 @@
       "source": "Source Text",
       "empty": "No content available for this preview."
     },
+    "progress": {
+      "title": "Index Progress",
+      "pending": "Preparing indexing task...",
+      "detail": "{{processed}} / {{total}} chunks processed",
+      "phase": {
+        "queued": "Queued",
+        "extracting": "Extracting",
+        "chunking": "Chunking",
+        "embedding": "Embedding",
+        "upserting": "Writing Index",
+        "ready": "Completed",
+        "failed": "Failed"
+      }
+    },
     "form": {
       "title": "Title",
       "format": "Text Format",
       "sourcePath": "Target Path",
       "sourcePathPlaceholder": "e.g. faq/getting-started.md",
+      "supportedFormats": "Supported upload formats: {{formats}}",
       "fileName": "File Name",
       "category": "Category",
       "tags": "Tags",
@@ -1140,7 +1155,8 @@
       "searchFailed": "Search failed: {{message}}",
       "updateSuccess": "Knowledge document updated",
       "updateFailed": "Update failed: {{message}}",
-      "downloadFailed": "Download failed: {{message}}"
+      "downloadFailed": "Download failed: {{message}}",
+      "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}"
     }
   },
   "timers": {

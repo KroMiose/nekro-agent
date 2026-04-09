@@ -47,5 +47,11 @@ class KBToolsConfig(ConfigBase):
         description="读取知识库规范化全文时默认返回的最大字符数",
     )
 
+    PROMPT_CATALOG_LIMIT: int = Field(
+        default=12,
+        title="Prompt 注入知识库目录条数",
+        description="每轮向 Agent 运行时上下文注入的知识库基础信息最大条数，仅包含文档元数据摘要，不包含正文",
+    )
+
 
 kb_tools_config: KBToolsConfig = plugin.get_config(KBToolsConfig)

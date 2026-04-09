@@ -39,8 +39,8 @@ from nekro_agent.services.kb.index_service import (
     delete_document_files,
     delete_document_index,
     ensure_kb_collection,
-    rebuild_document,
     rebuild_workspace_documents,
+    schedule_rebuild_document,
 )
 from nekro_agent.services.kb.search_service import search_workspace_kb
 from nekro_agent.services.user.deps import get_current_active_user
@@ -136,7 +136,9 @@ async def get_workspace_kb_tree(
     return KBTreeResponse(nodes=_build_tree_nodes([(document.id, document.source_path) for document in documents]))
 
 
-@router.get("/{workspace_id}/kb/documents/{document_id}", summary="获取知识库文档详情", response_model=KBDocumentDetailResponse)
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}", summary="获取知识库文档详情", response_model=KBDocumentDetailResponse
+)
 @require_role(Role.Admin)
 async def get_workspace_kb_document(
     workspace_id: int,
@@ -144,7 +146,11 @@ async def get_workspace_kb_document(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> KBDocumentDetailResponse:
     document = await _get_document_or_404(workspace_id, document_id)
-    source_content = read_source_content(document) if document.format in {"markdown", "text", "html", "json", "yaml", "csv"} else None
+    source_content = (
+        read_source_content(document)
+        if document.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None
+    )
     normalized_content = read_normalized_content(document) or None
     return KBDocumentDetailResponse(
         document=document_to_list_item(document),
@@ -182,8 +188,8 @@ async def create_workspace_kb_document(
     except ValueError as e:
         raise ValidationError(reason=str(e)) from e
 
-    await rebuild_document(document)
     refreshed = await _get_document_or_404(workspace_id, document.id)
+    await schedule_rebuild_document(refreshed)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
         source_content=read_source_content(refreshed),
@@ -225,16 +231,20 @@ async def upload_workspace_kb_file(
     except ValueError as e:
         raise ValidationError(reason=str(e)) from e
 
-    await rebuild_document(document)
     refreshed = await _get_document_or_404(workspace_id, document.id)
+    await schedule_rebuild_document(refreshed)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
-        source_content=read_source_content(refreshed) if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"} else None,
+        source_content=read_source_content(refreshed)
+        if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None,
         normalized_content=read_normalized_content(refreshed) or None,
     )
 
 
-@router.put("/{workspace_id}/kb/documents/{document_id}", summary="更新知识库文档", response_model=KBDocumentDetailResponse)
+@router.put(
+    "/{workspace_id}/kb/documents/{document_id}", summary="更新知识库文档", response_model=KBDocumentDetailResponse
+)
 @require_role(Role.Admin)
 async def update_workspace_kb_document(
     workspace_id: int,
@@ -260,14 +270,16 @@ async def update_workspace_kb_document(
         raise ValidationError(reason=str(e)) from e
 
     if body.content is not None or body.source_path is not None:
-        await rebuild_document(updated)
+        await schedule_rebuild_document(updated)
     elif body.is_enabled is not None:
-        await rebuild_document(updated)
+        await schedule_rebuild_document(updated)
 
     refreshed = await _get_document_or_404(workspace_id, document_id)
     return KBDocumentDetailResponse(
         document=document_to_list_item(refreshed),
-        source_content=read_source_content(refreshed) if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"} else None,
+        source_content=read_source_content(refreshed)
+        if refreshed.format in {"markdown", "text", "html", "json", "yaml", "csv"}
+        else None,
         normalized_content=read_normalized_content(refreshed) or None,
     )
 
@@ -300,7 +312,11 @@ async def get_workspace_kb_raw_file(
     return FileResponse(source_file, media_type=document.mime_type, filename=document.file_name)
 
 
-@router.get("/{workspace_id}/kb/documents/{document_id}/fulltext", summary="获取知识库规范化全文", response_model=KBFullTextResponse)
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/fulltext",
+    summary="获取知识库规范化全文",
+    response_model=KBFullTextResponse,
+)
 @require_role(Role.Admin)
 async def get_workspace_kb_fulltext(
     workspace_id: int,
@@ -321,14 +337,19 @@ async def get_workspace_kb_fulltext(
         normalized_text_path=document.normalized_text_path,
         normalized_workspace_path=(
             WorkspaceService.get_kb_normalized_workspace_path(document.normalized_text_path)
-            if document.normalized_text_path else None
+            if document.normalized_text_path
+            else None
         ),
         content=content,
         truncated=truncated,
     )
 
 
-@router.post("/{workspace_id}/kb/documents/{document_id}/reindex", summary="重建单个知识库文档索引", response_model=KBReindexResponse)
+@router.post(
+    "/{workspace_id}/kb/documents/{document_id}/reindex",
+    summary="重建单个知识库文档索引",
+    response_model=KBReindexResponse,
+)
 @require_role(Role.Admin)
 async def reindex_workspace_kb_document(
     workspace_id: int,
@@ -337,8 +358,8 @@ async def reindex_workspace_kb_document(
 ) -> KBReindexResponse:
     await ensure_kb_collection()
     document = await _get_document_or_404(workspace_id, document_id)
-    await rebuild_document(document)
-    return KBReindexResponse(ok=True, total=1, success=1, failed=0)
+    await schedule_rebuild_document(document)
+    return KBReindexResponse(ok=True, total=1, success=0, failed=0)
 
 
 @router.post("/{workspace_id}/kb/reindex", summary="重建工作区知识库索引", response_model=KBReindexResponse)
@@ -371,7 +392,11 @@ async def search_workspace_kb_route(
     )
 
 
-@router.get("/{workspace_id}/kb/documents/{document_id}/source-file", summary="获取源文件路径信息", response_model=KBSourceFileResponse)
+@router.get(
+    "/{workspace_id}/kb/documents/{document_id}/source-file",
+    summary="获取源文件路径信息",
+    response_model=KBSourceFileResponse,
+)
 @require_role(Role.Admin)
 async def get_workspace_kb_source_file_info(
     workspace_id: int,

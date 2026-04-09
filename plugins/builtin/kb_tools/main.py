@@ -1,19 +1,25 @@
 from __future__ import annotations
 
-from typing import List
+from collections import Counter
+import json
+from typing import Any, List
 
 from nekro_agent.api.plugin import SandboxMethodType
 from nekro_agent.api.schemas import AgentCtx
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.models.db_kb_chunk import DBKBChunk
+from nekro_agent.models.db_kb_document import DBKBDocument
 from nekro_agent.models.db_workspace import DBWorkspace
 from nekro_agent.schemas.kb import (
     KBChunkContextResponse,
-    KBDocumentDetailResponse,
-    KBFullTextResponse,
     KBSourceFileResponse,
 )
-from nekro_agent.services.kb.document_service import document_to_list_item, get_document, read_normalized_content, read_source_content
+from nekro_agent.services.kb.document_service import (
+    get_document,
+    list_documents,
+    read_normalized_content,
+    read_source_content,
+)
 from nekro_agent.services.kb.search_service import search_workspace_kb
 from nekro_agent.services.workspace.manager import WorkspaceService
 
@@ -22,6 +28,9 @@ from .plugin import kb_tools_config, plugin
 logger = get_sub_logger("kb_tools")
 _HIT_START = "\n<<<HIT-START>>>\n"
 _HIT_END = "\n<<<HIT-END>>>\n"
+_TOOL_TEXT_PREVIEW_MAX_CHARS = 1200
+_TOOL_FULLTEXT_MAX_CHARS = 12000
+_TOOL_SEARCH_SNIPPET_MAX_CHARS = 180
 
 
 async def _require_bound_workspace(_ctx: AgentCtx) -> DBWorkspace:
@@ -31,18 +40,119 @@ async def _require_bound_workspace(_ctx: AgentCtx) -> DBWorkspace:
     return workspace
 
 
+def _document_prompt_status(document: DBKBDocument) -> str:
+    if document.extract_status == "failed" or document.sync_status == "failed":
+        return "failed"
+    if document.extract_status != "ready":
+        return document.extract_status
+    return document.sync_status
+
+
+def _trim_prompt_text(value: str, limit: int) -> str:
+    compact = " ".join(value.strip().split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[: max(0, limit - 1)]}…"
+
+
+def _trim_tool_text(value: str, limit: int) -> tuple[str, bool]:
+    if len(value) <= limit:
+        return value, False
+    trimmed = value[:limit]
+    last_newline = trimmed.rfind("\n")
+    if last_newline > limit // 2:
+        trimmed = trimmed[:last_newline]
+    return trimmed.rstrip(), True
+
+
+def _dump_tool_payload(payload: dict[str, Any]) -> str:
+    return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+
+
+def _short_preview(value: str, limit: int) -> str:
+    compact = " ".join(value.strip().split())
+    if len(compact) <= limit:
+        return compact
+    return f"{compact[: max(0, limit - 1)]}…"
+
+
+def _format_document_catalog_line(document: DBKBDocument) -> str:
+    parts = [
+        f"[{document.id}] {_trim_prompt_text(document.title, 60)}",
+        f"path={document.source_path}",
+        f"format={document.format}",
+        f"status={_document_prompt_status(document)}",
+    ]
+    if document.category:
+        parts.append(f"category={_trim_prompt_text(document.category, 24)}")
+    if isinstance(document.tags, list) and document.tags:
+        parts.append(f"tags={','.join(_trim_prompt_text(str(tag), 16) for tag in document.tags[:4])}")
+    if document.chunk_count > 0:
+        parts.append(f"chunks={document.chunk_count}")
+    if not document.is_enabled:
+        parts.append("disabled=true")
+    return "- " + " | ".join(parts)
+
+
+async def _build_kb_catalog_prompt(workspace_id: int) -> str:
+    documents = await list_documents(workspace_id)
+    if not documents:
+        return "KB catalog: empty."
+
+    status_counter = Counter(_document_prompt_status(document) for document in documents)
+    ready_documents = [document for document in documents if document.is_enabled and _document_prompt_status(document) == "ready"]
+    prompt_limit = max(1, int(kb_tools_config.PROMPT_CATALOG_LIMIT))
+    shown_documents = ready_documents[:prompt_limit]
+    extra_ready = max(0, len(ready_documents) - len(shown_documents))
+
+    lines = [
+        (
+            "KB catalog summary: "
+            f"total={len(documents)}, searchable_ready={len(ready_documents)}, "
+            f"pending={status_counter.get('pending', 0)}, "
+            f"extracting={status_counter.get('extracting', 0)}, "
+            f"indexing={status_counter.get('indexing', 0)}, "
+            f"failed={status_counter.get('failed', 0)}."
+        ),
+    ]
+
+    if shown_documents:
+        lines.append("Searchable KB documents (metadata only, no content):")
+        lines.extend(_format_document_catalog_line(document) for document in shown_documents)
+        if extra_ready > 0:
+            lines.append(f"- ... {extra_ready} more ready documents not shown in prompt.")
+    else:
+        lines.append("No ready searchable KB documents currently. If needed, check indexing status first.")
+
+    lines.append(
+        "If the user request overlaps titles, paths, categories, or tags above, search KB first instead of waiting for an explicit KB mention."
+    )
+    return "\n".join(lines)
+
+
+def _build_document_status_payload(document: DBKBDocument) -> dict[str, Any]:
+    return {
+        "document_id": document.id,
+        "title": document.title,
+        "source_path": document.source_path,
+        "format": document.format,
+        "category": document.category,
+        "tags": document.tags if isinstance(document.tags, list) else [],
+        "summary": document.summary,
+        "status": _document_prompt_status(document),
+        "chunk_count": document.chunk_count,
+        "file_size": int(document.file_size),
+        "is_enabled": document.is_enabled,
+        "last_indexed_at": document.last_indexed_at.isoformat() if document.last_indexed_at else None,
+    }
+
+
 def _resolve_chunk_span(normalized_content: str, chunk: DBKBChunk) -> tuple[int, int]:
     start = max(0, min(len(normalized_content), int(chunk.char_start)))
     end = max(start, min(len(normalized_content), int(chunk.char_end)))
     if start < end:
         return start, end
-
-    if chunk.content:
-        found_at = normalized_content.find(chunk.content)
-        if found_at != -1:
-            return found_at, found_at + len(chunk.content)
-
-    return start, min(len(normalized_content), start + len(chunk.content))
+    return start, min(len(normalized_content), start + 1)
 
 
 def _build_chunk_context_payload(
@@ -54,22 +164,31 @@ def _build_chunk_context_payload(
     normalized_text_path: str | None,
     chunk: DBKBChunk,
     normalized_content: str,
-    around_chars: int,
+    window_chars: int,
+    window_start: int | None = None,
 ) -> KBChunkContextResponse:
     chunk_start, chunk_end = _resolve_chunk_span(normalized_content, chunk)
-    excerpt_start = max(0, chunk_start - around_chars)
-    excerpt_end = min(len(normalized_content), chunk_end + around_chars)
+    if window_start is None:
+        excerpt_start = max(0, chunk_start - window_chars)
+        excerpt_end = min(len(normalized_content), chunk_end + window_chars)
+    else:
+        excerpt_start = max(0, min(len(normalized_content), int(window_start)))
+        excerpt_end = min(len(normalized_content), excerpt_start + window_chars)
     excerpt = normalized_content[excerpt_start:excerpt_end]
-    match_text = normalized_content[chunk_start:chunk_end] or chunk.content
+    match_text = normalized_content[chunk_start:chunk_end]
     relative_start = max(0, chunk_start - excerpt_start)
     relative_end = max(relative_start, min(len(excerpt), chunk_end - excerpt_start))
+    includes_hit = relative_start < relative_end
     annotated_excerpt = (
         excerpt[:relative_start]
         + _HIT_START
         + excerpt[relative_start:relative_end]
         + _HIT_END
         + excerpt[relative_end:]
+        if includes_hit else excerpt
     )
+    prev_window_start = max(0, excerpt_start - window_chars) if excerpt_start > 0 else None
+    next_window_start = excerpt_end if excerpt_end < len(normalized_content) else None
 
     return KBChunkContextResponse(
         document_id=document_id,
@@ -85,10 +204,15 @@ def _build_chunk_context_payload(
         heading_path=chunk.heading_path,
         chunk_char_start=chunk_start,
         chunk_char_end=chunk_end,
+        window_start=excerpt_start,
+        window_size=window_chars,
         excerpt_char_start=excerpt_start,
         excerpt_char_end=excerpt_end,
         before_truncated=excerpt_start > 0,
         after_truncated=excerpt_end < len(normalized_content),
+        includes_hit=includes_hit,
+        prev_window_start=prev_window_start,
+        next_window_start=next_window_start,
         match_text=match_text,
         annotated_excerpt=annotated_excerpt,
     )
@@ -100,15 +224,15 @@ async def kb_tools_prompt(_ctx: AgentCtx) -> str:
         workspace = await _ctx.get_bound_workspace()
         if workspace is None:
             return ""
+        catalog_prompt = await _build_kb_catalog_prompt(workspace.id)
         return (
-            "[Knowledge Base Tools]\n"
-            "Use KB tools only for static knowledge that has already been indexed into the workspace knowledge base, such as manuals, rules, FAQ, imported design docs, imported product docs, and imported reference materials.\n"
-            "- Do NOT use KB tools for repository source code, implementation details in the live codebase, debugging, refactors, local file inspection outside the indexed KB, git history, or tasks that require editing files. Those belong to CC Workspace.\n"
-            "- If the user is asking how Nekro-Agent itself is implemented, how a plugin works in the repo, or asks you to inspect/change code, prefer CC Workspace first.\n"
-            "- After one KB search, prefer reading the matched local context around a hit chunk instead of jumping straight to the beginning of the full text.\n"
-            "- Use `read_workspace_kb_chunk_context_tool(chunk_id=...)` first when search returns useful chunk_ids; only read full text if local context is still insufficient.\n"
-            "- Only search again if the current results are clearly irrelevant.\n"
-            "- When you cite a KB answer, keep the source_path for traceability."
+            "[Knowledge Base]\n"
+            "Use KB for indexed static docs only: manuals, rules, FAQ, imported design/product/reference docs.\n"
+            "Do not use KB for live repo code, implementation inspection, debugging, refactors, or git history; use CC Workspace for those.\n"
+            "If the user request overlaps titles, paths, categories, or tags below, search KB proactively.\n"
+            "Workflow: search first, then read hit-local chunk context, and only read fulltext if local context is still insufficient.\n"
+            "When answering from KB, keep source_path for traceability.\n"
+            f"{catalog_prompt}"
         )
     except Exception:
         logger.exception("构建知识库工具提示词失败")
@@ -137,7 +261,7 @@ async def search_workspace_kb_tool(
 
     Returns:
         str: JSON string containing grouped document hits, snippets, suggested document IDs,
-        and a next_action_hint. Prefer reading full text from suggested_document_ids after one search.
+        and a next_action_hint. Prefer reading hit-local context before full text.
     """
     workspace = await _require_bound_workspace(_ctx)
     resolved_limit = limit if limit > 0 else int(kb_tools_config.DEFAULT_SEARCH_LIMIT)
@@ -148,7 +272,38 @@ async def search_workspace_kb_tool(
         max_chunks_per_document=max_chunks_per_document,
         category=category,
     )
-    return result.model_dump_json(indent=2)
+    payload = {
+        "query": result.query,
+        "document_total": result.document_total,
+        "suggested_document_ids": result.suggested_document_ids,
+        "next_action_hint": (
+            "先读命中 chunk 的局部上下文；不够再翻页；仍不足再读全文；结果不相关再换 query。"
+        ),
+        "documents": [
+            {
+                "document_id": item.document_id,
+                "title": item.title,
+                "source_path": item.source_path,
+                "format": item.format,
+                "document_score": item.document_score,
+                "matched_chunk_count": item.matched_chunk_count,
+                "category": item.category or None,
+                "tags": item.tags[:3],
+                "top_hit": (
+                    {
+                        "chunk_id": item.snippets[0].chunk_id,
+                        "heading_path": item.snippets[0].heading_path,
+                        "content_preview": _short_preview(item.snippets[0].content_preview, _TOOL_SEARCH_SNIPPET_MAX_CHARS),
+                        "score": item.snippets[0].score,
+                    }
+                    if item.snippets
+                    else None
+                ),
+            }
+            for item in result.documents
+        ],
+    }
+    return _dump_tool_payload(payload)
 
 
 @plugin.mount_sandbox_method(
@@ -172,12 +327,24 @@ async def get_workspace_kb_document_tool(
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
-    payload = KBDocumentDetailResponse(
-        document=document_to_list_item(document),
-        source_content=read_source_content(document) if document.format in {"markdown", "text", "html", "json", "yaml", "csv"} else None,
-        normalized_content=read_normalized_content(document) or None,
-    )
-    return payload.model_dump_json(indent=2)
+    source_content = read_source_content(document) if document.format in {"markdown", "text", "html", "json", "yaml", "csv"} else ""
+    normalized_content = read_normalized_content(document)
+    source_preview, source_truncated = _trim_tool_text(source_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
+    normalized_preview, normalized_truncated = _trim_tool_text(normalized_content, _TOOL_TEXT_PREVIEW_MAX_CHARS)
+    payload = {
+        "document": _build_document_status_payload(document),
+        "source_preview": source_preview,
+        "source_preview_truncated": source_truncated,
+        "source_total_chars": len(source_content),
+        "normalized_preview": normalized_preview,
+        "normalized_preview_truncated": normalized_truncated,
+        "normalized_total_chars": len(normalized_content),
+        "next_action_hint": (
+            "Use read_workspace_kb_chunk_context_tool first for hit-local reading; "
+            "use read_workspace_kb_fulltext_tool only when a larger normalized text window is necessary."
+        ),
+    }
+    return _dump_tool_payload(payload)
 
 
 @plugin.mount_sandbox_method(
@@ -203,25 +370,23 @@ async def read_workspace_kb_fulltext_tool(
     document = await get_document(workspace.id, document_id)
     if document is None:
         raise ValueError(f"未找到知识库文档 {document_id}")
-    resolved_max_chars = max_chars if max_chars > 0 else int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS)
+    resolved_max_chars = min(max_chars if max_chars > 0 else int(kb_tools_config.DEFAULT_FULLTEXT_MAX_CHARS), _TOOL_FULLTEXT_MAX_CHARS)
     content = read_normalized_content(document)
-    truncated = len(content) > resolved_max_chars
-    if truncated:
-        content = content[:resolved_max_chars]
-    payload = KBFullTextResponse(
-        document_id=document.id,
-        title=document.title,
-        source_path=document.source_path,
-        source_workspace_path=WorkspaceService.get_kb_source_workspace_path(document.source_path),
-        normalized_text_path=document.normalized_text_path,
-        normalized_workspace_path=(
-            WorkspaceService.get_kb_normalized_workspace_path(document.normalized_text_path)
-            if document.normalized_text_path else None
+    content_preview, truncated = _trim_tool_text(content, resolved_max_chars)
+    payload = {
+        "document_id": document.id,
+        "title": document.title,
+        "source_path": document.source_path,
+        "content": content_preview,
+        "returned_chars": len(content_preview),
+        "total_chars": len(content),
+        "truncated": truncated,
+        "next_action_hint": (
+            "If this window is still too large or incomplete, narrow the target by searching again "
+            "or read hit-local context with read_workspace_kb_chunk_context_tool."
         ),
-        content=content,
-        truncated=truncated,
-    )
-    return payload.model_dump_json(indent=2)
+    }
+    return _dump_tool_payload(payload)
 
 
 @plugin.mount_sandbox_method(
@@ -232,17 +397,20 @@ async def read_workspace_kb_fulltext_tool(
 async def read_workspace_kb_chunk_context_tool(
     _ctx: AgentCtx,
     chunk_id: int,
-    around_chars: int = 280,
+    window_chars: int = 280,
+    window_start: int = -1,
 ) -> str:
     """Read local context around a matched KB chunk.
 
     Args:
         chunk_id (int): Target chunk ID returned by KB search.
-        around_chars (int): Number of characters to include before and after the matched chunk.
+        window_chars (int): Size of the returned context window.
+        window_start (int): Optional absolute start offset for paging. Use `-1` to auto-center around the hit.
 
     Returns:
-        str: JSON string containing chunk offsets, compact local context, and an annotated excerpt
-        where the hit chunk is wrapped by <<<HIT-START>>> / <<<HIT-END>>> markers.
+        str: JSON string containing chunk offsets, compact local context, paging cursors,
+        and an annotated excerpt where the hit chunk is wrapped by <<<HIT-START>>> / <<<HIT-END>>> markers
+        when the current window overlaps the hit.
     """
     workspace = await _require_bound_workspace(_ctx)
     chunk = await DBKBChunk.get_or_none(id=chunk_id, workspace_id=workspace.id)
@@ -257,7 +425,8 @@ async def read_workspace_kb_chunk_context_tool(
     if not normalized_content.strip():
         raise ValueError(f"知识库文档 {document.id} 尚无可读取的规范化全文")
 
-    resolved_around_chars = max(80, min(int(around_chars), 1200))
+    resolved_window_chars = max(80, min(int(window_chars), 1200))
+    resolved_window_start = None if int(window_start) < 0 else int(window_start)
     payload = _build_chunk_context_payload(
         workspace_id=workspace.id,
         document_id=document.id,
@@ -266,9 +435,10 @@ async def read_workspace_kb_chunk_context_tool(
         normalized_text_path=document.normalized_text_path,
         chunk=chunk,
         normalized_content=normalized_content,
-        around_chars=resolved_around_chars,
+        window_chars=resolved_window_chars,
+        window_start=resolved_window_start,
     )
-    return payload.model_dump_json(indent=2)
+    return _dump_tool_payload(payload.model_dump())
 
 
 @plugin.mount_sandbox_method(
@@ -305,7 +475,7 @@ async def get_workspace_kb_source_file_tool(
         source_workspace_path=WorkspaceService.get_kb_source_workspace_path(document.source_path),
         sandbox_file_path=sandbox_file_path,
     )
-    return payload.model_dump_json(indent=2)
+    return _dump_tool_payload(payload.model_dump())
 
 
 @plugin.mount_collect_methods()
