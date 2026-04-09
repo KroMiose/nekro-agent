@@ -147,6 +147,7 @@
       "edit": "Edit Group",
       "test": "Speed Test",
       "testOnlyChat": "Only chat-type groups can be tested",
+      "testNeedsConfig": "Please fill in model name, API URL and key first",
       "copy": "Copy Group",
       "delete": "Delete Group",
       "defaultDelete": "Default group cannot be deleted"

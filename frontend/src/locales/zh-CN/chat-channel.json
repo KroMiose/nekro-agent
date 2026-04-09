@@ -79,6 +79,7 @@
     "observe": "旁观",
     "deactivate": "停用",
     "reset": "重置",
+    "resetContext": "重置上下文",
     "tabs": {
       "basicInfo": "频道详情",
       "overrideSettings": "覆盖配置",

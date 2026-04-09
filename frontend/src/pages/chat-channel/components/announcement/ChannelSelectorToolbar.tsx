@@ -1,19 +1,13 @@
 import {
   Box,
-  Button,
-  FormControl,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
   Typography,
 } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
 import DoneAllIcon from '@mui/icons-material/DoneAll'
 import BackspaceIcon from '@mui/icons-material/Backspace'
 import { useTranslation } from 'react-i18next'
-import { INPUT_VARIANTS } from '../../../../theme/variants'
+import SearchField from '../../../../components/common/SearchField'
+import FilterSelect from '../../../../components/common/FilterSelect'
+import ActionButton from '../../../../components/common/ActionButton'
 
 interface ChannelSelectorToolbarProps {
   search: string
@@ -44,20 +38,11 @@ export default function ChannelSelectorToolbar({
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-      <TextField
+      <SearchField
         fullWidth
-        size="small"
         value={search}
-        onChange={event => onSearchChange(event.target.value)}
+        onChange={onSearchChange}
         placeholder={t('search.placeholder')}
-        sx={INPUT_VARIANTS.default.styles}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
-              <SearchIcon fontSize="small" />
-            </InputAdornment>
-          ),
-        }}
       />
 
       <Box
@@ -70,32 +55,28 @@ export default function ChannelSelectorToolbar({
           },
         }}
       >
-        <FormControl fullWidth size="small">
-          <InputLabel>{t('filters.type')}</InputLabel>
-          <Select
-            value={chatType}
-            label={t('filters.type')}
-            onChange={event => onChatTypeChange(event.target.value)}
-          >
-            <MenuItem value="">{t('filters.all')}</MenuItem>
-            <MenuItem value="group">{t('filters.group')}</MenuItem>
-            <MenuItem value="private">{t('filters.private')}</MenuItem>
-          </Select>
-        </FormControl>
+        <FilterSelect
+          label={t('filters.type')}
+          value={chatType}
+          onChange={onChatTypeChange}
+          options={[
+            { value: '', label: t('filters.all') },
+            { value: 'group', label: t('filters.group') },
+            { value: 'private', label: t('filters.private') },
+          ]}
+        />
 
-        <FormControl fullWidth size="small">
-          <InputLabel>{t('filters.status')}</InputLabel>
-          <Select
-            value={status}
-            label={t('filters.status')}
-            onChange={event => onStatusChange(event.target.value)}
-          >
-            <MenuItem value="">{t('filters.all')}</MenuItem>
-            <MenuItem value="active">{t('filters.active')}</MenuItem>
-            <MenuItem value="observe">{t('filters.observe')}</MenuItem>
-            <MenuItem value="disabled">{t('filters.inactive')}</MenuItem>
-          </Select>
-        </FormControl>
+        <FilterSelect
+          label={t('filters.status')}
+          value={status}
+          onChange={onStatusChange}
+          options={[
+            { value: '', label: t('filters.all') },
+            { value: 'active', label: t('filters.active') },
+            { value: 'observe', label: t('filters.observe') },
+            { value: 'disabled', label: t('filters.inactive') },
+          ]}
+        />
       </Box>
 
       <Box
@@ -117,25 +98,24 @@ export default function ChannelSelectorToolbar({
         </Box>
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-          <Button
-            variant="outlined"
+          <ActionButton
+            tone="secondary"
             size="small"
             startIcon={<DoneAllIcon />}
             onClick={onSelectVisible}
             disabled={visibleCount === 0}
           >
             {t('selector.selectVisible')}
-          </Button>
-          <Button
-            variant="text"
+          </ActionButton>
+          <ActionButton
+            tone="ghost"
             size="small"
-            color="inherit"
             startIcon={<BackspaceIcon />}
             onClick={onClearSelection}
             disabled={selectedCount === 0}
           >
             {t('selector.clearSelection')}
-          </Button>
+          </ActionButton>
         </Box>
       </Box>
     </Box>

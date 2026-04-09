@@ -1,3 +1,8 @@
+---
+description:
+alwaysApply: true
+---
+
 # AI 开发指引入口
 
 请先阅读并遵循以下规则文档，再开始修改代码：
@@ -40,15 +45,16 @@
 
 ### 前端（TypeScript/React）— 使用 `poe frontend-*` 或 `pnpm`（在 `frontend/` 目录下）
 
-| 命令                     | 说明                                                              |
-| ------------------------ | ----------------------------------------------------------------- |
-| `poe frontend-check`     | **全量检查**：typecheck + eslint（0 warnings）+ build，提交前必跑 |
-| `poe frontend-typecheck` | TypeScript 类型检查（tsc --noEmit）                               |
-| `poe frontend-lint`      | ESLint 检查（--max-warnings 0）                                   |
-| `poe frontend-build`     | 构建前端生产包                                                    |
-| `poe frontend-dev`       | 启动前端开发服务器                                                |
-| `poe frontend-install`   | 安装前端依赖（pnpm install）                                      |
-| `poe frontend-preview`   | 预览前端构建产物                                                  |
+| 命令                      | 说明                                                              |
+| ------------------------- | ----------------------------------------------------------------- |
+| `poe frontend-check`      | **全量检查**：typecheck + eslint（0 warnings），基础测试          |
+| `poe frontend-check-full` | **全量检查**：typecheck + eslint（0 warnings）+ build，提交前必跑 |
+| `poe frontend-typecheck`  | TypeScript 类型检查（tsc --noEmit）                               |
+| `poe frontend-lint`       | ESLint 检查（--max-warnings 0）                                   |
+| `poe frontend-build`      | 构建前端生产包                                                    |
+| `poe frontend-dev`        | 启动前端开发服务器                                                |
+| `poe frontend-install`    | 安装前端依赖（pnpm install）                                      |
+| `poe frontend-preview`    | 预览前端构建产物                                                  |
 
 ### 注意事项
 

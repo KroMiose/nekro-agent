@@ -1,7 +1,6 @@
 import {
   Box,
   Chip,
-  IconButton,
   Typography,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
@@ -9,6 +8,7 @@ import GroupIcon from '@mui/icons-material/Group'
 import PersonIcon from '@mui/icons-material/Person'
 import type { ChatChannel } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from '../../../../components/common/IconActionButton'
 
 interface SelectedChannelSummaryProps {
   channels: ChatChannel[]
@@ -64,9 +64,9 @@ export default function SelectedChannelSummary({
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <IconButton size="small" onClick={onClear} aria-label={t('summary.clear')}>
+            <IconActionButton size="small" onClick={onClear} aria-label={t('summary.clear')}>
               <CloseIcon fontSize="small" />
-            </IconButton>
+            </IconActionButton>
           </Box>
         </>
       )}

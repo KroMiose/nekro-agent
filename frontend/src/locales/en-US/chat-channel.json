@@ -79,6 +79,7 @@
     "observe": "Observe",
     "deactivate": "Deactivate",
     "reset": "Reset",
+    "resetContext": "Reset Context",
     "tabs": {
       "basicInfo": "Channel Details",
       "overrideSettings": "Override Settings",

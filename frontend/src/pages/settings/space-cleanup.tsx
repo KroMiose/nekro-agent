@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
-  Button,
   Typography,
   LinearProgress,
   Grid,
@@ -19,7 +18,6 @@ import {
   ListItemText,
   Paper,
   Stack,
-  IconButton,
   FormControlLabel,
   Switch,
   alpha,
@@ -28,8 +26,6 @@ import {
   Collapse,
   ListItemButton,
   Tooltip,
-  ToggleButton,
-  ToggleButtonGroup,
 } from '@mui/material'
 import {
   Refresh as RefreshIcon,
@@ -80,6 +76,9 @@ import { getLocalizedText } from '../../services/api/types'
 import { chatChannelApi } from '../../services/api/chat-channel'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import SegmentedControl from '../../components/common/SegmentedControl'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 const MotionBox = motion(Box)
 
@@ -672,8 +671,8 @@ export default function SpaceCleanupPage() {
                 </Typography>
               )}
             </Box>
-            <Button
-              variant="contained"
+            <ActionButton
+              tone="primary"
               startIcon={
                 scanning ? <CircularProgress size={20} color="inherit" /> : <RefreshIcon />
               }
@@ -683,7 +682,7 @@ export default function SpaceCleanupPage() {
               size={isMobile ? 'medium' : 'large'}
             >
               {scanning ? t('spaceCleanup.actions.scanning') : scanResult ? t('spaceCleanup.actions.rescan') : t('spaceCleanup.actions.scan')}
-            </Button>
+            </ActionButton>
           </Box>
 
           {/* 扫描进度 */}
@@ -950,24 +949,16 @@ export default function SpaceCleanupPage() {
                     <Typography variant="subtitle1" fontWeight="600">
                       {t('spaceCleanup.analysis.resourceDist')}
                     </Typography>
-                    <ToggleButtonGroup
+                    <SegmentedControl
                       value={rightChartType}
-                      exclusive
-                      onChange={(_, newType) => {
-                        if (newType !== null) {
-                          setRightChartType(newType)
-                        }
-                      }}
-                      size="small"
+                      options={[
+                        { value: 'pie', label: t('spaceCleanup.analysis.pieChart') },
+                        { value: 'bar', label: t('spaceCleanup.analysis.barChart') },
+                      ]}
+                      onChange={newType => setRightChartType(newType)}
+                      fullWidth={isMobile}
                       sx={{ width: isMobile ? '100%' : 'auto' }}
-                    >
-                      <ToggleButton value="pie" sx={{ flex: isMobile ? 1 : 'none' }}>
-                        {t('spaceCleanup.analysis.pieChart')}
-                      </ToggleButton>
-                      <ToggleButton value="bar" sx={{ flex: isMobile ? 1 : 'none' }}>
-                        {t('spaceCleanup.analysis.barChart')}
-                      </ToggleButton>
-                    </ToggleButtonGroup>
+                    />
                   </Box>
                   <Box sx={{ flex: 1, minHeight: 0, width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
@@ -1252,19 +1243,24 @@ export default function SpaceCleanupPage() {
                         {/* 只有有内容才显示展开按钮 */}
                         {((category.plugin_resources && category.plugin_resources.length > 0) ||
                           (category.chat_resources && category.chat_resources.length > 0)) && (
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={e => {
                               e.stopPropagation()
                               toggleCategory(category.resource_type)
                             }}
+                            title={
+                              expandedCategories.has(category.resource_type)
+                                ? t('actions.collapse', { defaultValue: '收起' })
+                                : t('actions.expand', { defaultValue: '展开' })
+                            }
                           >
                             {expandedCategories.has(category.resource_type) ? (
                               <ExpandLessIcon />
                             ) : (
                               <ExpandMoreIcon />
                             )}
-                          </IconButton>
+                          </IconActionButton>
                         )}
                       </Box>
                     </ListItemButton>
@@ -1528,9 +1524,8 @@ export default function SpaceCleanupPage() {
                   sx={{ mt: 2 }}
                 />
                 <Stack direction={isMobile ? 'column' : 'row'} spacing={2} sx={{ mt: 3 }}>
-                  <Button
-                    variant="contained"
-                    color="error"
+                  <ActionButton
+                    tone="danger"
                     startIcon={
                       cleaning ? <CircularProgress size={20} color="inherit" /> : <DeleteIcon />
                     }
@@ -1541,9 +1536,9 @@ export default function SpaceCleanupPage() {
                     fullWidth={isMobile}
                   >
                     {cleaning ? t('spaceCleanup.actions.cleaning') : t('spaceCleanup.actions.cleanup')}
-                  </Button>
-                  <Button
-                    variant="outlined"
+                  </ActionButton>
+                  <ActionButton
+                    tone="secondary"
                     onClick={() => {
                       setSelectedResourceTypes([])
                       setSelectedChatKeys({} as Record<ResourceType, string[]>)
@@ -1552,7 +1547,7 @@ export default function SpaceCleanupPage() {
                     fullWidth={isMobile}
                   >
                     {t('spaceCleanup.actions.clearSelection')}
-                  </Button>
+                  </ActionButton>
                 </Stack>
               </Grid>
               <Grid item xs={12} md={6}>
@@ -1859,22 +1854,22 @@ export default function SpaceCleanupPage() {
             gap: isMobile ? 1 : 0,
           }}
         >
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setConfirmDialogOpen(false)}
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
             {t('actions.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={handleConfirmCleanup}
-            color="error"
-            variant="contained"
             fullWidth={isMobile}
             size={isMobile ? 'large' : 'medium'}
           >
             {t('spaceCleanup.actions.confirmCleanup')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

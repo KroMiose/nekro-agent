@@ -4,7 +4,6 @@ import {
   Card,
   CircularProgress,
   Alert,
-  Tabs,
   Tab,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -16,7 +15,6 @@ import {
   streamCommLog,
 } from '../../services/api/workspace'
 import { CARD_VARIANTS } from '../../theme/variants'
-import { useTheme } from '@mui/material/styles'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
@@ -31,6 +29,7 @@ import {
 
 // Components
 import WorkspaceHeader from './components/WorkspaceHeader'
+import { PageTabs } from '../../components/common/NekroTabs'
 
 // Tabs
 import OverviewTab from './tabs/OverviewTab'
@@ -49,7 +48,6 @@ export default function WorkspaceDetailPage() {
   const { id, tab } = useParams<{ id: string; tab: string }>()
   const workspaceId = Number(id)
   const navigate = useNavigate()
-  const theme = useTheme()
   const { t } = useTranslation('workspace')
   const queryClient = useQueryClient()
   const [commPrefill, setCommPrefill] = useState('')
@@ -225,32 +223,15 @@ export default function WorkspaceDetailPage() {
       {/* Tab 导航 */}
       <Box sx={{ px: 2, pt: 1.5, flexShrink: 0 }}>
         <Card sx={CARD_VARIANTS.default.styles}>
-          <Tabs
+          <PageTabs
             value={activeTab}
             onChange={(_, val: number) => navigateToTab(WORKSPACE_DETAIL_TABS[val])}
             indicatorColor="primary"
             textColor="primary"
             sx={{
-              minHeight: 48,
               px: 2,
               '& .MuiTab-root': {
                 minHeight: 48,
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                transition: 'all 0.2s ease',
-                borderRadius: '8px',
-                mx: 0.5,
-                '&:hover': { backgroundColor: theme.palette.action.hover },
-                '&.Mui-selected': {
-                  color: theme.palette.primary.main,
-                  backgroundColor: theme.palette.primary.main + '10',
-                },
-              },
-              '& .MuiTabs-indicator': {
-                height: 3,
-                borderRadius: '2px',
-                boxShadow: `0 0 8px ${theme.palette.primary.main}`,
               },
             }}
           >
@@ -284,7 +265,7 @@ export default function WorkspaceDetailPage() {
             <Tab label={t('detail.tabs.mcp')} />
             <Tab label={t('detail.tabs.prompt')} />
             <Tab label={t('detail.tabs.config')} />
-          </Tabs>
+          </PageTabs>
         </Card>
       </Box>
 

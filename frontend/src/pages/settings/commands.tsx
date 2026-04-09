@@ -10,21 +10,13 @@ import {
   TableRow,
   Switch,
   Chip,
-  TextField,
-  InputAdornment,
   Typography,
   Tooltip,
-  IconButton,
   Collapse,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Stack,
   alpha,
 } from '@mui/material'
 import {
-  Search as SearchIcon,
   ExpandMore as ExpandMoreIcon,
   ExpandLess as ExpandLessIcon,
   RestartAlt as ResetIcon,
@@ -37,6 +29,9 @@ import { getLocalizedText } from '../../services/api/types'
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
+import SearchField from '../../components/common/SearchField'
+import FilterSelect from '../../components/common/FilterSelect'
+import IconActionButton from '../../components/common/IconActionButton'
 
 const PERMISSION_COLORS: Record<string, 'error' | 'warning' | 'success' | 'default' | 'info'> = {
   super_user: 'error',
@@ -89,7 +84,7 @@ export default function CommandsPage() {
   const { categories, sources } = useMemo(() => {
     const cats = new Set<string>()
     const srcs = new Set<string>()
-    commands.forEach((cmd) => {
+    commands.forEach(cmd => {
       cats.add(cmd.category)
       srcs.add(cmd.source)
     })
@@ -98,6 +93,33 @@ export default function CommandsPage() {
       sources: Array.from(srcs).sort(),
     }
   }, [commands])
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: '', label: t('commands.filters.all', '全部') },
+      ...categories.map(cat => {
+        const matchedCategory = commands.find(c => c.category === cat)
+        return {
+          value: cat,
+          label: matchedCategory
+            ? getLocalizedText(matchedCategory.i18n_category, cat, i18n.language)
+            : cat,
+        }
+      }),
+    ],
+    [categories, commands, i18n.language, t]
+  )
+
+  const sourceOptions = useMemo(
+    () => [
+      { value: '', label: t('commands.filters.all', '全部') },
+      ...sources.map(src => ({
+        value: src,
+        label: src === 'built_in' ? t('commands.sources.builtIn', '内置') : src,
+      })),
+    ],
+    [sources, t]
+  )
 
   // 过滤
   const filtered = useMemo(() => {
@@ -140,66 +162,42 @@ export default function CommandsPage() {
         }}
       >
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap alignItems="center">
-          <TextField
+          <SearchField
             size="small"
             placeholder={t('commands.search', '搜索命令...')}
             value={search}
-            onChange={(e) => {
-              setSearch(e.target.value)
+            onChange={value => {
+              setSearch(value)
               setPage(0)
             }}
             sx={{ minWidth: 220 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
           />
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>{t('commands.filters.category', '分类')}</InputLabel>
-            <Select
-              value={categoryFilter}
-              label={t('commands.filters.category', '分类')}
-              onChange={(e) => {
-                setCategoryFilter(e.target.value)
-                setPage(0)
-              }}
-            >
-              <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
-              {categories.map((cat) => (
-                <MenuItem key={cat} value={cat}>
-                  {commands.find((c) => c.category === cat)
-                    ? getLocalizedText(
-                        commands.find((c) => c.category === cat)?.i18n_category,
-                        cat,
-                        i18n.language
-                      )
-                    : cat}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl size="small" sx={{ minWidth: 140 }}>
-            <InputLabel>{t('commands.filters.source', '来源')}</InputLabel>
-            <Select
-              value={sourceFilter}
-              label={t('commands.filters.source', '来源')}
-              onChange={(e) => {
-                setSourceFilter(e.target.value)
-                setPage(0)
-              }}
-            >
-              <MenuItem value="">{t('commands.filters.all', '全部')}</MenuItem>
-              {sources.map((src) => (
-                <MenuItem key={src} value={src}>
-                  {src === 'built_in' ? t('commands.sources.builtIn', '内置') : src}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <Typography variant="body2" sx={{ alignSelf: 'center', color: 'text.secondary', ml: 'auto' }}>
+          <FilterSelect
+            label={t('commands.filters.category', '分类')}
+            value={categoryFilter}
+            options={categoryOptions}
+            onChange={value => {
+              setCategoryFilter(value)
+              setPage(0)
+            }}
+            sx={{ minWidth: 140 }}
+            fullWidth={false}
+          />
+          <FilterSelect
+            label={t('commands.filters.source', '来源')}
+            value={sourceFilter}
+            options={sourceOptions}
+            onChange={value => {
+              setSourceFilter(value)
+              setPage(0)
+            }}
+            sx={{ minWidth: 140 }}
+            fullWidth={false}
+          />
+          <Typography
+            variant="body2"
+            sx={{ alignSelf: 'center', color: 'text.secondary', ml: { xs: 0, md: 'auto' } }}
+          >
             {t('commands.total', '共 {{count}} 个命令', { count: filtered.length })}
           </Typography>
         </Stack>
@@ -310,9 +308,9 @@ function CommandRow({
     <>
       <TableRow sx={UNIFIED_TABLE_STYLES.row}>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
-          <IconButton size="small" onClick={onToggleExpand}>
+          <IconActionButton size="small" onClick={onToggleExpand}>
             {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-          </IconButton>
+          </IconActionButton>
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell}>
           <Typography variant="body2" fontWeight={600} fontFamily="monospace">
@@ -361,9 +359,9 @@ function CommandRow({
         </TableCell>
         <TableCell sx={UNIFIED_TABLE_STYLES.cell} align="center">
           <Tooltip title={t('commands.actions.reset', '重置为默认')}>
-            <IconButton size="small" onClick={onReset}>
+            <IconActionButton size="small" onClick={onReset} title={t('commands.actions.reset', '重置为默认')}>
               <ResetIcon fontSize="small" />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         </TableCell>
       </TableRow>

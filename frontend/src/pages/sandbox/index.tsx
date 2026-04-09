@@ -10,7 +10,6 @@ import {
   TableHead,
   TableRow,
   Chip,
-  IconButton,
   Collapse,
   Tooltip,
   Stack,
@@ -25,12 +24,9 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   alpha,
   TextField,
   InputAdornment,
-  ToggleButton,
-  ToggleButtonGroup,
   Select,
   MenuItem,
   FormControl,
@@ -75,6 +71,9 @@ import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../../stores/locale'
 import { copyText } from '../../utils/clipboard'
+import SegmentedControl from '../../components/common/SegmentedControl'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 // ─── Stat Card Component ────────────────────────────────────
 
@@ -319,7 +318,7 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
         {renderContent()}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t('dialog.close')}</Button>
+        <ActionButton onClick={onClose}>{t('dialog.close')}</ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -629,30 +628,29 @@ export default function SandboxPage() {
               ),
               endAdornment: searchInput ? (
                 <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchInput('')}>
+                  <IconActionButton size="small" onClick={() => setSearchInput('')}>
                     <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ) : undefined,
             }}
           />
 
           {/* 成功状态过滤 */}
-          <ToggleButtonGroup
-            size="small"
-            exclusive
+          <SegmentedControl
             value={filterSuccess === null ? 'all' : filterSuccess ? 'success' : 'failed'}
-            onChange={(_e, val) => {
+            options={[
+              { value: 'all', label: t('filter.allStatus') },
+              { value: 'success', label: t('filter.successStatus') },
+              { value: 'failed', label: t('filter.failedStatus') },
+            ]}
+            onChange={val => {
               if (val === 'all' || val === null) setFilterSuccess(null)
               else if (val === 'success') setFilterSuccess(true)
               else setFilterSuccess(false)
               setPage(0)
             }}
-          >
-            <ToggleButton value="all">{t('filter.allStatus')}</ToggleButton>
-            <ToggleButton value="success">{t('filter.successStatus')}</ToggleButton>
-            <ToggleButton value="failed">{t('filter.failedStatus')}</ToggleButton>
-          </ToggleButtonGroup>
+          />
 
           {/* 停止类型过滤 */}
           <FormControl size="small" sx={{ minWidth: 130 }}>
@@ -699,9 +697,9 @@ export default function SandboxPage() {
           {/* 清除过滤按钮 */}
           {hasActiveFilters && (
             <Tooltip title={t('filter.clearFilter')}>
-              <IconButton size="small" onClick={handleClearFilters} color="default">
+              <IconActionButton size="small" onClick={handleClearFilters} color="default">
                 <FilterAltOffIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           )}
         </Stack>
@@ -979,7 +977,7 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={e => {
                               e.stopPropagation() // 防止事件冒泡触发行点击
@@ -991,7 +989,7 @@ export default function SandboxPage() {
                             ) : (
                               <KeyboardArrowDownIcon fontSize={isSmall ? 'small' : 'medium'} />
                             )}
-                          </IconButton>
+                          </IconActionButton>
                         </TableCell>
                         <TableCell
                           sx={{
@@ -1218,12 +1216,12 @@ export default function SandboxPage() {
                                       </Typography>
                                     </Box>
                                     <Tooltip title={t('detail.copyThoughtChain')}>
-                                      <IconButton
+                                      <IconActionButton
                                         size="small"
                                         onClick={() => copyToClipboard(log.thought_chain, t('detail.thoughtChain'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
-                                      </IconButton>
+                                      </IconActionButton>
                                     </Tooltip>
                                   </Stack>
                                   <Paper
@@ -1281,12 +1279,12 @@ export default function SandboxPage() {
                                     </Typography>
                                   </Box>
                                   <Tooltip title={t('detail.copyCode')}>
-                                    <IconButton
+                                    <IconActionButton
                                       size="small"
                                       onClick={() => copyToClipboard(log.code_text, t('detail.code'))}
                                     >
                                       <ContentCopyIcon fontSize="small" />
-                                    </IconButton>
+                                    </IconActionButton>
                                   </Tooltip>
                                 </Stack>
                                 <Paper variant="outlined" className="overflow-hidden w-full">
@@ -1378,12 +1376,12 @@ export default function SandboxPage() {
                                       </Typography>
                                     </Box>
                                     <Tooltip title={t('detail.copyOutput')}>
-                                      <IconButton
+                                      <IconActionButton
                                         size="small"
                                         onClick={() => copyToClipboard(log.outputs, t('detail.result'))}
                                       >
                                         <ContentCopyIcon fontSize="small" />
-                                      </IconButton>
+                                      </IconActionButton>
                                     </Tooltip>
                                   </Stack>
                                   <Paper variant="outlined" className="overflow-hidden w-full">
@@ -1602,7 +1600,7 @@ export default function SandboxPage() {
                               {devMode && extraData?.log_path && (
                                 <Box sx={{ my: 2 }}>
                                   <Stack direction="row" spacing={1} flexWrap="wrap">
-                                    <Button
+                                    <ActionButton
                                       variant="outlined"
                                       color="secondary"
                                       size="small"
@@ -1614,10 +1612,10 @@ export default function SandboxPage() {
                                       }}
                                     >
                                       {t('actions.viewLog')}
-                                    </Button>
+                                    </ActionButton>
                                     <Tooltip title={t('actions.downloadFullLogTooltip')}>
                                       <span>
-                                        <Button
+                                        <ActionButton
                                           variant="outlined"
                                           color="info"
                                           size="small"
@@ -1635,12 +1633,12 @@ export default function SandboxPage() {
                                           }}
                                         >
                                           {t('actions.downloadFullLog')}
-                                        </Button>
+                                        </ActionButton>
                                       </span>
                                     </Tooltip>
                                     <Tooltip title={t('actions.downloadSimplifiedLogTooltip')}>
                                       <span>
-                                        <Button
+                                        <ActionButton
                                           variant="outlined"
                                           color="success"
                                           size="small"
@@ -1658,7 +1656,7 @@ export default function SandboxPage() {
                                           }}
                                         >
                                           {t('actions.downloadSimplifiedLog')}
-                                        </Button>
+                                        </ActionButton>
                                       </span>
                                     </Tooltip>
                                   </Stack>

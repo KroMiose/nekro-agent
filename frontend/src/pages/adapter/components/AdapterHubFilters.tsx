@@ -1,9 +1,8 @@
 import type { FormEvent } from 'react'
-import SearchIcon from '@mui/icons-material/Search'
-import CloseRoundedIcon from '@mui/icons-material/CloseRounded'
-import { Box, Button, IconButton, InputAdornment, TextField, useTheme } from '@mui/material'
+import { Box, useTheme } from '@mui/material'
 import { useTranslation } from 'react-i18next'
-import { BUTTON_VARIANTS } from '../../../theme/variants'
+import SearchField from '../../../components/common/SearchField'
+import ActionButton from '../../../components/common/ActionButton'
 
 interface AdapterHubFiltersProps {
   search: string
@@ -50,11 +49,12 @@ export default function AdapterHubFilters({
           borderRadius: 2,
         }}
       >
-        <TextField
+        <SearchField
           fullWidth
-          size="small"
           value={search}
-          onChange={event => onSearchChange(event.target.value)}
+          onChange={onSearchChange}
+          onClear={onSearchClear}
+          clearAriaLabel={t('hub.clearSearch')}
           placeholder={t('hub.searchPlaceholder')}
           sx={{
             minWidth: 0,
@@ -62,31 +62,11 @@ export default function AdapterHubFilters({
               borderRadius: '8px 0 0 8px',
             },
           }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-            endAdornment: search ? (
-              <InputAdornment position="end">
-                <IconButton
-                  type="button"
-                  size="small"
-                  onClick={onSearchClear}
-                  aria-label={t('hub.clearSearch')}
-                >
-                  <CloseRoundedIcon fontSize="small" />
-                </IconButton>
-              </InputAdornment>
-            ) : undefined,
-          }}
         />
-        <Button
+        <ActionButton
           type="submit"
-          variant="contained"
+          tone="primary"
           sx={{
-            ...BUTTON_VARIANTS.primary.styles,
             borderRadius: '0 8px 8px 0',
             px: 1.75,
             minWidth: 82,
@@ -94,7 +74,7 @@ export default function AdapterHubFilters({
           }}
         >
           {t('hub.searchAction')}
-        </Button>
+        </ActionButton>
       </Box>
     </Box>
   )

@@ -1,11 +1,12 @@
 import ArrowForwardRoundedIcon from '@mui/icons-material/ArrowForwardRounded'
-import { Box, Button, Card, CardActions, CardContent, Chip, Typography, useTheme } from '@mui/material'
+import { Box, Card, CardActions, CardContent, Chip, Typography, useTheme } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { createAdapterIcon, getAdapterStatusDisplay } from '../../../config/adapters'
 import type { AdapterInfo } from '../../../services/api/adapters'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { UI_STYLES } from '../../../theme/themeConfig'
+import ActionButton from '../../../components/common/ActionButton'
 
 const getStatusColor = (status: AdapterInfo['status'], success: string, error: string, warning: string) => {
   switch (status) {
@@ -191,7 +192,7 @@ export default function AdapterHubCard({ adapter, onOpen }: AdapterHubCardProps)
           </Typography>
         </Box>
 
-        <Button
+        <ActionButton
           size="small"
           variant="contained"
           endIcon={<ArrowForwardRoundedIcon />}
@@ -220,7 +221,7 @@ export default function AdapterHubCard({ adapter, onOpen }: AdapterHubCardProps)
           }}
         >
           {t('hub.open')}
-        </Button>
+        </ActionButton>
       </CardActions>
     </Card>
   )

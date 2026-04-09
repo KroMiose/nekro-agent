@@ -6,7 +6,6 @@ import {
   Typography,
   TextField,
   Autocomplete,
-  Button,
   Stack,
   Alert,
   Table,
@@ -15,7 +14,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -49,7 +47,6 @@ import {
   EmojiObjects as EmojiObjectsIcon,
   ContentCopy as ContentCopyIcon,
   NetworkCheck as NetworkCheckIcon,
-  Search as SearchIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ModelGroupConfig } from '../../services/api/config'
@@ -57,6 +54,9 @@ import { unifiedConfigApi, ModelGroupTestItem } from '../../services/api/unified
 import { getLocalizedText, OPENAI_COMPAT_PROVIDERS } from '../../config/model-presets'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import SearchField from '../../components/common/SearchField'
 
 interface EditDialogProps {
   open: boolean
@@ -67,7 +67,6 @@ interface EditDialogProps {
   onGroupNameChange: (name: string) => void
   isCopy?: boolean
   existingGroups: Record<string, ModelGroupConfig>
-  savedGroupName?: string
 }
 
 function EditDialog({
@@ -79,7 +78,6 @@ function EditDialog({
   onGroupNameChange,
   isCopy,
   existingGroups,
-  savedGroupName,
 }: EditDialogProps) {
   const [config, setConfig] = useState<ModelGroupConfig>({
     CHAT_MODEL: '',
@@ -231,18 +229,29 @@ function EditDialog({
   }, [initialConfig, open, isCopy])
 
   const handleTestModel = async () => {
-    if (!savedGroupName) return
+    if (!config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY) return
     setTestingModel(true)
     setTestResult(null)
     try {
-      const items = await unifiedConfigApi.testModelGroups([savedGroupName])
-      if (items.length > 0) {
-        setTestResult(items[0])
-        if (items[0].success) {
-          notification.success(t('modelGroup.notifications.testPassed'))
-        } else {
-          notification.warning(t('modelGroup.notifications.testFailed'))
-        }
+      const item = await unifiedConfigApi.testModelGroupInline({
+        group_name: groupName || 'inline-test',
+        chat_model: config.CHAT_MODEL,
+        base_url: config.BASE_URL,
+        api_key: config.API_KEY,
+        model_type: config.MODEL_TYPE || 'chat',
+        chat_proxy: config.CHAT_PROXY || undefined,
+        temperature: config.TEMPERATURE ?? undefined,
+        top_p: config.TOP_P ?? undefined,
+        top_k: config.TOP_K ?? undefined,
+        presence_penalty: config.PRESENCE_PENALTY ?? undefined,
+        frequency_penalty: config.FREQUENCY_PENALTY ?? undefined,
+        extra_body: config.EXTRA_BODY ?? undefined,
+      })
+      setTestResult(item)
+      if (item.success) {
+        notification.success(t('modelGroup.notifications.testPassed'))
+      } else {
+        notification.warning(t('modelGroup.notifications.testFailed'))
       }
     } catch (err) {
       notification.error(err instanceof Error ? err.message : t('modelGroup.notifications.testError'))
@@ -425,13 +434,14 @@ function EditDialog({
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton
+                  <IconActionButton
                     onClick={() => setShowApiKey(!showApiKey)}
                     edge="end"
                     size={isSmall ? 'small' : 'medium'}
+                    title={showApiKey ? t('actions.hide', { ns: 'common', defaultValue: '隐藏' }) : t('actions.show', { ns: 'common', defaultValue: '显示' })}
                   >
                     {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ),
             }}
@@ -484,8 +494,8 @@ function EditDialog({
             </Box>
             <Tooltip title={fetchTooltipTitle}>
               <span>
-                <Button
-                  variant="outlined"
+                <ActionButton
+                  tone="secondary"
                   onClick={fetchAvailableModels}
                   disabled={!canFetchModels}
                   size={inputSize}
@@ -499,7 +509,7 @@ function EditDialog({
                   ) : (
                     t('modelGroup.actions.fetchModels')
                   )}
-                </Button>
+                </ActionButton>
               </span>
             </Tooltip>
           </Stack>
@@ -594,16 +604,16 @@ function EditDialog({
           </Box>
 
           {/* 高级选项折叠面板 */}
-          <Button
+          <ActionButton
+            tone="ghost"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            variant="text"
             className="self-start"
             size={isSmall ? 'small' : 'medium'}
           >
             {showAdvanced
               ? t('modelGroup.helpers.collapseAdvanced')
               : t('modelGroup.helpers.expandAdvanced')}
-          </Button>
+          </ActionButton>
 
           {showAdvanced && (
             <Stack spacing={2} className="pl-4 border-l-2 border-gray-200">
@@ -725,44 +735,44 @@ function EditDialog({
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
-        {savedGroupName && !isCopy && (
+        {(config.MODEL_TYPE === 'chat' || config.MODEL_TYPE === 'embedding') && (
           <Tooltip
             title={
-              config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding'
-                ? t('modelGroup.tooltips.testOnlyChat')
+              !config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY
+                ? t('modelGroup.tooltips.testNeedsConfig')
                 : ''
             }
             arrow
           >
             <span>
-              <Button
+              <ActionButton
+                tone="secondary"
                 onClick={handleTestModel}
-                color="info"
-                variant="outlined"
                 size="small"
                 startIcon={testingModel ? <CircularProgress size={14} /> : <NetworkCheckIcon />}
-                disabled={testingModel || (config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding')}
+                disabled={testingModel || !config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY}
                 sx={{ mr: 'auto' }}
               >
                 {t('modelGroup.actions.test')}
-              </Button>
+              </ActionButton>
             </span>
           </Tooltip>
         )}
-        <Button
+        <ActionButton
+          tone="secondary"
           onClick={onClose}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
           {t('actions.cancel', { ns: 'common' })}
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSubmit}
-          color="primary"
           disabled={!!groupNameError || !groupName}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
           {isCopy ? t('modelGroup.actions.createCopy') : t('actions.save', { ns: 'common' })}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -1054,29 +1064,22 @@ export default function ModelGroupsPage() {
           gap: 1,
         }}
       >
-        <TextField
+        <SearchField
           size="small"
           value={searchText}
-          onChange={e => setSearchText(e.target.value)}
+          onChange={setSearchText}
           placeholder={t('modelGroup.actions.searchPlaceholder')}
           sx={{ flex: 1 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-          }}
         />
-        <Button
-          variant="contained"
+        <ActionButton
+          tone="primary"
           startIcon={<AddIcon />}
           onClick={handleAdd}
           size="small"
           sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           {t('modelGroup.dialog.createTitle')}
-        </Button>
+        </ActionButton>
       </Box>
 
       {/* 表格容器 */}
@@ -1372,54 +1375,60 @@ export default function ModelGroupsPage() {
                       flexWrap={isSmall ? 'wrap' : 'nowrap'}
                     >
                       <Tooltip title={t('modelGroup.tooltips.visitProvider')} arrow>
-                        <IconButton
+                        <IconActionButton
+                          tone="primary"
                           onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
                           size="small"
-                          color="success"
                           disabled={!config.BASE_URL}
                           sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.visitProvider')}
                         >
                           <LaunchIcon fontSize="small" />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip
                         title={config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding' ? t('modelGroup.tooltips.testOnlyChat') : t('modelGroup.tooltips.test')}
                         arrow
                       >
                         <span>
-                          <IconButton
+                          <IconActionButton
+                            tone="primary"
                             onClick={() => runTest(name)}
                             size="small"
-                            color="info"
                             disabled={(config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding') || testingGroups.has(name)}
                             sx={{ p: 0.5 }}
+                            title={
+                              config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding'
+                                ? t('modelGroup.tooltips.testOnlyChat')
+                                : t('modelGroup.tooltips.test')
+                            }
                           >
                             {testingGroups.has(name)
                               ? <CircularProgress size={16} />
                               : <NetworkCheckIcon fontSize="small" />
                             }
-                          </IconButton>
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={t('modelGroup.tooltips.edit')} arrow>
-                        <IconButton
+                        <IconActionButton
                           onClick={() => handleEdit(name)}
                           size="small"
-                          color="warning"
                           sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.edit')}
                         >
                           <EditIcon fontSize="small" />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip title={t('modelGroup.tooltips.copy')} arrow>
-                        <IconButton
+                        <IconActionButton
                           onClick={() => handleCopy(name)}
                           size="small"
-                          color="default"
                           sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.copy')}
                         >
                           <ContentCopyIcon fontSize="small" />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip
                         title={
@@ -1430,15 +1439,20 @@ export default function ModelGroupsPage() {
                         arrow
                       >
                         <span>
-                          <IconButton
+                          <IconActionButton
+                            tone="danger"
                             onClick={() => name !== 'default' && confirmDelete(name)}
                             size="small"
-                            color="error"
                             disabled={name === 'default'}
                             sx={{ p: 0.5 }}
+                            title={
+                              name === 'default'
+                                ? t('modelGroup.tooltips.defaultDelete')
+                                : t('modelGroup.tooltips.delete')
+                            }
                           >
                             <DeleteIcon fontSize="small" />
-                          </IconButton>
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                     </Stack>
@@ -1461,7 +1475,6 @@ export default function ModelGroupsPage() {
         onGroupNameChange={name => setEditingGroup(prev => ({ ...prev, name }))}
         isCopy={editingGroup.isCopy}
         existingGroups={modelGroups}
-        savedGroupName={editingGroup.isCopy ? undefined : editingGroup.config ? editingGroup.name : undefined}
       />
 
       {/* 删除确认对话框 */}
@@ -1478,19 +1491,20 @@ export default function ModelGroupsPage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setDeleteDialogOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => handleDelete(deletingGroupName)}
-            color="error"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('modelGroup.deleteDialog.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

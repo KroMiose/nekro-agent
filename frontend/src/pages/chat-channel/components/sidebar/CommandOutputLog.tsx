@@ -3,7 +3,6 @@ import {
   Box,
   Typography,
   Chip,
-  IconButton,
   Stack,
   Tooltip,
 } from '@mui/material'
@@ -14,6 +13,7 @@ import {
 import CommandOutputSegments from '../../../../components/common/CommandOutputSegments'
 import { commandsApi, type CommandOutputEvent } from '../../../../services/api/commands'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from '../../../../components/common/IconActionButton'
 
 interface CommandOutputLogProps {
   chatKey: string
@@ -115,9 +115,9 @@ export default function CommandOutputLog({ chatKey }: CommandOutputLogProps) {
           </Typography>
         </Stack>
         <Tooltip title={t('commandSidebar.clear')}>
-          <IconButton size="small" onClick={handleClear} disabled={events.length === 0}>
+          <IconActionButton size="small" onClick={handleClear} disabled={events.length === 0}>
             <ClearIcon fontSize="small" />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       </Stack>
 

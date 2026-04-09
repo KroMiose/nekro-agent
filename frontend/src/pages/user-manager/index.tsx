@@ -2,14 +2,10 @@ import React, { useState } from 'react'
 import {
   Box,
   Paper,
-  Button,
-  TextField,
-  InputAdornment,
   useMediaQuery,
   useTheme,
   TableContainer,
 } from '@mui/material'
-import SearchIcon from '@mui/icons-material/Search'
 import UserTable from './components/UserTable'
 import UserDetail from './components/UserDetail'
 import UserForm from './components/UserForm'
@@ -19,6 +15,7 @@ import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
+import SearchActionBar from '../../components/common/SearchActionBar'
 
 const UserManagerPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -92,42 +89,18 @@ const UserManagerPage: React.FC = () => {
       }}
     >
       {/* 搜索栏 */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          pl: 1,
-          flexShrink: 0,
-          flexDirection: 'row',
-          alignItems: 'center',
-        }}
-      >
-        <TextField
-          placeholder={t('search.placeholder')}
-          size="small"
-          sx={{ flex: 1 }}
+      <Box sx={{ pl: 1, flexShrink: 0 }}>
+        <SearchActionBar
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
-          onKeyPress={e => e.key === 'Enter' && handleSearch()}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon />
-              </InputAdornment>
-            ),
+          onChange={setSearchTerm}
+          onSubmit={event => {
+            event.preventDefault()
+            handleSearch()
           }}
+          placeholder={t('search.placeholder')}
+          actionLabel={t('actions.search')}
+          searchWidth={{ xs: '100%', sm: 280, md: 320 }}
         />
-        <Button
-          variant="contained"
-          onClick={handleSearch}
-          size={isSmall ? 'small' : 'medium'}
-          sx={{
-            minWidth: isSmall ? '60px' : '80px',
-            flexShrink: 0,
-          }}
-        >
-          {t('actions.search')}
-        </Button>
       </Box>
 
       {/* 用户表格 */}

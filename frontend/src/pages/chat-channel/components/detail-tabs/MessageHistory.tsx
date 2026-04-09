@@ -5,10 +5,8 @@ import {
   Avatar,
   CircularProgress,
   useTheme,
-  Button,
   Dialog,
   TextField,
-  IconButton,
   Snackbar,
   Alert,
   Tooltip,
@@ -21,8 +19,6 @@ import {
   ListItem,
   ListItemButton,
   Collapse,
-  ToggleButtonGroup,
-  ToggleButton,
 } from '@mui/material'
 import SendIcon from '@mui/icons-material/Send'
 import AttachFileIcon from '@mui/icons-material/AttachFile'
@@ -39,6 +35,9 @@ import { useInfiniteQuery, useQueryClient, type InfiniteData } from '@tanstack/r
 import { chatChannelApi, ChatMessage, ChatMessageListResponse, ChatMessageSegment, ForwardMessageItem } from '../../../../services/api/chat-channel'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../../components/common/MarkdownRenderer'
+import SegmentedControl from '../../../../components/common/SegmentedControl'
+import ActionButton from '../../../../components/common/ActionButton'
+import IconActionButton from '../../../../components/common/IconActionButton'
 
 // 防抖函数
 function debounce<T extends (...args: unknown[]) => unknown>(
@@ -219,7 +218,6 @@ function MessageImage({
         component="img"
         src={src}
         alt={alt}
-        loading="lazy"
         onClick={onClick}
         onLoad={() => setLoading(false)}
         onError={() => {
@@ -1539,7 +1537,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             zIndex: theme.zIndex.fab,
           }}
         >
-          <Button
+          <ActionButton
             variant="contained"
             color="primary"
             size="small"
@@ -1551,7 +1549,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             }}
           >
             {t('messageHistory.scrollToBottom')}
-          </Button>
+          </ActionButton>
         </Box>
       )}
 
@@ -1582,9 +1580,9 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {attachedFile.name}
           </span>
-          <IconButton size="small" onClick={() => setAttachedFile(null)}>
+          <IconActionButton size="small" onClick={() => setAttachedFile(null)}>
             <CloseIcon fontSize="small" />
-          </IconButton>
+          </IconActionButton>
         </Box>
       )}
 
@@ -1607,25 +1605,19 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
         <Typography variant="caption" sx={{ color: theme.palette.text.secondary, whiteSpace: 'nowrap' }}>
           {t('messageHistory.senderType')}
         </Typography>
-        <ToggleButtonGroup
+        <SegmentedControl
           value={senderType}
-          exclusive
-          size="small"
-          onChange={(_, val) => { if (val) setSenderType(val) }}
+          density="tight"
+          onChange={val => setSenderType(val)}
+          options={[
+            { value: 'bot', label: t('messageHistory.senderBot') },
+            { value: 'system', label: t('messageHistory.senderSystem') },
+            { value: 'none', label: t('messageHistory.senderNone') },
+          ]}
           sx={{
-            '& .MuiToggleButton-root': {
-              py: 0,
-              px: 1,
-              fontSize: '12px',
-              textTransform: 'none',
-              lineHeight: '24px',
-            },
+            flexShrink: 0,
           }}
-        >
-          <ToggleButton value="bot">{t('messageHistory.senderBot')}</ToggleButton>
-          <ToggleButton value="system">{t('messageHistory.senderSystem')}</ToggleButton>
-          <ToggleButton value="none">{t('messageHistory.senderNone')}</ToggleButton>
-        </ToggleButtonGroup>
+        />
         <Typography variant="caption" sx={{
           color: senderType === 'none' ? theme.palette.warning.main : theme.palette.text.secondary,
           fontSize: '11px',
@@ -1660,14 +1652,14 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             e.target.value = ''
           }}
         />
-        <IconButton
+        <IconActionButton
           size="small"
           onClick={() => fileInputRef.current?.click()}
           disabled={sending}
           sx={{ color: theme.palette.text.secondary }}
         >
           <AttachFileIcon fontSize="small" />
-        </IconButton>
+        </IconActionButton>
         <TextField
           ref={inputRef}
           fullWidth
@@ -1692,7 +1684,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
             },
           }}
         />
-        <IconButton
+        <IconActionButton
           color="primary"
           onClick={handleSend}
           disabled={(!inputValue.trim() && !attachedFile) || sending}
@@ -1702,7 +1694,7 @@ export default function MessageHistory({ chatKey, canSend = false, aiAlwaysInclu
           }}
         >
           {sending ? <CircularProgress size={20} /> : <SendIcon fontSize="small" />}
-        </IconButton>
+        </IconActionButton>
       </Box>
 
       {/* 输入框渲染预览 - 仅在包含 @mention 标记时显示 */}

@@ -2,11 +2,12 @@
  * 主题样式变体配置文件
  * 用于定义各种UI组件的通用样式变体
  */
+/* cspell:ignore glassmorphism bgcolor */
 import { SxProps, Theme, alpha } from '@mui/material'
 import { UI_STYLES } from './themeConfig'
 import { getCurrentExtendedPalette, getCurrentThemeMode } from './themeConfig'
 import { getStopTypeColorValue } from './utils'
-import { getShadow, getBackdropFilter, getBackground, getTransition } from './themeApi'
+import { getShadow, getBackdropFilter, getTransition } from './themeApi'
 
 // 圆角常量
 export const BORDER_RADIUS = {
@@ -150,17 +151,21 @@ export const CARD_VARIANTS = {
 export const BUTTON_VARIANTS = {
   primary: {
     get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
       const palette = getCurrentExtendedPalette()
       return {
-        background: getBackground(
-          `linear-gradient(45deg, ${palette.primary.main} 0%, ${palette.primary.dark} 100%)`
-        ),
+        backgroundColor: palette.primary.main,
         color: '#fff',
+        boxShadow:
+          mode === 'light'
+            ? `0 4px 12px ${alpha(palette.primary.main, 0.18)}`
+            : `0 6px 16px ${alpha(palette.primary.main, 0.22)}`,
         '&:hover': {
-          background: getBackground(
-            `linear-gradient(45deg, ${palette.primary.dark} 0%, ${palette.primary.main} 100%)`
-          ),
-          boxShadow: getShadow('0 4px 8px rgba(0, 0, 0, 0.15)'),
+          backgroundColor: palette.primary.dark,
+          boxShadow:
+            mode === 'light'
+              ? `0 6px 14px ${alpha(palette.primary.main, 0.22)}`
+              : `0 8px 18px ${alpha(palette.primary.main, 0.28)}`,
         },
         transition: LAYOUT.TRANSITION.DEFAULT.transition,
         borderRadius: BORDER_RADIUS.DEFAULT,
@@ -183,6 +188,462 @@ export const BUTTON_VARIANTS = {
         },
       }
     },
+  },
+}
+
+export const ACTION_BUTTON_VARIANTS = {
+  primary: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      const palette = getCurrentExtendedPalette()
+      return {
+        minHeight: 36,
+        px: 1.5,
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: '#fff',
+        backgroundColor: palette.primary.main,
+        boxShadow:
+          mode === 'light'
+            ? `0 4px 12px ${alpha(palette.primary.main, 0.18)}`
+            : `0 6px 16px ${alpha(palette.primary.main, 0.24)}`,
+        '&:hover': {
+          backgroundColor: palette.primary.dark,
+          boxShadow:
+            mode === 'light'
+              ? `0 6px 14px ${alpha(palette.primary.main, 0.22)}`
+              : `0 8px 18px ${alpha(palette.primary.main, 0.28)}`,
+        },
+      }
+    },
+  },
+  secondary: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      const palette = getCurrentExtendedPalette()
+      return {
+        minHeight: 36,
+        px: 1.5,
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: palette.primary.main,
+        backgroundColor:
+          mode === 'light'
+            ? alpha(palette.background.paper, 0.94)
+            : alpha(palette.background.paper, 0.72),
+        border: `1px solid ${alpha(palette.primary.main, mode === 'light' ? 0.18 : 0.24)}`,
+        boxShadow:
+          mode === 'light'
+            ? '0 4px 12px rgba(15, 23, 42, 0.05)'
+            : '0 6px 16px rgba(0, 0, 0, 0.18)',
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? alpha(palette.primary.main, 0.06)
+              : alpha(palette.primary.main, 0.12),
+          borderColor: alpha(palette.primary.main, mode === 'light' ? 0.26 : 0.32),
+        },
+      }
+    },
+  },
+  ghost: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      return {
+        minHeight: 36,
+        px: 1.25,
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: mode === 'light' ? 'rgba(0, 0, 0, 0.72)' : 'rgba(255, 255, 255, 0.82)',
+        backgroundColor: 'transparent',
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? 'rgba(0, 0, 0, 0.045)'
+              : 'rgba(255, 255, 255, 0.08)',
+        },
+      }
+    },
+  },
+  danger: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      const palette = getCurrentExtendedPalette()
+      return {
+        minHeight: 36,
+        px: 1.5,
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: palette.error,
+        backgroundColor:
+          mode === 'light'
+            ? alpha(palette.error, 0.08)
+            : alpha(palette.error, 0.16),
+        border: `1px solid ${alpha(palette.error, mode === 'light' ? 0.18 : 0.26)}`,
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? alpha(palette.error, 0.12)
+              : alpha(palette.error, 0.22),
+          borderColor: alpha(palette.error, mode === 'light' ? 0.26 : 0.34),
+        },
+      }
+    },
+  },
+}
+
+export const ICON_ACTION_BUTTON_VARIANTS = {
+  subtle: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      return {
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: mode === 'light' ? 'text.secondary' : 'rgba(255, 255, 255, 0.74)',
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? 'rgba(0, 0, 0, 0.045)'
+              : 'rgba(255, 255, 255, 0.08)',
+        },
+      }
+    },
+  },
+  primary: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      const palette = getCurrentExtendedPalette()
+      return {
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: palette.primary.main,
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? alpha(palette.primary.main, 0.08)
+              : alpha(palette.primary.main, 0.16),
+        },
+      }
+    },
+  },
+  danger: {
+    get styles(): SxProps<Theme> {
+      const mode = getCurrentThemeMode()
+      const palette = getCurrentExtendedPalette()
+      return {
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color: palette.error,
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? alpha(palette.error, 0.08)
+              : alpha(palette.error, 0.18),
+        },
+      }
+    },
+  },
+}
+
+export type SegmentedControlDensity = 'comfortable' | 'compact' | 'tight'
+
+const SEGMENTED_CONTROL_METRICS: Record<
+  SegmentedControlDensity,
+  {
+    containerRadius: string
+    minHeight: number
+    borderRadius: string
+    paddingX: number
+    paddingY: number
+    fontSize: string
+    iconSize: number
+    gap: number
+  }
+> = {
+  comfortable: {
+    containerRadius: BORDER_RADIUS.MEDIUM,
+    minHeight: 36,
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    paddingX: 1.5,
+    paddingY: 0.75,
+    fontSize: '0.875rem',
+    iconSize: 18,
+    gap: 0.75,
+  },
+  compact: {
+    containerRadius: BORDER_RADIUS.DEFAULT,
+    minHeight: 32,
+    borderRadius: BORDER_RADIUS.DEFAULT,
+    paddingX: 1.25,
+    paddingY: 0.5,
+    fontSize: '0.8125rem',
+    iconSize: 16,
+    gap: 0.5,
+  },
+  tight: {
+    containerRadius: BORDER_RADIUS.DEFAULT,
+    minHeight: 28,
+    borderRadius: BORDER_RADIUS.SMALL,
+    paddingX: 0.875,
+    paddingY: 0.25,
+    fontSize: '0.75rem',
+    iconSize: 15,
+    gap: 0.375,
+  },
+}
+
+export const SEGMENTED_CONTROL_VARIANTS = {
+  container: (density: SegmentedControlDensity = 'compact'): SxProps<Theme> => {
+    const palette = getCurrentExtendedPalette()
+    const mode = getCurrentThemeMode()
+    const metrics = SEGMENTED_CONTROL_METRICS[density]
+
+    return {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 0.375,
+      padding: 0.25,
+      borderRadius: metrics.containerRadius,
+      backgroundColor:
+        mode === 'light'
+          ? alpha(palette.background.paper, 0.92)
+          : alpha(palette.background.paper, 0.78),
+      boxShadow:
+        mode === 'light'
+          ? 'inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 4px 12px rgba(15, 23, 42, 0.05)'
+          : `inset 0 1px 0 ${alpha('#ffffff', 0.05)}, 0 6px 16px rgba(0, 0, 0, 0.2)`,
+      border: `1px solid ${
+        mode === 'light'
+          ? alpha(palette.primary.main, 0.08)
+          : alpha('#ffffff', 0.08)
+      }`,
+      backdropFilter: getBackdropFilter('blur(14px) saturate(1.05)'),
+      WebkitBackdropFilter: getBackdropFilter('blur(14px) saturate(1.05)'),
+      '& .MuiToggleButtonGroup-grouped': {
+        margin: 0,
+        border: 0,
+        borderRadius: `${metrics.borderRadius} !important`,
+      },
+    }
+  },
+  item: (
+    density: SegmentedControlDensity = 'compact',
+    iconOnly: boolean = false
+  ): SxProps<Theme> => {
+    const palette = getCurrentExtendedPalette()
+    const mode = getCurrentThemeMode()
+    const metrics = SEGMENTED_CONTROL_METRICS[density]
+
+    return {
+      minHeight: metrics.minHeight,
+      minWidth: iconOnly ? metrics.minHeight : 'auto',
+      px: iconOnly ? 0 : metrics.paddingX,
+      py: metrics.paddingY,
+      border: 0,
+      color:
+        mode === 'light'
+          ? 'rgba(0, 0, 0, 0.68)'
+          : 'rgba(255, 255, 255, 0.82)',
+      fontSize: metrics.fontSize,
+      fontWeight: 600,
+      lineHeight: 1,
+      textTransform: 'none',
+      transition: 'all 0.18s ease',
+      '&:hover': {
+        backgroundColor:
+          mode === 'light'
+            ? alpha(palette.primary.main, 0.07)
+            : alpha(palette.primary.main, 0.14),
+        color:
+          mode === 'light'
+            ? 'rgba(0, 0, 0, 0.87)'
+            : 'rgba(255, 255, 255, 0.95)',
+      },
+      '&.Mui-selected': {
+        color: palette.primary.main,
+        backgroundColor:
+          mode === 'light'
+            ? alpha(palette.primary.main, 0.12)
+            : alpha(palette.primary.main, 0.2),
+        boxShadow:
+          mode === 'light'
+            ? `0 6px 14px ${alpha(palette.primary.main, 0.12)}`
+            : `0 8px 18px ${alpha(palette.primary.main, 0.18)}`,
+      },
+      '&.Mui-selected:hover': {
+        backgroundColor:
+          mode === 'light'
+            ? alpha(palette.primary.main, 0.16)
+            : alpha(palette.primary.main, 0.24),
+      },
+      '&.Mui-disabled': {
+        opacity: 0.45,
+      },
+      '& .segmented-control-content': {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: metrics.gap,
+        minWidth: 0,
+      },
+      '& .segmented-control-icon': {
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: metrics.iconSize,
+        '& > *': {
+          fontSize: metrics.iconSize,
+        },
+      },
+    }
+  },
+}
+
+export const TAB_BAR_VARIANTS = {
+  get page(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+
+    return {
+      minHeight: 48,
+      '& .MuiTab-root': {
+        minHeight: 48,
+        fontSize: '0.875rem',
+        fontWeight: 600,
+        textTransform: 'none',
+        transition: 'all 0.2s ease',
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        mx: 0.5,
+        px: 1.5,
+        color:
+          mode === 'light'
+            ? 'rgba(0, 0, 0, 0.68)'
+            : 'rgba(255, 255, 255, 0.82)',
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? 'rgba(0, 0, 0, 0.04)'
+              : 'rgba(255, 255, 255, 0.08)',
+        },
+        '&.Mui-selected': {
+          color: palette.primary.main,
+          backgroundColor:
+            mode === 'light'
+              ? alpha(palette.primary.main, 0.1)
+              : alpha(palette.primary.main, 0.18),
+        },
+      },
+      '& .MuiTabs-indicator': {
+        height: 3,
+        borderRadius: '2px',
+        backgroundColor: palette.primary.main,
+        boxShadow: `0 0 8px ${alpha(palette.primary.main, 0.7)}`,
+      },
+    }
+  },
+  get panelContainer(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+
+    return {
+      px: 1,
+      py: 0.75,
+      border: 1,
+      borderColor:
+        mode === 'light'
+          ? alpha(palette.primary.main, 0.08)
+          : alpha('#ffffff', 0.08),
+      borderRadius: 2,
+      backgroundColor:
+        mode === 'light'
+          ? alpha(palette.background.paper, 0.96)
+          : alpha(palette.background.paper, 0.78),
+      boxShadow:
+        mode === 'dark'
+          ? `inset 0 1px 0 ${alpha('#ffffff', 0.04)}, 0 6px 18px rgba(0, 0, 0, 0.18)`
+          : 'inset 0 1px 0 rgba(255, 255, 255, 0.92), 0 8px 20px rgba(15, 23, 42, 0.06)',
+    }
+  },
+  get panel(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+
+    return {
+      minHeight: 44,
+      '& .MuiTabs-flexContainer': {
+        gap: 0.5,
+      },
+      '& .MuiTab-root': {
+        minWidth: 100,
+        minHeight: 36,
+        fontSize: '0.9rem',
+        fontWeight: 600,
+        textTransform: 'none',
+        borderRadius: BORDER_RADIUS.DEFAULT,
+        color:
+          mode === 'light'
+            ? 'rgba(0, 0, 0, 0.64)'
+            : 'rgba(255, 255, 255, 0.78)',
+        transition: 'all 0.2s ease',
+        '&:hover': {
+          backgroundColor:
+            mode === 'light'
+              ? 'rgba(0, 0, 0, 0.035)'
+              : 'rgba(255, 255, 255, 0.06)',
+        },
+        '&.Mui-selected': {
+          color: palette.primary.main,
+          bgcolor:
+            mode === 'light'
+              ? alpha(palette.primary.main, 0.08)
+              : alpha(palette.primary.main, 0.14),
+        },
+      },
+      '& .MuiTabs-indicator': {
+        height: 3,
+        borderRadius: 999,
+        backgroundColor: palette.primary.main,
+        boxShadow: `0 0 6px ${alpha(palette.primary.main, 0.5)}`,
+      },
+    }
+  },
+  get inline(): SxProps<Theme> {
+    const mode = getCurrentThemeMode()
+    const palette = getCurrentExtendedPalette()
+
+    return {
+      minHeight: 40,
+      '& .MuiTab-root': {
+        minHeight: 40,
+        fontSize: '0.85rem',
+        fontWeight: 600,
+        textTransform: 'none',
+        color:
+          mode === 'light'
+            ? 'rgba(0, 0, 0, 0.62)'
+            : 'rgba(255, 255, 255, 0.76)',
+      },
+      '& .MuiTab-root.Mui-selected': {
+        color: palette.primary.main,
+      },
+      '& .MuiTabs-indicator': {
+        height: 2,
+        borderRadius: '1px',
+        backgroundColor: palette.primary.main,
+      },
+    }
+  },
+  get editor(): SxProps<Theme> {
+    return {
+      '& .MuiTab-root': {
+        color: theme => alpha(theme.palette.common.white, 0.7),
+        minHeight: '36px',
+        padding: '6px 12px',
+        textTransform: 'none',
+        '&.Mui-selected': {
+          color: 'common.white',
+          fontWeight: 'bold',
+          textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+        },
+      },
+      '& .MuiTabs-indicator': {
+        backgroundColor: 'common.white',
+        height: 3,
+      },
+    }
   },
 }
 
@@ -643,18 +1104,7 @@ export const UNIFIED_TABLE_STYLES = {
 
   // 页面顶部 Tab 栏容器样式（用于 ModelsPage / SettingsPage 等）
   get pageTabContainer(): SxProps<Theme> {
-    const mode = getCurrentThemeMode()
-    const palette = getCurrentExtendedPalette()
-    return {
-      px: 1,
-      py: 0.75,
-      border: 1,
-      borderColor: 'divider',
-      borderRadius: 2,
-      backgroundColor: mode === 'dark'
-        ? alpha(palette.background.paper, 0.4)
-        : alpha(palette.primary.main, 0.03),
-    }
+    return TAB_BAR_VARIANTS.panelContainer
   },
 
   // 嵌套配置行样式

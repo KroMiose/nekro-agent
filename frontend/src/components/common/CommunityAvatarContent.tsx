@@ -3,10 +3,8 @@ import {
   Box,
   Typography,
   Divider,
-  Tabs,
   Tab,
   Badge,
-  IconButton,
   Tooltip,
   alpha,
 } from '@mui/material'
@@ -25,7 +23,9 @@ import { useTranslation } from 'react-i18next'
 import { getCurrentExtendedPalette } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 import AnnouncementList from './AnnouncementList'
+import { InlineTabs } from './NekroTabs'
 import type { AnnouncementSummary } from '../../services/api/cloud/announcement'
+import IconActionButton from './IconActionButton'
 
 interface MessageItem {
   id: string
@@ -123,9 +123,9 @@ export function LoggedInContent({
           )}
         </Box>
         <Tooltip title={t('community.refreshProfile')} arrow>
-          <IconButton size="small" onClick={onRefresh} disabled={userLoading} sx={{ flexShrink: 0 }}>
+          <IconActionButton size="small" onClick={onRefresh} disabled={userLoading} sx={{ flexShrink: 0 }}>
             <RefreshIcon sx={{ fontSize: 18 }} />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       </Box>
 
@@ -133,22 +133,15 @@ export function LoggedInContent({
 
       {/* Tab 栏 + 一键已读 */}
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Tabs
+        <InlineTabs
           value={activeTab}
           onChange={(_, v: number) => onTabChange(v)}
+          variant="fullWidth"
           sx={{
             flex: 1,
-            minHeight: 40,
             '& .MuiTab-root': {
               minHeight: 40,
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              transition: 'color 0.2s ease',
-            },
-            '& .MuiTabs-indicator': {
-              height: 2,
-              borderRadius: '1px',
+              minWidth: 0,
             },
           }}
         >
@@ -172,16 +165,16 @@ export function LoggedInContent({
             label={t('community.tabMessages')}
             sx={{ gap: 0.5 }}
           />
-        </Tabs>
+        </InlineTabs>
         {activeTab === 0 && badgeCount > 0 && (
           <Tooltip title={t('community.markAllRead')} arrow>
-            <IconButton
+            <IconActionButton
               size="small"
               onClick={onMarkAllRead}
               sx={{ mr: 1, color: 'text.secondary' }}
             >
               <DoneAllIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         )}
       </Box>

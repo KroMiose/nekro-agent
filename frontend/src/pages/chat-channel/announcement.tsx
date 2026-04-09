@@ -1,7 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -23,13 +22,14 @@ import {
   chatChannelApi,
   type ChatChannel,
 } from '../../services/api/chat-channel'
-import { BUTTON_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
+import { CARD_VARIANTS } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import ChannelSelectorToolbar from './components/announcement/ChannelSelectorToolbar'
 import ChannelSelectorList from './components/announcement/ChannelSelectorList'
 import SelectedChannelSummary from './components/announcement/SelectedChannelSummary'
+import ActionButton from '../../components/common/ActionButton'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 20
@@ -543,14 +543,13 @@ export default function ChatAnnouncementPage() {
             </Typography>
           </Box>
 
-          <Button
-            variant="contained"
+          <ActionButton
+            tone="primary"
             size="medium"
             startIcon={<SendRoundedIcon />}
             onClick={handleSend}
             disabled={announcementMutation.isPending}
             sx={{
-              ...BUTTON_VARIANTS.primary.styles,
               minWidth: { xs: '100%', sm: 220 },
               borderRadius: '12px',
             }}
@@ -558,7 +557,7 @@ export default function ChatAnnouncementPage() {
             {announcementMutation.isPending
               ? t('composer.sending')
               : t('composer.send', { count: selectedChannelList.length })}
-          </Button>
+          </ActionButton>
         </CardContent>
       </Card>
     </Box>

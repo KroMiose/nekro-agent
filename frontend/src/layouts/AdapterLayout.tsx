@@ -1,7 +1,6 @@
 import { Outlet, useNavigate, useLocation, useParams } from 'react-router-dom'
 import {
   Box,
-  Tabs,
   Tab,
   Typography,
   Card,
@@ -12,7 +11,6 @@ import {
   useTheme,
   useMediaQuery,
   Badge,
-  Button,
 } from '@mui/material'
 import ArrowBackRoundedIcon from '@mui/icons-material/ArrowBackRounded'
 import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded'
@@ -29,6 +27,8 @@ import {
 } from '../config/adapters'
 import { Suspense, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { PageTabs } from '../components/common/NekroTabs'
+import ActionButton from '../components/common/ActionButton'
 
 export default function AdapterLayout() {
   const navigate = useNavigate()
@@ -204,7 +204,7 @@ export default function AdapterLayout() {
                 sx={{ height: 24, fontWeight: 400 }}
               />
               <Box sx={{ flex: 1 }} />
-              <Button
+              <ActionButton
                 size="small"
                 variant="text"
                 startIcon={headerExpanded ? <ExpandLessRoundedIcon fontSize="small" /> : <ExpandMoreRoundedIcon fontSize="small" />}
@@ -227,8 +227,8 @@ export default function AdapterLayout() {
                 }}
               >
                 {headerExpanded ? t('home.collapseSummary') : t('home.expandSummary')}
-              </Button>
-              <Button
+              </ActionButton>
+              <ActionButton
                 size="small"
                 variant="outlined"
                 startIcon={<ArrowBackRoundedIcon fontSize="small" />}
@@ -252,7 +252,7 @@ export default function AdapterLayout() {
                 }}
               >
                 {t('hub.backToHub')}
-              </Button>
+              </ActionButton>
             </Box>
             {headerExpanded && (
               <Box
@@ -286,36 +286,17 @@ export default function AdapterLayout() {
 
       {/* 导航标签 - 紧凑版本 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <Tabs
+        <PageTabs
           value={getActiveTab()}
           onChange={handleTabChange}
           variant={isMobile ? 'fullWidth' : 'standard'}
           indicatorColor="primary"
           textColor="primary"
           sx={{
-            minHeight: { xs: 48, md: 52 },
             px: { xs: 0.5, md: 2 },
             '& .MuiTab-root': {
               minHeight: { xs: 48, md: 52 },
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textTransform: 'none',
-              transition: 'all 0.2s ease',
-              borderRadius: '8px',
-              mx: 0.5,
               py: { xs: 1, md: 1.5 },
-              '&:hover': {
-                backgroundColor: theme.palette.action.hover,
-              },
-              '&.Mui-selected': {
-                color: theme.palette.primary.main,
-                backgroundColor: theme.palette.primary.main + '10',
-              },
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: '2px',
-              boxShadow: `0 0 8px ${theme.palette.primary.main}`,
             },
           }}
         >
@@ -335,7 +316,7 @@ export default function AdapterLayout() {
               }}
             />
           ))}
-        </Tabs>
+        </PageTabs>
       </Card>
 
       {/* 页面内容 */}

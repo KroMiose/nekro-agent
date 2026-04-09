@@ -31,6 +31,21 @@ export interface ModelGroupTestItem {
   error_message?: string | null
 }
 
+export interface ModelGroupInlineTestRequest {
+  group_name: string
+  chat_model: string
+  base_url: string
+  api_key: string
+  model_type: string
+  chat_proxy?: string
+  temperature?: number | null
+  top_p?: number | null
+  top_k?: number | null
+  presence_penalty?: number | null
+  frequency_penalty?: number | null
+  extra_body?: string | null
+}
+
 export const unifiedConfigApi = {
   // 获取所有配置键
   getConfigKeys: async (): Promise<string[]> => {
@@ -118,6 +133,11 @@ export const unifiedConfigApi = {
       group_names: groupNames,
     })
     return response.data.items
+  },
+
+  testModelGroupInline: async (body: ModelGroupInlineTestRequest): Promise<ModelGroupTestItem> => {
+    const response = await axios.post<ModelGroupTestItem>('/config/model-groups/actions/test-inline', body)
+    return response.data
   },
 }
 

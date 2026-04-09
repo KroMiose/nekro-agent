@@ -147,6 +147,7 @@
       "edit": "编辑模型组",
       "test": "测速",
       "testOnlyChat": "仅支持聊天类型模型测速",
+      "testNeedsConfig": "请先填写模型名、API 地址和密钥",
       "copy": "复制模型组",
       "delete": "删除模型组",
       "defaultDelete": "默认模型组不可删除"

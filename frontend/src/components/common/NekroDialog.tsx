@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogActions,
   DialogProps as MuiDialogProps,
-  IconButton,
   Typography,
   Divider,
   useTheme,
@@ -17,6 +16,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import { BORDER_RADIUS } from '../../theme/variants'
 import { UI_STYLES } from '../../theme/themeApi'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from './IconActionButton'
 
 export interface NekroDialogProps extends Omit<MuiDialogProps, 'title'> {
   open: boolean
@@ -93,14 +93,14 @@ const NekroDialog: React.FC<NekroDialogProps> = ({
             <Box>
               {titleActions}
               {showCloseButton && (
-                <IconButton
+                <IconActionButton
                   onClick={onClose}
                   size="small"
                   edge="end"
                   aria-label={t('actions.close')}
                 >
                   <CloseIcon fontSize="small" />
-                </IconButton>
+                </IconActionButton>
               )}
             </Box>
           </DialogTitle>

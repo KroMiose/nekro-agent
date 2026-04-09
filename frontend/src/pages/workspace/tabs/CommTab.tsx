@@ -1,10 +1,8 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Box,
-  Button,
   Typography,
   CircularProgress,
-  IconButton,
   Tooltip,
   TextField,
   alpha,
@@ -33,6 +31,8 @@ import { SCROLLBAR_VARIANTS } from '../../../theme/variants'
 import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 // ──────────────────────────────────────────
 // 通讯气泡内紧凑 Markdown 样式（模块级，避免每次渲染重建）
@@ -477,13 +477,14 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             {/* 完整参数 JSON（二级展开） */}
             {Object.keys(toolInput).length > 1 && (
               <>
-                <Button
+                <ActionButton
+                  tone="ghost"
                   size="small" variant="text"
                   onClick={(e) => { e.stopPropagation(); toggleExpand(`args-${group.toolUseId}`) }}
                   sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: alpha(tcColor, 0.6) }}
                 >
                   {expandedIds.has(`args-${group.toolUseId}`) ? t('detail.comm.collapseArgs') : t('detail.comm.expandArgs')}
-                </Button>
+                </ActionButton>
                 <Collapse in={expandedIds.has(`args-${group.toolUseId}`)} timeout={150}>
                   <Box component="pre" sx={{
                     fontSize: '0.66rem', mt: 0.5, mb: 0, p: 0.75,
@@ -533,7 +534,8 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                       )}
                     </Box>
                     {resultContent.length > 200 && (
-                      <Button
+                      <ActionButton
+                        tone="ghost"
                         size="small" variant="text"
                         onClick={(e) => { e.stopPropagation(); toggleExpand(`result-${group.toolUseId}`) }}
                         sx={{ mt: 0.25, fontSize: '0.66rem', p: 0, minWidth: 0, color: 'text.disabled' }}
@@ -541,7 +543,7 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
                         {expandedIds.has(`result-${group.toolUseId}`)
                           ? t('detail.comm.collapse')
                           : t('detail.comm.expand', { chars: resultContent.length.toLocaleString() })}
-                      </Button>
+                      </ActionButton>
                     )}
                   </>
                 )}
@@ -682,14 +684,15 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             {displayContent}
           </MarkdownRenderer>
           {isLong && (
-            <Button
+            <ActionButton
+              tone="ghost"
               size="small"
               variant="text"
               onClick={() => toggleExpand(`msg-${msg.id}`)}
               sx={{ mt: 0.5, fontSize: '0.72rem', p: 0, minWidth: 0, color }}
             >
               {expanded ? t('detail.comm.collapse') : t('detail.comm.expand', { chars: msg.content.length.toLocaleString() })}
-            </Button>
+            </ActionButton>
           )}
         </Box>
       </Box>
@@ -721,14 +724,15 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             {loadingMore ? (
               <CircularProgress size={18} thickness={4} />
             ) : hasMore ? (
-              <Button
+              <ActionButton
+                tone="ghost"
                 size="small"
                 variant="text"
                 onClick={loadMore}
                 sx={{ fontSize: '0.72rem', color: 'text.secondary', py: 0.25 }}
               >
                 {t('detail.comm.loadMore')}
-              </Button>
+              </ActionButton>
             ) : (
               <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.68rem' }}>
                 {t('detail.comm.noMoreMessages')}
@@ -777,16 +781,18 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
             </Typography>
             <Tooltip title={t('detail.comm.forceCancel')}>
               <span style={{ marginLeft: 'auto' }}>
-                <IconButton
+                <IconActionButton
+                  tone="danger"
                   size="small"
                   onClick={handleForceCancel}
                   disabled={cancelling}
                   sx={{ color: 'error.main', p: 0.25 }}
+                  title={t('detail.comm.forceCancel')}
                 >
                   {cancelling
                     ? <CircularProgress size={14} sx={{ color: 'error.main' }} />
                     : <StopCircleIcon sx={{ fontSize: 16 }} />}
-                </IconButton>
+                </IconActionButton>
               </span>
             </Tooltip>
           </Box>
@@ -819,14 +825,15 @@ export default function CommTab({ workspace, prefill, ccRunning }: { workspace: 
           />
           <Tooltip title={ccRunning ? t('detail.comm.ccRunning') : t('detail.comm.sendTooltip')}>
             <span>
-              <IconButton
-                color="primary"
+              <IconActionButton
+                tone="primary"
                 onClick={handleSend}
                 disabled={sending || ccRunning || !input.trim()}
                 size="medium"
+                title={ccRunning ? t('detail.comm.ccRunning') : t('detail.comm.sendTooltip')}
               >
                 {sending ? <CircularProgress size={20} /> : <SendIcon />}
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
         </Box>

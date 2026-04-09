@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useDeferredValue } from 'react'
-import { Box, Tabs, Tab } from '@mui/material'
+import { Box, Tab } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
@@ -9,7 +9,7 @@ import { getLocalizedText } from '../../services/api/types'
 import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
-import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { PanelTabs, PanelTabsContainer } from '../../components/common/NekroTabs'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -166,14 +166,13 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <Box
+      <PanelTabsContainer
         sx={{
           mb: 2,
           flexShrink: 0,
-          ...(UNIFIED_TABLE_STYLES.pageTabContainer as object),
         }}
       >
-        <Tabs
+        <PanelTabs
           value={categories.length > 0 ? activeTab : false}
           onChange={(_, newValue) => {
             const nextParams = new URLSearchParams(searchParams)
@@ -182,34 +181,12 @@ export default function SettingsPage() {
           }}
           variant="scrollable"
           scrollButtons="auto"
-          sx={{
-            minHeight: 44,
-            '& .MuiTabs-flexContainer': {
-              gap: 0.5,
-            },
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              minWidth: 100,
-              fontSize: '0.95rem',
-              minHeight: 36,
-              borderRadius: 1.5,
-              color: 'text.secondary',
-            },
-            '& .MuiTab-root.Mui-selected': {
-              color: 'text.primary',
-              bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'common.white',
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: 999,
-            },
-          }}
         >
           {categories.map((category) => (
             <Tab key={category} label={category} value={category} />
           ))}
-        </Tabs>
-      </Box>
+        </PanelTabs>
+      </PanelTabsContainer>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ConfigTable

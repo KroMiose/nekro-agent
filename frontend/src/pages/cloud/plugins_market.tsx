@@ -7,11 +7,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Button,
   Chip,
   TextField,
-  InputAdornment,
-  IconButton,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -35,7 +32,6 @@ import {
   Avatar,
 } from '@mui/material'
 import {
-  Search as SearchIcon,
   CloudDownload as CloudDownloadIcon,
   Info as InfoIcon,
   Update as UpdateIcon,
@@ -71,6 +67,9 @@ import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
 import { copyText } from '../../utils/clipboard'
 import { configApi } from '../../services/api/config'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import SearchActionBar from '../../components/common/SearchActionBar'
 
 // 简单语义化版本比较
 function compareVersions(a: string, b: string): number {
@@ -291,15 +290,15 @@ const PluginCard = ({
         }}
       >
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Button size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
+          <ActionButton size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
             {t('pluginsMarket.details')}
-          </Button>
+          </ActionButton>
 
           {isMobile ? (
             <>
-              <IconButton size="small" onClick={handleMoreClick} color="inherit" sx={{ ml: 0.5 }}>
+              <IconActionButton size="small" onClick={handleMoreClick} color="inherit" sx={{ ml: 0.5 }}>
                 <MoreVertIcon />
-              </IconButton>
+              </IconActionButton>
 
               <Menu
                 anchorEl={moreMenuAnchor}
@@ -342,7 +341,7 @@ const PluginCard = ({
           ) : (
             <>
               {onUnpublish && (
-                <Button
+                <ActionButton
                   size="small"
                   variant="text"
                   startIcon={<RemoveCircleIcon />}
@@ -350,10 +349,10 @@ const PluginCard = ({
                   color="error"
                 >
                   {t('pluginsMarket.delist')}
-                </Button>
+                </ActionButton>
               )}
 
-              <Button
+              <ActionButton
                 size="small"
                 variant="text"
                 color="warning"
@@ -361,7 +360,7 @@ const PluginCard = ({
                 title={t('pluginsMarket.reportTitle')}
               >
                 {t('pluginsMarket.report')}
-              </Button>
+              </ActionButton>
             </>
           )}
         </Box>
@@ -369,7 +368,7 @@ const PluginCard = ({
         {plugin.is_local ? (
           <Box sx={{ display: 'flex', gap: 0.5 }}>
             {isMobile ? (
-              <Button
+              <ActionButton
                 size="small"
                 variant="contained"
                 startIcon={<UpdateIcon />}
@@ -378,9 +377,9 @@ const PluginCard = ({
                 sx={{ mr: 1 }}
               >
                 {t('pluginsMarket.update')}
-              </Button>
+              </ActionButton>
             ) : (
-              <Button
+              <ActionButton
                 size="small"
                 variant="contained"
                 startIcon={<UpdateIcon />}
@@ -388,17 +387,17 @@ const PluginCard = ({
                 color="primary"
               >
                 {t('pluginsMarket.update')}
-              </Button>
+              </ActionButton>
             )}
 
             {!isMobile && (
-              <Button size="small" variant="outlined" color="error" onClick={onRemove}>
+              <ActionButton size="small" variant="outlined" color="error" onClick={onRemove}>
                 {t('pluginsMarket.remove')}
-              </Button>
+              </ActionButton>
             )}
           </Box>
         ) : (
-          <Button
+          <ActionButton
             size="small"
             variant="contained"
             startIcon={<CloudDownloadIcon />}
@@ -414,7 +413,7 @@ const PluginCard = ({
             {!compatibility.compatible && compatibility.reasonKey
               ? t(compatibility.reasonKey, compatibility.reasonParams)
               : t('pluginsMarket.obtain')}
-          </Button>
+          </ActionButton>
         )}
       </CardActions>
     </Card>
@@ -534,7 +533,7 @@ const PluginDetailDialog = ({
         <Typography variant="h6">
           {t('pluginsMarket.pluginDetail')}: {plugin.name}
         </Typography>
-        <IconButton
+        <IconActionButton
           color="default"
           onClick={onClose}
           size="small"
@@ -545,7 +544,7 @@ const PluginDetailDialog = ({
           }}
         >
           <CloseIcon />
-        </IconButton>
+        </IconActionButton>
       </DialogTitle>
       <DialogContent dividers sx={{ p: 3 }}>
         <Grid container spacing={3}>
@@ -711,7 +710,7 @@ const PluginDetailDialog = ({
               <Grid container spacing={2}>
                 {plugin.homepageUrl && (
                   <Grid item xs={12} sm={6}>
-                    <Button
+                    <ActionButton
                       fullWidth
                       variant="outlined"
                       startIcon={<LinkIcon />}
@@ -719,12 +718,12 @@ const PluginDetailDialog = ({
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {t('pluginsMarket.pluginHomepage')}
-                    </Button>
+                    </ActionButton>
                   </Grid>
                 )}
                 {plugin.githubUrl && (
                   <Grid item xs={12} sm={6}>
-                    <Button
+                    <ActionButton
                       fullWidth
                       variant="outlined"
                       startIcon={<GitHubIcon />}
@@ -732,12 +731,12 @@ const PluginDetailDialog = ({
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {t('pluginsMarket.githubRepo')}
-                    </Button>
+                    </ActionButton>
                   </Grid>
                 )}
                 {plugin.cloneUrl && (
                   <Grid item xs={12} sm={6}>
-                    <Button
+                    <ActionButton
                       fullWidth
                       variant="outlined"
                       startIcon={<CodeIcon />}
@@ -757,19 +756,19 @@ const PluginDetailDialog = ({
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {t('pluginsMarket.copyCloneLink')}
-                    </Button>
+                    </ActionButton>
                   </Grid>
                 )}
                 {plugin.licenseType && (
                   <Grid item xs={12} sm={6}>
-                    <Button
+                    <ActionButton
                       fullWidth
                       variant="outlined"
                       disabled
                       sx={{ justifyContent: 'flex-start', textTransform: 'none' }}
                     >
                       {t('pluginsMarket.licenseType')}: {plugin.licenseType}
-                    </Button>
+                    </ActionButton>
                   </Grid>
                 )}
               </Grid>
@@ -900,24 +899,22 @@ const PluginDetailDialog = ({
             <Box sx={{ display: 'flex', width: '100%', gap: 1 }}>
               {plugin.is_local ? (
                 <>
-                  <Button
-                    variant="contained"
+                  <ActionButton
+                    tone="primary"
                     startIcon={<UpdateIcon />}
-                    color="primary"
                     onClick={onUpdate}
                     fullWidth
                   >
                     更新
-                  </Button>
-                  <Button variant="outlined" color="error" onClick={onRemove} fullWidth>
+                  </ActionButton>
+                  <ActionButton tone="danger" onClick={onRemove} fullWidth>
                     移除
-                  </Button>
+                  </ActionButton>
                 </>
               ) : (
-                <Button
-                  variant="contained"
+                <ActionButton
+                  tone="primary"
                   startIcon={<CloudDownloadIcon />}
-                  color="primary"
                   onClick={onDownload}
                   fullWidth
                   disabled={!compatibility.compatible}
@@ -925,20 +922,19 @@ const PluginDetailDialog = ({
                   {!compatibility.compatible
                     ? t('pluginsMarket.incompatibleVersion')
                     : t('pluginsMarket.obtain')}
-                </Button>
+                </ActionButton>
               )}
             </Box>
 
             <Box sx={{ display: 'flex', width: '100%' }}>
-              <Button
-                variant="outlined"
-                color="inherit"
+              <ActionButton
+                tone="secondary"
                 startIcon={<MoreVertIcon />}
                 onClick={handleMoreClick}
                 fullWidth
               >
                 更多操作
-              </Button>
+              </ActionButton>
 
               <Menu
                 anchorEl={moreMenuAnchor}
@@ -994,17 +990,17 @@ const PluginDetailDialog = ({
           // 桌面端布局 - 保持原有左右排列
           <>
             <Box>
-              <Button variant="outlined" color="warning" onClick={handleReport} sx={{ mr: 1 }}>
+              <ActionButton tone="secondary" onClick={handleReport} sx={{ mr: 1, color: 'warning.main', borderColor: 'warning.main' }}>
                 举报插件
-              </Button>
+              </ActionButton>
               {plugin.isOwner && (
                 <>
-                  <Button variant="outlined" color="error" onClick={onUnpublish} sx={{ mr: 1 }}>
+                  <ActionButton tone="danger" onClick={onUnpublish} sx={{ mr: 1 }}>
                     下架插件
-                  </Button>
-                  <Button variant="outlined" color="primary" onClick={onEdit} sx={{ mr: 1 }}>
+                  </ActionButton>
+                  <ActionButton tone="secondary" onClick={onEdit} sx={{ mr: 1 }}>
                     编辑信息
-                  </Button>
+                  </ActionButton>
                 </>
               )}
             </Box>
@@ -1012,30 +1008,28 @@ const PluginDetailDialog = ({
             <Box sx={{ display: 'flex', gap: 1 }}>
               {plugin.is_local ? (
                 <>
-                  <Button
-                    variant="contained"
+                  <ActionButton
+                    tone="primary"
                     startIcon={<UpdateIcon />}
-                    color="primary"
                     onClick={onUpdate}
                   >
                     同步最新
-                  </Button>
-                  <Button variant="outlined" color="error" onClick={onRemove}>
+                  </ActionButton>
+                  <ActionButton tone="danger" onClick={onRemove}>
                     移除插件
-                  </Button>
+                  </ActionButton>
                 </>
               ) : (
-                <Button
-                  variant="contained"
+                <ActionButton
+                  tone="primary"
                   startIcon={<CloudDownloadIcon />}
-                  color="primary"
                   onClick={onDownload}
                   disabled={!compatibility.compatible}
                 >
                   {!compatibility.compatible
                     ? t('pluginsMarket.incompatibleVersion')
                     : t('pluginsMarket.obtain')}
-                </Button>
+                </ActionButton>
               )}
             </Box>
           </>
@@ -1347,7 +1341,7 @@ const CreatePluginDialog = ({
                 )}
               </Box>
               <Box>
-                <Button variant="outlined" component="label" disabled={isSubmitting} sx={{ mb: 1 }}>
+                <ActionButton variant="outlined" component="label" disabled={isSubmitting} sx={{ mb: 1 }}>
                   选择图标
                   <input
                     type="file"
@@ -1356,7 +1350,7 @@ const CreatePluginDialog = ({
                     onChange={handleIconUpload}
                     disabled={isSubmitting}
                   />
-                </Button>
+                </ActionButton>
                 <Typography variant="caption" color="text.secondary" display="block">
                   建议尺寸: 128x128像素
                   <br />
@@ -1524,18 +1518,17 @@ const CreatePluginDialog = ({
         </Grid>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-        <Button onClick={onClose} disabled={isSubmitting}>
+        <ActionButton tone="secondary" onClick={onClose} disabled={isSubmitting}>
           取消
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSubmit}
-          variant="contained"
-          color="primary"
           disabled={isSubmitting || !agreeToTerms || !confirmSafeContent}
           startIcon={isSubmitting ? <CircularProgress size={20} /> : <AddIcon />}
         >
           {isSubmitting ? '提交中...' : '发布插件'}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -2003,7 +1996,7 @@ export default function PluginsMarket() {
       >
         <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
           编辑插件信息
-          <IconButton
+          <IconActionButton
             aria-label="close"
             onClick={onClose}
             sx={{
@@ -2014,7 +2007,7 @@ export default function PluginsMarket() {
             size="small"
           >
             <CloseIcon />
-          </IconButton>
+          </IconActionButton>
         </DialogTitle>
         <DialogContent sx={{ pt: 3, mt: 3 }}>
           <Grid container spacing={3}>
@@ -2087,7 +2080,7 @@ export default function PluginsMarket() {
                   )}
                 </Box>
                 <Box>
-                  <Button
+                  <ActionButton
                     variant="outlined"
                     component="label"
                     disabled={isSubmitting}
@@ -2101,7 +2094,7 @@ export default function PluginsMarket() {
                       onChange={handleIconUpload}
                       disabled={isSubmitting}
                     />
-                  </Button>
+                  </ActionButton>
                   <Typography variant="caption" color="text.secondary" display="block">
                     建议尺寸: 128x128像素
                     <br />
@@ -2266,18 +2259,17 @@ export default function PluginsMarket() {
           </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
-          <Button onClick={onClose} disabled={isSubmitting}>
+          <ActionButton tone="secondary" onClick={onClose} disabled={isSubmitting}>
             取消
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleSubmit}
-            variant="contained"
-            color="primary"
             disabled={isSubmitting || !agreeToTerms || !confirmSafeContent}
             startIcon={isSubmitting ? <CircularProgress size={20} /> : <EditIcon />}
           >
             {isSubmitting ? '提交中...' : '更新信息'}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     )
@@ -2303,70 +2295,24 @@ export default function PluginsMarket() {
           alignItems: 'center',
         }}
       >
-        <Box
-          component="form"
+        <SearchActionBar
+          value={searchKeyword}
+          onChange={setSearchKeyword}
+          onClear={handleSearchInputClear}
           onSubmit={handleSearch}
-          sx={{
-            display: 'flex',
-            boxShadow: theme =>
-              theme.palette.mode === 'dark'
-                ? '0 0 10px rgba(0,0,0,0.2)'
-                : '0 0 15px rgba(0,0,0,0.07)',
-            overflow: 'hidden',
-          }}
-        >
-          <TextField
-            size="small"
-            placeholder="搜索插件"
-            value={searchKeyword}
-            onChange={e => setSearchKeyword(e.target.value)}
-            sx={{
-              minWidth: 220,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '8px 0 0 8px',
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: searchKeyword && (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleSearchInputClear}>
-                    &times;
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            type="submit"
-            disabled={loading}
-            sx={{
-              borderRadius: '0 8px 8px 0',
-              px: 2,
-              background: theme => theme.palette.primary.main,
-              '&:hover': {
-                background: theme => theme.palette.primary.dark,
-              },
-            }}
-            variant="contained"
-          >
-            {loading ? '搜索中...' : '搜索'}
-          </Button>
-        </Box>
+          placeholder="搜索插件"
+          actionLabel={loading ? '搜索中...' : '搜索'}
+          actionDisabled={loading}
+        />
 
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Button
-            variant="contained"
-            color="primary"
+          <ActionButton
+            tone="primary"
             startIcon={<AddIcon />}
             onClick={() => setCreateDialogOpen(true)}
           >
             发布插件
-          </Button>
+          </ActionButton>
         </Box>
       </Box>
 
@@ -2547,7 +2493,7 @@ export default function PluginsMarket() {
                     >
                       {confirmDialog.plugin.cloneUrl}
                     </Typography>
-                    <Button
+                    <ActionButton
                       variant="outlined"
                       size="small"
                       startIcon={<GitHubIcon />}
@@ -2558,7 +2504,7 @@ export default function PluginsMarket() {
                       }}
                     >
                       查看仓库
-                    </Button>
+                    </ActionButton>
                   </Box>
                 </Box>
               )}
@@ -2589,23 +2535,20 @@ export default function PluginsMarket() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setConfirmDialog({ open: false, plugin: null, action: 'download' })}
             disabled={!!processingId}
           >
             取消
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone={confirmDialog.action === 'unpublish' || confirmDialog.action === 'remove' ? 'danger' : 'primary'}
             onClick={handleConfirm}
-            color={
-              confirmDialog.action === 'unpublish' || confirmDialog.action === 'remove'
-                ? 'error'
-                : 'primary'
-            }
             disabled={!!processingId}
           >
             {processingId ? <CircularProgress size={24} /> : '确认'}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 

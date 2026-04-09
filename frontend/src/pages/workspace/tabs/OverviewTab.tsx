@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react'
 import {
   Alert,
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -11,7 +10,6 @@ import {
   CircularProgress,
   Stack,
   Divider,
-  IconButton,
   Tooltip,
   Autocomplete,
   Skeleton,
@@ -53,6 +51,8 @@ import { CARD_VARIANTS, CHIP_VARIANTS } from '../../../theme/variants'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { pluginsManagementPath } from '../../../router/routes'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 function InfoRow({
   label,
@@ -314,13 +314,13 @@ export default function OverviewTab({
         <Alert
           severity="warning"
           action={
-            <Button
-              color="inherit"
+            <ActionButton
+              tone="secondary"
               size="small"
               onClick={() => navigate(pluginsManagementPath('cc_workspace'))}
             >
               {t('detail.overview.ccPluginAlert.action')}
-            </Button>
+            </ActionButton>
           }
         >
           {t('detail.overview.ccPluginAlert.message')}
@@ -452,12 +452,12 @@ export default function OverviewTab({
                   </Typography>
                 </DialogContent>
                 <DialogActions>
-                  <Button size="small" onClick={() => setPullConfirmOpen(false)}>
+                  <ActionButton tone="secondary" size="small" onClick={() => setPullConfirmOpen(false)}>
                     {t('detail.errors.image.pullDialog.cancel')}
-                  </Button>
-                  <Button
+                  </ActionButton>
+                  <ActionButton
+                    tone="primary"
                     size="small"
-                    variant="contained"
                     startIcon={<CloudDownloadIcon />}
                     onClick={() => {
                       setPullConfirmOpen(false)
@@ -465,7 +465,7 @@ export default function OverviewTab({
                     }}
                   >
                     {t('detail.errors.image.pullDialog.pullBtn')}
-                  </Button>
+                  </ActionButton>
                 </DialogActions>
               </Dialog>
 
@@ -492,15 +492,15 @@ export default function OverviewTab({
               <Typography variant="subtitle2" fontWeight={600} sx={{ flexGrow: 1 }}>
                 {t('detail.overview.sections.sandboxStatus')}
               </Typography>
-              <Button
+              <ActionButton
+                tone="secondary"
                 size="small"
-                variant="outlined"
                 endIcon={<ArrowForwardIcon sx={{ fontSize: 14 }} />}
                 onClick={onNavigateToSandbox}
                 sx={{ minWidth: 0, px: 1.2, fontSize: '0.75rem' }}
               >
                 {t('detail.overview.manage')}
-              </Button>
+              </ActionButton>
             </Box>
             <Divider sx={{ mb: 1.5 }} />
             <Stack spacing={0.85}>
@@ -528,14 +528,14 @@ export default function OverviewTab({
                     </Typography>
                   )}
                   <Tooltip title={t('detail.overview.tooltips.switchConfig')}>
-                    <IconButton size="small" onClick={onNavigateToConfig} sx={{ ml: 0.25 }}>
+                    <IconActionButton size="small" onClick={onNavigateToConfig} sx={{ ml: 0.25 }} title={t('detail.overview.tooltips.switchConfig')}>
                       <TuneIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                   <Tooltip title={t('detail.overview.tooltips.managePresets')}>
-                    <IconButton size="small" onClick={() => navigate('/settings/models?tab=cc')}>
+                    <IconActionButton size="small" onClick={() => navigate('/settings/models?tab=cc')} title={t('detail.overview.tooltips.managePresets')}>
                       <OpenInNewIcon sx={{ fontSize: 14 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 </Box>
               </InfoRow>
@@ -628,8 +628,8 @@ export default function OverviewTab({
               )}
               noOptionsText={t('detail.overview.channels.noOptions')}
             />
-            <Button
-              variant="outlined"
+            <ActionButton
+              tone="secondary"
               size="small"
               disabled={!selectedChannel || alreadyBound || bindMutation.isPending}
               onClick={() => selectedChannel && bindMutation.mutate(selectedChannel.chat_key)}
@@ -642,7 +642,7 @@ export default function OverviewTab({
               ) : (
                 t('detail.overview.channels.bind')
               )}
-            </Button>
+            </ActionButton>
           </Box>
 
           <Divider sx={{ mb: 1.5 }} />
@@ -731,30 +731,38 @@ export default function OverviewTab({
                         }
                       >
                         <span>
-                          <IconButton
+                          <IconActionButton
                             size="small"
-                            color={ch.is_primary ? 'primary' : 'default'}
+                            tone={ch.is_primary ? 'primary' : 'subtle'}
                             disabled={isOnlyChannel || ch.is_primary || annotationMutation.isPending}
                             onClick={() => handleSetPrimary(ch)}
                             sx={{ p: 0.5 }}
+                            title={
+                              isOnlyChannel
+                                ? t('detail.overview.channels.primaryAutoTooltip')
+                                : ch.is_primary
+                                  ? t('detail.overview.channels.isPrimaryTooltip')
+                                  : t('detail.overview.channels.setPrimaryTooltip')
+                            }
                           >
                             {ch.is_primary || isOnlyChannel
                               ? <StarIcon sx={{ fontSize: 16 }} />
                               : <StarBorderIcon sx={{ fontSize: 16 }} />
                             }
-                          </IconButton>
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={t('detail.overview.channels.unbindTooltip')}>
-                        <IconButton
+                        <IconActionButton
+                          tone="danger"
                           size="small"
-                          color="error"
                           disabled={unbindMutation.isPending}
                           onClick={() => unbindMutation.mutate(ch.chat_key)}
                           sx={{ p: 0.5 }}
+                          title={t('detail.overview.channels.unbindTooltip')}
                         >
                           <LinkOffIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                     </Box>
                     {/* 行2：description inline 编辑 */}
@@ -984,13 +992,13 @@ function ImagePullDialog({
       </DialogContent>
       <DialogActions>
         {pullStatus === 'error' && (
-          <Button onClick={handleRetry} size="small">
+          <ActionButton tone="secondary" onClick={handleRetry} size="small">
             {t('detail.errors.image.pullDialog.retry')}
-          </Button>
+          </ActionButton>
         )}
-        <Button onClick={handleClose} disabled={pullStatus === 'pulling'} size="small">
+        <ActionButton tone="secondary" onClick={handleClose} disabled={pullStatus === 'pulling'} size="small">
           {t('detail.errors.image.pullDialog.close')}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )

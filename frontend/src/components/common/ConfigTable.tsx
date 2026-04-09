@@ -11,12 +11,10 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   MenuItem,
   InputAdornment,
   Typography,
   Chip,
-  Button,
   Avatar,
   List,
   ListItem,
@@ -49,6 +47,8 @@ import {
 } from '@mui/icons-material'
 import { useNavigate } from 'react-router-dom'
 import { UNIFIED_TABLE_STYLES, CHIP_VARIANTS } from '../../theme/variants'
+import ActionButton from './ActionButton'
+import IconActionButton from './IconActionButton'
 import { useNotification } from '../../hooks/useNotification'
 import { restartApi } from '../../services/api/restart'
 import { ThemedTooltip } from './ThemedTooltip'
@@ -56,6 +56,9 @@ import { presetsApi, Preset } from '../../services/api/presets'
 import { useTranslation } from 'react-i18next'
 import type { TFunction } from 'i18next'
 import { I18nDict, getLocalizedText } from '../../services/api/types'
+
+const Button = ActionButton
+const IconButton = IconActionButton
 
 const HtmlTooltip = ThemedTooltip
 

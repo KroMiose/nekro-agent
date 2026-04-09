@@ -2,26 +2,15 @@ import React, { useState, useEffect } from 'react'
 import {
   Box,
   Typography,
-  TextField,
-  InputAdornment,
-  IconButton,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Stack,
   Divider,
-  SelectChangeEvent,
   useTheme,
   useMediaQuery,
   Drawer,
   Fab,
   Card,
-  Button,
 } from '@mui/material'
 import {
-  Search as SearchIcon,
-  Clear as ClearIcon,
   List as ListIcon,
   Info as InfoIcon,
 } from '@mui/icons-material'
@@ -33,6 +22,9 @@ import ChatChannelDetail from './components/ChatChannelDetail'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import SearchField from '../../components/common/SearchField'
+import FilterSelect from '../../components/common/FilterSelect'
+import ActionButton from '../../components/common/ActionButton'
 import {
   chatChannelPath,
   DEFAULT_CHAT_CHANNEL_DETAIL_TAB,
@@ -189,8 +181,8 @@ export default function ChatChannelPage() {
   }, [queryClient, search, chatType, status, page, pageSize])
 
   // 处理搜索
-  const handleSearch = (event: React.ChangeEvent<HTMLInputElement>) => {
-    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: event.target.value, page: String(DEFAULT_PAGE) }), {
+  const handleSearch = (value: string) => {
+    navigate(buildChannelUrl(selectedChatKey, selectedTab, { search: value, page: String(DEFAULT_PAGE) }), {
       replace: true,
     })
   }
@@ -203,9 +195,9 @@ export default function ChatChannelPage() {
   }
 
   // 处理类型筛选
-  const handleChatTypeChange = (event: SelectChangeEvent) => {
+  const handleChatTypeChange = (value: string) => {
     navigate(
-      buildChannelUrl(selectedChatKey, selectedTab, { chat_type: event.target.value, page: String(DEFAULT_PAGE) }),
+      buildChannelUrl(selectedChatKey, selectedTab, { chat_type: value, page: String(DEFAULT_PAGE) }),
       { replace: true }
     )
   }
@@ -216,10 +208,10 @@ export default function ChatChannelPage() {
   }
 
   // 处理状态筛选
-  const handleStatusChange = (event: SelectChangeEvent) => {
+  const handleStatusChange = (value: string) => {
     navigate(
       buildChannelUrl(selectedChatKey, selectedTab, {
-        status: event.target.value,
+        status: value,
         is_active: null,
         page: String(DEFAULT_PAGE),
       }),
@@ -246,47 +238,38 @@ export default function ChatChannelPage() {
       <Box className="p-2 flex-shrink-0">
         <Stack spacing={1.5}>
           {/* 搜索框 */}
-          <TextField
+          <SearchField
             fullWidth
             size={isSmall ? 'small' : 'medium'}
             placeholder={t('search.placeholder')}
             value={search}
             onChange={handleSearch}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: search && (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleClearSearch}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
+            onClear={handleClearSearch}
           />
 
           {/* 筛选选项 */}
           <Stack direction={isSmall ? 'column' : 'row'} spacing={1}>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('filters.type')}</InputLabel>
-              <Select value={chatType} label={t('filters.type')} onChange={handleChatTypeChange}>
-                <MenuItem value="">{t('filters.all')}</MenuItem>
-                <MenuItem value="group">{t('filters.group')}</MenuItem>
-                <MenuItem value="private">{t('filters.private')}</MenuItem>
-              </Select>
-            </FormControl>
-            <FormControl size="small" fullWidth>
-              <InputLabel>{t('filters.status')}</InputLabel>
-              <Select value={status} label={t('filters.status')} onChange={handleStatusChange}>
-                <MenuItem value="">{t('filters.all')}</MenuItem>
-                <MenuItem value="active">{t('filters.active')}</MenuItem>
-                <MenuItem value="observe">{t('filters.observe')}</MenuItem>
-                <MenuItem value="disabled">{t('filters.inactive')}</MenuItem>
-              </Select>
-            </FormControl>
+            <FilterSelect
+              label={t('filters.type')}
+              value={chatType}
+              onChange={handleChatTypeChange}
+              options={[
+                { value: '', label: t('filters.all') },
+                { value: 'group', label: t('filters.group') },
+                { value: 'private', label: t('filters.private') },
+              ]}
+            />
+            <FilterSelect
+              label={t('filters.status')}
+              value={status}
+              onChange={handleStatusChange}
+              options={[
+                { value: '', label: t('filters.all') },
+                { value: 'active', label: t('filters.active') },
+                { value: 'observe', label: t('filters.observe') },
+                { value: 'disabled', label: t('filters.inactive') },
+              ]}
+            />
           </Stack>
         </Stack>
       </Box>
@@ -356,14 +339,14 @@ export default function ChatChannelPage() {
           <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
           <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
           {isMobile && (
-            <Button
+            <ActionButton
               onClick={() => setDrawerOpen(true)}
               variant="outlined"
               startIcon={<ListIcon />}
               sx={{ mt: 2 }}
             >
               {t('actions.viewList')}
-            </Button>
+            </ActionButton>
           )}
         </Card>
       )}
@@ -397,14 +380,14 @@ export default function ChatChannelPage() {
               >
                 <InfoIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2, opacity: 0.7 }} />
                 <Typography color="textSecondary">{t('detail.selectChat')}</Typography>
-                <Button
+                <ActionButton
                   onClick={() => setDrawerOpen(true)}
                   variant="outlined"
                   startIcon={<ListIcon />}
                   sx={{ mt: 2 }}
                 >
                   {t('actions.viewList')}
-                </Button>
+                </ActionButton>
               </Card>
             )}
           </Box>

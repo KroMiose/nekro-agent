@@ -11,9 +11,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  IconButton,
   Collapse,
-  Button,
   Chip,
   Link,
   useMediaQuery,
@@ -53,6 +51,8 @@ import AgentActivityCard from '../components/common/AgentActivityCard'
 import SystemEventsProvider from '../components/providers/SystemEventsProvider'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
+import ActionButton from '../components/common/ActionButton'
+import IconActionButton from '../components/common/IconActionButton'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
 let initialLocaleSyncPromise: Promise<void> | null = null
@@ -576,7 +576,7 @@ function MainLayoutContent() {
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-          <IconButton
+          <IconActionButton
             color="inherit"
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
@@ -584,7 +584,7 @@ function MainLayoutContent() {
             aria-label={drawerOpen ? t('aria.collapseSidebar', { ns: 'layout-MainLayout' }) : t('aria.expandSidebar', { ns: 'layout-MainLayout' })}
           >
             {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
-          </IconButton>
+          </IconActionButton>
           <Box className="flex items-center gap-2 flex-grow select-none overflow-hidden">
             {getCurrentPage()?.icon}
             <Typography
@@ -617,7 +617,7 @@ function MainLayoutContent() {
           {/* 语言切换按钮 */}
           <LocaleToggleButton mode="compact" sx={{ color: 'white' }} />
 
-          <IconButton
+          <IconActionButton
             color="inherit"
             size={isSmall ? 'small' : 'medium'}
             onClick={() => window.open('https://doc.nekro.ai', '_blank')}
@@ -634,31 +634,47 @@ function MainLayoutContent() {
             aria-label={t('aria.openDocumentation', { ns: 'layout-MainLayout' })}
           >
             <MenuBookIcon sx={{ transition: 'all 0.3s ease' }} />
-          </IconButton>
+          </IconActionButton>
 
-          <Button
+          <ActionButton
+            tone="ghost"
             variant="text"
             color="inherit"
-            size={isSmall ? 'small' : 'large'}
+            size={isSmall ? 'small' : 'medium'}
             startIcon={<GitHubIcon />}
             onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
-            className="normal-case transition-colors"
-            sx={{
-              mr: { xs: 0, sm: 1 },
-              ml: { xs: 1, sm: 1 },
-              minWidth: { xs: 'auto', sm: '100px' },
+            className="normal-case"
+            sx={(theme) => ({
+              mr: { xs: 0, sm: 0.5 },
+              ml: { xs: 0.5, sm: 0.5 },
+              minWidth: 0,
+              px: 0.5,
+              color: 'white',
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'transparent',
               '& .MuiButton-startIcon': {
-                mr: { xs: 0, sm: 1 },
+                mr: { xs: 0, sm: 0.5 },
+                color: 'white',
               },
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor:
+                  theme.palette.mode === 'light'
+                    ? 'rgba(0, 0, 0, 0.045)'
+                    : 'rgba(255, 255, 255, 0.08)',
               },
-            }}
+              '&:active': {
+                backgroundColor:
+                  theme.palette.mode === 'light'
+                    ? 'rgba(0, 0, 0, 0.08)'
+                    : 'rgba(255, 255, 255, 0.16)',
+              },
+            })}
           >
             <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
               Stars {starCount !== null ? starCount : '...'}
             </Box>
-          </Button>
+          </ActionButton>
 
           <CommunityAvatar />
         </Toolbar>

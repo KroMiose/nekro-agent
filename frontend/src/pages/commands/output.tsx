@@ -11,7 +11,6 @@ import {
   Stack,
   CircularProgress,
   TextField,
-  IconButton,
   Chip,
   Tooltip,
   InputAdornment,
@@ -27,6 +26,7 @@ import { chatChannelApi } from '../../services/api/chat-channel'
 import { commandsApi } from '../../services/api/commands'
 import type { CommandOutputSegment } from '../../services/api/commands'
 import { CARD_VARIANTS } from '../../theme/variants'
+import IconActionButton from '../../components/common/IconActionButton'
 
 interface OutputEntry {
   command_name: string
@@ -196,9 +196,9 @@ export default function CommandOutputPage() {
           </FormControl>
           <Tooltip title={t('commandSidebar.clear')}>
             <span>
-              <IconButton size="small" onClick={handleClear} disabled={entries.length === 0}>
+              <IconActionButton size="small" onClick={handleClear} disabled={entries.length === 0}>
                 <ClearIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
         </Stack>
@@ -342,14 +342,14 @@ export default function CommandOutputPage() {
                     endAdornment: (
                       <InputAdornment position="end">
                         {params.InputProps.endAdornment}
-                        <IconButton
+                        <IconActionButton
+                          tone="primary"
                           onClick={handleSubmit}
                           disabled={!parseInput(inputValue) || !selectedChatKey || isPending}
-                          color="primary"
                           size="small"
                         >
                           {isPending ? <CircularProgress size={20} /> : <SendIcon />}
-                        </IconButton>
+                        </IconActionButton>
                       </InputAdornment>
                     ),
                   },

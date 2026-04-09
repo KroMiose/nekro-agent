@@ -4,7 +4,6 @@ import {
   Paper,
   Typography,
   TextField,
-  Button,
   Stack,
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -35,7 +33,6 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   RemoveCircleOutline as RemoveIcon,
-  Search as SearchIcon,
   NetworkCheck as NetworkCheckIcon,
   ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
@@ -53,8 +50,11 @@ import {
   CCModelPresetTestItem,
 } from '../../services/api/cc-model-preset'
 import { workspaceApi } from '../../services/api/workspace'
-import { CHIP_VARIANTS, INPUT_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import SearchActionBar from '../../components/common/SearchActionBar'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 interface EnvPair {
   key: string
@@ -339,9 +339,9 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowToken(v => !v)} edge="end" size="small">
+                  <IconActionButton onClick={() => setShowToken(v => !v)} edge="end" size="small">
                     {showToken ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ),
             }}
@@ -445,9 +445,9 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
               {t('ccModels.dialog.sectionEnv')}
             </Typography>
-            <Button size="small" startIcon={<AddIcon />} onClick={addEnvPair} sx={{ minWidth: 0 }}>
+            <ActionButton size="small" startIcon={<AddIcon />} onClick={addEnvPair} sx={{ minWidth: 0 }}>
               {t('ccModels.dialog.envAdd')}
-            </Button>
+            </ActionButton>
           </Box>
           {form.extra_env.length === 0 ? (
             <Typography variant="caption" color="text.disabled" sx={{ pl: 0.5 }}>
@@ -475,9 +475,9 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
                     inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.8rem' } }}
                     sx={{ flex: 2 }}
                   />
-                  <IconButton size="small" color="error" onClick={() => removeEnvPair(idx)}>
+                  <IconActionButton size="small" tone="danger" onClick={() => removeEnvPair(idx)}>
                     <RemoveIcon fontSize="small" />
-                  </IconButton>
+                  </IconActionButton>
                 </Stack>
               ))}
             </Stack>
@@ -504,11 +504,11 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={isPending}>
+        <ActionButton tone="secondary" onClick={onClose} disabled={isPending}>
           {t('ccModels.dialog.cancel')}
-        </Button>
-        <Button
-          variant="contained"
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSubmit}
           disabled={isPending || !form.name.trim()}
         >
@@ -519,7 +519,7 @@ function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogPro
           ) : (
             t('ccModels.dialog.create')
           )}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -739,34 +739,24 @@ export default function CCModelsPage() {
         }}
       >
         <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
-          <TextField
-            size="small"
-            value={searchText}
-            onChange={event => setSearchText(event.target.value)}
-            placeholder={t('ccModels.actions.searchPlaceholder')}
-            sx={{
-              flexGrow: 1,
-              minWidth: { xs: '100%', md: 320 },
-              ...(INPUT_VARIANTS.default.styles as SxProps<Theme>),
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-          />
+          <Box sx={{ flexGrow: 1 }}>
+            <SearchActionBar
+              value={searchText}
+              onChange={setSearchText}
+              placeholder={t('ccModels.actions.searchPlaceholder')}
+              actionLabel="搜索"
+            />
+          </Box>
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Button
-              variant="contained"
+            <ActionButton
+              tone="primary"
               startIcon={<AddIcon />}
               onClick={handleAdd}
               size="small"
               sx={{ height: 40 }}
             >
               {t('ccModels.createBtn')}
-            </Button>
+            </ActionButton>
           </Stack>
         </Stack>
       </Box>
@@ -1009,24 +999,23 @@ export default function CCModelsPage() {
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title={t('ccModels.table.tooltips.edit')} arrow>
-                          <IconButton
+                          <IconActionButton
                             size="small"
-                            color="warning"
+                            sx={{ color: 'warning.main', p: 0.5 }}
                             onClick={() => handleEdit(preset)}
-                            sx={{ p: 0.5 }}
                           >
                             <EditIcon fontSize="small" />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                         <Tooltip title={t('ccModels.table.tooltips.copy')} arrow>
-                          <IconButton
+                          <IconActionButton
                             size="small"
-                            color="default"
+                            tone="subtle"
                             onClick={() => handleCopy(preset)}
                             sx={{ p: 0.5 }}
                           >
                             <ContentCopyIcon fontSize="small" />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                         <Tooltip
                           title={
@@ -1037,9 +1026,9 @@ export default function CCModelsPage() {
                           arrow
                         >
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
-                              color="primary"
+                              tone="primary"
                               onClick={() => runConnectivityTest([preset.id])}
                               disabled={!canTestPreset(preset) || testingPresetIds.has(preset.id)}
                             >
@@ -1048,7 +1037,7 @@ export default function CCModelsPage() {
                               ) : (
                                 <NetworkCheckIcon fontSize="small" />
                               )}
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                         <Tooltip
@@ -1064,14 +1053,14 @@ export default function CCModelsPage() {
                           arrow
                         >
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
-                              color="error"
+                              tone="danger"
                               onClick={() => setDeleteTarget(preset)}
                               disabled={preset.is_default || getUsageNames(preset).length > 0}
                             >
                               <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       </Stack>
@@ -1120,12 +1109,11 @@ export default function CCModelsPage() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
+          <ActionButton onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
             {t('ccModels.deleteDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             disabled={deleteMutation.isPending}
           >
@@ -1134,7 +1122,7 @@ export default function CCModelsPage() {
             ) : (
               t('ccModels.deleteDialog.delete')
             )}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

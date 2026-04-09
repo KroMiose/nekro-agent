@@ -3,7 +3,6 @@ import { useTheme } from '@mui/material/styles'
 import { Editor } from '@monaco-editor/react'
 import {
   Box,
-  Button,
   Card,
   Typography,
   Chip,
@@ -15,12 +14,8 @@ import {
   CircularProgress,
   Alert,
   Stack,
-  IconButton,
   Tooltip,
   TextField,
-  ToggleButtonGroup,
-  ToggleButton,
-  InputAdornment,
   Divider,
   Paper,
   Switch,
@@ -38,7 +33,6 @@ import {
   GitHub as GitHubIcon,
   Refresh as RefreshIcon,
   Add as AddIcon,
-  Search as SearchIcon,
   ViewModule as GridViewIcon,
   Upload as UploadIcon,
   Close as CloseIcon,
@@ -71,6 +65,10 @@ import {
 import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import MarkdownRenderer from '../../components/common/MarkdownRenderer'
+import SegmentedControl from '../../components/common/SegmentedControl'
+import SearchField from '../../components/common/SearchField'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -660,67 +658,51 @@ export default function SkillsLibraryPage() {
           alignItems={isMobile ? 'stretch' : 'center'}
           flexWrap="wrap"
         >
-          <TextField
-            size="small"
+          <SearchField
             placeholder={t('skills.search.placeholder')}
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={setSearchQuery}
+            onClear={() => setSearchQuery('')}
             sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: searchQuery ? (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={() => setSearchQuery('')}>
-                    <CloseIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </InputAdornment>
-              ) : undefined,
-            }}
           />
 
-          <ToggleButtonGroup
+          <SegmentedControl
             value={sourceFilter}
-            exclusive
-            onChange={(_, v: SourceFilter | null) => {
-              if (v !== null) setSourceFilter(v)
-            }}
-            size="small"
-          >
-            <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.all')}</ToggleButton>
-            <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.builtin')}</ToggleButton>
-            <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.user')}</ToggleButton>
-            <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.8rem' }}>{t('skills.filter.repo')}</ToggleButton>
-          </ToggleButtonGroup>
+            options={[
+              { value: 'all', label: t('skills.filter.all') },
+              { value: 'builtin', label: t('skills.filter.builtin') },
+              { value: 'user', label: t('skills.filter.user') },
+              { value: 'repo', label: t('skills.filter.repo') },
+            ]}
+            onChange={v => setSourceFilter(v)}
+          />
 
-          <ToggleButtonGroup
+          <SegmentedControl
             value={viewMode}
-            exclusive
-            onChange={(_, v: ViewMode | null) => {
-              if (v !== null) setViewMode(v)
-            }}
-            size="small"
-          >
-            <ToggleButton value="card">
-              <Tooltip title={t('skills.toolbar.cardView')}>
-                <GridViewIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-            <ToggleButton value="list">
-              <Tooltip title={t('skills.toolbar.listView')}>
-                <ListViewIcon fontSize="small" />
-              </Tooltip>
-            </ToggleButton>
-          </ToggleButtonGroup>
+            options={[
+              {
+                value: 'card',
+                icon: <GridViewIcon fontSize="small" />,
+                tooltip: t('skills.toolbar.cardView'),
+                ariaLabel: t('skills.toolbar.cardView'),
+                iconOnly: true,
+              },
+              {
+                value: 'list',
+                icon: <ListViewIcon fontSize="small" />,
+                tooltip: t('skills.toolbar.listView'),
+                ariaLabel: t('skills.toolbar.listView'),
+                iconOnly: true,
+              },
+            ]}
+            onChange={v => setViewMode(v)}
+          />
 
           {hasActiveFilters && (
             <Tooltip title={t('skills.toolbar.clearFilters')}>
-              <IconButton size="small" onClick={handleClearFilters} color="default">
+              <IconActionButton size="small" onClick={handleClearFilters}>
                 <FilterAltOffIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           )}
 
@@ -728,32 +710,32 @@ export default function SkillsLibraryPage() {
 
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
             <Tooltip title={t('skills.toolbar.refresh')}>
-              <IconButton onClick={handleRefresh} disabled={isLoading} size="small">
+              <IconActionButton onClick={handleRefresh} disabled={isLoading} size="small">
                 <RefreshIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
 
             <input type="file" accept=".zip" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileChange} />
             <Tooltip title={t('skills.toolbar.uploadTooltip')}>
-              <Button
-                variant="outlined"
+              <ActionButton
+                tone="secondary"
                 startIcon={uploadMutation.isPending ? <CircularProgress size={16} color="inherit" /> : <UploadIcon />}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploadMutation.isPending}
                 size="small"
               >
                 {t('skills.toolbar.uploadBtn')}
-              </Button>
+              </ActionButton>
             </Tooltip>
 
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small">
+            <ActionButton tone="primary" startIcon={<AddIcon />} onClick={() => setCloneDialogOpen(true)} size="small">
               {t('skills.toolbar.addBtn')}
-            </Button>
+            </ActionButton>
 
             <Tooltip title={t('skills.pageDesc')} arrow>
-              <IconButton size="small" sx={{ color: 'text.disabled' }}>
+              <IconActionButton size="small">
                 <HelpIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           </Stack>
         </Stack>
@@ -884,23 +866,23 @@ export default function SkillsLibraryPage() {
                 {skill.source === 'user' && skill.hasGit && (
                   <Tooltip title={t('skills.card.pullTooltip')}>
                     <span>
-                      <IconButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
+                      <IconActionButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
                         {pullingName === skill.name ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 16 }} />}
-                      </IconButton>
+                      </IconActionButton>
                     </span>
                   </Tooltip>
                 )}
                 {skill.source === 'user' && (
                   <Tooltip title={t('skills.card.deleteTooltip')}>
-                    <IconButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
+                    <IconActionButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 16 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 )}
                 <Tooltip title={t('skills.card.viewTooltip')}>
-                  <IconButton size="small" onClick={() => openDrawer(skill)}>
+                  <IconActionButton size="small" onClick={() => openDrawer(skill)}>
                     <ViewIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                  </IconActionButton>
                 </Tooltip>
               </Box>
               </Card>
@@ -991,17 +973,17 @@ export default function SkillsLibraryPage() {
                   {skill.source === 'user' && skill.hasGit && (
                     <Tooltip title={t('skills.card.pullTooltip')}>
                       <span>
-                        <IconButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
+                        <IconActionButton size="small" color="primary" onClick={() => handlePull(skill)} disabled={pullingName === skill.name}>
                           {pullingName === skill.name ? <CircularProgress size={14} /> : <RefreshIcon sx={{ fontSize: 14 }} />}
-                        </IconButton>
+                        </IconActionButton>
                       </span>
                     </Tooltip>
                   )}
                   {skill.source === 'user' && (
                     <Tooltip title={t('skills.card.deleteTooltip')}>
-                      <IconButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
+                      <IconActionButton size="small" color="error" onClick={() => setDeleteTarget(skill.name)}>
                         <DeleteIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
+                      </IconActionButton>
                     </Tooltip>
                   )}
                 </Box>
@@ -1063,13 +1045,13 @@ export default function SkillsLibraryPage() {
               </Box>
               <Tooltip title={t('skills.drawer.syncToWorkspaces')}>
                 <span>
-                  <IconButton
+                  <IconActionButton
                     size="small"
                     onClick={() => handleSyncToWorkspaces(drawerSkill.name)}
                     disabled={syncingSkill === drawerSkill.name}
                   >
                     {syncingSkill === drawerSkill.name ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
-                  </IconButton>
+                  </IconActionButton>
                 </span>
               </Tooltip>
               <Tooltip title={t('skills.drawer.autoInject')}>
@@ -1080,9 +1062,9 @@ export default function SkillsLibraryPage() {
                   color="warning"
                 />
               </Tooltip>
-              <IconButton size="small" onClick={closeDrawer}>
+              <IconActionButton size="small" onClick={closeDrawer}>
                 <CloseIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Box>
 
             {/* Drawer body: file tree + content pane */}
@@ -1211,36 +1193,40 @@ export default function SkillsLibraryPage() {
 
                     {/* Source / Preview toggle */}
                     {isTextFile(selectedFile) && (
-                      <ToggleButtonGroup
-                        size="small"
+                      <SegmentedControl
+                        density="tight"
                         value={editing ? 'source' : drawerViewMode}
-                        exclusive
-                        onChange={(_, v) => {
+                        options={[
+                          {
+                            value: 'preview',
+                            icon: <PreviewIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.preview'),
+                            ariaLabel: t('skills.drawer.preview'),
+                            iconOnly: true,
+                          },
+                          {
+                            value: 'source',
+                            icon: <CodeIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.source_code'),
+                            ariaLabel: t('skills.drawer.source_code'),
+                            iconOnly: true,
+                          },
+                        ]}
+                        onChange={v => {
                           if (v === 'source' || v === 'preview') {
                             setDrawerViewMode(v)
                             if (v === 'preview') setEditing(false)
                           }
                         }}
                         disabled={editing}
-                      >
-                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.preview')}>
-                            <PreviewIcon sx={{ fontSize: 16 }} />
-                          </Tooltip>
-                        </ToggleButton>
-                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.source_code')}>
-                            <CodeIcon sx={{ fontSize: 16 }} />
-                          </Tooltip>
-                        </ToggleButton>
-                      </ToggleButtonGroup>
+                      />
                     )}
 
                     {/* Edit / Save for user skills */}
                     {drawerSkill.source === 'user' && isTextFile(selectedFile) && (
                       editing ? (
                         <Stack direction="row" spacing={0.5}>
-                          <Button
+                          <ActionButton
                             size="small"
                             variant="contained"
                             startIcon={saving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
@@ -1249,8 +1235,8 @@ export default function SkillsLibraryPage() {
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {saving ? t('skills.drawer.saving') : t('skills.drawer.save')}
-                          </Button>
-                          <Button
+                          </ActionButton>
+                          <ActionButton
                             size="small"
                             variant="outlined"
                             onClick={() => {
@@ -1263,11 +1249,11 @@ export default function SkillsLibraryPage() {
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {t('skills.drawer.cancel_edit')}
-                          </Button>
+                          </ActionButton>
                         </Stack>
                       ) : (
                         <Tooltip title={t('skills.drawer.edit')}>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={() => {
                               setEditing(true)
@@ -1277,7 +1263,7 @@ export default function SkillsLibraryPage() {
                             }}
                           >
                             <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )
                     )}
@@ -1383,12 +1369,12 @@ export default function SkillsLibraryPage() {
           <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setUnsavedDialogTarget(null)}>
+          <ActionButton onClick={() => setUnsavedDialogTarget(null)}>
             {t('skills.drawer.keepEditing')}
-          </Button>
-          <Button variant="contained" color="warning" onClick={handleDiscardAndSwitch}>
+          </ActionButton>
+          <ActionButton variant="contained" color="warning" onClick={handleDiscardAndSwitch}>
             {t('skills.drawer.discard')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1429,7 +1415,7 @@ export default function SkillsLibraryPage() {
           </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
             onClick={() => {
               setCloneDialogOpen(false)
               setCloneUrl('')
@@ -1439,15 +1425,15 @@ export default function SkillsLibraryPage() {
             disabled={cloneMutation.isPending}
           >
             {t('skills.cloneDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             onClick={() => cloneMutation.mutate()}
             disabled={cloneMutation.isPending || !cloneUrl.trim() || !cloneTargetDir.trim()}
             startIcon={cloneMutation.isPending ? <CircularProgress size={16} color="inherit" /> : undefined}
           >
             {cloneMutation.isPending ? t('skills.cloneDialog.cloning') : t('skills.cloneDialog.cloneBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1460,17 +1446,17 @@ export default function SkillsLibraryPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
+          <ActionButton onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
             {t('skills.deleteDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             color="error"
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget)}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? <CircularProgress size={20} /> : t('skills.deleteDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

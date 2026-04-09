@@ -7,7 +7,6 @@ import {
   Select,
   MenuItem,
   TextField,
-  Button,
   Typography,
   Divider,
   CircularProgress,
@@ -17,7 +16,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
   Tooltip,
   DialogContentText,
   ButtonGroup,
@@ -26,7 +24,6 @@ import {
   useMediaQuery,
   Stack,
   Fab,
-  Tabs,
   Tab,
   Drawer,
   AppBar,
@@ -49,6 +46,7 @@ import {
   Edit as EditIcon,
   Menu as MenuIcon,
 } from '@mui/icons-material'
+import { EditorTabs } from '../../components/common/NekroTabs'
 import { Editor } from '@monaco-editor/react'
 import { pluginEditorApi, streamGenerateCode } from '../../services/api/plugin-editor'
 import { reloadPlugins } from '../../services/api/plugins'
@@ -57,6 +55,8 @@ import { useNotification } from '../../hooks/useNotification'
 import { CARD_STYLES, BORDER_RADIUS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import { copyText } from '../../utils/clipboard'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 // 新建插件对话框组件
 interface NewPluginDialogProps {
@@ -125,10 +125,10 @@ function NewPluginDialog({ open, onClose, onConfirm, t }: NewPluginDialogProps) 
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>{t('editor.cancel')}</Button>
-        <Button onClick={handleConfirm} variant="contained">
+        <ActionButton onClick={handleClose}>{t('editor.cancel')}</ActionButton>
+        <ActionButton onClick={handleConfirm} variant="contained">
           {t('editor.create')}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -761,30 +761,30 @@ export default function PluginsEditorPage() {
   const renderFileActions = () => (
     <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
       <Tooltip title={t('editor.newPluginTooltip')}>
-        <IconButton
+        <IconActionButton
           color="primary"
           onClick={() => setIsNewPluginDialogOpen(true)}
           size={isSmall ? 'small' : 'medium'}
         >
           <AddIcon />
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
       <Tooltip title={t('editor.importPlugin')}>
-        <IconButton color="primary" component="label" size={isSmall ? 'small' : 'medium'}>
+        <IconActionButton color="primary" component="label" size={isSmall ? 'small' : 'medium'}>
           <input type="file" hidden accept=".py" onChange={handleImportFile} />
           <UploadIcon />
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
       <Tooltip title={t('editor.saveTooltip')}>
         <span>
-          <IconButton
+          <IconActionButton
             color="primary"
             onClick={handleSave}
             disabled={!hasUnsavedChanges || isSaving}
             size={isSmall ? 'small' : 'medium'}
           >
             {isSaving ? <CircularProgress size={isSmall ? 18 : 24} /> : <SaveIcon />}
-          </IconButton>
+          </IconActionButton>
         </span>
       </Tooltip>
     </Box>
@@ -793,7 +793,7 @@ export default function PluginsEditorPage() {
   // 渲染操作区按钮组
   const renderOperationButtons = () => (
     <ButtonGroup variant="outlined" fullWidth sx={{ flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
-      <Button
+      <ActionButton
         startIcon={<RefreshIcon />}
         onClick={() => setIsResetDialogOpen(true)}
         disabled={!hasUnsavedChanges}
@@ -805,9 +805,9 @@ export default function PluginsEditorPage() {
         size={isSmall ? 'small' : 'medium'}
       >
         {isSmall ? t('actions.reset') : t('editor.resetCode')}
-      </Button>
+      </ActionButton>
       <Tooltip title={t('editor.reloadPlugin')} arrow placement="top">
-        <Button
+        <ActionButton
           startIcon={<ExtensionIcon />}
           onClick={() => setReloadExtDialogOpen(true)}
           color="primary"
@@ -818,9 +818,9 @@ export default function PluginsEditorPage() {
           size={isSmall ? 'small' : 'medium'}
         >
           {isSmall ? t('actions.reload') : t('editor.reloadPlugin')}
-        </Button>
+        </ActionButton>
       </Tooltip>
-      <Button
+      <ActionButton
         startIcon={<PowerIcon />}
         onClick={() => setIsDisableDialogOpen(true)}
         disabled={!selectedFile}
@@ -838,8 +838,8 @@ export default function PluginsEditorPage() {
           : selectedFile?.endsWith('.disabled')
             ? t('editor.enablePlugin')
             : t('editor.disablePlugin')}
-      </Button>
-      <Button
+      </ActionButton>
+      <ActionButton
         id="more-button"
         aria-controls={open ? 'more-menu' : undefined}
         aria-haspopup="true"
@@ -852,7 +852,7 @@ export default function PluginsEditorPage() {
         size={isSmall ? 'small' : 'medium'}
       >
         <MoreVertIcon />
-      </Button>
+      </ActionButton>
     </ButtonGroup>
   )
 
@@ -880,9 +880,9 @@ export default function PluginsEditorPage() {
           }}
         >
           <Toolbar variant="dense" disableGutters sx={{ px: 1 }}>
-            <IconButton color="inherit" edge="start" onClick={toggleDrawer} sx={{ mr: 1 }}>
+            <IconActionButton color="inherit" edge="start" onClick={toggleDrawer} sx={{ mr: 1 }}>
               <MenuIcon />
-            </IconButton>
+            </IconActionButton>
             <Typography
               variant="subtitle1"
               component="div"
@@ -899,7 +899,7 @@ export default function PluginsEditorPage() {
                 placement="bottom"
               >
                 <span>
-                  <IconButton
+                  <IconActionButton
                     color="primary"
                     onClick={handleSave}
                     disabled={!hasUnsavedChanges || isSaving}
@@ -914,33 +914,17 @@ export default function PluginsEditorPage() {
                     }}
                   >
                     {isSaving ? <CircularProgress size={18} /> : <SaveIcon />}
-                  </IconButton>
+                  </IconActionButton>
                 </span>
               </Tooltip>
             )}
           </Toolbar>
-          <Tabs
+          <EditorTabs
             value={activeTab}
             onChange={handleTabChange}
             variant="fullWidth"
             indicatorColor="primary"
             textColor="primary"
-            sx={{
-              '& .MuiTab-root': {
-                color: theme => alpha(theme.palette.common.white, 0.7),
-                minHeight: '36px',
-                padding: '6px 12px',
-                '&.Mui-selected': {
-                  color: 'common.white',
-                  fontWeight: 'bold',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-                },
-              },
-              '& .MuiTabs-indicator': {
-                backgroundColor: 'common.white',
-                height: 3,
-              },
-            }}
           >
             <Tab
               icon={<CodeIcon fontSize="small" />}
@@ -974,7 +958,7 @@ export default function PluginsEditorPage() {
                 },
               }}
             />
-          </Tabs>
+          </EditorTabs>
         </AppBar>
       )}
 
@@ -999,7 +983,7 @@ export default function PluginsEditorPage() {
           {renderFileSelector()}
 
           <Box sx={{ mt: 2, display: 'flex', gap: 1, justifyContent: 'space-between' }}>
-            <Button
+            <ActionButton
               variant="outlined"
               startIcon={<AddIcon />}
               onClick={() => {
@@ -1013,8 +997,8 @@ export default function PluginsEditorPage() {
               }}
             >
               {t('editor.newPlugin')}
-            </Button>
-            <Button
+            </ActionButton>
+            <ActionButton
               variant="outlined"
               startIcon={<UploadIcon />}
               component="label"
@@ -1026,7 +1010,7 @@ export default function PluginsEditorPage() {
             >
               {t('editor.importPlugin')}
               <input type="file" hidden accept=".py" onChange={handleImportFile} />
-            </Button>
+            </ActionButton>
           </Box>
 
           <Divider sx={{ my: 2 }} />
@@ -1035,7 +1019,7 @@ export default function PluginsEditorPage() {
             {t('editor.operations')}
           </Typography>
           <Stack spacing={1}>
-            <Button
+            <ActionButton
               variant="outlined"
               startIcon={<RefreshIcon />}
               onClick={() => {
@@ -1052,9 +1036,9 @@ export default function PluginsEditorPage() {
               }}
             >
               {t('editor.resetCode')}
-            </Button>
+            </ActionButton>
 
-            <Button
+            <ActionButton
               variant="outlined"
               startIcon={<ExtensionIcon />}
               onClick={() => {
@@ -1069,9 +1053,9 @@ export default function PluginsEditorPage() {
               }}
             >
               {t('editor.reloadPlugin')}
-            </Button>
+            </ActionButton>
 
-            <Button
+            <ActionButton
               variant="outlined"
               startIcon={<PowerIcon />}
               onClick={() => {
@@ -1106,9 +1090,9 @@ export default function PluginsEditorPage() {
               {selectedFile?.endsWith('.disabled')
                 ? t('editor.enablePlugin')
                 : t('editor.disablePlugin')}
-            </Button>
+            </ActionButton>
 
-            <Button
+            <ActionButton
               variant="outlined"
               startIcon={<DeleteIcon />}
               onClick={() => {
@@ -1130,7 +1114,7 @@ export default function PluginsEditorPage() {
               }}
             >
               {t('editor.deleteFile')}
-            </Button>
+            </ActionButton>
           </Stack>
         </Drawer>
       )}
@@ -1483,7 +1467,7 @@ export default function PluginsEditorPage() {
                   fullWidth
                 />
 
-                <Button
+                <ActionButton
                   variant="contained"
                   color="primary"
                   fullWidth
@@ -1576,7 +1560,7 @@ export default function PluginsEditorPage() {
                       </Box>
                     </>
                   )}
-                </Button>
+                </ActionButton>
 
                 {/* 结果显示区域 */}
                 <Box
@@ -1671,7 +1655,7 @@ export default function PluginsEditorPage() {
                       <Tooltip
                         title={isCopied ? t('editor.copiedToClipboard') : t('editor.copyCode')}
                       >
-                        <Button
+                        <ActionButton
                           startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
                           onClick={handleCopyCode}
                           disabled={!generatedCode}
@@ -1680,10 +1664,10 @@ export default function PluginsEditorPage() {
                           sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                         >
                           {isCopied ? t('editor.copied') : t('actions.copy')}
-                        </Button>
+                        </ActionButton>
                       </Tooltip>
                       <Tooltip title={t('editor.clearGenerated')}>
-                        <Button
+                        <ActionButton
                           startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
                           onClick={handleClearCode}
                           disabled={!generatedCode}
@@ -1693,10 +1677,10 @@ export default function PluginsEditorPage() {
                           sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                         >
                           {t('editor.clear')}
-                        </Button>
+                        </ActionButton>
                       </Tooltip>
                     </Box>
-                    <Button
+                    <ActionButton
                       variant="contained"
                       color="success"
                       onClick={handleApplyCode}
@@ -1755,7 +1739,7 @@ export default function PluginsEditorPage() {
                       }}
                     >
                       {isApplying ? t('editor.applying') : t('editor.applyCode')}
-                    </Button>
+                    </ActionButton>
                   </Box>
                 </Box>
               </Paper>
@@ -1942,7 +1926,7 @@ export default function PluginsEditorPage() {
                     fullWidth
                   />
 
-                  <Button
+                  <ActionButton
                     variant="contained"
                     color="primary"
                     fullWidth
@@ -2035,7 +2019,7 @@ export default function PluginsEditorPage() {
                         </Box>
                       </>
                     )}
-                  </Button>
+                  </ActionButton>
 
                   {/* 结果显示区域 */}
                   <Box
@@ -2128,7 +2112,7 @@ export default function PluginsEditorPage() {
                     >
                       <Box sx={{ display: 'flex', gap: 0.5 }}>
                         <Tooltip title={isCopied ? '已复制到剪贴板！' : '复制代码'}>
-                          <Button
+                          <ActionButton
                             startIcon={<ContentCopyIcon sx={{ fontSize: '0.9rem' }} />}
                             onClick={handleCopyCode}
                             disabled={!generatedCode}
@@ -2137,10 +2121,10 @@ export default function PluginsEditorPage() {
                             sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                           >
                             {isCopied ? '已复制' : '复制'}
-                          </Button>
+                          </ActionButton>
                         </Tooltip>
                         <Tooltip title="清空生成结果">
-                          <Button
+                          <ActionButton
                             startIcon={<ClearIcon sx={{ fontSize: '0.9rem' }} />}
                             onClick={handleClearCode}
                             disabled={!generatedCode}
@@ -2150,10 +2134,10 @@ export default function PluginsEditorPage() {
                             sx={{ py: 0.5, px: 1, minWidth: 'auto' }}
                           >
                             清空
-                          </Button>
+                          </ActionButton>
                         </Tooltip>
                       </Box>
-                      <Button
+                      <ActionButton
                         variant="contained"
                         color="success"
                         onClick={handleApplyCode}
@@ -2212,7 +2196,7 @@ export default function PluginsEditorPage() {
                         }}
                       >
                         {isApplying ? '应用中...' : '应用方案'}
-                      </Button>
+                      </ActionButton>
                     </Box>
                   </Box>
                 </Paper>
@@ -2237,10 +2221,10 @@ export default function PluginsEditorPage() {
           <Typography>{t('editor.dialogs.resetMessage')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsResetDialogOpen(false)}>{t('editor.cancel')}</Button>
-          <Button onClick={handleResetCode} color="warning" variant="contained">
+          <ActionButton onClick={() => setIsResetDialogOpen(false)}>{t('editor.cancel')}</ActionButton>
+          <ActionButton onClick={handleResetCode} color="warning" variant="contained">
             {t('actions.reset')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -2253,10 +2237,10 @@ export default function PluginsEditorPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteDialogOpen(false)}>{t('editor.cancel')}</Button>
-          <Button onClick={handleDeleteConfirm} color="error">
+          <ActionButton onClick={() => setDeleteDialogOpen(false)}>{t('editor.cancel')}</ActionButton>
+          <ActionButton onClick={handleDeleteConfirm} color="error">
             {t('actions.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -2267,10 +2251,10 @@ export default function PluginsEditorPage() {
           <DialogContentText>{t('editor.dialogs.reloadMessage')}</DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setReloadExtDialogOpen(false)}>{t('editor.cancel')}</Button>
-          <Button onClick={handleReloadExt} color="primary" variant="contained">
+          <ActionButton onClick={() => setReloadExtDialogOpen(false)}>{t('editor.cancel')}</ActionButton>
+          <ActionButton onClick={handleReloadExt} color="primary" variant="contained">
             {t('actions.reload')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -2291,8 +2275,8 @@ export default function PluginsEditorPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setIsDisableDialogOpen(false)}>{t('editor.cancel')}</Button>
-          <Button
+          <ActionButton onClick={() => setIsDisableDialogOpen(false)}>{t('editor.cancel')}</ActionButton>
+          <ActionButton
             onClick={handleTogglePlugin}
             color={selectedFile?.endsWith('.disabled') ? 'success' : 'warning'}
             variant="contained"
@@ -2300,7 +2284,7 @@ export default function PluginsEditorPage() {
             {selectedFile?.endsWith('.disabled')
               ? t('editor.messages.enabled')
               : t('editor.messages.disabled')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 

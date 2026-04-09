@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  IconButton,
   Box,
   Typography,
   Chip,
@@ -17,6 +16,7 @@ import { ANNOUNCEMENT_TYPE_COLORS, ANNOUNCEMENT_TYPE_LABELS, formatRelativeTime 
 import { getCurrentThemeMode } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 import MarkdownRenderer from './MarkdownRenderer'
+import IconActionButton from './IconActionButton'
 
 interface AnnouncementDetailDialogProps {
   open: boolean
@@ -90,13 +90,13 @@ export default function AnnouncementDetailDialog({
                 {detail.title}
               </Typography>
             </Box>
-            <IconButton
+            <IconActionButton
               onClick={onClose}
               size="small"
               sx={{ position: 'absolute', right: 12, top: 12 }}
             >
               <CloseIcon sx={{ fontSize: 20 }} />
-            </IconButton>
+            </IconActionButton>
           </DialogTitle>
           <DialogContent dividers sx={{ py: 2 }}>
             <MarkdownRenderer>{detail.content}</MarkdownRenderer>
