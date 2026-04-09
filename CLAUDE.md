@@ -57,3 +57,61 @@
 - 前端代码变更后**必须**用 `poe frontend-check` 通过后才算完成
 - 后端代码变更后**必须**用 `poe lint` 通过后才算完成
 - **禁止手动创建迁移文件**，必须使用 `poe db-revision <name>` 命令生成，确保 `MODELS_STATE` 字段正确写入
+
+---
+
+## Git/GitHub 协作规范（必须遵循）
+
+> 本节规定基于 git-github-workflow skill，是 nekro-agent 仓库协作的强制性规则。
+
+### 分支创建（最高优先级）
+
+- ❌ **禁止**：`git checkout -b fix/xxx`（从当前 HEAD 创建，会继承所有历史 commit）
+- ✅ **必须**：`git checkout -b fix/xxx origin/main`（从上游 main 最新状态创建）
+- ✅ **等效**：`git fetch origin main && git checkout -b fix/xxx origin/main`
+
+### PR 提交流程（每次必须执行）
+
+**第一步：创建分支前**
+```bash
+# 确认当前分支、远端状态
+git remote -v && git branch -vv
+```
+
+**第二步：创建干净分支**
+```bash
+git fetch origin main
+git checkout -b <branch-name> origin/main
+```
+
+**第三步：提交前验证**
+```bash
+# 确认只有必要的提交（通常 1 个）
+git log --oneline -3
+
+# 确认只有目标文件被修改
+git diff origin/main --stat
+
+# 确认 gh 认证正常
+gh auth status
+```
+
+**第四步：创建 PR 后再次确认**
+```bash
+gh pr view --json files  # 确认文件列表干净
+```
+
+### 常见错误规避
+
+| 错误 | 后果 | 正确做法 |
+|------|------|----------|
+| 从当前分支直接开新分支 | PR 携带历史 commit | 必须从 origin/main 创建 |
+| `git checkout -b` 不指定起点 | 继承当前分支所有历史 | 必须指定 `origin/main` |
+| 复用上次的分支继续开发 | 混入不相关提交 | 每次从最新 main 新建 |
+| 不检查 diff 就提交 | 脏提交进入 PR | 提交前必须 `git diff` |
+
+### 远端权限说明
+
+- `origin` = KroMiose/nekro-agent（主仓库，无直接推送权限）
+- `fork` = NekroMeow/nekro-agent（个人 fork，有推送权限）
+- PR 应从 fork 分支 → 主仓库 main
