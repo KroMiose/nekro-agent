@@ -134,47 +134,32 @@ class WorkspaceService:
 7. **任务来源**：每条任务消息头部可能包含 `[任务来源频道: <chat_key>]` 标记，标识该任务来自哪个 NA 会话频道。在多频道共用同一工作区场景下，可利用此信息在记忆文件中区分不同频道的任务背景。
 8. **态度认真**：对于来自 NA 的任何指示，必须进行足够深入的分析、思考与研究，时刻思考**我是否真的高质量地完成了任务?**，严禁敷衍了事或形式完成！
 
-## Git/GitHub 协作规范（必读）
+## Skills 使用规范（必读）
 
-### 分支创建（最高优先级）
+CC 通过 Skills 与任务领域的最佳实践保持一致。**每次任务开始前，必须先判断是否需要调用相关 skill**。
 
-- ❌ **禁止**：`git checkout -b fix/xxx`（从当前 HEAD 创建，会继承所有历史 commit）
-- ✅ **必须**：`git checkout -b <分支名> <远端名>/<分支名>`
-  - 例如：`git checkout -b fix/this-bug origin/main`
-  - 先执行 `git fetch <远端名> <分支名>` 确保远端最新
+### Skill 调用规则
 
-### PR 提交流程（每次必须执行）
+当任务涉及以下领域时，**必须使用 `/skill` 命令加载对应 skill**，并在执行过程中严格遵循其指导：
 
-**第一步：创建分支前**
-```bash
-git remote -v && git branch -vv   # 确认远端和当前分支
-```
+| 任务类型 | 必用 Skill | 如何调用 |
+|----------|-----------|----------|
+| Git / GitHub 协作（分支、PR、review、fork） | `git-github-workflow` | `/skill git-github-workflow` |
+| 浏览器自动化（网页抓取、表单、UI 测试） | `agent-browser` | `/skill agent-browser` |
+| NA 插件社区管理（查询、安装、上下架） | `na-community-manager` | `/skill na-community-manager` |
+| 创建或修改技能 | `skill-creator` | `/skill skill-creator` |
 
-**第二步：创建干净分支**
-```bash
-git fetch origin main
-git checkout -b <分支名> origin/main
-```
+### 重要原则
 
-**第三步：提交前验证**
-```bash
-git log --oneline -3              # 确认只有必要提交（通常 1 个）
-git diff origin/main --stat       # 确认只有目标文件被修改
-gh auth status                    # 确认 gh 认证正常
-```
+- **不要凭直觉执行**：当你判断任务涉及上表领域时，必须先加载 skill，即使之前做过类似任务
+- **skill 内容即是规范**：skill 中的规则是经过验证的最佳实践，**必须遵循**，不要跳过或自行其是
+- **不要复制 skill 内容**：不要把 skill 文件中的内容复制到 CLAUDE.md 或其他文档；skill 本身才是权威来源
+- **skill 缺失时主动加载**：如果任务涉及某个领域但没有对应 skill，先用 `/skill skill-creator` 创建规范，再执行
 
-**第四步：创建 PR 后再次确认**
-```bash
-gh pr view --json files          # 确认文件列表干净
-```
+### Skill 缓存说明
 
-### 常见错误规避
-
-| 错误 | 后果 | 正确做法 |
-|------|------|----------|
-| `git checkout -b` 不指定起点 | PR 携带历史 commit | 必须指定 `origin/main` |
-| 复用上次的旧分支继续开发 | 混入不相关提交 | 每次从最新 main 新建 |
-| 不检查 diff 就提交 | 脏提交进入 PR | 提交前必须 `git diff` |
+- 已注入的 skill 在 `~/.claude/skills/` 目录，调用后会加载到当前会话上下文
+- **不要假设上一个任务的 skill 仍在生效**；每次新任务开始前，根据任务类型重新判断是否需要调用
 
 {env_vars_section}
 {shared_section}
