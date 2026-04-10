@@ -1,7 +1,5 @@
 # 运行 `export NEKRO_DATA_DIR=${HOME}/srv/nekro_agent` 设定数据目录
-# 然后运行 `sudo -E docker-compose up -d` 启动服务
-
-version: "3"
+# 然后运行 `sudo -E docker compose up -d` 启动服务
 
 services:
   # PostgreSQL 服务
