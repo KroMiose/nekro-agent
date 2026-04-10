@@ -19,6 +19,11 @@ from nekro_agent.services.memory.embedding_service import embed_text
 from nekro_agent.services.workspace.manager import WorkspaceService
 
 PREVIEW_MAX_CHARS = 360
+KEYWORD_DOC_CANDIDATE_FACTOR = 6
+KEYWORD_HIT_FACTOR = 4
+KEYWORD_CHUNK_SCORE_THRESHOLD = 0.22
+KEYWORD_DOCUMENT_FALLBACK_THRESHOLD = 0.4
+FUSED_SCORE_CAP = 1.8
 
 
 @dataclass
@@ -62,25 +67,58 @@ def _payload_text(payload: dict[str, Any], key: str) -> str:
     return value.strip() if isinstance(value, str) else ""
 
 
+def _document_tags(document: DBKBDocument) -> list[str]:
+    return [str(tag) for tag in document.tags] if isinstance(document.tags, list) else []
+
+
+def _document_matches_filters(document: DBKBDocument, *, category: str, tags: list[str] | None) -> bool:
+    if category.strip() and document.category != category.strip():
+        return False
+    if tags:
+        document_tags = set(_document_tags(document))
+        if not set(tag.strip() for tag in tags if tag.strip()).issubset(document_tags):
+            return False
+    return True
+
+
+def _read_normalized_cached(document: DBKBDocument, normalized_cache: dict[int, str]) -> str:
+    normalized_content = normalized_cache.get(document.id)
+    if normalized_content is None:
+        normalized_content = read_normalized_content(document)
+        normalized_cache[document.id] = normalized_content
+    return normalized_content
+
+
+def _extract_chunk_text(
+    *,
+    document: DBKBDocument,
+    chunk: DBKBChunk,
+    normalized_cache: dict[int, str],
+) -> str:
+    normalized_content = _read_normalized_cached(document, normalized_cache)
+    if not normalized_content:
+        return ""
+    start = max(0, min(len(normalized_content), int(chunk.char_start)))
+    end = max(start, min(len(normalized_content), int(chunk.char_end)))
+    return normalized_content[start:end].strip()
+
+
 def _extract_preview_from_document(
     *,
     document: DBKBDocument,
     chunk: DBKBChunk,
     normalized_cache: dict[int, str],
 ) -> str:
-    normalized_content = normalized_cache.get(document.id)
-    if normalized_content is None:
-        normalized_content = read_normalized_content(document)
-        normalized_cache[document.id] = normalized_content
+    excerpt = _extract_chunk_text(document=document, chunk=chunk, normalized_cache=normalized_cache)
+    if excerpt:
+        return _preview_text(excerpt)
+
+    normalized_content = _read_normalized_cached(document, normalized_cache)
     if not normalized_content:
         return ""
 
     start = max(0, min(len(normalized_content), int(chunk.char_start)))
     end = max(start, min(len(normalized_content), int(chunk.char_end)))
-    excerpt = normalized_content[start:end]
-    if excerpt.strip():
-        return _preview_text(excerpt)
-
     fallback_start = max(0, start - PREVIEW_MAX_CHARS // 2)
     fallback_end = min(len(normalized_content), max(end, start + PREVIEW_MAX_CHARS // 2))
     return _preview_text(normalized_content[fallback_start:fallback_end])
@@ -103,7 +141,8 @@ def _keyword_match_score(
         "heading": heading_path.lower(),
         "preview": content_preview.lower(),
         "category": document.category.lower(),
-        "tags": " ".join(str(tag).lower() for tag in (document.tags if isinstance(document.tags, list) else [])),
+        "summary": document.summary.lower(),
+        "tags": " ".join(tag.lower() for tag in _document_tags(document)),
     }
 
     for token in tokens:
@@ -114,13 +153,99 @@ def _keyword_match_score(
         if token in haystacks["heading"]:
             score += 0.08
         if token in haystacks["preview"]:
-            score += 0.05
+            score += 0.06
+        if token in haystacks["summary"]:
+            score += 0.04
         if token in haystacks["category"]:
             score += 0.03
         if token in haystacks["tags"]:
             score += 0.03
 
-    return min(score, 0.45)
+    return min(score, 0.5)
+
+
+def _keyword_document_score(*, query: str, tokens: list[str], document: DBKBDocument) -> float:
+    lowered_query = query.lower().strip()
+    title = document.title.lower()
+    path = document.source_path.lower()
+    summary = document.summary.lower()
+    category = document.category.lower()
+    tags = " ".join(tag.lower() for tag in _document_tags(document))
+
+    score = 0.0
+    if lowered_query:
+        if lowered_query in title:
+            score += 0.55
+        if lowered_query in path:
+            score += 0.3
+        if lowered_query in summary:
+            score += 0.18
+        if lowered_query in category:
+            score += 0.1
+        if lowered_query in tags:
+            score += 0.1
+
+    matched_tokens = 0
+    for token in tokens:
+        token_matched = False
+        if token in title:
+            score += 0.14
+            token_matched = True
+        if token in path:
+            score += 0.08
+            token_matched = True
+        if token in summary:
+            score += 0.05
+            token_matched = True
+        if token in category:
+            score += 0.03
+            token_matched = True
+        if token in tags:
+            score += 0.04
+            token_matched = True
+        if token_matched:
+            matched_tokens += 1
+
+    if tokens:
+        score += (matched_tokens / len(tokens)) * 0.18
+    return min(score, 1.2)
+
+
+def _keyword_chunk_score(
+    *,
+    query: str,
+    tokens: list[str],
+    heading_path: str,
+    chunk_text: str,
+    document: DBKBDocument,
+) -> float:
+    lowered_query = query.lower().strip()
+    chunk_lower = chunk_text.lower()
+    heading_lower = heading_path.lower()
+    score = 0.0
+
+    if lowered_query:
+        if lowered_query in chunk_lower:
+            score += 0.55
+        if lowered_query in heading_lower:
+            score += 0.18
+
+    matched_tokens = 0
+    for token in tokens:
+        token_matched = False
+        if token in chunk_lower:
+            score += 0.08
+            token_matched = True
+        if token in heading_lower:
+            score += 0.06
+            token_matched = True
+        if token_matched:
+            matched_tokens += 1
+
+    if tokens:
+        score += (matched_tokens / len(tokens)) * 0.16
+    score += min(_keyword_document_score(query=query, tokens=tokens, document=document) * 0.25, 0.25)
+    return min(score, 1.35)
 
 
 def _apply_metadata_bonus(
@@ -147,6 +272,120 @@ def _apply_metadata_bonus(
     return score
 
 
+def _merge_hits(vector_hits: list[_ScoredHit], keyword_hits: list[_ScoredHit]) -> list[_ScoredHit]:
+    merged: dict[int, _ScoredHit] = {}
+
+    def _merge_one(hit: _ScoredHit) -> None:
+        existing = merged.get(hit.chunk.id)
+        if existing is None:
+            merged[hit.chunk.id] = hit
+            return
+
+        combined_score = max(existing.score, hit.score) + min(existing.score, hit.score) * 0.2
+        merged[hit.chunk.id] = _ScoredHit(
+            chunk=existing.chunk,
+            document=existing.document,
+            heading_path=existing.heading_path or hit.heading_path,
+            content_preview=existing.content_preview if len(existing.content_preview) >= len(hit.content_preview) else hit.content_preview,
+            score=min(combined_score, FUSED_SCORE_CAP),
+        )
+
+    for hit in vector_hits:
+        _merge_one(hit)
+    for hit in keyword_hits:
+        _merge_one(hit)
+    return list(merged.values())
+
+
+async def _collect_keyword_hits(
+    *,
+    documents: list[DBKBDocument],
+    workspace_id: int,
+    query: str,
+    tokens: list[str],
+    limit: int,
+    max_chunks_per_document: int,
+    normalized_cache: dict[int, str],
+) -> list[_ScoredHit]:
+    if not query.strip():
+        return []
+
+    scored_documents = [
+        (document, _keyword_document_score(query=query, tokens=tokens, document=document))
+        for document in documents
+    ]
+    scored_documents = [(document, score) for document, score in scored_documents if score > 0]
+    if not scored_documents:
+        return []
+
+    scored_documents.sort(key=lambda item: item[1], reverse=True)
+    candidate_limit = max(limit * KEYWORD_DOC_CANDIDATE_FACTOR, 12)
+    candidate_documents = scored_documents[:candidate_limit]
+    candidate_doc_ids = [document.id for document, _score in candidate_documents]
+    chunks = (
+        await DBKBChunk.filter(workspace_id=workspace_id, document_id__in=candidate_doc_ids)
+        .order_by("document_id", "chunk_index")
+        .all()
+    )
+    chunk_groups: defaultdict[int, list[DBKBChunk]] = defaultdict(list)
+    for chunk in chunks:
+        chunk_groups[chunk.document_id].append(chunk)
+
+    hits: list[_ScoredHit] = []
+    chunk_limit = max(limit * max_chunks_per_document * KEYWORD_HIT_FACTOR, 12)
+    for document, document_score in candidate_documents:
+        document_chunks = chunk_groups.get(document.id, [])
+        if not document_chunks:
+            continue
+
+        document_hits: list[_ScoredHit] = []
+        for chunk in document_chunks:
+            chunk_text = _extract_chunk_text(document=document, chunk=chunk, normalized_cache=normalized_cache)
+            if not chunk_text:
+                continue
+
+            chunk_score = _keyword_chunk_score(
+                query=query,
+                tokens=tokens,
+                heading_path=chunk.heading_path,
+                chunk_text=chunk_text,
+                document=document,
+            )
+            if chunk_score < KEYWORD_CHUNK_SCORE_THRESHOLD:
+                continue
+
+            document_hits.append(
+                _ScoredHit(
+                    chunk=chunk,
+                    document=document,
+                    heading_path=chunk.heading_path,
+                    content_preview=_preview_text(chunk_text),
+                    score=min(chunk_score, FUSED_SCORE_CAP),
+                )
+            )
+
+        if not document_hits and document_score >= KEYWORD_DOCUMENT_FALLBACK_THRESHOLD:
+            fallback_chunk = document_chunks[0]
+            document_hits.append(
+                _ScoredHit(
+                    chunk=fallback_chunk,
+                    document=document,
+                    heading_path=fallback_chunk.heading_path,
+                    content_preview=_extract_preview_from_document(
+                        document=document,
+                        chunk=fallback_chunk,
+                        normalized_cache=normalized_cache,
+                    ),
+                    score=min(document_score * 0.85, FUSED_SCORE_CAP),
+                )
+            )
+
+        hits.extend(sorted(document_hits, key=lambda item: item.score, reverse=True)[: max_chunks_per_document * 2])
+
+    hits.sort(key=lambda item: item.score, reverse=True)
+    return hits[:chunk_limit]
+
+
 def _build_item(hit: _ScoredHit) -> KBSearchItem:
     document = hit.document
     return KBSearchItem(
@@ -165,7 +404,7 @@ def _build_item(hit: _ScoredHit) -> KBSearchItem:
         ),
         heading_path=hit.heading_path,
         category=document.category,
-        tags=document.tags if isinstance(document.tags, list) else [],
+        tags=_document_tags(document),
         content_preview=hit.content_preview,
         score=round(hit.score, 4),
     )
@@ -209,7 +448,7 @@ def _build_document(bucket: _DocumentBucket, max_chunks_per_document: int) -> KB
             else None
         ),
         category=document.category,
-        tags=document.tags if isinstance(document.tags, list) else [],
+        tags=_document_tags(document),
         document_score=round(max((hit.score for hit in hits), default=0.0), 4),
         matched_chunk_count=len(bucket.hits),
         headings=headings,
@@ -228,6 +467,25 @@ async def search_workspace_kb(
     tags: list[str] | None = None,
 ) -> KBSearchResponse:
     tokens = _tokenize_query(query)
+    documents = await DBKBDocument.filter(workspace_id=workspace_id, is_enabled=True).all()
+    documents = [
+        document
+        for document in documents
+        if _document_matches_filters(document, category=category, tags=tags)
+    ]
+    document_map = {document.id: document for document in documents}
+    if not documents:
+        return KBSearchResponse(
+            workspace_id=workspace_id,
+            query=query,
+            total=0,
+            items=[],
+            document_total=0,
+            documents=[],
+            suggested_document_ids=[],
+            next_action_hint="当前未命中文档，可尝试缩短 query、改用明确关键词，或换一个更具体的文档主题再搜索。",
+        )
+
     query_vector = await embed_text(query)
     grouped_results = await kb_qdrant_manager.search_grouped(
         query_vector=query_vector,
@@ -243,16 +501,9 @@ async def search_workspace_kb(
     chunk_ids = [int(item["id"]) for item in raw_results]
     chunks = await DBKBChunk.filter(id__in=chunk_ids, workspace_id=workspace_id).all()
     chunk_map = {chunk.id: chunk for chunk in chunks}
-
-    document_ids = sorted(
-        {chunk.document_id for chunk in chunks}
-        | {int(group["document_id"]) for group in grouped_results if isinstance(group.get("document_id"), int)}
-    )
-    documents = await DBKBDocument.filter(id__in=document_ids, workspace_id=workspace_id, is_enabled=True).all()
-    document_map = {document.id: document for document in documents}
     normalized_cache: dict[int, str] = {}
 
-    scored_hits: list[_ScoredHit] = []
+    vector_hits: list[_ScoredHit] = []
     for result in raw_results:
         chunk_id = int(result["id"])
         chunk = chunk_map.get(chunk_id)
@@ -265,12 +516,6 @@ async def search_workspace_kb(
         document = document_map.get(document_id)
         if document is None:
             continue
-        if category.strip() and document.category != category.strip():
-            continue
-        if tags:
-            document_tags = set(document.tags if isinstance(document.tags, list) else [])
-            if not set(tags).issubset(document_tags):
-                continue
 
         heading_path = _payload_text(payload, "heading_path") or chunk.heading_path
         content_preview = _payload_text(payload, "content_preview") or _extract_preview_from_document(
@@ -286,16 +531,26 @@ async def search_workspace_kb(
             document=document,
             base_score=float(result["score"]),
         )
-        scored_hits.append(
+        vector_hits.append(
             _ScoredHit(
                 chunk=chunk,
                 document=document,
                 heading_path=heading_path,
                 content_preview=content_preview,
-                score=score,
+                score=min(score, FUSED_SCORE_CAP),
             )
         )
 
+    keyword_hits = await _collect_keyword_hits(
+        documents=documents,
+        workspace_id=workspace_id,
+        query=query,
+        tokens=tokens,
+        limit=limit,
+        max_chunks_per_document=max_chunks_per_document,
+        normalized_cache=normalized_cache,
+    )
+    scored_hits = _merge_hits(vector_hits, keyword_hits)
     scored_hits.sort(key=lambda item: item.score, reverse=True)
 
     buckets: dict[int, _DocumentBucket] = {}
@@ -313,7 +568,8 @@ async def search_workspace_kb(
     )
 
     document_hits = [
-        _build_document(bucket, max_chunks_per_document=max_chunks_per_document) for bucket in sorted_buckets[:limit]
+        _build_document(bucket, max_chunks_per_document=max_chunks_per_document)
+        for bucket in sorted_buckets[:limit]
     ]
     allowed_document_ids = {item.document_id for item in document_hits}
 
