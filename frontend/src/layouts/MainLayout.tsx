@@ -58,7 +58,7 @@ const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro',
 export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { userInfo, logout } = useAuthStore()
+  const { userInfo, logout, token } = useAuthStore()
   const theme = useTheme()
   const [starCount, setStarCount] = useState<number | null>(null)
   const [version, setVersion] = useState('0.0.0')
@@ -78,6 +78,13 @@ export default function MainLayout() {
     syncFromBackend()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 认证守卫：检查用户是否已登录，未登录则跳转到登录页
+  useEffect(() => {
+    if (!token) {
+      navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`, { replace: true })
+    }
+  }, [token, navigate, location.pathname])
 
   // 侧边栏宽度：英文模式需要更宽以容纳较长的文本
   const drawerWidth = currentLocale === 'en-US' ? 260 : 240

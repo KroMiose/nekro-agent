@@ -4,11 +4,48 @@ from fastapi import APIRouter, Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
+from starlette.types import Scope, Send, Receive
 
 from nekro_agent.adapters import load_adapters_api
+
+
+class NoCacheStaticFiles(StaticFiles):
+    """自定义静态文件处理类，为 HTML 文件添加禁用缓存头，为 JS/CSS 添加版本控制缓存"""
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        # 获取请求路径
+        request_path = scope.get("path", "")
+
+        # 定义原始 send 的包装器来添加缓存头
+        async def wrapped_send(message):
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                path_lower = request_path.lower()
+
+                # HTML 文件：完全禁用缓存
+                if path_lower.endswith(".html") or path_lower == "/" or "/" not in path_lower:
+                    headers.append((b"cache-control", b"no-cache, no-store, must-revalidate"))
+                    headers.append((b"pragma", b"no-cache"))
+                    headers.append((b"expires", b"0"))
+                # JS/CSS 文件：使用短时间缓存或版本控制
+                elif path_lower.endswith((".js", ".css")):
+                    # 使用 must-revalidate 确保文件更新时能及时获取
+                    headers.append((b"cache-control", b"public, max-age=3600, must-revalidate"))
+                # 其他静态资源（图片、字体等）：允许较长缓存
+                else:
+                    headers.append((b"cache-control", b"public, max-age=86400, immutable"))
+
+                # 添加 Vary 头确保缓存正确性
+                headers.append((b"vary", b"accept-encoding"))
+
+                message["headers"] = headers
+
+            await send(message)
+
+        await super().__call__(scope, receive, wrapped_send)
 from nekro_agent.core.args import Args
 from nekro_agent.core.exception_handlers import register_exception_handlers
 from nekro_agent.core.logger import logger
@@ -103,11 +140,20 @@ def mount_api_routes(app: FastAPI):
         """测试服务是否正常运行"""
         return {"ok": True}
 
-    @api.post("/token", response_model=UserToken, tags=["User"], summary="OpenAPI OAuth2 授权")
-    async def _(form_data: OAuth2PasswordRequestForm = Depends()) -> UserToken:
+    @api.post("/token", tags=["User"], summary="OpenAPI OAuth2 授权")
+    async def _(form_data: OAuth2PasswordRequestForm = Depends()) -> JSONResponse:
         """登陆获取token"""
-        return await user_login(
+        result = await user_login(
             UserLogin(username=form_data.username, password=form_data.password),
+        )
+        # 添加禁用缓存头，防止登录响应被缓存
+        return JSONResponse(
+            content=result.model_dump(),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
         )
 
     if Args.DOCS or OsEnv.ENABLE_OPENAPI_DOCS:
@@ -154,7 +200,7 @@ def mount_api_routes(app: FastAPI):
     # 🎯 正确的静态文件挂载方案：/webui + 根路径重定向
     static_dir = Path(OsEnv.STATIC_DIR)
     if static_dir.exists():
-        app.mount("/webui", StaticFiles(directory=str(static_dir), html=True), name="webui")
+        app.mount("/webui", NoCacheStaticFiles(directory=str(static_dir), html=True), name="webui")
         logger.info(f"✅ 前端静态文件已挂载到 /webui 路径: {static_dir}")
 
         @app.get("/", include_in_schema=False)

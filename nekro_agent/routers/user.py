@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from nekro_agent.core.logger import get_sub_logger
@@ -68,8 +69,8 @@ async def register(req_data: UserCreate) -> ActionResponse:
     return ActionResponse(ok=True)
 
 
-@router.post("/login", summary="用户登录", response_model=UserToken)
-async def login(req_data: UserLogin) -> UserToken:
+@router.post("/login", summary="用户登录")
+async def login(req_data: UserLogin) -> JSONResponse:
     # 清理过期的尝试记录
     clean_expired_attempts()
 
@@ -89,7 +90,15 @@ async def login(req_data: UserLogin) -> UserToken:
         login_token = await user_login(req_data)
         if req_data.username in login_attempts:
             login_attempts.pop(req_data.username)
-        return login_token
+        # 添加禁用缓存头，防止登录响应被缓存
+        return JSONResponse(
+            content=login_token.model_dump(),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
     except AppError:
         now = datetime.now()
         if req_data.username not in login_attempts:
