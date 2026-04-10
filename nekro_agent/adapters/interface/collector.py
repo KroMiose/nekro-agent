@@ -66,6 +66,12 @@ async def collect_message(
 
         user = await DBUser.get_by_union_id(adapter_key=adapter.key, platform_userid=platform_user.user_id)
         assert user
+    else:
+        # 自动更新用户名：如果数据库中的 username 与平台当前获取的不一致，则更新
+        if user.username != platform_user.user_name:
+            logger.info(f"用户名变更 detected: {user.username} -> {platform_user.user_name} (user_id: {platform_user.user_id})")
+            user.username = platform_user.user_name
+            await user.save()
 
     if not user.is_active:
         logger.info(f"用户 {platform_user.user_id} 被封禁，封禁结束时间: {user.ban_until}")

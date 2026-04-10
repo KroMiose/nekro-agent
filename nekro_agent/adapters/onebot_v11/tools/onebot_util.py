@@ -100,7 +100,7 @@ async def get_user_name(
             user_info = await bot.get_group_member_info(
                 group_id=group_id,
                 user_id=user_id,
-                no_cache=False,
+                no_cache=True,  # 强制刷新缓存，避免身份误认
             )
         else:
             raise ValueError("获取群成员信息失败")
@@ -130,7 +130,7 @@ async def get_user_group_card_name(
     user_info = await get_bot().get_group_member_info(
         group_id=int(group_id),
         user_id=int(user_id),
-        no_cache=False,
+        no_cache=True,  # 强制刷新缓存，避免身份误认
     )
     return user_info.get("card") or user_info.get("nickname", "未知")
 
