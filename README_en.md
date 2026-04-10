@@ -158,7 +158,7 @@ Nekro Agent offers a variety of application scenarios, from emotional companions
 - ✅ **Sandbox Execution**: Secure, containerized code execution environment.
 - ✅ **Multimodal Interaction**: Supports sending, receiving, and processing images and file resources.
 - ✅ **Plugin Ecosystem**: Highly extensible plugin system and a cloud-based plugin marketplace.
-- ✅ **One-click Deployment**: Container orchestration based on `docker-compose` for one-click deployment.
+- ✅ **One-click Deployment**: Container orchestration based on `docker compose` for one-click deployment.
 - ✅ **Hot Reloading**: Supports configuration hot-swapping and command-based control.
 - ✅ **Scheduled Tasks**: Supports scheduled, self-triggering plugins and holiday greetings.
 - ✅ **WebUI**: A full-featured visual application management and control panel.

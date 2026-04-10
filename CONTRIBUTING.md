@@ -62,7 +62,7 @@ uv run bot --docs --env dev --reload
 docker compose -f docker/docker-compose.dev.yml up -d
 
 # 停止开发依赖服务
-docker-compose -f docker/docker-compose.dev.yml down
+docker compose -f docker/docker-compose.dev.yml down
 
 # 前端开发
 cd frontend

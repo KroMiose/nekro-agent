@@ -44,12 +44,12 @@ WeChatPad 适配器是 nekro-agent 的一个组件，用于通过 WeChatPadPro �
 
 5.  **启动服务**
     ```sh
-    docker-compose up -d
+    docker compose up -d
     ```
 
 6.  **查看服务状态**
     ```sh
-    docker-compose ps
+    docker compose ps
     ```
 
 ### 2. 登录微信
