@@ -656,7 +656,7 @@ async def find_duplicate_emotion(file_path: Path) -> Optional[str]:
 @plugin.mount_command(
     name="emo_search",
     description="语义搜索表情包",
-    aliases=["emo-search"],
+    aliases=[],
     usage="emo_search <关键词>",
     permission=CommandPermission.SUPER_USER,
     category="表情包",
@@ -743,7 +743,7 @@ async def emo_search_cmd(
 @plugin.mount_command(
     name="emo_stats",
     description="查看表情包统计信息",
-    aliases=["emo-stats"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="表情包",
 )
@@ -793,7 +793,7 @@ def _parse_emo_list_page(args_str: str) -> int:
 @plugin.mount_command(
     name="emo_list",
     description="分页列出所有表情包",
-    aliases=["emo-list", "emo_ls", "emo-ls"],
+    aliases=["emo_ls"],
     usage="emo_list [页码]",
     permission=CommandPermission.SUPER_USER,
     category="表情包",
@@ -867,7 +867,7 @@ async def emo_list_cmd(
 @plugin.mount_command(
     name="emo_migrate",
     description="迁移表情包路径到新格式",
-    aliases=["emo-migrate"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="表情包",
 )
@@ -879,7 +879,7 @@ async def emo_migrate_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="emo_reindex",
     description="重建表情包索引",
-    aliases=["emo-reindex"],
+    aliases=[],
     usage="emo_reindex -y",
     permission=CommandPermission.SUPER_USER,
     category="表情包",

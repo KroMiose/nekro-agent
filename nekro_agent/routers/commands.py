@@ -27,6 +27,7 @@ class CommandStateResponse(BaseModel):
     permission: str
     category: str
     source: str  # "built_in" | 插件 key
+    source_display_name: str
     enabled: bool
     has_channel_override: bool
     params_schema: Optional[dict] = None

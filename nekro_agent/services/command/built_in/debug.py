@@ -53,7 +53,7 @@ class CodeLogCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="code_log",
-            aliases=["code-log"],
+            aliases=[],
             description="查看代码执行记录",
             i18n_description=i18n_text(zh_CN="查看代码执行记录", en_US="View code execution log"),
             usage="code_log [index]",
@@ -126,7 +126,7 @@ class DebugOnCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="debug_on",
-            aliases=["debug-on"],
+            aliases=[],
             description="开启提示词调试模式",
             i18n_description=i18n_text(zh_CN="开启提示词调试模式", en_US="Enable prompt debug mode"),
             permission=CommandPermission.SUPER_USER,
@@ -164,7 +164,7 @@ class DebugOffCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="debug_off",
-            aliases=["debug-off"],
+            aliases=[],
             description="关闭提示词调试模式",
             i18n_description=i18n_text(zh_CN="关闭提示词调试模式", en_US="Disable prompt debug mode"),
             permission=CommandPermission.SUPER_USER,
@@ -189,7 +189,7 @@ class LogChatTestCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="log_chat_test",
-            aliases=["log-chat-test"],
+            aliases=[],
             description="使用错误日志对话测试 LLM 请求",
             i18n_description=i18n_text(zh_CN="使用错误日志对话测试 LLM 请求", en_US="Test LLM request with error log conversation"),
             usage="log_chat_test <索引/文件名> [-g <模型组>] [--stream]",

@@ -326,10 +326,11 @@
       "executeTitle": "Run"
     },
     "scope": {
-      "label": "Management Scope",
+      "label": "Manage Scope",
       "system": "System Default",
       "channel": "Specific Channel",
-      "channelSelector": "Management Channel"
+      "channelSelector": "Management Channel",
+      "searchPlaceholder": "Search channel"
     },
     "common": {
       "loadingChannels": "Loading channels..."
@@ -347,7 +348,10 @@
     },
     "sources": {
       "builtIn": "Built-in",
-      "plugin": "Plugin"
+      "plugin": "Plugin",
+      "pluginWithKey": "Plugin · {{key}}",
+      "pluginWithName": "Plugin · {{name}}",
+      "pluginWithNameAndKey": "Plugin · {{name}} ({{key}})"
     },
     "state": {
       "systemEnabled": "System Enabled",
@@ -357,6 +361,15 @@
       "channelEnabled": "Channel Override Enabled",
       "channelDisabled": "Channel Override Disabled",
       "channelOverride": "Channel Override"
+    },
+    "stateDescription": {
+      "systemEnabled": "This command is currently available at the system level.",
+      "systemDisabled": "This command is currently disabled at the system level.",
+      "inheritedEnabled": "This channel has no custom setting, so it follows the system default enabled state.",
+      "inheritedDisabled": "This channel has no custom setting, so it follows the system default disabled state.",
+      "channelEnabled": "This channel explicitly enables the command and does not follow the system default.",
+      "channelDisabled": "This channel explicitly disables the command and does not follow the system default.",
+      "channelOverride": "This channel uses its own setting instead of the system default."
     },
     "table": {
       "name": "Name",
@@ -368,11 +381,16 @@
       "actions": "Actions"
     },
     "detail": {
-      "namespace": "Namespace",
       "usage": "Usage",
       "aliases": "Aliases",
+      "category": "Category",
+      "source": "Source",
+      "permission": "Permission",
       "params": "Parameters",
-      "noParams": "No additional parameter notes"
+      "noParams": "No additional parameter notes",
+      "required": "Required",
+      "defaultValue": "Default",
+      "allowedValues": "Allowed values"
     },
     "actions": {
       "reset": "Reset to default",
@@ -394,7 +412,10 @@
       "executeFailed": "Command execution failed"
     },
     "execute": {
-      "channel": "Execution Channel",
+      "channel": "Target Channel",
+      "searchPlaceholder": "Search channel",
+      "command": "Command",
+      "panelHint": "Choose a target channel and enter a command. Results will appear in the output area below.",
       "placeholder": "Enter a command, e.g. help or help args",
       "run": "Run",
       "selectChannelHint": "Select an execution channel before sending a command.",

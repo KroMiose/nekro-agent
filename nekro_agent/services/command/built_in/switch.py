@@ -15,7 +15,7 @@ class NaOnCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_on",
-            aliases=["na-on"],
+            aliases=[],
             description="开启指定聊天的聊天功能",
             i18n_description=i18n_text(zh_CN="开启指定聊天的聊天功能", en_US="Enable chat function for specified channel"),
             usage="na_on [chat_key|*|private_*|group_*]",
@@ -74,7 +74,7 @@ class NaOffCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_off",
-            aliases=["na-off"],
+            aliases=[],
             description="关闭指定聊天的聊天功能",
             i18n_description=i18n_text(zh_CN="关闭指定聊天的聊天功能", en_US="Disable chat function for specified channel"),
             usage="na_off [chat_key|*|private_*|group_*]",
@@ -133,7 +133,7 @@ class NaObserveCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_observe",
-            aliases=["na-observe"],
+            aliases=[],
             description="设置指定聊天为旁观模式（仅记录消息，不触发回复）",
             i18n_description=i18n_text(
                 zh_CN="设置指定聊天为旁观模式（仅记录消息，不触发回复）",

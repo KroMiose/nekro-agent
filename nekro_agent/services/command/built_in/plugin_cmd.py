@@ -15,7 +15,7 @@ class NaPluginsCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_plugins",
-            aliases=["na-plugins", "nps"],
+            aliases=["nps"],
             description="列出所有已加载插件",
             i18n_description=i18n_text(zh_CN="列出所有已加载插件", en_US="List all loaded plugins"),
             permission=CommandPermission.SUPER_USER,
@@ -69,7 +69,7 @@ class PluginInfoCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="plugin_info",
-            aliases=["plugin-info", "npi"],
+            aliases=["npi"],
             description="查询插件详情",
             i18n_description=i18n_text(zh_CN="查询插件详情", en_US="Query plugin details"),
             usage="plugin_info <plugin_name/key>",
@@ -185,7 +185,7 @@ class ResetPluginCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="reset_plugin",
-            aliases=["reset-plugin"],
+            aliases=[],
             description="重置插件配置",
             i18n_description=i18n_text(zh_CN="重置插件配置", en_US="Reset plugin configuration"),
             usage="reset_plugin <plugin_name/key>",
@@ -243,7 +243,7 @@ class PluginCtlCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="plugin_ctl",
-            aliases=["plugin-ctl", "npc"],
+            aliases=["npc"],
             description="启用/禁用插件",
             i18n_description=i18n_text(zh_CN="启用/禁用插件", en_US="Enable/disable plugin"),
             usage="plugin_ctl <plugin_name/module_name/key> [on|off]",

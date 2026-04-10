@@ -326,10 +326,11 @@
       "executeTitle": "执行"
     },
     "scope": {
-      "label": "管理作用域",
+      "label": "管理范围",
       "system": "系统默认",
       "channel": "指定频道",
-      "channelSelector": "管理频道"
+      "channelSelector": "管理频道",
+      "searchPlaceholder": "搜索频道"
     },
     "common": {
       "loadingChannels": "加载频道中..."
@@ -347,7 +348,10 @@
     },
     "sources": {
       "builtIn": "内置",
-      "plugin": "插件"
+      "plugin": "插件",
+      "pluginWithKey": "插件 · {{key}}",
+      "pluginWithName": "插件 · {{name}}",
+      "pluginWithNameAndKey": "插件 · {{name}} ({{key}})"
     },
     "state": {
       "systemEnabled": "系统启用",
@@ -357,6 +361,15 @@
       "channelEnabled": "频道覆盖启用",
       "channelDisabled": "频道覆盖禁用",
       "channelOverride": "频道覆盖"
+    },
+    "stateDescription": {
+      "systemEnabled": "该命令当前在系统范围内可用。",
+      "systemDisabled": "该命令当前在系统范围内已停用。",
+      "inheritedEnabled": "该频道没有单独设置，当前沿用系统默认启用状态。",
+      "inheritedDisabled": "该频道没有单独设置，当前沿用系统默认停用状态。",
+      "channelEnabled": "该频道已单独启用此命令，不受系统默认状态影响。",
+      "channelDisabled": "该频道已单独停用此命令，不受系统默认状态影响。",
+      "channelOverride": "当前频道使用了单独设置，与系统默认状态不同。"
     },
     "table": {
       "name": "命令名",
@@ -368,11 +381,16 @@
       "actions": "操作"
     },
     "detail": {
-      "namespace": "命名空间",
       "usage": "用法",
       "aliases": "别名",
+      "category": "分类",
+      "source": "来源",
+      "permission": "权限",
       "params": "参数",
-      "noParams": "此命令没有额外参数说明"
+      "noParams": "此命令没有额外参数说明",
+      "required": "必填",
+      "defaultValue": "默认值",
+      "allowedValues": "可选值"
     },
     "actions": {
       "reset": "重置为默认",
@@ -394,7 +412,10 @@
       "executeFailed": "命令执行失败"
     },
     "execute": {
-      "channel": "执行频道",
+      "channel": "执行目标频道",
+      "searchPlaceholder": "搜索频道",
+      "command": "执行命令",
+      "panelHint": "选择目标频道并输入命令，结果会显示在下方输出区。",
       "placeholder": "输入命令，如 help 或 help 参数",
       "run": "执行",
       "selectChannelHint": "请先选择执行频道，再发送命令。",

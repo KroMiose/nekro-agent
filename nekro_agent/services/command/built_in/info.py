@@ -13,7 +13,7 @@ class NaInfoCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_info",
-            aliases=["na-info"],
+            aliases=[],
             description="查看系统信息",
             i18n_description=i18n_text(zh_CN="查看系统信息", en_US="View system information"),
             permission=CommandPermission.SUPER_USER,
@@ -67,7 +67,7 @@ class NaHelpCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_help",
-            aliases=["na-help"],
+            aliases=[],
             description="查看帮助信息",
             i18n_description=i18n_text(zh_CN="查看帮助信息", en_US="View help information"),
             permission=CommandPermission.USER,

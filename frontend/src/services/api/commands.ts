@@ -20,6 +20,7 @@ export interface CommandState {
   permission: string
   category: string
   source: string
+  source_display_name: string
   enabled: boolean
   has_channel_override: boolean
   params_schema?: Record<string, unknown>

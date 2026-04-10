@@ -19,7 +19,7 @@ class ModelTestCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="model_test",
-            aliases=["model-test"],
+            aliases=[],
             description="测试模型连通性和响应速度",
             i18n_description=i18n_text(zh_CN="测试模型连通性和响应速度", en_US="Test model connectivity and response speed"),
             usage="model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]",

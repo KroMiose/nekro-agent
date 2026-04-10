@@ -64,7 +64,7 @@ class StopCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="stop",
-            aliases=["stop-stream"],
+            aliases=[],
             description="停止当前回复流程",
             i18n_description=i18n_text(zh_CN="停止当前回复流程", en_US="Stop current reply process"),
             usage="stop [chat_key]",

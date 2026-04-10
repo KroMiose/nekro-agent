@@ -14,16 +14,6 @@ export interface ChannelDirectoryState {
   isLoading: boolean
 }
 
-function compareChannels(left: ChannelDirectoryEntry, right: ChannelDirectoryEntry) {
-  const leftName = left.channel_name || left.chat_key
-  const rightName = right.channel_name || right.chat_key
-  return leftName.localeCompare(rightName, 'zh-CN')
-}
-
-function sortChannels(channels: ChannelDirectoryEntry[]): ChannelDirectoryEntry[] {
-  return [...channels].sort(compareChannels)
-}
-
 function applyChannelStreamEvent(
   channels: ChannelDirectoryEntry[],
   event: ChannelListStreamEvent,
@@ -39,17 +29,19 @@ function applyChannelStreamEvent(
   }
 
   if (index >= 0) {
-    next[index] = {
+    const updated = {
       ...next[index],
       channel_name: event.channel_name ?? next[index].channel_name,
       is_active: event.is_active ?? next[index].is_active,
       status: event.status ?? next[index].status,
     }
-    return sortChannels(next)
+    next.splice(index, 1)
+    next.unshift(updated)
+    return next
   }
 
   if (event.event_type === 'created') {
-    next.push({
+    next.unshift({
       id: 0,
       chat_key: event.chat_key,
       channel_name: event.channel_name ?? null,
@@ -57,7 +49,7 @@ function applyChannelStreamEvent(
       status: event.status ?? 'active',
       chat_type: '',
     })
-    return sortChannels(next)
+    return next
   }
 
   return next
@@ -75,7 +67,7 @@ export function useChannelDirectory(): ChannelDirectoryState {
 
   useEffect(() => {
     if (!data) return
-    setChannels(sortChannels(data))
+    setChannels(data)
   }, [data])
 
   useEffect(() => {

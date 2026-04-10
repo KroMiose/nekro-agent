@@ -1,18 +1,15 @@
-import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Autocomplete,
   Alert,
   Box,
   Card,
   Chip,
   CircularProgress,
   Divider,
-  FormControl,
-  InputAdornment,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
@@ -20,7 +17,6 @@ import {
 import {
   ArrowOutward as ArrowOutwardIcon,
   Send as SendIcon,
-  Terminal as TerminalIcon,
   Tune as TuneIcon,
 } from '@mui/icons-material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -37,14 +33,19 @@ import { getLocalizedText } from '../../services/api/types'
 import { CARD_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import type { ChannelDirectoryEntry } from '../../hooks/useChannelDirectory'
 
 type ManageScope = 'system' | 'channel'
-
-const PERMISSION_COLORS: Record<string, 'error' | 'warning' | 'success' | 'default' | 'info'> = {
-  super_user: 'error',
-  advanced: 'warning',
-  user: 'info',
-  public: 'success',
+type ManageTargetOption =
+  | { type: 'system'; value: 'system'; label: string }
+  | { type: 'channel'; value: string; channel: ChannelDirectoryEntry }
+type ParamSchemaItem = {
+  name: string
+  typeLabel: string
+  description: string | null
+  required: boolean
+  defaultValue: string | null
+  enumValues: string[]
 }
 
 function getCommandDescription(cmd: CommandState, lang: string) {
@@ -60,12 +61,32 @@ function getCommandCategory(cmd: CommandState, lang: string) {
 }
 
 function getSourceLabel(
-  source: string,
+  command: Pick<CommandState, 'source' | 'source_display_name'>,
   t: TFunction<'settings'>,
 ) {
-  return source === 'built_in'
+  return command.source === 'built_in'
     ? t('commands.sources.builtIn', '内置')
-    : t('commands.sources.plugin', '插件')
+    : t('commands.sources.pluginWithName', '插件 · {{name}}', {
+        name: command.source_display_name || command.source,
+      })
+}
+
+function getSourceDetailLabel(
+  command: Pick<CommandState, 'source' | 'source_display_name'>,
+  t: TFunction<'settings'>,
+) {
+  if (command.source === 'built_in') {
+    return t('commands.sources.builtIn', '内置')
+  }
+
+  if (!command.source_display_name || command.source_display_name === command.source) {
+    return command.source
+  }
+
+  return t('commands.sources.pluginWithNameAndKey', '插件 · {{name}} ({{key}})', {
+    name: command.source_display_name,
+    key: command.source,
+  })
 }
 
 function getEffectiveStateLabel(
@@ -103,8 +124,123 @@ function getEffectiveStateColor(
   return cmd.enabled ? 'success' : 'default'
 }
 
+function getEffectiveStateDescription(
+  cmd: CommandState,
+  scope: ManageScope,
+  t: TFunction<'settings'>,
+) {
+  if (scope === 'system') {
+    return cmd.enabled
+      ? t('commands.stateDescription.systemEnabled', '该命令当前在系统范围内可用。')
+      : t('commands.stateDescription.systemDisabled', '该命令当前在系统范围内已停用。')
+  }
+
+  if (cmd.has_channel_override) {
+    return cmd.enabled
+      ? t(
+          'commands.stateDescription.channelEnabled',
+          '该频道已单独启用此命令，不受系统默认状态影响。',
+        )
+      : t(
+          'commands.stateDescription.channelDisabled',
+          '该频道已单独停用此命令，不受系统默认状态影响。',
+        )
+  }
+
+  return cmd.enabled
+    ? t(
+        'commands.stateDescription.inheritedEnabled',
+        '该频道没有单独设置，当前沿用系统默认启用状态。',
+      )
+    : t(
+        'commands.stateDescription.inheritedDisabled',
+        '该频道没有单独设置，当前沿用系统默认停用状态。',
+      )
+}
+
 function isManageScope(value: string | null): value is ManageScope {
   return value === 'system' || value === 'channel'
+}
+
+function getManageTargetValue(scope: ManageScope, chatKey: string) {
+  return scope === 'system' ? 'system' : chatKey ? `channel:${chatKey}` : 'system'
+}
+
+function renderChannelIdentity(channelName: string | null | undefined, chatKey: string) {
+  return (
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0, width: '100%' }}>
+      <Typography
+        variant="body2"
+        noWrap
+        sx={{
+          minWidth: 0,
+          flex: 1,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {channelName || chatKey}
+      </Typography>
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        noWrap
+        sx={{ fontFamily: 'monospace', flexShrink: 0 }}
+      >
+        {chatKey}
+      </Typography>
+    </Stack>
+  )
+}
+
+function normalizeSchemaType(property: Record<string, unknown>): string {
+  const directType = property.type
+  if (typeof directType === 'string' && directType) {
+    return directType
+  }
+
+  const anyOf = Array.isArray(property.anyOf) ? property.anyOf : []
+  const oneOf = Array.isArray(property.oneOf) ? property.oneOf : []
+  const variants = [...anyOf, ...oneOf]
+    .map(item => (typeof item === 'object' && item !== null ? item.type : null))
+    .filter((value): value is string => typeof value === 'string' && value.length > 0)
+
+  return variants.length > 0 ? variants.join(' | ') : 'unknown'
+}
+
+function normalizeParamSchema(schema?: Record<string, unknown>): ParamSchemaItem[] {
+  if (!schema || schema.type !== 'object') {
+    return []
+  }
+
+  const properties =
+    schema.properties && typeof schema.properties === 'object' && !Array.isArray(schema.properties)
+      ? schema.properties
+      : null
+  if (!properties) {
+    return []
+  }
+
+  const required = new Set(
+    Array.isArray(schema.required) ? schema.required.filter((item): item is string => typeof item === 'string') : [],
+  )
+
+  return Object.entries(properties)
+    .filter((entry): entry is [string, Record<string, unknown>] => {
+      const value = entry[1]
+      return typeof value === 'object' && value !== null
+    })
+    .map(([name, value]) => ({
+      name,
+      typeLabel: normalizeSchemaType(value),
+      description: typeof value.description === 'string' ? value.description : null,
+      required: required.has(name),
+      defaultValue:
+        value.default === undefined ? null : typeof value.default === 'string' ? value.default : JSON.stringify(value.default),
+      enumValues: Array.isArray(value.enum)
+        ? value.enum.map((item: unknown) => (typeof item === 'string' ? item : JSON.stringify(item)))
+        : [],
+    }))
 }
 
 export default function CommandCenterPage() {
@@ -324,10 +460,16 @@ export default function CommandCenterPage() {
       { value: '', label: t('commands.filters.all', '全部') },
       ...sources.map(source => ({
         value: source,
-        label: getSourceLabel(source, t),
+        label:
+          source === 'built_in'
+            ? t('commands.sources.builtIn', '内置')
+            : (() => {
+                const matched = commands.find(cmd => cmd.source === source)
+                return matched ? getSourceDetailLabel(matched, t) : source
+              })(),
       })),
     ],
-    [sources, t],
+    [commands, sources, t],
   )
 
   const permissionOptions = useMemo(
@@ -341,7 +483,30 @@ export default function CommandCenterPage() {
     [permissions, t],
   )
 
-  const selectedExecuteChannel = channels.find(channel => channel.chat_key === executeChatKey) ?? null
+  const manageTargetValue = getManageTargetValue(scope, managementChatKey)
+  const manageTargetOptions = useMemo<ManageTargetOption[]>(
+    () => [
+      { type: 'system', value: 'system', label: t('commands.scope.system', '系统默认') },
+      ...channels.map(channel => ({
+        type: 'channel' as const,
+        value: `channel:${channel.chat_key}`,
+        channel,
+      })),
+    ],
+    [channels, t],
+  )
+  const selectedManageTarget = useMemo(
+    () => manageTargetOptions.find(option => option.value === manageTargetValue) ?? manageTargetOptions[0] ?? null,
+    [manageTargetOptions, manageTargetValue],
+  )
+  const selectedExecuteChannel = useMemo(
+    () => channels.find(channel => channel.chat_key === executeChatKey) ?? null,
+    [channels, executeChatKey],
+  )
+  const selectedCommandParams = useMemo(
+    () => normalizeParamSchema(selectedCommand?.params_schema),
+    [selectedCommand?.params_schema],
+  )
 
   const handleExecute = () => {
     if (!parsedExecution) {
@@ -379,14 +544,15 @@ export default function CommandCenterPage() {
         }}
       >
           <Box sx={{ px: 2, pt: 2, pb: 1.5 }}>
-            <Stack
-              direction={{ xs: 'column', md: 'row' }}
-              spacing={1.5}
-              alignItems={{ xs: 'stretch', md: 'center' }}
-              justifyContent="space-between"
-            >
-              <Stack spacing={0.5} sx={{ minWidth: 0, flex: 1 }}>
-                <Stack direction="row" spacing={1} alignItems="center">
+            <Stack spacing={1.5}>
+              <Stack
+                direction="row"
+                spacing={1}
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ minWidth: 0 }}
+              >
+                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                   <Box
                     sx={{
                       width: 30,
@@ -397,6 +563,7 @@ export default function CommandCenterPage() {
                       justifyContent: 'center',
                       color: 'primary.main',
                       backgroundColor: alpha(theme.palette.primary.main, 0.1),
+                      flexShrink: 0,
                     }}
                   >
                     <TuneIcon sx={{ fontSize: 18 }} />
@@ -405,65 +572,65 @@ export default function CommandCenterPage() {
                     {t('commands.center.catalogTitle', '命令目录')}
                   </Typography>
                 </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                  {t('commands.total', '共 {{count}} 个命令', { count: filteredCommands.length })}
+                </Typography>
               </Stack>
 
-              <Stack
-                direction={{ xs: 'column', sm: 'row' }}
-                spacing={1}
-                alignItems={{ xs: 'stretch', sm: 'center' }}
-              >
-                <FormControl size="small" sx={{ minWidth: 170 }}>
-                  <InputLabel>{t('commands.scope.label', '管理作用域')}</InputLabel>
-                  <Select
-                    value={scope}
-                    label={t('commands.scope.label', '管理作用域')}
-                    onChange={event => {
-                      const nextScope = event.target.value as ManageScope
-                      if (nextScope === 'system') {
-                        updateParams({ scope: 'system', chat_key: null })
-                        return
-                      }
-                      updateParams({
-                        scope: 'channel',
-                        chat_key: managementChatKey || channels[0]?.chat_key || null,
-                      })
-                    }}
-                  >
-                    <MenuItem value="system">{t('commands.scope.system', '系统默认')}</MenuItem>
-                    <MenuItem value="channel">{t('commands.scope.channel', '指定频道')}</MenuItem>
-                  </Select>
-                </FormControl>
-
-                {scope === 'channel' && (
-                  <FormControl size="small" sx={{ minWidth: 240 }}>
-                    <InputLabel>{t('commands.scope.channelSelector', '管理频道')}</InputLabel>
-                    <Select
-                      value={managementChatKey}
-                      label={t('commands.scope.channelSelector', '管理频道')}
-                      onChange={event => {
-                        const nextChatKey = String(event.target.value)
-                        updateParams({ chat_key: nextChatKey })
-                        if (!executeChatKey) {
-                          updateParams({ execute_chat_key: nextChatKey })
-                        }
-                      }}
-                    >
-                      {channelsLoading ? (
-                        <MenuItem value="" disabled>
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                          {t('commands.common.loadingChannels', '加载频道中...')}
-                        </MenuItem>
-                      ) : (
-                        channels.map(channel => (
-                          <MenuItem key={channel.chat_key} value={channel.chat_key}>
-                            {channel.channel_name || channel.chat_key}
-                          </MenuItem>
-                        ))
-                      )}
-                    </Select>
-                  </FormControl>
+              <Autocomplete
+                fullWidth
+                size="small"
+                options={manageTargetOptions}
+                value={selectedManageTarget}
+                loading={channelsLoading}
+                onChange={(_, option) => {
+                  if (!option || option.type === 'system') {
+                    updateParams({ scope: 'system', chat_key: null })
+                    return
+                  }
+                  const nextChatKey = option.channel.chat_key
+                  updateParams({
+                    scope: 'channel',
+                    chat_key: nextChatKey,
+                    execute_chat_key: executeChatKey || nextChatKey,
+                  })
+                }}
+                isOptionEqualToValue={(option, value) => option.value === value.value}
+                getOptionLabel={option =>
+                  option.type === 'system'
+                    ? option.label
+                    : `${option.channel.channel_name || option.channel.chat_key} ${option.channel.chat_key}`
+                }
+                filterOptions={(options, state) => {
+                  const keyword = state.inputValue.trim().toLowerCase()
+                  if (!keyword) return options
+                  return options.filter(option => {
+                    if (option.type === 'system') {
+                      return option.label.toLowerCase().includes(keyword)
+                    }
+                    return (
+                      (option.channel.channel_name || '').toLowerCase().includes(keyword) ||
+                      option.channel.chat_key.toLowerCase().includes(keyword)
+                    )
+                  })
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props}>
+                    {option.type === 'system'
+                      ? (
+                        <Typography variant="body2">{option.label}</Typography>
+                      )
+                      : renderChannelIdentity(option.channel.channel_name, option.channel.chat_key)}
+                  </Box>
                 )}
-              </Stack>
+                renderInput={params => (
+                  <TextField
+                    {...params}
+                    label={t('commands.scope.label', '管理范围')}
+                    placeholder={t('commands.scope.searchPlaceholder', '搜索频道')}
+                  />
+                )}
+              />
             </Stack>
           </Box>
           <Box sx={{ px: 2, pb: 2 }}>
@@ -495,9 +662,6 @@ export default function CommandCenterPage() {
                 options={permissionOptions}
                 onChange={value => updateParams({ permission: value || null })}
               />
-              <Typography variant="caption" color="text.secondary">
-                {t('commands.total', '共 {{count}} 个命令', { count: filteredCommands.length })}
-              </Typography>
             </Stack>
           </Box>
           <Divider />
@@ -554,72 +718,114 @@ export default function CommandCenterPage() {
                   {t('commands.center.detailTitle', '命令详情')}
                 </Typography>
               </Box>
-              {selectedCommand && (
-                <Chip
-                  size="small"
-                  color={getEffectiveStateColor(selectedCommand, scope)}
-                  label={getEffectiveStateLabel(selectedCommand, scope, t)}
-                />
-              )}
             </Stack>
 
             {selectedCommand ? (
               <>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip label={selectedCommand.name} color="primary" variant="outlined" />
-                  <Chip
-                    label={getSourceLabel(selectedCommand.source, t)}
-                    variant="outlined"
-                    size="small"
-                  />
-                  <Chip
-                    label={t(`commands.permissions.${selectedCommand.permission}`, selectedCommand.permission)}
-                    color={PERMISSION_COLORS[selectedCommand.permission] || 'default'}
-                    variant="outlined"
-                    size="small"
-                  />
-                  <Chip
-                    label={getCommandCategory(selectedCommand, i18n.language)}
-                    variant="outlined"
-                    size="small"
-                  />
-                  {scope === 'channel' && selectedCommand.has_channel_override && (
-                    <Chip
-                      label={t('commands.state.channelOverride', '频道覆盖')}
-                      color="warning"
-                      size="small"
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  spacing={2}
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                  justifyContent="space-between"
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="h6"
+                      sx={{ fontWeight: 700, fontFamily: 'monospace', mb: 0.75, wordBreak: 'break-word' }}
+                    >
+                      {selectedCommand.name}
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                      {getCommandDescription(selectedCommand, i18n.language)}
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <Tooltip
+                      arrow
+                      placement="top"
+                      title={getEffectiveStateDescription(selectedCommand, scope, t)}
+                    >
+                      <Chip
+                        size="small"
+                        color={getEffectiveStateColor(selectedCommand, scope)}
+                        label={getEffectiveStateLabel(selectedCommand, scope, t)}
+                      />
+                    </Tooltip>
+                    {scope === 'channel' && selectedCommand.has_channel_override && (
+                      <Tooltip
+                        arrow
+                        placement="top"
+                        title={t(
+                          'commands.stateDescription.channelOverride',
+                          '当前频道使用了单独设置，与系统默认状态不同。',
+                        )}
+                      >
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="warning"
+                        label={t('commands.state.channelOverride', '频道覆盖')}
+                      />
+                      </Tooltip>
+                    )}
+                  </Stack>
+                </Stack>
+
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: { xs: '1fr', xl: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)' },
+                    gap: 2.5,
+                    alignItems: 'start',
+                  }}
+                >
+                  <Stack spacing={1.5}>
+                    <DetailRow
+                      label={t('commands.detail.usage', '用法')}
+                      value={getCommandUsage(selectedCommand, i18n.language) || '-'}
+                      monospace
                     />
-                  )}
-                </Stack>
+                    <DetailRow
+                      label={t('commands.detail.aliases', '别名')}
+                      value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
+                      monospace
+                    />
+                    <DetailRow
+                      label={t('commands.detail.params', '参数')}
+                      value=""
+                      content={
+                        <CommandParamsView
+                          items={selectedCommandParams}
+                          emptyText={t('commands.detail.noParams', '此命令没有额外参数说明')}
+                          t={t}
+                        />
+                      }
+                    />
+                  </Stack>
 
-                <Box>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {getCommandDescription(selectedCommand, i18n.language)}
-                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: '1fr' },
+                      gap: 1.5,
+                      pt: { xl: 0.25 },
+                    }}
+                  >
+                    <DetailRow
+                      label={t('commands.detail.category', '分类')}
+                      value={getCommandCategory(selectedCommand, i18n.language)}
+                    />
+                    <DetailRow
+                      label={t('commands.detail.source', '来源')}
+                      value={getSourceDetailLabel(selectedCommand, t)}
+                    />
+                    <DetailRow
+                      label={t('commands.detail.permission', '权限')}
+                      value={t(`commands.permissions.${selectedCommand.permission}`, selectedCommand.permission)}
+                    />
+                  </Box>
                 </Box>
-
-                <Stack spacing={1.5}>
-                  <DetailRow
-                    label={t('commands.detail.usage', '用法')}
-                    value={getCommandUsage(selectedCommand, i18n.language) || '-'}
-                    monospace
-                  />
-                  <DetailRow
-                    label={t('commands.detail.aliases', '别名')}
-                    value={selectedCommand.aliases.length > 0 ? selectedCommand.aliases.join(', ') : '-'}
-                    monospace
-                  />
-                  <DetailRow
-                    label={t('commands.detail.params', '参数')}
-                    value={
-                      selectedCommand.params_schema
-                        ? JSON.stringify(selectedCommand.params_schema, null, 2)
-                        : t('commands.detail.noParams', '此命令没有额外参数说明')
-                    }
-                    monospace
-                    multiline
-                  />
-                </Stack>
 
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                   <ActionButton
@@ -665,105 +871,128 @@ export default function CommandCenterPage() {
             }}
           >
             <Box sx={{ p: 2 }}>
-              <Stack spacing={1.5}>
-                <Stack
-                  direction={{ xs: 'column', md: 'row' }}
-                  spacing={1}
-                  alignItems={{ xs: 'stretch', md: 'center' }}
-                  justifyContent="space-between"
+              <Stack spacing={2}>
+                <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                  {t('commands.center.executeTitle', '执行')}
+                </Typography>
+
+                <Box
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    px: 1.5,
+                    py: 1.5,
+                    backgroundColor: alpha(theme.palette.background.paper, 0.12),
+                  }}
                 >
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      {t('commands.center.executeTitle', '执行')}
+                  <Stack spacing={1.25}>
+                    <Typography variant="caption" color="text.secondary">
+                      {t('commands.execute.panelHint', '选择目标频道并输入命令，结果会显示在下方输出区。')}
                     </Typography>
-                  </Box>
-                  {selectedExecuteChannel && (
-                    <Chip
-                      icon={<TerminalIcon />}
-                      variant="outlined"
-                      label={selectedExecuteChannel.channel_name || selectedExecuteChannel.chat_key}
-                    />
-                  )}
-                </Stack>
 
-                <Stack direction={{ xs: 'column', lg: 'row' }} spacing={1.25}>
-                  <FormControl size="small" sx={{ minWidth: { xs: '100%', lg: 280 } }}>
-                    <InputLabel>{t('commands.execute.channel', '执行频道')}</InputLabel>
-                    <Select
-                      value={executeChatKey}
-                      label={t('commands.execute.channel', '执行频道')}
-                      onChange={event => updateParams({ execute_chat_key: String(event.target.value) })}
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', xl: '320px minmax(0, 1fr) 112px' },
+                        gap: 1.25,
+                        alignItems: 'stretch',
+                      }}
                     >
-                      {channelsLoading ? (
-                        <MenuItem value="" disabled>
-                          <CircularProgress size={16} sx={{ mr: 1 }} />
-                          {t('commands.common.loadingChannels', '加载频道中...')}
-                        </MenuItem>
-                      ) : (
-                        channels.map(channel => (
-                          <MenuItem key={channel.chat_key} value={channel.chat_key}>
-                            {channel.channel_name || channel.chat_key}
-                          </MenuItem>
-                        ))
-                      )}
-                    </Select>
-                  </FormControl>
+                      <Autocomplete
+                        fullWidth
+                        size="small"
+                        options={channels}
+                        value={selectedExecuteChannel}
+                        loading={channelsLoading}
+                        onChange={(_, option) =>
+                          updateParams({ execute_chat_key: option?.chat_key || null })
+                        }
+                        isOptionEqualToValue={(option, value) => option.chat_key === value.chat_key}
+                        getOptionLabel={option => `${option.channel_name || option.chat_key} ${option.chat_key}`}
+                        filterOptions={(options, state) => {
+                          const keyword = state.inputValue.trim().toLowerCase()
+                          if (!keyword) return options
+                          return options.filter(option =>
+                            (option.channel_name || '').toLowerCase().includes(keyword) ||
+                            option.chat_key.toLowerCase().includes(keyword)
+                          )
+                        }}
+                        renderOption={(props, option) => (
+                          <Box component="li" {...props}>
+                            {renderChannelIdentity(option.channel_name, option.chat_key)}
+                          </Box>
+                        )}
+                        renderInput={params => (
+                          <TextField
+                            {...params}
+                            label={t('commands.execute.channel', '执行目标频道')}
+                            placeholder={t('commands.execute.searchPlaceholder', '搜索频道')}
+                          />
+                        )}
+                      />
 
-                  <TextField
-                    fullWidth
-                    size="small"
-                    value={commandLine}
-                    placeholder={t('commands.execute.placeholder', '输入命令，如 help 或 help 参数')}
-                    onChange={event => setCommandLine(event.target.value)}
-                    onKeyDown={event => {
-                      if (event.key === 'Enter' && !event.shiftKey) {
-                        event.preventDefault()
-                        handleExecute()
-                      }
-                    }}
-                    slotProps={{
-                      input: {
-                        endAdornment: (
-                          <InputAdornment position="end">
-                            <ActionButton
-                              tone="primary"
-                              onClick={handleExecute}
-                              disabled={!parsedExecution || executeMutation.isPending}
-                              startIcon={
-                                executeMutation.isPending ? (
-                                  <CircularProgress size={14} color="inherit" />
-                                ) : (
-                                  <SendIcon fontSize="small" />
-                                )
-                              }
-                            >
-                              {t('commands.execute.run', '执行')}
-                            </ActionButton>
-                          </InputAdornment>
-                        ),
-                      },
-                    }}
-                  />
-                </Stack>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label={t('commands.execute.command', '执行命令')}
+                        value={commandLine}
+                        placeholder={t('commands.execute.placeholder', '输入命令，如 help 或 help 参数')}
+                        onChange={event => setCommandLine(event.target.value)}
+                        onKeyDown={event => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault()
+                            handleExecute()
+                          }
+                        }}
+                      />
+                      <ActionButton
+                        tone="primary"
+                        onClick={handleExecute}
+                        disabled={!parsedExecution || executeMutation.isPending}
+                        startIcon={
+                          executeMutation.isPending ? (
+                            <CircularProgress size={14} color="inherit" />
+                          ) : (
+                            <SendIcon fontSize="small" />
+                          )
+                        }
+                        sx={{ minWidth: 0, height: '100%' }}
+                      >
+                        {t('commands.execute.run', '执行')}
+                      </ActionButton>
+                    </Box>
 
-                {!executeChatKey ? (
-                  <Alert severity="info" variant="outlined">
-                    {t('commands.execute.selectChannelHint', '请先选择执行频道，再发送命令。')}
-                  </Alert>
-                ) : parsedExecution ? null : (
-                  <Alert severity="warning" variant="outlined">
-                    {t(
-                      'commands.execute.invalidCommand',
-                      '当前输入的命令未在所选频道启用，或命令名不存在。',
+                    {!executeChatKey ? (
+                      <Alert severity="info" variant="outlined">
+                        {t('commands.execute.selectChannelHint', '请先选择执行频道，再发送命令。')}
+                      </Alert>
+                    ) : parsedExecution ? null : (
+                      <Alert severity="warning" variant="outlined">
+                        {t(
+                          'commands.execute.invalidCommand',
+                          '当前输入的命令未在所选频道启用，或命令名不存在。',
+                        )}
+                      </Alert>
                     )}
-                  </Alert>
-                )}
+                  </Stack>
+                </Box>
               </Stack>
             </Box>
 
-            <Divider />
-
-            <Box sx={{ flex: 1, minHeight: 260, overflow: 'hidden' }}>
+            <Box
+              sx={{
+                flex: 1,
+                minHeight: 260,
+                overflow: 'hidden',
+                mx: 2,
+                mb: 2,
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 2,
+                backgroundColor: alpha(theme.palette.background.paper, 0.08),
+              }}
+            >
               {executeChatKey ? (
                 <CommandOutputLog chatKey={executeChatKey} />
               ) : (
@@ -852,7 +1081,7 @@ function CommandListItem({
           <Chip
             size="small"
             variant="outlined"
-            label={getSourceLabel(cmd.source, t)}
+            label={getSourceLabel(cmd, t)}
           />
         </Stack>
       </Stack>
@@ -863,11 +1092,13 @@ function CommandListItem({
 function DetailRow({
   label,
   value,
+  content,
   monospace = false,
   multiline = false,
 }: {
   label: string
   value: string
+  content?: ReactNode
   monospace?: boolean
   multiline?: boolean
 }) {
@@ -876,16 +1107,97 @@ function DetailRow({
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
         {label}
       </Typography>
-      <Typography
-        variant="body2"
-        sx={{
-          fontFamily: monospace ? 'monospace' : 'inherit',
-          whiteSpace: multiline ? 'pre-wrap' : 'normal',
-          wordBreak: 'break-word',
-        }}
-      >
-        {value}
-      </Typography>
+      {content ?? (
+        <Typography
+          variant="body2"
+          sx={{
+            fontFamily: monospace ? 'monospace' : 'inherit',
+            whiteSpace: multiline ? 'pre-wrap' : 'normal',
+            wordBreak: 'break-word',
+          }}
+        >
+          {value}
+        </Typography>
+      )}
     </Box>
+  )
+}
+
+function CommandParamsView({
+  items,
+  emptyText,
+  t,
+}: {
+  items: ParamSchemaItem[]
+  emptyText: string
+  t: TFunction<'settings'>
+}) {
+  if (items.length === 0) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        {emptyText}
+      </Typography>
+    )
+  }
+
+  return (
+    <Stack spacing={1}>
+      {items.map(item => (
+        <Box
+          key={item.name}
+          sx={{
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1.5,
+            px: 1.25,
+            py: 1,
+            backgroundColor: 'action.hover',
+          }}
+        >
+          <Stack spacing={0.75}>
+            <Stack direction="row" spacing={0.75} alignItems="center" useFlexGap flexWrap="wrap">
+              <Typography variant="body2" sx={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                {item.name}
+              </Typography>
+              <Chip size="small" variant="outlined" label={item.typeLabel} />
+              {item.required && (
+                <Chip
+                  size="small"
+                  color="warning"
+                  variant="outlined"
+                  label={t('commands.detail.required', '必填')}
+                />
+              )}
+            </Stack>
+
+            {item.description ? (
+              <Typography variant="body2" color="text.secondary">
+                {item.description}
+              </Typography>
+            ) : null}
+
+            {(item.defaultValue || item.enumValues.length > 0) && (
+              <Stack
+                direction={{ xs: 'column', sm: 'row' }}
+                spacing={1.5}
+                useFlexGap
+                flexWrap="wrap"
+              >
+                {item.defaultValue ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('commands.detail.defaultValue', '默认值')}: {item.defaultValue}
+                  </Typography>
+                ) : null}
+                {item.enumValues.length > 0 ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {t('commands.detail.allowedValues', '可选值')}: {item.enumValues.join(', ')}
+                  </Typography>
+                ) : null}
+              </Stack>
+            )}
+          </Stack>
+        </Box>
+      ))}
+    </Stack>
   )
 }

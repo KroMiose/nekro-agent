@@ -1720,7 +1720,7 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
 @plugin.mount_command(
     name="cc_help",
     description="查看 CC 协作插件的使用帮助",
-    aliases=["cc-help", "cc_guide"],
+    aliases=["cc_guide"],
     permission=CommandPermission.USER,
     usage="cc_help",
     category="CC 协作",
@@ -1761,7 +1761,7 @@ async def cc_help_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_status",
     description="查看当前频道的 CC 协作状态摘要",
-    aliases=["cc-status"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_status",
     category="CC 协作",
@@ -1776,7 +1776,7 @@ async def cc_status_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_context",
     description="查看当前频道的 CC 协作上下文",
-    aliases=["cc-context"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_context",
     category="CC 协作",
@@ -1797,7 +1797,7 @@ async def cc_context_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_recent",
     description="查看当前频道最近的 CC 协作记录",
-    aliases=["cc-recent", "cc-log"],
+    aliases=["cc_log"],
     permission=CommandPermission.USER,
     usage="cc_recent [数量]",
     category="CC 协作",
@@ -1816,7 +1816,7 @@ async def cc_recent_cmd(
 @plugin.mount_command(
     name="cc_abort",
     description="强制中止当前绑定工作区正在运行的 CC 任务",
-    aliases=["cc-abort", "cc_kill", "cc-kill"],
+    aliases=["cc_kill"],
     permission=CommandPermission.USER,
     usage="cc_abort",
     category="CC 协作",
@@ -1839,7 +1839,7 @@ async def cc_abort_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_reset_session",
     description="重置当前绑定工作区的 CC 会话并清理旧委托摘要缓存",
-    aliases=["cc-reset-session", "cc_reset", "cc-reset"],
+    aliases=["cc_reset"],
     permission=CommandPermission.USER,
     usage="cc_reset_session",
     category="CC 协作",
@@ -1862,7 +1862,7 @@ async def cc_reset_session_cmd(context: CommandExecutionContext) -> CommandRespo
 @plugin.mount_command(
     name="cc_restart",
     description="重启当前绑定工作区的 CC 沙盒容器",
-    aliases=["cc-restart"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_restart",
     category="CC 协作",
@@ -1885,7 +1885,7 @@ async def cc_restart_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_stop",
     description="停止当前绑定工作区的 CC 沙盒容器",
-    aliases=["cc-stop"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_stop",
     category="CC 协作",
