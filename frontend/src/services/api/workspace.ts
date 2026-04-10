@@ -843,6 +843,11 @@ export const kbLibraryApi = {
     return response.data
   },
 
+  createText: async (body: KBCreateTextDocumentBody): Promise<KBAssetUploadResponse> => {
+    const response = await axios.post<KBAssetUploadResponse>('/kb-library/assets', body)
+    return response.data
+  },
+
   uploadFile: async (
     payload: KBUploadFilePayload,
     onProgress?: UploadProgressCallback,

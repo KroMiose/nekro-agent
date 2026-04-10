@@ -17,6 +17,7 @@ from nekro_agent.schemas.kb import (
     KBAssetDetailResponse,
     KBAssetListResponse,
     KBAssetUploadResponse,
+    KBCreateTextDocumentBody,
     KBFullTextResponse,
 )
 from nekro_agent.services.kb.library_index_service import (
@@ -29,6 +30,7 @@ from nekro_agent.services.kb.library_service import (
     TEXT_LIBRARY_FORMATS,
     asset_to_list_item,
     create_asset_from_upload,
+    create_text_asset,
     get_asset,
     list_asset_bound_workspaces,
     list_assets,
@@ -88,6 +90,38 @@ async def get_kb_library_asset(
         source_content=source_content,
         normalized_content=normalized_content,
     )
+
+
+@router.post("/assets", summary="创建文本类全局知识库文件", response_model=KBAssetUploadResponse)
+@require_role(Role.Admin)
+async def create_kb_library_asset(
+    body: KBCreateTextDocumentBody,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> KBAssetUploadResponse:
+    if body.format not in {"markdown", "text"}:
+        raise ValidationError(reason="仅支持创建 markdown 或 text 类型的文本知识")
+    await ensure_kb_library_collection()
+    try:
+        asset, reused_existing = await create_text_asset(
+            title=body.title,
+            content=body.content,
+            source_path=body.source_path,
+            file_name=body.file_name,
+            format=body.format,
+            category=body.category,
+            tags=body.tags,
+            summary=body.summary,
+            is_enabled=body.is_enabled,
+        )
+    except IntegrityError as e:
+        raise ConflictError(resource=f"全局知识库路径 '{body.source_path or body.file_name}'") from e
+    except ValueError as e:
+        raise ValidationError(reason=str(e)) from e
+
+    refreshed = await _get_asset_or_404(asset.id)
+    if not reused_existing:
+        await schedule_rebuild_asset(refreshed)
+    return KBAssetUploadResponse(asset=await asset_to_list_item(refreshed), reused_existing=reused_existing)
 
 
 @router.post("/assets/files", summary="上传全局知识库文件", response_model=KBAssetUploadResponse)

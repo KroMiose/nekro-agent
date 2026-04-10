@@ -2,7 +2,6 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from '
 import {
   Alert,
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -13,7 +12,6 @@ import {
   DialogContent,
   DialogTitle,
   Divider,
-  IconButton,
   InputAdornment,
   List,
   ListItemButton,
@@ -51,6 +49,8 @@ import {
 import { useNotification } from '../../../hooks/useNotification'
 import { KbIndexProgressInfo, useSystemEventsContext } from '../../../contexts/SystemEventsContext'
 import { CARD_VARIANTS } from '../../../theme/variants'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 type PreviewTab = 'normalized' | 'source'
 
@@ -450,6 +450,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
     void refreshAll()
   }, [refreshAll, workspaceTerminalSignature])
 
+  const compactActionSx = {
+    minHeight: 32,
+    px: 1.25,
+    fontSize: '0.82rem',
+  }
+
   return (
     <Stack spacing={2}>
       <Card sx={CARD_VARIANTS.default.styles}>
@@ -470,18 +476,18 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                 </Typography>
               </Box>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => refreshAll()} disabled={documentsQuery.isLoading}>
+                <ActionButton tone="secondary" startIcon={<RefreshIcon />} onClick={() => refreshAll()} disabled={documentsQuery.isLoading}>
                   {t('knowledge.actions.refresh')}
-                </Button>
-                <Button variant="outlined" startIcon={<ReindexIcon />} onClick={() => reindexAllMutation.mutate()} disabled={reindexAllMutation.isPending}>
+                </ActionButton>
+                <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexAllMutation.mutate()} disabled={reindexAllMutation.isPending}>
                   {t('knowledge.actions.reindexAll')}
-                </Button>
-                <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+                </ActionButton>
+                <ActionButton tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
                   {t('knowledge.actions.createText')}
-                </Button>
-                <Button variant="contained" color="secondary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
+                </ActionButton>
+                <ActionButton tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
                   {t('knowledge.actions.uploadFile')}
-                </Button>
+                </ActionButton>
               </Stack>
             </Stack>
 
@@ -513,19 +519,20 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     <Stack direction="row" spacing={0.5}>
                       {searchResult && (
                         <Tooltip title={t('knowledge.actions.clearSearch')}>
-                          <IconButton size="small" onClick={() => setSearchResult(null)}>
+                          <IconActionButton onClick={() => setSearchResult(null)}>
                             <ClearIcon fontSize="small" />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )}
-                      <Button
+                      <ActionButton
                         size="small"
-                        variant="contained"
+                        tone="primary"
+                        sx={compactActionSx}
                         onClick={() => searchMutation.mutate(searchDraft.trim())}
                         disabled={!searchDraft.trim() || searchMutation.isPending}
                       >
                         {t('knowledge.actions.search')}
-                      </Button>
+                      </ActionButton>
                     </Stack>
                   </InputAdornment>
                 ),
@@ -703,8 +710,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                     </Typography>
                   </Box>
                   <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
-                    <Button
-                      variant={detail.document.is_enabled ? 'outlined' : 'contained'}
+                    <ActionButton
+                      tone={detail.document.is_enabled ? 'secondary' : 'primary'}
                       onClick={() =>
                         toggleEnabledMutation.mutate({
                           documentId: detail.document.id,
@@ -712,18 +719,19 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
                         })
                       }
                       disabled={toggleEnabledMutation.isPending}
+                      sx={compactActionSx}
                     >
                       {detail.document.is_enabled ? t('knowledge.actions.disable') : t('knowledge.actions.enable')}
-                    </Button>
-                    <Button variant="outlined" startIcon={<ReindexIcon />} onClick={() => reindexMutation.mutate(detail.document.id)} disabled={reindexMutation.isPending}>
+                    </ActionButton>
+                    <ActionButton tone="secondary" startIcon={<ReindexIcon />} onClick={() => reindexMutation.mutate(detail.document.id)} disabled={reindexMutation.isPending} sx={compactActionSx}>
                       {t('knowledge.actions.reindex')}
-                    </Button>
-                    <Button variant="outlined" startIcon={<DownloadIcon />} onClick={handleDownloadRaw}>
+                    </ActionButton>
+                    <ActionButton tone="secondary" startIcon={<DownloadIcon />} onClick={handleDownloadRaw} sx={compactActionSx}>
                       {t('knowledge.actions.downloadRaw')}
-                    </Button>
-                    <Button variant="outlined" color="error" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)}>
+                    </ActionButton>
+                    <ActionButton tone="danger" startIcon={<DeleteIcon />} onClick={() => setDeleteOpen(true)} sx={compactActionSx}>
                       {t('knowledge.actions.delete')}
-                    </Button>
+                    </ActionButton>
                   </Stack>
                 </Stack>
 
@@ -900,12 +908,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
+          <ActionButton onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
             {t('knowledge.actions.cancel')}
-          </Button>
-          <Button onClick={handleCreateSubmit} variant="contained" disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}>
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handleCreateSubmit} disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}>
             {createMutation.isPending ? t('knowledge.actions.creating') : t('knowledge.actions.create')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -922,9 +930,9 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         <DialogTitle>{t('knowledge.dialogs.uploadTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Button variant="outlined" startIcon={<FolderOpenIcon />} onClick={() => uploadInputRef.current?.click()}>
+            <ActionButton tone="secondary" startIcon={<FolderOpenIcon />} onClick={() => uploadInputRef.current?.click()}>
               {uploadFile ? uploadFile.name : t('knowledge.actions.chooseFile')}
-            </Button>
+            </ActionButton>
             <Alert severity="info">
               {t('knowledge.form.supportedFormats', { formats: SUPPORTED_UPLOAD_EXTENSIONS.join(', ') })}
             </Alert>
@@ -945,13 +953,13 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               placeholder={t('knowledge.form.tagsPlaceholder')}
             />
             <TextField label={t('knowledge.form.summary')} fullWidth value={uploadSummary} onChange={event => setUploadSummary(event.target.value)} />
-            <Button
-              variant={uploadEnabled ? 'contained' : 'outlined'}
+            <ActionButton
+              tone={uploadEnabled ? 'primary' : 'secondary'}
               onClick={() => setUploadEnabled(prev => !prev)}
               startIcon={<VisibilityIcon />}
             >
               {uploadEnabled ? t('knowledge.actions.enabled') : t('knowledge.actions.disabled')}
-            </Button>
+            </ActionButton>
             {uploadMutation.isPending && (
               <Stack spacing={0.75}>
                 <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 999 }} />
@@ -963,12 +971,12 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setUploadOpen(false)} disabled={uploadMutation.isPending}>
+          <ActionButton onClick={() => setUploadOpen(false)} disabled={uploadMutation.isPending}>
             {t('knowledge.actions.cancel')}
-          </Button>
-          <Button onClick={handleUploadSubmit} variant="contained" disabled={uploadMutation.isPending || !uploadFile}>
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handleUploadSubmit} disabled={uploadMutation.isPending || !uploadFile}>
             {uploadMutation.isPending ? t('knowledge.actions.uploading') : t('knowledge.actions.upload')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -980,17 +988,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+          <ActionButton onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
             {t('knowledge.actions.cancel')}
-          </Button>
-          <Button
-            color="error"
-            variant="contained"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => selectedDocumentId != null && deleteMutation.mutate(selectedDocumentId)}
             disabled={deleteMutation.isPending || selectedDocumentId == null}
           >
             {t('knowledge.actions.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

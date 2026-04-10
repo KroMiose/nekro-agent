@@ -1164,6 +1164,9 @@
     "description": "集中管理可被多个工作区复用的知识文件。文件只需导入一次，再按需绑定到不同工作区，减少重复上传和重复索引消耗。",
     "actions": {
       "refresh": "刷新",
+      "createText": "新建文本知识",
+      "create": "创建",
+      "creating": "创建中...",
       "upload": "上传文件",
       "chooseFile": "选择文件",
       "clearFilters": "清空筛选",
@@ -1211,6 +1214,7 @@
       "chunkCount": "Chunk {{count}}",
       "fileSize": "大小 {{value}}",
       "updatedAt": "更新于 {{value}}",
+      "noTags": "无标签",
       "noBindings": "尚未绑定任何工作区",
       "preview": "内容预览"
     },
@@ -1235,13 +1239,20 @@
     },
     "form": {
       "title": "标题",
+      "format": "文本格式",
+      "sourcePath": "目标路径",
+      "sourcePathPlaceholder": "例如 handbook/onboarding.md",
       "category": "分类",
+      "fileName": "文件名",
       "tags": "标签",
+      "tagsPlaceholder": "多个标签用逗号分隔",
       "summary": "摘要",
+      "content": "正文内容",
       "supportedFormats": "支持上传的文件格式：{{formats}}",
       "bindWorkspaces": "绑定到工作区"
     },
     "dialogs": {
+      "createTitle": "新建全局文本知识",
       "uploadTitle": "上传全局知识库文件",
       "bindTitle": "绑定工作区",
       "bindHint": "选择需要复用这份文件的工作区。绑定后，工作区即可直接使用该文件而无需再次上传。",
@@ -1249,6 +1260,9 @@
       "deleteContent": "确定要删除文件“{{title}}”吗？如果仍有工作区绑定，需要先解除绑定。"
     },
     "notifications": {
+      "createSuccess": "文本知识已创建并进入索引流程",
+      "createReused": "检测到相同内容，已复用现有全局知识文件",
+      "createFailed": "创建失败：{{message}}",
       "uploadSuccess": "文件已上传并进入索引流程",
       "uploadReused": "检测到相同文件内容，已复用现有文件",
       "uploadFailed": "上传失败：{{message}}",

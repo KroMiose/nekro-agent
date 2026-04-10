@@ -22,6 +22,7 @@ import {
   Paper,
   Select,
   Stack,
+  Tab,
   TextField,
   Tooltip,
   Typography,
@@ -29,6 +30,7 @@ import {
   useMediaQuery,
 } from '@mui/material'
 import {
+  Add as AddIcon,
   AutoAwesome as LibraryIcon,
   Close as CloseIcon,
   Delete as DeleteIcon,
@@ -49,23 +51,31 @@ import {
   useSystemEventsContext,
 } from '../../contexts/SystemEventsContext'
 import {
+  KBAssetDetailResponse,
   KBAssetListItem,
+  KBCreateTextDocumentBody,
   KBUploadFilePayload,
   kbLibraryApi,
   workspaceApi,
 } from '../../services/api/workspace'
 import { useNotification } from '../../hooks/useNotification'
-import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { CARD_VARIANTS, CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import SearchField from '../../components/common/SearchField'
 import SegmentedControl from '../../components/common/SegmentedControl'
 import IconActionButton from '../../components/common/IconActionButton'
 import ActionButton from '../../components/common/ActionButton'
+import { InlineTabs } from '../../components/common/NekroTabs'
 
 type FilterStatus = 'all' | 'ready' | 'indexing' | 'failed'
+type PreviewTab = 'normalized' | 'source'
 
 const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 const EMPTY_ASSETS: KBAssetListItem[] = []
 const EMPTY_WORKSPACES: Awaited<ReturnType<typeof workspaceApi.getList>> = []
+const TEXT_FORMAT_OPTIONS: Array<{ value: 'markdown' | 'text'; label: string }> = [
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'text', label: 'Text' },
+]
 
 function formatDateTime(value: string | null | undefined): string {
   if (!value) return '-'
@@ -94,13 +104,6 @@ function getProgressStatus(progress: KbLibraryIndexProgressInfo | null | undefin
   return 'indexing'
 }
 
-function statusColor(status: FilterStatus): 'default' | 'success' | 'warning' | 'error' {
-  if (status === 'ready') return 'success'
-  if (status === 'failed') return 'error'
-  if (status === 'indexing') return 'warning'
-  return 'default'
-}
-
 function getFileExtension(fileName: string): string {
   const match = fileName.toLowerCase().match(/(\.[^.]+)$/)
   return match?.[1] ?? ''
@@ -108,6 +111,19 @@ function getFileExtension(fileName: string): string {
 
 function isSupportedUploadFile(file: File): boolean {
   return SUPPORTED_UPLOAD_EXTENSIONS.includes(getFileExtension(file.name))
+}
+
+function normalizeTagsInput(raw: string): string[] {
+  return raw
+    .split(',')
+    .map(item => item.trim())
+    .filter(Boolean)
+}
+
+function previewContent(detail: KBAssetDetailResponse | undefined, tab: PreviewTab): string {
+  if (!detail) return ''
+  if (tab === 'source') return detail.source_content ?? ''
+  return detail.normalized_content ?? ''
 }
 
 function StatCard({
@@ -180,9 +196,23 @@ export default function KbLibraryPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<FilterStatus>('all')
   const [selectedAssetId, setSelectedAssetId] = useState<number | null>(null)
+  const [previewTab, setPreviewTab] = useState<PreviewTab>('normalized')
+  const [createOpen, setCreateOpen] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [bindOpen, setBindOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [createForm, setCreateForm] = useState<KBCreateTextDocumentBody>({
+    title: '',
+    content: '',
+    source_path: '',
+    file_name: '',
+    format: 'markdown',
+    category: '',
+    tags: [],
+    summary: '',
+    is_enabled: true,
+  })
+  const [createTagsInput, setCreateTagsInput] = useState('')
   const [uploadPayload, setUploadPayload] = useState<KBUploadFilePayload | null>(null)
   const [uploadTitle, setUploadTitle] = useState('')
   const [uploadCategory, setUploadCategory] = useState('')
@@ -249,6 +279,34 @@ export default function KbLibraryPage() {
       queryClient.invalidateQueries({ queryKey: ['kb-library-asset'] }),
     ])
   }, [queryClient])
+
+  const createMutation = useMutation({
+    mutationFn: (body: KBCreateTextDocumentBody) => kbLibraryApi.createText(body),
+    onSuccess: async data => {
+      await refreshAll()
+      setSelectedAssetId(data.asset.id)
+      setPreviewTab('normalized')
+      setCreateOpen(false)
+      setCreateForm({
+        title: '',
+        content: '',
+        source_path: '',
+        file_name: '',
+        format: 'markdown',
+        category: '',
+        tags: [],
+        summary: '',
+        is_enabled: true,
+      })
+      setCreateTagsInput('')
+      notification.success(
+        data.reused_existing
+          ? t('kbLibrary.notifications.createReused')
+          : t('kbLibrary.notifications.createSuccess')
+      )
+    },
+    onError: (err: Error) => notification.error(t('kbLibrary.notifications.createFailed', { message: err.message })),
+  })
 
   const uploadMutation = useMutation({
     mutationFn: (payload: KBUploadFilePayload) =>
@@ -336,8 +394,16 @@ export default function KbLibraryPage() {
       title: uploadTitle,
       category: uploadCategory,
       summary: uploadSummary,
-      tags: uploadTagsInput.split(',').map(item => item.trim()).filter(Boolean),
+      tags: normalizeTagsInput(uploadTagsInput),
       is_enabled: true,
+    })
+  }
+
+  const handleCreateSubmit = () => {
+    if (!createForm.title.trim() || !createForm.content.trim()) return
+    createMutation.mutate({
+      ...createForm,
+      tags: normalizeTagsInput(createTagsInput),
     })
   }
 
@@ -371,7 +437,14 @@ export default function KbLibraryPage() {
         .join('|'),
     [kbLibraryIndexProgresses]
   )
-  const preview = detail?.normalized_content ?? ''
+  const preview = previewContent(detail, previewTab)
+  const neutralChipSx = CHIP_VARIANTS.base(true)
+  const statusChipSx = (status: FilterStatus) => CHIP_VARIANTS.getCustomColorChip({
+    ready: theme.palette.success.main,
+    indexing: theme.palette.warning.main,
+    failed: theme.palette.error.main,
+    all: theme.palette.text.secondary,
+  }[status], true)
 
   useEffect(() => {
     if (!terminalSignature) return
@@ -379,6 +452,11 @@ export default function KbLibraryPage() {
     lastProgressTerminalRef.current = terminalSignature
     void refreshAll()
   }, [refreshAll, terminalSignature])
+
+  useEffect(() => {
+    if (selectedAssetId == null) return
+    setPreviewTab('normalized')
+  }, [selectedAssetId])
 
   const closeDetailDialog = () => {
     if (bindingsMutation.isPending || deleteMutation.isPending) return
@@ -450,6 +528,9 @@ export default function KbLibraryPage() {
                     <RefreshIcon fontSize="small" />
                   </IconActionButton>
                 </Tooltip>
+                <ActionButton tone="secondary" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+                  {t('kbLibrary.actions.createText')}
+                </ActionButton>
                 <ActionButton tone="primary" startIcon={<FileUploadIcon />} onClick={() => setUploadOpen(true)}>
                   {t('kbLibrary.actions.upload')}
                 </ActionButton>
@@ -490,9 +571,9 @@ export default function KbLibraryPage() {
                                 <Typography variant="body1" sx={{ fontWeight: 700 }}>
                                   {asset.title}
                                 </Typography>
-                                <Chip size="small" label={asset.format.toUpperCase()} variant="outlined" />
-                                <Chip size="small" label={t(`kbLibrary.status.${status}`)} color={statusColor(status)} />
-                                <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: asset.binding_count })} variant="outlined" />
+                                <Chip size="small" label={asset.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
+                                <Chip size="small" label={t(`kbLibrary.status.${status}`)} sx={statusChipSx(status)} />
+                                <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: asset.binding_count })} variant="outlined" sx={neutralChipSx} />
                               </Stack>
                               <Typography variant="caption" color="text.secondary">
                                 {asset.source_path}
@@ -511,7 +592,7 @@ export default function KbLibraryPage() {
                               </Typography>
                               <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                                 {asset.tags.slice(0, 4).map(tag => (
-                                  <Chip key={`${asset.id}-${tag}`} size="small" label={tag} variant="outlined" />
+                                  <Chip key={`${asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
                                 ))}
                               </Stack>
                               {progress && progress.phase !== 'ready' && progress.phase !== 'failed' && (
@@ -593,12 +674,13 @@ export default function KbLibraryPage() {
                     {detail.asset.summary || t('kbLibrary.list.noSummary')}
                   </Typography>
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.25 }}>
-                    <Chip label={detail.asset.format.toUpperCase()} />
+                    <Chip size="small" label={detail.asset.format.toUpperCase()} variant="outlined" sx={neutralChipSx} />
                     <Chip
+                      size="small"
                       label={t(`kbLibrary.status.${selectedProgressStatus ?? getEffectiveStatus(detail.asset)}`)}
-                      color={statusColor(selectedProgressStatus ?? getEffectiveStatus(detail.asset))}
+                      sx={statusChipSx(selectedProgressStatus ?? getEffectiveStatus(detail.asset))}
                     />
-                    <Chip label={t('kbLibrary.list.bindingCount', { count: detail.asset.binding_count })} variant="outlined" />
+                    <Chip size="small" label={t('kbLibrary.list.bindingCount', { count: detail.asset.binding_count })} variant="outlined" sx={neutralChipSx} />
                   </Stack>
                 </Box>
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ flexShrink: 0 }}>
@@ -674,6 +756,16 @@ export default function KbLibraryPage() {
                 </Card>
               )}
 
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                {detail.asset.tags.length ? (
+                  detail.asset.tags.map(tag => (
+                    <Chip key={`${detail.asset.id}-${tag}`} size="small" label={tag} variant="outlined" sx={neutralChipSx} />
+                  ))
+                ) : (
+                  <Chip size="small" label={t('kbLibrary.detail.noTags')} variant="outlined" sx={neutralChipSx} />
+                )}
+              </Stack>
+
               <Card variant="outlined">
                 <CardContent>
                   <Stack spacing={1.25}>
@@ -682,9 +774,9 @@ export default function KbLibraryPage() {
                       {detail.asset.source_path}
                     </Typography>
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                      <Chip size="small" label={t('kbLibrary.detail.chunkCount', { count: detail.asset.chunk_count })} variant="outlined" />
-                      <Chip size="small" label={t('kbLibrary.detail.fileSize', { value: formatFileSize(detail.asset.file_size) })} variant="outlined" />
-                      <Chip size="small" label={t('kbLibrary.detail.updatedAt', { value: formatDateTime(detail.asset.update_time) })} variant="outlined" />
+                      <Chip size="small" label={t('kbLibrary.detail.chunkCount', { count: detail.asset.chunk_count })} variant="outlined" sx={neutralChipSx} />
+                      <Chip size="small" label={t('kbLibrary.detail.fileSize', { value: formatFileSize(detail.asset.file_size) })} variant="outlined" sx={neutralChipSx} />
+                      <Chip size="small" label={t('kbLibrary.detail.updatedAt', { value: formatDateTime(detail.asset.update_time) })} variant="outlined" sx={neutralChipSx} />
                     </Stack>
                     <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                       {detail.asset.bound_workspaces.length ? (
@@ -694,10 +786,11 @@ export default function KbLibraryPage() {
                             size="small"
                             label={`${item.workspace_name} · ${item.workspace_status}`}
                             variant="outlined"
+                            sx={neutralChipSx}
                           />
                         ))
                       ) : (
-                        <Chip size="small" label={t('kbLibrary.detail.noBindings')} variant="outlined" />
+                        <Chip size="small" label={t('kbLibrary.detail.noBindings')} variant="outlined" sx={neutralChipSx} />
                       )}
                     </Stack>
                     {detail.asset.last_error && <Alert severity="error">{detail.asset.last_error}</Alert>}
@@ -707,9 +800,17 @@ export default function KbLibraryPage() {
 
               <Card variant="outlined">
                 <CardContent sx={{ p: 0 }}>
-                  <Box sx={{ px: 2, py: 1.5 }}>
+                  <Box sx={{ px: 2, pt: 1.5 }}>
                     <Typography variant="subtitle2">{t('kbLibrary.detail.preview')}</Typography>
                   </Box>
+                  <InlineTabs
+                    value={previewTab}
+                    onChange={(_, value: PreviewTab) => setPreviewTab(value)}
+                    sx={{ px: 1.5 }}
+                  >
+                    <Tab value="normalized" label={t('kbLibrary.preview.normalized')} />
+                    <Tab value="source" label={t('kbLibrary.preview.source')} />
+                  </InlineTabs>
                   <Box
                     sx={{
                       p: 2,
@@ -732,6 +833,97 @@ export default function KbLibraryPage() {
             <Alert severity="warning">{t('kbLibrary.detail.loadFailed')}</Alert>
           )}
         </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={createOpen}
+        onClose={() => !createMutation.isPending && setCreateOpen(false)}
+        fullWidth
+        maxWidth="md"
+        disableRestoreFocus
+      >
+        <DialogTitle>{t('kbLibrary.dialogs.createTitle')}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField
+                label={t('kbLibrary.form.title')}
+                fullWidth
+                value={createForm.title}
+                onChange={event => setCreateForm(prev => ({ ...prev, title: event.target.value }))}
+              />
+              <TextField
+                select
+                label={t('kbLibrary.form.format')}
+                fullWidth
+                value={createForm.format}
+                onChange={event => setCreateForm(prev => ({ ...prev, format: event.target.value as 'markdown' | 'text' }))}
+              >
+                {TEXT_FORMAT_OPTIONS.map(option => (
+                  <MenuItem key={option.value} value={option.value}>
+                    {option.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField
+                label={t('kbLibrary.form.sourcePath')}
+                fullWidth
+                value={createForm.source_path}
+                onChange={event => setCreateForm(prev => ({ ...prev, source_path: event.target.value }))}
+                placeholder={t('kbLibrary.form.sourcePathPlaceholder')}
+              />
+              <TextField
+                label={t('kbLibrary.form.fileName')}
+                fullWidth
+                value={createForm.file_name}
+                onChange={event => setCreateForm(prev => ({ ...prev, file_name: event.target.value }))}
+              />
+            </Stack>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+              <TextField
+                label={t('kbLibrary.form.category')}
+                fullWidth
+                value={createForm.category}
+                onChange={event => setCreateForm(prev => ({ ...prev, category: event.target.value }))}
+              />
+              <TextField
+                label={t('kbLibrary.form.tags')}
+                fullWidth
+                value={createTagsInput}
+                onChange={event => setCreateTagsInput(event.target.value)}
+                placeholder={t('kbLibrary.form.tagsPlaceholder')}
+              />
+            </Stack>
+            <TextField
+              label={t('kbLibrary.form.summary')}
+              fullWidth
+              value={createForm.summary}
+              onChange={event => setCreateForm(prev => ({ ...prev, summary: event.target.value }))}
+            />
+            <TextField
+              label={t('kbLibrary.form.content')}
+              fullWidth
+              multiline
+              minRows={14}
+              value={createForm.content}
+              onChange={event => setCreateForm(prev => ({ ...prev, content: event.target.value }))}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <ActionButton onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
+            {t('kbLibrary.actions.cancel')}
+          </ActionButton>
+          <ActionButton
+            tone="primary"
+            onClick={handleCreateSubmit}
+            disabled={createMutation.isPending || !createForm.title.trim() || !createForm.content.trim()}
+          >
+            {createMutation.isPending ? t('kbLibrary.actions.creating') : t('kbLibrary.actions.create')}
+          </ActionButton>
+        </DialogActions>
       </Dialog>
 
       <Dialog

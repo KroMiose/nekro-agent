@@ -13,6 +13,7 @@ from nekro_agent.schemas.kb import (
     KBAssetListItem,
 )
 from nekro_agent.services.kb.document_service import (
+    build_default_file_name,
     compute_sha256,
     detect_format_and_mime,
     normalize_tags,
@@ -167,6 +168,57 @@ async def create_asset_from_upload(
         normalized_text_hash="",
         chunk_count=0,
         file_size=len(content),
+    )
+    return asset, False
+
+
+async def create_text_asset(
+    *,
+    title: str,
+    content: str,
+    source_path: str,
+    file_name: str,
+    format: str,
+    category: str,
+    tags: list[str],
+    summary: str,
+    is_enabled: bool,
+    source_type: str = "manual",
+) -> tuple[DBKBAsset, bool]:
+    ensure_kb_library_dirs()
+    final_file_name = file_name or build_default_file_name(title, ".md" if format == "markdown" else ".txt")
+    final_source_path = safe_source_path(source_path or final_file_name)
+    encoded = content.encode("utf-8")
+    content_hash = compute_sha256(encoded)
+    existing = await DBKBAsset.get_or_none(content_hash=content_hash)
+    if existing is not None:
+        return existing, True
+
+    target = resolve_kb_library_source_path(final_source_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if target.exists():
+        raise ValueError(f"知识库资产路径已存在: {final_source_path}")
+    target.write_bytes(encoded)
+    detected_format, suffix, mime_type = detect_format_and_mime(Path(final_source_path).name)
+    asset = await DBKBAsset.create(
+        source_path=final_source_path,
+        normalized_text_path="",
+        file_name=Path(final_source_path).name,
+        file_ext=suffix,
+        mime_type=mime_type,
+        title=title.strip(),
+        category=category.strip(),
+        tags=normalize_tags(tags),
+        summary=summary.strip(),
+        source_type=source_type,
+        format=detected_format,
+        is_enabled=is_enabled,
+        extract_status="pending",
+        sync_status="pending",
+        content_hash=content_hash,
+        normalized_text_hash="",
+        chunk_count=0,
+        file_size=len(encoded),
     )
     return asset, False
 
