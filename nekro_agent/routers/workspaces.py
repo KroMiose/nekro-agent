@@ -75,6 +75,7 @@ from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
 from nekro_agent.services.workspace.container import ImageNotFoundError, SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
+from nekro_agent.services.workspace.prompt_envelope import CcPromptEnvelope
 
 if TYPE_CHECKING:
     from nekro_agent.models.db_mem_episode import DBMemEpisode
@@ -262,10 +263,12 @@ async def _detail_async(ws: DBWorkspace) -> WorkspaceDetail:
     return _detail(ws, bound_chat_keys=[ch.chat_key for ch in channels])
 
 
-async def _build_cc_memory_handshake(workspace_id: int, instruction: str, limit: int = 6) -> str:
-    """为 CC 构造委托前记忆握手上下文。"""
+async def _build_cc_memory_handshake(workspace_id: int, instruction: str, limit: int = 6) -> CcPromptEnvelope:
+    """为用户直发 CC 指令构造含记忆握手的 prompt 封装。"""
+    now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M %Z")
+
     if not is_memory_system_enabled():
-        return instruction
+        return CcPromptEnvelope.for_user_path(current_time=now_str, task_body=instruction)
 
     try:
         memories = await retrieve_memories(
@@ -275,10 +278,10 @@ async def _build_cc_memory_handshake(workspace_id: int, instruction: str, limit:
         )
     except Exception as e:
         logger.debug(f"构建 CC 记忆握手失败（检索异常，可忽略）: {e}")
-        return instruction
+        return CcPromptEnvelope.for_user_path(current_time=now_str, task_body=instruction)
 
     if not memories:
-        return instruction
+        return CcPromptEnvelope.for_user_path(current_time=now_str, task_body=instruction)
 
     memory_lines: List[str] = []
     for idx, mem in enumerate(memories, start=1):
@@ -286,14 +289,11 @@ async def _build_cc_memory_handshake(workspace_id: int, instruction: str, limit:
         summary = summary.replace("\n", " ").strip()
         memory_lines.append(f"{idx}. [{mem.cognitive_type}/{mem.knowledge_type}] {summary}")
 
-    handshake = (
-        "[统一记忆握手]\n"
-        "以下内容来自当前工作区的历史记忆，请在执行任务时优先参考；若与工作区现状冲突，以实际工作区状态为准。\n"
-        + "\n".join(memory_lines)
-        + "\n\n[当前任务]\n"
-        + instruction
+    return CcPromptEnvelope.for_user_path(
+        current_time=now_str,
+        task_body=instruction,
+        memory_lines=memory_lines,
     )
-    return handshake
 
 
 def _detail(ws: DBWorkspace, *, bound_chat_keys: "List[str] | None" = None) -> WorkspaceDetail:
@@ -923,16 +923,7 @@ async def reset_session(
         )
         await comm_broadcast.publish(
             workspace_id,
-            {
-                "id": sys_log.id,
-                "workspace_id": sys_log.workspace_id,
-                "direction": sys_log.direction,
-                "source_chat_key": sys_log.source_chat_key,
-                "content": sys_log.content,
-                "is_streaming": sys_log.is_streaming,
-                "task_id": sys_log.task_id,
-                "create_time": sys_log.create_time.isoformat(),
-            },
+            _comm_log_to_entry(sys_log),
         )
     except Exception as e:
         logger.warning(f"写入会话重置 CommLog 失败: {e}")
@@ -3120,18 +3111,9 @@ async def delete_memory(
 # ── 沙盒通讯 ────────────────────────────────────────────────────────────────
 
 
-def _comm_log_to_dict(log: Any) -> dict:
-    """将 DBWorkspaceCommLog 实例转换为 CommLogEntry 字典。"""
-    return {
-        "id": log.id,
-        "workspace_id": log.workspace_id,
-        "direction": log.direction,
-        "source_chat_key": log.source_chat_key,
-        "content": log.content,
-        "is_streaming": log.is_streaming,
-        "task_id": log.task_id,
-        "create_time": log.create_time.isoformat(),
-    }
+def _comm_log_to_entry(log: Any) -> CommLogEntry:
+    """将 DBWorkspaceCommLog 实例转换为 CommLogEntry Pydantic 模型。"""
+    return CommLogEntry.from_orm(log)
 
 
 @router.get("/{workspace_id}/comm/stream", summary="实时推送沙盒通讯事件（SSE）")
@@ -3190,7 +3172,7 @@ async def get_comm_history(
 
     return CommHistoryResponse(
         total=total,
-        items=[CommLogEntry(**_comm_log_to_dict(log)) for log in logs],
+        items=[_comm_log_to_entry(log) for log in logs],
     )
 
 
@@ -3210,16 +3192,18 @@ async def user_send_to_cc(
     if ws.status != "active":
         raise ValidationError(reason="工作区未运行，无法发送指令")
 
-    # 1. 持久化 USER_TO_CC 并立即广播 → 前端 SSE 立即看到消息
+    # 1. 构建 prompt 封装（含记忆握手和时间注入），持久化 USER_TO_CC 并立即广播
+    envelope = await _build_cc_memory_handshake(workspace_id, body.content)
     user_log = await DBWorkspaceCommLog.create(
         workspace_id=workspace_id,
         direction="USER_TO_CC",
         source_chat_key="__user__",
         content=body.content,
+        extra_data=envelope.to_metadata_json(),
     )
-    await comm_broadcast.publish(workspace_id, _comm_log_to_dict(user_log))
+    await comm_broadcast.publish(workspace_id, _comm_log_to_entry(user_log))
 
-    delegated_content = await _build_cc_memory_handshake(workspace_id, body.content)
+    delegated_content = envelope.to_prompt()
 
     # 2. fire-and-forget：CC 通信在后台 Task 完成，HTTP 请求立即返回
     #    所有后续事件（TOOL_CALL、TOOL_RESULT、CC_TO_NA、SYSTEM 错误）均通过 SSE 推送
@@ -3326,7 +3310,7 @@ async def user_send_to_cc(
                                 source_chat_key="__user__",
                                 content=_json.dumps(chunk, ensure_ascii=False),
                             )
-                            await comm_broadcast.publish(workspace_id, _comm_log_to_dict(log))
+                            await comm_broadcast.publish(workspace_id, _comm_log_to_entry(log))
                             if tool_chunk.type == "tool_call":
                                 current_tool_name = tool_chunk.name
                                 await _runtime_status(
@@ -3369,7 +3353,7 @@ async def user_send_to_cc(
                 source_chat_key="__user__",
                 content=f"[错误] CC 返回错误: {e}",
             )
-            await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await comm_broadcast.publish(workspace_id, _comm_log_to_entry(err_log))
             await _runtime_status(phase="failed", error_summary=str(e)[:180])
             await _status(False)
             return
@@ -3380,7 +3364,7 @@ async def user_send_to_cc(
                 source_chat_key="__user__",
                 content=f"[错误] 任务异常: {e}",
             )
-            await comm_broadcast.publish(workspace_id, _comm_log_to_dict(err_log))
+            await comm_broadcast.publish(workspace_id, _comm_log_to_entry(err_log))
             await _runtime_status(phase="failed", error_summary=str(e)[:180])
             await _status(False)
             return
@@ -3392,7 +3376,7 @@ async def user_send_to_cc(
             source_chat_key="__user__",
             content=full_result,
         )
-        await comm_broadcast.publish(workspace_id, _comm_log_to_dict(reply_log))
+        await comm_broadcast.publish(workspace_id, _comm_log_to_entry(reply_log))
         try:
             await persist_cc_task_memory(
                 workspace_id=workspace_id,
@@ -3467,6 +3451,20 @@ async def force_cancel_comm_task(
 
     cancelled = await client.force_cancel_current_task(workspace_id="default")
 
+    # 如果任务来自某个 NA 频道（非用户直发），同步取消 NA 侧的后台任务
+    # 使任务以 cancel 状态结束，避免 fail 路径触发 NA 侧 AI 误以为是异常并盲目重试
+    if source_chat_key and source_chat_key != "__user__":
+        try:
+            from nekro_agent.services.plugin.task import task as task_api
+
+            na_cancelled = await task_api.cancel("cc_delegate", source_chat_key)
+            if na_cancelled:
+                logger.info(
+                    f"[force_cancel_comm_task] 已同步取消 NA 侧 cc_delegate 任务: chat_key={source_chat_key}"
+                )
+        except Exception as e:
+            logger.warning(f"[force_cancel_comm_task] 取消 NA 侧任务失败: {e}")
+
     # 向 CommTab 广播 SYSTEM 通知，让前端状态及时复位
     try:
         from nekro_agent.models.db_workspace_comm_log import DBWorkspaceCommLog
@@ -3479,7 +3477,7 @@ async def force_cancel_comm_task(
             content=notice,
             is_streaming=False,
         )
-        await comm_broadcast.publish(workspace_id, _comm_log_to_dict(notice_log))
+        await comm_broadcast.publish(workspace_id, _comm_log_to_entry(notice_log))
     except Exception as e:
         logger.warning(f"广播强制中止通知失败: {e}")
 
