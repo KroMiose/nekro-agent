@@ -49,7 +49,7 @@ from nekro_agent.services.workspace.manager import WorkspaceService
 
 router = APIRouter(prefix="/workspaces", tags=["Workspace Knowledge Base"])
 
-ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".pdf", ".docx"}
+ALLOWED_KB_EXTENSIONS = {".md", ".txt", ".html", ".htm", ".json", ".yaml", ".yml", ".csv", ".xlsx", ".pdf", ".docx"}
 
 
 async def _get_workspace_or_404(workspace_id: int) -> DBWorkspace:

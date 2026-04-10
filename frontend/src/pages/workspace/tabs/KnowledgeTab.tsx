@@ -60,7 +60,7 @@ const TEXT_FORMAT_OPTIONS: Array<{ value: 'markdown' | 'text'; label: string }> 
 ]
 
 const EMPTY_DOCUMENTS: KBDocumentDetailResponse['document'][] = []
-const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.pdf', '.docx']
+const SUPPORTED_UPLOAD_EXTENSIONS = ['.md', '.txt', '.html', '.htm', '.json', '.yaml', '.yml', '.csv', '.xlsx', '.pdf', '.docx']
 
 
 function getFileExtension(fileName: string): string {
@@ -918,7 +918,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
               type="file"
               hidden
               onChange={handleFileInputChange}
-              accept=".md,.txt,.html,.htm,.json,.yaml,.yml,.csv,.pdf,.docx"
+              accept=".md,.txt,.html,.htm,.json,.yaml,.yml,.csv,.xlsx,.pdf,.docx"
             />
             <TextField label={t('knowledge.form.title')} fullWidth value={uploadTitle} onChange={event => setUploadTitle(event.target.value)} />
             <TextField label={t('knowledge.form.category')} fullWidth value={uploadCategory} onChange={event => setUploadCategory(event.target.value)} />

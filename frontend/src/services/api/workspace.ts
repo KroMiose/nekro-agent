@@ -137,7 +137,7 @@ export interface WorkspaceListResponse {
   items: WorkspaceSummary[]
 }
 
-export type KBFormat = 'markdown' | 'text' | 'html' | 'json' | 'yaml' | 'csv' | 'pdf' | 'docx'
+export type KBFormat = 'markdown' | 'text' | 'html' | 'json' | 'yaml' | 'csv' | 'xlsx' | 'pdf' | 'docx'
 export type KBStatus = 'pending' | 'extracting' | 'indexing' | 'ready' | 'failed'
 
 export interface KBDocumentListItem {

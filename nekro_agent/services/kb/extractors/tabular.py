@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 
 import json5
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
 
 from .base import ExtractedKBText, clean_text
 
@@ -41,3 +43,50 @@ def extract_csv(file_path: Path) -> ExtractedKBText:
         for key, value in zip(header, row, strict=False):
             rows_text.append(f"- {key}: {value}")
     return ExtractedKBText(text=clean_text("\n".join(rows_text)))
+
+
+def extract_xlsx(file_path: Path) -> ExtractedKBText:
+    workbook = load_workbook(filename=file_path, read_only=True, data_only=True)
+    try:
+        lines: list[str] = []
+
+        for sheet in workbook.worksheets:
+            raw_rows = [
+                ["" if value is None else str(value).strip() for value in row]
+                for row in sheet.iter_rows(values_only=True)
+            ]
+            rows = [row for row in raw_rows if any(cell for cell in row)]
+            if not rows:
+                continue
+
+            header = rows[0]
+            header_labels = [
+                cell if cell else f"Column {get_column_letter(index)}"
+                for index, cell in enumerate(header, start=1)
+            ]
+
+            lines.append(f"# Sheet: {sheet.title}")
+            lines.append("")
+            lines.append("## Header")
+            lines.append(", ".join(header_labels))
+
+            for row_index, row in enumerate(rows[1:], start=1):
+                if not any(cell for cell in row):
+                    continue
+                lines.append("")
+                lines.append(f"## Row {row_index}")
+                for column_index, value in enumerate(row, start=1):
+                    if not value:
+                        continue
+                    key = (
+                        header_labels[column_index - 1]
+                        if column_index - 1 < len(header_labels)
+                        else f"Column {get_column_letter(column_index)}"
+                    )
+                    lines.append(f"- {key}: {value}")
+
+            lines.append("")
+
+        return ExtractedKBText(text=clean_text("\n".join(lines)))
+    finally:
+        workbook.close()

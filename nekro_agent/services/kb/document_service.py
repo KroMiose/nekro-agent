@@ -56,6 +56,7 @@ def detect_format_and_mime(file_name: str) -> tuple[str, str, str]:
         ".yaml": "yaml",
         ".yml": "yaml",
         ".csv": "csv",
+        ".xlsx": "xlsx",
         ".pdf": "pdf",
         ".docx": "docx",
     }

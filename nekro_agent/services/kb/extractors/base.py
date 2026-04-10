@@ -29,6 +29,7 @@ def guess_kb_format(file_name: str) -> str:
         ".yaml": "yaml",
         ".yml": "yaml",
         ".csv": "csv",
+        ".xlsx": "xlsx",
         ".pdf": "pdf",
         ".docx": "docx",
     }.get(suffix, "text")

@@ -2,7 +2,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-KBFormat = Literal["markdown", "text", "html", "json", "yaml", "csv", "pdf", "docx"]
+KBFormat = Literal["markdown", "text", "html", "json", "yaml", "csv", "xlsx", "pdf", "docx"]
 KBStatus = Literal["pending", "extracting", "indexing", "ready", "failed"]
 
 

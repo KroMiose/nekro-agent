@@ -5,7 +5,7 @@ from pathlib import Path
 from .base import ExtractedKBText, guess_kb_format
 from .html import extract_html
 from .office import extract_docx, extract_pdf
-from .tabular import extract_csv, extract_json_like, extract_yaml_like
+from .tabular import extract_csv, extract_json_like, extract_xlsx, extract_yaml_like
 from .text import extract_markdown_or_text
 
 __all__ = [
@@ -27,6 +27,8 @@ def extract_source_file(file_path: Path, file_name: str) -> ExtractedKBText:
         return extract_yaml_like(file_path)
     if detected_format == "csv":
         return extract_csv(file_path)
+    if detected_format == "xlsx":
+        return extract_xlsx(file_path)
     if detected_format == "docx":
         return extract_docx(file_path)
     if detected_format == "pdf":
