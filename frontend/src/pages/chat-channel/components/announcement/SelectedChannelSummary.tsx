@@ -24,7 +24,18 @@ export default function SelectedChannelSummary({
   const { t } = useTranslation('chat-announcement')
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 1,
+        border: theme => `1px solid ${theme.palette.divider}`,
+        borderRadius: 2,
+        px: 1.5,
+        py: 1.25,
+        bgcolor: theme => theme.palette.action.hover,
+      }}
+    >
       <Box
         sx={{
           display: 'flex',
@@ -36,21 +47,25 @@ export default function SelectedChannelSummary({
         <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
           {t('summary.title')}
         </Typography>
-        <Chip
-          size="small"
-          label={channels.length}
-          color="primary"
-          variant="outlined"
-        />
+        <Typography variant="caption" color="text.secondary">
+          {t('summary.count', { count: channels.length })}
+        </Typography>
       </Box>
 
       {channels.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          {t('summary.empty')}
-        </Typography>
+        <Box
+          sx={{
+            py: 1,
+            borderRadius: 1.5,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {t('summary.empty')}
+          </Typography>
+        </Box>
       ) : (
         <>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, maxHeight: 180, overflowY: 'auto' }}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, maxHeight: 120, overflowY: 'auto' }}>
             {channels.map(channel => (
               <Chip
                 key={channel.chat_key}

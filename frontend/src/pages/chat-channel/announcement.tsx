@@ -3,7 +3,6 @@ import {
   Box,
   Card,
   CardContent,
-  Chip,
   CircularProgress,
   Dialog,
   DialogContent,
@@ -11,12 +10,11 @@ import {
   Divider,
   LinearProgress,
   TextField,
+  Tooltip,
   Typography,
-  useTheme,
 } from '@mui/material'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
-import CampaignIcon from '@mui/icons-material/Campaign'
-import { alpha } from '@mui/material/styles'
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   chatChannelApi,
@@ -30,6 +28,7 @@ import ChannelSelectorToolbar from './components/announcement/ChannelSelectorToo
 import ChannelSelectorList from './components/announcement/ChannelSelectorList'
 import SelectedChannelSummary from './components/announcement/SelectedChannelSummary'
 import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 const DEFAULT_PAGE = 1
 const DEFAULT_PAGE_SIZE = 20
@@ -46,7 +45,6 @@ interface SendingState {
 const sleep = (ms: number) => new Promise(resolve => window.setTimeout(resolve, ms))
 
 export default function ChatAnnouncementPage() {
-  const theme = useTheme()
   const notification = useNotification()
   const { t } = useTranslation('chat-announcement')
 
@@ -253,64 +251,6 @@ export default function ChatAnnouncementPage() {
         boxSizing: 'border-box',
       }}
     >
-      <Card
-        sx={{
-          ...CARD_VARIANTS.default.styles,
-          overflow: 'hidden',
-          background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.16)} 0%, ${alpha(theme.palette.info.main, 0.08)} 55%, transparent 100%)`,
-        }}
-      >
-        <CardContent
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'space-between',
-            gap: 2,
-            alignItems: 'flex-start',
-          }}
-        >
-          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                bgcolor: alpha(theme.palette.primary.main, 0.14),
-                color: 'primary.main',
-                flexShrink: 0,
-              }}
-            >
-              <CampaignIcon />
-            </Box>
-
-            <Box>
-              <Typography variant="h5" sx={{ fontWeight: 800, mb: 0.5 }}>
-                {t('title')}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {t('subtitle')}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-            <Chip
-              color="primary"
-              variant="outlined"
-              label={t('stats.selected', { count: selectedChannelList.length })}
-            />
-            <Chip
-              color="info"
-              variant="outlined"
-              label={t('stats.filtered', { count: data?.total ?? 0 })}
-            />
-          </Box>
-        </CardContent>
-      </Card>
-
       <Dialog
         open={Boolean(sendingState)}
         fullWidth
@@ -436,6 +376,27 @@ export default function ChatAnnouncementPage() {
             }}
             loading={isLoading}
             showFirstLastPageButtons={true}
+            sx={{
+              width: '100%',
+              overflow: 'hidden',
+              '.MuiTablePagination-toolbar': {
+                minHeight: 52,
+                px: 1,
+                gap: 0.5,
+                flexWrap: { xs: 'wrap', md: 'nowrap' },
+              },
+              '.MuiTablePagination-spacer': {
+                display: { xs: 'none', md: 'block' },
+              },
+              '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+                margin: 0,
+                flexShrink: 0,
+              },
+              '.MuiTablePagination-actions': {
+                marginLeft: 'auto',
+                flexShrink: 0,
+              },
+            }}
           />
         </Card>
 
@@ -443,14 +404,12 @@ export default function ChatAnnouncementPage() {
           sx={{
             display: 'flex',
             flexDirection: 'column',
-            gap: 2,
             minHeight: 0,
-            overflowY: 'auto',
             pr: { xl: 0.5 },
           }}
         >
-          <Card sx={CARD_VARIANTS.default.styles}>
-            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+          <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1, minHeight: 0 }}>
+            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, height: '100%', minHeight: 0 }}>
               <Box
                 sx={{
                   display: 'flex',
@@ -460,106 +419,131 @@ export default function ChatAnnouncementPage() {
                   alignItems: 'center',
                 }}
               >
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {t('composer.title')}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {t('composer.title')}
+                  </Typography>
+                  <Tooltip title={t('subtitle')} arrow placement="top">
+                    <span>
+                      <IconActionButton
+                        size="small"
+                        aria-label={t('composer.help')}
+                      >
+                        <InfoOutlinedIcon fontSize="small" />
+                      </IconActionButton>
+                    </span>
+                  </Tooltip>
+                </Box>
+
+                <Typography variant="body2" color="text.secondary">
+                  {t('composer.selectionSummary', {
+                    selected: selectedChannelList.length,
+                    filtered: data?.total ?? 0,
+                  })}
                 </Typography>
               </Box>
 
-              <TextField
-                fullWidth
-                multiline
-                minRows={5}
-                maxRows={10}
-                label={t('composer.messageLabel')}
-                placeholder={t('composer.messagePlaceholder')}
-                value={message}
-                onChange={event => setMessage(event.target.value)}
-              />
-
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  gap: 1,
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                }}
-              >
-                <Typography variant="caption" color="text.secondary">
-                  {t('composer.helper')}
-                </Typography>
-                <Chip
-                  size="small"
-                  color={trimmedMessage ? 'success' : 'default'}
-                  variant="outlined"
-                  label={t('composer.length', { count: trimmedMessage.length })}
-                />
-              </Box>
-            </CardContent>
-          </Card>
-
-          <Card sx={{ ...CARD_VARIANTS.default.styles, minHeight: 0 }}>
-            <CardContent>
               <SelectedChannelSummary
                 channels={selectedChannelList}
                 onRemove={removeSelectedChannel}
                 onClear={clearSelection}
               />
+
+              <Divider />
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 1.25,
+                  flex: 1,
+                  minHeight: { xs: 260, xl: 320 },
+                }}
+              >
+                <TextField
+                  fullWidth
+                  multiline
+                  label={t('composer.messageLabel')}
+                  placeholder={t('composer.messagePlaceholder')}
+                  value={message}
+                  onChange={event => setMessage(event.target.value)}
+                  sx={{
+                    flex: 1,
+                    minHeight: 0,
+                    '& .MuiInputBase-root': {
+                      height: '100%',
+                      alignItems: 'flex-start',
+                    },
+                    '& .MuiInputBase-inputMultiline': {
+                      height: '100% !important',
+                      overflow: 'auto !important',
+                    },
+                  }}
+                />
+
+                <Box
+                  sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: 1,
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                  }}
+                >
+                  <Typography variant="caption" color="text.secondary">
+                    {t('composer.helper')}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {t('composer.length', { count: trimmedMessage.length })}
+                  </Typography>
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 1.5,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {t('composer.actionTitle')}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedChannelList.length > 0
+                      ? t('composer.actionReady', {
+                          channels: selectedChannelList.length,
+                          count: trimmedMessage.length,
+                        })
+                      : t('composer.selectionRequired')}
+                  </Typography>
+                </Box>
+
+                <ActionButton
+                  tone="primary"
+                  size="medium"
+                  startIcon={<SendRoundedIcon />}
+                  onClick={handleSend}
+                  disabled={announcementMutation.isPending}
+                  sx={{
+                    minWidth: { xs: '100%', sm: 220 },
+                  }}
+                >
+                  {announcementMutation.isPending
+                    ? t('composer.sending')
+                    : t('composer.send', { count: selectedChannelList.length })}
+                </ActionButton>
+              </Box>
             </CardContent>
           </Card>
         </Box>
       </Box>
 
-      <Card
-        sx={{
-          ...CARD_VARIANTS.glassmorphism.styles,
-          position: 'sticky',
-          bottom: 0,
-          zIndex: 2,
-          borderRadius: '20px',
-          boxShadow: theme.shadows[8],
-        }}
-      >
-        <CardContent
-          sx={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 1.5,
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-              {t('composer.actionTitle')}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {selectedChannelList.length > 0
-                ? t('composer.actionReady', {
-                    channels: selectedChannelList.length,
-                    count: trimmedMessage.length,
-                  })
-                : t('composer.selectionRequired')}
-            </Typography>
-          </Box>
-
-          <ActionButton
-            tone="primary"
-            size="medium"
-            startIcon={<SendRoundedIcon />}
-            onClick={handleSend}
-            disabled={announcementMutation.isPending}
-            sx={{
-              minWidth: { xs: '100%', sm: 220 },
-              borderRadius: '12px',
-            }}
-          >
-            {announcementMutation.isPending
-              ? t('composer.sending')
-              : t('composer.send', { count: selectedChannelList.length })}
-          </ActionButton>
-        </CardContent>
-      </Card>
     </Box>
   )
 }

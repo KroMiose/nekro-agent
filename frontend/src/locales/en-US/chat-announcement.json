@@ -1,6 +1,6 @@
 {
   "title": "Bot Announcement",
-  "subtitle": "Send the same announcement to multiple channels. Invisible to AI context and invisible in UI.",
+  "subtitle": "Send the same message to multiple channels without writing it into AI context or WebUI conversation history.",
   "stats": {
     "selected": "{{count}} channels selected",
     "filtered": "{{count}} channels in current filter"
@@ -32,17 +32,20 @@
   "summary": {
     "title": "Selected Channels",
     "empty": "No channels selected yet",
-    "clear": "Clear"
+    "clear": "Clear",
+    "count": "{{count}} channels"
   },
   "composer": {
     "title": "Announcement Content",
+    "help": "Announcement details",
     "identity": "Sender: Bot",
     "messageLabel": "Announcement Message",
     "messagePlaceholder": "Type the announcement to send...",
     "helper": "Announcements are sent channel by channel and show live progress while sending.",
     "length": "{{count}} chars",
+    "selectionSummary": "{{selected}} channels selected, {{filtered}} channels in the current filter.",
     "actionTitle": "Ready to send",
-    "actionReady": "{{channels}} channels selected, {{count}} chars in the message. Use the bottom button to send.",
+    "actionReady": "{{channels}} channels selected, {{count}} chars in the message.",
     "send": "Send to {{count}} channels",
     "sending": "Sending...",
     "messageRequired": "Please enter a message to send",

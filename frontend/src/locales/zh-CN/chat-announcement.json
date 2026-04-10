@@ -1,6 +1,6 @@
 {
   "title": "机器人公告",
-  "subtitle": "向多个频道发送统一的公告消息，AI上下文不可见，UI不可见。",
+  "subtitle": "向多个频道发送统一消息，不写入 AI 上下文，也不显示在 WebUI 对话历史中。",
   "stats": {
     "selected": "已选 {{count}} 个频道",
     "filtered": "当前筛选 {{count}} 个频道"
@@ -32,17 +32,20 @@
   "summary": {
     "title": "已选频道",
     "empty": "还没有选择任何频道",
-    "clear": "清空"
+    "clear": "清空",
+    "count": "{{count}} 个频道"
   },
   "composer": {
     "title": "公告内容",
+    "help": "公告说明",
     "identity": "发送身份：Bot",
     "messageLabel": "公告消息",
     "messagePlaceholder": "输入要发送的公告内容...",
     "helper": "公告会按频道逐个发送，发送过程中会显示实时进度。",
     "length": "已输入 {{count}} 字",
+    "selectionSummary": "已选 {{selected}} 个频道，当前筛选结果 {{filtered}} 个频道。",
     "actionTitle": "确认后点击这里发送",
-    "actionReady": "已选 {{channels}} 个频道，当前消息 {{count}} 字。底部按钮可直接发送。",
+    "actionReady": "已选 {{channels}} 个频道，当前消息 {{count}} 字。",
     "send": "发送到 {{count}} 个频道",
     "sending": "发送中...",
     "messageRequired": "请输入要发送的消息",

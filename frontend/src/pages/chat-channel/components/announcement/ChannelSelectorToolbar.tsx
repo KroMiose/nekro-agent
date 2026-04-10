@@ -99,15 +99,6 @@ export default function ChannelSelectorToolbar({
 
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
           <ActionButton
-            tone="secondary"
-            size="small"
-            startIcon={<DoneAllIcon />}
-            onClick={onSelectVisible}
-            disabled={visibleCount === 0}
-          >
-            {t('selector.selectVisible')}
-          </ActionButton>
-          <ActionButton
             tone="ghost"
             size="small"
             startIcon={<BackspaceIcon />}
@@ -115,6 +106,15 @@ export default function ChannelSelectorToolbar({
             disabled={selectedCount === 0}
           >
             {t('selector.clearSelection')}
+          </ActionButton>
+          <ActionButton
+            tone="secondary"
+            size="small"
+            startIcon={<DoneAllIcon />}
+            onClick={onSelectVisible}
+            disabled={visibleCount === 0}
+          >
+            {t('selector.selectVisible')}
           </ActionButton>
         </Box>
       </Box>
