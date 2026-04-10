@@ -166,7 +166,7 @@ const router = createHashRouter([
           },
           {
             path: 'commands',
-            element: <Navigate to="/commands/management" replace />,
+            element: lazyLoad(() => import('../pages/settings/commands')),
           },
         ],
       },
@@ -175,15 +175,15 @@ const router = createHashRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="management" />,
+            element: <Navigate to="/settings/commands" replace />,
           },
           {
             path: 'management',
-            element: lazyLoad(() => import('../pages/settings/commands')),
+            element: <Navigate to="/settings/commands" replace />,
           },
           {
             path: 'output',
-            element: lazyLoad(() => import('../pages/commands/output')),
+            element: <Navigate to="/settings/commands?focus=execute" replace />,
           },
         ],
       },

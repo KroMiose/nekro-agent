@@ -318,6 +318,22 @@
     }
   },
   "commands": {
+    "center": {
+      "title": "Command Center",
+      "catalogTitle": "Command Catalog",
+      "detailTitle": "Command Details",
+      "selectHint": "Select a command on the left to view its information here.",
+      "executeTitle": "Run"
+    },
+    "scope": {
+      "label": "Management Scope",
+      "system": "System Default",
+      "channel": "Specific Channel",
+      "channelSelector": "Management Channel"
+    },
+    "common": {
+      "loadingChannels": "Loading channels..."
+    },
     "search": "Search commands...",
     "total": "{{count}} commands",
     "loading": "Loading...",
@@ -326,10 +342,21 @@
     "filters": {
       "category": "Category",
       "source": "Source",
+      "permission": "Permission",
       "all": "All"
     },
     "sources": {
-      "builtIn": "Built-in"
+      "builtIn": "Built-in",
+      "plugin": "Plugin"
+    },
+    "state": {
+      "systemEnabled": "System Enabled",
+      "systemDisabled": "System Disabled",
+      "inheritedEnabled": "Inherited Enabled",
+      "inheritedDisabled": "Inherited Disabled",
+      "channelEnabled": "Channel Override Enabled",
+      "channelDisabled": "Channel Override Disabled",
+      "channelOverride": "Channel Override"
     },
     "table": {
       "name": "Name",
@@ -344,10 +371,13 @@
       "namespace": "Namespace",
       "usage": "Usage",
       "aliases": "Aliases",
-      "params": "Parameters"
+      "params": "Parameters",
+      "noParams": "No additional parameter notes"
     },
     "actions": {
-      "reset": "Reset to default"
+      "reset": "Reset to default",
+      "enable": "Enable Command",
+      "disable": "Disable Command"
     },
     "permissions": {
       "public": "Public",
@@ -359,7 +389,17 @@
       "toggleSuccess": "Command state updated",
       "toggleFailed": "Update failed",
       "resetSuccess": "Command state reset",
-      "resetFailed": "Reset failed"
+      "resetFailed": "Reset failed",
+      "executeSent": "Command sent, waiting for output",
+      "executeFailed": "Command execution failed"
+    },
+    "execute": {
+      "channel": "Execution Channel",
+      "placeholder": "Enter a command, e.g. help or help args",
+      "run": "Run",
+      "selectChannelHint": "Select an execution channel before sending a command.",
+      "invalidCommand": "The current input is not enabled in the selected channel, or the command does not exist.",
+      "logHint": "Select a channel to view live command output here."
     }
   },
   "spaceCleanup": {
