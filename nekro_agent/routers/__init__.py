@@ -33,6 +33,7 @@ from .config import router as config_router
 from .dashboard import router as dashboard_router
 from .email import router as email_router
 from .events import router as events_router
+from .kb_library import router as kb_library_router
 from .logs import router as logs_router
 from .mcp import router as mcp_router
 from .plugin_editor import router as plugin_editor_router
@@ -148,6 +149,7 @@ def mount_api_routes(app: FastAPI):
     api.include_router(timers_router)
     api.include_router(workspaces_router)
     api.include_router(workspace_kb_router)
+    api.include_router(kb_library_router)
     api.include_router(skills_router)
     api.include_router(cc_model_presets_router)
     api.include_router(events_router)

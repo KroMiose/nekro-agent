@@ -35,6 +35,7 @@
     "resourceCenter": "资源中心",
     "ccModels": "CC 模型配置",
     "mcpServices": "MCP 服务",
+    "kbLibrary": "全局知识库",
     "timers": "定时任务"
   },
   "footer": {

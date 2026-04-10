@@ -300,6 +300,60 @@ export interface KBUploadFilePayload {
   is_enabled?: boolean
 }
 
+export type UploadProgressCallback = (percent: number) => void
+
+export interface KBAssetBoundWorkspace {
+  workspace_id: number
+  workspace_name: string
+  workspace_status: string
+}
+
+export interface KBAssetListItem {
+  id: number
+  title: string
+  category: string
+  tags: string[]
+  summary: string
+  file_name: string
+  file_ext: string
+  mime_type: string
+  format: KBFormat
+  source_path: string
+  is_enabled: boolean
+  extract_status: KBStatus
+  sync_status: KBStatus
+  chunk_count: number
+  file_size: number
+  last_error: string | null
+  last_indexed_at: string | null
+  binding_count: number
+  bound_workspaces: KBAssetBoundWorkspace[]
+  update_time: string
+  create_time: string
+}
+
+export interface KBAssetListResponse {
+  total: number
+  items: KBAssetListItem[]
+}
+
+export interface KBAssetDetailResponse {
+  asset: KBAssetListItem
+  source_content: string | null
+  normalized_content: string | null
+}
+
+export interface KBAssetUploadResponse {
+  asset: KBAssetListItem
+  reused_existing: boolean
+}
+
+export interface KBAssetBindingsResponse {
+  asset_id: number
+  binding_count: number
+  items: KBAssetBoundWorkspace[]
+}
+
 // ── MCP 结构化类型 ──
 
 export type McpServerType = 'stdio' | 'sse' | 'http'
@@ -703,7 +757,11 @@ export const knowledgeBaseApi = {
     return response.data
   },
 
-  uploadFile: async (workspaceId: number, payload: KBUploadFilePayload): Promise<KBDocumentDetailResponse> => {
+  uploadFile: async (
+    workspaceId: number,
+    payload: KBUploadFilePayload,
+    onProgress?: UploadProgressCallback,
+  ): Promise<KBDocumentDetailResponse> => {
     const formData = new FormData()
     formData.append('file', payload.file)
     if (payload.title) formData.append('title', payload.title)
@@ -714,6 +772,10 @@ export const knowledgeBaseApi = {
     formData.append('is_enabled', String(payload.is_enabled ?? true))
     const response = await axios.post<KBDocumentDetailResponse>(`/workspaces/${workspaceId}/kb/files`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: event => {
+        if (!onProgress || !event.total) return
+        onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))))
+      },
     })
     return response.data
   },
@@ -758,6 +820,74 @@ export const knowledgeBaseApi = {
     documentId: number,
   ): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> => {
     const response = await axios.get<Blob>(`/workspaces/${workspaceId}/kb/documents/${documentId}/raw`, {
+      responseType: 'blob',
+    })
+    const disposition = response.headers['content-disposition'] as string | undefined
+    const match = disposition?.match(/filename="?([^"]+)"?/)
+    return {
+      blob: response.data,
+      filename: match?.[1] ?? null,
+      contentType: response.headers['content-type'] as string | null,
+    }
+  },
+}
+
+export const kbLibraryApi = {
+  list: async (): Promise<KBAssetListItem[]> => {
+    const response = await axios.get<KBAssetListResponse>('/kb-library/assets')
+    return response.data.items
+  },
+
+  getAsset: async (assetId: number): Promise<KBAssetDetailResponse> => {
+    const response = await axios.get<KBAssetDetailResponse>(`/kb-library/assets/${assetId}`)
+    return response.data
+  },
+
+  uploadFile: async (
+    payload: KBUploadFilePayload,
+    onProgress?: UploadProgressCallback,
+  ): Promise<KBAssetUploadResponse> => {
+    const formData = new FormData()
+    formData.append('file', payload.file)
+    if (payload.title) formData.append('title', payload.title)
+    if (payload.source_path) formData.append('source_path', payload.source_path)
+    if (payload.category) formData.append('category', payload.category)
+    if (payload.summary) formData.append('summary', payload.summary)
+    if (payload.tags?.length) formData.append('tags', payload.tags.join(','))
+    formData.append('is_enabled', String(payload.is_enabled ?? true))
+
+    const response = await axios.post<KBAssetUploadResponse>('/kb-library/assets/files', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: event => {
+        if (!onProgress || !event.total) return
+        onProgress(Math.max(0, Math.min(100, Math.round((event.loaded / event.total) * 100))))
+      },
+    })
+    return response.data
+  },
+
+  deleteAsset: async (assetId: number): Promise<void> => {
+    await axios.delete(`/kb-library/assets/${assetId}`)
+  },
+
+  reindexAsset: async (assetId: number): Promise<void> => {
+    await axios.post(`/kb-library/assets/${assetId}/reindex`)
+  },
+
+  getBindings: async (assetId: number): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.get<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings`)
+    return response.data
+  },
+
+  updateBindings: async (assetId: number, workspaceIds: number[]): Promise<KBAssetBindingsResponse> => {
+    const response = await axios.put<KBAssetBindingsResponse>(`/kb-library/assets/${assetId}/bindings`, {
+      workspace_ids: workspaceIds,
+    })
+    return response.data
+  },
+
+  downloadRawFile: async (assetId: number): Promise<{ blob: Blob; filename: string | null; contentType: string | null }> => {
+    const response = await axios.get<Blob>(`/kb-library/assets/${assetId}/raw`, {
       responseType: 'blob',
     })
     const disposition = response.headers['content-disposition'] as string | undefined

@@ -1159,6 +1159,109 @@
       "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
     }
   },
+  "kbLibrary": {
+    "title": "全局知识库",
+    "description": "集中管理可被多个工作区复用的知识文件。文件只需导入一次，再按需绑定到不同工作区，减少重复上传和重复索引消耗。",
+    "actions": {
+      "refresh": "刷新",
+      "upload": "上传文件",
+      "chooseFile": "选择文件",
+      "clearFilters": "清空筛选",
+      "bind": "绑定工作区",
+      "saveBindings": "保存绑定",
+      "reindex": "重建索引",
+      "downloadRaw": "下载原文件",
+      "delete": "删除文件",
+      "cancel": "取消"
+    },
+    "stats": {
+      "total": "文件总数",
+      "ready": "可复用",
+      "indexing": "处理中",
+      "bindings": "工作区绑定"
+    },
+    "status": {
+      "all": "全部",
+      "ready": "已就绪",
+      "indexing": "处理中",
+      "failed": "失败"
+    },
+    "filter": {
+      "all": "全部",
+      "ready": "已就绪",
+      "indexing": "处理中",
+      "failed": "失败"
+    },
+    "search": {
+      "placeholder": "搜索标题、路径、分类、摘要或标签"
+    },
+    "list": {
+      "total": "共 {{count}} 份文件",
+      "bindingCount": "绑定 {{count}} 个工作区",
+      "noSummary": "暂无摘要"
+    },
+    "empty": {
+      "title": "还没有全局知识库文件",
+      "noMatch": "没有匹配到文件"
+    },
+    "detail": {
+      "noSelection": "请选择左侧文件查看详情。",
+      "loadFailed": "文件详情加载失败。",
+      "meta": "文件信息",
+      "chunkCount": "Chunk {{count}}",
+      "fileSize": "大小 {{value}}",
+      "updatedAt": "更新于 {{value}}",
+      "noBindings": "尚未绑定任何工作区",
+      "preview": "内容预览"
+    },
+    "preview": {
+      "normalized": "规范化全文",
+      "source": "原始文本",
+      "empty": "当前视图暂无可展示内容。"
+    },
+    "progress": {
+      "title": "索引进度",
+      "pending": "正在准备索引任务…",
+      "detail": "已处理 {{processed}} / {{total}} 个 chunk",
+      "phase": {
+        "queued": "排队中",
+        "extracting": "抽取中",
+        "chunking": "切块中",
+        "embedding": "向量化中",
+        "upserting": "写入索引中",
+        "ready": "已完成",
+        "failed": "失败"
+      }
+    },
+    "form": {
+      "title": "标题",
+      "category": "分类",
+      "tags": "标签",
+      "summary": "摘要",
+      "supportedFormats": "支持上传的文件格式：{{formats}}",
+      "bindWorkspaces": "绑定到工作区"
+    },
+    "dialogs": {
+      "uploadTitle": "上传全局知识库文件",
+      "bindTitle": "绑定工作区",
+      "bindHint": "选择需要复用这份文件的工作区。绑定后，工作区即可直接使用该文件而无需再次上传。",
+      "deleteTitle": "删除全局知识库文件",
+      "deleteContent": "确定要删除文件“{{title}}”吗？如果仍有工作区绑定，需要先解除绑定。"
+    },
+    "notifications": {
+      "uploadSuccess": "文件已上传并进入索引流程",
+      "uploadReused": "检测到相同文件内容，已复用现有文件",
+      "uploadFailed": "上传失败：{{message}}",
+      "reindexSuccess": "文件索引已进入重建流程",
+      "reindexFailed": "重建失败：{{message}}",
+      "deleteSuccess": "文件已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "bindSuccess": "工作区绑定已更新",
+      "bindFailed": "绑定失败：{{message}}",
+      "downloadFailed": "下载失败：{{message}}",
+      "unsupportedFormat": "文件 {{name}} 格式不受支持，仅支持：{{formats}}"
+    }
+  },
   "timers": {
     "title": "定时任务",
     "description": "统一查看一次性提醒与周期任务，并按工作区联动管理。",

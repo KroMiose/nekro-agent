@@ -1159,6 +1159,109 @@
       "unsupportedFormat": "File {{name}} is not supported. Supported formats: {{formats}}"
     }
   },
+  "kbLibrary": {
+    "title": "Knowledge Library",
+    "description": "Manage reusable knowledge files in one place. Import once, bind to multiple workspaces on demand, and avoid repeated uploads and repeated indexing costs.",
+    "actions": {
+      "refresh": "Refresh",
+      "upload": "Upload File",
+      "chooseFile": "Choose File",
+      "clearFilters": "Clear Filters",
+      "bind": "Bind Workspaces",
+      "saveBindings": "Save Bindings",
+      "reindex": "Reindex",
+      "downloadRaw": "Download Raw",
+      "delete": "Delete File",
+      "cancel": "Cancel"
+    },
+    "stats": {
+      "total": "Files",
+      "ready": "Reusable",
+      "indexing": "Processing",
+      "bindings": "Workspace Bindings"
+    },
+    "status": {
+      "all": "All",
+      "ready": "Ready",
+      "indexing": "Processing",
+      "failed": "Failed"
+    },
+    "filter": {
+      "all": "All",
+      "ready": "Ready",
+      "indexing": "Processing",
+      "failed": "Failed"
+    },
+    "search": {
+      "placeholder": "Search by title, path, category, summary, or tags"
+    },
+    "list": {
+      "total": "{{count}} files",
+      "bindingCount": "{{count}} workspaces",
+      "noSummary": "No summary"
+    },
+    "empty": {
+      "title": "No global knowledge files yet",
+      "noMatch": "No matching files"
+    },
+    "detail": {
+      "noSelection": "Select a file on the left to view details.",
+      "loadFailed": "Failed to load file detail.",
+      "meta": "File Info",
+      "chunkCount": "{{count}} chunks",
+      "fileSize": "Size {{value}}",
+      "updatedAt": "Updated {{value}}",
+      "noBindings": "Not bound to any workspace yet",
+      "preview": "Preview"
+    },
+    "preview": {
+      "normalized": "Normalized Text",
+      "source": "Source Text",
+      "empty": "No content available in the current view."
+    },
+    "progress": {
+      "title": "Index Progress",
+      "pending": "Preparing the indexing task…",
+      "detail": "Processed {{processed}} / {{total}} chunks",
+      "phase": {
+        "queued": "Queued",
+        "extracting": "Extracting",
+        "chunking": "Chunking",
+        "embedding": "Embedding",
+        "upserting": "Writing Index",
+        "ready": "Completed",
+        "failed": "Failed"
+      }
+    },
+    "form": {
+      "title": "Title",
+      "category": "Category",
+      "tags": "Tags",
+      "summary": "Summary",
+      "supportedFormats": "Supported upload formats: {{formats}}",
+      "bindWorkspaces": "Bind to Workspaces"
+    },
+    "dialogs": {
+      "uploadTitle": "Upload Global Knowledge File",
+      "bindTitle": "Bind Workspaces",
+      "bindHint": "Choose the workspaces that should reuse this file. After binding, the workspaces can use it directly without re-uploading.",
+      "deleteTitle": "Delete Global Knowledge File",
+      "deleteContent": "Delete file \"{{title}}\"? If it is still bound to workspaces, unbind it first."
+    },
+    "notifications": {
+      "uploadSuccess": "File uploaded and queued for indexing",
+      "uploadReused": "Identical file content detected, reused the existing file",
+      "uploadFailed": "Upload failed: {{message}}",
+      "reindexSuccess": "File reindex queued",
+      "reindexFailed": "Reindex failed: {{message}}",
+      "deleteSuccess": "File deleted",
+      "deleteFailed": "Delete failed: {{message}}",
+      "bindSuccess": "Workspace bindings updated",
+      "bindFailed": "Binding failed: {{message}}",
+      "downloadFailed": "Download failed: {{message}}",
+      "unsupportedFormat": "File {{name}} is not supported. Supported: {{formats}}"
+    }
+  },
   "timers": {
     "title": "Timers",
     "description": "View one-shot reminders and recurring jobs in one place, with workspace-aware linkage.",

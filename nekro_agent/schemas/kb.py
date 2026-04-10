@@ -198,3 +198,59 @@ class KBSourceFileResponse(BaseModel):
     source_path: str
     source_workspace_path: str
     sandbox_file_path: Optional[str] = None
+
+
+class KBAssetBoundWorkspace(BaseModel):
+    workspace_id: int
+    workspace_name: str
+    workspace_status: str
+
+
+class KBAssetListItem(BaseModel):
+    id: int
+    title: str
+    category: str
+    tags: list[str] = Field(default_factory=list)
+    summary: str = ""
+    file_name: str
+    file_ext: str
+    mime_type: str
+    format: KBFormat
+    source_path: str
+    is_enabled: bool
+    extract_status: KBStatus
+    sync_status: KBStatus
+    chunk_count: int
+    file_size: int
+    last_error: Optional[str] = None
+    last_indexed_at: Optional[str] = None
+    binding_count: int = 0
+    bound_workspaces: list[KBAssetBoundWorkspace] = Field(default_factory=list)
+    update_time: str
+    create_time: str
+
+
+class KBAssetListResponse(BaseModel):
+    total: int
+    items: list[KBAssetListItem] = Field(default_factory=list)
+
+
+class KBAssetDetailResponse(BaseModel):
+    asset: KBAssetListItem
+    source_content: Optional[str] = None
+    normalized_content: Optional[str] = None
+
+
+class KBAssetUploadResponse(BaseModel):
+    asset: KBAssetListItem
+    reused_existing: bool = False
+
+
+class KBAssetBindingsUpdateBody(BaseModel):
+    workspace_ids: list[int] = Field(default_factory=list)
+
+
+class KBAssetBindingsResponse(BaseModel):
+    asset_id: int
+    binding_count: int = 0
+    items: list[KBAssetBoundWorkspace] = Field(default_factory=list)

@@ -113,6 +113,21 @@ interface KbIndexProgressPayload {
   error_summary: string
 }
 
+interface KbLibraryIndexProgressPayload {
+  asset_id: number
+  active: boolean
+  title: string
+  source_path: string
+  phase: 'queued' | 'extracting' | 'chunking' | 'embedding' | 'upserting' | 'ready' | 'failed'
+  started_at: number
+  updated_at: number
+  progress_percent: number
+  total_chunks: number
+  processed_chunks: number
+  expires_in_ms: number
+  error_summary: string
+}
+
 interface WorkspaceStatusEvent extends WorkspaceStatusPayload {
   type: 'workspace_status'
 }
@@ -141,6 +156,10 @@ interface KbIndexProgressEvent extends KbIndexProgressPayload {
   type: 'kb_index_progress'
 }
 
+interface KbLibraryIndexProgressEvent extends KbLibraryIndexProgressPayload {
+  type: 'kb_library_index_progress'
+}
+
 interface SnapshotData {
   workspace_status?: Record<string, WorkspaceStatusPayload>
   workspace_cc_active?: Record<string, WorkspaceCcActivePayload>
@@ -149,6 +168,7 @@ interface SnapshotData {
   agent_runtime_status?: Record<string, AgentRuntimePhasePayload>
   memory_recall_activity?: Record<string, MemoryRecallActivityPayload>
   kb_index_progress?: Record<string, KbIndexProgressPayload>
+  kb_library_index_progress?: Record<string, KbLibraryIndexProgressPayload>
 }
 
 interface SnapshotEvent {
@@ -164,6 +184,7 @@ type SystemEvent =
   | AgentRuntimeStatusEvent
   | MemoryRecallActivityEvent
   | KbIndexProgressEvent
+  | KbLibraryIndexProgressEvent
   | SnapshotEvent
 
 export interface WorkspaceStatusSnapshot {
@@ -256,6 +277,20 @@ export interface KbIndexProgressInfo {
   error_summary: string
 }
 
+export interface KbLibraryIndexProgressInfo {
+  asset_id: number
+  title: string
+  source_path: string
+  phase: 'queued' | 'extracting' | 'chunking' | 'embedding' | 'upserting' | 'ready' | 'failed'
+  started_at: number
+  updated_at: number
+  progress_percent: number
+  total_chunks: number
+  processed_chunks: number
+  expires_in_ms: number
+  error_summary: string
+}
+
 export interface SystemEvents {
   workspaceStatuses: Map<number, WorkspaceStatusSnapshot>
   workspaceCcActive: Map<number, WorkspaceCcActiveInfo>
@@ -264,6 +299,7 @@ export interface SystemEvents {
   agentRuntimeStatuses: Map<string, AgentRuntimeStatusInfo>
   memoryRecallActivities: Map<string, MemoryRecallActivityInfo>
   kbIndexProgresses: Map<string, KbIndexProgressInfo>
+  kbLibraryIndexProgresses: Map<number, KbLibraryIndexProgressInfo>
 }
 
 export const EMPTY_SYSTEM_EVENTS: SystemEvents = {
@@ -274,6 +310,7 @@ export const EMPTY_SYSTEM_EVENTS: SystemEvents = {
   agentRuntimeStatuses: new Map(),
   memoryRecallActivities: new Map(),
   kbIndexProgresses: new Map(),
+  kbLibraryIndexProgresses: new Map(),
 }
 
 const DEFAULT_TTL = 300_000
@@ -299,11 +336,13 @@ export function useSystemEvents(): SystemEvents {
   const [agentRuntimeStatuses, setAgentRuntimeStatuses] = useState<Map<string, AgentRuntimeStatusInfo>>(new Map())
   const [memoryRecallActivities, setMemoryRecallActivities] = useState<Map<string, MemoryRecallActivityInfo>>(new Map())
   const [kbIndexProgresses, setKbIndexProgresses] = useState<Map<string, KbIndexProgressInfo>>(new Map())
+  const [kbLibraryIndexProgresses, setKbLibraryIndexProgresses] = useState<Map<number, KbLibraryIndexProgressInfo>>(new Map())
 
   const ccTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const agentTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const recallTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
   const kbIndexTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
+  const kbLibraryIndexTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   useEffect(() => {
     const clearTimers = <T,>(timers: Map<T, ReturnType<typeof setTimeout>>) => {
@@ -518,6 +557,23 @@ export function useSystemEvents(): SystemEvents {
       return true
     }
 
+    const scheduleKbLibraryIndexExpiry = (assetId: number, startedAt: number, ttlMs: number, now: number) => {
+      const remaining = getRemainingMs(startedAt, ttlMs, now)
+      if (remaining <= 0) {
+        return false
+      }
+      const timer = setTimeout(() => {
+        setKbLibraryIndexProgresses(prev => {
+          const next = new Map(prev)
+          next.delete(assetId)
+          return next
+        })
+        kbLibraryIndexTimers.current.delete(assetId)
+      }, remaining)
+      kbLibraryIndexTimers.current.set(assetId, timer)
+      return true
+    }
+
     const applySnapshotKbIndexProgress = (entries: Record<string, KbIndexProgressPayload>) => {
       clearTimers(kbIndexTimers.current)
       const next = new Map<string, KbIndexProgressInfo>()
@@ -550,6 +606,38 @@ export function useSystemEvents(): SystemEvents {
         }
       }
       setKbIndexProgresses(next)
+    }
+
+    const applySnapshotKbLibraryIndexProgress = (entries: Record<string, KbLibraryIndexProgressPayload>) => {
+      clearTimers(kbLibraryIndexTimers.current)
+      const next = new Map<number, KbLibraryIndexProgressInfo>()
+      const now = Date.now()
+      for (const value of Object.values(entries)) {
+        if (!value.active) continue
+        const ttlMs = value.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+        const startedAt = normalizeStartedAt(value.started_at, now)
+        const info: KbLibraryIndexProgressInfo = {
+          asset_id: value.asset_id,
+          title: value.title,
+          source_path: value.source_path,
+          phase: value.phase,
+          started_at: startedAt,
+          updated_at: value.updated_at,
+          progress_percent: value.progress_percent ?? 0,
+          total_chunks: value.total_chunks ?? 0,
+          processed_chunks: value.processed_chunks ?? 0,
+          expires_in_ms: ttlMs,
+          error_summary: value.error_summary ?? '',
+        }
+        if (value.phase === 'ready' || value.phase === 'failed') {
+          if (scheduleKbLibraryIndexExpiry(value.asset_id, startedAt, ttlMs, now)) {
+            next.set(value.asset_id, info)
+          }
+        } else {
+          next.set(value.asset_id, info)
+        }
+      }
+      setKbLibraryIndexProgresses(next)
     }
 
     const handleWorkspaceCcActiveDelta = (event: WorkspaceCcActiveEvent) => {
@@ -768,6 +856,50 @@ export function useSystemEvents(): SystemEvents {
       setKbIndexProgresses(prev => new Map(prev).set(key, info))
     }
 
+    const handleKbLibraryIndexProgressDelta = (event: KbLibraryIndexProgressEvent) => {
+      const assetId = event.asset_id
+      const oldTimer = kbLibraryIndexTimers.current.get(assetId)
+      if (oldTimer !== undefined) clearTimeout(oldTimer)
+      kbLibraryIndexTimers.current.delete(assetId)
+
+      if (!event.active) {
+        setKbLibraryIndexProgresses(prev => {
+          const next = new Map(prev)
+          next.delete(assetId)
+          return next
+        })
+        return
+      }
+
+      const now = Date.now()
+      const ttlMs = event.expires_in_ms ?? DEFAULT_MEMORY_RECALL_TTL
+      const startedAt = normalizeStartedAt(event.started_at, now)
+      const info: KbLibraryIndexProgressInfo = {
+        asset_id: assetId,
+        title: event.title,
+        source_path: event.source_path,
+        phase: event.phase,
+        started_at: startedAt,
+        updated_at: event.updated_at,
+        progress_percent: event.progress_percent ?? 0,
+        total_chunks: event.total_chunks ?? 0,
+        processed_chunks: event.processed_chunks ?? 0,
+        expires_in_ms: ttlMs,
+        error_summary: event.error_summary ?? '',
+      }
+      if (event.phase === 'ready' || event.phase === 'failed') {
+        if (!scheduleKbLibraryIndexExpiry(assetId, startedAt, ttlMs, now)) {
+          setKbLibraryIndexProgresses(prev => {
+            const next = new Map(prev)
+            next.delete(assetId)
+            return next
+          })
+          return
+        }
+      }
+      setKbLibraryIndexProgresses(prev => new Map(prev).set(assetId, info))
+    }
+
     const cancel = systemEventsStreamManager.subscribe({
       onMessage: (data: string) => {
         if (!data || data === ': ping') return
@@ -784,6 +916,7 @@ export function useSystemEvents(): SystemEvents {
             applySnapshotAgentRuntimeStatuses(snapshot.agent_runtime_status ?? {})
             applySnapshotMemoryRecall(snapshot.memory_recall_activity ?? {})
             applySnapshotKbIndexProgress(snapshot.kb_index_progress ?? {})
+            applySnapshotKbLibraryIndexProgress(snapshot.kb_library_index_progress ?? {})
             return
           }
 
@@ -825,6 +958,11 @@ export function useSystemEvents(): SystemEvents {
 
           if (event.type === 'kb_index_progress') {
             handleKbIndexProgressDelta(event)
+            return
+          }
+
+          if (event.type === 'kb_library_index_progress') {
+            handleKbLibraryIndexProgressDelta(event)
           }
         } catch {
           // 忽略 keep-alive 等非 JSON 数据
@@ -839,12 +977,14 @@ export function useSystemEvents(): SystemEvents {
     const agentTimersRef = agentTimers.current
     const recallTimersRef = recallTimers.current
     const kbIndexTimersRef = kbIndexTimers.current
+    const kbLibraryIndexTimersRef = kbLibraryIndexTimers.current
     return () => {
       cancel()
       clearTimers(ccTimersRef)
       clearTimers(agentTimersRef)
       clearTimers(recallTimersRef)
       clearTimers(kbIndexTimersRef)
+      clearTimers(kbLibraryIndexTimersRef)
     }
   }, [])
 
@@ -856,5 +996,6 @@ export function useSystemEvents(): SystemEvents {
     agentRuntimeStatuses,
     memoryRecallActivities,
     kbIndexProgresses,
+    kbLibraryIndexProgresses,
   }
 }

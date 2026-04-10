@@ -203,6 +203,7 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   const [uploadSummary, setUploadSummary] = useState('')
   const [uploadTagsInput, setUploadTagsInput] = useState('')
   const [uploadEnabled, setUploadEnabled] = useState(true)
+  const [uploadProgress, setUploadProgress] = useState<number>(0)
 
   const documentsQuery = useQuery({
     queryKey: ['kb-documents', workspace.id],
@@ -262,7 +263,8 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
   })
 
   const uploadMutation = useMutation({
-    mutationFn: (payload: KBUploadFilePayload) => knowledgeBaseApi.uploadFile(workspace.id, payload),
+    mutationFn: (payload: KBUploadFilePayload) =>
+      knowledgeBaseApi.uploadFile(workspace.id, payload, percent => setUploadProgress(percent)),
     onSuccess: async data => {
       await refreshAll()
       setSelectedDocumentId(data.document.id)
@@ -273,9 +275,13 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
       setUploadSummary('')
       setUploadTagsInput('')
       setUploadEnabled(true)
+      setUploadProgress(0)
       notification.success(t('knowledge.notifications.uploadSuccess'))
     },
-    onError: (err: Error) => notification.error(t('knowledge.notifications.uploadFailed', { message: err.message })),
+    onError: (err: Error) => {
+      setUploadProgress(0)
+      notification.error(t('knowledge.notifications.uploadFailed', { message: err.message }))
+    },
   })
 
   const deleteMutation = useMutation({
@@ -903,7 +909,16 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
         </DialogActions>
       </Dialog>
 
-      <Dialog open={uploadOpen} onClose={() => !uploadMutation.isPending && setUploadOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={uploadOpen}
+        onClose={() => {
+          if (uploadMutation.isPending) return
+          setUploadProgress(0)
+          setUploadOpen(false)
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>{t('knowledge.dialogs.uploadTitle')}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -937,6 +952,14 @@ export default function KnowledgeTab({ workspace }: { workspace: WorkspaceDetail
             >
               {uploadEnabled ? t('knowledge.actions.enabled') : t('knowledge.actions.disabled')}
             </Button>
+            {uploadMutation.isPending && (
+              <Stack spacing={0.75}>
+                <LinearProgress variant="determinate" value={uploadProgress} sx={{ height: 8, borderRadius: 999 }} />
+                <Typography variant="caption" color="text.secondary">
+                  {`${t('knowledge.actions.uploading')} · ${uploadProgress}%`}
+                </Typography>
+              </Stack>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>

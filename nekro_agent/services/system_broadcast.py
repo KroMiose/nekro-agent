@@ -209,6 +209,24 @@ class KbIndexProgressEvent(BaseModel):
     error_summary: str = ""
 
 
+class KbLibraryIndexProgressEvent(BaseModel):
+    """全局知识库文件索引进度事件。"""
+
+    type: Literal["kb_library_index_progress"] = "kb_library_index_progress"
+    asset_id: int
+    active: bool
+    title: str = ""
+    source_path: str = ""
+    phase: Literal["queued", "extracting", "chunking", "embedding", "upserting", "ready", "failed"] = "queued"
+    started_at: int = Field(default=0, description="索引开始时间戳（ms）")
+    updated_at: int = Field(default=0, description="本次状态更新时间戳（ms）")
+    progress_percent: int = Field(default=0, ge=0, le=100)
+    total_chunks: int = 0
+    processed_chunks: int = 0
+    expires_in_ms: int = Field(default=5000, description="终态前端展示有效期（ms）")
+    error_summary: str = ""
+
+
 SystemEvent = Annotated[
     Union[
         WorkspaceStatusEvent,
@@ -218,6 +236,7 @@ SystemEvent = Annotated[
         AgentRuntimeStatusEvent,
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
+        KbLibraryIndexProgressEvent,
     ],
     Field(discriminator="type"),
 ]
@@ -328,6 +347,21 @@ class KbIndexProgressState(BaseModel):
     error_summary: str = ""
 
 
+class KbLibraryIndexProgressState(BaseModel):
+    asset_id: int
+    active: Literal[True] = True
+    title: str = ""
+    source_path: str = ""
+    phase: Literal["queued", "extracting", "chunking", "embedding", "upserting", "ready", "failed"]
+    started_at: int
+    updated_at: int
+    progress_percent: int
+    total_chunks: int
+    processed_chunks: int
+    expires_in_ms: int
+    error_summary: str = ""
+
+
 # ── 状态快照存储 ──────────────────────────────────────────────────────────────
 
 # domain → key → value（JSON 可序列化的状态字典）
@@ -343,6 +377,7 @@ def _update_state(
         AgentRuntimeStatusEvent,
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
+        KbLibraryIndexProgressEvent,
     ],
 ) -> None:
     """根据事件类型更新内存状态快照。
@@ -482,6 +517,26 @@ def _update_state(
         else:
             _state_store.get(domain, {}).pop(key, None)
 
+    elif isinstance(event, KbLibraryIndexProgressEvent):
+        domain = "kb_library_index_progress"
+        key = str(event.asset_id)
+        if event.active:
+            _state_store.setdefault(domain, {})[key] = KbLibraryIndexProgressState(
+                asset_id=event.asset_id,
+                title=event.title,
+                source_path=event.source_path,
+                phase=event.phase,
+                started_at=event.started_at,
+                updated_at=event.updated_at,
+                progress_percent=event.progress_percent,
+                total_chunks=event.total_chunks,
+                processed_chunks=event.processed_chunks,
+                expires_in_ms=event.expires_in_ms,
+                error_summary=event.error_summary,
+            ).model_dump()
+        else:
+            _state_store.get(domain, {}).pop(key, None)
+
 
 def get_state_snapshot() -> Dict[str, Dict[str, dict]]:
     """返回当前全部状态快照的深拷贝。
@@ -520,6 +575,7 @@ async def publish_system_event(
         AgentRuntimeStatusEvent,
         MemoryRecallActivityEvent,
         KbIndexProgressEvent,
+        KbLibraryIndexProgressEvent,
     ],
 ) -> None:
     """向所有全局 SSE 订阅者广播事件，并同步更新状态快照。"""
@@ -600,6 +656,24 @@ async def publish_kb_index_progress(event: KbIndexProgressEvent) -> None:
             KbIndexProgressEvent(
                 workspace_id=event.workspace_id,
                 document_id=event.document_id,
+                active=False,
+            )
+        )
+
+    asyncio.create_task(_clear_later())
+
+
+async def publish_kb_library_index_progress(event: KbLibraryIndexProgressEvent) -> None:
+    """发布全局知识库文件索引进度，并在终态后自动清理。"""
+    await publish_system_event(event)
+    if not event.active or event.phase not in {"ready", "failed"} or event.expires_in_ms <= 0:
+        return
+
+    async def _clear_later() -> None:
+        await asyncio.sleep(event.expires_in_ms / 1000)
+        await publish_system_event(
+            KbLibraryIndexProgressEvent(
+                asset_id=event.asset_id,
                 active=False,
             )
         )
