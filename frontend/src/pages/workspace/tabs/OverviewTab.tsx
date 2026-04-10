@@ -44,7 +44,7 @@ import {
   ImagePullMessage,
 } from '../../../services/api/workspace'
 import { ccModelPresetApi } from '../../../services/api/cc-model-preset'
-import { chatChannelApi } from '../../../services/api/chat-channel'
+import type { ChannelDirectoryEntry } from '../../../services/api/chat-channel'
 import { pluginsApi } from '../../../services/api/plugins'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS } from '../../../theme/variants'
@@ -53,6 +53,7 @@ import { useTranslation } from 'react-i18next'
 import { pluginsManagementPath } from '../../../router/routes'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
+import { useChannelDirectoryContext } from '../../../contexts/ChannelDirectoryContext'
 
 function InfoRow({
   label,
@@ -191,6 +192,7 @@ export default function OverviewTab({
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const { channels: allChannels, channelMap, isLoading: channelsDirectoryLoading } = useChannelDirectoryContext()
 
   const selectedSkills: string[] = (workspace.metadata.skills as string[] | undefined) ?? []
   const mcpConfig =
@@ -234,22 +236,12 @@ export default function OverviewTab({
   )
   const ccWorkspacePluginUnavailable = ccWorkspacePlugin ? !ccWorkspacePlugin.enabled : false
 
-  // ── 频道绑定 ──
-  const { data: channelList } = useQuery({
-    queryKey: ['chat-channels-all'],
-    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 100 }),
-  })
-  const allChannels = channelList?.items ?? []
-
   const { data: boundChannels = [], isLoading: channelsLoading } = useQuery({
     queryKey: ['workspace-channels', workspace.id],
     queryFn: () => workspaceApi.getBoundChannels(workspace.id),
   })
 
-  const [selectedChannel, setSelectedChannel] = useState<{
-    chat_key: string
-    channel_name: string | null
-  } | null>(null)
+  const [selectedChannel, setSelectedChannel] = useState<ChannelDirectoryEntry | null>(null)
 
   const bindMutation = useMutation({
     mutationFn: (chatKey: string) => workspaceApi.bindChannel(workspace.id, chatKey),
@@ -606,6 +598,15 @@ export default function OverviewTab({
                   size="small"
                   placeholder={t('detail.overview.channels.searchPlaceholder')}
                   autoComplete="off"
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {channelsDirectoryLoading ? <CircularProgress color="inherit" size={16} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
                 />
               )}
               renderOption={(props, opt) => (
@@ -658,7 +659,7 @@ export default function OverviewTab({
           ) : (
             <Stack spacing={0.75}>
               {boundChannels.map(ch => {
-                const info = allChannels.find(c => c.chat_key === ch.chat_key)
+                const info = channelMap.get(ch.chat_key)
                 const isOnlyChannel = boundChannels.length === 1
                 const currentDesc = editingKey === ch.chat_key
                   ? (editingDesc[ch.chat_key] ?? ch.description)

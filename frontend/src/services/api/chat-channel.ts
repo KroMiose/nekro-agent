@@ -35,6 +35,15 @@ export interface ChatChannel {
   last_message_time: string | null
 }
 
+export interface ChannelDirectoryEntry {
+  id: number
+  chat_key: string
+  channel_name: string | null
+  is_active: boolean
+  status: 'active' | 'observe' | 'disabled'
+  chat_type: string
+}
+
 export interface ChatChannelDetail extends ChatChannel {
   unique_users: number
   conversation_start_time: string
@@ -128,6 +137,14 @@ export interface ChatPluginDataResponse {
   plugin_names: Record<string, string>
 }
 
+export interface ChannelListStreamEvent {
+  event_type: string
+  chat_key: string
+  channel_name?: string | null
+  is_active?: boolean | null
+  status?: string | null
+}
+
 const channelListStreamManager = createSharedEventStreamManager({
   endpoint: '/chat-channel/list/stream',
   closeDelayMs: 1500,
@@ -149,6 +166,11 @@ export const chatChannelApi = {
   getDetail: async (chatKey: string): Promise<ChatChannelDetail> => {
     const response = await axios.get<ChatChannelDetail>(`/chat-channel/detail/${chatKey}`)
     return response.data
+  },
+
+  getDirectory: async (): Promise<ChannelDirectoryEntry[]> => {
+    const response = await axios.get<{ items: ChannelDirectoryEntry[] }>('/chat-channel/directory')
+    return response.data.items
   },
 
   setActive: async (chatKey: string, isActive: boolean): Promise<ActionResponse> => {
@@ -278,7 +300,7 @@ export const chatChannelApi = {
     return response.data
   },
 
-  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null; status?: string | null }) => void, onError?: (error: Error) => void): (() => void) => {
+  streamChannels: (onMessage: (event: ChannelListStreamEvent) => void, onError?: (error: Error) => void): (() => void) => {
     /**
      * Subscribe to real-time channel list updates using SSE
      * @param onMessage - Callback when a channel event is received (created, updated, deleted, activated, deactivated)

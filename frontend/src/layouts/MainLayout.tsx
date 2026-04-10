@@ -49,6 +49,7 @@ import { useSystemEventsContext } from '../contexts/SystemEventsContext'
 import CommunityAvatar from '../components/common/CommunityAvatar'
 import AgentActivityCard from '../components/common/AgentActivityCard'
 import SystemEventsProvider from '../components/providers/SystemEventsProvider'
+import ChannelDirectoryProvider from '../components/providers/ChannelDirectoryProvider'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
 import ActionButton from '../components/common/ActionButton'
@@ -75,11 +76,16 @@ function MainLayoutContent() {
   const { t } = useTranslation()
   const { currentLocale, syncFromBackend } = useLocaleStore()
   const { agentActives, agentRuntimeStatuses, workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses } = useSystemEventsContext()
+  const isChatChannelManagementLike =
+    location.pathname.startsWith('/chat-channel') &&
+    !location.pathname.startsWith('/chat-channel/announcement')
   const pageTransitionBaseKey = (() => {
     const segments = location.pathname.split('/').filter(Boolean)
 
     if (segments[0] === 'chat-channel') return '/chat-channel'
     if (segments[0] === 'plugins' && segments[1] === 'management') return '/plugins/management'
+    if (segments[0] === 'workspace' && segments[1]) return `/workspace/${segments[1]}`
+    if (segments[0] === 'adapters' && segments[1]) return `/adapters/${segments[1]}`
 
     return `/${segments.slice(0, 3).join('/')}`
   })()
@@ -141,7 +147,9 @@ function MainLayoutContent() {
           child =>
             location.pathname === child.path || location.pathname.startsWith(child.path + '/')
         )
-        if (hasActiveChild) {
+        const shouldOpen =
+          hasActiveChild || (item.key === 'chatManagement' && isChatChannelManagementLike)
+        if (shouldOpen) {
           setOpenMenus(prev => ({
             ...prev,
             [item.key]: true,
@@ -149,7 +157,7 @@ function MainLayoutContent() {
         }
       }
     })
-  }, [location.pathname, menuItems])
+  }, [location.pathname, menuItems, isChatChannelManagementLike])
 
   const getCurrentPage = () => {
     return getCurrentPageFromConfigs(location.pathname)
@@ -403,6 +411,10 @@ function MainLayoutContent() {
                                 location.pathname.startsWith(sibling.path + '/')) &&
                               sibling.path.length > child.path.length
                           )
+                      ) || Boolean(
+                        item.key === 'chatManagement' &&
+                          child.path === '/chat-channel/management' &&
+                          isChatChannelManagementLike
                       )}
                       sx={{
                         pl: 4,
@@ -800,7 +812,9 @@ function MainLayoutContent() {
 export default function MainLayout() {
   return (
     <SystemEventsProvider>
-      <MainLayoutContent />
+      <ChannelDirectoryProvider>
+        <MainLayoutContent />
+      </ChannelDirectoryProvider>
     </SystemEventsProvider>
   )
 }

@@ -73,12 +73,11 @@ import {
   type ResourceCategory,
 } from '../../services/api/space-cleanup'
 import { getLocalizedText } from '../../services/api/types'
-import { chatChannelApi } from '../../services/api/chat-channel'
-import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import SegmentedControl from '../../components/common/SegmentedControl'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 
 const MotionBox = motion(Box)
 
@@ -169,31 +168,16 @@ export default function SpaceCleanupPage() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set())
   const [rightChartType, setRightChartType] = useState<'pie' | 'bar'>('pie')
-
-  // 获取所有聊天频道信息（用于显示频道名）
-  const { data: allChannels } = useQuery({
-    queryKey: ['chat-channels-all'],
-    queryFn: async () => {
-      // 获取所有聊天频道（不分页）
-      const result = await chatChannelApi.getList({
-        page: 1,
-        page_size: 10000, // 获取所有频道
-      })
-      return result.items
-    },
-    staleTime: 5 * 60 * 1000, // 5分钟缓存
-  })
+  const { channels } = useChannelDirectoryContext()
 
   // 建立 chat_key 到 channel_name 的映射
   const chatKeyToNameMap = useMemo(() => {
     const map = new Map<string, string>()
-    if (allChannels) {
-      allChannels.forEach(channel => {
-        map.set(channel.chat_key, channel.channel_name || channel.chat_key)
-      })
+    for (const channel of channels) {
+      map.set(channel.chat_key, channel.channel_name || channel.chat_key)
     }
     return map
-  }, [allChannels])
+  }, [channels])
 
   // 清理定时器
   const clearScanInterval = useCallback(() => {

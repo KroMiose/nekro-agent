@@ -22,11 +22,11 @@ import {
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import CommandOutputSegments from '../../components/common/CommandOutputSegments'
-import { chatChannelApi } from '../../services/api/chat-channel'
 import { commandsApi } from '../../services/api/commands'
 import type { CommandOutputSegment } from '../../services/api/commands'
 import { CARD_VARIANTS } from '../../theme/variants'
 import IconActionButton from '../../components/common/IconActionButton'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 
 interface OutputEntry {
   command_name: string
@@ -56,17 +56,13 @@ function formatTime(ts: number): string {
 
 export default function CommandOutputPage() {
   const { t } = useTranslation('chat-channel')
+  const { channels, isLoading } = useChannelDirectoryContext()
   const [selectedChatKey, setSelectedChatKey] = useState<string>('')
   const [inputValue, setInputValue] = useState('')
   const [entries, setEntries] = useState<OutputEntry[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  const { data: channelList, isLoading } = useQuery({
-    queryKey: ['chat-channels-for-commands'],
-    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 200 }),
-  })
 
   // 获取命令列表
   const { data: commands = [] } = useQuery({
@@ -79,10 +75,10 @@ export default function CommandOutputPage() {
 
   // 自动选中第一个频道
   useEffect(() => {
-    if (!selectedChatKey && channelList?.items?.length) {
-      setSelectedChatKey(channelList.items[0].chat_key)
+    if (!selectedChatKey && channels.length > 0) {
+      setSelectedChatKey(channels[0].chat_key)
     }
-  }, [channelList, selectedChatKey])
+  }, [channels, selectedChatKey])
 
   // 切换频道时清空输出和输入
   useEffect(() => {
@@ -176,7 +172,7 @@ export default function CommandOutputPage() {
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                 </MenuItem>
               ) : (
-                channelList?.items?.map((ch) => (
+                channels.map((ch) => (
                   <MenuItem key={ch.chat_key} value={ch.chat_key}>
                     <Typography variant="body2" component="span" noWrap>
                       {ch.channel_name || ch.chat_key}

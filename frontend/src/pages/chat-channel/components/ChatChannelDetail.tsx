@@ -212,7 +212,6 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                       onClick={handleRefresh}
                       disabled={isRefreshing}
                       sx={{ ml: 0.25 }}
-                      title={t('channelDetail.refreshInfo')}
                     >
                       {isRefreshing ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
                     </IconActionButton>

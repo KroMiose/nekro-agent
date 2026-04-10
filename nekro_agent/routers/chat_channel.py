@@ -45,6 +45,19 @@ class ChatChannelListResponse(BaseModel):
     items: List[ChatChannelItem]
 
 
+class ChatChannelDirectoryItem(BaseModel):
+    id: int
+    chat_key: str
+    channel_name: Optional[str]
+    is_active: bool
+    status: str
+    chat_type: str
+
+
+class ChatChannelDirectoryResponse(BaseModel):
+    items: List[ChatChannelDirectoryItem]
+
+
 class ChatChannelDetail(ChatChannelItem):
     unique_users: int
     conversation_start_time: str
@@ -172,6 +185,30 @@ async def get_chat_channel_list(
     )
 
 
+@router.get("/directory", summary="获取聊天频道目录")
+@require_role(Role.Admin)
+async def get_chat_channel_directory(
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ChatChannelDirectoryResponse:
+    """获取全量频道目录。
+
+    用于前端全局复用 chat_key -> 频道显示信息映射，不包含消息统计等重字段。
+    """
+    channels = await DBChatChannel.all().order_by("-update_time")
+    items = [
+        ChatChannelDirectoryItem(
+            id=channel.id,
+            chat_key=channel.chat_key,
+            channel_name=channel.channel_name,
+            is_active=channel.is_active,
+            status=channel.channel_status,
+            chat_type=channel.chat_type.value,
+        )
+        for channel in channels
+    ]
+    return ChatChannelDirectoryResponse(items=items)
+
+
 @router.get("/list/stream", summary="获取聊天频道列表实时流")
 @require_role(Role.Admin)
 async def stream_chat_channel_list(
@@ -195,9 +232,16 @@ async def stream_chat_channel_list(
     from nekro_agent.services.channel_broadcaster import channel_broadcaster
     from nekro_agent.services.runtime_state import is_shutting_down
 
+    subscription = channel_broadcaster.subscribe()
+
+    def cleanup_subscription() -> None:
+        subscription.close()
+
+    async def handle_client_disconnect(_: object) -> None:
+        cleanup_subscription()
+
     async def event_generator():
         """生成 SSE 事件流"""
-        subscription = channel_broadcaster.subscribe()
         try:
             while not is_shutting_down():
                 if await request.is_disconnected():
@@ -210,10 +254,11 @@ async def stream_chat_channel_list(
 
                 yield {"data": json.dumps(event.model_dump())}
         finally:
-            subscription.close()
+            cleanup_subscription()
 
     return EventSourceResponse(
         event_generator(),
+        client_close_handler_callable=handle_client_disconnect,
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",

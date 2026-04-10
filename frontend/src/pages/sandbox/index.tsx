@@ -59,6 +59,7 @@ import {
   Percent as PercentIcon,
 } from '@mui/icons-material'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { sandboxApi, SandboxCodeExtData, SandboxLog, ExecStopType } from '../../services/api/sandbox'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
@@ -74,58 +75,9 @@ import { copyText } from '../../utils/clipboard'
 import SegmentedControl from '../../components/common/SegmentedControl'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
-
-// ─── Stat Card Component ────────────────────────────────────
-
-interface StatCardProps {
-  label: string
-  value: number | string
-  icon: React.ReactNode
-  color: string
-  valueColor?: string
-}
-
-function StatCard({ label, value, icon, color, valueColor }: StatCardProps) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 2,
-        py: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        minWidth: 140,
-        flex: '1 1 0',
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2, color: valueColor }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
-}
+import StatCard from '../../components/common/StatCard'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
+import { chatChannelPath } from '../../router/routes'
 
 // 添加共用的内容区样式
 const sharedContentStyles: SxProps<Theme> = {
@@ -325,6 +277,7 @@ function LogContentDialog({ open, onClose, logPath }: LogContentDialogProps) {
 }
 
 export default function SandboxPage() {
+  const navigate = useNavigate()
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({})
@@ -336,6 +289,7 @@ export default function SandboxPage() {
   const { devMode } = useDevModeStore()
   const { t } = useTranslation('sandbox')
   const { currentLocale } = useLocaleStore()
+  const { getChannel, getChannelName } = useChannelDirectoryContext()
   const isEnglish = currentLocale === 'en-US'
   const [logViewerOpen, setLogViewerOpen] = useState(false)
   const [selectedLogPath, setSelectedLogPath] = useState<string | null>(null)
@@ -431,6 +385,10 @@ export default function SandboxPage() {
       ...prev,
       [id]: !prev[id],
     }))
+  }
+
+  const handleOpenChannel = (chatKey: string) => {
+    navigate(chatChannelPath(chatKey, 'message-history'))
   }
 
   // 复制内容到剪贴板函数
@@ -550,34 +508,34 @@ export default function SandboxPage() {
       label: t('stats.total'),
       value: stats?.total || 0,
       icon: <AnalyticsIcon sx={{ fontSize: 20 }} />,
-      color: '#5c6bc0',
+      color: theme.palette.primary.main,
     },
     {
       label: t('stats.success'),
       value: stats?.success || 0,
       icon: <CheckCircleIcon sx={{ fontSize: 20 }} />,
-      color: '#66bb6a',
+      color: theme.palette.success.main,
       valueColor: 'success.main',
     },
     {
       label: t('stats.agentCount'),
       value: stats?.agent_count || 0,
       icon: <SmartToyIcon sx={{ fontSize: 20 }} />,
-      color: '#29b6f6',
+      color: theme.palette.info.main,
       valueColor: 'info.main',
     },
     {
       label: t('stats.failed'),
       value: stats?.failed || 0,
       icon: <ErrorIcon sx={{ fontSize: 20 }} />,
-      color: '#ef5350',
+      color: theme.palette.error.main,
       valueColor: 'error.main',
     },
     {
       label: t('stats.successRate'),
       value: `${stats?.success_rate || 0}%`,
       icon: <PercentIcon sx={{ fontSize: 20 }} />,
-      color: '#7e57c2',
+      color: theme.palette.warning.main,
     },
   ]
 
@@ -1047,17 +1005,24 @@ export default function SandboxPage() {
                             ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
                           }}
                         >
-                          <Typography
-                            variant="body2"
-                            sx={{
-                              fontFamily: 'monospace',
-                              fontSize: isSmall ? '0.65rem' : '0.75rem',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                            }}
-                          >
-                            {log.chat_key}
-                          </Typography>
+                          <Tooltip title={log.chat_key} placement="top" arrow>
+                            <Typography
+                              variant="body2"
+                              onClick={() => handleOpenChannel(log.chat_key)}
+                              sx={{
+                                fontSize: isSmall ? '0.65rem' : '0.75rem',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                color: 'primary.main',
+                                textDecoration: 'underline',
+                                textDecorationStyle: 'dotted',
+                                cursor: 'pointer',
+                                fontWeight: getChannel(log.chat_key)?.channel_name ? 600 : 500,
+                              }}
+                            >
+                              {getChannelName(log.chat_key)}
+                            </Typography>
+                          </Tooltip>
                         </TableCell>
                         <TableCell
                           sx={{
