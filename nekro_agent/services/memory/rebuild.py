@@ -512,7 +512,7 @@ def _schedule_job_runner(job_id: str) -> bool:
                     return
                 result = await rebuild_workspace_memories(job_id)
                 logger.info(
-                    "记忆重建完成: workspace=%s, job=%s, messages=%s, episodic=%s, semantic=%s",
+                    "记忆重建完成: workspace={}, job={}, messages={}, episodic={}, semantic={}",
                     state.workspace_id,
                     result.job_id,
                     result.messages_processed,
