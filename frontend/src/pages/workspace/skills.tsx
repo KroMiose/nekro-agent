@@ -25,7 +25,6 @@ import {
   ListItemIcon,
   ListItemText,
   alpha,
-  useMediaQuery,
 } from '@mui/material'
 import {
   Extension as ExtensionIcon,
@@ -69,6 +68,7 @@ import SegmentedControl from '../../components/common/SegmentedControl'
 import SearchField from '../../components/common/SearchField'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -209,60 +209,6 @@ function SkillContentPanel({ raw }: { raw: string }) {
   )
 }
 
-// ─── Stat Card ──────────────────────────────────────────────
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  color: string
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      sx={{
-        px: 2,
-        py: 1.5,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        minWidth: 140,
-        flex: '1 1 0',
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
-}
-
 // ─── Main Page ──────────────────────────────────────────────
 
 export default function SkillsLibraryPage() {
@@ -270,7 +216,6 @@ export default function SkillsLibraryPage() {
   const notification = useNotification()
   const { t } = useTranslation('workspace')
   const theme = useTheme()
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // View state
@@ -644,71 +589,66 @@ export default function SkillsLibraryPage() {
     <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
       {/* Stat cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', flexShrink: 0 }}>
-        <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color="#5c6bc0" />
-        <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color="#26a69a" />
-        <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color="#7e57c2" />
-        <StatCard label={t('skills.statAutoInject')} value={stats.autoInject} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color="#ef6c00" />
+        <StatCard label={t('skills.statBuiltin')} value={stats.builtin} icon={<BuiltinIcon sx={{ fontSize: 20 }} />} color={theme.palette.primary.main} />
+        <StatCard label={t('skills.statUser')} value={stats.user} icon={<UserIcon sx={{ fontSize: 20 }} />} color={theme.palette.success.main} />
+        <StatCard label={t('skills.statRepo')} value={stats.repo} icon={<RepoIcon sx={{ fontSize: 20 }} />} color={theme.palette.info.main} />
+        <StatCard label={t('skills.statAutoInject')} value={stats.autoInject} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color={theme.palette.warning.main} />
       </Box>
 
       {/* Toolbar */}
-      <Box sx={{ mb: 2, flexShrink: 0 }}>
-        <Stack
-          direction={isMobile ? 'column' : 'row'}
-          spacing={1.25}
-          alignItems={isMobile ? 'stretch' : 'center'}
-          flexWrap="wrap"
-        >
-          <SearchField
-            placeholder={t('skills.search.placeholder')}
-            value={searchQuery}
-            onChange={setSearchQuery}
-            onClear={() => setSearchQuery('')}
-            sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
-          />
+      <Card sx={{ ...CARD_VARIANTS.default.styles, mb: 2, flexShrink: 0 }}>
+        <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', flex: '1 1 520px', minWidth: 0 }}>
+            <SearchField
+              placeholder={t('skills.search.placeholder')}
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onClear={() => setSearchQuery('')}
+              sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
+            />
 
-          <SegmentedControl
-            value={sourceFilter}
-            options={[
-              { value: 'all', label: t('skills.filter.all') },
-              { value: 'builtin', label: t('skills.filter.builtin') },
-              { value: 'user', label: t('skills.filter.user') },
-              { value: 'repo', label: t('skills.filter.repo') },
-            ]}
-            onChange={v => setSourceFilter(v)}
-          />
+            <SegmentedControl
+              value={sourceFilter}
+              options={[
+                { value: 'all', label: t('skills.filter.all') },
+                { value: 'builtin', label: t('skills.filter.builtin') },
+                { value: 'user', label: t('skills.filter.user') },
+                { value: 'repo', label: t('skills.filter.repo') },
+              ]}
+              onChange={v => setSourceFilter(v)}
+            />
 
-          <SegmentedControl
-            value={viewMode}
-            options={[
-              {
-                value: 'card',
-                icon: <GridViewIcon fontSize="small" />,
-                tooltip: t('skills.toolbar.cardView'),
-                ariaLabel: t('skills.toolbar.cardView'),
-                iconOnly: true,
-              },
-              {
-                value: 'list',
-                icon: <ListViewIcon fontSize="small" />,
-                tooltip: t('skills.toolbar.listView'),
-                ariaLabel: t('skills.toolbar.listView'),
-                iconOnly: true,
-              },
-            ]}
-            onChange={v => setViewMode(v)}
-          />
+            <SegmentedControl
+              value={viewMode}
+              options={[
+                {
+                  value: 'card',
+                  icon: <GridViewIcon fontSize="small" />,
+                  tooltip: t('skills.toolbar.cardView'),
+                  ariaLabel: t('skills.toolbar.cardView'),
+                  iconOnly: true,
+                },
+                {
+                  value: 'list',
+                  icon: <ListViewIcon fontSize="small" />,
+                  tooltip: t('skills.toolbar.listView'),
+                  ariaLabel: t('skills.toolbar.listView'),
+                  iconOnly: true,
+                },
+              ]}
+              onChange={v => setViewMode(v)}
+            />
 
-          {hasActiveFilters && (
-            <Tooltip title={t('skills.toolbar.clearFilters')}>
-              <IconActionButton size="small" onClick={handleClearFilters}>
-                <FilterAltOffIcon fontSize="small" />
-              </IconActionButton>
-            </Tooltip>
-          )}
+            {hasActiveFilters && (
+              <Tooltip title={t('skills.toolbar.clearFilters')}>
+                <IconActionButton size="small" onClick={handleClearFilters}>
+                  <FilterAltOffIcon fontSize="small" />
+                </IconActionButton>
+              </Tooltip>
+            )}
+          </Box>
 
-          <Box sx={{ flexGrow: 1 }} />
-
-          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: 'auto' }}>
             <Tooltip title={t('skills.toolbar.refresh')}>
               <IconActionButton onClick={handleRefresh} disabled={isLoading} size="small">
                 <RefreshIcon fontSize="small" />
@@ -737,9 +677,9 @@ export default function SkillsLibraryPage() {
                 <HelpIcon fontSize="small" />
               </IconActionButton>
             </Tooltip>
-          </Stack>
-        </Stack>
-      </Box>
+          </Box>
+        </Box>
+      </Card>
 
       {/* Error */}
       {errorAll && (

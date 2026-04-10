@@ -62,6 +62,7 @@ import { useTranslation } from 'react-i18next'
 import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 type BatchOp = 'start' | 'stop' | 'restart' | 'rebuild' | 'resetSession'
 
@@ -123,57 +124,6 @@ function PolicyChip({ policy }: { policy: WorkspaceSummary['runtime_policy'] }) 
   const { t } = useTranslation('workspace')
   const color = usePolicyColor(policy)
   return <Chip label={t(`policy.${policy}`)} size="small" sx={CHIP_VARIANTS.getCustomColorChip(color, true)} />
-}
-
-// ── 概览统计卡片 ────────────────────────────────────────────────────────────
-
-function StatCard({
-  icon,
-  value,
-  label,
-  color,
-  loading,
-}: {
-  icon: React.ReactNode
-  value: number
-  label: string
-  color: string
-  loading?: boolean
-}) {
-  return (
-    <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            sx={{
-              color,
-              bgcolor: alpha(color, 0.1),
-              borderRadius: 2,
-              p: 1.1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            {loading ? (
-              <Skeleton variant="text" width={28} height={32} />
-            ) : (
-              <Typography variant="h5" fontWeight={700} lineHeight={1.1}>
-                {value}
-              </Typography>
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }}>
-              {label}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  )
 }
 
 // ── 工作区卡片 ──────────────────────────────────────────────────────────────

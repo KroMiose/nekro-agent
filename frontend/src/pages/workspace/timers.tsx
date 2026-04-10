@@ -60,6 +60,7 @@ import { chatChannelPath, pluginsManagementPath, workspaceDetailPath } from '../
 import SearchActionBar from '../../components/common/SearchActionBar'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 type QuickFilter = 'all' | 'activeRecurring' | 'paused' | 'upcoming24h' | 'errors'
 
@@ -118,65 +119,6 @@ function getStatusColor(theme: Theme, status: TimerTaskStatus) {
 
 function getTypeColor(theme: Theme, taskType: TimerTaskType) {
   return taskType === 'recurring' ? theme.palette.primary.main : theme.palette.info.main
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-  active,
-  onClick,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  color: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      onClick={onClick}
-      sx={{
-        cursor: 'pointer',
-        px: 2,
-        py: 1.5,
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        borderColor: active ? alpha(color, 0.4) : 'divider',
-        bgcolor: active ? alpha(color, 0.04) : undefined,
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
 }
 
 function DetailSection({
@@ -641,7 +583,7 @@ export default function WorkspaceTimersPage() {
           sx={{ mb: 2, flexShrink: 0 }}
           action={
             <ActionButton
-              color="inherit"
+              tone="secondary"
               size="small"
               onClick={() => navigate(pluginsManagementPath('timer'))}
             >
@@ -962,7 +904,7 @@ export default function WorkspaceTimersPage() {
                             <span>
                               <IconActionButton
                                 size="small"
-                                color="error"
+                                tone="danger"
                                 disabled={!task.actionable || deleteMutation.isPending}
                                 onClick={() => setConfirmDeleteTask(task)}
                               >
@@ -1304,7 +1246,7 @@ export default function WorkspaceTimersPage() {
                   </ActionButton>
                 )}
                 <ActionButton
-                  color="error"
+                  tone="danger"
                   variant="outlined"
                   startIcon={<DeleteOutlineIcon />}
                   disabled={!currentDetail.actionable || deleteMutation.isPending}

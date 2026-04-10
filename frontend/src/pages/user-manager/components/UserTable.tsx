@@ -696,7 +696,6 @@ const UserTable: React.FC<UserTableProps> = ({
                         <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => onViewDetail(user.id)}
-                          title={t('tooltips.view')}
                         >
                           <VisibilityIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconActionButton>
@@ -706,7 +705,6 @@ const UserTable: React.FC<UserTableProps> = ({
                           <IconActionButton
                             size={isSmall ? 'small' : 'medium'}
                             onClick={() => handleEditClick(user)}
-                            title={t('tooltips.edit')}
                           >
                             <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
                           </IconActionButton>
@@ -716,7 +714,6 @@ const UserTable: React.FC<UserTableProps> = ({
                         <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleBanClick(user)}
-                          title={user.is_active ? t('tooltips.ban') : t('tooltips.unban')}
                         >
                           <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconActionButton>
@@ -731,11 +728,6 @@ const UserTable: React.FC<UserTableProps> = ({
                         <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handlePreventTriggerClick(user)}
-                          title={
-                            !user.is_prevent_trigger
-                              ? t('tooltips.preventTrigger')
-                              : t('tooltips.restoreTrigger')
-                          }
                         >
                           <LockIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconActionButton>
@@ -744,7 +736,6 @@ const UserTable: React.FC<UserTableProps> = ({
                         <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleResetPasswordClick(user)}
-                          title={t('tooltips.resetPassword')}
                         >
                           <KeyIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconActionButton>
@@ -754,7 +745,6 @@ const UserTable: React.FC<UserTableProps> = ({
                           tone="danger"
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleDeleteClick(user)}
-                          title={t('tooltips.delete')}
                         >
                           <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
                         </IconActionButton>
@@ -916,10 +906,10 @@ const UserTable: React.FC<UserTableProps> = ({
               }
               label={t('form.permLevel')}
             >
-              <MenuItem value={0}>{t('roles.guest')}</MenuItem>
-              <MenuItem value={1}>{t('roles.user')}</MenuItem>
-              <MenuItem value={2}>{t('roles.admin')}</MenuItem>
-              <MenuItem value={3}>{t('roles.superAdmin')}</MenuItem>
+              <MenuItem value={0}>{t('roles.guest', { ns: 'common' })}</MenuItem>
+              <MenuItem value={1}>{t('roles.user', { ns: 'common' })}</MenuItem>
+              <MenuItem value={2}>{t('roles.admin', { ns: 'common' })}</MenuItem>
+              <MenuItem value={3}>{t('roles.superAdmin', { ns: 'common' })}</MenuItem>
             </Select>
           </FormControl>
           <TextField

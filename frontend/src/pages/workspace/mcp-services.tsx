@@ -1,9 +1,8 @@
 import { useState, useMemo } from 'react'
+import { useTheme } from '@mui/material/styles'
 import {
   Box,
-  Typography,
   Tooltip,
-  Paper,
 } from '@mui/material'
 import {
   Http as HttpIcon,
@@ -26,24 +25,9 @@ import { McpServerManager } from './components/McpShared'
 import SegmentedControl from '../../components/common/SegmentedControl'
 import SearchField from '../../components/common/SearchField'
 import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 type FilterType = 'all' | McpServerType
-
-// ─── Stat Card ──────────────────────────────────────────────
-
-function StatCard({ label, value, icon, color }: { label: string; value: number; icon: React.ReactNode; color: string }) {
-  return (
-    <Paper variant="outlined" sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, borderRadius: 2, minWidth: 140, flex: '1 1 0' }}>
-      <Box sx={{ width: 36, height: 36, borderRadius: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: color, color: '#fff', flexShrink: 0 }}>
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>{value}</Typography>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
-      </Box>
-    </Paper>
-  )
-}
 
 // ─── Main Page ──────────────────────────────────────────────
 
@@ -51,6 +35,7 @@ export default function McpServicesPage() {
   const notification = useNotification()
   const queryClient = useQueryClient()
   const { t } = useTranslation('workspace')
+  const theme = useTheme()
 
   // ── Data ──
   const { data: servers = [], isLoading } = useQuery({
@@ -145,10 +130,10 @@ export default function McpServicesPage() {
     <Box sx={{ ...UNIFIED_TABLE_STYLES.tableLayoutContainer, p: 3 }}>
       {/* Stat cards */}
       <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', flexShrink: 0 }}>
-        <StatCard label={t('mcpServices.stats.total')} value={stats.total} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color="#5c6bc0" />
-        <StatCard label={t('mcpServices.stats.stdio')} value={stats.stdio} icon={<TerminalIcon sx={{ fontSize: 20 }} />} color="#0288d1" />
-        <StatCard label={t('mcpServices.stats.sse')} value={stats.sse} icon={<HttpIcon sx={{ fontSize: 20 }} />} color="#ed6c02" />
-        <StatCard label={t('mcpServices.stats.http')} value={stats.http} icon={<HttpIcon sx={{ fontSize: 20 }} />} color="#2e7d32" />
+        <StatCard label={t('mcpServices.stats.total')} value={stats.total} icon={<AutoInjectIcon sx={{ fontSize: 20 }} />} color={theme.palette.primary.main} />
+        <StatCard label={t('mcpServices.stats.stdio')} value={stats.stdio} icon={<TerminalIcon sx={{ fontSize: 20 }} />} color={theme.palette.info.main} />
+        <StatCard label={t('mcpServices.stats.sse')} value={stats.sse} icon={<HttpIcon sx={{ fontSize: 20 }} />} color={theme.palette.warning.main} />
+        <StatCard label={t('mcpServices.stats.http')} value={stats.http} icon={<HttpIcon sx={{ fontSize: 20 }} />} color={theme.palette.success.main} />
       </Box>
 
       {/* Server manager (card/list/json + dialogs) */}

@@ -147,6 +147,27 @@ export const CARD_VARIANTS = {
   },
 }
 
+// 统一统计卡片样式（与工作区管理顶部卡片一致）
+export const STAT_CARD_VARIANTS = {
+  container(color: string, _active: boolean = false): SxProps<Theme> {
+    return {
+      ...CARD_VARIANTS.default.styles,
+    }
+  },
+  icon(color: string): SxProps<Theme> {
+    return {
+      color,
+      bgcolor: alpha(color, 0.1),
+      borderRadius: 2,
+      p: 1.1,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    }
+  },
+}
+
 // 按钮组件样式变体
 export const BUTTON_VARIANTS = {
   primary: {

@@ -71,7 +71,6 @@ export default function AdapterHubPage() {
         gap: 2,
         overflow: 'hidden',
         boxSizing: 'border-box',
-        bgcolor: 'background.default',
       }}
     >
       <AdapterHubStats stats={stats} />
