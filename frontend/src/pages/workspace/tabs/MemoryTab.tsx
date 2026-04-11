@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   Alert,
   Box,
-  Button,
   Card,
   CardContent,
   Chip,
@@ -12,7 +11,6 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
   ListItemText,
   MenuItem,
   Menu,
@@ -60,6 +58,8 @@ import {
 } from '../../../services/api/workspace'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS, SCROLLBAR_VARIANTS } from '../../../theme/variants'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 type MemoryTypeFilter = 'all' | 'paragraph' | 'entity' | 'relation' | 'episode'
 type MemoryStatusFilter = 'all' | 'active' | 'inactive'
@@ -1198,26 +1198,26 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             maxWidth: 'min(72vw, 720px)',
           }}
         >
-          <Button
+          <ActionButton
+            tone={browserOpen ? 'primary' : 'secondary'}
             size="small"
-            variant={browserOpen ? 'contained' : 'outlined'}
             startIcon={<LibraryIcon />}
             onClick={() => setBrowserOpen(value => !value)}
           >
             记忆图谱
-          </Button>
-          <Button size="small" variant="outlined" startIcon={<RefreshIcon />} onClick={refetchAll}>
+          </ActionButton>
+          <ActionButton tone="secondary" size="small" startIcon={<RefreshIcon />} onClick={refetchAll}>
             刷新
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="secondary"
             size="small"
-            variant="outlined"
             color="warning"
             startIcon={<MoreIcon />}
             onClick={event => setActionsAnchor(event.currentTarget)}
           >
             其他操作
-          </Button>
+          </ActionButton>
         </Stack>
 
         {shouldShowRebuildCard && !!rebuildStatus && (
@@ -1259,13 +1259,14 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                     </Typography>
                     {!rebuildStatus.is_running && (
                       <Tooltip title={t('skills.drawer.close')}>
-                        <IconButton
+                        <IconActionButton
                           size="small"
                           onClick={() => setDismissedRebuildJobId(rebuildStatus.job_id ?? null)}
                           sx={{ ml: 0.25 }}
+                          title={t('skills.drawer.close')}
                         >
                           <CloseIcon sx={{ fontSize: 16 }} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                     )}
                   </Stack>
@@ -1423,9 +1424,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
         >
           <Tooltip title="缩小">
             <span>
-              <IconButton size="small" onClick={() => updateZoom(zoom - 0.1)}>
+              <IconActionButton size="small" onClick={() => updateZoom(zoom - 0.1)} title="缩小">
                 <ZoomOutIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
           <Slider
@@ -1439,9 +1440,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           />
           <Tooltip title="放大">
             <span>
-              <IconButton size="small" onClick={() => updateZoom(zoom + 0.1)}>
+              <IconActionButton size="small" onClick={() => updateZoom(zoom + 0.1)} title="放大">
                 <ZoomInIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
           <Divider orientation="vertical" flexItem />
@@ -1487,9 +1488,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                     <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                       记忆图谱
                     </Typography>
-                    <IconButton size="small" onClick={() => setBrowserOpen(false)}>
+                    <IconActionButton size="small" onClick={() => setBrowserOpen(false)} title={t('skills.drawer.close')}>
                       <CollapseIcon fontSize="small" />
-                    </IconButton>
+                    </IconActionButton>
                   </Stack>
                   <TextField
                     size="small"
@@ -1998,9 +1999,9 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                     <Typography variant="subtitle1" sx={{ fontWeight: 800 }}>
                       详情与干预
                     </Typography>
-                    <IconButton size="small" onClick={() => setSelection(null)}>
+                    <IconActionButton size="small" onClick={() => setSelection(null)} title={t('actions.close', { ns: 'common', defaultValue: '关闭' })}>
                       <CollapseIcon fontSize="small" sx={{ transform: 'rotate(180deg)' }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Stack>
                   {memoryDetailLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
@@ -2186,21 +2187,21 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
 
                         <Divider />
                         <Stack direction="row" spacing={1} flexWrap="wrap">
-                          <Button size="small" variant="contained" startIcon={<ReinforceIcon />} disabled={!selectedActions?.canReinforce || reinforceMutation.isPending} onClick={() => selection && reinforceMutation.mutate({ type: selection.memory_type, id: selection.id })}>
+                          <ActionButton tone="primary" size="small" startIcon={<ReinforceIcon />} disabled={!selectedActions?.canReinforce || reinforceMutation.isPending} onClick={() => selection && reinforceMutation.mutate({ type: selection.memory_type, id: selection.id })}>
                             强化
-                          </Button>
-                          <Button size="small" variant="outlined" startIcon={<DemoteIcon />} disabled={!selectedActions?.canReinforce || demoteMutation.isPending} onClick={() => selection && demoteMutation.mutate({ type: selection.memory_type, id: selection.id })}>
+                          </ActionButton>
+                          <ActionButton tone="secondary" size="small" startIcon={<DemoteIcon />} disabled={!selectedActions?.canReinforce || demoteMutation.isPending} onClick={() => selection && demoteMutation.mutate({ type: selection.memory_type, id: selection.id })}>
                             降权
-                          </Button>
-                          <Button size="small" variant="outlined" startIcon={<FreezeIcon />} disabled={!selectedActions?.canFreeze || freezeMutation.isPending} onClick={() => selection && freezeMutation.mutate({ type: selection.memory_type, id: selection.id })}>
+                          </ActionButton>
+                          <ActionButton tone="secondary" size="small" startIcon={<FreezeIcon />} disabled={!selectedActions?.canFreeze || freezeMutation.isPending} onClick={() => selection && freezeMutation.mutate({ type: selection.memory_type, id: selection.id })}>
                             冻结
-                          </Button>
-                          <Button size="small" variant="outlined" startIcon={<UnfreezeIcon />} disabled={!selectedActions?.canFreeze || unfreezeMutation.isPending} onClick={() => selection && unfreezeMutation.mutate({ type: selection.memory_type, id: selection.id })}>
+                          </ActionButton>
+                          <ActionButton tone="secondary" size="small" startIcon={<UnfreezeIcon />} disabled={!selectedActions?.canFreeze || unfreezeMutation.isPending} onClick={() => selection && unfreezeMutation.mutate({ type: selection.memory_type, id: selection.id })}>
                             解冻
-                          </Button>
-                          <Button
+                          </ActionButton>
+                          <ActionButton
+                            tone="secondary"
                             size="small"
-                            variant="outlined"
                             startIcon={<ProtectIcon />}
                             disabled={!selectedActions?.canProtect || protectMutation.isPending}
                             onClick={() =>
@@ -2213,13 +2214,13 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                             }
                           >
                             {(memoryDetail?.data?.is_protected as boolean | undefined) ? '取消保护' : '保护'}
-                          </Button>
-                          <Button size="small" variant="outlined" startIcon={<EditIcon />} disabled={!selectedActions?.canEdit || editMutation.isPending} onClick={() => selection && editMutation.mutate({ type: selection.memory_type, id: selection.id, summary: editSummary, content: editContent })}>
+                          </ActionButton>
+                          <ActionButton tone="secondary" size="small" startIcon={<EditIcon />} disabled={!selectedActions?.canEdit || editMutation.isPending} onClick={() => selection && editMutation.mutate({ type: selection.memory_type, id: selection.id, summary: editSummary, content: editContent })}>
                             保存编辑
-                          </Button>
-                          <Button size="small" color="error" variant="outlined" startIcon={<DeleteIcon />} disabled={deleteMutation.isPending} onClick={() => selection && deleteMutation.mutate({ type: selection.memory_type, id: selection.id })}>
+                          </ActionButton>
+                          <ActionButton tone="danger" size="small" startIcon={<DeleteIcon />} disabled={deleteMutation.isPending} onClick={() => selection && deleteMutation.mutate({ type: selection.memory_type, id: selection.id })}>
                             删除
-                          </Button>
+                          </ActionButton>
                         </Stack>
                       </Stack>
                     </Box>
@@ -2276,11 +2277,11 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
               )}
             </Stack>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmAction(null)}>取消</Button>
-            <Button
+        <DialogActions>
+            <ActionButton tone="secondary" onClick={() => setConfirmAction(null)}>取消</ActionButton>
+            <ActionButton
+              tone={confirmAction === 'reset' ? 'danger' : 'secondary'}
               color={confirmAction === 'reset' ? 'error' : confirmAction === 'rebuild' ? 'warning' : 'warning'}
-              variant="contained"
               onClick={() => {
                 const action = confirmAction
                 setConfirmAction(null)
@@ -2300,7 +2301,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
               }
             >
               确认执行
-            </Button>
+            </ActionButton>
           </DialogActions>
         </Dialog>
       </Box>

@@ -15,7 +15,7 @@ class ConfShowCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="conf_show",
-            aliases=["conf-show"],
+            aliases=[],
             description="查看配置项",
             i18n_description=i18n_text(zh_CN="查看配置项", en_US="Show configuration"),
             usage="conf_show [key]",
@@ -61,7 +61,7 @@ class ConfSetCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="conf_set",
-            aliases=["conf-set"],
+            aliases=[],
             description="设置配置项",
             i18n_description=i18n_text(zh_CN="设置配置项", en_US="Set configuration"),
             usage="conf_set key=value",
@@ -136,7 +136,7 @@ class ConfReloadCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="conf_reload",
-            aliases=["conf-reload"],
+            aliases=[],
             description="重载配置文件",
             i18n_description=i18n_text(zh_CN="重载配置文件", en_US="Reload configuration file"),
             permission=CommandPermission.ADVANCED,
@@ -165,7 +165,7 @@ class ConfSaveCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="conf_save",
-            aliases=["conf-save"],
+            aliases=[],
             description="保存当前配置到文件",
             i18n_description=i18n_text(zh_CN="保存当前配置到文件", en_US="Save configuration to file"),
             permission=CommandPermission.ADVANCED,

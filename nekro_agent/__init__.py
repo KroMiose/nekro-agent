@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 
 from nonebot import get_app, get_driver
 from nonebot.adapters.onebot.v11 import Bot
@@ -172,30 +173,60 @@ if _driver is not None:
 
     @_driver.on_shutdown
     async def on_shutdown():
+        shutdown_started_at = time.perf_counter()
         mark_shutting_down()
+        logger.debug("[shutdown] begin")
+
+        step_started_at = time.perf_counter()
+        logger.debug("[shutdown] stopping telemetry task")
         await stop_telemetry_task()
+        logger.debug(f"[shutdown] telemetry task stopped in {time.perf_counter() - step_started_at:.3f}s")
+
+        step_started_at = time.perf_counter()
+        logger.debug("[shutdown] stopping memory scheduler")
         await memory_scheduler.stop()
+        logger.debug(f"[shutdown] memory scheduler stopped in {time.perf_counter() - step_started_at:.3f}s")
+
+        step_started_at = time.perf_counter()
+        logger.debug("[shutdown] stopping recurring timer service")
         await recurring_timer_service.stop()
+        logger.debug(f"[shutdown] recurring timer service stopped in {time.perf_counter() - step_started_at:.3f}s")
+
+        step_started_at = time.perf_counter()
+        logger.debug("[shutdown] stopping timer service")
         await timer_service.stop()
+        logger.debug(f"[shutdown] timer service stopped in {time.perf_counter() - step_started_at:.3f}s")
+
+        step_started_at = time.perf_counter()
+        logger.debug("[shutdown] cleaning up adapters")
         await cleanup_adapters(get_app())
+        logger.debug(f"[shutdown] adapters cleaned up in {time.perf_counter() - step_started_at:.3f}s")
 
         # 停止 CC 后台结果监听器
+        step_started_at = time.perf_counter()
         try:
+            logger.debug("[shutdown] stopping cc result watcher")
             from builtin.cc_workspace.main import shutdown_cc_result_watcher
 
             await shutdown_cc_result_watcher()
+            logger.debug(f"[shutdown] cc result watcher stopped in {time.perf_counter() - step_started_at:.3f}s")
         except ImportError:
+            logger.debug("[shutdown] cc result watcher not loaded, skipped")
             pass  # cc_workspace 插件未加载，跳过
         except Exception as e:
             logger.warning(f"[cc_workspace] 停止后台结果监听器失败: {e}")
 
+        step_started_at = time.perf_counter()
         try:
+            logger.debug("[shutdown] cleaning up plugins")
             from nekro_agent.services.plugin.collector import plugin_collector
 
             await plugin_collector.cleanup_all_plugins()
+            logger.debug(f"[shutdown] plugins cleaned up in {time.perf_counter() - step_started_at:.3f}s")
         except Exception as e:
             logger.exception(f"清理插件时发生错误: {e}")
 
+        logger.debug(f"[shutdown] finished in {time.perf_counter() - shutdown_started_at:.3f}s")
         logger.info("Timer service stopped")
 
     @_driver.on_bot_connect

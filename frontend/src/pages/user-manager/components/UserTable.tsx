@@ -7,14 +7,12 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  IconButton,
   Tooltip,
   Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   TextField,
   MenuItem,
   Select,
@@ -42,6 +40,8 @@ import RcSlider from 'rc-slider'
 import 'rc-slider/assets/index.css'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from '../../../components/common/IconActionButton'
+import ActionButton from '../../../components/common/ActionButton'
 
 // 定义视觉隐藏样式，替代 visuallyHidden
 const srOnlyStyle = {
@@ -693,30 +693,30 @@ const UserTable: React.FC<UserTableProps> = ({
                   <TableCell align="center" sx={UNIFIED_TABLE_STYLES.cell as SxProps<Theme>}>
                     <Box sx={{ display: 'flex', justifyContent: 'center' }}>
                       <Tooltip title={t('tooltips.view')}>
-                        <IconButton
+                        <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => onViewDetail(user.id)}
                         >
                           <VisibilityIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       {showEditButton && !isSmall && (
                         <Tooltip title={t('tooltips.edit')}>
-                          <IconButton
+                          <IconActionButton
                             size={isSmall ? 'small' : 'medium'}
                             onClick={() => handleEditClick(user)}
                           >
                             <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )}
                       <Tooltip title={user.is_active ? t('tooltips.ban') : t('tooltips.unban')}>
-                        <IconButton
+                        <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleBanClick(user)}
                         >
                           <BlockIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip
                         title={
@@ -725,28 +725,29 @@ const UserTable: React.FC<UserTableProps> = ({
                             : t('tooltips.restoreTrigger')
                         }
                       >
-                        <IconButton
+                        <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handlePreventTriggerClick(user)}
                         >
                           <LockIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip title={t('tooltips.resetPassword')}>
-                        <IconButton
+                        <IconActionButton
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleResetPasswordClick(user)}
                         >
                           <KeyIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip title={t('tooltips.delete')}>
-                        <IconButton
+                        <IconActionButton
+                          tone="danger"
                           size={isSmall ? 'small' : 'medium'}
                           onClick={() => handleDeleteClick(user)}
                         >
                           <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                     </Box>
                   </TableCell>
@@ -771,12 +772,20 @@ const UserTable: React.FC<UserTableProps> = ({
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
-          <Button onClick={() => setDeleteDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
+          <ActionButton
+            tone="secondary"
+            onClick={() => setDeleteDialogOpen(false)}
+            size={isSmall ? 'small' : 'medium'}
+          >
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" size={isSmall ? 'small' : 'medium'}>
+          </ActionButton>
+          <ActionButton
+            tone="danger"
+            onClick={handleDeleteConfirm}
+            size={isSmall ? 'small' : 'medium'}
+          >
             {t('actions.delete', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -801,12 +810,20 @@ const UserTable: React.FC<UserTableProps> = ({
           )}
         </DialogContent>
         <DialogActions sx={{ px: isSmall ? 2 : 3, pb: isSmall ? 2 : 2 }}>
-          <Button onClick={() => setBanDialogOpen(false)} size={isSmall ? 'small' : 'medium'}>
+          <ActionButton
+            tone="secondary"
+            onClick={() => setBanDialogOpen(false)}
+            size={isSmall ? 'small' : 'medium'}
+          >
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button onClick={handleBanConfirm} color="primary" size={isSmall ? 'small' : 'medium'}>
+          </ActionButton>
+          <ActionButton
+            tone="primary"
+            onClick={handleBanConfirm}
+            size={isSmall ? 'small' : 'medium'}
+          >
             {t('actions.confirm', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -833,12 +850,12 @@ const UserTable: React.FC<UserTableProps> = ({
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreventTriggerDialogOpen(false)}>
+          <ActionButton tone="secondary" onClick={() => setPreventTriggerDialogOpen(false)}>
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button onClick={handlePreventTriggerConfirm} color="primary">
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handlePreventTriggerConfirm}>
             {t('actions.confirm', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -859,12 +876,12 @@ const UserTable: React.FC<UserTableProps> = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetPasswordDialogOpen(false)}>
+          <ActionButton tone="secondary" onClick={() => setResetPasswordDialogOpen(false)}>
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button onClick={handleResetPasswordConfirm} color="primary" disabled={!newPassword}>
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handleResetPasswordConfirm} disabled={!newPassword}>
             {t('actions.confirm', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -889,10 +906,10 @@ const UserTable: React.FC<UserTableProps> = ({
               }
               label={t('form.permLevel')}
             >
-              <MenuItem value={0}>{t('roles.guest')}</MenuItem>
-              <MenuItem value={1}>{t('roles.user')}</MenuItem>
-              <MenuItem value={2}>{t('roles.admin')}</MenuItem>
-              <MenuItem value={3}>{t('roles.superAdmin')}</MenuItem>
+              <MenuItem value={0}>{t('roles.guest', { ns: 'common' })}</MenuItem>
+              <MenuItem value={1}>{t('roles.user', { ns: 'common' })}</MenuItem>
+              <MenuItem value={2}>{t('roles.admin', { ns: 'common' })}</MenuItem>
+              <MenuItem value={3}>{t('roles.superAdmin', { ns: 'common' })}</MenuItem>
             </Select>
           </FormControl>
           <TextField
@@ -908,16 +925,16 @@ const UserTable: React.FC<UserTableProps> = ({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setEditDialogOpen(false)}>
+          <ActionButton tone="secondary" onClick={() => setEditDialogOpen(false)}>
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleEditConfirm}
-            color="primary"
             disabled={!editFormData.username || !editFormData.access_key}
           >
             {t('actions.save', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </>

@@ -128,9 +128,25 @@ class CommLogEntry(BaseModel):
     direction: CommDirection
     source_chat_key: str
     content: str
+    extra_data: str = ""
     is_streaming: bool
     task_id: Optional[str]
     create_time: str
+
+    @classmethod
+    def from_orm(cls, log: Any) -> "CommLogEntry":
+        """从 DBWorkspaceCommLog ORM 实例构造 CommLogEntry。"""
+        return cls(
+            id=log.id,
+            workspace_id=log.workspace_id,
+            direction=log.direction,
+            source_chat_key=log.source_chat_key,
+            content=log.content,
+            extra_data=log.extra_data or "",
+            is_streaming=log.is_streaming,
+            task_id=log.task_id,
+            create_time=log.create_time.isoformat(),
+        )
 
 
 class CommHistoryResponse(BaseModel):

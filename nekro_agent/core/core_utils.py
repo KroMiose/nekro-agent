@@ -183,6 +183,7 @@ class ExtraField(BaseModel):
     )
 
 
+
 class ConfigManager:
     """配置管理器 - 统一管理所有配置实例"""
 

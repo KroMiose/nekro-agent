@@ -7,6 +7,21 @@ export interface ActionResponse {
   error?: string
 }
 
+export interface ChatAnnouncementResultItem {
+  chat_key: string
+  channel_name: string | null
+  ok: boolean
+  error: string
+}
+
+export interface ChatAnnouncementResponse {
+  ok: boolean
+  total: number
+  success_count: number
+  failure_count: number
+  results: ChatAnnouncementResultItem[]
+}
+
 export interface ChatChannel {
   id: number
   chat_key: string
@@ -18,6 +33,15 @@ export interface ChatChannel {
   create_time: string
   update_time: string
   last_message_time: string | null
+}
+
+export interface ChannelDirectoryEntry {
+  id: number
+  chat_key: string
+  channel_name: string | null
+  is_active: boolean
+  status: 'active' | 'observe' | 'disabled'
+  chat_type: string
 }
 
 export interface ChatChannelDetail extends ChatChannel {
@@ -113,6 +137,14 @@ export interface ChatPluginDataResponse {
   plugin_names: Record<string, string>
 }
 
+export interface ChannelListStreamEvent {
+  event_type: string
+  chat_key: string
+  channel_name?: string | null
+  is_active?: boolean | null
+  status?: string | null
+}
+
 const channelListStreamManager = createSharedEventStreamManager({
   endpoint: '/chat-channel/list/stream',
   closeDelayMs: 1500,
@@ -124,6 +156,7 @@ export const chatChannelApi = {
     page_size: number
     search?: string
     chat_type?: string
+    status?: 'active' | 'observe' | 'disabled'
     is_active?: boolean
   }): Promise<ChatChannelListResponse> => {
     const response = await axios.get<ChatChannelListResponse>('/chat-channel/list', { params })
@@ -133,6 +166,11 @@ export const chatChannelApi = {
   getDetail: async (chatKey: string): Promise<ChatChannelDetail> => {
     const response = await axios.get<ChatChannelDetail>(`/chat-channel/detail/${chatKey}`)
     return response.data
+  },
+
+  getDirectory: async (): Promise<ChannelDirectoryEntry[]> => {
+    const response = await axios.get<{ items: ChannelDirectoryEntry[] }>('/chat-channel/directory')
+    return response.data.items
   },
 
   setActive: async (chatKey: string, isActive: boolean): Promise<ActionResponse> => {
@@ -194,6 +232,17 @@ export const chatChannelApi = {
     return response.data
   },
 
+  sendAnnouncementMessage: async (payload: {
+    chat_keys: string[]
+    message: string
+  }): Promise<ChatAnnouncementResponse> => {
+    const response = await axios.post<ChatAnnouncementResponse>(
+      '/chat-channel/announcement/send',
+      payload
+    )
+    return response.data
+  },
+
   getUsers: async (chatKey: string): Promise<ChatChannelUsersResponse> => {
     const response = await axios.get<ChatChannelUsersResponse>(`/chat-channel/${chatKey}/users`)
     return response.data
@@ -251,7 +300,7 @@ export const chatChannelApi = {
     return response.data
   },
 
-  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null; status?: string | null }) => void, onError?: (error: Error) => void): (() => void) => {
+  streamChannels: (onMessage: (event: ChannelListStreamEvent) => void, onError?: (error: Error) => void): (() => void) => {
     /**
      * Subscribe to real-time channel list updates using SSE
      * @param onMessage - Callback when a channel event is received (created, updated, deleted, activated, deactivated)

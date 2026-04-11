@@ -59,8 +59,10 @@ from nekro_agent.services.workspace import comm_broadcast
 from nekro_agent.services.workspace.client import CCSandboxClient, CCSandboxError
 from nekro_agent.services.workspace.container import SandboxContainerManager
 from nekro_agent.services.workspace.manager import WorkspaceService
+from nekro_agent.schemas.workspace import CommLogEntry
 
 from .plugin import cc_config, plugin
+from .prompt_envelope import CcPromptEnvelope
 
 _TASK_TYPE = "cc_delegate"
 _CC_DATA_TIMEOUT: float = 300.0  # 300s 内无有效 data: 事件（keep-alive 不计）则终止 SSE 流
@@ -275,10 +277,6 @@ async def _build_cc_recent_logs_message(_ctx: schemas.AgentCtx, limit: int) -> t
     }
     for log in reversed(logs):
         content = log.content
-        if log.direction == "NA_TO_CC" and content.startswith("[任务来源频道:"):
-            separator = content.find("\n\n")
-            if separator != -1:
-                content = content[separator + 2:]
         preview = content[:200] + ("..." if len(content) > 200 else "")
         label = direction_map.get(log.direction, log.direction)
         time_str = log.create_time.strftime("%m-%d %H:%M")
@@ -309,6 +307,8 @@ _cc_result_watcher_task: "asyncio.Task[None] | None" = None
 _WATCHER_INTERVAL: int = 30  # 秒；CC 结果最大投递延迟 ≈ 此值
 
 
+
+
 async def _broadcast_error_comm_log(workspace_id: int, source_chat_key: str, content: str) -> None:
     """将错误信息写入 SYSTEM 方向 CommLog 并广播，使前端 CommTab 可以实时看到错误详情。"""
     try:
@@ -320,16 +320,7 @@ async def _broadcast_error_comm_log(workspace_id: int, source_chat_key: str, con
             is_streaming=False,
             task_id=f"cc_delegate:{source_chat_key}",
         )
-        await comm_broadcast.publish(workspace_id, {
-            "id": err_log.id,
-            "workspace_id": err_log.workspace_id,
-            "direction": err_log.direction,
-            "source_chat_key": err_log.source_chat_key,
-            "content": err_log.content,
-            "is_streaming": err_log.is_streaming,
-            "task_id": err_log.task_id,
-            "create_time": err_log.create_time.isoformat(),
-        })
+        await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(err_log))
     except Exception as e:
         logger.warning("[cc_workspace] 写入错误 CommLog 失败（不影响主流程）: %s", e)
 
@@ -351,16 +342,7 @@ async def _broadcast_system_comm_log(
             is_streaming=False,
             task_id=task_id,
         )
-        await comm_broadcast.publish(workspace_id, {
-            "id": sys_log.id,
-            "workspace_id": sys_log.workspace_id,
-            "direction": sys_log.direction,
-            "source_chat_key": sys_log.source_chat_key,
-            "content": sys_log.content,
-            "is_streaming": sys_log.is_streaming,
-            "task_id": sys_log.task_id,
-            "create_time": sys_log.create_time.isoformat(),
-        })
+        await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(sys_log))
     except Exception as e:
         logger.warning("[cc_workspace] 写入 SYSTEM CommLog 失败（不影响主流程）: %s", e)
 
@@ -437,16 +419,16 @@ async def _broadcast_cc_status(
     无需轮询 /comm/queue 接口。同时推送全局系统事件供工作区列表页面实时刷新。
     """
     try:
-        await comm_broadcast.publish(workspace_id, {
-            "id": 0,
-            "workspace_id": workspace_id,
-            "direction": "CC_STATUS",
-            "source_chat_key": "",
-            "content": json.dumps({"running": running}),
-            "is_streaming": False,
-            "task_id": None,
-            "create_time": datetime.now(timezone.utc).isoformat(),
-        })
+        await comm_broadcast.publish(workspace_id, CommLogEntry(
+            id=0,
+            workspace_id=workspace_id,
+            direction="CC_STATUS",
+            source_chat_key="",
+            content=json.dumps({"running": running}),
+            is_streaming=False,
+            task_id=None,
+            create_time=datetime.now(timezone.utc).isoformat(),
+        ))
     except Exception as _e:
         logger.warning("[cc_workspace] 广播 CC_STATUS 失败: %s", _e)
 
@@ -515,16 +497,7 @@ async def _deliver_pending_result(workspace: "DBWorkspace", item: dict, *, sourc
             is_streaming=False,
             task_id=f"cc_delegate:{source_chat_key}",
         )
-        await comm_broadcast.publish(workspace.id, {
-            "id": cc_log.id,
-            "workspace_id": cc_log.workspace_id,
-            "direction": cc_log.direction,
-            "source_chat_key": cc_log.source_chat_key,
-            "content": cc_log.content,
-            "is_streaming": cc_log.is_streaming,
-            "task_id": cc_log.task_id,
-            "create_time": cc_log.create_time.isoformat(),
-        })
+        await comm_broadcast.publish(workspace.id, CommLogEntry.from_orm(cc_log))
     except Exception as e:
         logger.warning(f"[cc_workspace] 投递({source})：写入通讯日志失败 (id={result_id!r}): {e}")
 
@@ -691,8 +664,13 @@ async def _cc_delegate_task(
     current_tool_name: Optional[str] = None
     operation_block_count = 0
 
-    # 在任务 prompt 前注入来源频道标记，供 CC 侧记忆系统区分多频道背景
-    enriched_prompt = f"[任务来源频道: {handle.task_id}]\n\n{task_prompt}"
+    _now_str = datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    _envelope = CcPromptEnvelope.for_na_path(
+        source_chat_key=handle.task_id,
+        current_time=_now_str,
+        task_body=task_prompt,
+    )
+    enriched_prompt = _envelope.to_prompt()
 
     async def _publish_runtime_status(
         *,
@@ -725,25 +703,17 @@ async def _cc_delegate_task(
         except Exception as e:
             logger.warning("[cc_workspace] 全局 SSE 推送 runtime_status 失败: %s", e)
 
-    # 持久化 NA_TO_CC 日志并广播（失败不阻断主流程）
+    # 持久化 NA_TO_CC 日志并广播：content 存纯任务正文，extra_data 存结构化元信息
     try:
         _na_log = await DBWorkspaceCommLog.create(
             workspace_id=workspace_id,
             direction="NA_TO_CC",
             source_chat_key=handle.task_id,
-            content=enriched_prompt,
+            content=task_prompt,
+            extra_data=_envelope.to_metadata_json(),
             task_id=f"cc_delegate:{handle.task_id}",
         )
-        await comm_broadcast.publish(workspace_id, {
-            "id": _na_log.id,
-            "workspace_id": _na_log.workspace_id,
-            "direction": _na_log.direction,
-            "source_chat_key": _na_log.source_chat_key,
-            "content": _na_log.content,
-            "is_streaming": _na_log.is_streaming,
-            "task_id": _na_log.task_id,
-            "create_time": _na_log.create_time.isoformat(),
-        })
+        await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(_na_log))
     except Exception:
         pass
 
@@ -823,16 +793,7 @@ async def _cc_delegate_task(
                         is_streaming=False,
                         task_id=f"cc_delegate:{handle.task_id}",
                     )
-                    await comm_broadcast.publish(workspace_id, {
-                        "id": _sys_log.id,
-                        "workspace_id": _sys_log.workspace_id,
-                        "direction": _sys_log.direction,
-                        "source_chat_key": _sys_log.source_chat_key,
-                        "content": _sys_log.content,
-                        "is_streaming": _sys_log.is_streaming,
-                        "task_id": _sys_log.task_id,
-                        "create_time": _sys_log.create_time.isoformat(),
-                    })
+                    await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(_sys_log))
                 except Exception as _e:
                     logger.warning(f"[cc_workspace] 写入超时 SYSTEM CommLog 失败: {_e}")
                 await _publish_runtime_status(
@@ -880,16 +841,7 @@ async def _cc_delegate_task(
                             content=json.dumps(item, ensure_ascii=False),
                             task_id=f"cc_delegate:{handle.task_id}",
                         )
-                        await comm_broadcast.publish(workspace_id, {
-                            "id": _tool_log.id,
-                            "workspace_id": _tool_log.workspace_id,
-                            "direction": _tool_log.direction,
-                            "source_chat_key": _tool_log.source_chat_key,
-                            "content": _tool_log.content,
-                            "is_streaming": _tool_log.is_streaming,
-                            "task_id": _tool_log.task_id,
-                            "create_time": _tool_log.create_time.isoformat(),
-                        })
+                        await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(_tool_log))
                         if tool_chunk.type == "tool_call":
                             current_tool_name = tool_chunk.name
                             await _publish_runtime_status(
@@ -946,16 +898,7 @@ async def _cc_delegate_task(
                 is_streaming=True,
                 task_id=f"cc_delegate:{handle.task_id}",
             )
-            await comm_broadcast.publish(workspace_id, {
-                "id": _cc_log.id,
-                "workspace_id": _cc_log.workspace_id,
-                "direction": _cc_log.direction,
-                "source_chat_key": _cc_log.source_chat_key,
-                "content": _cc_log.content,
-                "is_streaming": _cc_log.is_streaming,
-                "task_id": _cc_log.task_id,
-                "create_time": _cc_log.create_time.isoformat(),
-            })
+            await comm_broadcast.publish(workspace_id, CommLogEntry.from_orm(_cc_log))
         except Exception:
             pass
 
@@ -1563,9 +1506,15 @@ async def delegate_to_cc(_ctx: schemas.AgentCtx, task_prompt: str) -> str:
         if ctl.signal.value == "success":
             notify_msg = f"{ctl.message}{task_ctx_section}"
         elif ctl.signal.value == "fail":
-            notify_msg = f"[CC Workspace] CC 任务执行失败: {ctl.message}{task_ctx_section}"
+            notify_msg = (
+                f"[CC Workspace] CC 任务执行失败: {ctl.message}{task_ctx_section}\n\n"
+                "如果这是由管理员手动中止或网络中断引起的，请告知用户任务已被终止，并等待指示，不要盲目重试。"
+            )
         elif ctl.signal.value == "cancel":
-            notify_msg = f"[CC Workspace] CC 任务已被取消: {ctl.message}{task_ctx_section}"
+            notify_msg = (
+                f"[CC Workspace] CC 任务已被管理员手动中止。{task_ctx_section}\n\n"
+                "此次任务是由管理员主动操作终止的，并非执行错误或异常。请不要盲目重试或重新委托！"
+            )
         else:
             return
 
@@ -1751,11 +1700,6 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
             for log in reversed(logs):
                 role = "NA→CC" if log.direction == "NA_TO_CC" else "CC→NA"
                 content = log.content
-                # 去除 NA_TO_CC 时自动注入的 [任务来源频道: ...] 前缀
-                if log.direction == "NA_TO_CC" and content.startswith("[任务来源频道:"):
-                    nl = content.find("\n\n")
-                    if nl != -1:
-                        content = content[nl + 2:]
                 preview = content[:200] + ("..." if len(content) > 200 else "")
                 time_str = log.create_time.strftime("%m-%d %H:%M")
                 lines.append(f"[{time_str}] {role}: {preview}")
@@ -1776,7 +1720,7 @@ async def get_cc_context(_ctx: schemas.AgentCtx) -> str:
 @plugin.mount_command(
     name="cc_help",
     description="查看 CC 协作插件的使用帮助",
-    aliases=["cc-help", "cc_guide"],
+    aliases=["cc_guide"],
     permission=CommandPermission.USER,
     usage="cc_help",
     category="CC 协作",
@@ -1817,7 +1761,7 @@ async def cc_help_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_status",
     description="查看当前频道的 CC 协作状态摘要",
-    aliases=["cc-status"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_status",
     category="CC 协作",
@@ -1832,7 +1776,7 @@ async def cc_status_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_context",
     description="查看当前频道的 CC 协作上下文",
-    aliases=["cc-context"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_context",
     category="CC 协作",
@@ -1853,7 +1797,7 @@ async def cc_context_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_recent",
     description="查看当前频道最近的 CC 协作记录",
-    aliases=["cc-recent", "cc-log"],
+    aliases=["cc_log"],
     permission=CommandPermission.USER,
     usage="cc_recent [数量]",
     category="CC 协作",
@@ -1872,7 +1816,7 @@ async def cc_recent_cmd(
 @plugin.mount_command(
     name="cc_abort",
     description="强制中止当前绑定工作区正在运行的 CC 任务",
-    aliases=["cc-abort", "cc_kill", "cc-kill"],
+    aliases=["cc_kill"],
     permission=CommandPermission.USER,
     usage="cc_abort",
     category="CC 协作",
@@ -1895,7 +1839,7 @@ async def cc_abort_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_reset_session",
     description="重置当前绑定工作区的 CC 会话并清理旧委托摘要缓存",
-    aliases=["cc-reset-session", "cc_reset", "cc-reset"],
+    aliases=["cc_reset"],
     permission=CommandPermission.USER,
     usage="cc_reset_session",
     category="CC 协作",
@@ -1918,7 +1862,7 @@ async def cc_reset_session_cmd(context: CommandExecutionContext) -> CommandRespo
 @plugin.mount_command(
     name="cc_restart",
     description="重启当前绑定工作区的 CC 沙盒容器",
-    aliases=["cc-restart"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_restart",
     category="CC 协作",
@@ -1941,7 +1885,7 @@ async def cc_restart_cmd(context: CommandExecutionContext) -> CommandResponse:
 @plugin.mount_command(
     name="cc_stop",
     description="停止当前绑定工作区的 CC 沙盒容器",
-    aliases=["cc-stop"],
+    aliases=[],
     permission=CommandPermission.USER,
     usage="cc_stop",
     category="CC 协作",

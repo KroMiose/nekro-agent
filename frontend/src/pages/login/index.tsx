@@ -4,12 +4,10 @@ import {
   Box,
   Paper,
   TextField,
-  Button,
   Typography,
   useTheme,
   useMediaQuery,
   InputAdornment,
-  IconButton,
   CircularProgress,
   Link,
   Container,
@@ -26,7 +24,7 @@ import {
 import { authApi } from '../../services/api/auth'
 import { useAuthStore } from '../../stores/auth'
 import { UI_STYLES, getCurrentThemeMode } from '../../theme/themeApi'
-import { BORDER_RADIUS, INPUT_VARIANTS, BUTTON_VARIANTS } from '../../theme/variants'
+import { BORDER_RADIUS, INPUT_VARIANTS } from '../../theme/variants'
 import { ThemeToggleButton } from '../../theme'
 import { motion } from 'framer-motion'
 import { useNotification } from '../../hooks/useNotification'
@@ -37,6 +35,8 @@ import logoImage from '../../assets/logo.png'
 import { useTranslation } from 'react-i18next'
 import LocaleToggleButton from '../../components/common/LocaleToggleButton'
 import { sanitizeRedirectTarget } from '../../router/routes'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -564,14 +564,15 @@ export default function LoginPage() {
                     ),
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton
+                        <IconActionButton
+                          tone="subtle"
                           aria-label="toggle password visibility"
                           onClick={toggleShowPassword}
                           edge="end"
                           size={isMobile ? 'small' : 'medium'}
                         >
                           {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                        </IconButton>
+                        </IconActionButton>
                       </InputAdornment>
                     ),
                   }}
@@ -627,13 +628,12 @@ export default function LoginPage() {
                   }}
                 />
 
-                <Button
+                <ActionButton
+                  tone="primary"
                   fullWidth
-                  variant="contained"
                   onClick={handleLogin}
                   disabled={loading || !username || !password || !agreeTerms}
                   sx={{
-                    ...BUTTON_VARIANTS.primary.styles,
                     mt: 2,
                     py: isMobile ? 1 : 1.5,
                     boxShadow: `0 8px 16px ${theme.palette.primary.main}30`,
@@ -663,7 +663,7 @@ export default function LoginPage() {
                   ) : (
                     t('form.submit')
                   )}
-                </Button>
+                </ActionButton>
 
                 <Box
                   sx={{

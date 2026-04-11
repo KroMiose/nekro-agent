@@ -116,7 +116,7 @@ class QuotaBoostCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="quota_boost",
-            aliases=["quota-boost"],
+            aliases=[],
             description="临时提升当日配额",
             i18n_description=i18n_text(zh_CN="临时提升当日配额", en_US="Temporarily boost daily quota"),
             usage="quota_boost <数字>",
@@ -162,7 +162,7 @@ class QuotaResetCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="quota_reset",
-            aliases=["quota-reset"],
+            aliases=[],
             description="重置频道配额提升",
             i18n_description=i18n_text(zh_CN="重置频道配额提升", en_US="Reset channel quota boost"),
             permission=CommandPermission.SUPER_USER,
@@ -189,7 +189,7 @@ class QuotaSetCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="quota_set",
-            aliases=["quota-set"],
+            aliases=[],
             description="设置频道每日配额限制",
             i18n_description=i18n_text(zh_CN="设置频道每日配额限制", en_US="Set channel daily quota limit"),
             usage="quota_set <数字>",
@@ -250,7 +250,7 @@ class QuotaWhitelistCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="quota_whitelist",
-            aliases=["quota-whitelist"],
+            aliases=[],
             description="管理配额用户白名单",
             i18n_description=i18n_text(zh_CN="管理配额用户白名单", en_US="Manage quota user whitelist"),
             usage="quota_whitelist [add|remove <用户ID>]",

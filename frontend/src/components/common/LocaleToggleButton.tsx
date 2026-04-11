@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import {
-  IconButton,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -19,6 +18,7 @@ import { supportedLanguages } from '../../config/i18n'
 import { getCurrentThemeMode, getCurrentExtendedPalette } from '../../theme/themeConfig'
 import { BORDER_RADIUS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from './IconActionButton'
 
 interface LocaleToggleButtonProps {
   /**
@@ -103,7 +103,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
     return (
       <Box>
         <Tooltip title={t('locale.toggleTooltip')} arrow>
-          <IconButton
+          <IconActionButton
             onClick={handleClick}
             size="small"
             sx={{
@@ -135,7 +135,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
                 {LOCALE_SHORT_NAMES[currentLocale]}
               </Typography>
             </Box>
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
 
         <Menu
@@ -177,7 +177,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
     return (
       <Box>
         <Tooltip title={t('locale.toggleTooltip')} arrow>
-          <IconButton
+          <IconActionButton
             onClick={handleClick}
             color="inherit"
             size="medium"
@@ -197,7 +197,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
             aria-expanded={open ? 'true' : undefined}
           >
             <LanguageIcon sx={{ transition: 'all 0.3s ease' }} />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
 
         <Menu
@@ -235,7 +235,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
   return (
     <Box>
       <Tooltip title="切换语言 / Switch Language">
-        <IconButton
+        <IconActionButton
           onClick={handleClick}
           sx={{
             color: 'inherit',
@@ -264,7 +264,7 @@ export default function LocaleToggleButton({ mode = 'compact', sx }: LocaleToggl
               {supportedLanguages[currentLocale]}
             </Typography>
           </Box>
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
 
       <Menu

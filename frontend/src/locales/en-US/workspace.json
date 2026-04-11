@@ -106,38 +106,69 @@
     "deleteFailed": "Delete failed: {{message}}"
   },
   "ccModels": {
-    "infoAlert": "Manage model preset configurations used by Claude Code (CC) sandbox. Select a preset in the workspace config page to generate the inject config.",
-    "createBtn": "New Preset",
+    "alert": {
+      "providerSupportBefore": "CC model groups work with any Anthropic-compatible provider (e.g. official Anthropic). If you don’t have a provider or want to support us, visit ",
+      "providerSupportLink": "NekroAI Relay",
+      "providerSupportAfter": " to get your dedicated key!"
+    },
+    "createBtn": "New Group",
+    "actions": {
+      "searchPlaceholder": "Search group, endpoint or description",
+      "clearSelection": "Clear selection",
+      "batchTest": "Batch model test ({{count}})"
+    },
     "table": {
       "headers": {
-        "name": "Preset Name",
+        "name": "Group Name",
         "desc": "Description",
         "type": "Type",
         "model": "Model",
         "baseUrl": "Base URL",
+        "usage": "Workspace Usage",
+        "health": "Speed",
         "actions": "Actions"
       },
-      "empty": "No presets yet. Click \"New Preset\" to add one.",
+      "empty": "No matching groups",
       "defaultChip": "Default",
       "typePreset": "Preset",
       "typeManual": "Manual",
       "multiModel": "(multi-model)",
+      "usageBound": "Bound by {{count}}",
+      "usageIdle": "Idle",
       "tooltips": {
         "edit": "Edit",
+        "copy": "Copy",
+        "test": "Test model",
+        "testDisabled": "Complete Base URL, Auth Token, and a testable model first",
         "delete": "Delete",
-        "defaultCannotDelete": "Default preset cannot be deleted"
+        "defaultCannotDelete": "Default group cannot be deleted",
+        "boundCannotDelete": "{{count}} workspaces are still bound"
       }
     },
+    "health": {
+      "notTested": "Not tested",
+      "testing": "Testing",
+      "ok": "{{ms}}ms",
+      "failed": "Failed",
+      "tooltipPassed": "Model test passed",
+      "tooltipFailed": "Model test failed",
+      "tooltipModel": "Actual model: {{model}}",
+      "tooltipLatency": "Latency: {{ms}}ms",
+      "tooltipTokens": "Tokens: input {{input}} / output {{output}}",
+      "tooltipReply": "Reply: {{text}}",
+      "tooltipError": "Error: {{error}}"
+    },
     "dialog": {
-      "titleCreate": "New CC Model Preset",
-      "titleEdit": "Edit CC Model Preset",
-      "name": "Preset Name",
+      "titleCreate": "New CC Model Group",
+      "titleEdit": "Edit CC Model Group",
+      "titleCopy": "Copy CC Model Group",
+      "name": "Group Name",
       "nameReadonly": "Name cannot be changed after creation",
       "desc": "Description",
       "sectionApi": "API Config",
-      "sourcePreset": "Source Preset",
+      "sourcePreset": "Source Template",
       "sourcePresetHint": "Auto-fill a vendor's official Base URL and recommended model mapping, then only enter the API key.",
-      "sourcePresetCustom": "Custom (no preset)",
+      "sourcePresetCustom": "Custom (no template)",
       "timeout": "Timeout (ms)",
       "sectionModel": "Model Config",
       "modelType": "Model Type",
@@ -155,18 +186,24 @@
       "create": "Create"
     },
     "deleteDialog": {
-      "title": "Confirm Delete Preset",
-      "content": "Are you sure you want to delete preset {{name}}? This action cannot be undone.",
+      "title": "Confirm Delete Group",
+      "content": "Are you sure you want to delete group {{name}}? This action cannot be undone.",
+      "boundHint": "{{count}} workspaces are still bound: {{names}}",
       "cancel": "Cancel",
       "delete": "Delete"
     },
     "notifications": {
-      "created": "Preset created",
+      "created": "Group created",
       "createFailed": "Create failed: {{message}}",
-      "saved": "Preset saved",
+      "saved": "Group saved",
       "saveFailed": "Save failed: {{message}}",
-      "deleted": "Preset deleted",
-      "deleteFailed": "Delete failed: {{message}}"
+      "deleted": "Group deleted",
+      "deleteFailed": "Delete failed: {{message}}",
+      "noTestableGroups": "No testable CC model groups in the current selection",
+      "testNoResults": "Model test returned no results. Check the request path.",
+      "testAllPassed": "Model test passed",
+      "testCompleted": "Model test completed. Check the result.",
+      "testFailed": "Model test failed"
     }
   },
   "skills": {

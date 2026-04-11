@@ -22,9 +22,10 @@ from nekro_agent.adapters.interface.schemas.platform import (
     PlatformUser,
 )
 from nekro_agent.core.logger import get_sub_logger
-from nekro_agent.core.config import ExtraField
+from nekro_agent.core.core_utils import ExtraField
 from nekro_agent.models.db_chat_channel import DBChatChannel
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
 
 
 logger = get_sub_logger("adapter.minecraft")
@@ -52,14 +53,12 @@ class MinecraftConfig(BaseAdapterConfig):
         description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
         json_schema_extra=ExtraField(
             is_hidden=True,
-        ).model_dump(),
-    )
-    SESSION_PROCESSING_WITH_EMOJI: bool = Field(
-        default=False,
-        title="显示处理中表情反馈",
-        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
-        json_schema_extra=ExtraField(
-            is_hidden=True,
+            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
+            i18n_title=i18n_text(zh_CN="启用 @用户 功能", en_US="Enable @User Mention"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+                en_US="When disabled, @user mentions sent by AI will be converted to plain text usernames to avoid repeatedly disturbing users.",
+            ),
         ).model_dump(),
     )
     SERVERS: List[ServerConfig] = Field(
@@ -67,7 +66,14 @@ class MinecraftConfig(BaseAdapterConfig):
         title="服务器列表",
         description="在这里配置你的 Minecraft 服务器",
         json_schema_extra=ExtraField(
-            is_need_restart= True,
+            required=True,
+            is_need_restart=True,
+            i18n_category=i18n_text(zh_CN="服务器", en_US="Servers"),
+            i18n_title=i18n_text(zh_CN="服务器列表", en_US="Server List"),
+            i18n_description=i18n_text(
+                zh_CN="在这里配置你的 Minecraft 服务器",
+                en_US="Configure your Minecraft servers here.",
+            ),
         ).model_dump(),
     )
     MINECRAFT_WS_URLS: str = Field(
@@ -79,6 +85,12 @@ class MinecraftConfig(BaseAdapterConfig):
             load_nbenv_as="minecraft_ws_urls",
             is_textarea=True,
             is_hidden=True,
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 WebSocket 地址", en_US="Minecraft Server WebSocket URLs"),
+            i18n_description=i18n_text(
+                zh_CN="Minecraft 服务器 WebSocket 地址，可配置多个服务器",
+                en_US="WebSocket URLs of Minecraft servers. Multiple servers can be configured.",
+            ),
         ).model_dump(),
     )
     MINECRAFT_ACCESS_TOKEN: str = Field(
@@ -88,6 +100,12 @@ class MinecraftConfig(BaseAdapterConfig):
         json_schema_extra=ExtraField(
             load_to_nonebot_env=True,
             load_nbenv_as="minecraft_access_token",
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 WebSocket 认证密钥", en_US="Minecraft Server WebSocket Access Token"),
+            i18n_description=i18n_text(
+                zh_CN="用于验证连接",
+                en_US="Access token used to verify WebSocket connections.",
+            ),
         ).model_dump(),
     )
     MINECRAFT_SERVER_RCON: str = Field(
@@ -99,6 +117,12 @@ class MinecraftConfig(BaseAdapterConfig):
             load_nbenv_as="minecraft_server_rcon",
             is_textarea=True,
             is_hidden=True,
+            i18n_category=i18n_text(zh_CN="兼容", en_US="Compatibility"),
+            i18n_title=i18n_text(zh_CN="Minecraft 服务器 RCON 地址", en_US="Minecraft Server RCON Addresses"),
+            i18n_description=i18n_text(
+                zh_CN="Minecraft 服务器 RCON 地址，用于远程执行指令",
+                en_US="RCON addresses of Minecraft servers, used to execute commands remotely.",
+            ),
         ).model_dump(),
     )
 
@@ -140,7 +164,7 @@ class MinecraftAdapter(BaseAdapter[MinecraftConfig]):
             name="Minecraft",
             description="Minecraft 服务器适配器，通过 RCON 协议与游戏服务器通信，支持游戏内聊天互动",
             version="1.0.0",
-            author="Zaxpris",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["minecraft", "rcon", "gaming", "chat", "server"],
         )

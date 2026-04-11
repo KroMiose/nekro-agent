@@ -7,12 +7,8 @@ import {
   Card,
   CardContent,
   CardActions,
-  Button,
   Avatar,
   Chip,
-  TextField,
-  InputAdornment,
-  IconButton,
   CircularProgress,
   Dialog,
   DialogTitle,
@@ -20,8 +16,6 @@ import {
   DialogActions,
 } from '@mui/material'
 import {
-  Search as SearchIcon,
-  Clear as ClearIcon,
   InfoOutlined as InfoIcon,
   Add as AddIcon,
   CloudDownload as CloudDownloadIcon,
@@ -37,6 +31,8 @@ import { useNavigate } from 'react-router-dom'
 import { UI_STYLES } from '../../theme/themeConfig'
 import { CHIP_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import SearchActionBar from '../../components/common/SearchActionBar'
+import ActionButton from '../../components/common/ActionButton'
 
 // 防抖自定义Hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -208,10 +204,10 @@ const PresetCard = ({
           borderColor: 'divider',
         }}
       >
-        <Button size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
+        <ActionButton size="small" variant="text" startIcon={<InfoIcon />} onClick={onShowDetail}>
           {t('presetsMarket.details')}
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
           size="small"
           variant={preset.is_local ? 'text' : 'contained'}
           startIcon={preset.is_local ? <DoneIcon /> : <CloudDownloadIcon />}
@@ -220,7 +216,7 @@ const PresetCard = ({
           color="primary"
         >
           {preset.is_local ? t('presetsMarket.obtained') : t('presetsMarket.obtain')}
-        </Button>
+        </ActionButton>
       </CardActions>
     </Card>
   )
@@ -359,69 +355,23 @@ export default function PresetsMarket() {
           alignItems: 'center',
         }}
       >
-        <Box
-          component="form"
+        <SearchActionBar
+          value={searchKeyword}
+          onChange={setSearchKeyword}
+          onClear={handleSearchInputClear}
           onSubmit={handleSearch}
-          sx={{
-            display: 'flex',
-            boxShadow: theme =>
-              theme.palette.mode === 'dark'
-                ? '0 0 10px rgba(0,0,0,0.2)'
-                : '0 0 15px rgba(0,0,0,0.07)',
-            borderRadius: 2,
-          }}
-        >
-          <TextField
-            size="small"
-            placeholder={t('presetsMarket.searchPlaceholder')}
-            value={searchKeyword}
-            onChange={e => setSearchKeyword(e.target.value)}
-            sx={{
-              minWidth: 220,
-              '& .MuiOutlinedInput-root': {
-                borderRadius: '8px 0 0 8px',
-              },
-            }}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-              endAdornment: searchKeyword && (
-                <InputAdornment position="end">
-                  <IconButton size="small" onClick={handleSearchInputClear}>
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ),
-            }}
-          />
-          <Button
-            type="submit"
-            disabled={loading}
-            sx={{
-              borderRadius: '0 8px 8px 0',
-              px: 2,
-              background: theme => theme.palette.primary.main,
-              '&:hover': {
-                background: theme => theme.palette.primary.dark,
-              },
-            }}
-            variant="contained"
-          >
-            {loading ? t('presetsMarket.searching') : t('presetsMarket.search')}
-          </Button>
-        </Box>
+          placeholder={t('presetsMarket.searchPlaceholder')}
+          actionLabel={loading ? t('presetsMarket.searching') : t('presetsMarket.search')}
+          actionDisabled={loading}
+        />
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          <Button
-            variant="contained"
-            color="primary"
+          <ActionButton
+            tone="primary"
             startIcon={<AddIcon />}
             onClick={() => navigate('/presets')}
           >
             {t('presetsMarket.publishPreset')}
-          </Button>
+          </ActionButton>
         </Box>
       </Box>
 
@@ -548,15 +498,16 @@ export default function PresetsMarket() {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setConfirmDialog({ open: false, preset: null })}
             disabled={!!downloadingId}
           >
             {t('presetsMarket.cancel')}
-          </Button>
-          <Button onClick={handleDownloadConfirm} color="primary" disabled={!!downloadingId}>
+          </ActionButton>
+          <ActionButton tone="primary" onClick={handleDownloadConfirm} disabled={!!downloadingId}>
             {downloadingId ? <CircularProgress size={24} /> : t('presetsMarket.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

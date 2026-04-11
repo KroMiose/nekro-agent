@@ -3,7 +3,6 @@ import {
   Alert,
   alpha,
   Box,
-  Button,
   Chip,
   Dialog,
   DialogActions,
@@ -11,8 +10,6 @@ import {
   DialogContentText,
   DialogTitle,
   Drawer,
-  IconButton,
-  InputAdornment,
   MenuItem,
   Paper,
   Stack,
@@ -41,8 +38,6 @@ import {
   Refresh as RefreshIcon,
   Repeat as RepeatIcon,
   Schedule as ScheduleIcon,
-  Search as SearchIcon,
-  Close as CloseIcon,
   VisibilityOutlined as VisibilityOutlinedIcon,
 } from '@mui/icons-material'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -62,6 +57,10 @@ import { workspaceApi } from '../../services/api/workspace'
 import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import TablePaginationStyled from '../../components/common/TablePaginationStyled'
 import { chatChannelPath, pluginsManagementPath, workspaceDetailPath } from '../../router/routes'
+import SearchActionBar from '../../components/common/SearchActionBar'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 type QuickFilter = 'all' | 'activeRecurring' | 'paused' | 'upcoming24h' | 'errors'
 
@@ -120,65 +119,6 @@ function getStatusColor(theme: Theme, status: TimerTaskStatus) {
 
 function getTypeColor(theme: Theme, taskType: TimerTaskType) {
   return taskType === 'recurring' ? theme.palette.primary.main : theme.palette.info.main
-}
-
-function StatCard({
-  label,
-  value,
-  icon,
-  color,
-  active,
-  onClick,
-}: {
-  label: string
-  value: number
-  icon: React.ReactNode
-  color: string
-  active: boolean
-  onClick: () => void
-}) {
-  return (
-    <Paper
-      variant="outlined"
-      onClick={onClick}
-      sx={{
-        cursor: 'pointer',
-        px: 2,
-        py: 1.5,
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 1.5,
-        borderRadius: 2,
-        borderColor: active ? alpha(color, 0.4) : 'divider',
-        bgcolor: active ? alpha(color, 0.04) : undefined,
-      }}
-    >
-      <Box
-        sx={{
-          width: 36,
-          height: 36,
-          borderRadius: 1.5,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          bgcolor: color,
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-          {value}
-        </Typography>
-        <Typography variant="caption" color="text.secondary">
-          {label}
-        </Typography>
-      </Box>
-    </Paper>
-  )
 }
 
 function DetailSection({
@@ -642,13 +582,13 @@ export default function WorkspaceTimersPage() {
           severity="warning"
           sx={{ mb: 2, flexShrink: 0 }}
           action={
-            <Button
-              color="inherit"
+            <ActionButton
+              tone="secondary"
               size="small"
               onClick={() => navigate(pluginsManagementPath('timer'))}
             >
               {t('timers.pluginAlert.action')}
-            </Button>
+            </ActionButton>
           }
         >
           {t('timers.pluginAlert.message')}
@@ -663,26 +603,12 @@ export default function WorkspaceTimersPage() {
           flexWrap="wrap"
           useFlexGap
         >
-        <TextField
-          placeholder={t('timers.filters.searchPlaceholder')}
-          size="small"
+        <SearchActionBar
           value={search}
-          onChange={event => setSearch(event.target.value)}
-          sx={{ width: { xs: '100%', sm: 280, md: 320 }, maxWidth: '100%', flexShrink: 0 }}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <SearchIcon fontSize="small" />
-              </InputAdornment>
-            ),
-            endAdornment: search ? (
-              <InputAdornment position="end">
-                <IconButton size="small" onClick={() => setSearch('')}>
-                  <CloseIcon sx={{ fontSize: 16 }} />
-                </IconButton>
-              </InputAdornment>
-            ) : undefined,
-          }}
+          onChange={setSearch}
+          onClear={() => setSearch('')}
+          placeholder={t('timers.filters.searchPlaceholder')}
+          actionLabel="搜索"
         />
         <TextField
           select
@@ -756,24 +682,24 @@ export default function WorkspaceTimersPage() {
         </TextField>
         <Box sx={{ flexGrow: 1 }} />
         <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-          <Button
-            variant={quickFilter === 'errors' ? 'contained' : 'outlined'}
+          <ActionButton
+            tone={quickFilter === 'errors' ? 'primary' : 'secondary'}
             startIcon={<ErrorOutlineIcon />}
             onClick={() => handleApplyQuickFilter(quickFilter === 'errors' ? 'all' : 'errors')}
             size="small"
           >
             {t('timers.actions.onlyErrors')}
-          </Button>
-          <IconButton onClick={() => invalidateTimers()} size="small">
+          </ActionButton>
+          <IconActionButton onClick={() => invalidateTimers()} size="small">
             <RefreshIcon fontSize="small" />
-          </IconButton>
-          <IconButton
+          </IconActionButton>
+          <IconActionButton
             size="small"
             onClick={handleResetFilters}
             disabled={activeFiltersCount === 0 && quickFilter === 'all'}
           >
             <FilterAltOffIcon fontSize="small" />
-          </IconButton>
+          </IconActionButton>
         </Stack>
         <Typography
           variant="body2"
@@ -936,13 +862,13 @@ export default function WorkspaceTimersPage() {
                       <TableCell align="center" sx={{ ...UNIFIED_TABLE_STYLES.cell, width: 140 }}>
                         <Stack direction="row" spacing={0.5} justifyContent="center">
                           <Tooltip title={t('timers.actions.view')}>
-                            <IconButton size="small" onClick={() => setSelectedTask(task)}>
+                            <IconActionButton size="small" onClick={() => setSelectedTask(task)}>
                               <VisibilityOutlinedIcon fontSize="small" />
-                            </IconButton>
+                            </IconActionButton>
                           </Tooltip>
                           <Tooltip title={t('timers.actions.runNow')}>
                             <span>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 disabled={!task.actionable || runNowMutation.isPending}
                                 onClick={() => {
@@ -950,13 +876,13 @@ export default function WorkspaceTimersPage() {
                                 }}
                               >
                                 <FlashOnIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </span>
                           </Tooltip>
                           {task.task_type === 'recurring' && (
                             <Tooltip title={task.status === 'paused' ? t('timers.actions.resume') : t('timers.actions.pause')}>
                               <span>
-                                <IconButton
+                                <IconActionButton
                                   size="small"
                                   disabled={!task.actionable || pauseMutation.isPending || resumeMutation.isPending}
                                   onClick={() => {
@@ -970,20 +896,20 @@ export default function WorkspaceTimersPage() {
                                   {task.status === 'paused'
                                     ? <PlayArrowIcon fontSize="small" />
                                     : <PauseCircleOutlineIcon fontSize="small" />}
-                                </IconButton>
+                                </IconActionButton>
                               </span>
                             </Tooltip>
                           )}
                           <Tooltip title={t('timers.actions.delete')}>
                             <span>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
-                                color="error"
+                                tone="danger"
                                 disabled={!task.actionable || deleteMutation.isPending}
                                 onClick={() => setConfirmDeleteTask(task)}
                               >
                                 <DeleteOutlineIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </span>
                           </Tooltip>
                         </Stack>
@@ -1295,16 +1221,16 @@ export default function WorkspaceTimersPage() {
 
             <Box sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
               <Stack direction="row" spacing={1} justifyContent="flex-end">
-                <Button
+                <ActionButton
                   variant="outlined"
                   startIcon={<FlashOnIcon />}
                   disabled={!currentDetail.actionable || runNowMutation.isPending}
                   onClick={() => runNowMutation.mutate({ taskType: currentDetail.task_type, taskId: currentDetail.id })}
                 >
                   {t('timers.actions.runNow')}
-                </Button>
+                </ActionButton>
                 {currentDetail.task_type === 'recurring' && (
-                  <Button
+                  <ActionButton
                     variant="outlined"
                     startIcon={currentDetail.status === 'paused' ? <PlayArrowIcon /> : <PauseCircleOutlineIcon />}
                     disabled={!currentDetail.actionable || pauseMutation.isPending || resumeMutation.isPending}
@@ -1317,17 +1243,17 @@ export default function WorkspaceTimersPage() {
                     }}
                   >
                     {currentDetail.status === 'paused' ? t('timers.actions.resume') : t('timers.actions.pause')}
-                  </Button>
+                  </ActionButton>
                 )}
-                <Button
-                  color="error"
+                <ActionButton
+                  tone="danger"
                   variant="outlined"
                   startIcon={<DeleteOutlineIcon />}
                   disabled={!currentDetail.actionable || deleteMutation.isPending}
                   onClick={() => setConfirmDeleteTask(currentDetail)}
                 >
                   {t('timers.actions.delete')}
-                </Button>
+                </ActionButton>
               </Stack>
             </Box>
           </Box>
@@ -1342,18 +1268,18 @@ export default function WorkspaceTimersPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmDeleteTask(null)}>
+          <ActionButton tone="secondary" onClick={() => setConfirmDeleteTask(null)}>
             {t('timers.actions.cancel')}
-          </Button>
-          <Button
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => {
               if (!confirmDeleteTask) return
               deleteMutation.mutate({ taskType: confirmDeleteTask.task_type, taskId: confirmDeleteTask.id })
             }}
           >
             {t('timers.actions.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

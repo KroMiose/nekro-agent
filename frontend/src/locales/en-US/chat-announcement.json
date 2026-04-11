@@ -1,0 +1,71 @@
+{
+  "title": "Bot Announcement",
+  "subtitle": "Send the same message to multiple channels without writing it into AI context or WebUI conversation history.",
+  "stats": {
+    "selected": "{{count}} channels selected",
+    "filtered": "{{count}} channels in current filter"
+  },
+  "search": {
+    "placeholder": "Search by channel name or chat_key"
+  },
+  "filters": {
+    "type": "Type",
+    "status": "Status",
+    "all": "All",
+    "group": "Group",
+    "private": "Private",
+    "observe": "Observe",
+    "active": "Active",
+    "inactive": "Disabled"
+  },
+  "selector": {
+    "title": "Channel Selector",
+    "selectVisible": "Select Current Page",
+    "clearSelection": "Clear Selection",
+    "visibleCount": "{{count}} channels on this page",
+    "selectedCount": "{{count}} channels selected",
+    "empty": "No channels match the current filters",
+    "messageCount": "{{count}} messages",
+    "noActivity": "No recent activity",
+    "chatKey": "Channel Key"
+  },
+  "summary": {
+    "title": "Selected Channels",
+    "empty": "No channels selected yet",
+    "clear": "Clear",
+    "count": "{{count}} channels"
+  },
+  "composer": {
+    "title": "Announcement Content",
+    "help": "Announcement details",
+    "identity": "Sender: Bot",
+    "messageLabel": "Announcement Message",
+    "messagePlaceholder": "Type the announcement to send...",
+    "helper": "Announcements are sent channel by channel and show live progress while sending.",
+    "length": "{{count}} chars",
+    "selectionSummary": "{{selected}} channels selected, {{filtered}} channels in the current filter.",
+    "actionTitle": "Ready to send",
+    "actionReady": "{{channels}} channels selected, {{count}} chars in the message.",
+    "send": "Send to {{count}} channels",
+    "sending": "Sending...",
+    "messageRequired": "Please enter a message to send",
+    "selectionRequired": "Please select at least one channel"
+  },
+  "result": {
+    "title": "Latest Announcement Result",
+    "empty": "Per-channel results will appear here after sending",
+    "success": "{{count}} succeeded",
+    "failure": "{{count}} failed",
+    "allSuccess": "All channels sent successfully",
+    "ok": "Sent",
+    "failed": "Failed"
+  },
+  "progress": {
+    "title": "Sending Announcement",
+    "sending": "Sending current channel",
+    "waiting": "Random delay before the next channel",
+    "current": "Current channel: {{name}}",
+    "count": "{{completed}} / {{total}} completed",
+    "summary": "{{success}} succeeded · {{failure}} failed"
+  }
+}

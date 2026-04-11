@@ -13,7 +13,7 @@ class NaInfoCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_info",
-            aliases=["na-info"],
+            aliases=[],
             description="查看系统信息",
             i18n_description=i18n_text(zh_CN="查看系统信息", en_US="View system information"),
             permission=CommandPermission.SUPER_USER,
@@ -22,12 +22,12 @@ class NaInfoCommand(BaseCommand):
         )
 
     async def execute(self, context: CommandExecutionContext) -> CommandResponse:
-        from nekro_agent.core.config import config
         from nekro_agent.core.os_env import OsEnv
         from nekro_agent.models.db_chat_channel import DBChatChannel
         from nekro_agent.tools.common_util import get_app_version
 
         db_chat_channel = await DBChatChannel.get_channel(chat_key=context.chat_key)
+        effective_config = await db_chat_channel.get_effective_config()
         preset = await db_chat_channel.get_preset()
         version = get_app_version()
 
@@ -46,16 +46,16 @@ class NaInfoCommand(BaseCommand):
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
-            f"{model_group_label}: {config.USE_MODEL_GROUP}"
+            f"{model_group_label}: {effective_config.USE_MODEL_GROUP}"
         )
 
         return CmdCtl.success(
-            message=message,
+            message,
             data={
                 "version": version,
                 "in_docker": OsEnv.RUN_IN_DOCKER,
                 "preset": preset.name,
-                "model_group": config.USE_MODEL_GROUP,
+                "model_group": effective_config.USE_MODEL_GROUP,
             },
         )
 
@@ -67,7 +67,7 @@ class NaHelpCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="na_help",
-            aliases=["na-help"],
+            aliases=[],
             description="查看帮助信息",
             i18n_description=i18n_text(zh_CN="查看帮助信息", en_US="View help information"),
             permission=CommandPermission.USER,
@@ -109,4 +109,4 @@ class NaHelpCommand(BaseCommand):
         parts.append(f"Version: {get_app_version()}")
         parts.append("Github: https://github.com/KroMiose/nekro-agent")
 
-        return CmdCtl.success(message="\n".join(parts))
+        return CmdCtl.success("\n".join(parts))

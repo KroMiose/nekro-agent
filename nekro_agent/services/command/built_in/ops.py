@@ -20,7 +20,7 @@ class ClearSandboxCacheCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="clear_sandbox_cache",
-            aliases=["clear-sandbox-cache", "na_csc", "na-csc"],
+            aliases=["na_csc"],
             description="清理沙盒环境缓存",
             i18n_description=i18n_text(zh_CN="清理沙盒环境缓存", en_US="Clear sandbox environment cache"),
             permission=CommandPermission.SUPER_USER,
@@ -74,7 +74,7 @@ class DockerRestartCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="docker_restart",
-            aliases=["docker-restart"],
+            aliases=[],
             description="重启 Docker 容器",
             i18n_description=i18n_text(zh_CN="重启 Docker 容器", en_US="Restart Docker container"),
             usage="docker_restart [container_name]",
@@ -109,7 +109,7 @@ class DockerLogsCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="docker_logs",
-            aliases=["docker-logs"],
+            aliases=[],
             description="获取 Docker 容器日志",
             i18n_description=i18n_text(zh_CN="获取 Docker 容器日志", en_US="Get Docker container logs"),
             usage="docker_logs [container_name]",
@@ -174,7 +174,7 @@ class InstanceIdCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="instance_id",
-            aliases=["instance-id", "na_instance_id", "na-instance-id"],
+            aliases=["na_instance_id"],
             description="获取实例唯一 ID",
             i18n_description=i18n_text(zh_CN="获取实例唯一 ID", en_US="Get instance unique ID"),
             permission=CommandPermission.SUPER_USER,
@@ -211,7 +211,7 @@ class GithubStarsCheckCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="github_stars_check",
-            aliases=["github-stars-check"],
+            aliases=[],
             description="检查 GitHub Star 状态",
             i18n_description=i18n_text(zh_CN="检查 GitHub Star 状态", en_US="Check GitHub Star status"),
             permission=CommandPermission.SUPER_USER,
@@ -253,7 +253,7 @@ class LogErrListCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="log_err_list",
-            aliases=["log-err-list", "log_err_ls", "log-err-ls"],
+            aliases=["log_err_ls"],
             description="查看错误日志列表",
             i18n_description=i18n_text(zh_CN="查看错误日志列表", en_US="View error log list"),
             usage="log_err_list [-p <页码>] [-s <每页数量>] [-a]",
@@ -351,7 +351,7 @@ class MemoryReindexCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="memory_reindex",
-            aliases=["memory-reindex", "mem_reindex", "mem-reindex"],
+            aliases=["mem_reindex"],
             description="重建记忆库向量索引",
             i18n_description=i18n_text(zh_CN="重建记忆库向量索引", en_US="Rebuild memory vector index"),
             usage="memory_reindex -y",
@@ -400,7 +400,7 @@ class MemoryPruneCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="memory_prune",
-            aliases=["memory-prune", "mem_prune", "mem-prune"],
+            aliases=["mem_prune"],
             description="清理低价值结构化记忆",
             i18n_description=i18n_text(zh_CN="清理低价值结构化记忆", en_US="Prune low-value structured memories"),
             usage="memory_prune <workspace_id> -y",
@@ -447,7 +447,7 @@ class MemoryRebuildCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="memory_rebuild",
-            aliases=["memory-rebuild", "mem_rebuild", "mem-rebuild"],
+            aliases=["mem_rebuild"],
             description="清空并从历史数据重建工作区记忆库",
             i18n_description=i18n_text(zh_CN="清空并从历史数据重建工作区记忆库", en_US="Rebuild workspace memory from history"),
             usage="memory_rebuild <workspace_id> -y",

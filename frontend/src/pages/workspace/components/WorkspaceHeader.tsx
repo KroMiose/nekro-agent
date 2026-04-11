@@ -1,10 +1,11 @@
-import { Box, Typography, CircularProgress, IconButton, Tooltip, alpha } from '@mui/material'
+import { Box, Typography, CircularProgress, Tooltip, alpha } from '@mui/material'
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material'
 import { useTheme } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WorkspaceDetail, SandboxStatus } from '../../../services/api/workspace'
 import WorkspaceStatusChip from './WorkspaceStatusChip'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 export default function WorkspaceHeader({
   workspace,
@@ -49,9 +50,9 @@ export default function WorkspaceHeader({
       }}
     >
       <Tooltip title={t('detail.header.backTooltip')}>
-        <IconButton size="small" onClick={onBack}>
+        <IconActionButton size="small" onClick={onBack}>
           <ArrowBackIcon fontSize="small" />
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
 
       <Typography variant="h6" sx={{ fontWeight: 600 }}>

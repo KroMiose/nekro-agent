@@ -1,12 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
   Box,
-  Button,
   Chip,
   TextField,
   CircularProgress,
   Stack,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -50,6 +48,8 @@ import {
 } from '../../../services/api/workspace'
 import { stripJsoncComments, typeColor, typeIcon, emptyServer } from './mcpUtils'
 import { CARD_VARIANTS, UNIFIED_TABLE_STYLES } from '../../../theme/variants'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 // ── KeyValueEditor ──
 
@@ -89,10 +89,10 @@ export function KeyValueEditor({
         <Box key={i} sx={{ display: 'flex', gap: 1, mb: 0.5, alignItems: 'center' }}>
           <TextField size="small" label={keyLabel} value={k} onChange={e => handleChange(k, 'key', e.target.value)} sx={{ flex: 1 }} />
           <TextField size="small" label={valueLabel} value={v} onChange={e => handleChange(k, 'value', e.target.value)} sx={{ flex: 2 }} />
-          <IconButton size="small" onClick={() => handleRemove(k)}><DeleteIcon fontSize="small" /></IconButton>
+          <IconActionButton size="small" onClick={() => handleRemove(k)}><DeleteIcon fontSize="small" /></IconActionButton>
         </Box>
       ))}
-      <Button size="small" startIcon={<AddIcon />} onClick={handleAdd}>{keyLabel}</Button>
+      <ActionButton size="small" startIcon={<AddIcon />} onClick={handleAdd}>{keyLabel}</ActionButton>
     </Box>
   )
 }
@@ -147,8 +147,8 @@ export function ServerFormDialog({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t('detail.mcp.form.cancel')}</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={!form.name.trim() || stdioCommandInvalid}>{submitLabel}</Button>
+        <ActionButton onClick={onClose}>{t('detail.mcp.form.cancel')}</ActionButton>
+        <ActionButton variant="contained" onClick={handleSubmit} disabled={!form.name.trim() || stdioCommandInvalid}>{submitLabel}</ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -188,7 +188,7 @@ export function RegistryDialog({
           </List>
         )}
       </DialogContent>
-      <DialogActions><Button onClick={onClose}>{t('detail.mcp.form.cancel')}</Button></DialogActions>
+      <DialogActions><ActionButton onClick={onClose}>{t('detail.mcp.form.cancel')}</ActionButton></DialogActions>
     </Dialog>
   )
 }
@@ -207,12 +207,15 @@ export interface McpServerManagerProps {
   // 卡片差异
   cardVariant?: 'workspace' | 'global'
   // 文本
+  title?: string
   emptyText: string
   emptyHint?: string
   jsonTitle: string
   jsonHint: string
   deleteTitle: string
   deleteContent: (name: string) => string
+  toolbarFilters?: React.ReactNode
+  toolbarActions?: React.ReactNode
   t: (key: string) => string
 }
 
@@ -226,12 +229,15 @@ export function McpServerManager({
   onImport,
   onSyncToSandbox,
   cardVariant = 'workspace',
+  title,
   emptyText,
   emptyHint,
   jsonTitle,
   jsonHint,
   deleteTitle,
   deleteContent,
+  toolbarFilters,
+  toolbarActions,
   t,
 }: McpServerManagerProps) {
   const theme = useTheme()
@@ -312,55 +318,63 @@ export function McpServerManager({
     <Stack spacing={2}>
       {/* Toolbar */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
-            {t('detail.mcp.title')}
-          </Typography>
-          {viewMode !== 'json' && (
-            <>
-              {onSyncToSandbox && (
-                <Button size="small" variant="outlined" startIcon={<SyncIcon />} onClick={() => { onSyncToSandbox().catch(() => {}) }} disabled={mutating}>
-                  {t('detail.mcp.syncToSandbox')}
-                </Button>
-              )}
-              <Button size="small" variant="contained" startIcon={<AddIcon />} endIcon={<ArrowDropDownIcon />} onClick={e => setAddMenuAnchor(e.currentTarget)}>
-                {t('detail.mcp.addServer')}
-              </Button>
-              <Menu anchorEl={addMenuAnchor} open={!!addMenuAnchor} onClose={() => setAddMenuAnchor(null)}>
-                <MenuItem onClick={() => { setAddMenuAnchor(null); setAddOpen(true) }}>
-                  <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
-                  {t('detail.mcp.addManual')}
-                </MenuItem>
-                <MenuItem onClick={() => { setAddMenuAnchor(null); setImportOpen(true); setImportText(''); setImportError(null) }}>
-                  <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
-                  {t('mcpServices.toolbar.importJson')}
-                </MenuItem>
-              </Menu>
-            </>
-          )}
-          <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
-            {(['cards', 'list', 'json'] as const).map(mode => (
-              <IconButton
-                key={mode}
-                size="small"
-                onClick={() => setViewMode(mode)}
-                sx={{
-                  borderRadius: 0,
-                  bgcolor: viewMode === mode ? 'action.selected' : 'transparent',
-                  px: 1,
-                }}
-              >
-                <Tooltip title={
-                  mode === 'cards' ? t('detail.mcp.switchToCards')
-                    : mode === 'list' ? t('detail.mcp.switchToList')
-                      : t('detail.mcp.switchToJson')
-                }>
-                  {mode === 'cards' ? <ViewModuleIcon fontSize="small" />
-                    : mode === 'list' ? <ListViewIcon fontSize="small" />
-                      : <CodeIcon fontSize="small" />}
-                </Tooltip>
-              </IconButton>
-            ))}
+        <Box sx={{ px: 2, py: 1.25, display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, flexWrap: 'wrap', flex: '1 1 520px', minWidth: 0 }}>
+            {title && (
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, flexShrink: 0 }}>
+                {title}
+              </Typography>
+            )}
+            {toolbarFilters}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', marginLeft: 'auto' }}>
+            {toolbarActions}
+            {viewMode !== 'json' && (
+              <>
+                {onSyncToSandbox && (
+                  <ActionButton size="small" variant="outlined" startIcon={<SyncIcon />} onClick={() => { onSyncToSandbox().catch(() => {}) }} disabled={mutating}>
+                    {t('detail.mcp.syncToSandbox')}
+                  </ActionButton>
+                )}
+                <ActionButton size="small" variant="contained" startIcon={<AddIcon />} endIcon={<ArrowDropDownIcon />} onClick={e => setAddMenuAnchor(e.currentTarget)}>
+                  {t('detail.mcp.addServer')}
+                </ActionButton>
+                <Menu anchorEl={addMenuAnchor} open={!!addMenuAnchor} onClose={() => setAddMenuAnchor(null)}>
+                  <MenuItem onClick={() => { setAddMenuAnchor(null); setAddOpen(true) }}>
+                    <ListItemIcon><AddIcon fontSize="small" /></ListItemIcon>
+                    {t('detail.mcp.addManual')}
+                  </MenuItem>
+                  <MenuItem onClick={() => { setAddMenuAnchor(null); setImportOpen(true); setImportText(''); setImportError(null) }}>
+                    <ListItemIcon><ImportIcon fontSize="small" /></ListItemIcon>
+                    {t('mcpServices.toolbar.importJson')}
+                  </MenuItem>
+                </Menu>
+              </>
+            )}
+            <Box sx={{ display: 'flex', border: '1px solid', borderColor: 'divider', borderRadius: 1, overflow: 'hidden' }}>
+              {(['cards', 'list', 'json'] as const).map(mode => (
+                <IconActionButton
+                  key={mode}
+                  size="small"
+                  onClick={() => setViewMode(mode)}
+                  sx={{
+                    borderRadius: 0,
+                    bgcolor: viewMode === mode ? 'action.selected' : 'transparent',
+                    px: 1,
+                  }}
+                >
+                  <Tooltip title={
+                    mode === 'cards' ? t('detail.mcp.switchToCards')
+                      : mode === 'list' ? t('detail.mcp.switchToList')
+                        : t('detail.mcp.switchToJson')
+                  }>
+                    {mode === 'cards' ? <ViewModuleIcon fontSize="small" />
+                      : mode === 'list' ? <ListViewIcon fontSize="small" />
+                        : <CodeIcon fontSize="small" />}
+                  </Tooltip>
+                </IconActionButton>
+              ))}
+            </Box>
           </Box>
         </Box>
       </Card>
@@ -374,7 +388,7 @@ export function McpServerManager({
             <Box sx={{ textAlign: 'center', py: 4, px: 2 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>{emptyText}</Typography>
               {emptyHint && <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{emptyHint}</Typography>}
-              <Button variant="outlined" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>{t('detail.mcp.addManual')}</Button>
+              <ActionButton variant="outlined" startIcon={<AddIcon />} onClick={() => setAddOpen(true)}>{t('detail.mcp.addManual')}</ActionButton>
             </Box>
           </Card>
         ) : isGlobal ? (
@@ -399,8 +413,8 @@ export function McpServerManager({
                   <Typography variant="caption" color="text.secondary" sx={{ mr: 'auto' }}>
                     {server.enabled ? t('mcpServices.toolbar.autoInjectOn') : t('mcpServices.toolbar.autoInjectOff')}
                   </Typography>
-                  <Tooltip title={t('detail.mcp.edit')}><IconButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
-                  <Tooltip title={t('detail.mcp.delete')}><IconButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 16 }} /></IconButton></Tooltip>
+                  <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
+                  <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 16 }} /></IconActionButton></Tooltip>
                 </Box>
               </Card>
             ))}
@@ -423,8 +437,8 @@ export function McpServerManager({
                       <Switch size="small" checked={server.enabled} onChange={() => onToggleEnabled(server)} disabled={mutating} />
                     </Tooltip>
                     <Box sx={{ flexGrow: 1 }} />
-                    <Tooltip title={t('detail.mcp.edit')}><IconButton size="small" onClick={() => setEditTarget(server)}><EditIcon fontSize="small" /></IconButton></Tooltip>
-                    <Tooltip title={t('detail.mcp.delete')}><IconButton size="small" onClick={() => setDeleteTarget(server.name)}><DeleteIcon fontSize="small" /></IconButton></Tooltip>
+                    <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" onClick={() => setEditTarget(server)}><EditIcon fontSize="small" /></IconActionButton></Tooltip>
+                    <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" onClick={() => setDeleteTarget(server.name)}><DeleteIcon fontSize="small" /></IconActionButton></Tooltip>
                   </Box>
                 </Box>
               </Card>
@@ -457,8 +471,8 @@ export function McpServerManager({
                     </Tooltip>
                   )}
                   <Box sx={{ display: 'flex', gap: 0.25, flexShrink: 0 }}>
-                    <Tooltip title={t('detail.mcp.edit')}><IconButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
-                    <Tooltip title={t('detail.mcp.delete')}><IconButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 14 }} /></IconButton></Tooltip>
+                    <Tooltip title={t('detail.mcp.edit')}><IconActionButton size="small" color="primary" onClick={() => setEditTarget(server)}><EditIcon sx={{ fontSize: 14 }} /></IconActionButton></Tooltip>
+                    <Tooltip title={t('detail.mcp.delete')}><IconActionButton size="small" color="error" onClick={() => setDeleteTarget(server.name)}><DeleteIcon sx={{ fontSize: 14 }} /></IconActionButton></Tooltip>
                   </Box>
                 </Box>
               </Box>
@@ -500,8 +514,8 @@ export function McpServerManager({
         <DialogTitle>{deleteTitle}</DialogTitle>
         <DialogContent><Typography variant="body2">{deleteContent(deleteTarget ?? '')}</Typography></DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteTarget(null)}>{t('detail.mcp.form.cancel')}</Button>
-          <Button variant="contained" color="error" onClick={handleDelete} disabled={mutating}>{mutating ? <CircularProgress size={20} /> : t('detail.mcp.delete')}</Button>
+          <ActionButton onClick={() => setDeleteTarget(null)}>{t('detail.mcp.form.cancel')}</ActionButton>
+          <ActionButton variant="contained" color="error" onClick={handleDelete} disabled={mutating}>{mutating ? <CircularProgress size={20} /> : t('detail.mcp.delete')}</ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -519,8 +533,8 @@ export function McpServerManager({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setImportOpen(false)}>{t('detail.mcp.form.cancel')}</Button>
-          <Button variant="contained" onClick={handleImport} disabled={mutating || !importText.trim()}>{mutating ? <CircularProgress size={20} /> : t('mcpServices.import.importBtn')}</Button>
+          <ActionButton onClick={() => setImportOpen(false)}>{t('detail.mcp.form.cancel')}</ActionButton>
+          <ActionButton variant="contained" onClick={handleImport} disabled={mutating || !importText.trim()}>{mutating ? <CircularProgress size={20} /> : t('mcpServices.import.importBtn')}</ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

@@ -1,5 +1,5 @@
 ---
-description: 
+description: NekroAgent 插件开发规范，包含插件模板、API 用法、SandboxMethodType 选择、提示词注入、错误处理等完整指引。在开发、修改或审查 NekroAgent 插件代码时应用此规则。
 globs: 
 alwaysApply: false
 ---

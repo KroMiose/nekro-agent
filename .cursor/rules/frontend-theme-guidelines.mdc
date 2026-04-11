@@ -234,6 +234,7 @@ export const MY_COMPONENT_VARIANTS = {
 
 - 面向最终用户的页面，默认使用简短、专业、明确的文案，避免教程式长段说明
 - 主区域只保留必要的短说明；补充解释、注意事项、概念说明优先放入 Tooltip、帮助图标或次级说明区
+- 如无必要，不要额外添加标题、引导语、说明段落或标签文字来解释一个本应通过结构和控件关系就能自解释的操作区
 - 模糊表述必须改成明确表述，例如“后续可继续更新”应改为“可由 CC 自动更新”
 - 不要随意引入新概念。如果用户已接受既有术语体系，应保持一致，不得擅自重命名为另一套说法
 
@@ -243,6 +244,54 @@ export const MY_COMPONENT_VARIANTS = {
 - 切换控件应尽量内聚到对应标题行、工具条或局部控制区，避免单独占据一整行造成空间浪费
 - 只读视图与编辑视图、预览与源码、不同对象配置之间的切换，应使用统一的控件形态和交互位置
 - 展开/收起类卡片，点击整个卡片主体即可触发展开时，不应只允许点击一个小图标
+- 页面级或模块级主导航使用 `Tabs`；工具条内的筛选、视图切换、预览/源码、局部模式切换使用 `SegmentedControl`；不要把两者混成同一种视觉层级
+- 新增局部切换控件时，优先复用公共 `SegmentedControl` 或其主题变体，不要在页面里重复手写 `ToggleButtonGroup` / `ButtonGroup` 的局部 `sx`
+- 分段切换控件的外层轮廓必须与输入框、选择框保持同一圆角基准，默认对齐 `8px` 体系；禁止做成高存在感的胶囊外框，避免在工具条里显得突兀
+- 分段切换的选中态应以轻底色、前景强调和轻微抬升为主，不依赖粗描边、高饱和底色或过强阴影建立识别
+- 图标型、文字型、紧凑型分段切换可以使用不同密度，但它们的圆角、边框、背景透明度和交互反馈必须来自同一套主题 token
+
+#### Tabs 分类定义
+
+- `PageTabs`：用于页面级或模块级主导航，例如工作区详情、适配器详情、插件管理、仪表盘时间范围。它应放在页面主标题或主卡片之后，承担一级信息切换，不用于局部小范围工具切换
+- `PanelTabs`：用于设置页、配置页、管理页中的区块级页签，通常配合带边框和轻背景的容器使用。它强调“同一页面内的分组切换”，但视觉权重低于 `PageTabs`
+- `InlineTabs`：用于卡片内部或信息面板内部的轻量页签，例如详情卡片中的子视图、预览区域内部的二级内容切换。它只保留轻量 indicator 和文字强调，不做高存在感选中块
+- `EditorTabs`：用于深色编辑器工具区、代码编辑头部或明显独立于页面主背景的编辑面板。它可以使用与编辑器背景匹配的高对比前景色，但不得外溢到普通页面区域
+
+#### Tabs 使用约束
+
+- 新增 `Tabs` 时，必须先判断它属于 `PageTabs`、`PanelTabs`、`InlineTabs`、`EditorTabs` 中的哪一类；不允许直接在页面里从零开始写一套新的 `Tabs` 样式
+- `PageTabs` 与 `PanelTabs` 可以有选中块和更强的容器感；`InlineTabs` 不应模拟主导航的高亮块；`EditorTabs` 不应复用于普通浅色页面
+- `Tabs` 的样式应统一收敛到公共组件或主题 token 中，页面内只允许调整必要的尺寸、对齐和 icon 排布，不应重写选中态、indicator、圆角和交互反馈逻辑
+
+### 4.1 基础交互控件必须先归类，再选择公共组件
+
+- 在页面中新增基础交互控件时，先判断它属于“主动作按钮、次动作按钮、轻操作图标按钮、搜索框、筛选选择器、局部切换、主导航页签”中的哪一类，再从公共组件层选择对应组件；不要直接从裸 `Button`、`IconButton`、`TextField`、`Select` 开始写局部样式
+- 页面可以调整宽度、布局、文案和少量间距，但不应在页面里重新定义按钮阴影、输入框状态色、图标按钮 hover 面层、搜索框清空按钮、筛选器圆角与边框
+- 工具条里的控件优先使用同一家族的实体面层和紧凑尺寸，不要把玻璃感搜索框、默认 MUI 下拉框、重阴影按钮和轻量分段切换混搭在同一行
+
+#### 按钮家族
+
+- `ActionButton`：用于页面、卡片、弹窗中的主要和次要文本按钮。通过 `tone` 区分 `primary`、`secondary`、`ghost`、`danger`，不要在页面里重新定义主次层级
+- `IconActionButton`：用于工具条、输入框尾部、轻量操作入口。通过 `tone` 区分普通、强调、危险，不允许再用裸 `IconButton` 配合多段 `sx` 模拟不同角色
+- 同一操作区默认只允许一个强主按钮；并列动作中的其余按钮必须降级为 `secondary`、`ghost` 或图标按钮，避免多个视觉中心
+- 危险动作默认使用轻底或描边加前景警示色，不使用高饱和实心底色作为默认样式
+
+#### 输入与筛选家族
+
+- `SearchField`：用于列表页、管理页和工具条中的搜索输入。统一包含搜索图标、清空动作和输入框基线样式，不再在页面里重复拼装输入前后缀
+- `FilterSelect`：用于工具条和筛选区中的单值下拉筛选。它应与 `SearchField`、`SegmentedControl` 和轻量按钮保持一致的尺寸和圆角体系
+- 搜索框与提交按钮、输入框与附属动作按钮如果被设计为一体化组合，接缝处必须是直边并共享同一条边界；不允许两个独立圆角在中间相接后仍被称为“组合”
+- 需要搜索与筛选组合时，优先使用 `SearchField + FilterSelect + SegmentedControl + ActionButton/IconActionButton` 的组合，不要在页面中混用普通 `TextField`、默认 `Select` 和局部样式按钮
+- 多个筛选器并排时，优先保持相同高度与接近宽度；在窄屏下改为纵向堆叠，不保留只适合桌面的固定宽度
+
+#### 工具条排列约束
+
+- 工具条按“搜索/筛选在前，辅助操作居中或靠后，主动作在末端”的顺序组织，减少认知跳跃
+- 搜索和筛选控件默认使用紧凑密度，并与局部切换控件保持同一纵向节奏；不要让单个按钮或下拉框显著高于相邻控件
+- 页面内出现同类工具条时，应优先复用同一套布局与控件选择，不再重新定义另一套搜索框、筛选器和操作按钮组合
+- 在桌面宽度足够时，搜索、筛选、局部切换、刷新、帮助和主动作应优先合并到一条主工具条中，不要把本可同层协作的控件拆成两行或两个彼此竞争的控制区
+- 只有在信息量确实超出一行承载能力，或移动端宽度明显不足时，才允许工具条换行；换行后的分组也必须保持明确主次，不允许出现上下两层权重接近、视觉重心缺失的平铺工具区
+- 页面布局评估不能只看单个组件是否美观，还必须评估这些控件在横向与纵向空间中的协同关系；节省纵向空间、保持横向节奏和操作重心清晰，是主题设计的一部分
 
 ### 5. 卡片要有层次，但不要靠生硬描边制造层次
 
@@ -404,3 +453,70 @@ const theme = useTheme()
 - 错误/失败 → `theme.palette.error.main`
 - 主色/强调 → `theme.palette.primary.main`
 - 次要/停止 → `theme.palette.text.secondary`
+
+---
+
+## 背景色规范（高频错误，务必遵守）
+
+### 禁止在组件内硬编码背景颜色
+
+**错误写法（已在项目中清除，绝对禁止再写）**：
+
+```tsx
+// ❌ 硬编码 rgba/grey，无法跟随品牌主色变化
+bgcolor: theme => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.04)' : 'grey.50'
+backgroundColor: mode === 'light' ? 'rgba(255, 255, 255, 0.95)' : ...
+backgroundColor: mode === 'light' ? 'rgba(245, 245, 245, 0.85)' : ...
+```
+
+**正确方式：使用 `background.paper` token 或 `UNIFIED_TABLE_STYLES` 预定义样式**：
+
+```tsx
+// ✅ 通过 palette token
+const palette = getCurrentExtendedPalette()
+backgroundColor: mode === 'light' ? palette.background.paper : alpha(palette.background.paper, 0.95)
+
+// ✅ 直接使用预定义变体
+<Paper elevation={0} sx={UNIFIED_TABLE_STYLES.paper as SxProps<Theme>} />
+<Box sx={UNIFIED_TABLE_STYLES.pageTabContainer as object} />
+```
+
+### `background.paper` 是表格/卡片容器的唯一正确背景 token
+
+`palette.background.paper`（亮色 `#fafafa`，暗色 `#2f2f2f`）由 `palette.ts` 的 `generateBackgroundColors` 统一生成，是主题系统设计的唯一表格/卡片层背景。使用它能保证：
+1. 亮色和暗色模式下视觉层次一致
+2. 将来切换品牌主色时，背景自动跟随
+3. 不同页面的表格区域背景完全一致
+
+### 多页面共用同一结构时，样式必须收敛到 `variants.ts` 或 `themeConfig.ts`
+
+**禁止在多个页面/组件里各自复制相同的 `sx` 样式块**。当发现同一样式在两处以上出现，必须：
+
+1. 提取到 `UNIFIED_TABLE_STYLES`（表格系列）、`CARD_VARIANTS`（卡片系列）或新建专用变体
+2. 页面只引用变体名，不持有颜色逻辑
+
+当前已有的可复用变体（涵盖高频场景）：
+
+| 变体 | 用途 |
+|------|------|
+| `UNIFIED_TABLE_STYLES.paper` | 表格外层 Paper 容器 |
+| `UNIFIED_TABLE_STYLES.header` | 表格列头单元格 |
+| `UNIFIED_TABLE_STYLES.row` | 表格行 hover/斑马纹 |
+| `UNIFIED_TABLE_STYLES.cell` | 普通数据单元格 |
+| `UNIFIED_TABLE_STYLES.scrollbar` | 滚动条样式 |
+| `UNIFIED_TABLE_STYLES.pageTabContainer` | 页面顶部 Tabs 容器（配置页/模型管理页等） |
+| `CHIP_VARIANTS.getCustomColorChip(color, isSmall)` | 带颜色的 Chip（含 icon 颜色） |
+
+### `pageTabContainer` 专项说明
+
+凡是「页面顶部有 Tabs 分类导航」的设置/管理页，Tab 容器背景**必须使用 `UNIFIED_TABLE_STYLES.pageTabContainer`**，禁止各页各自写背景色：
+
+```tsx
+// ✅ 正确
+<Box sx={{ mb: 2, flexShrink: 0, ...(UNIFIED_TABLE_STYLES.pageTabContainer as object) }}>
+  <Tabs ...>...</Tabs>
+</Box>
+
+// ❌ 错误：各自写 bgcolor / background
+<Box sx={{ bgcolor: theme => theme.palette.mode === 'dark' ? '...' : 'grey.50' }}>
+```

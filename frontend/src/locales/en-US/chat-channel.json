@@ -11,6 +11,7 @@
     "group": "Group",
     "private": "Private",
     "active": "Active",
+    "observe": "Observe",
     "inactive": "Inactive"
   },
   "list": {
@@ -78,6 +79,7 @@
     "observe": "Observe",
     "deactivate": "Deactivate",
     "reset": "Reset",
+    "resetContext": "Reset Context",
     "tabs": {
       "basicInfo": "Channel Details",
       "overrideSettings": "Override Settings",

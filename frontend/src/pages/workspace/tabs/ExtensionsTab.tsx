@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -11,7 +10,6 @@ import {
   Alert,
   Stack,
   Divider,
-  IconButton,
   Tooltip,
   Checkbox,
   Dialog,
@@ -25,8 +23,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ToggleButtonGroup,
-  ToggleButton,
   Drawer,
   alpha,
 } from '@mui/material'
@@ -65,6 +61,9 @@ import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
+import SegmentedControl from '../../../components/common/SegmentedControl'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
 
@@ -504,7 +503,7 @@ export default function ExtensionsTab({
               {t('detail.extensions.skillsCardTitle')}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Button
+            <ActionButton
               size="small"
               variant={hasUnsavedChanges ? 'contained' : 'outlined'}
               startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon />}
@@ -512,15 +511,15 @@ export default function ExtensionsTab({
               disabled={syncing}
             >
               {t('detail.extensions.syncBtn')}
-            </Button>
-            <Button
+            </ActionButton>
+            <ActionButton
               size="small"
               variant="outlined"
               startIcon={<AddIcon sx={{ fontSize: 14 }} />}
               onClick={handleOpenAddDialog}
             >
               {t('detail.extensions.addSkillBtn')}
-            </Button>
+            </ActionButton>
           </Box>
 
           {/* 已部署列表 */}
@@ -588,9 +587,9 @@ export default function ExtensionsTab({
                     )}
                   </Box>
                   <Tooltip title={t('detail.extensions.removeTooltip')}>
-                    <IconButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
+                    <IconActionButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 15 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 </Box>
               ))}
@@ -604,9 +603,9 @@ export default function ExtensionsTab({
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Tooltip title={t('detail.extensions.refreshDynamicTooltip')}>
-              <IconButton size="small" onClick={refreshDynamicSkills}>
+              <IconActionButton size="small" onClick={refreshDynamicSkills}>
                 <RefreshIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           </Box>
           {dynamicSkills.length === 0 ? (
@@ -647,14 +646,14 @@ export default function ExtensionsTab({
                     </Box>
                     <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
                       <Tooltip title={t('detail.extensions.viewDetailTooltip')}>
-                        <IconButton size="small" onClick={() => openDynDrawer(skill)}>
+                        <IconActionButton size="small" onClick={() => openDynDrawer(skill)}>
                           <ViewIcon sx={{ fontSize: 15 }} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       {promoted ? (
                         <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
                               color="success"
                               disabled={promotingDynamic === skill.dir_name}
@@ -665,13 +664,13 @@ export default function ExtensionsTab({
                               ) : (
                                 <UpdateIcon sx={{ fontSize: 15 }} />
                               )}
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       ) : (
                         <Tooltip title={t('detail.extensions.promoteTooltip')}>
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
                               color="primary"
                               disabled={promotingDynamic === skill.dir_name}
@@ -682,13 +681,13 @@ export default function ExtensionsTab({
                               ) : (
                                 <ArrowForwardIcon sx={{ fontSize: 15 }} />
                               )}
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       )}
                       <Tooltip title={t('detail.extensions.deleteTooltip')}>
                         <span>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             color="error"
                             disabled={deletingDynamic === skill.dir_name}
@@ -699,7 +698,7 @@ export default function ExtensionsTab({
                             ) : (
                               <DeleteIcon sx={{ fontSize: 15 }} />
                             )}
-                          </IconButton>
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                     </Box>
@@ -710,14 +709,14 @@ export default function ExtensionsTab({
           )}
 
           <Divider sx={{ my: 1.5 }} />
-          <Button
+          <ActionButton
             variant="outlined"
             size="small"
             startIcon={<ExtensionIcon />}
             onClick={() => setCcDesignOpen(true)}
           >
             {t('detail.extensions.ccDesignBtn')}
-          </Button>
+          </ActionButton>
         </CardContent>
       </Card>
 
@@ -740,18 +739,17 @@ export default function ExtensionsTab({
                 ),
               }}
             />
-            <ToggleButtonGroup
-              size="small"
-              exclusive
+            <SegmentedControl
               value={sourceFilter}
-              onChange={(_, v: SourceFilter | null) => { if (v !== null) setSourceFilter(v) }}
+              options={[
+                { value: 'all', label: t('detail.extensions.addSkillDialog.filterAll') },
+                { value: 'builtin', label: t('detail.extensions.addSkillDialog.filterBuiltin') },
+                { value: 'user', label: t('detail.extensions.addSkillDialog.filterUser') },
+                { value: 'repo', label: t('detail.extensions.addSkillDialog.filterRepo') },
+              ]}
+              onChange={v => setSourceFilter(v)}
               sx={{ flexShrink: 0 }}
-            >
-              <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterAll')}</ToggleButton>
-              <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterBuiltin')}</ToggleButton>
-              <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterUser')}</ToggleButton>
-              <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterRepo')}</ToggleButton>
-            </ToggleButtonGroup>
+            />
           </Box>
           {filteredAvailable.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
@@ -812,10 +810,10 @@ export default function ExtensionsTab({
           <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1, pl: 2 }}>
             {t('detail.extensions.addSkillDialog.selectedCount', { count: addSelected.size })}
           </Typography>
-          <Button onClick={() => setAddDialogOpen(false)}>{t('detail.extensions.addSkillDialog.cancel')}</Button>
-          <Button variant="contained" onClick={handleConfirmAdd} disabled={addSelected.size === 0}>
+          <ActionButton onClick={() => setAddDialogOpen(false)}>{t('detail.extensions.addSkillDialog.cancel')}</ActionButton>
+          <ActionButton variant="contained" onClick={handleConfirmAdd} disabled={addSelected.size === 0}>
             {t('detail.extensions.addSkillDialog.addBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -831,10 +829,10 @@ export default function ExtensionsTab({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCcDesignOpen(false)}>{t('detail.extensions.ccDesignDialog.cancel')}</Button>
-          <Button variant="contained" startIcon={<ExtensionIcon />} onClick={handleCCDesignConfirm}>
+          <ActionButton onClick={() => setCcDesignOpen(false)}>{t('detail.extensions.ccDesignDialog.cancel')}</ActionButton>
+          <ActionButton variant="contained" startIcon={<ExtensionIcon />} onClick={handleCCDesignConfirm}>
             {t('detail.extensions.ccDesignDialog.confirmBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -876,33 +874,33 @@ export default function ExtensionsTab({
               {isPromotedToLibrary(drawerDynamic.dir_name) ? (
                 <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
                   <span>
-                    <IconButton
+                    <IconActionButton
                       size="small"
                       color="success"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name, true)}
                     >
                       {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <UpdateIcon fontSize="small" />}
-                    </IconButton>
+                    </IconActionButton>
                   </span>
                 </Tooltip>
               ) : (
                 <Tooltip title={t('detail.extensions.promoteTooltip')}>
                   <span>
-                    <IconButton
+                    <IconActionButton
                       size="small"
                       color="primary"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name)}
                     >
                       {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <ArrowForwardIcon fontSize="small" />}
-                    </IconButton>
+                    </IconActionButton>
                   </span>
                 </Tooltip>
               )}
-              <IconButton size="small" onClick={closeDynDrawer}>
+              <IconActionButton size="small" onClick={closeDynDrawer}>
                 <CloseIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Box>
 
             {/* Drawer body: file tree + content pane */}
@@ -1003,31 +1001,39 @@ export default function ExtensionsTab({
                     )}
 
                     {isTextFile(dynSelectedFile) && (
-                      <ToggleButtonGroup
-                        size="small"
+                      <SegmentedControl
+                        density="tight"
                         value={dynEditing ? 'source' : dynViewMode}
-                        exclusive
-                        onChange={(_, v) => {
+                        options={[
+                          {
+                            value: 'preview',
+                            icon: <PreviewIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.preview'),
+                            ariaLabel: t('skills.drawer.preview'),
+                            iconOnly: true,
+                          },
+                          {
+                            value: 'source',
+                            icon: <CodeIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.source_code'),
+                            ariaLabel: t('skills.drawer.source_code'),
+                            iconOnly: true,
+                          },
+                        ]}
+                        onChange={v => {
                           if (v === 'source' || v === 'preview') {
                             setDynViewMode(v)
                             if (v === 'preview') setDynEditing(false)
                           }
                         }}
                         disabled={dynEditing}
-                      >
-                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.preview')}><PreviewIcon sx={{ fontSize: 16 }} /></Tooltip>
-                        </ToggleButton>
-                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.source_code')}><CodeIcon sx={{ fontSize: 16 }} /></Tooltip>
-                        </ToggleButton>
-                      </ToggleButtonGroup>
+                      />
                     )}
 
                     {isTextFile(dynSelectedFile) && (
                       dynEditing ? (
                         <Stack direction="row" spacing={0.5}>
-                          <Button
+                          <ActionButton
                             size="small"
                             variant="contained"
                             startIcon={dynSaving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
@@ -1036,8 +1042,8 @@ export default function ExtensionsTab({
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {dynSaving ? t('skills.drawer.saving') : t('skills.drawer.save')}
-                          </Button>
-                          <Button
+                          </ActionButton>
+                          <ActionButton
                             size="small"
                             variant="outlined"
                             onClick={() => {
@@ -1050,11 +1056,11 @@ export default function ExtensionsTab({
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {t('skills.drawer.cancel_edit')}
-                          </Button>
+                          </ActionButton>
                         </Stack>
                       ) : (
                         <Tooltip title={t('skills.drawer.edit')}>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={() => {
                               setDynEditing(true)
@@ -1064,7 +1070,7 @@ export default function ExtensionsTab({
                             }}
                           >
                             <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )
                     )}
@@ -1163,8 +1169,8 @@ export default function ExtensionsTab({
           <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</Button>
-          <Button variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</Button>
+          <ActionButton onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</ActionButton>
+          <ActionButton variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1181,17 +1187,17 @@ export default function ExtensionsTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmDynamic(null)} disabled={!!deletingDynamic}>
+          <ActionButton onClick={() => setDeleteConfirmDynamic(null)} disabled={!!deletingDynamic}>
             {t('detail.extensions.deleteDynamicDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             color="error"
             onClick={confirmDeleteDynamic}
             disabled={!!deletingDynamic}
           >
             {deletingDynamic ? <CircularProgress size={20} /> : t('detail.extensions.deleteDynamicDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

@@ -2,6 +2,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 
+import aiohttp
 import discord
 
 from nekro_agent.adapters.interface.collector import collect_message
@@ -31,12 +32,31 @@ class DiscordClient:
     一个用于管理与 Discord Gateway 连接的客户端。
     """
 
-    def __init__(self, token: str, adapter: "DiscordAdapter"):
+    def __init__(
+        self,
+        token: str,
+        adapter: "DiscordAdapter",
+        *,
+        proxy_url: str = "",
+        proxy_username: str = "",
+        proxy_password: str = "",
+    ):
         self._token = token
         self._adapter = adapter
+        self._start_task: asyncio.Task[None] | None = None
+        self._proxy_url = proxy_url.strip()
+        self._proxy_auth = (
+            aiohttp.BasicAuth(proxy_username, proxy_password)
+            if proxy_url.strip() and proxy_username.strip()
+            else None
+        )
         self._intents = discord.Intents.default()
         self._intents.message_content = True  # 需要开启消息内容权限
-        self._client = discord.Client(intents=self._intents)
+        self._client = discord.Client(
+            intents=self._intents,
+            proxy=self._proxy_url or None,
+            proxy_auth=self._proxy_auth,
+        )
 
         self._setup_events()
 
@@ -109,9 +129,15 @@ class DiscordClient:
 
             # 4. 构建 PlatformChannel
             channel_type = ChatType.PRIVATE if isinstance(message.channel, discord.DMChannel) else ChatType.GROUP
+            if isinstance(message.channel, discord.DMChannel):
+                channel_name = message.channel.recipient.display_name if message.channel.recipient else message.author.display_name
+            elif isinstance(message.channel, discord.abc.GuildChannel):
+                channel_name = message.channel.name
+            else:
+                channel_name = str(message.channel)
             channel = PlatformChannel(
                 channel_id=str(message.channel.id),
-                channel_name=str(message.channel),  # For DMs, this will be the user's name
+                channel_name=channel_name,
                 channel_type=channel_type,
             )
 
@@ -138,13 +164,24 @@ class DiscordClient:
 
     async def start(self):
         """启动客户端并连接到 Discord"""
-        logger.info("Starting Discord client...")
-        # discord.py 的 login 和 connect 方法是阻塞的，
-        # 需要使用 start 方法在后台任务中运行它。
-        # start 会自动处理 login 和 connect。
-        asyncio.create_task(self._client.start(self._token))
+        if self._start_task and not self._start_task.done():
+            return
+
+        self._start_task = asyncio.create_task(self._client.start(self._token), name="discord-client-start")
+        self._start_task.add_done_callback(self._handle_start_task_done)
 
     async def stop(self):
         """关闭客户端连接"""
         logger.info("Stopping Discord client...")
+        if self._start_task and not self._start_task.done():
+            self._start_task.cancel()
+            await asyncio.gather(self._start_task, return_exceptions=True)
+        self._start_task = None
         await self._client.close()
+
+    def _handle_start_task_done(self, task: asyncio.Task[None]) -> None:
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc is not None:
+            logger.exception(f"Discord client start task exited with error: {exc}")

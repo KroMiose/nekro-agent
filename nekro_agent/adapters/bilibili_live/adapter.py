@@ -8,7 +8,6 @@ from jinja2 import Environment, FileSystemLoader
 from pydantic import Field
 
 from nekro_agent.adapters.bilibili_live.templates.practice import (
-
     PracticePrompt_question_1,
     PracticePrompt_question_2,
     PracticePrompt_response_1,
@@ -30,6 +29,7 @@ from nekro_agent.adapters.interface.schemas.platform import (
 from nekro_agent.core.logger import get_sub_logger
 from nekro_agent.core.config import config
 from nekro_agent.core.core_utils import ExtraField
+from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.schemas.chat_message import (
     ChatMessageSegment,
     ChatMessageSegmentImage,
@@ -46,17 +46,24 @@ from .core.client import BilibiliWebSocketClient, Danmaku
 
 
 logger = get_sub_logger("adapter.bilibili_live")
+
+
 class BilibiliLiveConfig(BaseAdapterConfig):
     """Bilibili 适配器配置"""
-    ENABLED: bool = Field(
-        default=False,
-        title="启用 Bilibili 直播适配器",
-        description="启用后将连接 Bilibili 直播间 WebSocket 接收弹幕消息",
-    )
+
     VTUBE_STUDIO_CONTROLLER_WS_URL: List[str] = Field(
         default=[],
         title="VTube Studio 控制端 WebSocket 地址",
         description="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+        json_schema_extra=ExtraField(
+            required=True,
+            i18n_category=i18n_text(zh_CN="直播连接", en_US="Live Connection"),
+            i18n_title=i18n_text(zh_CN="VTube Studio 控制端 WebSocket 地址", en_US="VTube Studio Controller WebSocket URLs"),
+            i18n_description=i18n_text(
+                zh_CN="VTube Studio 控制端 WebSocket 地址，用于控制 VTube Studio",
+                en_US="WebSocket URLs of the VTube Studio controller, used to control VTube Studio.",
+            ),
+        ).model_dump(),
     )
 
 
@@ -79,7 +86,7 @@ class BilibiliLiveAdapter(BaseAdapter[BilibiliLiveConfig]):
             name="Bilibili Live",
             description="Bilibili 直播适配器，实时接收直播间弹幕消息、礼物信息和用户互动事件",
             version="1.0.0",
-            author="Zaxpris",
+            author="NekroAI",
             homepage="https://github.com/nekro-agent/nekro-agent",
             tags=["bilibili", "live", "stream", "danmaku", "realtime"],
         )

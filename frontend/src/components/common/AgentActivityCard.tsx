@@ -46,7 +46,7 @@ import { getStopTypeColorValue, getStopTypeTranslatedText } from '../../theme/ut
 // ── 常量 ─────────────────────────────────────────────────────────────────────
 
 /** 卡片距底部间距（px） */
-const BOTTOM_OFFSET = 24
+const BOTTOM_OFFSET = 56
 /** 卡片右侧间距 */
 const RIGHT_OFFSET = 16
 /** 卡片入场/消失动画时长 */
@@ -505,7 +505,7 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
           </Avatar>
           {!isLeaving && ['queued', 'running', 'responding'].includes(runtimeInfo.phase) && <PingRing color={accentColor} />}
         </Box>
-        <Box sx={{ minWidth: 0, maxWidth: 180 }}>
+        <Box sx={{ minWidth: 0, maxWidth: 200 }}>
           <Typography
             variant="caption"
             noWrap
@@ -521,11 +521,11 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
           >
             {displayName}
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, mb: currentToolLabel ? 0.15 : 0 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
             <Typography
               variant="caption"
               noWrap
-              sx={{ minWidth: 0, color: accentColor, fontSize: '0.67rem', fontWeight: 700, letterSpacing: '0.01em' }}
+              sx={{ flexShrink: 0, color: accentColor, fontSize: '0.67rem', fontWeight: 700, letterSpacing: '0.01em' }}
             >
               {phaseLabel}
             </Typography>
@@ -536,23 +536,25 @@ const WorkspaceCcItem = forwardRef<HTMLDivElement, WorkspaceCcItemProps>(functio
                 text={String(runtimeInfo.operation_block_count)}
               />
             )}
+            {currentToolLabel && (
+              <>
+                <Typography variant="caption" sx={{ flexShrink: 0, color: 'text.disabled', fontSize: '0.6rem', lineHeight: 1 }}>·</Typography>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    minWidth: 0,
+                    color: theme.palette.text.secondary,
+                    fontSize: '0.64rem',
+                    fontWeight: 600,
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {currentToolLabel}
+                </Typography>
+              </>
+            )}
           </Box>
-          {currentToolLabel && (
-            <Typography
-              variant="caption"
-              noWrap
-              sx={{
-                display: 'block',
-                minWidth: 0,
-                color: theme.palette.text.secondary,
-                fontSize: '0.64rem',
-                fontWeight: 600,
-                lineHeight: 1.2,
-              }}
-            >
-              {currentToolLabel}
-            </Typography>
-          )}
         </Box>
       </BroadcastCard>
     </BroadcastMotionWrapper>

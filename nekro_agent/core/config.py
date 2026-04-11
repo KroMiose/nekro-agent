@@ -179,6 +179,25 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
     )
+    COMMAND_MATCH_ALLOW_HYPHEN_FOR_UNDERSCORE: bool = Field(
+        default=True,
+        title="命令匹配允许连字符代替下划线",
+        description="启用后，命令名匹配时会将连字符视为下划线，输入 cc-help 时可匹配 cc_help",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="基础设置",
+                en_US="Basic Settings",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="命令匹配允许连字符代替下划线",
+                en_US="Allow Hyphen Instead of Underscore in Command Matching",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="启用后，命令名匹配时会将连字符视为下划线，输入 cc-help 时可匹配 cc_help",
+                en_US="When enabled, command matching treats hyphens as underscores, so cc-help can match cc_help",
+            ),
+        ).model_dump(),
+    )
     DEBUG_IN_CHAT: bool = Field(
         default=False,
         title="聊天调试模式",

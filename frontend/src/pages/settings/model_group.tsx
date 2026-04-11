@@ -6,7 +6,6 @@ import {
   Typography,
   TextField,
   Autocomplete,
-  Button,
   Stack,
   Alert,
   Table,
@@ -15,7 +14,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -48,13 +46,17 @@ import {
   Brush as BrushIcon,
   EmojiObjects as EmojiObjectsIcon,
   ContentCopy as ContentCopyIcon,
+  NetworkCheck as NetworkCheckIcon,
 } from '@mui/icons-material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ModelGroupConfig } from '../../services/api/config'
-import { unifiedConfigApi } from '../../services/api/unified-config'
+import { unifiedConfigApi, ModelGroupTestItem } from '../../services/api/unified-config'
 import { getLocalizedText, OPENAI_COMPAT_PROVIDERS } from '../../config/model-presets'
-import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import SearchField from '../../components/common/SearchField'
 
 interface EditDialogProps {
   open: boolean
@@ -104,6 +106,8 @@ function EditDialog({
 
   const [modelOptions, setModelOptions] = useState<string[]>([])
   const [fetchingModels, setFetchingModels] = useState(false)
+  const [testingModel, setTestingModel] = useState(false)
+  const [testResult, setTestResult] = useState<ModelGroupTestItem | null>(null)
 
   // 统一输入尺寸与高度，确保按钮与输入框一致
   const inputSize: 'small' | 'medium' = isSmall ? 'small' : 'medium'
@@ -223,6 +227,38 @@ function EditDialog({
       })
     }
   }, [initialConfig, open, isCopy])
+
+  const handleTestModel = async () => {
+    if (!config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY) return
+    setTestingModel(true)
+    setTestResult(null)
+    try {
+      const item = await unifiedConfigApi.testModelGroupInline({
+        group_name: groupName || 'inline-test',
+        chat_model: config.CHAT_MODEL,
+        base_url: config.BASE_URL,
+        api_key: config.API_KEY,
+        model_type: config.MODEL_TYPE || 'chat',
+        chat_proxy: config.CHAT_PROXY || undefined,
+        temperature: config.TEMPERATURE ?? undefined,
+        top_p: config.TOP_P ?? undefined,
+        top_k: config.TOP_K ?? undefined,
+        presence_penalty: config.PRESENCE_PENALTY ?? undefined,
+        frequency_penalty: config.FREQUENCY_PENALTY ?? undefined,
+        extra_body: config.EXTRA_BODY ?? undefined,
+      })
+      setTestResult(item)
+      if (item.success) {
+        notification.success(t('modelGroup.notifications.testPassed'))
+      } else {
+        notification.warning(t('modelGroup.notifications.testFailed'))
+      }
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : t('modelGroup.notifications.testError'))
+    } finally {
+      setTestingModel(false)
+    }
+  }
 
   // 验证组名的函数
   const validateGroupName = (name: string): boolean => {
@@ -391,21 +427,21 @@ function EditDialog({
               },
               style: !showApiKey
                 ? ({
-                    '-webkit-text-security': 'disc',
-                    'text-security': 'disc',
+                    WebkitTextSecurity: 'disc',
                   } as React.CSSProperties)
                 : undefined,
             }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton
+                  <IconActionButton
                     onClick={() => setShowApiKey(!showApiKey)}
                     edge="end"
                     size={isSmall ? 'small' : 'medium'}
+                    title={showApiKey ? t('actions.hide', { ns: 'common', defaultValue: '隐藏' }) : t('actions.show', { ns: 'common', defaultValue: '显示' })}
                   >
                     {showApiKey ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ),
             }}
@@ -458,8 +494,8 @@ function EditDialog({
             </Box>
             <Tooltip title={fetchTooltipTitle}>
               <span>
-                <Button
-                  variant="outlined"
+                <ActionButton
+                  tone="secondary"
                   onClick={fetchAvailableModels}
                   disabled={!canFetchModels}
                   size={inputSize}
@@ -473,7 +509,7 @@ function EditDialog({
                   ) : (
                     t('modelGroup.actions.fetchModels')
                   )}
-                </Button>
+                </ActionButton>
               </span>
             </Tooltip>
           </Stack>
@@ -568,16 +604,16 @@ function EditDialog({
           </Box>
 
           {/* 高级选项折叠面板 */}
-          <Button
+          <ActionButton
+            tone="ghost"
             onClick={() => setShowAdvanced(!showAdvanced)}
-            variant="text"
             className="self-start"
             size={isSmall ? 'small' : 'medium'}
           >
             {showAdvanced
               ? t('modelGroup.helpers.collapseAdvanced')
               : t('modelGroup.helpers.expandAdvanced')}
-          </Button>
+          </ActionButton>
 
           {showAdvanced && (
             <Stack spacing={2} className="pl-4 border-l-2 border-gray-200">
@@ -661,23 +697,82 @@ function EditDialog({
           )}
 
           {error && <Alert severity="error">{error}</Alert>}
+
+          {testResult && (
+            <Alert severity={testResult.success ? 'success' : 'error'} sx={{ mt: 1 }}>
+              {testResult.success ? (
+                <Stack spacing={0.25}>
+                  <Typography variant="caption" component="div">
+                    {t('modelGroup.health.tooltipPassed')} · {testResult.latency_ms}ms
+                  </Typography>
+                  {testResult.used_model && (
+                    <Typography variant="caption" component="div" color="text.secondary">
+                      {t('modelGroup.health.tooltipModel', { model: testResult.used_model })}
+                    </Typography>
+                  )}
+                  {((testResult.input_tokens ?? 0) > 0 || (testResult.output_tokens ?? 0) > 0) && (
+                    <Typography variant="caption" component="div" color="text.secondary">
+                      {t('modelGroup.health.tooltipTokens', {
+                        input: testResult.input_tokens ?? 0,
+                        output: testResult.output_tokens ?? 0,
+                      })}
+                    </Typography>
+                  )}
+                  {testResult.response_text && (
+                    <Typography variant="caption" component="div" color="text.secondary"
+                      sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 60, overflow: 'auto' }}>
+                      {t('modelGroup.health.tooltipReply', { text: testResult.response_text.trim() })}
+                    </Typography>
+                  )}
+                </Stack>
+              ) : (
+                <Typography variant="caption" component="div">
+                  {testResult.error_message || t('modelGroup.health.failed')}
+                </Typography>
+              )}
+            </Alert>
+          )}
         </Stack>
       </DialogContent>
-      <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button
+      <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+        {(config.MODEL_TYPE === 'chat' || config.MODEL_TYPE === 'embedding') && (
+          <Tooltip
+            title={
+              !config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY
+                ? t('modelGroup.tooltips.testNeedsConfig')
+                : ''
+            }
+            arrow
+          >
+            <span>
+              <ActionButton
+                tone="secondary"
+                onClick={handleTestModel}
+                size="small"
+                startIcon={testingModel ? <CircularProgress size={14} /> : <NetworkCheckIcon />}
+                disabled={testingModel || !config.CHAT_MODEL || !config.BASE_URL || !config.API_KEY}
+                sx={{ mr: 'auto' }}
+              >
+                {t('modelGroup.actions.test')}
+              </ActionButton>
+            </span>
+          </Tooltip>
+        )}
+        <ActionButton
+          tone="secondary"
           onClick={onClose}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
           {t('actions.cancel', { ns: 'common' })}
-        </Button>
-        <Button
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSubmit}
-          color="primary"
           disabled={!!groupNameError || !groupName}
           sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
         >
           {isCopy ? t('modelGroup.actions.createCopy') : t('actions.save', { ns: 'common' })}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -703,9 +798,12 @@ export default function ModelGroupsPage() {
   }>({
     name: '',
   })
-  const [dialogKey, setDialogKey] = useState(0) // 用于控制对话框重建
+  const [dialogKey, setDialogKey] = useState(0)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deletingGroupName, setDeletingGroupName] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [testingGroups, setTestingGroups] = useState<Set<string>>(new Set())
+  const [testResults, setTestResults] = useState<Record<string, ModelGroupTestItem>>({})
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const isSmall = useMediaQuery(theme.breakpoints.down('sm'))
@@ -731,38 +829,26 @@ export default function ModelGroupsPage() {
     })
   }
 
-  // 获取模型类型对应的颜色
-  const getModelTypeColor = (
-    type: string | undefined
-  ): 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' => {
-    if (!type) return 'primary'
+  // 将模型类型映射到主题颜色值（用于 CHIP_VARIANTS）
+  const getModelTypeThemeColor = (type: string | undefined): string => {
+    if (!type) return theme.palette.primary.main
     const found = modelTypes.find(t => t.value === type)
-    const color = found?.color as
-      | 'default'
-      | 'primary'
-      | 'secondary'
-      | 'error'
-      | 'info'
-      | 'success'
-      | 'warning'
-      | undefined
-
-    // 确保返回值是有效的 MUI 颜色
+    const color = found?.color as string | undefined
     switch (color) {
       case 'primary':
-        return 'primary'
+        return theme.palette.primary.main
       case 'secondary':
-        return 'secondary'
+        return theme.palette.secondary.main
       case 'error':
-        return 'error'
+        return theme.palette.error.main
       case 'info':
-        return 'info'
+        return theme.palette.info.main
       case 'success':
-        return 'success'
+        return theme.palette.success.main
       case 'warning':
-        return 'warning'
+        return theme.palette.warning.main
       default:
-        return 'default'
+        return theme.palette.primary.main
     }
   }
 
@@ -879,6 +965,77 @@ export default function ModelGroupsPage() {
     }
   }
 
+  const runTest = async (groupName: string) => {
+    if (testingGroups.has(groupName)) return
+    setTestingGroups(prev => new Set([...prev, groupName]))
+    try {
+      const items = await unifiedConfigApi.testModelGroups([groupName])
+      const item = items[0]
+      if (item) {
+        setTestResults(prev => ({ ...prev, [groupName]: item }))
+        if (item.success) {
+          notification.success(t('modelGroup.notifications.testPassed'))
+        } else {
+          notification.warning(t('modelGroup.notifications.testFailed'))
+        }
+      }
+    } catch (err) {
+      notification.error(err instanceof Error ? err.message : t('modelGroup.notifications.testError'))
+    } finally {
+      setTestingGroups(prev => {
+        const next = new Set(prev)
+        next.delete(groupName)
+        return next
+      })
+    }
+  }
+
+  const renderTestTooltip = (result: ModelGroupTestItem) => (
+    <Box sx={{ maxWidth: 320 }}>
+      <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
+        {result.success ? t('modelGroup.health.tooltipPassed') : t('modelGroup.health.tooltipFailed')}
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        {t('modelGroup.health.tooltipModel', { model: result.used_model || result.model_name || '-' })}
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        {t('modelGroup.health.tooltipLatency', { ms: result.latency_ms })}
+      </Typography>
+      {result.success ? (
+        <>
+          {((result.input_tokens ?? 0) > 0 || (result.output_tokens ?? 0) > 0) && (
+            <Typography variant="caption" sx={{ display: 'block' }}>
+              {t('modelGroup.health.tooltipTokens', {
+                input: result.input_tokens ?? 0,
+                output: result.output_tokens ?? 0,
+              })}
+            </Typography>
+          )}
+          <Typography variant="caption" sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+            {t('modelGroup.health.tooltipReply', { text: result.response_text?.trim() || '-' })}
+          </Typography>
+        </>
+      ) : (
+        <Typography variant="caption" sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+          {t('modelGroup.health.tooltipError', { error: result.error_message || '-' })}
+        </Typography>
+      )}
+    </Box>
+  )
+
+  const filteredModelGroups = Object.fromEntries(
+    Object.entries(modelGroups).filter(([name, config]) => {
+      if (!searchText.trim()) return true
+      const kw = searchText.trim().toLowerCase()
+      return (
+        name.toLowerCase().includes(kw) ||
+        config.CHAT_MODEL.toLowerCase().includes(kw) ||
+        (config.BASE_URL || '').toLowerCase().includes(kw) ||
+        (config.MODEL_TYPE || '').toLowerCase().includes(kw)
+      )
+    })
+  )
+
   return (
     <Box
       sx={{
@@ -886,46 +1043,48 @@ export default function ModelGroupsPage() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        p: 2,
       }}
     >
+      {/* 顶部提示 */}
+      <Alert severity="info" sx={{ mb: 1.5, flexShrink: 0 }}>
+        {t('modelGroup.alert.providerSupportBefore')}
+        <Link href="https://api.nekro.ai" target="_blank" rel="noopener noreferrer">
+          {t('modelGroup.alert.providerSupportLink')}
+        </Link>
+        {t('modelGroup.alert.providerSupportAfter')}
+      </Alert>
+
       {/* 顶部工具栏 */}
       <Box
         sx={{
           display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          mb: 2,
+          mb: 1.5,
           flexShrink: 0,
-          flexWrap: 'wrap',
           gap: 1,
         }}
       >
-        <Alert severity="info">
-          {t('modelGroup.alert.providerSupportBefore')}
-          <Link href="https://api.nekro.ai" target="_blank" rel="noopener noreferrer">
-            {t('modelGroup.alert.providerSupportLink')}
-          </Link>
-          {t('modelGroup.alert.providerSupportAfter')}
-        </Alert>
-        <Button
-          variant="contained"
+        <SearchField
+          size="small"
+          value={searchText}
+          onChange={setSearchText}
+          placeholder={t('modelGroup.actions.searchPlaceholder')}
+          sx={{ flex: 1 }}
+        />
+        <ActionButton
+          tone="primary"
           startIcon={<AddIcon />}
           onClick={handleAdd}
-          size={isSmall ? 'small' : 'medium'}
-          sx={{
-            ml: isMobile ? 0 : 'auto',
-            minWidth: { xs: 120, sm: 140 },
-            minHeight: { xs: 36, sm: 40 },
-          }}
+          size="small"
+          sx={{ height: 40, whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           {t('modelGroup.dialog.createTitle')}
-        </Button>
+        </ActionButton>
       </Box>
 
       {/* 表格容器 */}
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{
           flex: 1,
           display: 'flex',
@@ -950,27 +1109,30 @@ export default function ModelGroupsPage() {
             <TableHead>
               <TableRow>
                 <TableCell
-                  width={isMobile ? '15%' : '12%'}
                   sx={{
                     py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 80,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   {t('modelGroup.table.groupName')}
                 </TableCell>
                 <TableCell
-                  width={isMobile ? '18%' : '15%'}
                   sx={{
                     py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 120,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   {t('modelGroup.table.modelName')}
                 </TableCell>
                 <TableCell
-                  width={isMobile ? '15%' : '10%'}
                   sx={{
                     py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 80,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
@@ -978,9 +1140,10 @@ export default function ModelGroupsPage() {
                 </TableCell>
                 {!isSmall && (
                   <TableCell
-                    width="18%"
                     sx={{
                       py: isSmall ? 1 : 1.5,
+                      whiteSpace: 'nowrap',
+                      minWidth: 160,
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
                   >
@@ -989,9 +1152,10 @@ export default function ModelGroupsPage() {
                 )}
                 {!isMobile && (
                   <TableCell
-                    width="15%"
                     sx={{
                       py: isSmall ? 1 : 1.5,
+                      whiteSpace: 'nowrap',
+                      minWidth: 60,
                       ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                     }}
                   >
@@ -999,18 +1163,30 @@ export default function ModelGroupsPage() {
                   </TableCell>
                 )}
                 <TableCell
-                  width={isMobile ? '23%' : '15%'}
                   sx={{
                     py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 100,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
                   {t('modelGroup.table.features')}
                 </TableCell>
                 <TableCell
-                  width={isMobile ? '30%' : '15%'}
                   sx={{
                     py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 80,
+                    ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
+                  }}
+                >
+                  {t('modelGroup.table.health')}
+                </TableCell>
+                <TableCell
+                  sx={{
+                    py: isSmall ? 1 : 1.5,
+                    whiteSpace: 'nowrap',
+                    minWidth: 80,
                     ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>),
                   }}
                 >
@@ -1019,7 +1195,7 @@ export default function ModelGroupsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {Object.entries(modelGroups).map(([name, config]) => (
+              {Object.entries(filteredModelGroups).map(([name, config]) => (
                 <TableRow key={name} sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
                   <TableCell
                     sx={{
@@ -1063,15 +1239,8 @@ export default function ModelGroupsPage() {
                       icon={getModelTypeIcon(config.MODEL_TYPE)}
                       label={getModelTypeLabel(config.MODEL_TYPE)}
                       size="small"
-                      color={getModelTypeColor(config.MODEL_TYPE)}
                       variant="outlined"
-                      sx={{
-                        height: isSmall ? 20 : 24,
-                        fontSize: isSmall ? '0.65rem' : '0.75rem',
-                        '& .MuiChip-label': {
-                          px: isSmall ? 0.5 : 0.75,
-                        },
-                      }}
+                      sx={CHIP_VARIANTS.getCustomColorChip(getModelTypeThemeColor(config.MODEL_TYPE), isSmall)}
                     />
                   </TableCell>
                   {!isSmall && (
@@ -1122,19 +1291,13 @@ export default function ModelGroupsPage() {
                           icon={<ImageIcon fontSize="small" />}
                           label={t('modelGroup.chips.vision')}
                           size="small"
-                          color={config.ENABLE_VISION ? 'primary' : 'default'}
-                          variant={config.ENABLE_VISION ? 'filled' : 'outlined'}
-                          sx={{
-                            height: isSmall ? 20 : 24,
-                            fontSize: isSmall ? '0.65rem' : '0.75rem',
-                            '& .MuiChip-label': {
-                              px: isSmall ? 0.5 : 0.75,
-                            },
-                            '& .MuiChip-icon': {
-                              fontSize: isSmall ? '0.9rem' : '1rem',
-                              ml: isSmall ? 0.3 : 0.5,
-                            },
-                          }}
+                          variant="outlined"
+                          sx={CHIP_VARIANTS.getCustomColorChip(
+                            config.ENABLE_VISION
+                              ? theme.palette.primary.main
+                              : theme.palette.text.secondary,
+                            isSmall
+                          )}
                         />
                       </Tooltip>
                       <Tooltip
@@ -1148,22 +1311,56 @@ export default function ModelGroupsPage() {
                           icon={<PsychologyIcon fontSize="small" />}
                           label={t('modelGroup.chips.cot')}
                           size="small"
-                          color={config.ENABLE_COT ? 'secondary' : 'default'}
-                          variant={config.ENABLE_COT ? 'filled' : 'outlined'}
-                          sx={{
-                            height: isSmall ? 20 : 24,
-                            fontSize: isSmall ? '0.65rem' : '0.75rem',
-                            '& .MuiChip-label': {
-                              px: isSmall ? 0.5 : 0.75,
-                            },
-                            '& .MuiChip-icon': {
-                              fontSize: isSmall ? '0.9rem' : '1rem',
-                              ml: isSmall ? 0.3 : 0.5,
-                            },
-                          }}
+                          variant="outlined"
+                          sx={CHIP_VARIANTS.getCustomColorChip(
+                            config.ENABLE_COT
+                              ? theme.palette.secondary.main
+                              : theme.palette.text.secondary,
+                            isSmall
+                          )}
                         />
                       </Tooltip>
                     </Stack>
+                  </TableCell>
+                  <TableCell
+                    sx={{
+                      py: isSmall ? 0.75 : 1.5,
+                      ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>),
+                    }}
+                  >
+                    {config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding' ? (
+                      <Typography variant="caption" color="text.secondary">-</Typography>
+                    ) : testingGroups.has(name) ? (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        icon={<CircularProgress size={12} />}
+                        label={t('modelGroup.health.testing')}
+                        sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.info.main, isSmall)}
+                      />
+                    ) : testResults[name] ? (
+                      <Tooltip title={renderTestTooltip(testResults[name])} arrow>
+                        {testResults[name].success ? (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={t('modelGroup.health.ok', { ms: testResults[name].latency_ms })}
+                            sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.success.main, isSmall)}
+                          />
+                        ) : (
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={t('modelGroup.health.failed')}
+                            sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.error.main, isSmall)}
+                          />
+                        )}
+                      </Tooltip>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        {t('modelGroup.health.notTested')}
+                      </Typography>
+                    )}
                   </TableCell>
                   <TableCell
                     sx={{
@@ -1178,35 +1375,60 @@ export default function ModelGroupsPage() {
                       flexWrap={isSmall ? 'wrap' : 'nowrap'}
                     >
                       <Tooltip title={t('modelGroup.tooltips.visitProvider')} arrow>
-                        <IconButton
+                        <IconActionButton
+                          tone="primary"
                           onClick={() => window.open(getBaseUrl(config.BASE_URL), '_blank')}
                           size="small"
-                          color="success"
                           disabled={!config.BASE_URL}
-                          sx={{ p: isSmall ? 0.5 : 1 }}
+                          sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.visitProvider')}
                         >
-                          <LaunchIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                          <LaunchIcon fontSize="small" />
+                        </IconActionButton>
+                      </Tooltip>
+                      <Tooltip
+                        title={config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding' ? t('modelGroup.tooltips.testOnlyChat') : t('modelGroup.tooltips.test')}
+                        arrow
+                      >
+                        <span>
+                          <IconActionButton
+                            tone="primary"
+                            onClick={() => runTest(name)}
+                            size="small"
+                            disabled={(config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding') || testingGroups.has(name)}
+                            sx={{ p: 0.5 }}
+                            title={
+                              config.MODEL_TYPE !== 'chat' && config.MODEL_TYPE !== 'embedding'
+                                ? t('modelGroup.tooltips.testOnlyChat')
+                                : t('modelGroup.tooltips.test')
+                            }
+                          >
+                            {testingGroups.has(name)
+                              ? <CircularProgress size={16} />
+                              : <NetworkCheckIcon fontSize="small" />
+                            }
+                          </IconActionButton>
+                        </span>
                       </Tooltip>
                       <Tooltip title={t('modelGroup.tooltips.edit')} arrow>
-                        <IconButton
+                        <IconActionButton
                           onClick={() => handleEdit(name)}
                           size="small"
-                          color="warning"
-                          sx={{ p: isSmall ? 0.5 : 1 }}
+                          sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.edit')}
                         >
-                          <EditIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                          <EditIcon fontSize="small" />
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip title={t('modelGroup.tooltips.copy')} arrow>
-                        <IconButton
+                        <IconActionButton
                           onClick={() => handleCopy(name)}
                           size="small"
-                          color="info"
-                          sx={{ p: isSmall ? 0.5 : 1 }}
+                          sx={{ p: 0.5 }}
+                          title={t('modelGroup.tooltips.copy')}
                         >
-                          <ContentCopyIcon fontSize={isSmall ? 'small' : 'medium'} />
-                        </IconButton>
+                          <ContentCopyIcon fontSize="small" />
+                        </IconActionButton>
                       </Tooltip>
                       <Tooltip
                         title={
@@ -1217,15 +1439,20 @@ export default function ModelGroupsPage() {
                         arrow
                       >
                         <span>
-                          <IconButton
+                          <IconActionButton
+                            tone="danger"
                             onClick={() => name !== 'default' && confirmDelete(name)}
                             size="small"
-                            color="error"
                             disabled={name === 'default'}
-                            sx={{ p: isSmall ? 0.5 : 1 }}
+                            sx={{ p: 0.5 }}
+                            title={
+                              name === 'default'
+                                ? t('modelGroup.tooltips.defaultDelete')
+                                : t('modelGroup.tooltips.delete')
+                            }
                           >
-                            <DeleteIcon fontSize={isSmall ? 'small' : 'medium'} />
-                          </IconButton>
+                            <DeleteIcon fontSize="small" />
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                     </Stack>
@@ -1264,19 +1491,20 @@ export default function ModelGroupsPage() {
           </Typography>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button
+          <ActionButton
+            tone="secondary"
             onClick={() => setDeleteDialogOpen(false)}
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('actions.cancel', { ns: 'common' })}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => handleDelete(deletingGroupName)}
-            color="error"
             sx={{ minWidth: { xs: 64, sm: 80 }, minHeight: { xs: 36, sm: 40 } }}
           >
             {t('modelGroup.deleteDialog.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

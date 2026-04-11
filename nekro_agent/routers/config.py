@@ -1,3 +1,5 @@
+import asyncio
+import time
 from typing import Any, Dict, List, Optional, get_args
 
 from fastapi import APIRouter, Depends, Query
@@ -13,6 +15,11 @@ from nekro_agent.schemas.errors import (
     OperationFailedError,
 )
 from nekro_agent.services.config_service import UnifiedConfigService
+from nekro_agent.services.model_test import (
+    build_model_test_messages,
+    build_openai_embedding_test_params,
+    build_openai_model_test_params,
+)
 from nekro_agent.services.user.deps import get_current_active_user
 from nekro_agent.services.user.perm import Role, require_role
 from nekro_agent.tools.common_util import get_app_version
@@ -82,6 +89,63 @@ class ModelTypeOption(BaseModel):
     description: Optional[str] = None
     color: Optional[str] = None
     icon: Optional[str] = None
+
+
+class FetchModelsRequest(BaseModel):
+    """服务端拉取模型列表请求。"""
+
+    base_url: str
+    api_key: str
+    proxy_url: Optional[str] = None
+
+
+class FetchModelsResponse(BaseModel):
+    """服务端拉取模型列表响应。"""
+
+    models: List[str]
+
+
+class ModelGroupTestItem(BaseModel):
+    """基础模型组检测结果。"""
+
+    group_name: str
+    model_name: str
+    success: bool
+    latency_ms: int
+    used_model: Optional[str] = None
+    response_text: Optional[str] = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+    error_message: Optional[str] = None
+
+
+class ModelGroupTestRequest(BaseModel):
+    """基础模型组检测请求。"""
+
+    group_names: List[str]
+
+
+class ModelGroupInlineTestRequest(BaseModel):
+    """基础模型组 inline 检测请求（直接传入配置，不依赖已保存数据）。"""
+
+    group_name: str
+    chat_model: str
+    base_url: str
+    api_key: str
+    model_type: str
+    chat_proxy: Optional[str] = None
+    temperature: Optional[float] = None
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    presence_penalty: Optional[float] = None
+    frequency_penalty: Optional[float] = None
+    extra_body: Optional[str] = None
+
+
+class ModelGroupTestResponse(BaseModel):
+    """基础模型组检测响应。"""
+
+    items: List[ModelGroupTestItem]
 
 
 router = APIRouter(prefix="/config", tags=["Config"])
@@ -327,6 +391,204 @@ async def get_model_types(_current_user: DBUser = Depends(get_current_active_use
         )
         for type_name in model_types
     ]
+
+
+@router.post("/model-groups/actions/fetch-models", summary="通过服务端拉取可用模型列表", response_model=FetchModelsResponse)
+@require_role(Role.Admin)
+async def fetch_model_groups_models(
+    body: FetchModelsRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> FetchModelsResponse:
+    """通过后端真实出口拉取 OpenAI 兼容模型列表。"""
+    from nekro_agent.services.agent.openai import list_openai_models
+
+    try:
+        models = await list_openai_models(
+            base_url=body.base_url,
+            api_key=body.api_key,
+            proxy_url=body.proxy_url,
+        )
+    except Exception as e:
+        raise OperationFailedError(operation="拉取模型列表", detail=str(e)) from e
+
+    return FetchModelsResponse(models=models)
+
+
+@router.post("/model-groups/actions/test", summary="测试基础模型组", response_model=ModelGroupTestResponse)
+@require_role(Role.Admin)
+async def test_model_groups(
+    body: ModelGroupTestRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ModelGroupTestResponse:
+    """通过真实请求测试基础模型组，聊天模型发送消息，嵌入模型调用 embeddings 接口。"""
+    from nekro_agent.services.agent.openai import gen_openai_chat_response, gen_openai_embeddings
+
+    async def run_single(group_name: str) -> ModelGroupTestItem:
+        model_group = config.MODEL_GROUPS.get(group_name)
+        if model_group is None:
+            return ModelGroupTestItem(
+                group_name=group_name,
+                model_name="",
+                success=False,
+                latency_ms=0,
+                error_message=f"模型组不存在: {group_name}",
+            )
+
+        started = time.perf_counter()
+
+        if model_group.MODEL_TYPE == "embedding":
+            try:
+                embedding = await gen_openai_embeddings(
+                    **build_openai_embedding_test_params(model_group),
+                )
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                dim = len(embedding)
+                return ModelGroupTestItem(
+                    group_name=group_name,
+                    model_name=model_group.CHAT_MODEL,
+                    success=True,
+                    latency_ms=latency_ms,
+                    response_text=f"向量维度: {dim}",
+                )
+            except Exception as e:
+                latency_ms = int((time.perf_counter() - started) * 1000)
+                return ModelGroupTestItem(
+                    group_name=group_name,
+                    model_name=model_group.CHAT_MODEL,
+                    success=False,
+                    latency_ms=latency_ms,
+                    error_message=str(e),
+                )
+
+        if model_group.MODEL_TYPE != "chat":
+            return ModelGroupTestItem(
+                group_name=group_name,
+                model_name=model_group.CHAT_MODEL,
+                success=False,
+                latency_ms=0,
+                error_message="仅支持测试聊天模型组和嵌入模型组",
+            )
+
+        try:
+            result = await gen_openai_chat_response(
+                messages=build_model_test_messages(use_system=False),
+                **build_openai_model_test_params(model_group, False),
+                max_wait_time=45,
+            )
+            if not result.response_content:
+                raise ValueError("模型未返回有效内容")
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            return ModelGroupTestItem(
+                group_name=group_name,
+                model_name=model_group.CHAT_MODEL,
+                success=True,
+                latency_ms=latency_ms,
+                used_model=result.use_model,
+                response_text=result.response_content,
+                input_tokens=result.token_input,
+                output_tokens=result.token_output,
+            )
+        except Exception as e:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            return ModelGroupTestItem(
+                group_name=group_name,
+                model_name=model_group.CHAT_MODEL,
+                success=False,
+                latency_ms=latency_ms,
+                error_message=str(e),
+            )
+
+    unique_group_names = list(dict.fromkeys(body.group_names))
+    items = await asyncio.gather(*(run_single(group_name) for group_name in unique_group_names))
+    return ModelGroupTestResponse(items=items)
+
+
+@router.post("/model-groups/actions/test-inline", summary="inline 测试模型配置（不依赖已保存数据）", response_model=ModelGroupTestItem)
+@require_role(Role.Admin)
+async def test_model_group_inline(
+    body: ModelGroupInlineTestRequest,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> ModelGroupTestItem:
+    """使用请求体中直接传入的配置执行测试，测试编辑中未保存的配置时使用。"""
+    from nekro_agent.services.agent.openai import gen_openai_chat_response, gen_openai_embeddings
+
+    # 构造临时 model_group 对象供 build_* 函数复用
+    class _TempGroup:
+        CHAT_MODEL = body.chat_model
+        BASE_URL = body.base_url
+        API_KEY = body.api_key
+        CHAT_PROXY = body.chat_proxy or ""
+        TEMPERATURE = body.temperature
+        TOP_P = body.top_p
+        TOP_K = body.top_k
+        PRESENCE_PENALTY = body.presence_penalty
+        FREQUENCY_PENALTY = body.frequency_penalty
+        EXTRA_BODY = body.extra_body
+        MODEL_TYPE = body.model_type
+
+    model_group = _TempGroup()
+    started = time.perf_counter()
+
+    if body.model_type == "embedding":
+        try:
+            embedding = await gen_openai_embeddings(
+                **build_openai_embedding_test_params(model_group),
+            )
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            return ModelGroupTestItem(
+                group_name=body.group_name,
+                model_name=body.chat_model,
+                success=True,
+                latency_ms=latency_ms,
+                response_text=f"向量维度: {len(embedding)}",
+            )
+        except Exception as e:
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            return ModelGroupTestItem(
+                group_name=body.group_name,
+                model_name=body.chat_model,
+                success=False,
+                latency_ms=latency_ms,
+                error_message=str(e),
+            )
+
+    if body.model_type != "chat":
+        return ModelGroupTestItem(
+            group_name=body.group_name,
+            model_name=body.chat_model,
+            success=False,
+            latency_ms=0,
+            error_message="仅支持测试聊天模型组和嵌入模型组",
+        )
+
+    try:
+        result = await gen_openai_chat_response(
+            messages=build_model_test_messages(use_system=False),
+            **build_openai_model_test_params(model_group, False),
+            max_wait_time=45,
+        )
+        if not result.response_content:
+            raise ValueError("模型未返回有效内容")
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return ModelGroupTestItem(
+            group_name=body.group_name,
+            model_name=body.chat_model,
+            success=True,
+            latency_ms=latency_ms,
+            used_model=result.use_model,
+            response_text=result.response_content,
+            input_tokens=result.token_input,
+            output_tokens=result.token_output,
+        )
+    except Exception as e:
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return ModelGroupTestItem(
+            group_name=body.group_name,
+            model_name=body.chat_model,
+            success=False,
+            latency_ms=latency_ms,
+            error_message=str(e),
+        )
 
 
 @router.get("/version", summary="获取应用版本", response_model=str)

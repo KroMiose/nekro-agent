@@ -2,15 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { Editor as MonacoEditor } from '@monaco-editor/react'
 import {
   Box,
-  Button,
-  ButtonGroup,
   Card,
   CardContent,
   Chip,
   CircularProgress,
   Collapse,
   Divider,
-  IconButton,
   Skeleton,
   Stack,
   Tooltip,
@@ -31,6 +28,9 @@ import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS } from '../../../theme/variants'
 import { PromptLayerItem, workspaceApi, WorkspaceDetail } from '../../../services/api/workspace'
+import SegmentedControl from '../../../components/common/SegmentedControl'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 type MainSectionKey = 'na_context' | 'shared_manual_rules' | 'execution_rules'
 type ExecutionSubSection = 'cc_rules' | 'na_rules'
@@ -273,7 +273,7 @@ function EditorPanel({
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               {extraActions}
-              <Button
+              <ActionButton
                 variant="contained"
                 size="small"
                 startIcon={isSaving ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
@@ -281,7 +281,7 @@ function EditorPanel({
                 disabled={!isDirty || isSaving}
               >
                 保存
-              </Button>
+              </ActionButton>
             </Stack>
           </Stack>
 
@@ -657,20 +657,15 @@ export default function PromptTab({ workspace }: { workspace: WorkspaceDetail })
             executionSubSection === 'cc_rules' ? '执行约束' : '表达策略',
           ]}
           extraActions={(
-            <ButtonGroup size="small" variant="outlined" sx={{ flexShrink: 0 }}>
-              <Button
-                variant={executionSubSection === 'cc_rules' ? 'contained' : 'outlined'}
-                onClick={() => setExecutionSubSection('cc_rules')}
-              >
-                CC
-              </Button>
-              <Button
-                variant={executionSubSection === 'na_rules' ? 'contained' : 'outlined'}
-                onClick={() => setExecutionSubSection('na_rules')}
-              >
-                NA
-              </Button>
-            </ButtonGroup>
+            <SegmentedControl
+              value={executionSubSection}
+              options={[
+                { value: 'cc_rules', label: 'CC' },
+                { value: 'na_rules', label: 'NA' },
+              ]}
+              onChange={value => setExecutionSubSection(value)}
+              sx={{ flexShrink: 0 }}
+            />
           )}
         />
       )}
@@ -704,29 +699,22 @@ export default function PromptTab({ workspace }: { workspace: WorkspaceDetail })
             </Box>
             <Stack direction="row" spacing={1} alignItems="center">
               {previewExpanded ? (
-                <ButtonGroup size="small" variant="outlined" sx={{ flexShrink: 0 }}>
-                  <Button
-                    variant={systemPromptView === 'preview' ? 'contained' : 'outlined'}
-                    onClick={event => {
-                      event.stopPropagation()
-                      setSystemPromptView('preview')
-                    }}
-                  >
-                    预览
-                  </Button>
-                  <Button
-                    variant={systemPromptView === 'source' ? 'contained' : 'outlined'}
-                    onClick={event => {
-                      event.stopPropagation()
-                      setSystemPromptView('source')
-                    }}
-                  >
-                    源文
-                  </Button>
-                </ButtonGroup>
+                <Box
+                  onClick={event => event.stopPropagation()}
+                  sx={{ display: 'inline-flex', flexShrink: 0 }}
+                >
+                  <SegmentedControl
+                    value={systemPromptView}
+                    options={[
+                      { value: 'preview', label: '预览' },
+                      { value: 'source', label: '源文' },
+                    ]}
+                    onChange={nextValue => setSystemPromptView(nextValue)}
+                  />
+                </Box>
               ) : null}
               <Tooltip title={previewExpanded ? t('detail.prompt.collapseTooltip') : t('detail.prompt.expandTooltip')}>
-                <IconButton
+                <IconActionButton
                   size="small"
                   onClick={event => {
                     event.stopPropagation()
@@ -734,7 +722,7 @@ export default function PromptTab({ workspace }: { workspace: WorkspaceDetail })
                   }}
                 >
                   {previewExpanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
-                </IconButton>
+                </IconActionButton>
               </Tooltip>
             </Stack>
           </Stack>

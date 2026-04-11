@@ -2,17 +2,14 @@ import React from 'react'
 import {
   Box,
   Typography,
-  Tabs,
   Tab,
   Stack,
   Chip,
-  Button,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   CircularProgress,
-  IconButton,
   Tooltip,
   Card,
   CardContent,
@@ -20,6 +17,8 @@ import {
   FormControl,
   Select,
   MenuItem,
+  Skeleton,
+  Fade,
   type SelectChangeEvent,
 } from '@mui/material'
 import {
@@ -30,7 +29,7 @@ import {
   Sync as SyncIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query'
 import { chatChannelApi } from '../../../services/api/chat-channel'
 import BasicInfo from './detail-tabs/BasicInfo'
 import MessageHistory from './detail-tabs/MessageHistory'
@@ -38,8 +37,11 @@ import OverrideSettings from './detail-tabs/OverrideSettings'
 import PluginData from './detail-tabs/PluginData'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useMediaQuery } from '@mui/material'
+import { InlineTabs } from '../../../components/common/NekroTabs'
 import { useTranslation } from 'react-i18next'
 import { type ChatChannelDetailTab } from '../../../router/routes'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 interface ChatChannelDetailProps {
   chatKey: string
@@ -64,11 +66,15 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const { t } = useTranslation('chat-channel')
 
   // 查询聊天详情
-  const { data: channel, isLoading } = useQuery({
+  const { data: channel, isLoading, isFetching } = useQuery({
     queryKey: ['chat-channel-detail', chatKey],
     queryFn: () => chatChannelApi.getDetail(chatKey),
     staleTime: 30_000,
+    placeholderData: keepPreviousData,
   })
+
+  // 切换 chatKey 时是否正在加载新频道数据（区别于刷新同一频道）
+  const isLoadingNewChannel = isLoading && !channel
 
   // 设置频道状态
   const { mutate: setChannelStatus, isPending: isToggling } = useMutation({
@@ -109,34 +115,58 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
   const statusOptions: Array<{
     value: 'active' | 'observe' | 'disabled'
     label: string
-    color: 'success' | 'warning' | 'error'
+    color: 'success' | 'warning' | 'disabled'
   }> = [
     { value: 'active', label: t('channelDetail.activate'), color: 'success' },
     { value: 'observe', label: t('channelDetail.observe'), color: 'warning' },
-    { value: 'disabled', label: t('channelDetail.deactivate'), color: 'error' },
+    { value: 'disabled', label: t('channelDetail.deactivate'), color: 'disabled' },
   ]
 
   const handleStatusChange = (event: SelectChangeEvent<'active' | 'observe' | 'disabled'>) => {
     const nextStatus = event.target.value as 'active' | 'observe' | 'disabled'
-    if (nextStatus === channel.status) return
+    if (nextStatus === channel?.status) return
     setChannelStatus(nextStatus)
   }
 
-  if (isLoading || !channel) {
+  if (isLoadingNewChannel) {
     return (
-      <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%' }}>
-        <Box className="h-full flex items-center justify-center">
-          <CircularProgress />
-        </Box>
-      </Card>
+      <Box className="h-full flex flex-col overflow-hidden gap-2">
+        <Card sx={CARD_VARIANTS.default.styles}>
+          <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Skeleton variant="circular" width={32} height={32} />
+              <Box className="flex-1">
+                <Skeleton variant="text" width="40%" height={32} />
+              </Box>
+              <Skeleton variant="rounded" width={96} height={32} />
+            </Stack>
+          </CardContent>
+        </Card>
+        <Card sx={CARD_VARIANTS.default.styles}>
+          <Skeleton variant="rectangular" height={56} />
+        </Card>
+        <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
+          <Box className="p-4 flex flex-col gap-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Skeleton key={i} variant="text" height={24} width={`${80 - i * 10}%`} />
+            ))}
+          </Box>
+        </Card>
+      </Box>
     )
   }
 
   return (
-    <Box className="h-full flex flex-col overflow-hidden gap-2">
+    <Box
+      className="h-full flex flex-col overflow-hidden gap-2"
+      sx={{
+        opacity: isFetching && !isRefreshing ? 0.6 : 1,
+        transition: 'opacity 0.2s ease',
+      }}
+    >
       {/* 头部信息 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent sx={{ p: { xs: 1.5, md: 2 } }}>
+        <CardContent sx={{ p: { xs: 1.5, md: 2 }, '&:last-child': { pb: { xs: 1.5, md: 2 } } }}>
           <Stack
             direction={{ xs: 'column', lg: 'row' }}
             spacing={1.5}
@@ -150,11 +180,11 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
               sx={{ minWidth: 0, flex: 1 }}
             >
               {isMobile && onBack && (
-                <IconButton onClick={onBack} edge="start">
+                <IconActionButton onClick={onBack} edge="start" title={t('actions.back', { ns: 'common', defaultValue: '返回' })}>
                   <ArrowBackIcon />
-                </IconButton>
+                </IconActionButton>
               )}
-              {channel.chat_type === 'group' ? (
+              {channel?.chat_type === 'group' ? (
                 <GroupIcon color="primary" sx={{ fontSize: 32, mt: 0.5 }} />
               ) : (
                 <PersonIcon color="info" sx={{ fontSize: 32, mt: 0.5 }} />
@@ -162,29 +192,29 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
               <Box className="flex-1 overflow-hidden">
                 <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                   <Typography variant="h6" className="font-medium truncate">
-                    {channel.channel_name || t('channelDetail.unnamedChat')}
+                    {channel?.channel_name || t('channelDetail.unnamedChat')}
                   </Typography>
                   <Chip
                     size="small"
-                    icon={channel.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
+                    icon={channel?.chat_type === 'group' ? <GroupIcon /> : <PersonIcon />}
                     label={
-                      channel.chat_type === 'group'
+                      channel?.chat_type === 'group'
                         ? t('channelDetail.group')
                         : t('channelDetail.private')
                     }
-                    color={channel.chat_type === 'group' ? 'primary' : 'info'}
+                    color={channel?.chat_type === 'group' ? 'primary' : 'info'}
                     variant="outlined"
                     sx={{ flexShrink: 0 }}
                   />
                   <Tooltip title={t('channelDetail.refreshInfo')}>
-                    <IconButton
+                    <IconActionButton
                       size="small"
                       onClick={handleRefresh}
                       disabled={isRefreshing}
                       sx={{ ml: 0.25 }}
                     >
                       {isRefreshing ? <CircularProgress size={16} /> : <SyncIcon fontSize="small" />}
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 </Stack>
               </Box>
@@ -198,19 +228,18 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
               useFlexGap
               sx={{ flexWrap: 'nowrap', flexShrink: 0 }}
             >
-              <Button
-                variant="text"
+              <ActionButton
+                tone="secondary"
                 size="small"
-                color="warning"
                 onClick={() => setResetDialogOpen(true)}
                 startIcon={<RefreshIcon />}
                 sx={{ px: 0.5, minWidth: 'auto', whiteSpace: 'nowrap' }}
               >
-                重置上下文
-              </Button>
+                {t('channelDetail.resetContext')}
+              </ActionButton>
               <FormControl size="small" sx={{ minWidth: 96 }}>
                 <Select
-                  value={channel.status}
+                  value={channel?.status ?? 'active'}
                   onChange={handleStatusChange}
                   disabled={isToggling}
                   sx={{
@@ -229,7 +258,12 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                         {isToggling ? (
                           <CircularProgress size={14} />
                         ) : (
-                          <CircleIcon sx={{ fontSize: 10, color: `${current.color}.main` }} />
+                          <CircleIcon
+                            sx={{
+                              fontSize: 10,
+                              color: current.color === 'disabled' ? 'text.disabled' : `${current.color}.main`,
+                            }}
+                          />
                         )}
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {current.label}
@@ -241,7 +275,12 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
                   {statusOptions.map(option => (
                     <MenuItem key={option.value} value={option.value}>
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <CircleIcon sx={{ fontSize: 10, color: `${option.color}.main` }} />
+                        <CircleIcon
+                          sx={{
+                            fontSize: 10,
+                            color: option.color === 'disabled' ? 'text.disabled' : `${option.color}.main`,
+                          }}
+                        />
                         <Typography variant="body2">{option.label}</Typography>
                       </Stack>
                     </MenuItem>
@@ -255,17 +294,13 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
 
       {/* 标签页 */}
       <Card sx={CARD_VARIANTS.default.styles}>
-        <Tabs
+        <InlineTabs
           value={currentTabIndex}
           onChange={handleTabChange}
           variant="fullWidth"
           sx={{
-            minHeight: 56,
             '& .MuiTab-root': {
               minHeight: 56,
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              textTransform: 'none',
             },
           }}
         >
@@ -273,31 +308,35 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
           <Tab label={t('channelDetail.tabs.overrideSettings')} />
           <Tab label={t('channelDetail.tabs.basicInfo')} />
           <Tab label={t('channelDetail.tabs.pluginData')} />
-        </Tabs>
+        </InlineTabs>
       </Card>
 
       {/* 标签内容 */}
       <Box className="flex-1 overflow-hidden">
-        {currentTab === 'basic-info' && (
-          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
-            <BasicInfo channel={channel} />
-          </Card>
-        )}
-        {currentTab === 'override-settings' && (
-          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
-            <OverrideSettings chatKey={chatKey} />
-          </Card>
-        )}
-        {currentTab === 'message-history' && (
-          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
-            <MessageHistory chatKey={chatKey} canSend={channel?.can_send ?? false} aiAlwaysIncludeMsgId={channel?.ai_always_include_msg_id ?? false} />
-          </Card>
-        )}
-        {currentTab === 'plugin-data' && (
-          <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
-            <PluginData chatKey={chatKey} />
-          </Card>
-        )}
+        <Fade in={!isFetching || isRefreshing} timeout={150}>
+          <Box className="h-full">
+            {currentTab === 'basic-info' && (
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+                {channel && <BasicInfo channel={channel} />}
+              </Card>
+            )}
+            {currentTab === 'override-settings' && (
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+                <OverrideSettings chatKey={chatKey} />
+              </Card>
+            )}
+            {currentTab === 'message-history' && (
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', p: 0, overflow: 'hidden' }}>
+                <MessageHistory chatKey={chatKey} canSend={channel?.can_send ?? false} aiAlwaysIncludeMsgId={channel?.ai_always_include_msg_id ?? false} />
+              </Card>
+            )}
+            {currentTab === 'plugin-data' && (
+              <Card sx={{ ...CARD_VARIANTS.default.styles, height: '100%', overflow: 'auto' }}>
+                <PluginData chatKey={chatKey} />
+              </Card>
+            )}
+          </Box>
+        </Fade>
       </Box>
 
       {/* 重置确认对话框 */}
@@ -307,12 +346,12 @@ export default function ChatChannelDetail({ chatKey, currentTab, onTabChange, on
           <Typography>{t('channelDetail.resetDialog.content')}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setResetDialogOpen(false)}>
+          <ActionButton tone="secondary" onClick={() => setResetDialogOpen(false)}>
             {t('channelDetail.resetDialog.cancel')}
-          </Button>
-          <Button onClick={() => resetChannel()} color="warning" disabled={isResetting}>
+          </ActionButton>
+          <ActionButton tone="danger" onClick={() => resetChannel()} disabled={isResetting}>
             {isResetting ? <CircularProgress size={20} /> : t('channelDetail.resetDialog.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

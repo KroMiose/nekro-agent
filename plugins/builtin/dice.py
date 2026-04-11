@@ -59,7 +59,7 @@ _LOCKED_DICE_NUM: int = 0
 @plugin.mount_command(
     name="dice_assert",
     description="预设下一次掷骰结果",
-    aliases=["dice-assert"],
+    aliases=[],
     usage="dice_assert <1-20>",
     permission=CommandPermission.SUPER_USER,
     category="掷骰",
@@ -83,7 +83,7 @@ async def dice_assert_cmd(
 @plugin.mount_command(
     name="dice_lock",
     description="锁定之后所有掷骰结果",
-    aliases=["dice-lock"],
+    aliases=[],
     usage="dice_lock <1-20>",
     permission=CommandPermission.SUPER_USER,
     category="掷骰",
@@ -107,7 +107,7 @@ async def dice_lock_cmd(
 @plugin.mount_command(
     name="dice_unlock",
     description="解除骰点锁定",
-    aliases=["dice-unlock"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="掷骰",
 )

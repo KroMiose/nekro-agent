@@ -344,6 +344,52 @@ def _create_http_client(
     )
 
 
+def _extract_model_ids(payload: Dict[str, Any]) -> List[str]:
+    """从 OpenAI 兼容模型列表响应中提取模型 ID。"""
+
+    def pick(items: Any) -> List[str]:
+        if not isinstance(items, list):
+            return []
+        result: List[str] = []
+        for item in items:
+            if isinstance(item, str):
+                result.append(item)
+            elif isinstance(item, dict) and isinstance(item.get("id"), str):
+                result.append(item["id"])
+        return result
+
+    return sorted(set([*pick(payload.get("data")), *pick(payload.get("models"))]))
+
+
+async def list_openai_models(
+    *,
+    base_url: str,
+    api_key: Optional[str] = None,
+    proxy_url: Optional[str] = None,
+) -> List[str]:
+    """通过服务端真实网络出口拉取 OpenAI 兼容模型列表。"""
+
+    normalized_base_url = base_url.strip().rstrip("/")
+    models_url = f"{normalized_base_url}/models"
+    headers = {"Content-Type": "application/json"}
+    if api_key and api_key.strip():
+        headers["Authorization"] = f"Bearer {api_key.strip()}"
+
+    async with _create_http_client(
+        proxy_url=proxy_url,
+        read_timeout=60,
+        write_timeout=60,
+        connect_timeout=10,
+        pool_timeout=10,
+    ) as client:
+        response = await client.get(models_url, headers=headers)
+        response.raise_for_status()
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise ValueError("模型列表响应格式无效")
+        return _extract_model_ids(payload)
+
+
 async def gen_openai_chat_response(
     model: str,
     messages: Any,
@@ -545,9 +591,9 @@ async def gen_openai_chat_response(
 async def gen_openai_embeddings(
     model: str,
     input: Union[str, List[Dict[str, Any]]],  # noqa: A002
-    dimensions: int,
     api_key: str,
     base_url: str,
+    dimensions: Optional[int] = None,
     proxy_url: Optional[str] = None,
     endpoint: str = "/embeddings",
     timeout: int = 10,
@@ -557,9 +603,9 @@ async def gen_openai_embeddings(
     Args:
         model: 模型名称
         input: 输入文本或文本列表
-        dimensions: 向量维度
         api_key: API 密钥
         base_url: API 基础地址
+        dimensions: 向量维度（可选，不传则由模型决定默认维度）
         proxy_url: 代理地址
         endpoint: API 端点
         timeout: 请求超时时间（秒），默认 10 秒
@@ -572,11 +618,11 @@ async def gen_openai_embeddings(
         read_timeout=timeout,
         write_timeout=timeout,
     ) as client:
-        # 手动序列化JSON，并设置ensure_ascii=False
-        data = json.dumps(
-            {"model": model, "input": input, "dimensions": dimensions},
-            ensure_ascii=False,
-        )
+        payload: dict[str, object] = {"model": model, "input": input}
+        if dimensions is not None:
+            payload["dimensions"] = dimensions
+
+        data = json.dumps(payload, ensure_ascii=False)
 
         res = await client.post(
             f"{base_url}{endpoint}",

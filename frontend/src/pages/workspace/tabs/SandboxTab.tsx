@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -9,7 +8,6 @@ import {
   Alert,
   Stack,
   Divider,
-  IconButton,
   Tooltip,
   Dialog,
   DialogTitle,
@@ -43,6 +41,8 @@ import { FitAddon } from 'xterm-addon-fit'
 import 'xterm/css/xterm.css'
 import { useTheme, alpha } from '@mui/material/styles'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 // ──────────────────────────────────────────
 // 日志面板（SSE 流式）
@@ -112,9 +112,9 @@ function LogsPanel({ workspaceId }: { workspaceId: number }) {
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
         <Tooltip title={t('detail.sandbox.logs.clearTooltip')}>
-          <IconButton size="small" onClick={() => setLogs([])} sx={{ color: 'text.secondary', p: 0.5 }}>
+          <IconActionButton size="small" onClick={() => setLogs([])} sx={{ color: 'text.secondary', p: 0.5 }} title={t('detail.sandbox.logs.clearTooltip')}>
             <ClearIcon sx={{ fontSize: 14 }} />
-          </IconButton>
+          </IconActionButton>
         </Tooltip>
       </Box>
 
@@ -323,16 +323,16 @@ function TerminalPanel({ workspaceId, isActive }: { workspaceId: number; isActiv
             {t('detail.sandbox.terminal.notRunning')}
           </Typography>
         ) : (
-          <Button
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
             startIcon={<RefreshIcon sx={{ fontSize: 14 }} />}
             onClick={connect}
             disabled={connStatus === 'connecting'}
             sx={{ fontSize: '0.7rem', color: 'text.secondary', minWidth: 0, px: 1, py: 0.25 }}
           >
             {connStatus === 'disconnected' ? t('detail.sandbox.terminal.connect') : t('detail.sandbox.terminal.reconnect')}
-          </Button>
+          </ActionButton>
         )}
       </Box>
 
@@ -488,10 +488,9 @@ export default function SandboxTab({
             )}
             <Box sx={{ flexGrow: 1 }} />
             <Stack direction="row" spacing={1} flexWrap="wrap">
-              <Button
+              <ActionButton
+                tone="primary"
                 size="small"
-                variant="contained"
-                color="success"
                 startIcon={
                   startMutation.isPending ? (
                     <CircularProgress size={14} color="inherit" />
@@ -507,11 +506,10 @@ export default function SandboxTab({
                 }}
               >
                 {t('detail.sandbox.buttons.start')}
-              </Button>
-              <Button
+              </ActionButton>
+              <ActionButton
+                tone="secondary"
                 size="small"
-                variant="outlined"
-                color="warning"
                 startIcon={
                   stopMutation.isPending ? (
                     <CircularProgress size={14} color="inherit" />
@@ -527,10 +525,10 @@ export default function SandboxTab({
                 }}
               >
                 {t('detail.sandbox.buttons.stop')}
-              </Button>
-              <Button
+              </ActionButton>
+              <ActionButton
+                tone="secondary"
                 size="small"
-                variant="outlined"
                 startIcon={
                   restartMutation.isPending ? (
                     <CircularProgress size={14} color="inherit" />
@@ -546,10 +544,10 @@ export default function SandboxTab({
                 }}
               >
                 {t('detail.sandbox.buttons.restart')}
-              </Button>
-              <Button
+              </ActionButton>
+              <ActionButton
+                tone="secondary"
                 size="small"
-                variant="outlined"
                 startIcon={
                   resetSessionMutation.isPending ? <CircularProgress size={14} /> : <RefreshIcon />
                 }
@@ -560,17 +558,16 @@ export default function SandboxTab({
                 }}
               >
                 {t('detail.sandbox.buttons.resetSession')}
-              </Button>
-              <Button
+              </ActionButton>
+              <ActionButton
+                tone="danger"
                 size="small"
-                variant="outlined"
-                color="error"
                 startIcon={<BuildIcon />}
                 disabled={anyMutating}
                 onClick={() => setRebuildOpen(true)}
               >
                 {t('detail.sandbox.buttons.rebuild')}
-              </Button>
+              </ActionButton>
             </Stack>
           </Box>
 
@@ -641,12 +638,11 @@ export default function SandboxTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setRebuildOpen(false)} disabled={rebuildMutation.isPending}>
+          <ActionButton tone="secondary" onClick={() => setRebuildOpen(false)} disabled={rebuildMutation.isPending}>
             {t('detail.sandbox.rebuildDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => {
               onSandboxMutate()
               setIsTransitioning(true)
@@ -655,7 +651,7 @@ export default function SandboxTab({
             disabled={rebuildMutation.isPending}
           >
             {rebuildMutation.isPending ? <CircularProgress size={20} /> : t('detail.sandbox.rebuildDialog.rebuild')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

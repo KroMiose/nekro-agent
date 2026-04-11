@@ -344,8 +344,8 @@ export const LOG_TABLE_STYLES = {
       const mode = getCurrentThemeMode()
       const palette = getCurrentExtendedPalette()
       return {
-        backgroundColor: mode === 'light' 
-          ? 'rgba(255, 255, 255, 0.95)' 
+        backgroundColor: mode === 'light'
+          ? palette.background.paper
           : getAlphaColor(palette.background.paper, 0.95),
         borderRadius: '6px',
         border: `1px solid ${getAlphaColor(palette.primary.main, mode === 'light' ? 0.06 : 0.1)}`,
@@ -380,10 +380,10 @@ export const LOG_TABLE_STYLES = {
       const palette = getCurrentExtendedPalette()
       return {
         fontWeight: 600,
-        backgroundColor: mode === 'light' 
-          ? 'rgba(245, 245, 245, 0.95)' 
+        backgroundColor: mode === 'light'
+          ? alpha(palette.primary.main, 0.04)
           : getAlphaColor(palette.primary.darker, 0.6),
-        boxShadow: mode === 'dark' 
+        boxShadow: mode === 'dark'
           ? '0 4px 6px -1px rgba(0, 0, 0, 0.15)'
           : '0 4px 6px -1px rgba(0, 0, 0, 0.08)',
         textTransform: 'uppercase',

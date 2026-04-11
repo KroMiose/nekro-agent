@@ -10,6 +10,12 @@ import { useColorMode } from '../../stores/theme'
 // 将插件数组提取为模块级常量
 const REMARK_PLUGINS = [remarkGfm]
 const REHYPE_PLUGINS = [rehypeRaw]
+const MARKDOWN_LINK_DEF_LINE_RE = /^(?<label>\[[^\]\n]{1,256}\]:)/gm
+
+function normalizeMarkdownForDisplay(content: string): string {
+  // `[label]: xxx` 在 Markdown 中会被当成引用定义并吞掉，行首转义后按普通文本显示
+  return content.replace(MARKDOWN_LINK_DEF_LINE_RE, '\\$<label>')
+}
 
 // 样式函数，保持简洁
 const markdownStyles = (theme: Theme): SxProps<Theme> => ({
@@ -221,6 +227,7 @@ export default function MarkdownRenderer({
 }: MarkdownRendererProps) {
   const theme = useTheme()
   const { mode } = useColorMode()
+  const normalizedChildren = normalizeMarkdownForDisplay(children)
 
   const markdownComponents = {
     code({
@@ -271,7 +278,7 @@ export default function MarkdownRenderer({
         remarkPlugins={REMARK_PLUGINS}
         rehypePlugins={enableHtml ? REHYPE_PLUGINS : undefined}
       >
-        {children}
+        {normalizedChildren}
       </ReactMarkdown>
     </Box>
   )

@@ -985,12 +985,21 @@ export const getSandboxTerminalWsUrl = (id: number): string => {
 
 export type CommDirection = 'NA_TO_CC' | 'CC_TO_NA' | 'USER_TO_CC' | 'SYSTEM' | 'TOOL_CALL' | 'TOOL_RESULT' | 'CC_STATUS'
 
+export interface CcPromptMeta {
+  current_time: string
+  source_chat_key: string
+  memory_count: number
+  has_context_overflow: boolean
+  has_manual_context_note: boolean
+}
+
 export interface CommLogEntry {
   id: number
   workspace_id: number
   direction: CommDirection
   source_chat_key: string
   content: string
+  extra_data: string
   is_streaming: boolean
   task_id: string | null
   create_time: string

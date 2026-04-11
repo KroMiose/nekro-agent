@@ -459,6 +459,7 @@ def subscribe_system_events() -> "Queue[str] | None":
     q.put_nowait(snapshot_payload)
 
     _subscribers.append(q)
+    logger.debug(f"[system_broadcast] 新增全局 SSE 订阅，当前连接数: {len(_subscribers)}")
     return q
 
 
@@ -466,6 +467,7 @@ def unsubscribe_system_events(q: "Queue[str]") -> None:
     """注销订阅者。"""
     if q in _subscribers:
         _subscribers.remove(q)
+        logger.debug(f"[system_broadcast] 移除全局 SSE 订阅，当前连接数: {len(_subscribers)}")
 
 
 async def publish_memory_recall_activity(event: MemoryRecallActivityEvent) -> None:

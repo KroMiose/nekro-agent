@@ -1,7 +1,6 @@
 import React from 'react'
 import {
   TablePagination,
-  IconButton,
   Box,
   Tooltip,
   useMediaQuery,
@@ -16,6 +15,7 @@ import {
   KeyboardArrowRight as KeyboardArrowRightIcon,
 } from '@mui/icons-material'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from './IconActionButton'
 
 interface TablePaginationStyledProps {
   count: number
@@ -84,55 +84,55 @@ const TablePaginationStyled: React.FC<TablePaginationStyledProps> = ({
         {showFirstLastPageButtons && (
           <Tooltip title={t('common.pagination.firstPage')}>
             <span>
-              <IconButton
+              <IconActionButton
                 onClick={handleFirstPageButtonClick}
                 disabled={page === 0 || loading}
                 aria-label={t('common.pagination.firstPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <LastPageIcon /> : <FirstPageIcon />}
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
         )}
         
         <Tooltip title={t('common.pagination.previousPage')}>
           <span>
-            <IconButton
+            <IconActionButton
               onClick={handleBackButtonClick}
               disabled={page === 0 || loading}
               aria-label={t('common.pagination.previousPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowRightIcon /> : <KeyboardArrowLeftIcon />}
-            </IconButton>
+            </IconActionButton>
           </span>
         </Tooltip>
         
         <Tooltip title={t('common.pagination.nextPage')}>
           <span>
-            <IconButton
+            <IconActionButton
               onClick={handleNextButtonClick}
               disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
               aria-label={t('common.pagination.nextPage')}
               size={isSmall ? 'small' : 'medium'}
             >
               {theme.direction === 'rtl' ? <KeyboardArrowLeftIcon /> : <KeyboardArrowRightIcon />}
-            </IconButton>
+            </IconActionButton>
           </span>
         </Tooltip>
         
         {showFirstLastPageButtons && (
           <Tooltip title={t('common.pagination.lastPage')}>
             <span>
-              <IconButton
+              <IconActionButton
                 onClick={handleLastPageButtonClick}
                 disabled={page >= Math.ceil(count / rowsPerPage) - 1 || loading}
                 aria-label={t('common.pagination.lastPage')}
                 size={isSmall ? 'small' : 'medium'}
               >
                 {theme.direction === 'rtl' ? <FirstPageIcon /> : <LastPageIcon />}
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
         )}

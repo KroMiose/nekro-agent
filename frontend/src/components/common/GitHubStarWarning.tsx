@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
   Box,
-  Button,
   CircularProgress,
   Paper,
   Typography,
@@ -21,6 +20,7 @@ import { BUTTON_VARIANTS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import ActionButton from './ActionButton'
 
 // 模糊容器
 const BlurredContent = styled(Box)(() => ({
@@ -153,11 +153,11 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
           {displayTitle}
         </Typography>
 
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }} component="div">
           {displayMessage}
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, fontSize: '0.85rem' }}>
+          <Box component="div" sx={{ mt: 1, fontSize: '0.85rem' }}>
             {t('githubStar.encouragement')}
-          </Typography>
+          </Box>
         </Typography>
 
         <Divider sx={{ my: 2 }} />
@@ -181,7 +181,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
             </Typography>
 
             {activeStep === 0 && (
-              <Button
+              <ActionButton
                 variant="contained"
                 color="primary"
                 startIcon={<GitHubIcon />}
@@ -192,7 +192,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                 sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1 }}
               >
                 {t('githubStar.buttons.goToGithub')}
-              </Button>
+              </ActionButton>
             )}
 
             {activeStep === 1 && (
@@ -200,7 +200,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                 <Typography variant="body2" paragraph sx={{ mt: 1 }}>
                   {t('githubStar.buttons.loginCommunity')}
                 </Typography>
-                <Button
+                <ActionButton
                   variant="contained"
                   color="primary"
                   startIcon={<LoginIcon />}
@@ -211,7 +211,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1 }}
                 >
                   {t('githubStar.buttons.goToCommunity')}
-                </Button>
+                </ActionButton>
               </>
             )}
 
@@ -220,7 +220,7 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                 <Typography variant="body2" paragraph sx={{ mt: 1 }}>
                   {t('githubStar.buttons.apiKeyHint')}
                 </Typography>
-                <Button
+                <ActionButton
                   variant="contained"
                   color="primary"
                   startIcon={<KeyIcon />}
@@ -228,8 +228,8 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   sx={{ ...BUTTON_VARIANTS.primary.styles, mt: 1, mr: 1 }}
                 >
                   {t('githubStar.buttons.goToSettings')}
-                </Button>
-                <Button
+                </ActionButton>
+                <ActionButton
                   variant="outlined"
                   color="primary"
                   startIcon={checking ? <CircularProgress size={20} /> : <RefreshIcon />}
@@ -240,25 +240,25 @@ const GitHubStarWarning: React.FC<GitHubStarWarningProps> = ({
                   {checking
                     ? t('githubStar.buttons.checking')
                     : t('githubStar.buttons.refreshStatus')}
-                </Button>
+                </ActionButton>
               </>
             )}
           </Box>
         </Box>
 
         <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-          <Button
+          <ActionButton
             disabled={activeStep === 0}
             onClick={() => setActiveStep(prev => Math.max(0, prev - 1))}
           >
             {t('actions.previous')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             disabled={activeStep === 2}
             onClick={() => setActiveStep(prev => Math.min(2, prev + 1))}
           >
             {t('actions.next')}
-          </Button>
+          </ActionButton>
         </Box>
 
         {checking && (
