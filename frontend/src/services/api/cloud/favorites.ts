@@ -10,6 +10,7 @@ export interface FavoriteResource {
   description: string
   moduleName?: string
   hasWebhook?: boolean
+  isLocal?: boolean
 }
 
 export interface FavoriteItem {

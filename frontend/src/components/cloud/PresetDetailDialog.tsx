@@ -25,6 +25,7 @@ interface PresetDetailDialogProps {
   preset: CloudPreset | null
   t: (key: string, options?: Record<string, unknown>) => string
   onFavoriteChange?: (remoteId: string, isFavorited: boolean) => void
+  showFavoriteAction?: boolean
 }
 
 export default function PresetDetailDialog({
@@ -33,6 +34,7 @@ export default function PresetDetailDialog({
   preset,
   t,
   onFavoriteChange,
+  showFavoriteAction = true,
 }: PresetDetailDialogProps) {
   const theme = useTheme()
 
@@ -228,15 +230,17 @@ export default function PresetDetailDialog({
         </Grid>
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2 }}>
-        <Button
-          variant={isFavorited ? 'contained' : 'outlined'}
-          color={isFavorited ? 'error' : 'primary'}
-          startIcon={<StarIcon />}
-          onClick={handleFavoriteToggle}
-          disabled={favoriteLoading}
-        >
-          {isFavorited ? t('presetsMarket.favorited') : t('presetsMarket.favorite')} ({favoriteCount})
-        </Button>
+        {showFavoriteAction && (
+          <Button
+            variant={isFavorited ? 'contained' : 'outlined'}
+            color={isFavorited ? 'error' : 'primary'}
+            startIcon={<StarIcon />}
+            onClick={handleFavoriteToggle}
+            disabled={favoriteLoading}
+          >
+            {isFavorited ? t('presetsMarket.favorited') : t('presetsMarket.favorite')} ({favoriteCount})
+          </Button>
+        )}
         <Button variant="contained" onClick={onClose} color="primary">
           {t('presetsMarket.close')}
         </Button>

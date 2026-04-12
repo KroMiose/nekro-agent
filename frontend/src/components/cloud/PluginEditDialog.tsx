@@ -138,31 +138,31 @@ export default function PluginEditDialog({
     const newErrors: Record<string, string> = {}
 
     if (!formData.name?.trim()) {
-      newErrors.name = '插件名称不能为空'
+      newErrors.name = t('cloud:pluginsMarket.nameRequired')
     }
 
     if (!formData.description?.trim()) {
-      newErrors.description = '插件描述不能为空'
+      newErrors.description = t('cloud:pluginsMarket.descriptionRequired')
     }
 
     if (!formData.author?.trim()) {
-      newErrors.author = '作者不能为空'
+      newErrors.author = t('cloud:pluginsMarket.authorRequired')
     }
 
     if (formData.githubUrl && !/^https?:\/\/github\.com\//.test(formData.githubUrl)) {
-      newErrors.githubUrl = 'GitHub URL 格式不正确'
+      newErrors.githubUrl = t('cloud:pluginsMarket.githubUrlInvalid')
     }
 
     if (formData.cloneUrl && !/\.git$/.test(formData.cloneUrl)) {
-      newErrors.cloneUrl = '克隆URL格式不正确，应以.git结尾'
+      newErrors.cloneUrl = t('cloud:pluginsMarket.cloneUrlInvalid')
     }
 
     if (formData.minNaVersion?.trim() && !/^\d+\.\d+\.\d+$/.test(formData.minNaVersion.trim())) {
-      newErrors.minNaVersion = t('pluginsMarket.versionFormatError') || '版本格式应为 x.x.x'
+      newErrors.minNaVersion = t('pluginsMarket.versionFormatError')
     }
 
     if (formData.maxNaVersion?.trim() && !/^\d+\.\d+\.\d+$/.test(formData.maxNaVersion.trim())) {
-      newErrors.maxNaVersion = t('pluginsMarket.versionFormatError') || '版本格式应为 x.x.x'
+      newErrors.maxNaVersion = t('pluginsMarket.versionFormatError')
     }
 
     setErrors(newErrors)
@@ -185,7 +185,7 @@ export default function PluginEditDialog({
     if (file.size > 10 * 1024 * 1024) {
       setErrors(prev => ({
         ...prev,
-        icon: '图片太大啦，最大支持10MB～',
+        icon: t('cloud:pluginsMarket.iconSizeError'),
       }))
       return
     }
@@ -206,7 +206,7 @@ export default function PluginEditDialog({
     } catch (_error) {
       setErrors(prev => ({
         ...prev,
-        icon: '图标处理失败，请重试',
+        icon: t('pluginsMarket.iconProcessFailed'),
       }))
     }
   }
@@ -237,9 +237,9 @@ export default function PluginEditDialog({
       }}
     >
       <DialogTitle sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
-        编辑插件信息
+        {t('pluginsMarket.editInfo')}
         <IconButton
-          aria-label="close"
+          aria-label={t('pluginsMarket.close')}
           onClick={onClose}
           sx={{
             position: 'absolute',
@@ -256,12 +256,12 @@ export default function PluginEditDialog({
           {/* 基本信息（左）和图标上传（右）并排布局 */}
           <Grid item xs={12} sm={6}>
             <Typography variant="subtitle1" gutterBottom fontWeight={500} sx={{ mb: 2 }}>
-              基本信息
+              {t('pluginsMarket.basicInfo')}
             </Typography>
 
             <TextField
               name="name"
-              label="插件名称"
+              label={t('pluginsMarket.pluginName')}
               value={formData.name}
               onChange={handleChange}
               fullWidth
@@ -273,14 +273,15 @@ export default function PluginEditDialog({
             />
 
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              模块名: <b>{plugin.moduleName}</b> (不可修改)
+              {t('pluginsMarket.moduleNameReadonlyPrefix')} <b>{plugin.moduleName}</b>{' '}
+              {t('pluginsMarket.moduleNameReadonlySuffix')}
             </Typography>
           </Grid>
 
           {/* 插件图标上传 */}
           <Grid item xs={12} sm={6}>
             <Typography variant="subtitle1" gutterBottom fontWeight={500} sx={{ mb: 2 }}>
-              插件图标
+              {t('pluginsMarket.pluginIcon')}
             </Typography>
 
             <Box
@@ -308,7 +309,7 @@ export default function PluginEditDialog({
                 {iconPreview ? (
                   <img
                     src={iconPreview}
-                    alt="插件图标预览"
+                    alt={t('pluginsMarket.pluginIconPreview')}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -328,7 +329,7 @@ export default function PluginEditDialog({
                   disabled={isSubmitting}
                   sx={{ mb: 1 }}
                 >
-                  选择图标
+                  {t('pluginsMarket.selectIcon')}
                   <input
                     type="file"
                     hidden
@@ -338,11 +339,11 @@ export default function PluginEditDialog({
                   />
                 </Button>
                 <Typography variant="caption" color="text.secondary" display="block">
-                  建议尺寸: 128x128像素
+                  {t('pluginsMarket.iconRecommendation')}
                   <br />
-                  支持格式: PNG, JPG, GIF
+                  {t('pluginsMarket.iconFormats')}
                   <br />
-                  大小限制: 10MB (自动压缩至 500 KB)
+                  {t('pluginsMarket.iconSizeLimit')}
                 </Typography>
                 {errors.icon && (
                   <Typography variant="caption" color="error" sx={{ mt: 1 }}>
@@ -356,7 +357,7 @@ export default function PluginEditDialog({
           <Grid item xs={12}>
             <TextField
               name="description"
-              label="插件描述"
+              label={t('pluginsMarket.pluginDescription')}
               value={formData.description}
               onChange={handleChange}
               fullWidth
@@ -371,7 +372,7 @@ export default function PluginEditDialog({
           <Grid item xs={12} sm={6}>
             <TextField
               name="author"
-              label="作者"
+              label={t('pluginsMarket.author')}
               value={formData.author}
               onChange={handleChange}
               fullWidth
@@ -386,7 +387,7 @@ export default function PluginEditDialog({
               <TextField
                 select
                 name="licenseType"
-                label="许可证类型"
+                label={t('pluginsMarket.licenseType')}
                 value={formData.licenseType}
                 onChange={handleChange}
                 fullWidth
@@ -396,14 +397,14 @@ export default function PluginEditDialog({
                 <MenuItem value="GPL-3.0">GPL-3.0</MenuItem>
                 <MenuItem value="BSD-3-Clause">BSD-3-Clause</MenuItem>
                 <MenuItem value="UNLICENSED">UNLICENSED</MenuItem>
-                <MenuItem value="CUSTOM">自定义（参考描述）</MenuItem>
+                <MenuItem value="CUSTOM">{t('pluginsMarket.customLicense')}</MenuItem>
               </TextField>
             </FormControl>
           </Grid>
           <Grid item xs={12}>
             <TextField
               name="githubUrl"
-              label="GitHub 仓库URL"
+              label={t('pluginsMarket.githubRepoUrl')}
               value={formData.githubUrl}
               onChange={handleChange}
               fullWidth
@@ -416,7 +417,7 @@ export default function PluginEditDialog({
           <Grid item xs={12}>
             <TextField
               name="cloneUrl"
-              label="Git 克隆URL"
+              label={t('pluginsMarket.gitCloneUrl')}
               value={formData.cloneUrl}
               onChange={handleChange}
               fullWidth
@@ -457,7 +458,7 @@ export default function PluginEditDialog({
           <Grid item xs={12}>
             <Divider sx={{ my: 2 }} />
             <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-              发布确认
+              {t('pluginsMarket.publishConfirmation')}
             </Typography>
           </Grid>
 
@@ -470,7 +471,7 @@ export default function PluginEditDialog({
                   disabled={isSubmitting}
                 />
               }
-              label="我确认这是符合社区内容规则的安全内容(SFW)"
+              label={t('pluginsMarket.safeContentConfirmation')}
             />
           </Grid>
 
@@ -485,14 +486,14 @@ export default function PluginEditDialog({
               }
               label={
                 <Box component="span" sx={{ display: 'flex', alignItems: 'center' }}>
-                  我已阅读并接受{' '}
+                  {t('pluginsMarket.agreeToTermsPrefix')}{' '}
                   <Link
                     href="https://cloud.nekro.ai/terms"
                     target="_blank"
                     underline="hover"
                     sx={{ ml: 0.5 }}
                   >
-                    《NekroAI 社区资源共享协议》
+                    {t('pluginsMarket.termsTitle')}
                   </Link>
                 </Box>
               }
@@ -502,7 +503,7 @@ export default function PluginEditDialog({
       </DialogContent>
       <DialogActions sx={{ px: 3, py: 2, borderTop: '1px solid', borderColor: 'divider' }}>
         <Button onClick={onClose} disabled={isSubmitting}>
-          取消
+          {t('pluginsMarket.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -511,7 +512,7 @@ export default function PluginEditDialog({
           disabled={isSubmitting || !agreeToTerms || !confirmSafeContent}
           startIcon={isSubmitting ? <CircularProgress size={20} /> : <EditIcon />}
         >
-          {isSubmitting ? '提交中...' : '更新信息'}
+          {isSubmitting ? t('pluginsMarket.submitting') : t('pluginsMarket.updateInfo')}
         </Button>
       </DialogActions>
     </Dialog>

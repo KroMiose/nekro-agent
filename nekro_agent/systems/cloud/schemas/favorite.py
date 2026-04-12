@@ -17,6 +17,7 @@ class FavoriteResource(BaseModel):
     description: str = Field(..., description="资源描述")
     moduleName: Optional[str] = Field(None, description="插件模块名")
     hasWebhook: Optional[bool] = Field(None, description="是否有Webhook")
+    isLocal: Optional[bool] = Field(None, description="是否已获取到本地")
 
     class Config:
         populate_by_name = True

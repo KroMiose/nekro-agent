@@ -139,7 +139,7 @@ async def list_plugins(
             params["allowNsfw"] = True
 
         # 使用认证客户端，云端会返回 isFavorited 字段
-        async with get_client(require_auth=True) as client:
+        async with get_client(require_auth=False) as client:
             response = await client.get(
                 url=PLUGIN_API,
                 params=params,

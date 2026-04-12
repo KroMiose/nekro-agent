@@ -2,33 +2,22 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   Box,
   Typography,
-  Tabs,
   Tab,
   Card,
-  CardContent,
   Grid,
   Avatar,
-  Chip,
-  IconButton,
-  Button,
-  CircularProgress,
   Alert,
-  Divider,
-  Tooltip,
+  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Link,
+  Button,
 } from '@mui/material'
 import {
   Person as PersonIcon,
   Extension as ExtensionIcon,
-  Face as FaceIcon,
   Favorite as FavoriteIcon,
-  Delete as DeleteIcon,
-  Edit as EditIcon,
-  OpenInNew as OpenInNewIcon,
 } from '@mui/icons-material'
 import { favoritesApi, FavoriteItem } from '../../services/api/cloud/favorites'
 import {
@@ -37,479 +26,86 @@ import {
   PluginUpdateRequest,
   CloudPlugin,
 } from '../../services/api/cloud/plugins_market'
-import PluginEditDialog from '../../components/cloud/PluginEditDialog'
-import PresetDetailDialog from '../../components/cloud/PresetDetailDialog'
-import { CloudPreset } from '../../services/api/cloud/presets_market'
 import { presetsMarketApi, UserPreset } from '../../services/api/cloud/presets_market'
-import { authApi } from '../../services/api/cloud'
+import { removePackage } from '../../services/api/plugins'
+import { presetsApi } from '../../services/api/presets'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
-import { UI_STYLES } from '../../theme/themeConfig'
+import { useNavigate } from 'react-router-dom'
 import { CARD_VARIANTS } from '../../theme/variants'
+import { presetsPath } from '../../router/routes'
+import type { CloudPreset } from '../../services/api/cloud/presets_market'
 
-// 从 auth.ts 导入 CommunityUserProfile 类型
-import type { CommunityUserProfile } from '../../services/api/cloud/auth'
+import FavoriteCard from '../../components/cloud/profile/FavoriteCard'
+import UserPluginCard from '../../components/cloud/profile/UserPluginCard'
+import UserPresetCard from '../../components/cloud/profile/UserPresetCard'
+import PluginDetailDialog from '../../components/cloud/PluginDetailDialog'
+import PluginEditDialog from '../../components/cloud/PluginEditDialog'
+import PresetDetailDialog from '../../components/cloud/PresetDetailDialog'
+import { PageTabs } from '../../components/common/NekroTabs'
+import ProfileSection from '../../components/cloud/profile/ProfileSection'
+import CommunityApiKeyRequiredContent from '../../components/common/CommunityApiKeyRequiredContent'
+import { useCommunityUserStore } from '../../stores/communityUser'
 
-// Tab 类型
 type TabValue = 'published' | 'favorites'
-
-// 收藏资源卡片组件
-const FavoriteCard = ({
-  favorite,
-  onRemove,
-  onViewDetail,
-  t,
-}: {
-  favorite: FavoriteItem
-  onRemove: () => void
-  onViewDetail: () => void
-  t: (key: string, options?: Record<string, unknown>) => string
-}) => {
-  const [iconError, setIconError] = useState(false)
-  const isPlugin = favorite.targetType === 'plugin'
-
-  return (
-    <Card
-      sx={{
-        ...CARD_VARIANTS.default.styles,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, width: '100%' }}>
-            {/* 图标 */}
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: 1,
-                overflow: 'hidden',
-                flexShrink: 0,
-                border: '1px solid',
-                borderColor: 'divider',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: theme =>
-                  theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-              }}
-            >
-              {(favorite.resource.icon || favorite.resource.avatar) && !iconError ? (
-                <img
-                  src={favorite.resource.icon || favorite.resource.avatar}
-                  alt={`${favorite.resource.name} 图标`}
-                  onError={() => setIconError(true)}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : isPlugin ? (
-                <ExtensionIcon
-                  sx={{
-                    fontSize: 28,
-                    opacity: 0.7,
-                    color: theme => theme.palette.primary.main,
-                  }}
-                />
-              ) : (
-                <FaceIcon
-                  sx={{
-                    fontSize: 28,
-                    opacity: 0.7,
-                    color: theme => theme.palette.secondary.main,
-                  }}
-                />
-              )}
-            </Box>
-
-            <Box sx={{ overflow: 'hidden', flex: 1 }}>
-              <Typography
-                variant="h6"
-                component="h2"
-                sx={{
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {favorite.resource.title || favorite.resource.name}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{
-                  fontSize: '0.8rem',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {t('cloud:profile.author')}: {favorite.resource.author}
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-            mb: 2,
-            minHeight: '2.5em',
-            fontSize: '0.85rem',
-          }}
-        >
-          {favorite.resource.description || t('cloud:profile.noDescription')}
-        </Typography>
-
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
-          <Chip
-            label={isPlugin ? t('cloud:profile.plugin') : t('cloud:profile.preset')}
-            size="small"
-            color={isPlugin ? 'primary' : 'secondary'}
-            sx={{ height: 24, fontSize: '0.75rem' }}
-          />
-          <Chip
-            label={`${t('cloud:profile.collectedAt')}: ${new Date(favorite.createdAt).toLocaleDateString()}`}
-            size="small"
-            sx={{
-              height: 24,
-              fontSize: '0.75rem',
-              bgcolor: theme =>
-                theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)',
-            }}
-          />
-        </Box>
-      </CardContent>
-
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 1.5,
-          bgcolor: UI_STYLES.SELECTED,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<OpenInNewIcon />}
-          onClick={onViewDetail}
-        >
-          {t('cloud:profile.viewDetail') || '查看详情'}
-        </Button>
-        <Tooltip title={t('cloud:profile.removeFavorite')}>
-          <IconButton size="small" color="error" onClick={onRemove}>
-            <FavoriteIcon />
-          </IconButton>
-        </Tooltip>
-      </Box>
-    </Card>
-  )
-}
-
-// 用户发布的插件卡片
-const UserPluginCard = ({
-  plugin,
-  onUnpublish,
-  onEdit,
-  t,
-}: {
-  plugin: UserPlugin
-  onUnpublish: () => void
-  onEdit: () => void
-  t: (key: string, options?: Record<string, unknown>) => string
-}) => {
-  const [iconError, setIconError] = useState(false)
-
-  return (
-    <Card
-      sx={{
-        ...CARD_VARIANTS.default.styles,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              overflow: 'hidden',
-              flexShrink: 0,
-              border: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme =>
-                theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-            }}
-          >
-            {plugin.icon && !iconError ? (
-              <img
-                src={plugin.icon}
-                alt={`${plugin.name} 图标`}
-                onError={() => setIconError(true)}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <ExtensionIcon
-                sx={{
-                  fontSize: 28,
-                  opacity: 0.7,
-                  color: theme => theme.palette.primary.main,
-                }}
-              />
-            )}
-          </Box>
-          <Box sx={{ overflow: 'hidden', flex: 1 }}>
-            <Typography
-              variant="h6"
-              component="h2"
-              sx={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {plugin.name}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: '0.8rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {plugin.moduleName}
-            </Typography>
-          </Box>
-        </Box>
-        <Chip
-          label={t('cloud:profile.plugin')}
-          size="small"
-          color="primary"
-          sx={{ height: 24, fontSize: '0.75rem' }}
-        />
-      </CardContent>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 1.5,
-          bgcolor: UI_STYLES.SELECTED,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<EditIcon />}
-          onClick={onEdit}
-        >
-          {t('cloud:pluginsMarket.edit') || '编辑'}
-        </Button>
-        <Button
-          size="small"
-          variant="text"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={onUnpublish}
-        >
-          {t('cloud:pluginsMarket.delist')}
-        </Button>
-      </Box>
-    </Card>
-  )
-}
-
-// 用户发布的人设卡片
-const UserPresetCard = ({
-  preset,
-  onUnpublish,
-  onViewDetail,
-  t,
-}: {
-  preset: UserPreset
-  onUnpublish: () => void
-  onViewDetail: () => void
-  t: (key: string, options?: Record<string, unknown>) => string
-}) => {
-  const [avatarError, setAvatarError] = useState(false)
-
-  return (
-    <Card
-      sx={{
-        ...CARD_VARIANTS.default.styles,
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      <CardContent sx={{ flexGrow: 1, p: 2.5, pb: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
-          <Box
-            sx={{
-              width: 48,
-              height: 48,
-              borderRadius: 1,
-              overflow: 'hidden',
-              flexShrink: 0,
-              border: '1px solid',
-              borderColor: 'divider',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: theme =>
-                theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
-            }}
-          >
-            {preset.avatar && !avatarError ? (
-              <img
-                src={preset.avatar}
-                alt={`${preset.name} 头像`}
-                onError={() => setAvatarError(true)}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            ) : (
-              <FaceIcon
-                sx={{
-                  fontSize: 28,
-                  opacity: 0.7,
-                  color: theme => theme.palette.secondary.main,
-                }}
-              />
-            )}
-          </Box>
-          <Box sx={{ overflow: 'hidden', flex: 1 }}>
-            <Typography
-              variant="h6"
-              component="h2"
-              sx={{
-                fontSize: '1rem',
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {preset.title || preset.name}
-            </Typography>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{
-                fontSize: '0.8rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {preset.name}
-            </Typography>
-          </Box>
-        </Box>
-        <Chip
-          label={t('cloud:profile.preset')}
-          size="small"
-          color="secondary"
-          sx={{ height: 24, fontSize: '0.75rem' }}
-        />
-      </CardContent>
-      <Box
-        sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          p: 1.5,
-          bgcolor: UI_STYLES.SELECTED,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-        }}
-      >
-        <Button
-          size="small"
-          variant="text"
-          startIcon={<OpenInNewIcon />}
-          onClick={onViewDetail}
-        >
-          {t('cloud:profile.viewDetail')}
-        </Button>
-        <Button
-          size="small"
-          variant="text"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={onUnpublish}
-        >
-          {t('cloud:pluginsMarket.delist')}
-        </Button>
-      </Box>
-    </Card>
-  )
-}
+type PresetDetailSource = 'published' | 'favorites'
 
 export default function CloudProfile() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabValue>('published')
-  const [userProfile, setUserProfile] = useState<CommunityUserProfile | null>(null)
   const [favorites, setFavorites] = useState<FavoriteItem[]>([])
   const [userPlugins, setUserPlugins] = useState<UserPlugin[]>([])
   const [userPresets, setUserPresets] = useState<UserPreset[]>([])
   const [loading, setLoading] = useState(true)
-  const [publishedLoading, setPublishedLoading] = useState(false)
+  const [pluginsLoading, setPluginsLoading] = useState(false)
+  const [presetsLoading, setPresetsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [editingPlugin, setEditingPlugin] = useState<CloudPlugin | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [pluginDelistDialog, setPluginDelistDialog] = useState<UserPlugin | null>(null)
+  const [pluginDelistLoading, setPluginDelistLoading] = useState(false)
   const [selectedPreset, setSelectedPreset] = useState<CloudPreset | null>(null)
   const [presetDetailOpen, setPresetDetailOpen] = useState(false)
+  const [presetDetailSource, setPresetDetailSource] = useState<PresetDetailSource>('published')
   const [selectedPlugin, setSelectedPlugin] = useState<CloudPlugin | null>(null)
   const [pluginDetailOpen, setPluginDetailOpen] = useState(false)
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean
+    favorite: FavoriteItem | null
+  }>({ open: false, favorite: null })
+  const [downloading, setDownloading] = useState(false)
   const notification = useNotification()
-  const { t } = useTranslation(['cloud', 'navigation'])
+  const { t } = useTranslation(['cloud', 'navigation', 'common'])
+  const {
+    userInfo: userProfile,
+    loading: userProfileLoading,
+    accessStatus: communityAccessStatus,
+    fetchUserProfile,
+  } = useCommunityUserStore()
 
-  // 分类收藏
   const pluginFavorites = favorites.filter(f => f.targetType === 'plugin')
   const presetFavorites = favorites.filter(f => f.targetType === 'preset')
 
-  // 获取用户资料
-  const fetchUserProfile = useCallback(async () => {
-    try {
-      const profile = await authApi.getCommunityUserProfile()
-      setUserProfile(profile)
-    } catch (err) {
-      console.error('Failed to fetch user profile:', err)
-    }
+  const setFavoriteLocalState = useCallback((targetType: string, targetId: string, isLocal: boolean) => {
+    setFavorites(prev =>
+      prev.map(favorite =>
+        favorite.targetType === targetType && favorite.targetId === targetId
+          ? {
+              ...favorite,
+              resource: {
+                ...favorite.resource,
+                isLocal,
+              },
+            }
+          : favorite
+      )
+    )
   }, [])
 
-  // 获取收藏列表（一次性获取所有）
   const fetchFavorites = useCallback(async () => {
     try {
       setLoading(true)
-      const data = await favoritesApi.getFavorites({
-        page: 1,
-        page_size: 32, // 最大支持 32
-      })
+      const data = await favoritesApi.getFavorites({ page: 1, page_size: 32 })
       setFavorites(data.data.items)
       setError(null)
     } catch (err) {
@@ -520,52 +116,84 @@ export default function CloudProfile() {
     }
   }, [t])
 
-  // 获取用户发布的插件
   const fetchUserPlugins = useCallback(async () => {
-    setPublishedLoading(true)
+    setPluginsLoading(true)
     try {
       const plugins = await pluginsMarketApi.getUserPlugins()
       setUserPlugins(plugins)
     } catch (err) {
       console.error('Failed to fetch user plugins:', err)
     } finally {
-      setPublishedLoading(false)
+      setPluginsLoading(false)
     }
   }, [])
 
-  // 获取用户发布的人设
   const fetchUserPresets = useCallback(async () => {
-    setPublishedLoading(true)
+    setPresetsLoading(true)
     try {
       const data = await presetsMarketApi.getUserPresets()
       setUserPresets(data.items)
     } catch (err) {
       console.error('Failed to fetch user presets:', err)
     } finally {
-      setPublishedLoading(false)
+      setPresetsLoading(false)
     }
   }, [])
 
-  // 初始加载
   useEffect(() => {
-    fetchUserProfile()
+    fetchUserProfile(true)
+  }, [fetchUserProfile])
+
+  useEffect(() => {
+    if (communityAccessStatus !== 'available') return
     fetchUserPlugins()
     fetchUserPresets()
-  }, [fetchUserProfile, fetchUserPlugins, fetchUserPresets])
+  }, [communityAccessStatus, fetchUserPlugins, fetchUserPresets])
 
-  // 收藏列表加载
   useEffect(() => {
+    if (communityAccessStatus !== 'available') return
     if (activeTab === 'favorites') {
       fetchFavorites()
     }
-  }, [activeTab, fetchFavorites])
+  }, [activeTab, communityAccessStatus, fetchFavorites])
 
-  // Tab 切换
+  if (userProfileLoading && communityAccessStatus === 'unknown') {
+    return (
+      <Box sx={{ p: 3, height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <CircularProgress />
+      </Box>
+    )
+  }
+
+  if (communityAccessStatus === 'missing_api_key') {
+    return (
+      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+        <Card
+          sx={{
+            ...CARD_VARIANTS.default.styles,
+            maxWidth: 520,
+            mx: 'auto',
+            mt: { xs: 4, md: 8 },
+          }}
+        >
+          <CommunityApiKeyRequiredContent />
+        </Card>
+      </Box>
+    )
+  }
+
+  if (communityAccessStatus === 'error' && !userProfile) {
+    return (
+      <Box sx={{ p: 3, height: '100%', overflow: 'auto' }}>
+        <Alert severity="error">{t('cloud:profile.fetchFailed')}</Alert>
+      </Box>
+    )
+  }
+
   const handleTabChange = (_event: React.SyntheticEvent, newValue: TabValue) => {
     setActiveTab(newValue)
   }
 
-  // 取消收藏
   const handleRemoveFavorite = async (favorite: FavoriteItem) => {
     try {
       await favoritesApi.removeFavorite(favorite.targetType, favorite.targetId)
@@ -577,32 +205,31 @@ export default function CloudProfile() {
     }
   }
 
-  // 下架插件
   const handleUnpublishPlugin = async (plugin: UserPlugin) => {
     try {
+      setPluginDelistLoading(true)
       await pluginsMarketApi.deleteUserPlugin(plugin.moduleName)
       notification.success(t('cloud:pluginsMarket.delistSuccess') || '下架成功')
+      setPluginDelistDialog(null)
       fetchUserPlugins()
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err)
       notification.error(`${t('cloud:pluginsMarket.delistFailed') || '下架失败'}: ${errorMessage}`)
+    } finally {
+      setPluginDelistLoading(false)
     }
   }
 
-  // 下架人设（需要后端接口）
-  const handleUnpublishPreset = async (_preset: UserPreset) => {
+  const handleUnpublishPreset = async () => {
     notification.info(t('cloud:profile.featureNotAvailable') || '功能开发中')
   }
 
-  // 打开人设详情对话框
   const openPresetDetail = async (userPreset: UserPreset) => {
+    setPresetDetailSource('published')
     try {
-      // 尝试获取完整的人设详情
       const presetDetail = await presetsMarketApi.getPresetDetail(userPreset.id)
       setSelectedPreset(presetDetail)
-      setPresetDetailOpen(true)
     } catch {
-      // 如果获取失败，使用基本信息构造
       setSelectedPreset({
         remote_id: userPreset.id,
         is_local: false,
@@ -616,11 +243,10 @@ export default function CloudProfile() {
         create_time: new Date().toISOString(),
         update_time: new Date().toISOString(),
       })
-      setPresetDetailOpen(true)
     }
+    setPresetDetailOpen(true)
   }
 
-  // 编辑插件
   const handleEditPlugin = async (data: PluginUpdateRequest, moduleName: string) => {
     setIsSubmitting(true)
     try {
@@ -639,12 +265,9 @@ export default function CloudProfile() {
     }
   }
 
-  // 获取完整的插件信息用于编辑
   const fetchFullPluginForEdit = async (userPlugin: UserPlugin): Promise<CloudPlugin> => {
     try {
       const fullPlugin = await pluginsMarketApi.getPluginDetail(userPlugin.moduleName)
-      console.log('Full plugin detail:', fullPlugin)
-      // 明确映射字段，确保所有字段都有值
       return {
         id: userPlugin.id,
         name: fullPlugin.name ?? userPlugin.name,
@@ -668,9 +291,7 @@ export default function CloudProfile() {
         createdAt: fullPlugin.createdAt ?? new Date().toISOString(),
         updatedAt: fullPlugin.updatedAt ?? new Date().toISOString(),
       }
-    } catch (err) {
-      console.error('Failed to fetch full plugin detail:', err)
-      // 如果获取详情失败，使用基本信息构造
+    } catch {
       return {
         id: userPlugin.id,
         name: userPlugin.name,
@@ -697,22 +318,22 @@ export default function CloudProfile() {
     }
   }
 
-  // 打开编辑对话框
   const openEditDialog = async (plugin: UserPlugin) => {
     const fullPlugin = await fetchFullPluginForEdit(plugin)
     setEditingPlugin(fullPlugin)
   }
 
-  // 查看收藏详情
+  const handleEditPreset = (preset: UserPreset) => {
+    navigate(presetsPath({ editRemoteId: preset.id }))
+  }
+
   const handleViewFavoriteDetail = async (favorite: FavoriteItem) => {
     if (favorite.targetType === 'preset') {
-      // 获取完整的人设详情
+      setPresetDetailSource('favorites')
       try {
         const presetDetail = await presetsMarketApi.getPresetDetail(favorite.targetId)
         setSelectedPreset(presetDetail)
-        setPresetDetailOpen(true)
       } catch {
-        // 如果获取失败，使用收藏中的基本信息构造
         setSelectedPreset({
           remote_id: favorite.targetId,
           is_local: false,
@@ -726,13 +347,11 @@ export default function CloudProfile() {
           create_time: new Date(favorite.createdAt).toISOString(),
           update_time: new Date(favorite.createdAt).toISOString(),
         })
-        setPresetDetailOpen(true)
       }
+      setPresetDetailOpen(true)
     } else {
-      // 获取完整的插件详情，使用 moduleName
       const moduleName = favorite.resource.moduleName
       if (!moduleName) {
-        // 如果没有 moduleName，使用收藏中的基本信息
         setSelectedPlugin({
           id: favorite.targetId,
           name: favorite.resource.name,
@@ -753,10 +372,11 @@ export default function CloudProfile() {
       }
       try {
         const pluginDetail = await pluginsMarketApi.getPluginDetail(moduleName)
-        setSelectedPlugin(pluginDetail)
-        setPluginDetailOpen(true)
+        setSelectedPlugin({
+          ...pluginDetail,
+          is_local: favorite.resource.isLocal ?? pluginDetail.is_local,
+        })
       } catch {
-        // 如果获取失败，使用收藏中的基本信息构造
         setSelectedPlugin({
           id: favorite.targetId,
           name: favorite.resource.name,
@@ -770,10 +390,67 @@ export default function CloudProfile() {
           licenseType: '',
           createdAt: new Date(favorite.createdAt).toISOString(),
           updatedAt: new Date(favorite.createdAt).toISOString(),
-          is_local: false,
+          is_local: favorite.resource.isLocal ?? false,
         })
-        setPluginDetailOpen(true)
       }
+      setPluginDetailOpen(true)
+    }
+  }
+
+  const handleDownloadClick = (favorite: FavoriteItem) => {
+    setConfirmDialog({ open: true, favorite })
+  }
+
+  const handleConfirmDownload = async () => {
+    if (!confirmDialog.favorite) return
+
+    const favorite = confirmDialog.favorite
+    setDownloading(true)
+
+    try {
+      if (favorite.targetType === 'preset') {
+        if (favorite.resource.isLocal) {
+          const localPreset = await presetsApi.getDetailByRemoteId(favorite.targetId)
+          const response = await presetsApi.delete(localPreset.id)
+          if (!response.ok) {
+            throw new Error(t('common:messages.deleteFailed') || '删除失败')
+          }
+          setFavoriteLocalState('preset', favorite.targetId, false)
+          notification.success(t('common:messages.deleteSuccess') || '删除成功')
+        } else {
+          await presetsMarketApi.downloadPreset(favorite.targetId)
+          setFavoriteLocalState('preset', favorite.targetId, true)
+          notification.success(t('cloud:presetsMarket.obtainSuccess'))
+        }
+        await fetchFavorites()
+      } else {
+        const moduleName = favorite.resource.moduleName
+        if (!moduleName) {
+          notification.error(t('cloud:profile.moduleNameMissing') || '缺少模块名称')
+          return
+        }
+
+        if (favorite.resource.isLocal) {
+          const ok = await removePackage(moduleName)
+          if (!ok) {
+            throw new Error(t('cloud:pluginsMarket.removeFailed') || '移除失败')
+          }
+          setFavoriteLocalState('plugin', favorite.targetId, false)
+          notification.success(t('cloud:pluginsMarket.removeSuccess'))
+        } else {
+          await pluginsMarketApi.downloadPlugin(moduleName)
+          setFavoriteLocalState('plugin', favorite.targetId, true)
+          notification.success(t('cloud:pluginsMarket.obtainSuccess'))
+        }
+
+        await fetchFavorites()
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err)
+      notification.error(`${t('cloud:profile.operationFailed') || '操作失败'}: ${errorMessage}`)
+    } finally {
+      setDownloading(false)
+      setConfirmDialog({ open: false, favorite: null })
     }
   }
 
@@ -784,7 +461,7 @@ export default function CloudProfile() {
         sx={{
           ...CARD_VARIANTS.default.styles,
           mb: 3,
-          p: 2.5,
+          p: { xs: 2.25, md: 2.75 },
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -792,17 +469,27 @@ export default function CloudProfile() {
             src={userProfile?.avatarUrl}
             alt={userProfile?.username}
             sx={{
-              width: 64,
-              height: 64,
+              width: 72,
+              height: 72,
               bgcolor: 'primary.main',
-              fontSize: '1.75rem',
+              fontSize: '2rem',
+              border: '1px solid',
+              borderColor: 'divider',
             }}
           >
             {userProfile?.username?.[0]?.toUpperCase() || <PersonIcon />}
           </Avatar>
-          <Box sx={{ flex: 1 }}>
-            <Typography variant="h6" fontWeight={600}>
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: '0.08em' }}>
+              {t('cloud:profile.title')}
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 700, mt: 0.2 }}>
               {userProfile?.username || t('cloud:profile.loading')}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>
+              {activeTab === 'published'
+                ? t('cloud:profile.myPublished')
+                : t('cloud:profile.myFavorites')}
             </Typography>
           </Box>
         </Box>
@@ -810,34 +497,9 @@ export default function CloudProfile() {
 
       {/* 标签页 */}
       <Box sx={{ mb: 3 }}>
-        <Tabs
+        <PageTabs
           value={activeTab}
           onChange={handleTabChange}
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              borderRadius: 1.5,
-              color: 'text.secondary',
-              '&:hover': {
-                color: 'text.primary',
-                bgcolor: theme =>
-                  theme.palette.mode === 'dark'
-                    ? 'rgba(255,255,255,0.05)'
-                    : 'rgba(0,0,0,0.05)',
-              },
-            },
-            '& .MuiTab-root.Mui-selected': {
-              color: 'text.primary',
-              bgcolor: theme =>
-                theme.palette.mode === 'dark'
-                  ? 'rgba(255,255,255,0.08)'
-                  : 'common.white',
-            },
-            '& .MuiTabs-indicator': {
-              height: 3,
-              borderRadius: 999,
-            },
-          }}
         >
           <Tab
             label={t('cloud:profile.myPublished')}
@@ -851,71 +513,64 @@ export default function CloudProfile() {
             icon={<FavoriteIcon />}
             iconPosition="start"
           />
-        </Tabs>
+        </PageTabs>
       </Box>
 
       {/* 我的发布 */}
       {activeTab === 'published' && (
-        <Box>
-          {/* 插件列表 */}
-          <Typography variant="h6" gutterBottom>
-            {t('cloud:profile.plugins')} ({userPlugins.length})
-          </Typography>
-          {publishedLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : userPlugins.length > 0 ? (
-            <Grid container spacing={3} sx={{ mb: 4 }}>
-              {userPlugins.map(plugin => (
-                <Grid item xs={12} sm={6} md={4} key={plugin.id}>
-                  <UserPluginCard
-                    plugin={plugin}
-                    onUnpublish={() => handleUnpublishPlugin(plugin)}
-                    onEdit={() => openEditDialog(plugin)}
-                    t={t}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Alert severity="info" sx={{ mb: 4 }}>
-              {t('cloud:profile.noPublishedPlugins')}
-            </Alert>
-          )}
+        <Box sx={{ display: 'grid', gap: 3 }}>
+          <ProfileSection title={t('cloud:profile.plugins')} count={userPlugins.length}>
+            {pluginsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : userPlugins.length > 0 ? (
+              <Grid container spacing={3}>
+                {userPlugins.map(plugin => (
+                  <Grid item xs={12} sm={6} md={4} key={plugin.id}>
+                    <UserPluginCard
+                      plugin={plugin}
+                      onUnpublish={() => setPluginDelistDialog(plugin)}
+                      onEdit={() => openEditDialog(plugin)}
+                      t={t}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Alert severity="info">{t('cloud:profile.noPublishedPlugins')}</Alert>
+            )}
+          </ProfileSection>
 
-          <Divider sx={{ my: 3 }} />
-
-          {/* 人设列表 */}
-          <Typography variant="h6" gutterBottom>
-            {t('cloud:profile.presets')} ({userPresets.length})
-          </Typography>
-          {publishedLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : userPresets.length > 0 ? (
-            <Grid container spacing={3}>
-              {userPresets.map(preset => (
-                <Grid item xs={12} sm={6} md={4} key={preset.id}>
-                  <UserPresetCard
-                    preset={preset}
-                    onUnpublish={() => handleUnpublishPreset(preset)}
-                    onViewDetail={() => openPresetDetail(preset)}
-                    t={t}
-                  />
-                </Grid>
-              ))}
-            </Grid>
-          ) : (
-            <Alert severity="info">{t('cloud:profile.noPublishedPresets')}</Alert>
-          )}
+          <ProfileSection title={t('cloud:profile.presets')} count={userPresets.length}>
+            {presetsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : userPresets.length > 0 ? (
+              <Grid container spacing={3}>
+                {userPresets.map(preset => (
+                  <Grid item xs={12} sm={6} md={4} key={preset.id}>
+                    <UserPresetCard
+                      preset={preset}
+                      onUnpublish={() => handleUnpublishPreset()}
+                      onViewDetail={() => openPresetDetail(preset)}
+                      onEdit={() => handleEditPreset(preset)}
+                      t={t}
+                    />
+                  </Grid>
+                ))}
+              </Grid>
+            ) : (
+              <Alert severity="info">{t('cloud:profile.noPublishedPresets')}</Alert>
+            )}
+          </ProfileSection>
         </Box>
       )}
 
       {/* 我的收藏 */}
       {activeTab === 'favorites' && (
-        <Box>
+        <Box sx={{ display: 'grid', gap: 3 }}>
           {error && (
             <Alert severity="error" sx={{ mb: 3 }}>
               {error}
@@ -928,50 +583,48 @@ export default function CloudProfile() {
             </Box>
           ) : favorites.length > 0 ? (
             <Grid container spacing={3}>
-              {/* 左侧：插件收藏 */}
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  {t('cloud:profile.plugins')} ({pluginFavorites.length})
-                </Typography>
-                {pluginFavorites.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {pluginFavorites.map(favorite => (
-                      <Grid item xs={12} key={favorite.id}>
-                        <FavoriteCard
-                          favorite={favorite}
-                          onRemove={() => handleRemoveFavorite(favorite)}
-                          onViewDetail={() => handleViewFavoriteDetail(favorite)}
-                          t={t}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Alert severity="info">{t('cloud:profile.noPluginFavorites') || '暂无插件收藏'}</Alert>
-                )}
+                <ProfileSection title={t('cloud:profile.plugins')} count={pluginFavorites.length}>
+                  {pluginFavorites.length > 0 ? (
+                    <Grid container spacing={2}>
+                      {pluginFavorites.map(favorite => (
+                        <Grid item xs={12} key={favorite.id}>
+                          <FavoriteCard
+                            favorite={favorite}
+                            onRemove={() => handleRemoveFavorite(favorite)}
+                            onViewDetail={() => handleViewFavoriteDetail(favorite)}
+                            onDownload={() => handleDownloadClick(favorite)}
+                            t={t}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Alert severity="info">{t('cloud:profile.noPluginFavorites') || '暂无插件收藏'}</Alert>
+                  )}
+                </ProfileSection>
               </Grid>
 
-              {/* 右侧：人设收藏 */}
               <Grid item xs={12} md={6}>
-                <Typography variant="h6" gutterBottom>
-                  {t('cloud:profile.presets')} ({presetFavorites.length})
-                </Typography>
-                {presetFavorites.length > 0 ? (
-                  <Grid container spacing={2}>
-                    {presetFavorites.map(favorite => (
-                      <Grid item xs={12} key={favorite.id}>
-                        <FavoriteCard
-                          favorite={favorite}
-                          onRemove={() => handleRemoveFavorite(favorite)}
-                          onViewDetail={() => handleViewFavoriteDetail(favorite)}
-                          t={t}
-                        />
-                      </Grid>
-                    ))}
-                  </Grid>
-                ) : (
-                  <Alert severity="info">{t('cloud:profile.noPresetFavorites') || '暂无人设收藏'}</Alert>
-                )}
+                <ProfileSection title={t('cloud:profile.presets')} count={presetFavorites.length}>
+                  {presetFavorites.length > 0 ? (
+                    <Grid container spacing={2}>
+                      {presetFavorites.map(favorite => (
+                        <Grid item xs={12} key={favorite.id}>
+                          <FavoriteCard
+                            favorite={favorite}
+                            onRemove={() => handleRemoveFavorite(favorite)}
+                            onViewDetail={() => handleViewFavoriteDetail(favorite)}
+                            onDownload={() => handleDownloadClick(favorite)}
+                            t={t}
+                          />
+                        </Grid>
+                      ))}
+                    </Grid>
+                  ) : (
+                    <Alert severity="info">{t('cloud:profile.noPresetFavorites') || '暂无人设收藏'}</Alert>
+                  )}
+                </ProfileSection>
               </Grid>
             </Grid>
           ) : (
@@ -980,7 +633,6 @@ export default function CloudProfile() {
         </Box>
       )}
 
-      {/* 插件编辑对话框 */}
       <PluginEditDialog
         open={!!editingPlugin}
         onClose={() => setEditingPlugin(null)}
@@ -989,137 +641,167 @@ export default function CloudProfile() {
         isSubmitting={isSubmitting}
       />
 
-      {/* 插件详情对话框 */}
       <Dialog
-        open={pluginDetailOpen}
-        onClose={() => setPluginDetailOpen(false)}
-        maxWidth="md"
+        open={!!pluginDelistDialog}
+        onClose={() => !pluginDelistLoading && setPluginDelistDialog(null)}
+        maxWidth="sm"
         fullWidth
-        scroll="paper"
       >
-        <DialogTitle>
-          {t('cloud:pluginsMarket.pluginDetail')}: {selectedPlugin?.name}
-        </DialogTitle>
-        <DialogContent dividers>
-          {selectedPlugin && (
-            <Grid container spacing={3}>
-              <Grid item xs={12} sm={4}>
-                {selectedPlugin.icon ? (
-                  <Avatar
-                    src={selectedPlugin.icon}
-                    alt={selectedPlugin.name}
-                    variant="rounded"
-                    sx={{ width: '100%', height: 'auto', aspectRatio: '1/1' }}
-                  />
-                ) : (
-                  <Avatar
-                    variant="rounded"
-                    sx={{
-                      width: '100%',
-                      height: 'auto',
-                      aspectRatio: '1/1',
-                      bgcolor: 'primary.main',
-                    }}
-                  >
-                    <ExtensionIcon sx={{ fontSize: 64 }} />
-                  </Avatar>
-                )}
-              </Grid>
-              <Grid item xs={12} sm={8}>
-                <Typography variant="h5" gutterBottom>
-                  {selectedPlugin.name}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" gutterBottom>
-                  {t('cloud:pluginsMarket.moduleName')}: {selectedPlugin.moduleName}
-                </Typography>
-                <Typography variant="body2" paragraph>
-                  {selectedPlugin.description}
-                </Typography>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                  {selectedPlugin.hasWebhook && (
-                    <Chip
-                      label={t('cloud:pluginsMarket.hasWebhook')}
-                      size="small"
-                      color="primary"
-                    />
-                  )}
-                  {selectedPlugin.licenseType && (
-                    <Chip
-                      label={selectedPlugin.licenseType}
-                      size="small"
-                      variant="outlined"
-                    />
-                  )}
-                </Box>
-                <Typography variant="body2" color="text.secondary">
-                  {t('cloud:pluginsMarket.author')}: {selectedPlugin.author}
-                </Typography>
-                {(selectedPlugin.homepageUrl || selectedPlugin.githubUrl) && (
-                  <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                    {selectedPlugin.homepageUrl && (
-                      <Link
-                        href={selectedPlugin.homepageUrl}
-                        target="_blank"
-                        rel="noopener"
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          color: 'primary.main',
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline',
-                          },
-                        }}
-                      >
-                        {t('cloud:pluginsMarket.homepage')}
-                      </Link>
-                    )}
-                    {selectedPlugin.githubUrl && (
-                      <Link
-                        href={selectedPlugin.githubUrl}
-                        target="_blank"
-                        rel="noopener"
-                        sx={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 0.5,
-                          color: 'primary.main',
-                          textDecoration: 'none',
-                          '&:hover': {
-                            textDecoration: 'underline',
-                          },
-                        }}
-                      >
-                        GitHub
-                      </Link>
-                    )}
-                  </Box>
-                )}
-              </Grid>
-            </Grid>
-          )}
+        <DialogTitle>{t('cloud:pluginsMarket.delist')}</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mt: 1 }}>
+            {t('cloud:pluginsMarket.confirmDelistMessage', { name: pluginDelistDialog?.name ?? '' })}
+          </Alert>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPluginDetailOpen(false)}>
-            {t('cloud:presetsMarket.close')}
+          <Button onClick={() => setPluginDelistDialog(null)} disabled={pluginDelistLoading}>
+            {t('cloud:presetsMarket.cancel')}
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={() => pluginDelistDialog && handleUnpublishPlugin(pluginDelistDialog)}
+            disabled={pluginDelistLoading}
+            startIcon={pluginDelistLoading ? <CircularProgress size={16} /> : undefined}
+          >
+            {t('cloud:pluginsMarket.delist')}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* 人设详情对话框（复用市场组件） */}
+      <PluginDetailDialog
+        open={pluginDetailOpen}
+        onClose={() => setPluginDetailOpen(false)}
+        plugin={selectedPlugin}
+        t={t}
+        onDownload={
+          selectedPlugin && !selectedPlugin.is_local
+            ? async () => {
+                try {
+                  await pluginsMarketApi.downloadPlugin(selectedPlugin.moduleName)
+                  notification.success(t('cloud:pluginsMarket.obtainSuccess'))
+                  setSelectedPlugin(prev => (prev ? { ...prev, is_local: true } : prev))
+                  await fetchFavorites()
+                } catch (err) {
+                  const errorMessage = err instanceof Error ? err.message : String(err)
+                  notification.error(`${t('cloud:profile.downloadFailed') || '下载失败'}: ${errorMessage}`)
+                }
+              }
+            : undefined
+        }
+        onFavoriteChange={(pluginId, isFavorited) => {
+          if (!isFavorited) {
+            setFavorites(prev => prev.filter(f => !(f.targetType === 'plugin' && f.targetId === pluginId)))
+          }
+        }}
+        onRemove={
+          selectedPlugin?.is_local
+            ? async () => {
+                try {
+                  const ok = await removePackage(selectedPlugin.moduleName)
+                  if (!ok) {
+                    throw new Error(t('cloud:pluginsMarket.removeFailed') || '移除失败')
+                  }
+                  notification.success(t('cloud:pluginsMarket.removeSuccess'))
+                  setSelectedPlugin(prev => (prev ? { ...prev, is_local: false } : prev))
+                  await fetchFavorites()
+                } catch (err) {
+                  const errorMessage = err instanceof Error ? err.message : String(err)
+                  notification.error(`${t('cloud:pluginsMarket.removeFailed') || '移除失败'}: ${errorMessage}`)
+                }
+              }
+            : undefined
+        }
+      />
+
       <PresetDetailDialog
         open={presetDetailOpen}
         onClose={() => setPresetDetailOpen(false)}
         preset={selectedPreset}
         t={(key: string) => t(`cloud:${key}`)}
+        showFavoriteAction={presetDetailSource === 'favorites'}
         onFavoriteChange={(remoteId, isFavorited) => {
-          // 如果取消收藏，从列表中移除
           if (!isFavorited) {
             setFavorites(prev => prev.filter(f => !(f.targetType === 'preset' && f.targetId === remoteId)))
           }
         }}
       />
+
+      {/* 确认下载对话框 */}
+      <Dialog
+        open={confirmDialog.open}
+        onClose={() => !downloading && setConfirmDialog({ open: false, favorite: null })}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          {(confirmDialog.favorite?.targetType === 'plugin' || confirmDialog.favorite?.targetType === 'preset') &&
+            confirmDialog.favorite?.resource.isLocal
+            ? t('common:actions.delete')
+            : (confirmDialog.favorite?.targetType === 'preset'
+              ? t('cloud:presetsMarket.confirmObtain')
+              : t('cloud:pluginsMarket.confirmObtain'))}
+        </DialogTitle>
+        <DialogContent>
+          {confirmDialog.favorite?.targetType === 'plugin' && !confirmDialog.favorite?.resource.isLocal && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, fontSize: '0.875rem' }}>
+              <strong style={{ color: '#ed6c02' }}>{t('cloud:pluginsMarket.securityNoticeTitle')}</strong>{' '}
+              {t('cloud:pluginsMarket.pluginSecurityNotice')}
+            </Typography>
+          )}
+
+          {confirmDialog.favorite?.targetType === 'preset' && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              {confirmDialog.favorite?.resource.isLocal
+                ? `${t('common:messages.confirmDelete') || '确认删除？'}`
+                : t('cloud:presetsMarket.confirmObtainMessage', {
+                    name: confirmDialog.favorite?.resource.title || confirmDialog.favorite?.resource.name,
+                  })}
+            </Alert>
+          )}
+
+          {confirmDialog.favorite?.targetType === 'plugin' && (
+            <Typography>
+              {confirmDialog.favorite?.resource.isLocal
+                ? t('cloud:pluginsMarket.confirmRemoveMessage', {
+                    name: confirmDialog.favorite?.resource.title || confirmDialog.favorite?.resource.name,
+                  })
+                : t('cloud:pluginsMarket.confirmObtainMessage', {
+                    name: confirmDialog.favorite?.resource.title || confirmDialog.favorite?.resource.name,
+                  })}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => setConfirmDialog({ open: false, favorite: null })}
+            disabled={downloading}
+          >
+            {t('cloud:presetsMarket.cancel')}
+          </Button>
+          <Button
+            onClick={handleConfirmDownload}
+            color="primary"
+            variant="contained"
+            disabled={downloading}
+            startIcon={downloading ? <CircularProgress size={16} /> : undefined}
+          >
+            {downloading
+              ? ((confirmDialog.favorite?.targetType === 'plugin' || confirmDialog.favorite?.targetType === 'preset') &&
+                  confirmDialog.favorite?.resource.isLocal
+                ? t('cloud:pluginsMarket.loading') || '处理中...'
+                : (confirmDialog.favorite?.targetType === 'preset'
+                  ? t('cloud:presetsMarket.loading') || '获取中...'
+                  : t('cloud:pluginsMarket.loading') || '获取中...'))
+              : (((confirmDialog.favorite?.targetType === 'plugin' || confirmDialog.favorite?.targetType === 'preset') &&
+                    confirmDialog.favorite?.resource.isLocal)
+                ? t('common:actions.delete')
+                : (confirmDialog.favorite?.targetType === 'preset'
+                  ? t('cloud:presetsMarket.obtain')
+                  : t('cloud:pluginsMarket.obtain')))}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

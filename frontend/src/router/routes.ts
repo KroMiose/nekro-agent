@@ -51,6 +51,13 @@ export const chatChannelAnnouncementPath = () => '/chat-channel/announcement'
 export const loginPath = (redirectTo?: string | null) =>
   redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login'
 
+export const presetsPath = (options?: { editRemoteId?: string | null }) => {
+  if (!options?.editRemoteId) return '/presets'
+
+  const searchParams = new URLSearchParams({ editRemoteId: options.editRemoteId })
+  return `/presets?${searchParams.toString()}`
+}
+
 export const sanitizeRedirectTarget = (target: string | null | undefined) => {
   if (!target) return null
   if (!target.startsWith('/')) return null

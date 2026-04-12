@@ -13,7 +13,6 @@ from nekro_agent.systems.cloud.api.favorite import (
     list_favorites,
     remove_favorite,
 )
-from nekro_agent.systems.cloud.api.plugin import list_plugins
 
 logger = get_sub_logger("cloud_api")
 router = APIRouter(prefix="/cloud/favorites", tags=["Cloud Favorites"])
@@ -31,6 +30,7 @@ class FavoriteResource(BaseModel):
     description: str = Field(..., description="资源描述")
     moduleName: Optional[str] = Field(None, description="插件模块名")
     hasWebhook: Optional[bool] = Field(None, description="是否有Webhook")
+    isLocal: Optional[bool] = Field(None, description="是否已获取到本地")
 
 
 class FavoriteItem(BaseModel):
@@ -87,7 +87,6 @@ async def get_favorites(
         page_size=page_size,
         target_type=target_type,
     )
-
     if not response.success:
         raise CloudServiceError(reason=str(response.error or response.message or "获取收藏列表失败"))
 
@@ -101,18 +100,6 @@ async def get_favorites(
                 totalPages=0,
             )
         )
-
-    # 获取插件列表以补充 moduleName（云端收藏接口不返回此字段）
-    plugin_module_map: dict[str, str] = {}
-    has_plugin = any(item.target_type == 'plugin' for item in response.data.items)
-    if has_plugin:
-        try:
-            plugins_response = await list_plugins(page=1, page_size=1000)
-            if plugins_response.success and plugins_response.data:
-                for plugin in plugins_response.data.items:
-                    plugin_module_map[plugin.id] = plugin.moduleName
-        except Exception as e:
-            logger.warning(f"获取插件列表以补充 moduleName 失败: {e}")
 
     items = [
         FavoriteItem(
@@ -128,8 +115,9 @@ async def get_favorites(
                 icon=getattr(item.resource, 'icon', None),
                 author=item.resource.author,
                 description=item.resource.description,
-                moduleName=plugin_module_map.get(item.target_id) if item.target_type == 'plugin' else None,
+                moduleName=item.resource.moduleName,
                 hasWebhook=getattr(item.resource, 'hasWebhook', None),
+                isLocal=getattr(item.resource, 'isLocal', None),
             ),
         )
         for item in response.data.items

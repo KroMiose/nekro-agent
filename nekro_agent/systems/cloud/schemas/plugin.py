@@ -18,6 +18,8 @@ class PluginBase(BaseModel):
     githubUrl: Optional[str] = None
     cloneUrl: Optional[str] = None
     licenseType: Optional[str] = None
+    createdAt: str
+    updatedAt: str
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
     icon: Optional[str] = None  # 插件图标URL

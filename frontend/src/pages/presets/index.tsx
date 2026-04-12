@@ -50,6 +50,7 @@ import { UI_STYLES } from '../../theme/themeConfig'
 import { Fade } from '@mui/material'
 import PaginationStyled from '../../components/common/PaginationStyled'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import ActionButton from '../../components/common/ActionButton'
 import IconActionButton from '../../components/common/IconActionButton'
 
@@ -1380,6 +1381,7 @@ const PresetCard = ({
 
 // 主页面组件
 export default function PresetsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [presets, setPresets] = useState<Preset[]>([])
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -1459,6 +1461,12 @@ export default function PresetsPage() {
     fetchAvailableTags()
   }, [fetchAvailableTags])
 
+  const clearEditRemoteId = useCallback(() => {
+    const nextSearchParams = new URLSearchParams(searchParams)
+    nextSearchParams.delete('editRemoteId')
+    setSearchParams(nextSearchParams, { replace: true })
+  }, [searchParams, setSearchParams])
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
     setPage(1)
@@ -1494,6 +1502,29 @@ export default function PresetsPage() {
       showError(t('card.loadDetails'))
     }
   }
+
+  const handleEditRemotePreset = useCallback(
+    async (remoteId: string) => {
+      try {
+        showSuccess(t('list.loadingDetails'))
+        const detailData = await presetsApi.getDetailByRemoteId(remoteId)
+        setEditingPreset(detailData)
+        setEditDialog(true)
+      } catch (_error) {
+        showError(t('card.loadDetails'))
+      } finally {
+        clearEditRemoteId()
+      }
+    },
+    [clearEditRemoteId, showError, showSuccess, t]
+  )
+
+  useEffect(() => {
+    const remoteId = searchParams.get('editRemoteId')
+    if (!remoteId) return
+
+    void handleEditRemotePreset(remoteId)
+  }, [handleEditRemotePreset, searchParams])
 
   const handleSave = async (data: PresetFormData) => {
     try {

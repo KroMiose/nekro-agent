@@ -1,6 +1,8 @@
 from typing import Dict, Optional, Union
 
 from nekro_agent.core.logger import get_sub_logger
+from nekro_agent.models.db_preset import DBPreset
+from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.systems.cloud.schemas.favorite import (
     FavoriteCreateRequest,
     FavoriteCreateResponse,
@@ -79,23 +81,25 @@ async def list_favorites(
 
     Args:
         page: 页码，默认1
-        page_size: 每页数量，默认10，最大1000（超过32时会自动分页获取）
+        page_size: 每页数量，默认10，最大1000
         target_type: 按类型筛选，可选 "plugin" 或 "preset"
 
     Returns:
         FavoriteListResponse: 收藏列表响应
     """
     try:
-        # 云端API限制每页最大32条，如果需要更多则循环获取
+        # 云端API限制每页最大32条，这里聚合云端分页后再切成本地所需分页
         cloud_max_page_size = 32
         all_items = []
         current_page = 1
         total = 0
+        start_index = (page - 1) * page_size
+        end_index = start_index + page_size
 
-        while len(all_items) < page_size:
+        while len(all_items) < end_index:
             params: Dict[str, Union[str, int]] = {
                 "page": current_page,
-                "pageSize": min(cloud_max_page_size, page_size - len(all_items)),
+                "pageSize": cloud_max_page_size,
             }
 
             if target_type:
@@ -122,13 +126,42 @@ async def list_favorites(
 
             current_page += 1
 
+        page_items = all_items[start_index:end_index]
+
+        # 获取本地已安装的云端插件和已下载云端人设的远程ID列表
+        local_plugin_ids = plugin_collector.package_data.get_remote_ids()
+        preset_remote_ids = [
+            item.get("targetId")
+            for item in page_items
+            if item.get("targetType") == "preset" and item.get("targetId")
+        ]
+        local_preset_remote_ids = set()
+        if preset_remote_ids:
+            local_presets = await DBPreset.filter(remote_id__in=preset_remote_ids).values("remote_id")
+            local_preset_remote_ids = {
+                preset["remote_id"] for preset in local_presets if preset.get("remote_id")
+            }
+
+        # 为每个收藏项补充本地安装状态
+        for item in page_items:
+            resource = item.get("resource")
+            if not isinstance(resource, dict):
+                continue
+
+            if item.get("targetType") == "plugin":
+                target_id = item.get("targetId")
+                resource["isLocal"] = target_id in local_plugin_ids if target_id else False
+            else:
+                target_id = item.get("targetId")
+                resource["isLocal"] = target_id in local_preset_remote_ids if target_id else False
+
         # 构造响应数据
         from nekro_agent.systems.cloud.schemas.favorite import FavoriteItem, FavoriteListData
 
         return FavoriteListResponse(
             success=True,
             data=FavoriteListData(
-                items=[FavoriteItem(**item) for item in all_items[:page_size]],
+                items=[FavoriteItem(**item) for item in page_items],
                 total=total,
                 page=page,
                 page_size=page_size,
