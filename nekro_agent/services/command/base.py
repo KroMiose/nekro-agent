@@ -85,7 +85,10 @@ class BaseCommand(ABC):
         context: CommandExecutionContext,
     ) -> tuple[bool, Optional[str]]:
         """默认权限检查，子类可覆盖"""
-        perm = self.metadata.permission
+        from nekro_agent.services.command.manager import command_manager
+
+        meta = self.metadata
+        perm = command_manager.get_command_permission(meta.name, meta.permission, context.chat_key)
         if perm == CommandPermission.PUBLIC:
             return True, None
         if perm == CommandPermission.SUPER_USER:

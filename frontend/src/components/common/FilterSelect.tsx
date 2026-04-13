@@ -6,7 +6,7 @@ export interface FilterSelectOption {
 }
 
 interface FilterSelectProps extends Omit<FormControlProps, 'onChange'> {
-  label: string
+  label?: string
   value: string
   options: FilterSelectOption[]
   onChange: (value: string) => void
@@ -23,10 +23,10 @@ export default function FilterSelect({
 }: FilterSelectProps) {
   return (
     <FormControl {...props} size={size} fullWidth={fullWidth}>
-      <InputLabel>{label}</InputLabel>
+      {label ? <InputLabel>{label}</InputLabel> : null}
       <Select
         value={value}
-        label={label}
+        label={label || undefined}
         onChange={event => onChange(String(event.target.value))}
       >
         {options.map(option => (
