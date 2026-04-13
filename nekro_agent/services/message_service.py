@@ -194,10 +194,9 @@ class MessageService:
 
             logger.info(f"Message From {chat_key} is ToMe, Running Chat Agent...")
 
-            # 计算兜底总超时：每轮 LLM 超时 × (最大迭代次数 + 1) + 额外缓冲
-            # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
+            # 计算单次 Agent 任务的兜底总超时，防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
             _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
-            _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
+            _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) + 120
             started_at = int(time.time() * 1000)
 
             # 广播 Agent 开始处理
@@ -228,18 +227,12 @@ class MessageService:
 
             try:
                 async with asyncio.timeout(_max_total_timeout):
-                    last_exception: Optional[Exception] = None
-                    for _i in range(3):
-                        try:
-                            await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
-                        except Exception as e:
-                            last_exception = e
-                            logger.exception(f"执行失败: {e}")
-                        else:
-                            break
-                    else:
+                    try:
+                        await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
+                    except Exception as e:
+                        logger.exception(f"执行失败: {e}")
                         logger.error("Failed to Run Chat Agent.")
-                        if isinstance(last_exception, AllLLMRequestsFailedError) and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
+                        if isinstance(e, AllLLMRequestsFailedError) and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
                             await universal_chat_service.send_operation_message(
                                 chat_key,
                                 "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ",

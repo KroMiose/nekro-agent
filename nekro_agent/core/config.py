@@ -256,20 +256,57 @@ class CoreConfig(ConfigBase):
     )
     DEFAULT_PROXY: str = Field(
         default="",
-        title="默认代理",
+        title="系统级默认代理地址",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="基础设置",
-                en_US="Basic Settings",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             placeholder="例: http://127.0.0.1:7890",
             i18n_title=i18n_text(
-                zh_CN="默认代理",
-                en_US="Default Proxy",
+                zh_CN="系统级默认代理地址",
+                en_US="System Default Proxy URL",
             ),
             i18n_description=i18n_text(
-                zh_CN="默认代理服务器地址，用于网络请求",
-                en_US="Default proxy server address for network requests",
+                zh_CN="系统级功能使用的默认代理地址，不影响模型组代理；需包含协议头，例如 http:// 或 socks5://",
+                en_US="Default proxy URL used by system-level features, without affecting model-group proxies; must include a scheme such as http:// or socks5://",
+            ),
+        ).model_dump(),
+    )
+    DEFAULT_PROXY_USERNAME: str = Field(
+        default="",
+        title="系统级代理用户名",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="系统级代理用户名",
+                en_US="System Proxy Username",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="可选。系统级代理认证用户名，仅对接入系统级代理管理的功能生效",
+                en_US="Optional. Username for system-level proxy authentication, effective only for features using the system proxy manager",
+            ),
+        ).model_dump(),
+    )
+    DEFAULT_PROXY_PASSWORD: str = Field(
+        default="",
+        title="系统级代理密码",
+        json_schema_extra=ExtraField(
+            is_secret=True,
+            i18n_category=i18n_text(
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
+            ),
+            i18n_title=i18n_text(
+                zh_CN="系统级代理密码",
+                en_US="System Proxy Password",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="可选。系统级代理认证密码，仅对接入系统级代理管理的功能生效",
+                en_US="Optional. Password for system-level proxy authentication, effective only for features using the system proxy manager",
             ),
         ).model_dump(),
     )
@@ -1100,8 +1137,8 @@ class CoreConfig(ConfigBase):
         description="执行代码过程出错或者产生 Agent 反馈时，进行迭代调用允许的最大次数，增大该值可能略微增加调试成功概率，过大会造成响应时间增加、Token 消耗增加等",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -1120,8 +1157,8 @@ class CoreConfig(ConfigBase):
         description="模型组调用失败后重试次数，重试的最后一次将使用备用模型组",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -1159,8 +1196,8 @@ class CoreConfig(ConfigBase):
         title="AI 对话内容生成超时时间 (秒)",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -1537,8 +1574,8 @@ class CoreConfig(ConfigBase):
         title="启用流式请求",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="聊天配置",
-                en_US="Chat Configuration",
+                zh_CN="模型配置",
+                en_US="Model Configuration",
             ),
             overridable=True,
             i18n_title=i18n_text(
@@ -1551,6 +1588,26 @@ class CoreConfig(ConfigBase):
             ),
         ).model_dump(),
         description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
+    )
+    AI_STREAM_FIRST_TOKEN_TIMEOUT: int = Field(
+        default=30,
+        title="流式首 Token 超时 (秒)",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="模型配置",
+                en_US="Model Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="流式首 Token 超时 (秒)",
+                en_US="Stream First Token Timeout (seconds)",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="仅在启用流式请求时生效；若在指定时间内未收到首个有效流式片段，则判定本次请求失败并进入后续重试",
+                en_US="Only effective when stream mode is enabled; if no first valid stream chunk is received within this time, the request fails and enters subsequent retries",
+            ),
+        ).model_dump(),
+        description="仅在启用流式请求时生效。若供应商在指定时间内未返回首个有效流式片段（空块不计入），则立即判定本次请求失败并进入后续重试，用于减少长时间无响应等待。",
     )
 
     """聊天设置"""
@@ -1927,38 +1984,38 @@ class CoreConfig(ConfigBase):
     PLUGIN_UPDATE_USE_PROXY: bool = Field(
         default=False,
         title="更新/克隆插件时使用代理",
-        description="是否在克隆或更新插件 Git 仓库时使用 `DEFAULT_PROXY` 配置的代理",
+        description="是否在克隆或更新插件 Git 仓库时使用系统级默认代理",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="插件配置",
-                en_US="Plugin Configuration",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             i18n_title=i18n_text(
                 zh_CN="更新/克隆插件时使用代理",
                 en_US="Use Proxy for Plugin Update/Clone",
             ),
             i18n_description=i18n_text(
-                zh_CN="是否在克隆或更新插件 Git 仓库时使用 DEFAULT_PROXY 配置的代理",
-                en_US="Whether to use DEFAULT_PROXY when cloning or updating plugin Git repositories",
+                zh_CN="是否在克隆或更新插件 Git 仓库时使用系统级默认代理",
+                en_US="Whether to use the system default proxy when cloning or updating plugin Git repositories",
             ),
         ).model_dump(),
     )
     DYNAMIC_PLUGIN_INSTALL_USE_PROXY: bool = Field(
         default=False,
         title="动态安装插件依赖时使用代理",
-        description="是否在动态安装插件依赖时使用 `DEFAULT_PROXY` 配置的代理",
+        description="是否在动态安装插件依赖时使用系统级默认代理",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
-                zh_CN="插件配置",
-                en_US="Plugin Configuration",
+                zh_CN="代理配置",
+                en_US="Proxy Configuration",
             ),
             i18n_title=i18n_text(
                 zh_CN="动态安装插件依赖时使用代理",
                 en_US="Use Proxy for Dynamic Plugin Installation",
             ),
             i18n_description=i18n_text(
-                zh_CN="是否在动态安装插件依赖时使用 DEFAULT_PROXY 配置的代理",
-                en_US="Whether to use DEFAULT_PROXY when dynamically installing plugin dependencies",
+                zh_CN="是否在动态安装插件依赖时使用系统级默认代理",
+                en_US="Whether to use the system default proxy when dynamically installing plugin dependencies",
             ),
         ).model_dump(),
     )

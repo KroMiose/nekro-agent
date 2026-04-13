@@ -48,6 +48,13 @@ export default function SettingsPage() {
     return config.category || t('system.otherCategory', '其他')
   }
 
+  const preferredCategoryOrder = useMemo(() => {
+    if (i18n.language.startsWith('zh')) {
+      return ['基础设置', '模型配置', '聊天配置', '沙盒配置', '记忆系统']
+    }
+    return ['Basic Settings', 'Model Configuration', 'Chat Configuration', 'Sandbox Configuration', 'Memory System']
+  }, [i18n.language])
+
   // 按分类组织配置，同时提取分类列表
   const { categories, configsByCategory } = useMemo(() => {
     const seen = new Set<string>()
@@ -76,9 +83,32 @@ export default function SettingsPage() {
       cats.push(otherLabel)
     }
 
-    return { categories: cats, configsByCategory: grouped }
+    const categoryOrderMap = new Map(preferredCategoryOrder.map((category, index) => [category, index]))
+    const sortedCategories = cats.slice().sort((a, b) => {
+      if (a === otherLabel) {
+        return 1
+      }
+      if (b === otherLabel) {
+        return -1
+      }
+
+      const aPriority = categoryOrderMap.get(a)
+      const bPriority = categoryOrderMap.get(b)
+      if (aPriority !== undefined && bPriority !== undefined) {
+        return aPriority - bPriority
+      }
+      if (aPriority !== undefined) {
+        return -1
+      }
+      if (bPriority !== undefined) {
+        return 1
+      }
+      return cats.indexOf(a) - cats.indexOf(b)
+    })
+
+    return { categories: sortedCategories, configsByCategory: grouped }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configs, i18n.language])
+  }, [configs, i18n.language, preferredCategoryOrder])
 
   const activeTab = useMemo(() => {
     if (categories.length === 0) {

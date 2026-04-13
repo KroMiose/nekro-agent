@@ -398,6 +398,7 @@ async def send_agent_request(
                 stream_mode=config.AI_REQUEST_STREAM_MODE,
                 proxy_url=use_model_group.CHAT_PROXY,
                 max_wait_time=config.AI_GENERATE_TIMEOUT,
+                first_token_timeout=config.AI_STREAM_FIRST_TOKEN_TIMEOUT,
                 log_path=log_path,
                 error_log_path=err_log_path,
             )

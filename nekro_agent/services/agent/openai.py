@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import datetime
@@ -406,6 +407,7 @@ async def gen_openai_chat_response(
     proxy_url: Optional[str] = None,
     stream_mode: bool = False,
     max_wait_time: Optional[int] = None,
+    first_token_timeout: Optional[int] = None,
     thought_chain_field_name: str = "reasoning_content",
     chunk_callback: Optional[_AsyncFunc] = None,
     log_path: Optional[Union[str, Path]] = None,
@@ -451,6 +453,81 @@ async def gen_openai_chat_response(
     token_output: int = 0
     first_token_time: Optional[float] = None
 
+    def _extract_valid_delta(chunk: ChatCompletionChunk) -> Optional[Any]:
+        delta = chunk.choices[0].delta if chunk.choices else None
+        if not delta:
+            logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
+            return None
+
+        has_content = delta.content
+        has_reasoning = getattr(delta, thought_chain_field_name, None)
+        if not has_content and not has_reasoning:
+            logger.warning(f"OpenAI流式生成: 跳过空响应块 (content={delta.content}, reasoning={has_reasoning})")
+            return None
+        return delta
+
+    async def _apply_stream_chunk(chunk: ChatCompletionChunk) -> bool:
+        nonlocal output, thought_chain, token_consumption, token_input, token_output, first_token_time
+
+        delta = _extract_valid_delta(chunk)
+        if delta is None:
+            return False
+
+        if not first_token_time:
+            first_token_time = time.time()
+
+        chunk_text: Optional[str] = delta.content
+        if chunk_text:
+            output += chunk_text
+        current_thought_chain = getattr(delta, thought_chain_field_name, "") or ""
+        thought_chain += current_thought_chain
+
+        if chunk.usage and chunk.usage.total_tokens is not None:
+            token_consumption += chunk.usage.total_tokens
+
+        if chunk.usage and chunk.usage.prompt_tokens is not None:
+            token_input += chunk.usage.prompt_tokens
+
+        completion_tokens = 0
+        if chunk.usage and chunk.usage.completion_tokens is not None:
+            completion_tokens = chunk.usage.completion_tokens
+        token_output += completion_tokens
+
+        if chunk_callback and await chunk_callback(
+            OpenAIStreamChunk(
+                chunk_text=chunk_text or "",
+                thought_chain=current_thought_chain or "",
+                token_consumption=token_consumption,
+                token_input=token_input,
+                token_output=token_output,
+            ),
+        ):
+            return True
+        return False
+
+    async def _get_first_valid_stream_chunk(
+        stream: AsyncStream[ChatCompletionChunk],
+        timeout_seconds: Optional[int],
+    ) -> Optional[ChatCompletionChunk]:
+        stream_iter = stream.__aiter__()
+
+        async def wait_valid_chunk() -> ChatCompletionChunk:
+            while True:
+                try:
+                    chunk = await stream_iter.__anext__()
+                except StopAsyncIteration as exc:
+                    raise ValueError("Stream response ended before the first valid token was received") from exc
+                if _extract_valid_delta(chunk) is not None:
+                    return chunk
+
+        if timeout_seconds and timeout_seconds > 0:
+            try:
+                async with asyncio.timeout(timeout_seconds):
+                    return await wait_valid_chunk()
+            except TimeoutError as exc:
+                raise TimeoutError(f"Stream first token timed out after {timeout_seconds}s") from exc
+        return await wait_valid_chunk()
+
     # 使用async with语法创建和管理httpx客户端
     try:
         wait_timeout = max_wait_time or 3600
@@ -464,6 +541,7 @@ async def gen_openai_chat_response(
                 api_key=api_key.strip() if api_key else None,
                 base_url=base_url or _OPENAI_BASE_URL,
                 http_client=http_client,
+                max_retries=0,
             ) as client,
         ):
 
@@ -474,46 +552,13 @@ async def gen_openai_chat_response(
                     **gen_kwargs,   
                     stream=True,
                 )
-
-                async for chunk in res_stream:
-                    if not first_token_time:
-                        first_token_time = time.time()
-                    delta = chunk.choices[0].delta if chunk.choices else None
-                    if not delta:
-                        logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
-                        continue
-                    has_content = delta.content
-                    has_reasoning = getattr(delta, thought_chain_field_name, None)
-                    if not has_content and not has_reasoning:
-                        logger.warning(f"OpenAI流式生成: 跳过空响应块 (content={delta.content}, reasoning={has_reasoning})")
-                        continue
-                    chunk_text: Optional[str] = delta.content
-                    if chunk_text:
-                        output += chunk_text
-                    _thought_chain = getattr(delta, thought_chain_field_name, "") or ""
-                    thought_chain += _thought_chain
-
-                    if chunk.usage and chunk.usage.total_tokens is not None:
-                        token_consumption += chunk.usage.total_tokens
-
-                    if chunk.usage and chunk.usage.prompt_tokens is not None:
-                        token_input += chunk.usage.prompt_tokens
-
-                    completion_tokens = 0
-                    if chunk.usage and chunk.usage.completion_tokens is not None:
-                        completion_tokens = chunk.usage.completion_tokens
-                    token_output += completion_tokens
-
-                    if chunk_callback and await chunk_callback(
-                        OpenAIStreamChunk(
-                            chunk_text=chunk_text or "",
-                            thought_chain=_thought_chain or "",
-                            token_consumption=token_consumption,
-                            token_input=token_input,
-                            token_output=token_output,
-                        ),
-                    ):
-                        break
+                first_valid_chunk = await _get_first_valid_stream_chunk(res_stream, first_token_timeout)
+                if first_valid_chunk and await _apply_stream_chunk(first_valid_chunk):
+                    pass
+                else:
+                    async for chunk in res_stream:
+                        if await _apply_stream_chunk(chunk):
+                            break
             else:
                 res: ChatCompletion = await client.chat.completions.create(
                     model=model,
@@ -716,6 +761,7 @@ async def gen_openai_chat_stream(
                 api_key=api_key.strip() if api_key else None,
                 base_url=base_url or _OPENAI_BASE_URL,
                 http_client=http_client,
+                max_retries=0,
             )
 
             # 创建流式响应
