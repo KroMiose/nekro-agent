@@ -7,6 +7,7 @@ from typing import Optional
 from nonebot import logger
 
 from nekro_agent.core.os_env import OsEnv
+from nekro_agent.schemas.errors import ValidationError
 from nekro_agent.services.command.base import CommandPermission
 
 COMMAND_STATE_DIR = Path(OsEnv.DATA_DIR) / "configs" / "command_states"
@@ -75,7 +76,10 @@ class CommandManager:
         return normalized
 
     def _load_system_permission_state(self) -> dict[str, CommandPermission]:
-        """加载系统级权限覆盖（带缓存）"""
+        """加载系统级权限覆盖（带缓存）。
+
+        返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
+        """
         if self._system_permission_cache is None:
             if SYSTEM_PERMISSION_FILE.exists():
                 try:
@@ -90,7 +94,10 @@ class CommandManager:
         return self._system_permission_cache
 
     def _load_channel_permission_state(self, chat_key: str) -> dict[str, CommandPermission]:
-        """加载频道级权限覆盖（带缓存）"""
+        """加载频道级权限覆盖（带缓存）。
+
+        返回内部共享缓存，调用方仅应在 setter 流程中原地修改并立即持久化。
+        """
         if chat_key not in self._channel_permission_cache:
             path = CHANNEL_PERMISSION_DIR / f"{chat_key}.json"
             if path.exists():
@@ -181,7 +188,7 @@ class CommandManager:
 
         command = command_registry.resolve(command_name)
         if command is None:
-            raise ValueError(f"命令不存在: {command_name}")
+            raise ValidationError(reason=f"命令不存在: {command_name}")
         return command.metadata.permission
 
     async def set_command_enabled(
@@ -191,6 +198,7 @@ class CommandManager:
         chat_key: Optional[str] = None,
     ) -> None:
         """设置命令启用状态"""
+        self._get_command_default_permission(command_name)
         if chat_key:
             state = self._load_channel_state(chat_key)
             state[command_name] = enabled

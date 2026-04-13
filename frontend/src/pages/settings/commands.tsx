@@ -36,7 +36,6 @@ import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryConte
 import type { ChannelDirectoryEntry } from '../../hooks/useChannelDirectory'
 
 type ManageScope = 'system' | 'channel'
-type CommandPermissionValue = 'public' | 'user' | 'advanced' | 'super_user'
 type ManageTargetOption =
   | { type: 'system'; value: 'system'; label: string }
   | { type: 'channel'; value: string; channel: ChannelDirectoryEntry }
@@ -49,8 +48,6 @@ type ParamSchemaItem = {
   enumValues: string[]
 }
 
-const COMMAND_PERMISSION_VALUES: CommandPermissionValue[] = ['public', 'user', 'advanced', 'super_user']
-
 function getCommandDescription(cmd: CommandState, lang: string) {
   return getLocalizedText(cmd.i18n_description, cmd.description, lang)
 }
@@ -61,10 +58,6 @@ function getCommandUsage(cmd: CommandState, lang: string) {
 
 function getCommandCategory(cmd: CommandState, lang: string) {
   return getLocalizedText(cmd.i18n_category, cmd.category, lang)
-}
-
-function isCommandPermissionValue(value: string | null | undefined): value is CommandPermissionValue {
-  return COMMAND_PERMISSION_VALUES.includes(value as CommandPermissionValue)
 }
 
 function getSourceLabel(
@@ -377,14 +370,17 @@ export default function CommandCenterPage() {
       categorySet.set(cmd.category, getCommandCategory(cmd, i18n.language))
       sourceSet.add(cmd.source)
       permissionSet.add(cmd.permission)
+      permissionSet.add(cmd.default_permission)
     })
 
     return {
       categories: Array.from(categorySet.entries()).sort((a, b) => a[1].localeCompare(b[1])),
       sources: Array.from(sourceSet).sort(),
-      permissions: Array.from(permissionSet).sort(),
+      permissions: Array.from(permissionSet).sort((a, b) =>
+        t(`commands.permissions.${a}`, a).localeCompare(t(`commands.permissions.${b}`, b), i18n.language),
+      ),
     }
-  }, [commands, i18n.language])
+  }, [commands, i18n.language, t])
 
   const filteredCommands = useMemo(() => {
     const keyword = deferredSearchInput.trim().toLowerCase()
@@ -457,7 +453,7 @@ export default function CommandCenterPage() {
   })
 
   const setPermissionMutation = useMutation({
-    mutationFn: ({ name, permission }: { name: string; permission: CommandPermissionValue }) =>
+    mutationFn: ({ name, permission }: { name: string; permission: string }) =>
       commandsApi.setCommandPermission(name, permission, managementQueryChatKey),
     onSuccess: () => {
       invalidateCommandQueries()
@@ -543,11 +539,11 @@ export default function CommandCenterPage() {
     [permissions, t],
   )
   const permissionEditorOptions = useMemo(
-    () => COMMAND_PERMISSION_VALUES.map(permission => ({
+    () => permissions.map(permission => ({
       value: permission,
       label: t(`commands.permissions.${permission}`, permission),
     })),
-    [t],
+    [permissions, t],
   )
 
   const manageTargetValue = getManageTargetValue(scope, managementChatKey)
@@ -905,7 +901,7 @@ export default function CommandCenterPage() {
                                 onChange={value => {
                                   if (
                                     !selectedCommand ||
-                                    !isCommandPermissionValue(value) ||
+                                    !value ||
                                     value === selectedCommand.permission
                                   ) {
                                     return

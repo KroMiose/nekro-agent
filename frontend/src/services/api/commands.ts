@@ -73,7 +73,7 @@ export const commandsApi = {
 
   setCommandPermission: async (
     commandName: string,
-    permission: 'public' | 'user' | 'advanced' | 'super_user',
+    permission: string,
     chatKey?: string,
   ): Promise<boolean> => {
     const response = await axios.post<{ ok: boolean }>('/commands/set-permission', {
