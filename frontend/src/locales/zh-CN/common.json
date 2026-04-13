@@ -23,6 +23,8 @@
     "import": "导入",
     "view": "查看",
     "copy": "复制",
+    "show": "显示",
+    "hide": "隐藏",
     "update": "更新",
     "enable": "启用",
     "disable": "禁用",

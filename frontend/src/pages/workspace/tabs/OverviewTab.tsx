@@ -520,12 +520,12 @@ export default function OverviewTab({
                     </Typography>
                   )}
                   <Tooltip title={t('detail.overview.tooltips.switchConfig')}>
-                    <IconActionButton size="small" onClick={onNavigateToConfig} sx={{ ml: 0.25 }} title={t('detail.overview.tooltips.switchConfig')}>
+                    <IconActionButton size="small" onClick={onNavigateToConfig} sx={{ ml: 0.25 }}>
                       <TuneIcon sx={{ fontSize: 14 }} />
                     </IconActionButton>
                   </Tooltip>
                   <Tooltip title={t('detail.overview.tooltips.managePresets')}>
-                    <IconActionButton size="small" onClick={() => navigate('/settings/models?tab=cc')} title={t('detail.overview.tooltips.managePresets')}>
+                    <IconActionButton size="small" onClick={() => navigate('/settings/models?tab=cc')}>
                       <OpenInNewIcon sx={{ fontSize: 14 }} />
                     </IconActionButton>
                   </Tooltip>
@@ -760,7 +760,6 @@ export default function OverviewTab({
                           disabled={unbindMutation.isPending}
                           onClick={() => unbindMutation.mutate(ch.chat_key)}
                           sx={{ p: 0.5 }}
-                          title={t('detail.overview.channels.unbindTooltip')}
                         >
                           <LinkOffIcon sx={{ fontSize: 16 }} />
                         </IconActionButton>

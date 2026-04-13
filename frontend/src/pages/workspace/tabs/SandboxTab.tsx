@@ -59,6 +59,11 @@ function LogsPanel({ workspaceId }: { workspaceId: number }) {
   const [logs, setLogs] = useState<LogLine[]>([])
   const logIdRef = useRef(0)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const disconnectedTextRef = useRef(t('detail.sandbox.logs.disconnected'))
+
+  useEffect(() => {
+    disconnectedTextRef.current = t('detail.sandbox.logs.disconnected')
+  }, [t])
 
   useEffect(() => {
     const cleanup = streamSandboxLogs(
@@ -69,12 +74,12 @@ function LogsPanel({ workspaceId }: { workspaceId: number }) {
       () => {
         setLogs(prev => [
           ...prev,
-          { id: logIdRef.current++, text: t('detail.sandbox.logs.disconnected'), type: 'error' },
+          { id: logIdRef.current++, text: disconnectedTextRef.current, type: 'error' },
         ])
       }
     )
     return () => cleanup?.()
-  }, [workspaceId, t])
+  }, [workspaceId])
 
   useEffect(() => {
     logEndRef.current?.scrollIntoView({ behavior: 'auto' })
@@ -112,7 +117,7 @@ function LogsPanel({ workspaceId }: { workspaceId: number }) {
         </Typography>
         <Box sx={{ flexGrow: 1 }} />
         <Tooltip title={t('detail.sandbox.logs.clearTooltip')}>
-          <IconActionButton size="small" onClick={() => setLogs([])} sx={{ color: 'text.secondary', p: 0.5 }} title={t('detail.sandbox.logs.clearTooltip')}>
+          <IconActionButton size="small" onClick={() => setLogs([])} sx={{ color: 'text.secondary', p: 0.5 }}>
             <ClearIcon sx={{ fontSize: 14 }} />
           </IconActionButton>
         </Tooltip>

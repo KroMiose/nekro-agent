@@ -241,6 +241,7 @@ def _summary(
         name=ws.name,
         description=ws.description,
         status=ws.status,
+        memory_system_enabled=bool(app_config.MEMORY_ENABLE_SYSTEM),
         sandbox_image=ws.sandbox_image or app_config.CC_SANDBOX_IMAGE,
         sandbox_version=ws.sandbox_version or app_config.CC_SANDBOX_IMAGE_TAG,
         container_name=ws.container_name,

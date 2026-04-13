@@ -44,6 +44,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
+import { useNavigate } from 'react-router-dom'
 import {
   memoryApi,
   MemoryDataResponse,
@@ -77,6 +78,20 @@ type MemorySelection = {
   subtitle?: string
   cognitive_type?: string | null
   status?: string
+}
+
+type EpisodeParticipant = {
+  id: number | string
+  name?: string
+  entity_type?: string
+}
+
+type EpisodeParagraph = {
+  id: number | string
+  summary?: string
+  episode_phase?: string
+  knowledge_type?: string
+  event_time?: string | null
 }
 
 type AtlasNode = MemoryGraphNode & {
@@ -174,6 +189,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
+function isEpisodeParticipant(value: unknown): value is EpisodeParticipant {
+  return isRecord(value) && (typeof value.id === 'number' || typeof value.id === 'string')
+}
+
+function isEpisodeParagraph(value: unknown): value is EpisodeParagraph {
+  return isRecord(value) && (typeof value.id === 'number' || typeof value.id === 'string')
+}
+
 function getNodeColor(theme: Theme, node: MemoryGraphNode) {
   if (node.memory_type === 'paragraph') {
     if (node.cognitive_type === 'semantic') {
@@ -252,65 +275,6 @@ function getDetailFields(data: Record<string, unknown>): Array<{ key: string; la
     { key: 'last_manual_action_at', label: '最近手动时间' },
   ]
   return fields.filter(field => field.key in data)
-}
-
-function positionInArc(
-  index: number,
-  count: number,
-  config: {
-    startDeg: number
-    endDeg: number
-    baseRadius: number
-    laneSize: number
-    laneGap: number
-    stretchY?: number
-  },
-) {
-  const safeCount = Math.max(1, count)
-  const lane = Math.floor(index / config.laneSize)
-  const laneIndex = index % config.laneSize
-  const itemsInLane =
-    lane === Math.floor((safeCount - 1) / config.laneSize)
-      ? ((safeCount - 1) % config.laneSize) + 1
-      : Math.min(config.laneSize, safeCount)
-  const ratio = itemsInLane === 1 ? 0.5 : laneIndex / (itemsInLane - 1)
-  const angleDeg = config.startDeg + (config.endDeg - config.startDeg) * ratio
-  const angle = (angleDeg * Math.PI) / 180
-  const radius = config.baseRadius + lane * config.laneGap
-  const stretchY = config.stretchY ?? 1
-  return {
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius * stretchY,
-  }
-}
-
-function positionInRing(
-  index: number,
-  count: number,
-  config: {
-    baseRadius: number
-    laneSize: number
-    laneGap: number
-    startDeg?: number
-    stretchY?: number
-  },
-) {
-  const safeCount = Math.max(1, count)
-  const lane = Math.floor(index / config.laneSize)
-  const laneIndex = index % config.laneSize
-  const itemsInLane =
-    lane === Math.floor((safeCount - 1) / config.laneSize)
-      ? ((safeCount - 1) % config.laneSize) + 1
-      : Math.min(config.laneSize, safeCount)
-  const ratio = itemsInLane === 1 ? 0.5 : laneIndex / itemsInLane
-  const angleDeg = (config.startDeg ?? -90) + ratio * 360
-  const angle = (angleDeg * Math.PI) / 180
-  const radius = config.baseRadius + lane * config.laneGap
-  const stretchY = config.stretchY ?? 1
-  return {
-    x: Math.cos(angle) * radius,
-    y: Math.sin(angle) * radius * stretchY,
-  }
 }
 
 function hashSeed(input: string): number {
@@ -571,59 +535,13 @@ function buildAtlasNodes(
       let x = 0
       let y = 0
 
-      if (viewMode === 'episode') {
-        if (cluster === 'episode') {
-          if (visible.length === 1 && index === 0) {
-            x = 0
-            y = 0
-          } else {
-            const pos = positionInRing(index, visible.length, {
-              baseRadius: 88,
-              laneSize: 6,
-              laneGap: 58,
-              startDeg: -90,
-              stretchY: 0.78,
-            })
-            x = pos.x
-            y = pos.y
-          }
-        } else {
-          const orbitMap: Record<Exclude<ClusterKind, 'episode'>, { kind: 'ring' | 'arc'; baseRadius: number; laneSize: number; laneGap: number; stretchY: number; startDeg?: number; endDeg?: number }> = {
-            episodic: { kind: 'ring', baseRadius: 250, laneSize: 16, laneGap: 48, stretchY: 0.88, startDeg: -90 },
-            entity: { kind: 'ring', baseRadius: 430, laneSize: 22, laneGap: 42, stretchY: 0.78, startDeg: -90 },
-            semantic: { kind: 'arc', baseRadius: 560, laneSize: 6, laneGap: 34, stretchY: 0.7, startDeg: -135, endDeg: -45 },
-            relation: { kind: 'arc', baseRadius: 0, laneSize: 1, laneGap: 0, stretchY: 1, startDeg: 0, endDeg: 0 },
-          }
-          const orbit = orbitMap[cluster]
-          const pos =
-            orbit.kind === 'ring'
-              ? positionInRing(index, visible.length, {
-                  baseRadius: orbit.baseRadius,
-                  laneSize: orbit.laneSize,
-                  laneGap: orbit.laneGap,
-                  stretchY: orbit.stretchY,
-                  startDeg: orbit.startDeg,
-                })
-              : positionInArc(index, visible.length, {
-                  startDeg: orbit.startDeg ?? -120,
-                  endDeg: orbit.endDeg ?? 120,
-                  baseRadius: orbit.baseRadius,
-                  laneSize: orbit.laneSize,
-                  laneGap: orbit.laneGap,
-                  stretchY: orbit.stretchY,
-                })
-          x = pos.x
-          y = pos.y
-        }
-      } else {
-        const angle = index * golden
-        const ring =
-          cluster === 'episode'
-            ? 22 + Math.sqrt(index + 1) * 48
-            : 48 + Math.sqrt(index + 1) * (cluster === 'entity' ? 30 : 28)
-        x = meta.center.x + Math.cos(angle) * ring
-        y = meta.center.y + Math.sin(angle) * ring * (cluster === 'episode' ? 0.48 : 0.72)
-      }
+      const angle = index * golden
+      const ring =
+        cluster === 'episode'
+          ? 22 + Math.sqrt(index + 1) * 48
+          : 48 + Math.sqrt(index + 1) * (cluster === 'entity' ? 30 : 28)
+      x = meta.center.x + Math.cos(angle) * ring
+      y = meta.center.y + Math.sin(angle) * ring * (cluster === 'episode' ? 0.48 : 0.72)
 
       const palette = getNodeColor(theme, node)
       const importance = Math.max(0.1, node.importance)
@@ -656,8 +574,10 @@ function StatChip({ label, color }: { label: string; color: string }) {
 export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail }) {
   const theme = useTheme()
   const { t } = useTranslation('workspace')
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notification = useNotification()
+  const memorySystemDisabled = !workspace.memory_system_enabled
   const [viewMode, setViewMode] = useState<AtlasViewMode>('episode')
   const clusterMeta = useMemo(() => getClusterMeta(viewMode), [viewMode])
 
@@ -950,12 +870,16 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
   )
   const episodeParticipants = useMemo(() => {
     const raw = memoryDetail?.data?.participant_entities
-    return Array.isArray(raw) ? raw.filter(isRecord) : []
+    return Array.isArray(raw) ? raw.filter(isEpisodeParticipant) : []
   }, [memoryDetail])
   const episodeParagraphs = useMemo(() => {
     const raw = memoryDetail?.data?.paragraphs
-    return Array.isArray(raw) ? raw.filter(isRecord) : []
+    return Array.isArray(raw) ? raw.filter(isEpisodeParagraph) : []
   }, [memoryDetail])
+  const episodeCount = useMemo(
+    () => memoryGraph?.nodes.filter(node => node.memory_type === 'episode').length ?? 0,
+    [memoryGraph?.nodes],
+  )
   const rebuildStatusTone =
     rebuildStatus?.status === 'failed'
       ? 'error'
@@ -1212,7 +1136,6 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           <ActionButton
             tone="secondary"
             size="small"
-            color="warning"
             startIcon={<MoreIcon />}
             onClick={event => setActionsAnchor(event.currentTarget)}
           >
@@ -1224,7 +1147,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           <Card
             sx={{
               position: 'absolute',
-              top: 68,
+              top: memorySystemDisabled ? 152 : 68,
               left: 16,
               zIndex: 5,
               minWidth: 300,
@@ -1263,7 +1186,6 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
                           size="small"
                           onClick={() => setDismissedRebuildJobId(rebuildStatus.job_id ?? null)}
                           sx={{ ml: 0.25 }}
-                          title={t('skills.drawer.close')}
                         >
                           <CloseIcon sx={{ fontSize: 16 }} />
                         </IconActionButton>
@@ -1349,6 +1271,38 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           </Card>
         )}
 
+        {memorySystemDisabled && (
+          <Alert
+            severity="warning"
+            sx={{
+              position: 'absolute',
+              top: 80,
+              left: 16,
+              right: { xs: 16, lg: 360 },
+              zIndex: 5,
+              maxWidth: { xs: 'none', lg: 680 },
+              alignItems: 'flex-start',
+              borderRadius: 2,
+              boxShadow: `0 12px 36px ${alpha(theme.palette.common.black, 0.08)}`,
+              '& .MuiAlert-message': {
+                minWidth: 0,
+              },
+            }}
+            action={
+              <ActionButton
+                tone="secondary"
+                size="small"
+                onClick={() => navigate('/settings/system?category=记忆系统&search=MEMORY_ENABLE_SYSTEM')}
+                sx={{ whiteSpace: 'nowrap', minWidth: 88, alignSelf: 'center' }}
+              >
+                前往启用
+              </ActionButton>
+            }
+          >
+            记忆系统未启用。现有记忆仍可查看，但不会继续沉淀或注入。
+          </Alert>
+        )}
+
         <Menu
           anchorEl={actionsAnchor}
           open={!!actionsAnchor}
@@ -1413,44 +1367,58 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             top: 16,
             right: 16,
             zIndex: 5,
-            px: 1.2,
-            py: 1,
-            borderRadius: 3,
-            border: '1px solid',
-            borderColor: alpha(theme.palette.primary.main, 0.12),
-            bgcolor: alpha(theme.palette.background.paper, 0.88),
-            backdropFilter: 'blur(16px)',
+            flexWrap: 'wrap',
+            justifyContent: 'flex-end',
+            rowGap: 0.75,
+            columnGap: 0.9,
+            maxWidth: { xs: 'calc(100% - 32px)', md: 520 },
           }}
         >
-          <Tooltip title="缩小">
-            <span>
-              <IconActionButton size="small" onClick={() => updateZoom(zoom - 0.1)} title="缩小">
-                <ZoomOutIcon fontSize="small" />
-              </IconActionButton>
-            </span>
-          </Tooltip>
-          <Slider
-            size="small"
-            min={0.8}
-            max={1.6}
-            step={0.05}
-            value={zoom}
-            onChange={(_, value) => updateZoom(value as number)}
-            sx={{ width: 120 }}
-          />
-          <Tooltip title="放大">
-            <span>
-              <IconActionButton size="small" onClick={() => updateZoom(zoom + 0.1)} title="放大">
-                <ZoomInIcon fontSize="small" />
-              </IconActionButton>
-            </span>
-          </Tooltip>
-          <Divider orientation="vertical" flexItem />
+          <Stack
+            direction="row"
+            spacing={0.5}
+            alignItems="center"
+            sx={{
+              px: 1,
+              py: 0.5,
+              borderRadius: 999,
+              bgcolor: alpha(theme.palette.background.paper, 0.72),
+              backdropFilter: 'blur(12px)',
+            }}
+          >
+            <Tooltip title="缩小">
+              <span>
+                <IconActionButton size="small" onClick={() => updateZoom(zoom - 0.1)}>
+                  <ZoomOutIcon fontSize="small" />
+                </IconActionButton>
+              </span>
+            </Tooltip>
+            <Slider
+              size="small"
+              min={0.8}
+              max={1.6}
+              step={0.05}
+              value={zoom}
+              onChange={(_, value) => updateZoom(value as number)}
+              sx={{ width: 104, mx: 0.25 }}
+            />
+            <Tooltip title="放大">
+              <span>
+                <IconActionButton size="small" onClick={() => updateZoom(zoom + 0.1)}>
+                  <ZoomInIcon fontSize="small" />
+                </IconActionButton>
+              </span>
+            </Tooltip>
+          </Stack>
           <Select
             size="small"
             value={viewMode}
             onChange={event => setViewMode(event.target.value as AtlasViewMode)}
-            sx={{ minWidth: 96 }}
+            sx={{
+              minWidth: 92,
+              bgcolor: alpha(theme.palette.background.paper, 0.72),
+              backdropFilter: 'blur(12px)',
+            }}
           >
             <MenuItem value="episode">事件视图</MenuItem>
             <MenuItem value="atomic">原子视图</MenuItem>
@@ -1459,13 +1427,28 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             size="small"
             value={informationDensity}
             onChange={event => setInformationDensity(event.target.value as InformationDensity)}
-            sx={{ minWidth: 96 }}
+            sx={{
+              minWidth: 92,
+              bgcolor: alpha(theme.palette.background.paper, 0.72),
+              backdropFilter: 'blur(12px)',
+            }}
           >
             <MenuItem value="low">低密度</MenuItem>
             <MenuItem value="medium">信息适中</MenuItem>
             <MenuItem value="high">高密度</MenuItem>
           </Select>
-          <Stack direction="row" spacing={0.75} alignItems="center">
+          <Stack
+            direction="row"
+            spacing={0.75}
+            alignItems="center"
+            sx={{
+              px: 1,
+              py: 0.4,
+              borderRadius: 999,
+              bgcolor: alpha(theme.palette.background.paper, 0.72),
+              backdropFilter: 'blur(12px)',
+            }}
+          >
             <Switch checked={graphIncludeInactive} size="small" onChange={(_, checked) => setGraphIncludeInactive(checked)} />
             <Typography variant="caption" color="text.secondary">
               显示失活
@@ -1979,7 +1962,7 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
           }}
         >
           <StatChip label={`段落 ${memoryData?.stats.paragraph_count ?? 0}`} color={theme.palette.warning.main} />
-          <StatChip label={`事件 ${memoryData?.stats.episode_count ?? 0}`} color={theme.palette.info.main} />
+          <StatChip label={`事件 ${episodeCount}`} color={theme.palette.info.main} />
           <StatChip label={`关系 ${memoryData?.stats.relation_count ?? 0}`} color={clusterMeta.relation.accent} />
           <StatChip label={`实体 ${memoryData?.stats.entity_count ?? 0}`} color={theme.palette.secondary.main} />
         </Stack>
@@ -2281,7 +2264,6 @@ export default function MemoryTab({ workspace }: { workspace: WorkspaceDetail })
             <ActionButton tone="secondary" onClick={() => setConfirmAction(null)}>取消</ActionButton>
             <ActionButton
               tone={confirmAction === 'reset' ? 'danger' : 'secondary'}
-              color={confirmAction === 'reset' ? 'error' : confirmAction === 'rebuild' ? 'warning' : 'warning'}
               onClick={() => {
                 const action = confirmAction
                 setConfirmAction(null)

@@ -12,6 +12,7 @@ export interface WorkspaceSummary {
   name: string
   description: string
   status: 'active' | 'stopped' | 'failed' | 'deleting'
+  memory_system_enabled: boolean
   sandbox_image: string
   sandbox_version: string
   container_name: string | null
@@ -805,7 +806,7 @@ export interface MemoryListParams {
   cognitive_type?: 'episodic' | 'semantic'
   time_from?: string
   time_to?: string
-  sort_by?: 'update_time' | 'create_time' | 'effective_weight'
+  sort_by?: 'event_time' | 'update_time' | 'create_time' | 'effective_weight'
   order?: 'asc' | 'desc'
   limit?: number
   offset?: number

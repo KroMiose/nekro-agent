@@ -65,6 +65,11 @@ import SegmentedControl from '../../../components/common/SegmentedControl'
 import ActionButton from '../../../components/common/ActionButton'
 import IconActionButton from '../../../components/common/IconActionButton'
 
+function areSkillsEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) return false
+  return left.every((item, index) => item === right[index])
+}
+
 type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
 
 const EXT_LANG_MAP: Record<string, string> = {
@@ -217,7 +222,7 @@ export default function ExtensionsTab({
   })
 
   useEffect(() => {
-    setSelectedSkills(serverSkills)
+    setSelectedSkills(prev => (areSkillsEqual(prev, serverSkills) ? prev : serverSkills))
   }, [serverSkills])
 
   // ── 是否有未保存改动 ──

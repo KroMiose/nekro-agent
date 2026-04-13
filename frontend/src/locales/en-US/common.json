@@ -23,6 +23,8 @@
     "import": "Import",
     "view": "View",
     "copy": "Copy",
+    "show": "Show",
+    "hide": "Hide",
     "update": "Update",
     "enable": "Enable",
     "disable": "Disable",

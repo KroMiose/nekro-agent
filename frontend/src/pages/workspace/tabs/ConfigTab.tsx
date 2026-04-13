@@ -374,7 +374,7 @@ export default function ConfigTab({
                   autoComplete="off"
                 />
                 <Tooltip title={t('detail.config.envVars.remove')}>
-                  <IconActionButton tone="danger" size="small" onClick={() => removeEnvVar(idx)} sx={{ mt: 0.5 }} title={t('detail.config.envVars.remove')}>
+                  <IconActionButton tone="danger" size="small" onClick={() => removeEnvVar(idx)} sx={{ mt: 0.5 }}>
                     <DeleteIcon fontSize="small" />
                   </IconActionButton>
                 </Tooltip>

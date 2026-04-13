@@ -22,6 +22,7 @@ class WorkspaceSummary(BaseModel):
     name: str
     description: str
     status: str
+    memory_system_enabled: bool
     sandbox_image: str
     sandbox_version: str
     container_name: Optional[str]
