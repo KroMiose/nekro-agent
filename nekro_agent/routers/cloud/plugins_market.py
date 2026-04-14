@@ -225,8 +225,9 @@ async def download_plugin(
     _current_user: DBUser = Depends(get_current_active_user),
 ) -> ActionResponse:
     """下载云端插件到本地"""
-    local_plugins = plugin_collector.package_data.get_remote_ids()
-    if module_name in local_plugins:
+    # 检查本地是否已存在同模块名的插件（排除已下架的）
+    existing_package = plugin_collector.package_data.get_package_by_module(module_name)
+    if existing_package:
         raise ConflictError(resource="插件")
 
     response = await get_plugin(module_name)
