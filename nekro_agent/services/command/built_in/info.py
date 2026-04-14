@@ -8,6 +8,15 @@ from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import CommandExecutionContext, CommandResponse
 
 
+def _format_channel_status(status: str) -> str:
+    status_labels = {
+        "active": t(zh_CN="启用", en_US="Enabled"),
+        "disabled": t(zh_CN="停用", en_US="Disabled"),
+        "observe": t(zh_CN="旁观", en_US="Observe"),
+    }
+    return status_labels.get(status, t(zh_CN="未知", en_US="Unknown"))
+
+
 def _format_agent_runtime_phase(phase: str | None) -> str:
     phase_labels = {
         "llm_generating": t(zh_CN="LLM 生成中", en_US="LLM generating"),
@@ -60,13 +69,16 @@ class NaInfoCommand(BaseCommand):
         db_chat_channel = await DBChatChannel.get_channel(chat_key=context.chat_key)
         preset = await db_chat_channel.get_preset()
         version = get_app_version()
+        channel_status = db_chat_channel.channel_status.value
+        channel_status_label = _format_channel_status(channel_status)
         runtime_status_label, runtime_status_phase = _resolve_channel_agent_runtime_status(context.chat_key)
 
         title = t(zh_CN="[Nekro-Agent 信息]", en_US="[Nekro-Agent Info]")
         subtitle = t(zh_CN="> 更智能、更优雅的代理执行 AI", en_US="> Smarter, more elegant agent execution AI")
         chat_settings = t(zh_CN="========聊天设定========", en_US="========Chat Settings========")
         preset_label = t(zh_CN="人设", en_US="Preset")
-        runtime_status_label_title = t(zh_CN="当前频道机器人运行状态", en_US="Current Channel Agent Runtime Status")
+        channel_status_label_title = t(zh_CN="频道状态", en_US="Channel Status")
+        runtime_status_label_title = t(zh_CN="Agent状态", en_US="Agent Status")
 
         message = (
             f"{title}\n"
@@ -77,6 +89,7 @@ class NaInfoCommand(BaseCommand):
             f"In-Docker: {OsEnv.RUN_IN_DOCKER}\n"
             f"{chat_settings}\n"
             f"{preset_label}: {preset.name}\n"
+            f"{channel_status_label_title}: {channel_status_label}\n"
             f"{runtime_status_label_title}: {runtime_status_label}"
         )
 
@@ -86,6 +99,8 @@ class NaInfoCommand(BaseCommand):
                 "version": version,
                 "in_docker": OsEnv.RUN_IN_DOCKER,
                 "preset": preset.name,
+                "channel_status": channel_status_label,
+                "channel_status_value": channel_status,
                 "agent_runtime_status": runtime_status_label,
                 "agent_runtime_phase": runtime_status_phase,
             },
