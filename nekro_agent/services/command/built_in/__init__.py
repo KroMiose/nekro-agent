@@ -14,11 +14,14 @@ from .ops import (
     GithubStarsCheckCommand,
     InstanceIdCommand,
     LogErrListCommand,
+    MemoryPruneCommand,
+    MemoryRebuildCommand,
+    MemoryReindexCommand,
     ShCommand,
 )
 from .plugin_cmd import NaPluginsCommand, PluginCtlCommand, PluginInfoCommand, ResetPluginCommand
 from .quota_cmd import QuotaBoostCommand, QuotaCommand, QuotaResetCommand, QuotaSetCommand, QuotaWhitelistCommand
-from .switch import NaOffCommand, NaOnCommand
+from .switch import NaObserveCommand, NaOffCommand, NaOnCommand
 
 
 def register_built_in_commands() -> None:
@@ -34,6 +37,7 @@ def register_built_in_commands() -> None:
         # 开关类
         NaOnCommand(),
         NaOffCommand(),
+        NaObserveCommand(),
         # 配置类
         ConfShowCommand(),
         ConfSetCommand(),
@@ -59,6 +63,9 @@ def register_built_in_commands() -> None:
         InstanceIdCommand(),
         GithubStarsCheckCommand(),
         LogErrListCommand(),
+        MemoryPruneCommand(),
+        MemoryRebuildCommand(),
+        MemoryReindexCommand(),
         # 配额类
         QuotaCommand(),
         QuotaBoostCommand(),

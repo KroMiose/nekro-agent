@@ -10,9 +10,11 @@ from pydantic import BaseModel, Field
 from nekro_agent.core.core_utils import ConfigBase, ExtraField
 
 if TYPE_CHECKING:
+    from nekro_agent.schemas.agent_message import AgentMessageSegment
     from nekro_agent.services.command.schemas import CommandResponse
 from nekro_agent.core.os_env import OsEnv
 from nekro_agent.schemas.chat_message import ChatType
+from nekro_agent.schemas.i18n import i18n_text
 from nekro_agent.services.agent.templates.base import PromptTemplate, register_template
 
 from .schemas.platform import (
@@ -32,8 +34,6 @@ class AdapterMetadata(BaseModel):
     author: str = ""
     homepage: str = ""
     tags: List[str] = []
-
-
 class BaseAdapterConfig(ConfigBase):
     """适配器配置基类"""
 
@@ -41,18 +41,42 @@ class BaseAdapterConfig(ConfigBase):
         default=False,
         title="启用适配器",
         description="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
-        json_schema_extra=ExtraField(is_need_restart=True).model_dump(),
+        json_schema_extra=ExtraField(
+            is_need_restart=True,
+            i18n_category=i18n_text(zh_CN="基础设置", en_US="Basic Settings"),
+            i18n_title=i18n_text(zh_CN="启用适配器", en_US="Enable Adapter"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后该适配器不会在启动时加载，修改后需要重启应用生效",
+                en_US="When disabled, this adapter will not be loaded on startup. Restart the application after changes.",
+            ),
+        ).model_dump(),
     )
 
     SESSION_ENABLE_AT: bool = Field(
         default=True,
         title="启用 @用户 功能",
         description="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
+            i18n_title=i18n_text(zh_CN="启用 @用户 功能", en_US="Enable @User Mention"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后 AI 发送的 @用户 消息将被解析为纯文本用户名，避免反复打扰用户",
+                en_US="When disabled, @user mentions sent by AI will be converted to plain text usernames to avoid repeatedly disturbing users.",
+            ),
+        ).model_dump(),
     )
     SESSION_PROCESSING_WITH_EMOJI: bool = Field(
         default=True,
         title="显示处理中表情反馈",
-        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈",
+        description="当 AI 开始处理消息时，对应消息会显示处理中表情反馈，需要适配器支持此能力",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="交互", en_US="Interaction"),
+            i18n_title=i18n_text(zh_CN="显示处理中表情反馈", en_US="Show Processing Emoji Feedback"),
+            i18n_description=i18n_text(
+                zh_CN="当 AI 开始处理消息时，对应消息会显示处理中表情反馈，需要适配器支持此能力",
+                en_US="When AI starts processing a message, a processing emoji reaction will be shown on the corresponding message. This requires adapter support.",
+            ),
+        ).model_dump(),
     )
 
     # 命令系统配置
@@ -60,26 +84,66 @@ class BaseAdapterConfig(ConfigBase):
         default="/",
         title="命令前缀",
         description="触发命令的前缀字符，如 / 或 !",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="命令", en_US="Commands"),
+            i18n_title=i18n_text(zh_CN="命令前缀", en_US="Command Prefix"),
+            i18n_description=i18n_text(
+                zh_CN="触发命令的前缀字符，如 / 或 !",
+                en_US="Prefix character used to trigger commands, such as / or !.",
+            ),
+        ).model_dump(),
     )
     COMMAND_ENABLED: bool = Field(
         default=True,
         title="启用命令系统",
         description="关闭后该适配器不再识别和处理命令",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="命令", en_US="Commands"),
+            i18n_title=i18n_text(zh_CN="启用命令系统", en_US="Enable Command System"),
+            i18n_description=i18n_text(
+                zh_CN="关闭后该适配器不再识别和处理命令",
+                en_US="When disabled, this adapter will stop recognizing and processing commands.",
+            ),
+        ).model_dump(),
     )
     COMMAND_UNAUTHORIZED_OUTPUT: bool = Field(
         default=True,
         title="权限不足提示",
         description="权限不足时是否向用户输出提示信息",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="命令", en_US="Commands"),
+            i18n_title=i18n_text(zh_CN="权限不足提示", en_US="Show Permission Denied Notice"),
+            i18n_description=i18n_text(
+                zh_CN="权限不足时是否向用户输出提示信息",
+                en_US="Whether to output a notice to users when permissions are insufficient.",
+            ),
+        ).model_dump(),
     )
     COMMAND_ENHANCED_OUTPUT: bool = Field(
         default=False,
         title="命令增强输出",
         description="启用后，较长的命令输出将使用平台特性进行优化展示（如合并转发、卡片等）",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="命令", en_US="Commands"),
+            i18n_title=i18n_text(zh_CN="命令增强输出", en_US="Enhanced Command Output"),
+            i18n_description=i18n_text(
+                zh_CN="启用后，较长的命令输出将使用平台特性进行优化展示（如合并转发、卡片等）",
+                en_US="When enabled, longer command outputs will use platform-specific optimized display methods such as forward messages or cards.",
+            ),
+        ).model_dump(),
     )
     COMMAND_ENHANCED_OUTPUT_MIN_LENGTH: int = Field(
         default=200,
         title="增强输出触发字数",
         description="命令输出超过此字数时触发增强输出（需启用命令增强输出）",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(zh_CN="命令", en_US="Commands"),
+            i18n_title=i18n_text(zh_CN="增强输出触发字数", en_US="Enhanced Output Threshold"),
+            i18n_description=i18n_text(
+                zh_CN="命令输出超过此字数时触发增强输出（需启用命令增强输出）",
+                en_US="Enhanced output will be triggered when command output exceeds this length. Requires enhanced command output to be enabled.",
+            ),
+        ).model_dump(),
     )
 
 
@@ -280,6 +344,9 @@ class BaseAdapter(ABC, Generic[TConfig]):
     ) -> Optional[List["CommandResponse"]]:
         """执行命令并消费流式输出 - 自动检查适配器级开关"""
         from nekro_agent.services.command.registry import command_registry
+        from nekro_agent.services.command.output import (
+            materialize_command_response,
+        )
         from nekro_agent.services.command.schemas import (
             CommandExecutionContext,
             CommandRequest,
@@ -311,14 +378,15 @@ class BaseAdapter(ABC, Generic[TConfig]):
         from nekro_agent.services.command_output_broadcaster import command_output_broadcaster
 
         responses: List[CommandResponse] = []
-        async for response in command_registry.execute(request):
+        async for raw_response in command_registry.execute(request):
+            response = await materialize_command_response(chat_key, raw_response)
             responses.append(response)
             if response.status == CommandResponseStatus.PROCESSING:
-                await self._send_command_message(chat_key, response.message)
+                await self._send_command_response(chat_key, response)
             elif response.status == CommandResponseStatus.WAITING:
                 await self._handle_command_wait(chat_key, user_id, response)
             elif response.status in (CommandResponseStatus.SUCCESS, CommandResponseStatus.ERROR):
-                await self._send_command_message(chat_key, response.message)
+                await self._send_command_response(chat_key, response)
             elif response.status == CommandResponseStatus.UNAUTHORIZED:
                 if self.config.COMMAND_UNAUTHORIZED_OUTPUT:
                     await self._send_command_message(chat_key, response.message)
@@ -329,6 +397,7 @@ class BaseAdapter(ABC, Generic[TConfig]):
                 command_name=command_name,
                 status=response.status.value,
                 message=response.message,
+                output_segments=response.output_segments,
             )
         return responses
 
@@ -390,11 +459,67 @@ class BaseAdapter(ABC, Generic[TConfig]):
             message=message,
         )
 
+    async def _send_command_response(
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+    ) -> None:
+        """发送命令响应到频道。"""
+        from nekro_agent.services.command.output import (
+            build_command_output_messages,
+            build_command_output_platform_segments,
+        )
+        if not response.output_segments:
+            await self._send_command_plain_if_any(chat_key, response)
+            return
+
+        enhanced_messages = build_command_output_messages(response)
+        if enhanced_messages and self.config.COMMAND_ENHANCED_OUTPUT:
+            sent = await self._try_send_enhanced_command_response(
+                chat_key,
+                response,
+                enhanced_messages,
+            )
+            if sent:
+                return
+
+        platform_segments = build_command_output_platform_segments(response)
+        if platform_segments:
+            plt_response = await self.forward_message(
+                PlatformSendRequest(chat_key=chat_key, segments=platform_segments),
+            )
+            if not plt_response.success:
+                raise ValueError(f"适配器发送消息失败，错误: {plt_response.error_message}")
+            return
+
+        await self._send_command_plain_if_any(chat_key, response)
+
+    async def _send_command_plain_if_any(
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+    ) -> None:
+        """存在纯文本摘要时发送普通命令消息。"""
+        if response.message:
+            await self._send_command_message(chat_key, response.message)
+
     async def _try_send_enhanced_command_message(self, chat_key: str, message: str) -> bool:  # noqa: ARG002
         """尝试以平台增强格式发送命令消息
 
         子类可重写此方法，利用平台特性（合并转发、卡片等）优化长消息展示。
         返回 True 表示发送成功，False 表示不支持或失败（将回退为普通文本）。
+        """
+        return False
+
+    async def _try_send_enhanced_command_response(  # noqa: ARG002
+        self,
+        chat_key: str,
+        response: "CommandResponse",
+        messages: list["AgentMessageSegment"],
+    ) -> bool:
+        """尝试以平台增强格式发送富媒体命令响应。
+
+        默认不处理，回退到普通命令发送链路。
         """
         return False
 

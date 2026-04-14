@@ -2,7 +2,6 @@ import { useState } from 'react'
 import {
   Box,
   TextField,
-  Button,
   Typography,
   Stack,
   Card,
@@ -11,9 +10,10 @@ import {
 } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { authApi } from '../../services/api/auth'
-import { CARD_VARIANTS, INPUT_VARIANTS, BUTTON_VARIANTS, BORDER_RADIUS } from '../../theme/variants'
+import { CARD_VARIANTS, INPUT_VARIANTS, BORDER_RADIUS } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../components/common/ActionButton'
 
 export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('')
@@ -131,14 +131,13 @@ export default function ProfilePage() {
               autoComplete="new-password"
               sx={INPUT_VARIANTS.default.styles}
             />
-            <Button
-              variant="contained"
+            <ActionButton
+              tone="primary"
               onClick={handleChangePassword}
               disabled={isAdminUser || loading || !newPassword || !confirmPassword}
-              sx={BUTTON_VARIANTS.primary.styles}
             >
               {loading ? t('changePassword.submitting') : t('changePassword.submit')}
-            </Button>
+            </ActionButton>
           </Stack>
         </CardContent>
       </Card>

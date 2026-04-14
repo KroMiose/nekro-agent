@@ -8,7 +8,6 @@ import {
   Box,
   Paper,
   Typography,
-  IconButton,
   useTheme,
   Collapse,
   alpha
@@ -21,6 +20,7 @@ import {
   Close as CloseIcon
 } from '@mui/icons-material'
 import { getAlphaColor } from '../../theme/themeApi'
+import IconActionButton from './IconActionButton'
 
 // 自定义接口
 interface NekroNotificationProps extends Omit<CustomContentProps, 'style'> {
@@ -144,7 +144,7 @@ const NekroNotification = forwardRef<HTMLDivElement, NekroNotificationProps>((pr
               {message}
             </Typography>
             
-            <IconButton 
+            <IconActionButton 
               size="small" 
               onClick={handleClose}
               sx={{
@@ -157,7 +157,7 @@ const NekroNotification = forwardRef<HTMLDivElement, NekroNotificationProps>((pr
               }}
             >
               <CloseIcon fontSize="small" />
-            </IconButton>
+            </IconActionButton>
           </Box>
         </Paper>
       </Collapse>

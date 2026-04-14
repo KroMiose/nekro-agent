@@ -29,6 +29,7 @@ from nekro_agent.schemas.chat_message import ChatMessage, ChatType
 from nekro_agent.schemas.errors import AdapterUnavailableError
 from nekro_agent.schemas.signal import MsgSignal
 from nekro_agent.services.channel_broadcaster import channel_broadcaster
+from nekro_agent.services.memory.feature_flags import is_memory_system_enabled
 from nekro_agent.services.message_broadcaster import message_broadcaster
 from nekro_agent.services.plugin.collector import plugin_collector
 from nekro_agent.services.quota_service import quota_service
@@ -40,6 +41,22 @@ from nekro_agent.tools.common_util import (
 )
 
 logger = get_sub_logger("message_pipeline")
+
+
+async def _notify_memory_scheduler(chat_key: str, workspace_id: int | None, content_length: int) -> None:
+    """通知记忆调度器有新消息（非阻塞）"""
+    if workspace_id is None or not is_memory_system_enabled():
+        return
+    try:
+        from nekro_agent.services.memory.scheduler import memory_scheduler
+
+        await memory_scheduler.on_new_message(
+            chat_key=chat_key,
+            workspace_id=workspace_id,
+            content_length=content_length,
+        )
+    except Exception as e:
+        logger.debug(f"记忆调度器通知失败（可忽略）: {e}")
 
 
 class MessageService:
@@ -153,8 +170,13 @@ class MessageService:
 
     async def _run_chat_agent_task(self, chat_key: str, message: Optional[ChatMessage] = None, ctx: Optional[AgentCtx] = None):
         """执行agent任务"""
-        from nekro_agent.services.agent.run_agent import run_agent
-        from nekro_agent.services.system_broadcast import AgentActiveEvent, publish_system_event
+        from nekro_agent.services.agent.run_agent import AllLLMRequestsFailedError, run_agent
+        from nekro_agent.services.chat.universal_chat_service import universal_chat_service
+        from nekro_agent.services.system_broadcast import (
+            AgentActiveEvent,
+            AgentRuntimeStatusEvent,
+            publish_system_event,
+        )
 
         db_channel = await DBChatChannel.get_channel(chat_key=chat_key)
         preset = await db_channel.get_preset()
@@ -176,17 +198,21 @@ class MessageService:
             # 防止底层 httpx/网络层超时失效时任务永久挂起占用频道锁
             _per_round_timeout = (config.AI_GENERATE_TIMEOUT or 180) + 60  # 每轮预算（含 sandbox 执行缓冲）
             _max_total_timeout = _per_round_timeout * (config.AI_SCRIPT_MAX_RETRY_TIMES + 1) * 3 + 120
+            started_at = int(time.time() * 1000)
 
             # 广播 Agent 开始处理
             try:
-                await publish_system_event(AgentActiveEvent(
-                    chat_key=chat_key,
-                    active=True,
-                    channel_name=db_channel.channel_name,
-                    chat_type=db_channel.channel_type,
-                    preset_id=preset_id,
-                    preset_name=preset_name,
-                ))
+                await publish_system_event(
+                    AgentActiveEvent(
+                        chat_key=chat_key,
+                        active=True,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                        started_at=started_at,
+                    )
+                )
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentActive 开始事件失败: {_e}")
 
@@ -202,15 +228,22 @@ class MessageService:
 
             try:
                 async with asyncio.timeout(_max_total_timeout):
+                    last_exception: Optional[Exception] = None
                     for _i in range(3):
                         try:
                             await run_agent(chat_key=chat_key, chat_message=message, ctx=ctx)
                         except Exception as e:
+                            last_exception = e
                             logger.exception(f"执行失败: {e}")
                         else:
                             break
                     else:
                         logger.error("Failed to Run Chat Agent.")
+                        if isinstance(last_exception, AllLLMRequestsFailedError) and config.SESSION_ENABLE_FAILED_LLM_FEEDBACK:
+                            await universal_chat_service.send_operation_message(
+                                chat_key,
+                                "哎呀，与 LLM 通信出错啦，请稍后再试~ QwQ",
+                            )
             except TimeoutError:
                 logger.error(
                     f"[message_service] 频道 {chat_key} Agent 任务超过兜底超时 {_max_total_timeout}s，强制终止以释放频道锁"
@@ -236,16 +269,34 @@ class MessageService:
 
             # 广播 Agent 处理结束
             try:
-                await publish_system_event(AgentActiveEvent(
-                    chat_key=chat_key,
-                    active=False,
-                    channel_name=db_channel.channel_name,
-                    chat_type=db_channel.channel_type,
-                    preset_id=preset_id,
-                    preset_name=preset_name,
-                ))
+                await publish_system_event(
+                    AgentActiveEvent(
+                        chat_key=chat_key,
+                        active=False,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                        started_at=started_at,
+                    )
+                )
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentActive 结束事件失败: {_e}")
+            try:
+                await publish_system_event(
+                    AgentRuntimeStatusEvent(
+                        chat_key=chat_key,
+                        active=False,
+                        channel_name=db_channel.channel_name,
+                        chat_type=db_channel.channel_type,
+                        preset_id=preset_id,
+                        preset_name=preset_name,
+                        started_at=started_at,
+                        updated_at=int(time.time() * 1000),
+                    )
+                )
+            except Exception as _e:
+                logger.warning(f"[message_service] 广播 AgentRuntime 结束事件失败: {_e}")
 
             # 如果有待处理消息，创建新的任务处理最后一条消息
             if final_message:
@@ -301,6 +352,15 @@ class MessageService:
             send_timestamp=int(time.time()),  # 使用处理后的时间戳
         )
 
+        # 通知记忆调度器（非阻塞）
+        asyncio.create_task(
+            _notify_memory_scheduler(
+                chat_key=message.chat_key,
+                workspace_id=db_chat_channel.workspace_id,
+                content_length=len(message.content_text),
+            ),
+        )
+
         # 广播消息到所有订阅者
         await message_broadcaster.publish(message.chat_key, message)
 
@@ -310,6 +370,7 @@ class MessageService:
             chat_key=message.chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
         should_ignore = (user and user.is_prevent_trigger) or (user and not user.is_active)
@@ -329,14 +390,17 @@ class MessageService:
                 logger.info(f"聊天频道 {message.chat_key} 已被禁用，跳过本次处理...")
                 return
 
+            if db_chat_channel.observe_mode:
+                logger.info(f"聊天频道 {message.chat_key} 处于旁观模式，跳过 Agent 触发...")
+                return
+
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"用户消息 {message.content_text} 被插件阻止触发，跳过本次处理...")
                 return
 
             # 配额豁免检查（用户白名单/管理员）
-            _is_quota_exempt = (
-                message.sender_id in config.AI_CHAT_QUOTA_WHITELIST_USERS
-                or (config.AI_CHAT_QUOTA_SUPER_USERS_EXEMPT and message.sender_id in config.SUPER_USERS)
+            _is_quota_exempt = message.sender_id in config.AI_CHAT_QUOTA_WHITELIST_USERS or (
+                config.AI_CHAT_QUOTA_SUPER_USERS_EXEMPT and message.sender_id in config.SUPER_USERS
             )
 
             if not _is_quota_exempt:
@@ -349,16 +413,18 @@ class MessageService:
 
                     # 查询今日已回复数
                     today_start = time.time() - (time.time() % 86400)  # UTC 当天零点
-                    daily_count = await DBChatMessage.filter(
-                        chat_key=message.chat_key,
-                        sender_id=-1,
-                        send_timestamp__gte=int(today_start),
-                    ).exclude(sender_name="SYSTEM").count()
+                    daily_count = (
+                        await DBChatMessage.filter(
+                            chat_key=message.chat_key,
+                            sender_id=-1,
+                            send_timestamp__gte=int(today_start),
+                        )
+                        .exclude(sender_name="SYSTEM")
+                        .count()
+                    )
 
                     if daily_count >= effective_limit:
-                        logger.info(
-                            f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复"
-                        )
+                        logger.info(f"频道 {message.chat_key} 今日配额已用完 ({daily_count}/{effective_limit})，跳过回复")
                         # 通过适配器发送可见通知
                         quota_msg = f"今日回复配额已用完 ({daily_count}/{effective_limit})，请明天再试或联系管理员使用 /quota_boost 临时提升配额"
                         try:
@@ -383,16 +449,18 @@ class MessageService:
                     if effective_config.AI_CHAT_ENABLE_HOURLY_LIMIT:
                         hourly_limit = quota_service.calculate_hourly_quota(effective_limit)
                         hour_start = time.time() - (time.time() % 3600)  # 当前小时零分
-                        hourly_count = await DBChatMessage.filter(
-                            chat_key=message.chat_key,
-                            sender_id=-1,
-                            send_timestamp__gte=int(hour_start),
-                        ).exclude(sender_name="SYSTEM").count()
+                        hourly_count = (
+                            await DBChatMessage.filter(
+                                chat_key=message.chat_key,
+                                sender_id=-1,
+                                send_timestamp__gte=int(hour_start),
+                            )
+                            .exclude(sender_name="SYSTEM")
+                            .count()
+                        )
 
                         if hourly_count >= hourly_limit:
-                            logger.info(
-                                f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复"
-                            )
+                            logger.info(f"频道 {message.chat_key} 本小时配额已用完 ({hourly_count}/{hourly_limit})，跳过回复")
                             hourly_msg = f"本小时回复配额已用完 ({hourly_count}/{hourly_limit})，请稍后再试"
                             try:
                                 adapter = await adapter_utils.get_adapter_for_chat(message.chat_key)
@@ -434,7 +502,7 @@ class MessageService:
 
         content_data = []
         for msg in agent_messages:
-            if msg.type == AgentMessageSegmentType.FILE:
+            if msg.type in (AgentMessageSegmentType.FILE, AgentMessageSegmentType.IMAGE):
                 # 使用magic库检测文件MIME类型
                 file_path = Path(msg.content)
                 if file_path.exists():
@@ -446,7 +514,7 @@ class MessageService:
                         from_chat_key=chat_key,
                     )
 
-                    if mime_type.startswith("image/"):
+                    if msg.type == AgentMessageSegmentType.IMAGE or mime_type.startswith("image/"):
                         content_data.append(
                             {
                                 "type": "image",
@@ -551,6 +619,15 @@ class MessageService:
             send_timestamp=int(time.time()),
         )
 
+        # 通知记忆调度器（非阻塞）
+        asyncio.create_task(
+            _notify_memory_scheduler(
+                chat_key=chat_key,
+                workspace_id=db_chat_channel.workspace_id,
+                content_length=len(content_text),
+            ),
+        )
+
         # 广播消息到所有订阅者 - 构建 ChatMessage 对象用于广播
         broadcast_message = ChatMessage(
             message_id=plt_response.message_id if plt_response and plt_response.message_id else "",
@@ -577,6 +654,7 @@ class MessageService:
             chat_key=chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
     async def push_system_message(
@@ -646,11 +724,16 @@ class MessageService:
             chat_key=chat_key,
             channel_name=db_chat_channel.channel_name,
             is_active=db_chat_channel.is_active,
+            status=db_chat_channel.channel_status,
         )
 
         if trigger_agent or signal == MsgSignal.FORCE_TRIGGER:
             if not db_chat_channel.is_active:
                 logger.info(f"聊天频道 {chat_key} 已被禁用，跳过本次处理...")
+                return
+
+            if db_chat_channel.observe_mode:
+                logger.info(f"聊天频道 {chat_key} 处于旁观模式，跳过 Agent 触发...")
                 return
             if signal not in [MsgSignal.CONTINUE, MsgSignal.FORCE_TRIGGER]:
                 logger.info(f"系统消息 {content_text} 被插件阻止触发，跳过本次处理...")

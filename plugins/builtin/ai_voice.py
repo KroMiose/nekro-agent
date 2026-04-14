@@ -84,7 +84,7 @@ config = plugin.get_config(AIVoiceConfig)
 @plugin.mount_command(
     name="ai_voices",
     description="查看可用的 AI 语音角色",
-    aliases=["ai-voices"],
+    aliases=[],
     permission=CommandPermission.SUPER_USER,
     category="语音",
 )

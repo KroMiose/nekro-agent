@@ -49,10 +49,31 @@ const router = createHashRouter([
       },
       {
         path: 'chat-channel',
-        element: lazyLoad(() => import('../pages/chat-channel')),
+        children: [
+          {
+            index: true,
+            element: <Navigate to="management" replace />,
+          },
+          {
+            path: 'management',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'management/:chatKey',
+            element: lazyLoad(() => import('../pages/chat-channel')),
+          },
+          {
+            path: 'announcement',
+            element: lazyLoad(() => import('../pages/chat-channel/announcement')),
+          },
+        ],
       },
       {
         path: 'chat-channel/:chatKey',
+        element: lazyLoad(() => import('../pages/chat-channel')),
+      },
+      {
+        path: 'chat-channel/:chatKey/:tab',
         element: lazyLoad(() => import('../pages/chat-channel')),
       },
       {
@@ -93,16 +114,25 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/sandbox')),
       },
       {
-        path: 'adapters/:adapterKey',
-        element: <AdapterLayout />,
+        path: 'adapters',
         children: [
           {
             index: true,
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            element: lazyLoad(() => import('../pages/adapter')),
           },
           {
-            path: '*',
-            element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+            path: ':adapterKey',
+            element: <AdapterLayout />,
+            children: [
+              {
+                index: true,
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+              {
+                path: '*',
+                element: lazyLoad(() => import('../pages/adapter/AdapterTabPage')),
+              },
+            ],
           },
         ],
       },
@@ -115,12 +145,16 @@ const router = createHashRouter([
             element: <Navigate to="system" />,
           },
           {
+            path: 'models',
+            element: lazyLoad(() => import('../pages/settings/models')),
+          },
+          {
             path: 'system',
             element: lazyLoad(() => import('../pages/settings/system')),
           },
           {
             path: 'model-groups',
-            element: lazyLoad(() => import('../pages/settings/model_group')),
+            element: <Navigate to="/settings/models?tab=basic" replace />,
           },
           {
             path: 'theme',
@@ -132,7 +166,7 @@ const router = createHashRouter([
           },
           {
             path: 'commands',
-            element: <Navigate to="/commands/management" replace />,
+            element: lazyLoad(() => import('../pages/settings/commands')),
           },
         ],
       },
@@ -141,21 +175,21 @@ const router = createHashRouter([
         children: [
           {
             index: true,
-            element: <Navigate to="management" />,
+            element: <Navigate to="/settings/commands" replace />,
           },
           {
             path: 'management',
-            element: lazyLoad(() => import('../pages/settings/commands')),
+            element: <Navigate to="/settings/commands" replace />,
           },
           {
             path: 'output',
-            element: lazyLoad(() => import('../pages/commands/output')),
+            element: <Navigate to="/settings/commands?focus=execute" replace />,
           },
         ],
       },
       {
         path: 'profile',
-        element: lazyLoad(() => import('../pages/profile')),
+        element: lazyLoad(() => import('../pages/cloud/profile')),
       },
       {
         path: 'cloud/telemetry',
@@ -170,6 +204,10 @@ const router = createHashRouter([
         element: lazyLoad(() => import('../pages/cloud/plugins_market')),
       },
       {
+        path: 'cloud/profile',
+        element: <Navigate to="/profile" replace />,
+      },
+      {
         path: 'workspace',
         children: [
           {
@@ -182,7 +220,11 @@ const router = createHashRouter([
           },
           {
             path: 'cc-models',
-            element: lazyLoad(() => import('../pages/workspace/cc-models')),
+            element: <Navigate to="/settings/models?tab=cc" replace />,
+          },
+          {
+            path: 'mcp-services',
+            element: lazyLoad(() => import('../pages/workspace/mcp-services')),
           },
           {
             path: 'timers',

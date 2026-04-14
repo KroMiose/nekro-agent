@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -19,7 +18,6 @@ import {
   useTheme,
   alpha,
   Tooltip,
-  IconButton,
   Skeleton,
   Checkbox,
   Paper,
@@ -61,7 +59,10 @@ import { useNotification } from '../../hooks/useNotification'
 import { CARD_VARIANTS, CHIP_VARIANTS, SCROLLBAR_VARIANTS } from '../../theme/variants'
 import NameGeneratorDialog from '../../components/common/NameGeneratorDialog'
 import { useTranslation } from 'react-i18next'
-import { useSystemEvents } from '../../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import StatCard from '../../components/common/StatCard'
 
 type BatchOp = 'start' | 'stop' | 'restart' | 'rebuild' | 'resetSession'
 
@@ -123,57 +124,6 @@ function PolicyChip({ policy }: { policy: WorkspaceSummary['runtime_policy'] }) 
   const { t } = useTranslation('workspace')
   const color = usePolicyColor(policy)
   return <Chip label={t(`policy.${policy}`)} size="small" sx={CHIP_VARIANTS.getCustomColorChip(color, true)} />
-}
-
-// ── 概览统计卡片 ────────────────────────────────────────────────────────────
-
-function StatCard({
-  icon,
-  value,
-  label,
-  color,
-  loading,
-}: {
-  icon: React.ReactNode
-  value: number
-  label: string
-  color: string
-  loading?: boolean
-}) {
-  return (
-    <Card sx={{ ...CARD_VARIANTS.default.styles, flex: 1 }}>
-      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            sx={{
-              color,
-              bgcolor: alpha(color, 0.1),
-              borderRadius: 2,
-              p: 1.1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            {icon}
-          </Box>
-          <Box sx={{ minWidth: 0 }}>
-            {loading ? (
-              <Skeleton variant="text" width={28} height={32} />
-            ) : (
-              <Typography variant="h5" fontWeight={700} lineHeight={1.1}>
-                {value}
-              </Typography>
-            )}
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.1 }}>
-              {label}
-            </Typography>
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  )
 }
 
 // ── 工作区卡片 ──────────────────────────────────────────────────────────────
@@ -311,7 +261,6 @@ function WorkspaceCard({
           variant="body2"
           color={ws.description ? 'text.secondary' : 'text.disabled'}
           sx={{
-            mb: 1.25,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
@@ -330,7 +279,7 @@ function WorkspaceCard({
         <Box
           sx={{
             pt: 1,
-            borderTop: `1px solid ${alpha(theme.palette.divider, 0.6)}`,
+            borderTop: `1px solid ${alpha(theme.palette.divider, 0.15)}`,
             display: 'flex',
             flexDirection: 'column',
             gap: 0.6,
@@ -423,19 +372,19 @@ function WorkspaceCard({
           sx={{ px: 2, pb: 2, pt: 0.5, display: 'flex', gap: 1 }}
           onClick={e => e.stopPropagation()}
         >
-          <Button
-            variant="contained"
+          <ActionButton
+            tone="primary"
             size="small"
             endIcon={<ArrowForwardIcon />}
             onClick={onEnter}
             sx={{ flexGrow: 1 }}
           >
             {t('card.enter')}
-          </Button>
+          </ActionButton>
           <Tooltip title={t('card.delete')}>
-            <IconButton
+            <IconActionButton
+              tone="danger"
               size="small"
-              color="error"
               onClick={onDelete}
               sx={{
                 border: `1px solid ${alpha(theme.palette.error.main, 0.3)}`,
@@ -443,7 +392,7 @@ function WorkspaceCard({
               }}
             >
               <DeleteIcon fontSize="small" />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         </Box>
       )}
@@ -477,7 +426,7 @@ export default function WorkspaceListPage() {
   const [batchPresetRunning, setBatchPresetRunning] = useState(false)
 
   // 全局 SSE 实时状态
-  const { workspaceStatuses, workspaceCcActive } = useSystemEvents()
+  const { workspaceStatuses, workspaceCcActive } = useSystemEventsContext()
 
   const { data: workspaces = [], isLoading, error } = useQuery({
     queryKey: ['workspaces'],
@@ -623,14 +572,14 @@ export default function WorkspaceListPage() {
           loading={isLoading}
         />
         <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'stretch' }}>
-          <Button
-            variant="contained"
+          <ActionButton
+            tone="primary"
             startIcon={<AddIcon />}
             onClick={() => setCreateOpen(true)}
             sx={{ px: 3, whiteSpace: 'nowrap' }}
           >
             {t('list.createBtn')}
-          </Button>
+          </ActionButton>
         </Box>
       </Box>
 
@@ -659,44 +608,44 @@ export default function WorkspaceListPage() {
               </Typography>
               {batchMode ? (
                 <>
-                  <Button
+                  <ActionButton
+                    tone="ghost"
                     size="small"
-                    variant="text"
                     startIcon={<SelectAllIcon sx={{ fontSize: 14 }} />}
                     onClick={handleSelectAll}
                     sx={{ minWidth: 0, px: 1, fontSize: '0.75rem' }}
                   >
                     {t('list.selectAll')}
-                  </Button>
-                  <Button
+                  </ActionButton>
+                  <ActionButton
+                    tone="ghost"
                     size="small"
-                    variant="text"
                     startIcon={<DeselectIcon sx={{ fontSize: 14 }} />}
                     onClick={handleDeselectAll}
                     sx={{ minWidth: 0, px: 1, fontSize: '0.75rem' }}
                   >
                     {t('list.deselectAll')}
-                  </Button>
-                  <Button
+                  </ActionButton>
+                  <ActionButton
+                    tone="ghost"
                     size="small"
-                    variant="text"
                     startIcon={<CloseIcon sx={{ fontSize: 14 }} />}
                     onClick={exitBatchMode}
                     sx={{ minWidth: 0, px: 1, fontSize: '0.75rem', color: 'text.secondary' }}
                   >
                     {t('list.batchBar.cancel')}
-                  </Button>
+                  </ActionButton>
                 </>
               ) : (
-                <Button
+                <ActionButton
+                  tone="ghost"
                   size="small"
-                  variant="text"
                   startIcon={<CheckBoxIcon sx={{ fontSize: 14 }} />}
                   onClick={() => setBatchMode(true)}
                   sx={{ minWidth: 0, px: 1, fontSize: '0.75rem' }}
                 >
                   {t('list.batchSelect')}
-                </Button>
+                </ActionButton>
               )}
             </>
           )}
@@ -723,7 +672,7 @@ export default function WorkspaceListPage() {
           {workspaces.map(ws => {
             const sseSnap = workspaceStatuses.get(ws.id)
             const effectiveStatus = (sseSnap?.status ?? ws.status) as WorkspaceSummary['status']
-            const ccActive = workspaceCcActive.get(ws.id) ?? false
+            const ccActive = workspaceCcActive.get(ws.id)?.active ?? false
             return (
               <Grid2 size={{ xs: 12, sm: 6, md: 4 }} key={ws.id}>
                 <WorkspaceCard
@@ -773,82 +722,77 @@ export default function WorkspaceListPage() {
           <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
 
           {/* 操作按钮组 */}
-          <Button
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
-            color="success"
             startIcon={<PlayArrowIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchConfirmOp('start')}
             disabled={batchRunning}
-            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem' }}
+            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem', color: 'success.main' }}
           >
             {t('list.batchBar.start')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
-            color="error"
             startIcon={<StopIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchConfirmOp('stop')}
             disabled={batchRunning}
-            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem' }}
+            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem', color: 'error.main' }}
           >
             {t('list.batchBar.stop')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
-            color="primary"
             startIcon={<RefreshIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchConfirmOp('restart')}
             disabled={batchRunning}
             sx={{ minWidth: 0, px: 1, fontSize: '0.8rem' }}
           >
             {t('list.batchBar.restart')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
-            color="warning"
             startIcon={<BuildIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchConfirmOp('rebuild')}
             disabled={batchRunning}
-            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem' }}
+            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem', color: 'warning.main' }}
           >
             {t('list.batchBar.rebuild')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
             startIcon={<RotateRightIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchConfirmOp('resetSession')}
             disabled={batchRunning}
             sx={{ minWidth: 0, px: 1, fontSize: '0.8rem', color: 'text.secondary' }}
           >
             {t('list.batchBar.resetSession')}
-          </Button>
+          </ActionButton>
 
           <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
 
-          <Button
+          <ActionButton
+            tone="ghost"
             size="small"
-            variant="text"
-            color="info"
             startIcon={<TuneIcon sx={{ fontSize: '0.9rem !important' }} />}
             onClick={() => setBatchPresetOpen(true)}
             disabled={batchRunning}
-            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem' }}
+            sx={{ minWidth: 0, px: 1, fontSize: '0.8rem', color: 'info.main' }}
           >
             {t('list.batchBar.setPreset')}
-          </Button>
+          </ActionButton>
 
           <Box sx={{ width: '1px', height: 18, bgcolor: 'divider', mx: 0.5, flexShrink: 0 }} />
 
           {/* 关闭按钮 */}
           <Tooltip title={t('list.batchBar.cancel')}>
-            <IconButton size="small" onClick={exitBatchMode} sx={{ p: 0.5 }}>
+            <IconActionButton size="small" onClick={exitBatchMode} sx={{ p: 0.5 }}>
               <CloseIcon sx={{ fontSize: '1rem' }} />
-            </IconButton>
+            </IconActionButton>
           </Tooltip>
         </Paper>
       )}
@@ -874,13 +818,13 @@ export default function WorkspaceListPage() {
                 disabled={createMutation.isPending}
               />
               <Tooltip title={t('createDialog.randomNameTooltip')}>
-                <IconButton
+                <IconActionButton
                   onClick={() => setNameGenOpen(true)}
                   disabled={createMutation.isPending}
                   sx={{ mt: 1 }}
                 >
                   <CasinoIcon />
-                </IconButton>
+                </IconActionButton>
               </Tooltip>
             </Box>
             <TextField
@@ -913,16 +857,16 @@ export default function WorkspaceListPage() {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
+          <ActionButton tone="secondary" onClick={() => setCreateOpen(false)} disabled={createMutation.isPending}>
             {t('createDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleCreate}
             disabled={createMutation.isPending || !form.name.trim()}
           >
             {createMutation.isPending ? <CircularProgress size={20} /> : t('createDialog.create')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -965,16 +909,16 @@ export default function WorkspaceListPage() {
           />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setBatchPresetOpen(false)} disabled={batchPresetRunning}>
+          <ActionButton tone="secondary" onClick={() => setBatchPresetOpen(false)} disabled={batchPresetRunning}>
             {t('list.batchPreset.cancel')}
-          </Button>
-          <Button
-            variant="contained"
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleBatchSetPreset}
             disabled={batchPresetRunning}
           >
             {batchPresetRunning ? <CircularProgress size={20} /> : t('list.batchPreset.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -990,17 +934,16 @@ export default function WorkspaceListPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
+          <ActionButton tone="secondary" onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
             {t('deleteDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? <CircularProgress size={20} /> : t('deleteDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1019,16 +962,16 @@ export default function WorkspaceListPage() {
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setBatchConfirmOp(null)} disabled={batchRunning}>
+          <ActionButton tone="secondary" onClick={() => setBatchConfirmOp(null)} disabled={batchRunning}>
             {t('list.batchConfirm.cancel')}
-          </Button>
-          <Button
-            variant="contained"
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={handleBatchConfirm}
             disabled={batchRunning}
           >
             {batchRunning ? <CircularProgress size={20} /> : t('list.batchConfirm.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

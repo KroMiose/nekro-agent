@@ -11,7 +11,6 @@ import {
   Stack,
   CircularProgress,
   TextField,
-  IconButton,
   Chip,
   Tooltip,
   InputAdornment,
@@ -22,14 +21,18 @@ import {
 } from '@mui/icons-material'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { chatChannelApi } from '../../services/api/chat-channel'
+import CommandOutputSegments from '../../components/common/CommandOutputSegments'
 import { commandsApi } from '../../services/api/commands'
+import type { CommandOutputSegment } from '../../services/api/commands'
 import { CARD_VARIANTS } from '../../theme/variants'
+import IconActionButton from '../../components/common/IconActionButton'
+import { useChannelDirectoryContext } from '../../contexts/ChannelDirectoryContext'
 
 interface OutputEntry {
   command_name: string
   status: string
   message: string
+  output_segments?: CommandOutputSegment[] | null
   timestamp: number
 }
 
@@ -53,17 +56,13 @@ function formatTime(ts: number): string {
 
 export default function CommandOutputPage() {
   const { t } = useTranslation('chat-channel')
+  const { channels, isLoading } = useChannelDirectoryContext()
   const [selectedChatKey, setSelectedChatKey] = useState<string>('')
   const [inputValue, setInputValue] = useState('')
   const [entries, setEntries] = useState<OutputEntry[]>([])
   const [autoScroll, setAutoScroll] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  const { data: channelList, isLoading } = useQuery({
-    queryKey: ['chat-channels-for-commands'],
-    queryFn: () => chatChannelApi.getList({ page: 1, page_size: 200 }),
-  })
 
   // 获取命令列表
   const { data: commands = [] } = useQuery({
@@ -76,10 +75,10 @@ export default function CommandOutputPage() {
 
   // 自动选中第一个频道
   useEffect(() => {
-    if (!selectedChatKey && channelList?.items?.length) {
-      setSelectedChatKey(channelList.items[0].chat_key)
+    if (!selectedChatKey && channels.length > 0) {
+      setSelectedChatKey(channels[0].chat_key)
     }
-  }, [channelList, selectedChatKey])
+  }, [channels, selectedChatKey])
 
   // 切换频道时清空输出和输入
   useEffect(() => {
@@ -142,6 +141,7 @@ export default function CommandOutputPage() {
         command_name: variables.name,
         status: r.status,
         message: r.message,
+        output_segments: r.output_segments,
         timestamp: now + i * 0.001,
       }))
       setEntries((prev) => {
@@ -156,7 +156,7 @@ export default function CommandOutputPage() {
   }
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2, boxSizing: 'border-box' }}>
       {/* 顶部：频道选择 */}
       <Card sx={{ ...CARD_VARIANTS.default.styles, flexShrink: 0 }}>
         <Stack direction="row" alignItems="center" spacing={2} sx={{ p: 2 }}>
@@ -172,7 +172,7 @@ export default function CommandOutputPage() {
                   <CircularProgress size={16} sx={{ mr: 1 }} /> Loading...
                 </MenuItem>
               ) : (
-                channelList?.items?.map((ch) => (
+                channels.map((ch) => (
                   <MenuItem key={ch.chat_key} value={ch.chat_key}>
                     <Typography variant="body2" component="span" noWrap>
                       {ch.channel_name || ch.chat_key}
@@ -192,9 +192,9 @@ export default function CommandOutputPage() {
           </FormControl>
           <Tooltip title={t('commandSidebar.clear')}>
             <span>
-              <IconButton size="small" onClick={handleClear} disabled={entries.length === 0}>
+              <IconActionButton size="small" onClick={handleClear} disabled={entries.length === 0}>
                 <ClearIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </span>
           </Tooltip>
         </Stack>
@@ -246,17 +246,25 @@ export default function CommandOutputPage() {
                       '& .MuiChip-label': { px: 0.5 },
                     }}
                   />
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontSize: 'inherit',
-                      color: ev.status === 'error' ? 'error.main' : 'text.primary',
-                      wordBreak: 'break-word',
-                      whiteSpace: 'pre-wrap',
-                    }}
-                  >
-                    {ev.message}
-                  </Typography>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    {ev.message ? (
+                      <Typography
+                        component="div"
+                        sx={{
+                          fontSize: 'inherit',
+                          color: ev.status === 'error' ? 'error.main' : 'text.primary',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {ev.message}
+                      </Typography>
+                    ) : null}
+                    <CommandOutputSegments
+                      segments={ev.output_segments}
+                      textColor={ev.status === 'error' ? 'error.main' : 'text.primary'}
+                    />
+                  </Box>
                 </Box>
               ))
             )}
@@ -330,14 +338,14 @@ export default function CommandOutputPage() {
                     endAdornment: (
                       <InputAdornment position="end">
                         {params.InputProps.endAdornment}
-                        <IconButton
+                        <IconActionButton
+                          tone="primary"
                           onClick={handleSubmit}
                           disabled={!parseInput(inputValue) || !selectedChatKey || isPending}
-                          color="primary"
                           size="small"
                         >
                           {isPending ? <CircularProgress size={20} /> : <SendIcon />}
-                        </IconButton>
+                        </IconActionButton>
                       </InputAdornment>
                     ),
                   },

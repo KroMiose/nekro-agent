@@ -1,7 +1,8 @@
 import asyncio
+import contextlib
 import json
 import time
-import contextlib
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, AsyncGenerator, Optional
 
@@ -59,10 +60,10 @@ async def get_onebot_token(_current_user: DBUser = Depends(get_current_active_us
 async def get_napcat_token(_current_user: DBUser = Depends(get_current_active_user)) -> TokenResponse:
     """获取 NapCat WebUI 访问令牌"""
     try:
-        container = await get_container()
-        state = (await container.show())["State"]
-        if not state["Running"]:
-            raise OperationFailedError(operation="获取 NapCat WebUI 访问令牌")
+        async with get_container() as container:
+            state = (await container.show())["State"]
+            if not state["Running"]:
+                raise OperationFailedError(operation="获取 NapCat WebUI 访问令牌")
 
         config_file_path = Path(OsEnv.DATA_DIR) / "napcat_data" / "napcat" / "webui.json"
         if not config_file_path.exists():
@@ -91,41 +92,49 @@ async def get_docker():
     return aiodocker.Docker()
 
 
-async def get_container() -> DockerContainer:
-    """获取 NapCat 容器实例"""
+def get_container_name() -> str:
+    """获取 NapCat 容器名称"""
     from nekro_agent.adapters.onebot_v11.adapter import OnebotV11Adapter
 
     adapter = adapter_utils.get_typed_adapter("onebot_v11", OnebotV11Adapter)
 
     if not adapter.config.NAPCAT_CONTAINER_NAME:
         raise ValidationError(reason="未设置 NapCat 容器名称")
+    return adapter.config.NAPCAT_CONTAINER_NAME
+
+
+@asynccontextmanager
+async def get_container() -> AsyncGenerator[DockerContainer, None]:
+    """获取 NapCat 容器实例，并确保底层 Docker 客户端被正确关闭"""
+    client = await get_docker()
     try:
-        client = await get_docker()
-        return await client.containers.get(adapter.config.NAPCAT_CONTAINER_NAME)
+        yield await client.containers.get(get_container_name())
     except Exception as e:
         logger.error(f"获取容器失败: {e!s}")
         raise OperationFailedError(operation="获取容器") from e
+    finally:
+        await client.close()
 
 
 @router.get("/status")
 @require_role(Role.Admin)
 async def get_status(_current_user: DBUser = Depends(get_current_active_user)) -> ContainerStatus:
     """获取容器状态"""
-    container = await get_container()
-    state = (await container.show())["State"]
-    return ContainerStatus(
-        running=state["Running"],
-        started_at=state["StartedAt"],
-    )
+    async with get_container() as container:
+        state = (await container.show())["State"]
+        return ContainerStatus(
+            running=state["Running"],
+            started_at=state["StartedAt"],
+        )
 
 
 @router.get("/logs")
 @require_role(Role.Admin)
 async def get_logs(tail: Optional[int] = 100, _current_user: DBUser = Depends(get_current_active_user)) -> list[str]:
     """获取最近的容器日志"""
-    container = await get_container()
-    logs = await container.log(stdout=True, stderr=True, tail=tail)
-    return logs
+    async with get_container() as container:
+        logs = await container.log(stdout=True, stderr=True, tail=tail)
+        return logs
 
 
 @router.get("/logs/stream")
@@ -137,46 +146,52 @@ async def stream_logs(
     """实时日志流"""
 
     async def generate() -> AsyncGenerator[str, None]:
-        container = await get_container()
-        initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=False)
-        init_time = time.time()
-        for log in initial_logs:
-            if is_shutting_down() or await request.is_disconnected():
-                return
-            yield log
-            await asyncio.sleep(0.01)
-
-        queue: asyncio.Queue[object] = asyncio.Queue(maxsize=256)
-        sentinel = object()
-
-        async def pump_logs() -> None:
-            try:
-                async for log in container.log(stdout=True, stderr=True, follow=True, since=int(init_time), timestamps=False):
-                    await queue.put(log)
-            except asyncio.CancelledError:
-                raise
-            finally:
-                await queue.put(sentinel)
-
-        log_task = asyncio.create_task(pump_logs())
-        try:
-            while not is_shutting_down():
-                if await request.is_disconnected():
+        async with get_container() as container:
+            initial_logs = await container.log(stdout=True, stderr=True, tail=100, timestamps=False)
+            init_time = time.time()
+            for log in initial_logs:
+                if is_shutting_down() or await request.is_disconnected():
                     return
-                try:
-                    item = await asyncio.wait_for(queue.get(), timeout=1.0)
-                except asyncio.TimeoutError:
-                    yield ": ping\n\n"
-                    continue
-                if item is sentinel:
-                    return
-                yield str(item)
+                yield log
                 await asyncio.sleep(0.01)
-        finally:
-            if not log_task.done():
-                log_task.cancel()
-                with contextlib.suppress(asyncio.CancelledError, Exception):
-                    await log_task
+
+            queue: asyncio.Queue[object] = asyncio.Queue(maxsize=256)
+            sentinel = object()
+
+            async def pump_logs() -> None:
+                try:
+                    async for log in container.log(
+                        stdout=True,
+                        stderr=True,
+                        follow=True,
+                        since=int(init_time),
+                        timestamps=False,
+                    ):
+                        await queue.put(log)
+                except asyncio.CancelledError:
+                    raise
+                finally:
+                    await queue.put(sentinel)
+
+            log_task = asyncio.create_task(pump_logs())
+            try:
+                while not is_shutting_down():
+                    if await request.is_disconnected():
+                        return
+                    try:
+                        item = await asyncio.wait_for(queue.get(), timeout=1.0)
+                    except asyncio.TimeoutError:
+                        yield {"comment": "ping"}
+                        continue
+                    if item is sentinel:
+                        return
+                    yield str(item)
+                    await asyncio.sleep(0.01)
+            finally:
+                if not log_task.done():
+                    log_task.cancel()
+                    with contextlib.suppress(asyncio.CancelledError, Exception):
+                        await log_task
 
     return EventSourceResponse(generate())
 
@@ -229,6 +244,10 @@ async def restart(_current_user: DBUser = Depends(get_current_active_user)) -> A
                 ),
                 encoding="utf-8",
             )
-    container = await get_container()
-    asyncio.create_task(container.restart(timeout=30))
+
+    async def restart_container() -> None:
+        async with get_container() as container:
+            await container.restart(timeout=30)
+
+    asyncio.create_task(restart_container())
     return ActionResponse(ok=True)

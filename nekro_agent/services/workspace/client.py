@@ -18,6 +18,7 @@ class CCSandboxClient:
     def __init__(self, workspace: DBWorkspace, timeout: float = 300.0) -> None:
         self._base_url = workspace.api_endpoint
         self._timeout = timeout
+        self._headers = self._build_headers(workspace)
         # 连接/写入超时短（死容器快速失败），读取超时长（支持长任务流式传输）
         self._stream_timeout = httpx.Timeout(
             connect=15.0,
@@ -25,6 +26,13 @@ class CCSandboxClient:
             write=15.0,
             pool=15.0,
         )
+
+    @staticmethod
+    def _build_headers(workspace: DBWorkspace) -> "dict[str, str]":
+        token = (workspace.metadata or {}).get("sandbox_api_token")
+        if isinstance(token, str) and token.strip():
+            return {"Authorization": f"Bearer {token}"}
+        return {}
 
     async def health_check(self) -> bool:
         try:
@@ -44,6 +52,7 @@ class CCSandboxClient:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             resp = await client.post(
                 f"{self._base_url}/api/v1/message",
+                headers=self._headers,
                 json={
                     "role": "user",
                     "content": content,
@@ -76,6 +85,7 @@ class CCSandboxClient:
             async with client.stream(
                 "POST",
                 f"{self._base_url}/api/v1/message/stream",
+                headers=self._headers,
                 json={
                     "role": "user",
                     "content": content,
@@ -123,26 +133,29 @@ class CCSandboxClient:
 
     async def reset_session(self, workspace_id: str = "default") -> None:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(f"{self._base_url}/api/v1/workspaces/{workspace_id}/session/reset")
+            resp = await client.post(
+                f"{self._base_url}/api/v1/workspaces/{workspace_id}/session/reset",
+                headers=self._headers,
+            )
             resp.raise_for_status()
 
     async def get_tools(self) -> List[str]:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(f"{self._base_url}/api/v1/capabilities/tools")
+            resp = await client.get(f"{self._base_url}/api/v1/capabilities/tools", headers=self._headers)
             resp.raise_for_status()
             data = resp.json()
             return list(data.get("tools") or [])
 
     async def refresh_tools(self) -> List[str]:
         async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(f"{self._base_url}/api/v1/capabilities/tools/refresh")
+            resp = await client.post(f"{self._base_url}/api/v1/capabilities/tools/refresh", headers=self._headers)
             resp.raise_for_status()
             data = resp.json()
             return list(data.get("tools") or [])
 
     async def get_sandbox_status(self, workspace_id: str = "default") -> dict:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{self._base_url}/api/v1/workspaces/{workspace_id}")
+            resp = await client.get(f"{self._base_url}/api/v1/workspaces/{workspace_id}", headers=self._headers)
             if resp.status_code == 200:
                 return dict(resp.json())
             return {}
@@ -151,7 +164,7 @@ class CCSandboxClient:
         """从 /api/v1/status 获取沙盒版本号。"""
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{self._base_url}/api/v1/status")
+                resp = await client.get(f"{self._base_url}/api/v1/status", headers=self._headers)
                 if resp.status_code == 200:
                     return str(resp.json().get("version") or "unknown")
         except Exception:
@@ -162,7 +175,7 @@ class CCSandboxClient:
         """从 /api/v1/status 一次获取沙盒版本与 Claude Code CLI 版本。"""
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{self._base_url}/api/v1/status")
+                resp = await client.get(f"{self._base_url}/api/v1/status", headers=self._headers)
                 if resp.status_code == 200:
                     data = resp.json()
                     return {
@@ -177,7 +190,10 @@ class CCSandboxClient:
         """获取工作区任务队列状态（当前任务 + 等待列表）。"""
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self._base_url}/api/v1/workspaces/{workspace_id}/queue")
+                resp = await client.get(
+                    f"{self._base_url}/api/v1/workspaces/{workspace_id}/queue",
+                    headers=self._headers,
+                )
                 if resp.status_code == 200:
                     return dict(resp.json())
         except Exception:
@@ -189,7 +205,10 @@ class CCSandboxClient:
         logger.info(f"[cc_client] Requesting force cancel: workspace={workspace_id}")
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.delete(f"{self._base_url}/api/v1/workspaces/{workspace_id}/queue/current")
+                resp = await client.delete(
+                    f"{self._base_url}/api/v1/workspaces/{workspace_id}/queue/current",
+                    headers=self._headers,
+                )
                 if resp.status_code == 200:
                     cancelled = bool(resp.json().get("cancelled", False))
                     logger.info(f"[cc_client] Force cancel result: cancelled={cancelled} workspace={workspace_id}")
@@ -208,7 +227,8 @@ class CCSandboxClient:
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(
-                    f"{self._base_url}/api/v1/workspaces/{workspace_id}/pending-results"
+                    f"{self._base_url}/api/v1/workspaces/{workspace_id}/pending-results",
+                    headers=self._headers,
                 )
                 if resp.status_code == 200:
                     data = resp.json()

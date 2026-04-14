@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -15,7 +14,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  IconButton,
   InputAdornment,
   Tooltip,
 } from '@mui/material'
@@ -37,6 +35,8 @@ import { ccModelPresetApi, CCModelPresetInfo } from '../../../services/api/cc-mo
 import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 export default function ConfigTab({
   workspace,
@@ -165,9 +165,9 @@ export default function ConfigTab({
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
               {t('detail.config.sections.basic')}
             </Typography>
-            <Button
+            <ActionButton
+              tone="primary"
               size="small"
-              variant="contained"
               startIcon={
                 saveMutation.isPending ? (
                   <CircularProgress size={14} color="inherit" />
@@ -179,7 +179,7 @@ export default function ConfigTab({
               disabled={saveMutation.isPending || !form.name?.trim()}
             >
               {t('detail.config.buttons.save')}
-            </Button>
+            </ActionButton>
           </Box>
           <Stack spacing={2}>
             <TextField
@@ -315,15 +315,15 @@ export default function ConfigTab({
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
               {t('detail.config.sections.envVars')}
             </Typography>
-            <Button
+            <ActionButton
+              tone="primary"
               size="small"
-              variant="contained"
               startIcon={saveEnvVarsMutation.isPending ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
               onClick={() => saveEnvVarsMutation.mutate()}
               disabled={saveEnvVarsMutation.isPending}
             >
               {t('detail.config.buttons.save')}
-            </Button>
+            </ActionButton>
           </Box>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
             {t('detail.config.envVars.hint')}
@@ -352,9 +352,15 @@ export default function ConfigTab({
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
-                        <IconButton size="small" onClick={() => toggleValueVisible(idx)} edge="end" tabIndex={-1}>
+                        <IconActionButton
+                          size="small"
+                          onClick={() => toggleValueVisible(idx)}
+                          edge="end"
+                          tabIndex={-1}
+                          title={visibleValues.has(idx) ? t('actions.hide', { ns: 'common', defaultValue: '隐藏' }) : t('actions.show', { ns: 'common', defaultValue: '显示' })}
+                        >
                           {visibleValues.has(idx) ? <VisibilityOffIcon sx={{ fontSize: 16 }} /> : <VisibilityIcon sx={{ fontSize: 16 }} />}
-                        </IconButton>
+                        </IconActionButton>
                       </InputAdornment>
                     ),
                   }}
@@ -368,22 +374,23 @@ export default function ConfigTab({
                   autoComplete="off"
                 />
                 <Tooltip title={t('detail.config.envVars.remove')}>
-                  <IconButton size="small" color="error" onClick={() => removeEnvVar(idx)} sx={{ mt: 0.5 }}>
+                  <IconActionButton tone="danger" size="small" onClick={() => removeEnvVar(idx)} sx={{ mt: 0.5 }} title={t('detail.config.envVars.remove')}>
                     <DeleteIcon fontSize="small" />
-                  </IconButton>
+                  </IconActionButton>
                 </Tooltip>
               </Box>
             ))}
           </Stack>
 
-          <Button
+          <ActionButton
+            tone="secondary"
             size="small"
             startIcon={<AddIcon />}
             onClick={addEnvVar}
             sx={{ mt: envVars.length > 0 ? 1.5 : 0.5 }}
           >
             {t('detail.config.envVars.add')}
-          </Button>
+          </ActionButton>
         </CardContent>
       </Card>
 
@@ -398,15 +405,14 @@ export default function ConfigTab({
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {t('detail.config.dangerDesc')}
           </Typography>
-          <Button
-            variant="outlined"
-            color="error"
+          <ActionButton
+            tone="danger"
             size="small"
             startIcon={<DeleteIcon />}
             onClick={() => setDeleteOpen(true)}
           >
             {t('detail.config.deleteBtn')}
-          </Button>
+          </ActionButton>
         </CardContent>
       </Card>
 
@@ -418,17 +424,16 @@ export default function ConfigTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
+          <ActionButton tone="secondary" onClick={() => setDeleteOpen(false)} disabled={deleteMutation.isPending}>
             {t('detail.config.deleteDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending}
           >
             {deleteMutation.isPending ? <CircularProgress size={20} /> : t('detail.config.deleteDialog.delete')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

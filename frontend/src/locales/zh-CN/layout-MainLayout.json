@@ -33,9 +33,42 @@
     "tooltipClickHint": "点击跳转到频道",
     "tooltipNoPreset": "默认人设"
   },
+  "agentRuntime": {
+    "phase": {
+      "llmGenerating": "LLM 生成中",
+      "llmRetrying": "LLM 重试中",
+      "sandboxRunning": "沙盒执行中",
+      "sandboxStopped": "沙盒结束",
+      "iterating": "进入迭代",
+      "completed": "已完成",
+      "failed": "生成失败"
+    },
+    "retryBadge": "重试 {{current}}/{{total}}",
+    "iterationBadge": "迭代 {{current}}/{{total}}",
+    "tooltipPhase": "当前阶段",
+    "tooltipSandboxStop": "停止类型",
+    "tooltipModel": "模型",
+    "tooltipRetry": "LLM 重试",
+    "tooltipIteration": "迭代轮次",
+    "tooltipErrorSummary": "错误摘要"
+  },
   "workspaceActivity": {
     "tooltipId": "工作区 ID",
-    "tooltipContainer": "容器"
+    "tooltipContainer": "容器",
+    "tooltipPhase": "当前阶段",
+    "tooltipTool": "当前工具",
+    "tooltipBlockSummary": "当前块摘要",
+    "tooltipBlockCount": "累计块数",
+    "tooltipQueue": "队列",
+    "queueLength": "排队 {{count}}",
+    "phase": {
+      "queued": "排队中",
+      "running": "执行中",
+      "responding": "回传结果",
+      "completed": "已完成",
+      "failed": "执行失败",
+      "cancelled": "已中止"
+    }
   },
   "activity": {
     "dismissHint": "右键点击临时隐藏"

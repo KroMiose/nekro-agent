@@ -2,7 +2,7 @@
   "title": "System Settings",
   "tabs": {
     "system": "System Config",
-    "modelGroups": "Model Groups",
+    "modelGroups": "Model Management",
     "theme": "Theme",
     "spaceCleanup": "Space Cleanup"
   },
@@ -10,17 +10,31 @@
     "emptyMessage": "No system configurations available",
     "otherCategory": "Other"
   },
+  "models": {
+    "title": "Model Management",
+    "subtitle": "Manage basic model groups and CC model groups in one place. Connectivity checks and batch operations will be consolidated here.",
+    "tabs": {
+      "basic": "Basic Model Groups",
+      "cc": "CC Model Groups"
+    },
+    "insights": {
+      "chatGroups": "Chat basic groups: {{count}}",
+      "visionGroups": "Vision-enabled groups: {{count}}",
+      "boundWorkspaces": "Workspaces bound to CC groups: {{count}}",
+      "idleCcGroups": "Idle CC groups: {{count}}"
+    }
+  },
   "modelGroup": {
-    "title": "Model Group Management",
-    "addGroup": "Add Model Group",
-    "editGroup": "Edit Model Group",
-    "deleteGroup": "Delete Model Group",
-    "name": "Model Group Name",
+    "title": "Basic Model Group Management",
+    "addGroup": "Add Basic Model Group",
+    "editGroup": "Edit Basic Model Group",
+    "deleteGroup": "Delete Basic Model Group",
+    "name": "Basic Model Group Name",
     "description": "Description",
-    "emptyMessage": "No model groups available",
-    "deleteConfirm": "Are you sure you want to delete this model group?",
-    "deleteSuccess": "Model group deleted successfully",
-    "saveSuccess": "Model group saved successfully",
+    "emptyMessage": "No basic model groups available",
+    "deleteConfirm": "Are you sure you want to delete this basic model group?",
+    "deleteSuccess": "Basic model group deleted successfully",
+    "saveSuccess": "Basic model group saved successfully",
     "types": {
       "chat": "Chat",
       "embedding": "Embedding",
@@ -69,35 +83,56 @@
       "extraBody": "Additional request parameters (JSON format)"
     },
     "actions": {
-      "fetchModels": "Fetch Models",
+      "fetchModels": "Fetch Model List",
       "fetching": "Fetching...",
       "createCopy": "Create Copy",
-      "saveFailed": "Save failed"
+      "saveFailed": "Save failed",
+      "searchPlaceholder": "Search by name, model or endpoint",
+      "selectAllTestable": "Select all testable ({{count}})",
+      "clearSelection": "Clear selection",
+      "batchTest": "Batch model test ({{count}})",
+      "test": "Speed Test"
     },
     "validation": {
       "nameRequired": "Group name is required",
       "nameInvalid": "Name contains invalid characters (/ ? & # = %)",
-      "nameExists": "Group name \"{{name}}\" already exists",
+      "nameExists": "Basic model group name \"{{name}}\" already exists",
       "fetchSuccess": "Fetched {{count}} models",
       "fetchEmpty": "No models found, please enter manually",
       "fetchError": "Fetch failed: {{error}}. Please enter manually"
     },
     "dialog": {
-      "createTitle": "New Model Group",
-      "editTitle": "Edit Model Group",
-      "copyTitle": "Copy Model Group"
+      "createTitle": "New Basic Model Group",
+      "editTitle": "Edit Basic Model Group",
+      "copyTitle": "Copy Basic Model Group"
     },
     "table": {
       "groupName": "Group Name",
       "modelName": "Model Name",
       "modelType": "Model Type",
       "apiAddress": "API Address",
-      "proxyAddress": "Proxy Address",
+      "proxyAddress": "Proxy",
       "features": "Features",
+      "health": "Speed",
       "actions": "Actions"
     },
+    "health": {
+      "notTested": "Not tested",
+      "testing": "Testing",
+      "ok": "{{ms}}ms",
+      "failed": "Failed",
+      "tooltipPassed": "Model test passed",
+      "tooltipFailed": "Model test failed",
+      "tooltipModel": "Actual model: {{model}}",
+      "tooltipLatency": "Latency: {{ms}}ms",
+      "tooltipTokens": "Tokens: input {{input}} / output {{output}}",
+      "tooltipReply": "Reply: {{text}}",
+      "tooltipError": "Error: {{error}}"
+    },
     "alert": {
-      "providerSupport": "Supports any OpenAI compatible provider. If you need one or want to support us, visit <link>NekroAI Relay</link> to get a key!"
+      "providerSupportBefore": "Supports any OpenAI compatible provider. If you need one or want to support us, visit ",
+      "providerSupportLink": "NekroAI Relay",
+      "providerSupportAfter": " to get a key!"
     },
     "chips": {
       "visionSupported": "Vision Supported",
@@ -110,20 +145,30 @@
     "tooltips": {
       "visitProvider": "Visit Provider",
       "edit": "Edit Group",
+      "test": "Speed Test",
+      "testOnlyChat": "Only chat-type groups can be tested",
+      "testNeedsConfig": "Please fill in model name, API URL and key first",
       "copy": "Copy Group",
       "delete": "Delete Group",
       "defaultDelete": "Default group cannot be deleted"
     },
     "notifications": {
-      "deleteSuccess": "Model group \"{{name}}\" deleted!",
+      "deleteSuccess": "Basic model group \"{{name}}\" deleted!",
       "deleteFailed": "Delete failed",
-      "saveSuccess": "Model config saved successfully",
-      "copySuccess": "Model group \"{{name}}\" copied successfully",
-      "nameExists": "Group name \"{{name}}\" already exists (>﹏<)"
+      "saveSuccess": "Basic model group saved successfully",
+      "copySuccess": "Basic model group \"{{name}}\" copied successfully",
+      "nameExists": "Basic model group name \"{{name}}\" already exists (>﹏<)",
+      "noTestableGroups": "No testable chat groups in current selection",
+      "testNoResults": "Model test returned no results. Check the request path.",
+      "testAllPassed": "Model test passed",
+      "testCompleted": "Model test completed. Check the result.",
+      "testFailed": "Model test failed",
+      "testPassed": "Model connectivity test passed",
+      "testError": "Speed test request failed"
     },
     "deleteDialog": {
       "title": "Confirm Delete",
-      "content": "Are you sure you want to delete group \"{{name}}\"? Irreversible!",
+      "content": "Are you sure you want to delete basic model group \"{{name}}\"? Irreversible!",
       "confirm": "Delete"
     }
   },
@@ -273,6 +318,23 @@
     }
   },
   "commands": {
+    "center": {
+      "title": "Command Center",
+      "catalogTitle": "Command Catalog",
+      "detailTitle": "Command Details",
+      "selectHint": "Select a command on the left to view its information here.",
+      "executeTitle": "Run"
+    },
+    "scope": {
+      "label": "Manage Scope",
+      "system": "System Default",
+      "channel": "Specific Channel",
+      "channelSelector": "Management Channel",
+      "searchPlaceholder": "Search channel"
+    },
+    "common": {
+      "loadingChannels": "Loading channels..."
+    },
     "search": "Search commands...",
     "total": "{{count}} commands",
     "loading": "Loading...",
@@ -281,10 +343,33 @@
     "filters": {
       "category": "Category",
       "source": "Source",
+      "permission": "Permission",
       "all": "All"
     },
     "sources": {
-      "builtIn": "Built-in"
+      "builtIn": "Built-in",
+      "plugin": "Plugin",
+      "pluginWithKey": "Plugin · {{key}}",
+      "pluginWithName": "Plugin · {{name}}",
+      "pluginWithNameAndKey": "Plugin · {{name}} ({{key}})"
+    },
+    "state": {
+      "systemEnabled": "System Enabled",
+      "systemDisabled": "System Disabled",
+      "inheritedEnabled": "Inherited Enabled",
+      "inheritedDisabled": "Inherited Disabled",
+      "channelEnabled": "Channel Override Enabled",
+      "channelDisabled": "Channel Override Disabled",
+      "channelOverride": "Channel Override"
+    },
+    "stateDescription": {
+      "systemEnabled": "This command is currently available at the system level.",
+      "systemDisabled": "This command is currently disabled at the system level.",
+      "inheritedEnabled": "This channel has no custom setting, so it follows the system default enabled state.",
+      "inheritedDisabled": "This channel has no custom setting, so it follows the system default disabled state.",
+      "channelEnabled": "This channel explicitly enables the command and does not follow the system default.",
+      "channelDisabled": "This channel explicitly disables the command and does not follow the system default.",
+      "channelOverride": "This channel uses its own setting instead of the system default."
     },
     "table": {
       "name": "Name",
@@ -296,13 +381,21 @@
       "actions": "Actions"
     },
     "detail": {
-      "namespace": "Namespace",
       "usage": "Usage",
       "aliases": "Aliases",
-      "params": "Parameters"
+      "category": "Category",
+      "source": "Source",
+      "permission": "Permission",
+      "params": "Parameters",
+      "noParams": "No additional parameter notes",
+      "required": "Required",
+      "defaultValue": "Default",
+      "allowedValues": "Allowed values"
     },
     "actions": {
-      "reset": "Reset to default"
+      "reset": "Reset to default",
+      "enable": "Enable Command",
+      "disable": "Disable Command"
     },
     "permissions": {
       "public": "Public",
@@ -314,7 +407,20 @@
       "toggleSuccess": "Command state updated",
       "toggleFailed": "Update failed",
       "resetSuccess": "Command state reset",
-      "resetFailed": "Reset failed"
+      "resetFailed": "Reset failed",
+      "executeSent": "Command sent, waiting for output",
+      "executeFailed": "Command execution failed"
+    },
+    "execute": {
+      "channel": "Target Channel",
+      "searchPlaceholder": "Search channel",
+      "command": "Command",
+      "panelHint": "Choose a target channel and enter a command. Results will appear in the output area below.",
+      "placeholder": "Enter a command, e.g. help or help args",
+      "run": "Run",
+      "selectChannelHint": "Select an execution channel before sending a command.",
+      "invalidCommand": "The current input is not enabled in the selected channel, or the command does not exist.",
+      "logHint": "Select a channel to view live command output here."
     }
   },
   "spaceCleanup": {

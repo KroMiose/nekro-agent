@@ -7,7 +7,6 @@ import {
   Card,
   CardContent,
   Stack,
-  Button,
   TextField,
   Tooltip,
   useTheme,
@@ -15,9 +14,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  IconButton,
   useMediaQuery,
-  Tabs,
   Tab,
   CardMedia,
   CardActions,
@@ -62,10 +59,14 @@ import { useNotification } from '../../hooks/useNotification'
 import { useWallpaperStore } from '../../stores/wallpaper'
 import { commonApi, Wallpaper } from '../../services/api/common'
 import WallpaperBackground from '../../components/common/WallpaperBackground'
+import { InlineTabs } from '../../components/common/NekroTabs'
 import { BUTTON_VARIANTS, CARD_VARIANTS } from '../../theme/variants'
 import GitHubStarWarning from '../../components/common/GitHubStarWarning'
 import { useGitHubStarStore } from '../../stores/githubStar'
 import { useTranslation } from 'react-i18next'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
+import SegmentedControl from '../../components/common/SegmentedControl'
 
 // 颜色预览组件
 const ColorPreview = ({
@@ -194,14 +195,16 @@ const ColorPickerDialog = ({
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>{t('theme.colors.colorPicker.cancel')}</Button>
-        <Button
+        <ActionButton tone="secondary" onClick={onClose}>
+          {t('theme.colors.colorPicker.cancel')}
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSave}
-          variant="contained"
           disabled={!/^#([0-9A-F]{3}){1,2}$/i.test(tempColor)}
         >
           {t('theme.colors.colorPicker.apply')}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -278,7 +281,7 @@ const ThemePreviewCard = ({
               {t(preset.name)}
             </Typography>
             {isCustom && onCustomizeClick && (
-              <IconButton
+              <IconActionButton
                 size="small"
                 onClick={e => {
                   e.stopPropagation()
@@ -286,7 +289,7 @@ const ThemePreviewCard = ({
                 }}
               >
                 <EditIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             )}
           </Box>
           <Typography
@@ -361,8 +364,8 @@ export default function ThemeConfigPage() {
   // 自定义主题
   const [customTheme, setCustomTheme] = useState({
     id: 'custom',
-    name: t('theme.colors.custom.name'),
-    description: t('theme.colors.custom.desc'),
+    name: 'theme.colors.custom.name',
+    description: 'theme.colors.custom.desc',
     light: {
       brand: '#7E57C2',
       accent: '#26A69A',
@@ -663,8 +666,8 @@ export default function ThemeConfigPage() {
           if (presetId === 'custom' && lightBrand && lightAccent && darkBrand && darkAccent) {
             setCustomTheme({
               id: 'custom',
-              name: '自定义主题',
-              description: '自定义色彩搭配',
+              name: 'theme.colors.custom.name',
+              description: 'theme.colors.custom.desc',
               light: {
                 brand: lightBrand,
                 accent: lightAccent,
@@ -798,7 +801,7 @@ export default function ThemeConfigPage() {
         // 更新状态管理
         setThemePreset(presetId)
 
-        notification.success(t('theme.colors.messages.applied', { name: preset.name }))
+        notification.success(t('theme.colors.messages.applied', { name: t(preset.name) }))
       }
 
       // 更新选中状态
@@ -822,8 +825,8 @@ export default function ThemeConfigPage() {
   const resetCustomTheme = () => {
     const defaultCustom = {
       id: 'custom',
-      name: '自定义主题',
-      description: '自定义色彩搭配',
+      name: 'theme.colors.custom.name',
+      description: 'theme.colors.custom.desc',
       light: {
         brand: '#7E57C2',
         accent: '#26A69A',
@@ -909,7 +912,7 @@ export default function ThemeConfigPage() {
   }
 
   return (
-    <Box className="h-full flex flex-col overflow-auto p-4">
+    <Box className="h-full flex flex-col overflow-auto p-4 box-border">
       {/* 主标题和内容容器 */}
       <Box sx={{ mb: 4 }}>
         {/* 主题模式控制 */}
@@ -921,25 +924,25 @@ export default function ThemeConfigPage() {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={3} className="mb-2">
-            <Button
-              variant={mode === 'light' ? 'contained' : 'outlined'}
-              startIcon={<LightModeIcon />}
-              onClick={() => handleThemeModeChange('light')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              {t('theme.mode.light')}
-            </Button>
-
-            <Button
-              variant={mode === 'dark' ? 'contained' : 'outlined'}
-              startIcon={<DarkModeIcon />}
-              onClick={() => handleThemeModeChange('dark')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              {t('theme.mode.dark')}
-            </Button>
-          </Stack>
+          <SegmentedControl
+            value={mode}
+            onChange={handleThemeModeChange}
+            fullWidth={isSmall}
+            options={[
+              {
+                value: 'light',
+                label: t('theme.mode.light'),
+                icon: <LightModeIcon />,
+                ariaLabel: t('theme.mode.light'),
+              },
+              {
+                value: 'dark',
+                label: t('theme.mode.dark'),
+                icon: <DarkModeIcon />,
+                ariaLabel: t('theme.mode.dark'),
+              },
+            ]}
+          />
 
           <Typography variant="body2" color="text.secondary">
             {t('theme.mode.current', {
@@ -957,34 +960,31 @@ export default function ThemeConfigPage() {
             </Typography>
           </Box>
 
-          <Stack direction="row" spacing={3} className="mb-2">
-            <Button
-              variant={performanceMode === 'performance' ? 'contained' : 'outlined'}
-              startIcon={<FormatColorFillIcon />}
-              onClick={() => handlePerformanceModeChange('performance')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              {t('theme.performance.modes.performance')}
-            </Button>
-
-            <Button
-              variant={performanceMode === 'balanced' ? 'contained' : 'outlined'}
-              startIcon={<TuneIcon />}
-              onClick={() => handlePerformanceModeChange('balanced')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              {t('theme.performance.modes.balanced')}
-            </Button>
-
-            <Button
-              variant={performanceMode === 'quality' ? 'contained' : 'outlined'}
-              startIcon={<PaletteIcon />}
-              onClick={() => handlePerformanceModeChange('quality')}
-              size={isSmall ? 'small' : 'medium'}
-            >
-              {t('theme.performance.modes.quality')}
-            </Button>
-          </Stack>
+          <SegmentedControl
+            value={performanceMode}
+            onChange={handlePerformanceModeChange}
+            fullWidth={isSmall}
+            options={[
+              {
+                value: 'performance',
+                label: t('theme.performance.modes.performance'),
+                icon: <FormatColorFillIcon />,
+                ariaLabel: t('theme.performance.modes.performance'),
+              },
+              {
+                value: 'balanced',
+                label: t('theme.performance.modes.balanced'),
+                icon: <TuneIcon />,
+                ariaLabel: t('theme.performance.modes.balanced'),
+              },
+              {
+                value: 'quality',
+                label: t('theme.performance.modes.quality'),
+                icon: <PaletteIcon />,
+                ariaLabel: t('theme.performance.modes.quality'),
+              },
+            ]}
+          />
 
           <Typography variant="body2" color="text.secondary" className="mb-2">
             {t('theme.performance.current', {
@@ -1049,13 +1049,13 @@ export default function ThemeConfigPage() {
                     {t('theme.colors.customTitle')}
                   </Typography>
                 </Box>
-                <Button
+                <ActionButton
                   startIcon={<RefreshIcon />}
                   onClick={resetCustomTheme}
                   size={isSmall ? 'small' : 'medium'}
                 >
                   {t('theme.colors.reset')}
-                </Button>
+                </ActionButton>
               </Box>
 
               <Grid container spacing={3}>
@@ -1105,13 +1105,13 @@ export default function ThemeConfigPage() {
                                   {customTheme.light.brand}
                                 </Typography>
                               </Box>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => openColorPicker('brand', 'light')}
                                 sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </Box>
                           </Stack>
                         </Grid>
@@ -1149,13 +1149,13 @@ export default function ThemeConfigPage() {
                                   {customTheme.light.accent}
                                 </Typography>
                               </Box>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => openColorPicker('accent', 'light')}
                                 sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </Box>
                           </Stack>
                         </Grid>
@@ -1232,13 +1232,13 @@ export default function ThemeConfigPage() {
                                   {customTheme.dark.brand}
                                 </Typography>
                               </Box>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => openColorPicker('brand', 'dark')}
                                 sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </Box>
                           </Stack>
                         </Grid>
@@ -1276,13 +1276,13 @@ export default function ThemeConfigPage() {
                                   {customTheme.dark.accent}
                                 </Typography>
                               </Box>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => openColorPicker('accent', 'dark')}
                                 sx={{ flexShrink: 0 }}
                               >
                                 <EditIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </Box>
                           </Stack>
                         </Grid>
@@ -1358,7 +1358,7 @@ export default function ThemeConfigPage() {
                     borderColor: 'divider',
                   }}
                 >
-                  <Tabs
+                  <InlineTabs
                     value={wallpaperTab}
                     onChange={(_, newValue) => setWallpaperTab(newValue)}
                     indicatorColor="primary"
@@ -1368,7 +1368,7 @@ export default function ThemeConfigPage() {
                   >
                     <Tab label={t('theme.wallpaper.tabs.login')} />
                     <Tab label={t('theme.wallpaper.tabs.main')} />
-                  </Tabs>
+                  </InlineTabs>
 
                   {/* 预览区域 - 使用固定高度确保在所有设备上可见 */}
                   <div
@@ -1426,7 +1426,7 @@ export default function ThemeConfigPage() {
                   </div>
 
                   <Box sx={{ display: 'flex', gap: 1, justifyContent: 'center' }}>
-                    <Button
+                    <ActionButton
                       variant="outlined"
                       size="small"
                       color="primary"
@@ -1435,9 +1435,9 @@ export default function ThemeConfigPage() {
                       disabled={!hasCurrentWallpaper()}
                     >
                       {t('theme.wallpaper.actions.settings')}
-                    </Button>
+                    </ActionButton>
 
-                    <Button
+                    <ActionButton
                       variant="outlined"
                       size="small"
                       color="error"
@@ -1446,7 +1446,7 @@ export default function ThemeConfigPage() {
                       disabled={!hasCurrentWallpaper()}
                     >
                       {t('theme.wallpaper.actions.remove')}
-                    </Button>
+                    </ActionButton>
                   </Box>
                 </Box>
               </Box>
@@ -1481,18 +1481,18 @@ export default function ThemeConfigPage() {
                   </Typography>
 
                   <Box sx={{ display: 'flex', gap: 1 }}>
-                    <Button
-                      variant="outlined"
+                    <ActionButton
+                      tone="secondary"
                       startIcon={<RefreshIcon />}
                       size="small"
                       onClick={fetchWallpapers}
                       disabled={loading}
                     >
                       {t('theme.wallpaper.actions.refresh')}
-                    </Button>
+                    </ActionButton>
 
-                    <Button
-                      variant="contained"
+                    <ActionButton
+                      tone="primary"
                       startIcon={
                         uploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />
                       }
@@ -1534,7 +1534,7 @@ export default function ThemeConfigPage() {
                           }}
                         />
                       )}
-                    </Button>
+                    </ActionButton>
                     <input
                       type="file"
                       ref={fileInputRef}
@@ -1627,14 +1627,14 @@ export default function ThemeConfigPage() {
                       <Typography color="textSecondary" align="center" sx={{ mb: 1 }}>
                         {t('theme.wallpaper.status.emptyList')}
                       </Typography>
-                      <Button
+                      <ActionButton
                         variant="outlined"
                         startIcon={<AddIcon />}
                         size="small"
                         onClick={() => fileInputRef.current?.click()}
                       >
                         {t('theme.wallpaper.actions.upload')}
-                      </Button>
+                      </ActionButton>
                       <Typography variant="caption" color="textSecondary" sx={{ mt: 2 }}>
                         {t('theme.wallpaper.status.dragDrop')}
                       </Typography>
@@ -1694,14 +1694,14 @@ export default function ThemeConfigPage() {
                               </Typography>
                             </CardContent>
                             <CardActions sx={{ p: 1 }}>
-                              <IconButton
+                              <IconActionButton
                                 size="small"
                                 onClick={() => setPreviewWallpaper(wallpaper)}
                                 title={t('theme.wallpaper.actions.preview')}
                               >
                                 <VisibilityIcon fontSize="small" />
-                              </IconButton>
-                              <Button
+                              </IconActionButton>
+                              <ActionButton
                                 size="small"
                                 variant="outlined"
                                 onClick={() => applyWallpaper(wallpaper)}
@@ -1709,15 +1709,15 @@ export default function ThemeConfigPage() {
                                 sx={{ ml: 'auto', minWidth: 0, px: 1 }}
                               >
                                 {t('theme.wallpaper.actions.apply')}
-                              </Button>
-                              <IconButton
+                              </ActionButton>
+                              <IconActionButton
                                 size="small"
                                 color="error"
                                 onClick={() => handleDeleteWallpaper(wallpaper.id)}
                                 title={t('theme.wallpaper.actions.delete')}
                               >
                                 <DeleteIcon fontSize="small" />
-                              </IconButton>
+                              </IconActionButton>
                             </CardActions>
                           </Card>
                         </Grid>
@@ -1802,20 +1802,19 @@ export default function ThemeConfigPage() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={resetWallpaperSettings} startIcon={<RefreshIcon />} color="inherit">
+          <ActionButton tone="ghost" onClick={resetWallpaperSettings} startIcon={<RefreshIcon />}>
             {t('theme.wallpaper.dialog.reset')}
-          </Button>
-          <Button onClick={() => setShowSettings(false)}>
+          </ActionButton>
+          <ActionButton tone="secondary" onClick={() => setShowSettings(false)}>
             {t('theme.wallpaper.dialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
+          </ActionButton>
+          <ActionButton
+            tone="primary"
             onClick={applyWallpaperSettings}
             startIcon={<SaveIcon />}
-            sx={BUTTON_VARIANTS.primary.styles}
           >
             {t('theme.wallpaper.dialog.apply')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1845,13 +1844,13 @@ export default function ThemeConfigPage() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPreviewWallpaper(null)}>
+          <ActionButton tone="secondary" onClick={() => setPreviewWallpaper(null)}>
             {t('theme.wallpaper.actions.close')}
-          </Button>
+          </ActionButton>
           {previewWallpaper && (
             <>
-              <Button
-                color="error"
+              <ActionButton
+                tone="danger"
                 onClick={() => {
                   handleDeleteWallpaper(previewWallpaper.id)
                   setPreviewWallpaper(null)
@@ -1859,14 +1858,13 @@ export default function ThemeConfigPage() {
                 startIcon={<DeleteIcon />}
               >
                 {t('theme.wallpaper.actions.delete')}
-              </Button>
-              <Button
-                variant="contained"
+              </ActionButton>
+              <ActionButton
+                tone="primary"
                 onClick={() => {
                   applyWallpaper(previewWallpaper)
                   setPreviewWallpaper(null)
                 }}
-                sx={BUTTON_VARIANTS.primary.styles}
               >
                 {t('theme.wallpaper.actions.applyTo', {
                   target:
@@ -1874,7 +1872,7 @@ export default function ThemeConfigPage() {
                       ? t('theme.wallpaper.tabs.login')
                       : t('theme.wallpaper.tabs.main'),
                 })}
-              </Button>
+              </ActionButton>
             </>
           )}
         </DialogActions>

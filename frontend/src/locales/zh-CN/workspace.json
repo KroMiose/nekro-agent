@@ -70,7 +70,17 @@
     "channelMore": "等{{n}}个",
     "model": "模型",
     "skillMcp": "Skill/MCP",
-    "ccActive": "CC 执行中"
+    "ccActive": "CC 执行中",
+    "runtime": {
+      "queued": "排队中",
+      "running": "执行中",
+      "responding": "回传结果",
+      "completed": "已完成",
+      "failed": "执行失败",
+      "cancelled": "已中止",
+      "queue": "队列 {{count}}",
+      "blocks": "{{count}} 块"
+    }
   },
   "createDialog": {
     "title": "创建工作区",
@@ -96,38 +106,69 @@
     "deleteFailed": "删除失败：{{message}}"
   },
   "ccModels": {
-    "infoAlert": "管理 Claude Code (CC) 沙盒使用的模型预设配置，在工作区配置页中选择预设以生成注入配置。",
-    "createBtn": "新建预设",
+    "alert": {
+      "providerSupportBefore": "CC 模型组支持任意 Anthropic 兼容模型供应商（如官方 Anthropic 等）。如果您没有可用供应商或想支持我们，可访问 ",
+      "providerSupportLink": "NekroAI 中转",
+      "providerSupportAfter": " 获取专属密钥哦～"
+    },
+    "createBtn": "新建模型组",
+    "actions": {
+      "searchPlaceholder": "搜索模型组、地址或描述",
+      "clearSelection": "清空选择",
+      "batchTest": "批量测试模型（{{count}}）"
+    },
     "table": {
       "headers": {
-        "name": "预设名称",
+        "name": "模型组名称",
         "desc": "描述",
         "type": "类型",
         "model": "模型",
         "baseUrl": "Base URL",
+        "usage": "工作区引用",
+        "health": "测速",
         "actions": "操作"
       },
-      "empty": "暂无预设，点击「新建预设」添加",
+      "empty": "暂无匹配的模型组",
       "defaultChip": "默认",
       "typePreset": "预设",
       "typeManual": "手动",
       "multiModel": "(多模型)",
+      "usageBound": "已绑定 {{count}} 个",
+      "usageIdle": "未绑定",
       "tooltips": {
         "edit": "编辑",
+        "copy": "复制",
+        "test": "测试模型",
+        "testDisabled": "请先补全 Base URL、Auth Token 和可测试模型",
         "delete": "删除",
-        "defaultCannotDelete": "默认预设不可删除"
+        "defaultCannotDelete": "默认模型组不可删除",
+        "boundCannotDelete": "已有 {{count}} 个工作区绑定，不能直接删除"
       }
     },
+    "health": {
+      "notTested": "未测试",
+      "testing": "测试中",
+      "ok": "{{ms}}ms",
+      "failed": "失败",
+      "tooltipPassed": "模型测试通过",
+      "tooltipFailed": "模型测试失败",
+      "tooltipModel": "实际模型：{{model}}",
+      "tooltipLatency": "耗时：{{ms}}ms",
+      "tooltipTokens": "Token：输入 {{input}} / 输出 {{output}}",
+      "tooltipReply": "模型回复：{{text}}",
+      "tooltipError": "错误信息：{{error}}"
+    },
     "dialog": {
-      "titleCreate": "新建 CC 模型预设",
-      "titleEdit": "编辑 CC 模型预设",
-      "name": "预设名称",
+      "titleCreate": "新建 CC 模型组",
+      "titleEdit": "编辑 CC 模型组",
+      "titleCopy": "复制 CC 模型组",
+      "name": "模型组名称",
       "nameReadonly": "名称创建后不可修改",
       "desc": "描述",
       "sectionApi": "API 配置",
-      "sourcePreset": "来源预设",
+      "sourcePreset": "来源模板",
       "sourcePresetHint": "自动填充官方确认的 Base URL 与推荐模型映射，随后只需填写密钥即可",
-      "sourcePresetCustom": "自定义（不套用预设）",
+      "sourcePresetCustom": "自定义（不套用模板）",
       "timeout": "超时 (ms)",
       "sectionModel": "模型配置",
       "modelType": "模型类型",
@@ -145,18 +186,24 @@
       "create": "创建"
     },
     "deleteDialog": {
-      "title": "确认删除预设",
-      "content": "确定要删除预设 {{name}} 吗？此操作不可撤销。",
+      "title": "确认删除模型组",
+      "content": "确定要删除模型组 {{name}} 吗？此操作不可撤销。",
+      "boundHint": "当前仍有 {{count}} 个工作区绑定：{{names}}",
       "cancel": "取消",
       "delete": "删除"
     },
     "notifications": {
-      "created": "预设已创建",
+      "created": "模型组已创建",
       "createFailed": "创建失败：{{message}}",
-      "saved": "预设已保存",
+      "saved": "模型组已保存",
       "saveFailed": "保存失败：{{message}}",
-      "deleted": "预设已删除",
-      "deleteFailed": "删除失败：{{message}}"
+      "deleted": "模型组已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "noTestableGroups": "当前选择中没有可测试的 CC 模型组",
+      "testNoResults": "模型测试未返回结果，请检查请求链路",
+      "testAllPassed": "模型测试通过",
+      "testCompleted": "模型测试完成，请查看结果",
+      "testFailed": "模型测试失败"
     }
   },
   "skills": {
@@ -273,19 +320,95 @@
       "syncFailed": "同步失败：{{message}}"
     }
   },
+  "mcpServices": {
+    "pageTitle": "MCP 服务",
+    "pageDesc": "管理自动注入到新工作区的 MCP 服务，所有工作区创建时将自动添加这些服务",
+    "stats": {
+      "total": "自动注入总数",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "search": {
+      "placeholder": "搜索服务名称或命令..."
+    },
+    "filter": {
+      "all": "全部",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "toolbar": {
+      "fromTemplate": "从模板添加",
+      "addManual": "手动添加",
+      "refresh": "刷新",
+      "cardView": "卡片视图",
+      "listView": "列表视图",
+      "clearFilters": "清除筛选",
+      "jsonView": "JSON 视图",
+      "jsonViewTitle": "自动注入配置（JSON）",
+      "jsonViewHint": "此视图为只读，展示当前自动注入 MCP 服务的 JSON 配置，可复制到 Claude Desktop 等工具使用",
+      "readOnly": "只读",
+      "autoInjectTooltip": "开启后，新建工作区时将自动添加此 MCP 服务",
+      "autoInjectOn": "自动注入",
+      "autoInjectOff": "非自动注入",
+      "autoInject": "自动注入",
+      "addBtn": "添加服务",
+      "importJson": "从 JSON 导入"
+    },
+    "import": {
+      "title": "从 JSON 导入 MCP 服务",
+      "hint": "粘贴 Claude Desktop 格式的 MCP 配置 JSON（支持 JSONC 注释），将自动解析并添加到自动注入列表。已存在同名服务将被跳过。",
+      "importBtn": "导入",
+      "parseError": "JSON 解析失败，请检查格式",
+      "formatError": "格式不正确，需要 { mcpServers: { ... } } 或 { name: { ... } } 格式",
+      "emptyError": "未找到可导入的服务",
+      "allLocalFileError": "所有 STDIO 服务均引用了本地文件路径，无法导入。仅支持 npx/uvx 等包管理器命令",
+      "success": "成功导入 {{count}} 个服务",
+      "successWithSkip": "成功导入 {{count}} 个服务，跳过 {{skipped}} 个已存在的服务"
+    },
+    "empty": {
+      "title": "暂无自动注入的 MCP 服务",
+      "hint": "点击「手动添加」或「从模板添加」添加第一个自动注入服务",
+      "noMatch": "没有匹配的服务"
+    },
+    "notifications": {
+      "addSuccess": "MCP 服务已添加到自动注入列表",
+      "addFailed": "添加失败：{{message}}",
+      "updateSuccess": "MCP 服务已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "deleteSuccess": "MCP 服务已从自动注入列表移除",
+      "deleteFailed": "移除失败：{{message}}",
+      "toggleSuccess": "已更新启用状态"
+    },
+    "deleteDialog": {
+      "title": "移除自动注入服务",
+      "content": "确定要从自动注入列表中移除「{{name}}」吗？已有工作区中的配置不受影响。"
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "返回列表",
       "ccWorking": "CC 执行中",
+      "ccQueued": "排队中",
+      "ccRunning": "执行中",
+      "ccResponding": "回传结果",
+      "ccCompleted": "已完成",
+      "ccFailed": "执行失败",
+      "ccCancelled": "已中止",
+      "ccElapsed": "{{seconds}}s",
+      "ccQueuedCount": "队列 {{count}}",
+      "ccBlockCount": "累计块 {{count}}",
       "viewSandboxTooltip": "查看沙盒容器"
     },
     "tabs": {
       "overview": "概览",
       "sandbox": "沙盒容器",
       "comm": "沙盒通讯",
-      "memory": "记忆库",
+      "memory": "记忆图谱",
       "extensions": "扩展能力",
-      "prompt": "提示词",
+      "mcp": "MCP 服务",
+      "prompt": "协作上下文",
       "config": "配置"
     },
     "overview": {
@@ -591,18 +714,115 @@
         "cancelFailed": "强制中止失败：{{message}}"
       }
     },
+    "mcp": {
+      "title": "MCP 服务配置",
+      "empty": "暂未配置 MCP 服务器，从模板添加快速开始",
+      "fromTemplate": "从模板添加",
+      "addManual": "手动添加",
+      "addServer": "添加服务",
+      "syncToSandbox": "同步到沙盒",
+      "syncSuccess": "MCP 配置已同步到沙盒",
+      "syncFailed": "同步失败：{{message}}",
+      "switchToJson": "切换到 JSON 预览",
+      "switchToCards": "切换到卡片视图",
+      "switchToList": "切换到列表视图",
+      "save": "保存",
+      "saving": "保存中...",
+      "add": "添加",
+      "adding": "添加中...",
+      "edit": "编辑",
+      "delete": "删除",
+      "enable": "启用",
+      "disable": "禁用",
+      "addTitle": "添加 MCP 服务器",
+      "editTitle": "编辑 MCP 服务器",
+      "deleteTitle": "删除 MCP 服务器",
+      "deleteConfirm": "确定要删除 MCP 服务器「{{name}}」吗？",
+      "addSuccess": "MCP 服务器已添加",
+      "addFailed": "添加失败：{{message}}",
+      "updateSuccess": "MCP 服务器已更新",
+      "updateFailed": "更新失败：{{message}}",
+      "deleteSuccess": "MCP 服务器已删除",
+      "deleteFailed": "删除失败：{{message}}",
+      "saveSuccess": "MCP 配置已保存",
+      "saveFailed": "保存失败：{{message}}",
+      "jsonError": "JSON 格式错误",
+      "jsonErrorFix": "请先修复 JSON 格式错误",
+      "jsonHint": "支持 JSONC 格式（// 和 /* */ 注释），保存时自动转换为 JSON",
+      "form": {
+        "name": "服务器名称",
+        "command": "命令",
+        "args": "参数",
+        "argsHint": "以空格分隔多个参数",
+        "envLabel": "环境变量",
+        "url": "服务器 URL",
+        "headersLabel": "HTTP 请求头",
+        "cancel": "取消",
+        "stdioHint": "仅支持 npx / uvx / bunx / pnpx 等包管理器命令，不支持引用宿主机本地文件路径",
+        "stdioCommandError": "仅支持 npx、uvx、bunx、pnpx 命令"
+      },
+      "registry": {
+        "title": "从模板添加 MCP 服务器",
+        "search": "搜索模板...",
+        "empty": "没有匹配的模板"
+      },
+      "autoInject": "自动注入",
+      "setAutoInject": "设为自动注入",
+      "removeAutoInject": "取消自动注入",
+      "autoInjectSuccess": "已更新自动注入配置",
+      "autoInjectFailed": "更新自动注入配置失败：{{message}}"
+    },
     "prompt": {
+      "summaryCards": {
+        "naContext": {
+          "title": "协作现状",
+          "description": "记录当前状态与最新进展。"
+        },
+        "ccRules": {
+          "title": "执行规则",
+          "description": "分别管理 CC 与 NA 的长期要求。",
+          "subtitle": "CC / NA 分开配置",
+          "tooltip": "这里包含两层内容：给 CC 的执行规则，以及只给 NA 的表达与沟通规则。"
+        },
+        "sharedFacts": {
+          "title": "固定事实",
+          "description": "双方共用的稳定事实与约束。"
+        }
+      },
       "systemPromptTitle": "系统提示词（只读）",
-      "systemPromptHint": "点击展开查看注入到 CC 沙盒的完整 CLAUDE.md 内容",
+      "systemPromptHint": "展开查看当前生效内容",
       "expandTooltip": "展开预览",
       "collapseTooltip": "收起预览",
+      "naContextTitle": "协作现状摘要（_na_context）",
+      "naContextHint": "当前状态、最新进展、临时说明",
+      "naContextDesc": "适合写高时效信息。后续任务中，这部分内容可能继续更新。",
+      "naContextPlaceholder": "例如：\n- 当前主要任务是整理工作区提示信息\n- 最近确认了新的页面入口和关键文件位置\n- 已经产出一份可供说明的文件，放在 shared 目录中",
+      "sharedFactsTitle": "共享固定事实",
+      "sharedFactsHint": "双方共用，默认保持稳定",
+      "sharedFactsDesc": "适合放长期有效的事实与约束。不希望被自动改动的内容建议写在这里。",
+      "sharedFactsPlaceholder": "例如：\n- 提交前必须完成前端检查\n- 主分支禁止直接推送\n- 页面文案应尽量直白，避免使用过多内部术语",
       "extraTitle": "自定义追加提示词",
-      "extraHint": "追加内容将附加在 CLAUDE.md 末尾，在每次对话时生效",
+      "extraHint": "仅对 CC 生效",
+      "ccRulesDesc": "适合放代码风格、交付偏好、输出格式等要求。",
       "extraPlaceholder": "在此输入自定义指令，例如：\n\n## 个性化偏好\n\n- 代码注释使用中文\n- 优先使用 Python 解决问题",
+      "naRulesTitle": "NA 专属规则",
+      "naRulesHint": "仅 NA 可见",
+      "naRulesDesc": "适合放表达方式、转述边界、沟通偏好等要求。",
+      "naRulesPlaceholder": "例如：\n- 回复时先概括结论，再补充细节\n- 涉及协作现状摘要时，提醒用户该内容后续可能继续更新",
+      "editorGuideTitle": "编辑建议",
+      "editorGuideItems": [
+        "如果你是在更正“当前工作区现在是什么状态”，优先写到协作现状摘要。",
+        "如果你是在声明“以后都成立的稳定事实或硬约束”，优先写到共享固定事实。",
+        "如果你只是想约束 CC 的执行行为，请写到执行规则，不要混进 _na_context。"
+      ],
+      "naContextWarning": "_na_context 可由 CC 自动更新。若你不希望某段信息被改写，请改写到“共享固定事实”或“NA 专属规则”中。",
       "saveBtn": "保存",
       "notifications": {
         "saveSuccess": "自定义提示词已保存",
-        "saveFailed": "保存失败：{{message}}"
+        "saveFailed": "保存失败：{{message}}",
+        "naContextSaveSuccess": "协作现状摘要已保存，下次委托 CC 时会提醒其先查看最新版本",
+        "sharedRulesSaveSuccess": "共享固定事实已保存",
+        "naRulesSaveSuccess": "NA 专属规则已保存"
       }
     },
     "config": {

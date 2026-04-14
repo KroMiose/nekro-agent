@@ -11,9 +11,7 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  IconButton,
   Collapse,
-  Button,
   Chip,
   Link,
   useMediaQuery,
@@ -47,15 +45,21 @@ import {
 import { useDevModeStore } from '../stores/devMode'
 import { useSecretCode } from '../hooks/useSecretCode'
 import LocaleToggleButton from '../components/common/LocaleToggleButton'
-import { useSystemEvents } from '../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../contexts/SystemEventsContext'
 import CommunityAvatar from '../components/common/CommunityAvatar'
 import AgentActivityCard from '../components/common/AgentActivityCard'
+import SystemEventsProvider from '../components/providers/SystemEventsProvider'
+import ChannelDirectoryProvider from '../components/providers/ChannelDirectoryProvider'
 import { useTranslation } from 'react-i18next'
 import { useLocaleStore } from '../stores/locale'
+import ActionButton from '../components/common/ActionButton'
+import IconActionButton from '../components/common/IconActionButton'
 
 const DEV_MODE_SEQUENCE = ['nekro', 'nekro', 'nekro', 'agent', 'nekro', 'nekro', 'agent', 'agent']
+let initialLocaleSyncPromise: Promise<void> | null = null
+let initialVersionPromise: Promise<string> | null = null
 
-export default function MainLayout() {
+function MainLayoutContent() {
   const navigate = useNavigate()
   const location = useLocation()
   const { userInfo, logout } = useAuthStore()
@@ -71,11 +75,29 @@ export default function MainLayout() {
   const { devMode, toggleDevMode } = useDevModeStore()
   const { t } = useTranslation()
   const { currentLocale, syncFromBackend } = useLocaleStore()
-  const { agentActives, workspaceStatuses, workspaceCcActive } = useSystemEvents()
+  const { agentActives, agentRuntimeStatuses, workspaceStatuses, workspaceCcActive, workspaceCcRuntimeStatuses } = useSystemEventsContext()
+  const isChatChannelManagementLike =
+    location.pathname.startsWith('/chat-channel') &&
+    !location.pathname.startsWith('/chat-channel/announcement')
+  const pageTransitionBaseKey = (() => {
+    const segments = location.pathname.split('/').filter(Boolean)
+
+    if (segments[0] === 'chat-channel') return '/chat-channel'
+    if (segments[0] === 'plugins' && segments[1] === 'management') return '/plugins/management'
+    if (segments[0] === 'workspace' && segments[1]) return `/workspace/${segments[1]}`
+    if (segments[0] === 'adapters' && segments[1]) return `/adapters/${segments[1]}`
+
+    return `/${segments.slice(0, 3).join('/')}`
+  })()
 
   // 初始化时从后端同步语言设置
   useEffect(() => {
-    syncFromBackend()
+    if (initialLocaleSyncPromise === null) {
+      initialLocaleSyncPromise = syncFromBackend().catch((error) => {
+        initialLocaleSyncPromise = null
+        throw error
+      })
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -125,7 +147,9 @@ export default function MainLayout() {
           child =>
             location.pathname === child.path || location.pathname.startsWith(child.path + '/')
         )
-        if (hasActiveChild) {
+        const shouldOpen =
+          hasActiveChild || (item.key === 'chatManagement' && isChatChannelManagementLike)
+        if (shouldOpen) {
           setOpenMenus(prev => ({
             ...prev,
             [item.key]: true,
@@ -133,7 +157,7 @@ export default function MainLayout() {
         }
       }
     })
-  }, [location.pathname, menuItems])
+  }, [location.pathname, menuItems, isChatChannelManagementLike])
 
   const getCurrentPage = () => {
     return getCurrentPageFromConfigs(location.pathname)
@@ -387,6 +411,10 @@ export default function MainLayout() {
                                 location.pathname.startsWith(sibling.path + '/')) &&
                               sibling.path.length > child.path.length
                           )
+                      ) || Boolean(
+                        item.key === 'chatManagement' &&
+                          child.path === '/chat-channel/management' &&
+                          isChatChannelManagementLike
                       )}
                       sx={{
                         pl: 4,
@@ -482,9 +510,13 @@ export default function MainLayout() {
   }, [])
 
   useEffect(() => {
-    // 获取版本信息
-    configApi
-      .getVersion()
+    if (initialVersionPromise === null) {
+      initialVersionPromise = configApi.getVersion().catch((error) => {
+        initialVersionPromise = null
+        throw error
+      })
+    }
+    initialVersionPromise
       .then(version => {
         setVersion(version)
       })
@@ -556,7 +588,7 @@ export default function MainLayout() {
         }}
       >
         <Toolbar sx={{ minHeight: { xs: 56, sm: 64 } }}>
-          <IconButton
+          <IconActionButton
             color="inherit"
             edge="start"
             onClick={() => setDrawerOpen(!drawerOpen)}
@@ -564,7 +596,7 @@ export default function MainLayout() {
             aria-label={drawerOpen ? t('aria.collapseSidebar', { ns: 'layout-MainLayout' }) : t('aria.expandSidebar', { ns: 'layout-MainLayout' })}
           >
             {drawerOpen && isMobile ? <ChevronLeftIcon /> : <MenuIcon />}
-          </IconButton>
+          </IconActionButton>
           <Box className="flex items-center gap-2 flex-grow select-none overflow-hidden">
             {getCurrentPage()?.icon}
             <Typography
@@ -597,7 +629,7 @@ export default function MainLayout() {
           {/* 语言切换按钮 */}
           <LocaleToggleButton mode="compact" sx={{ color: 'white' }} />
 
-          <IconButton
+          <IconActionButton
             color="inherit"
             size={isSmall ? 'small' : 'medium'}
             onClick={() => window.open('https://doc.nekro.ai', '_blank')}
@@ -614,38 +646,60 @@ export default function MainLayout() {
             aria-label={t('aria.openDocumentation', { ns: 'layout-MainLayout' })}
           >
             <MenuBookIcon sx={{ transition: 'all 0.3s ease' }} />
-          </IconButton>
+          </IconActionButton>
 
-          <Button
+          <ActionButton
+            tone="ghost"
             variant="text"
             color="inherit"
-            size={isSmall ? 'small' : 'large'}
+            size={isSmall ? 'small' : 'medium'}
             startIcon={<GitHubIcon />}
             onClick={() => window.open('https://github.com/KroMiose/nekro-agent', '_blank')}
-            className="normal-case transition-colors"
-            sx={{
-              mr: { xs: 0, sm: 1 },
-              ml: { xs: 1, sm: 1 },
-              minWidth: { xs: 'auto', sm: '100px' },
+            className="normal-case"
+            sx={(theme) => ({
+              mr: { xs: 0, sm: 0.5 },
+              ml: { xs: 0.5, sm: 0.5 },
+              minWidth: 0,
+              px: 0.5,
+              color: 'white',
+              border: 'none',
+              boxShadow: 'none',
+              backgroundColor: 'transparent',
               '& .MuiButton-startIcon': {
-                mr: { xs: 0, sm: 1 },
+                mr: { xs: 0, sm: 0.5 },
+                color: 'white',
               },
               '&:hover': {
-                backgroundColor: 'rgba(255, 255, 255, 0.2)',
+                backgroundColor:
+                  theme.palette.mode === 'light'
+                    ? 'rgba(0, 0, 0, 0.045)'
+                    : 'rgba(255, 255, 255, 0.08)',
               },
-            }}
+              '&:active': {
+                backgroundColor:
+                  theme.palette.mode === 'light'
+                    ? 'rgba(0, 0, 0, 0.08)'
+                    : 'rgba(255, 255, 255, 0.16)',
+              },
+            })}
           >
             <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
               Stars {starCount !== null ? starCount : '...'}
             </Box>
-          </Button>
+          </ActionButton>
 
           <CommunityAvatar />
         </Toolbar>
       </AppBar>
 
       {/* AI 响应活动播报卡片（FPS 风格，全局可见） */}
-      <AgentActivityCard agentActives={agentActives} workspaceStatuses={workspaceStatuses} workspaceCcActive={workspaceCcActive} />
+      <AgentActivityCard
+        agentActives={agentActives}
+        agentRuntimeStatuses={agentRuntimeStatuses}
+        workspaceStatuses={workspaceStatuses}
+        workspaceCcActive={workspaceCcActive}
+        workspaceCcRuntimeStatuses={workspaceCcRuntimeStatuses}
+      />
       <Box
         component="nav"
         sx={{
@@ -706,7 +760,7 @@ export default function MainLayout() {
       >
         <Toolbar sx={{ flexShrink: 0, minHeight: { xs: 56, sm: 64 } }} />
         <motion.div
-          key={`${location.pathname.split('/').slice(0, 3).join('/')}-${refreshKey}`}
+          key={`${pageTransitionBaseKey}-${refreshKey}`}
           initial={{ opacity: 0, x: 20, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{
@@ -752,5 +806,15 @@ export default function MainLayout() {
         </motion.div>
       </Box>
     </Box>
+  )
+}
+
+export default function MainLayout() {
+  return (
+    <SystemEventsProvider>
+      <ChannelDirectoryProvider>
+        <MainLayoutContent />
+      </ChannelDirectoryProvider>
+    </SystemEventsProvider>
   )
 }

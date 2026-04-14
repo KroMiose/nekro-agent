@@ -11,6 +11,7 @@
     "group": "Group",
     "private": "Private",
     "active": "Active",
+    "observe": "Observe",
     "inactive": "Inactive"
   },
   "list": {
@@ -35,8 +36,8 @@
   },
   "detail": {
     "selectChat": "Please select a chat to view details",
-    "basicInfo": "Basic Info",
-    "messageHistory": "Message History",
+    "basicInfo": "Channel Details",
+    "messageHistory": "Live Messages",
     "overrideSettings": "Override Settings"
   },
   "messages": {
@@ -75,12 +76,14 @@
     "group": "Group",
     "private": "Private",
     "activate": "Activate",
+    "observe": "Observe",
     "deactivate": "Deactivate",
     "reset": "Reset",
+    "resetContext": "Reset Context",
     "tabs": {
-      "basicInfo": "Basic Info",
+      "basicInfo": "Channel Details",
       "overrideSettings": "Override Settings",
-      "messageHistory": "Message History",
+      "messageHistory": "Live Messages",
       "pluginData": "Plugin Data"
     },
     "resetDialog": {
@@ -129,7 +132,10 @@
     "argsPlaceholder": "Enter arguments...",
     "noArgsNeeded": "No arguments needed",
     "selectChannelHint": "Please select a channel to view command output",
-    "inputPlaceholder": "Enter command, e.g. help"
+    "inputPlaceholder": "Enter command, e.g. help",
+    "previewImage": "Preview image",
+    "imageUnavailable": "Image preview unavailable",
+    "fileUnavailable": "File unavailable"
   },
   "pluginData": {
     "filterByPlugin": "Filter by Plugin",

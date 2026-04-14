@@ -56,8 +56,19 @@ class DBChatMessage(Model):
 
         # 消息引用前缀生成
         additional_info: str = f"msg_id:{self.message_id}" if ref_mode and self.message_id else ""
-        ref_str: str = f"ref: {self.ext_data_obj.ref_msg_id}" if ref_mode and self.ext_data_obj.ref_msg_id else ""
-        prefix_str: str = f"({', '.join([additional_info, ref_str])})" if additional_info or ref_str else ""
+        ref_str: str = f"ref:{self.ext_data_obj.ref_msg_id}" if ref_mode and self.ext_data_obj.ref_msg_id else ""
+        # tome 标记：仅在群聊中、非 Bot/系统消息、且明确指向当前 Bot 时输出
+        # sender_id 以字符串形式存储，"-1" 表示 Bot/系统消息
+        is_group_chat: bool = self.chat_type not in ("private", "c2c")
+        is_bot_message: bool = str(self.sender_id) == "-1"
+        tome_str: str = (
+            "tome:true"
+            if config.AI_INCLUDE_TOME_INDICATOR and is_group_chat and not is_bot_message and self.is_tome
+            else ""
+        )
+
+        parts: List[str] = [p for p in [additional_info, ref_str, tome_str] if p]
+        prefix_str: str = f"({', '.join(parts)})" if parts else ""
 
         return f'{prefix_str}[{time_str} id:{self.platform_userid}] "{self.sender_nickname}" 说: {content or self.content_text}'
 

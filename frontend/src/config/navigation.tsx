@@ -5,6 +5,7 @@ import {
   Tune as TuneIcon,
   Extension as ExtensionIcon,
   Chat as ChatIcon,
+  Campaign as CampaignIcon,
   Code as CodeIcon,
   Dashboard as DashboardIcon,
   Group as GroupIcon,
@@ -18,7 +19,6 @@ import {
   ListAlt as ListAltIcon,
   Schedule as ScheduleIcon,
 } from '@mui/icons-material'
-import { getAdapterNavigationConfigs } from './adapters'
 import i18next from './i18n'
 
 export interface PageConfig {
@@ -78,10 +78,26 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <DashboardIcon />,
   },
   {
-    path: '/chat-channel',
-    text: t('menu.chatChannel'),
-    translationKey: 'menu.chatChannel',
+    key: 'chatManagement',
+    text: t('menu.chatManagement'),
+    translationKey: 'menu.chatManagement',
     icon: <ChatIcon />,
+    children: [
+      {
+        path: '/chat-channel/management',
+        text: t('menu.channelManagement'),
+        translationKey: 'menu.channelManagement',
+        icon: <ChatIcon />,
+        parent: 'chatManagement',
+      },
+      {
+        path: '/chat-channel/announcement',
+        text: t('menu.botAnnouncement'),
+        translationKey: 'menu.botAnnouncement',
+        icon: <CampaignIcon />,
+        parent: 'chatManagement',
+      },
+    ],
   },
   {
     path: '/user-manager',
@@ -144,10 +160,10 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'workspace',
       },
       {
-        path: '/workspace/cc-models',
-        text: t('menu.ccModels'),
-        translationKey: 'menu.ccModels',
-        icon: <StorageIcon />,
+        path: '/workspace/mcp-services',
+        text: t('menu.mcpServices'),
+        translationKey: 'menu.mcpServices',
+        icon: <HubIcon />,
         parent: 'workspace',
       },
       {
@@ -166,11 +182,10 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
     icon: <CodeIcon />,
   },
   {
-    key: 'adapters',
+    path: '/adapters',
     text: t('menu.adapters'),
     translationKey: 'menu.adapters',
     icon: <HubIcon />,
-    children: getAdapterNavigationConfigs(),
   },
   {
     key: 'settings',
@@ -186,10 +201,17 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         parent: 'settings',
       },
       {
-        path: '/settings/model-groups',
+        path: '/settings/models',
         text: t('menu.modelGroups'),
         translationKey: 'menu.modelGroups',
         icon: <StorageIcon />,
+        parent: 'settings',
+      },
+      {
+        path: '/settings/commands',
+        text: t('menu.commandCenter'),
+        translationKey: 'menu.commandCenter',
+        icon: <ListAltIcon />,
         parent: 'settings',
       },
       {
@@ -205,28 +227,6 @@ export const getPageConfigs = (): (PageConfig | MenuGroup)[] => [
         translationKey: 'menu.spaceCleanup',
         icon: <CleaningServicesIcon />,
         parent: 'settings',
-      },
-    ],
-  },
-  {
-    key: 'commands',
-    text: t('menu.commandSystem'),
-    translationKey: 'menu.commandSystem',
-    icon: <ListAltIcon />,
-    children: [
-      {
-        path: '/commands/management',
-        text: t('menu.commands'),
-        translationKey: 'menu.commands',
-        icon: <ListAltIcon />,
-        parent: 'commands',
-      },
-      {
-        path: '/commands/output',
-        text: t('menu.commandOutput'),
-        translationKey: 'menu.commandOutput',
-        icon: <TerminalIcon />,
-        parent: 'commands',
       },
     ],
   },
@@ -267,6 +267,12 @@ export const createMenuItems = () => {
 
 // 获取当前页面信息的工具函数
 export const getCurrentPageFromConfigs = (pathname: string) => {
+  if (pathname.startsWith('/chat-channel') && !pathname.startsWith('/chat-channel/announcement')) {
+    const page = getPageConfigs().flatMap(config =>
+      'children' in config ? config.children : [config]
+    ).find(item => 'path' in item && (item as PageConfig).path === '/chat-channel/management')
+    if (page) return page
+  }
   // 扁平化所有页面配置
   const allPages = getPageConfigs().flatMap(config =>
     'children' in config ? config.children : [config]

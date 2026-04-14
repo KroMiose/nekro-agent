@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Box, IconButton, Avatar, Tooltip, Badge, Popover, alpha } from '@mui/material'
+import { Box, Avatar, Tooltip, Badge, Popover, alpha } from '@mui/material'
 import { Person as PersonIcon } from '@mui/icons-material'
 import { useCommunityUserStore } from '../../stores/communityUser'
 import { useAnnouncementStore } from '../../stores/announcement'
@@ -8,6 +8,10 @@ import { BORDER_RADIUS } from '../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import AnnouncementDetailDialog from './AnnouncementDetailDialog'
 import { LoggedInContent, NotConfiguredContent } from './CommunityAvatarContent'
+import IconActionButton from './IconActionButton'
+
+let initialCommunityBootstrapPromise: Promise<void> | null = null
+let initialAnnouncementCheckPromise: Promise<void> | null = null
 
 export default function CommunityAvatar() {
   const { userInfo, loading: userLoading, fetchUserProfile } = useCommunityUserStore()
@@ -35,12 +39,22 @@ export default function CommunityAvatar() {
   const badgeCount = unreadCount()
 
   useEffect(() => {
-    fetchUserProfile()
+    if (initialCommunityBootstrapPromise === null) {
+      initialCommunityBootstrapPromise = fetchUserProfile().catch((error) => {
+        initialCommunityBootstrapPromise = null
+        throw error
+      })
+    }
   }, [fetchUserProfile])
 
   // 组件挂载时检查公告更新，之后每 5 分钟定时检查
   useEffect(() => {
-    checkForUpdates()
+    if (initialAnnouncementCheckPromise === null) {
+      initialAnnouncementCheckPromise = checkForUpdates().catch((error) => {
+        initialAnnouncementCheckPromise = null
+        throw error
+      })
+    }
     const timer = setInterval(checkForUpdates, 5 * 60 * 1000)
     return () => clearInterval(timer)
   }, [checkForUpdates])
@@ -96,7 +110,7 @@ export default function CommunityAvatar() {
   return (
     <Box>
       <Tooltip title={t('community.avatarTooltip')} arrow>
-        <IconButton
+        <IconActionButton
           onClick={handleClick}
           size="small"
           sx={{
@@ -135,7 +149,7 @@ export default function CommunityAvatar() {
               {!userInfo && <PersonIcon sx={{ fontSize: 18 }} />}
             </Avatar>
           </Badge>
-        </IconButton>
+        </IconActionButton>
       </Tooltip>
 
       <Popover

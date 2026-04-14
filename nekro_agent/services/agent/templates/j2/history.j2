@@ -13,6 +13,14 @@ Note that the sandbox before this has been cleaned up, and do not use the previo
 
 Current Chat Key: {{ chat_key }}
 Current Time: {{ current_time }} | 农历: {{ lunar_time }}
+
+## Message Metadata Fields
+
+Some messages may carry a bracketed prefix, e.g.: `(msg_id:123, ref:456, tome:true)`
+
+- **msg_id**: The platform message ID, used for referencing messages or plugin processing.
+- **ref**: The ID of the message this message is replying to.
+- **tome:true**: Indicates this message was explicitly addressed to you by fixed rules (e.g. @ mention) — prioritize responding. Messages without this marker had no explicit address detected, but **that does NOT mean you should stay silent** — being triggered at all means you are expected to participate. Always evaluate holistically: do not interject when a message clearly targets someone else (e.g. @ another Bot); for messages with no clear target, use judgment based on topic relevance and conversational momentum.
 {% endmacro %}
 
 {% macro history_debug_prompt(runout_reason, code_output) %}

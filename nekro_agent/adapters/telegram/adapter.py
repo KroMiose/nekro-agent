@@ -53,7 +53,7 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
             name="Telegram",
             description="基于 python-telegram-bot 的 Telegram 适配器",
             version="2.0.0",
-            author="nekro-agent",
+            author="NekroAI",
             tags=["telegram", "chat", "bot"],
         )
 
@@ -66,10 +66,10 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
 
     def build_chat_key(self, chat_id_or_chat) -> str:
         """重写基类方法，生成包含类型前缀的聊天标识
-        
+
         Args:
-            chat_id_or_chat: 可以是 chat.id (int) 或 Chat 对象
-        
+            chat_id_or_chat: Chat 对象（含 type 和 id 属性），或纯数字 chat_id
+
         Returns:
             str: 完整的聊天标识，格式为 telegram-{type}_{id}
         """
@@ -77,6 +77,10 @@ class TelegramAdapter(BaseAdapter[TelegramConfig]):
         if hasattr(chat_id_or_chat, 'type') and hasattr(chat_id_or_chat, 'id'):
             chat_type = "private" if chat_id_or_chat.type == "private" else "group"
             return f"{self.key}-{chat_type}_{chat_id_or_chat.id}"
+        # 如果传入的是纯 ID：Telegram 规则中正数为私聊用户，负数为群组/频道
+        chat_id = int(chat_id_or_chat)
+        chat_type = "private" if chat_id > 0 else "group"
+        return f"{self.key}-{chat_type}_{chat_id}"
 
     def parse_chat_key(self, chat_key: str) -> Tuple[str, str]:
         """解析聊天标识（Telegram 特殊处理负数群组ID）

@@ -39,6 +39,19 @@ export interface CCModelPresetCreate {
 
 export type CCModelPresetUpdate = Partial<CCModelPresetCreate>
 
+export interface CCModelPresetTestItem {
+  preset_id: number
+  preset_name: string
+  model_name: string
+  success: boolean
+  latency_ms: number
+  used_model?: string | null
+  response_text?: string | null
+  input_tokens?: number
+  output_tokens?: number
+  error_message?: string | null
+}
+
 export const ccModelPresetApi = {
   getList: async (): Promise<CCModelPresetInfo[]> => {
     const res = await axios.get<{ total: number; items: CCModelPresetInfo[] }>('/cc-model-presets/list')
@@ -54,5 +67,11 @@ export const ccModelPresetApi = {
   },
   delete: async (id: number): Promise<void> => {
     await axios.delete(`/cc-model-presets/${id}`)
+  },
+  test: async (presetIds: number[]): Promise<CCModelPresetTestItem[]> => {
+    const res = await axios.post<{ items: CCModelPresetTestItem[] }>('/cc-model-presets/test', {
+      preset_ids: presetIds,
+    })
+    return res.data.items
   },
 }

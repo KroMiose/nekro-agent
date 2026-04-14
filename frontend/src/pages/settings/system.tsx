@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Box, Tabs, Tab } from '@mui/material'
+import { useEffect, useMemo, useState, useDeferredValue } from 'react'
+import { Box, Tab } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import ConfigTable from '../../components/common/ConfigTable'
@@ -9,13 +9,17 @@ import { getLocalizedText } from '../../services/api/types'
 import type { ConfigItem } from '../../components/common/ConfigTable'
 import { useLocaleStore } from '../../stores/locale'
 import type { SupportedLocale } from '../../config/i18n'
+import { PanelTabs, PanelTabsContainer } from '../../components/common/NekroTabs'
 
 export default function SettingsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { t } = useTranslation('settings')
   const { i18n } = useTranslation()
   const { setLocaleLocal } = useLocaleStore()
-  const searchText = searchParams.get('search') ?? ''
+  const urlSearchText = searchParams.get('search') ?? ''
+  const requestedCategory = searchParams.get('category') ?? ''
+  const [searchInput, setSearchInput] = useState<string>(urlSearchText)
+  const deferredSearchInput = useDeferredValue(searchInput)
 
   // 创建系统配置服务
   const configService = createConfigService('system')
@@ -76,29 +80,52 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configs, i18n.language])
 
-  // 初始化 activeTab，默认为第一个分类
-  const [activeTab, setActiveTab] = useState<string>(() => searchParams.get('category') ?? '')
-
-  // 当分类列表更新时，确保 activeTab 有效
-  useEffect(() => {
-    if (categories.length === 0) return
-
-    const requestedCategory = searchParams.get('category')
+  const activeTab = useMemo(() => {
+    if (categories.length === 0) {
+      return ''
+    }
     if (requestedCategory && categories.includes(requestedCategory)) {
-      if (requestedCategory !== activeTab) {
-        setActiveTab(requestedCategory)
-      }
+      return requestedCategory
+    }
+    return categories[0]
+  }, [categories, requestedCategory])
+
+  useEffect(() => {
+    setSearchInput(urlSearchText)
+  }, [urlSearchText])
+
+  useEffect(() => {
+    if (categories.length === 0 || !activeTab) {
+      return
+    }
+    if (requestedCategory === activeTab) {
+      return
+    }
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('category', activeTab)
+    setSearchParams(nextParams, { replace: true })
+  }, [activeTab, categories.length, requestedCategory, searchParams, setSearchParams])
+
+  useEffect(() => {
+    const normalizedSearch = deferredSearchInput.trim()
+    const currentSearch = searchParams.get('search') ?? ''
+    const currentCategory = searchParams.get('category') ?? ''
+    const normalizedCurrentSearch = currentSearch.trim()
+    if (normalizedSearch === normalizedCurrentSearch && currentCategory === activeTab) {
       return
     }
 
-    if (!activeTab || !categories.includes(activeTab)) {
-      const fallbackCategory = categories[0]
-      setActiveTab(fallbackCategory)
-      const nextParams = new URLSearchParams(searchParams)
-      nextParams.set('category', fallbackCategory)
-      setSearchParams(nextParams, { replace: true })
+    const nextParams = new URLSearchParams(searchParams)
+    if (normalizedSearch) {
+      nextParams.set('search', deferredSearchInput)
+    } else {
+      nextParams.delete('search')
     }
-  }, [activeTab, categories, searchParams, setSearchParams])
+    if (activeTab) {
+      nextParams.set('category', activeTab)
+    }
+    setSearchParams(nextParams, { replace: true })
+  }, [activeTab, deferredSearchInput, searchParams, setSearchParams])
 
   // 当系统配置刷新后，同步 SYSTEM_LANG 到前端 locale
   useEffect(() => {
@@ -114,23 +141,14 @@ export default function SettingsPage() {
 
   // 根据当前选中的分类过滤配置
   const displayConfigs = useMemo(() => {
-    if (searchText.trim()) {
+    if (searchInput.trim()) {
       return configs
     }
     return configsByCategory[activeTab] || []
-  }, [activeTab, configs, configsByCategory, searchText])
+  }, [activeTab, configs, configsByCategory, searchInput])
 
   const handleSearchChange = (text: string) => {
-    const nextParams = new URLSearchParams(searchParams)
-    if (text.trim()) {
-      nextParams.set('search', text)
-    } else {
-      nextParams.delete('search')
-    }
-    if (activeTab) {
-      nextParams.set('category', activeTab)
-    }
-    setSearchParams(nextParams, { replace: true })
+    setSearchInput(text)
   }
 
   const handleRefresh = () => {
@@ -148,30 +166,27 @@ export default function SettingsPage() {
       }}
     >
       {/* 分类选项卡 */}
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2, flexShrink: 0 }}>
-        <Tabs
+      <PanelTabsContainer
+        sx={{
+          mb: 2,
+          flexShrink: 0,
+        }}
+      >
+        <PanelTabs
           value={categories.length > 0 ? activeTab : false}
           onChange={(_, newValue) => {
-            setActiveTab(newValue)
             const nextParams = new URLSearchParams(searchParams)
             nextParams.set('category', newValue)
             setSearchParams(nextParams, { replace: true })
           }}
           variant="scrollable"
           scrollButtons="auto"
-          sx={{
-            '& .MuiTab-root': {
-              textTransform: 'none',
-              minWidth: 100,
-              fontSize: '0.95rem',
-            },
-          }}
         >
           {categories.map((category) => (
             <Tab key={category} label={category} value={category} />
           ))}
-        </Tabs>
-      </Box>
+        </PanelTabs>
+      </PanelTabsContainer>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
         <ConfigTable
@@ -179,12 +194,12 @@ export default function SettingsPage() {
           configService={configService}
           configs={displayConfigs}
           loading={isLoading}
-          searchText={searchText}
+          searchText={searchInput}
           onSearchChange={handleSearchChange}
           onRefresh={handleRefresh}
           showSearchBar={true}
           showToolbar={true}
-          showCategoryColumn={Boolean(searchText.trim())}
+          showCategoryColumn={Boolean(searchInput.trim())}
           emptyMessage={t('system.emptyMessage')}
         />
       </Box>

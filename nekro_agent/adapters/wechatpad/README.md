@@ -1,110 +1,42 @@
 # WeChatPad 适配器
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+适合把 Agent 放进微信私聊和群聊中，处理日常沟通、提醒通知和轻量自动回复。  
+如果你想让 Agent 真正进入熟人沟通环境，这类适配器会比公开社区平台更贴近日常使用。
 
-WeChatPad 适配器是 nekro-agent 的一个组件，用于通过 WeChatPadPro 的 HTTP API 与微信进行交互。
+## 适合什么场景
 
-## 功能特性
+- 私聊助手：作为个人聊天助手、信息整理助手或提醒入口
+- 群聊辅助：在小群中承担答疑、资料补充、轻量互动
+- 业务触达：给固定对象发通知、确认消息、同步结果
+- 个人工作流：把微信消息纳入统一会话管理
 
-- ✅ 支持发送和接收文本消息
-- ✅ 支持发送和接收图片消息
-- ✅ 支持群聊和私聊消息处理
-- ✅ 支持用户和群组信息获取
-- ✅ 实时消息接收和处理
-- ✅ 支持自定义 API 端点和认证
+## 你可以用它做什么
 
-## 注意事项
+- 在微信私聊和群聊中接收并回复消息
+- 处理文字、图片等常见聊天内容
+- 适合做日常问答、消息触达和群内协助
+- 便于把微信侧会话纳入统一的 Agent 工作流
 
-- 极其非常强烈不建议用大号玩任何微信机器人框架，包括本适配器所用的WeChatPadPro，很容易触发微信风控，甚至导致账号被封！
-- 若API运行环境与手机端地理位置、IP差异大，请自己额外配置s5代理把IP至少放到同一城市，否则很容易被标记异常限制功能。如果扫码登录显示：“在新设备完成验证以继续登录”，那就是触发了微信风控目前该框架还登录不了。
-- 建议API服务和实际手机端尽可能靠近，并避免跳板、异地代理频繁登录等行为。
-- 长时间未手动互动的账号进行频繁自动化操作也很容易触发风控标记账号异常。
-- 作者现在镜像更新比较慢，docker拉的镜像可能不是最新的，如果需要最新版本请直接从github下载对应平台压缩包自己手动部署。
+## 使用前你需要准备
 
+- 一个可用的 WeChatPadPro 环境
+- 可以稳定登录并保持在线的微信账号
+- 明确哪些群或联系人适合接入自动化能力
 
-## 使用
+## 使用体验上有什么特点
 
-### 1. 部署 WeChatPadPro 服务
+- 更贴近日常沟通，回复通常会显得更“自然”
+- 适合低打扰、轻自动化、以消息协助为主的场景
+- 对于一对一沟通、少量固定群聊，体验往往会比较直接
 
-1.  **克隆项目**
-    ```sh
-    git clone https://github.com/WeChatPadPro/WeChatPadPro.git
-    ```
+## 使用时建议注意
 
-2.  **进入部署目录**
-    ```sh
-    cd WeChatPadPro/deploy
-    ```
+- 微信生态对自动化使用更敏感，建议先小范围使用
+- 不建议一开始就高频自动回复，先从提醒、答疑、资料发送开始
+- 账号、网络环境、使用节奏都要尽量保持稳定
 
-3.  **修改.env配置文件**
-    (建议手动修改`ADMIN_KEY`，实在懒得改那不改也行)
+## 获取完整文档
 
-4.  **配置网络（同机部署）**
-    如果是在同一台机器上部署`nekro_agent`和`WeChatPadPro`，需要修改`docker-compose.yml`文件，把service里所有容器的网络（network）更改为`nekro_network`，以便与`nekro_agent`容器通信。
+更详细的接入方式、配置说明和注意事项，请查看文档站：
 
-5.  **启动服务**
-    ```sh
-    docker-compose up -d
-    ```
-
-6.  **查看服务状态**
-    ```sh
-    docker-compose ps
-    ```
-
-### 2. 登录微信
-
-1.  **访问 Swagger 界面**
-    成功启动 WeChatPadPro 后根据你的 `serverip:port` 访问 WeChatPadPro 的 Swagger
-
-2.  **填入 ADMIN_KEY**
-    在 Swagger 界面中填入你的 `ADMIN_KEY`
-
-3.  **获取 AuthKey**
-    - 使用 `/admin/GanAuthKey1` 接口
-    - **Try it out** → body 中的 `days` 改为 `365` 即可（AuthKey有效期365天）
-
-4.  **登录微信**
-    - 使用 `/login/GetLoginQrCodeNew` 接口
-    - **Try it out** → 获取登录二维码
-    - 返回的参数中有登录二维码链接，打开扫码登录即可
-    - 如果是云服务器（和服务器不是同市或同省），可能需要设置代理填入 Proxy 参数才能正常登录
-
-5.  **记录 AuthKey**
-    记住你的 `AuthKey`，后面配置适配器时需要填入。
-
-### 3. 配置适配器
-
-1.  **填写核心配置**
-    - 适配器目前只需要填写 `WECHATPAD_API_URL` 和 `WECHATPAD_AUTH_KEY`，`WECHATPAD_CALLBACK_URL` 可以不填（暂时还是ws接收实时消息，webhook功能还未实现）。
-
-2.  **配置API地址 (`WECHATPAD_API_URL`)**
-    - 填写你的 WeChatPadPro API 地址。
-    - 如果两者部署在同一台机器上，填入 `http://wechatpadpro:8080`
-    - 如果两者部署在不同台机器上，填入 `http://yourserverip:8080`
-
-3.  **配置认证密钥 (`WECHATPAD_AUTH_KEY`)**
-    - 填写你的 WeChatPadPro `AuthKey`。
-
-#### 环境变量配置
-
-适配器支持以下环境变量配置：
-
-| 环境变量 | 描述 | 默认值 |
-|---------|------|--------|
-| `WECHATPAD_API_URL` | WeChatPadPro API 地址 | `http://localhost:8080` |
-| `WECHATPAD_AUTH_KEY` | WeChatPadPro 认证密钥 | 无（必填） |
-| `WECHATPAD_CALLBACK_URL` | 接收微信事件回调的地址 | `http://localhost:8000/wechatpad/callback` |
-
-
-## 贡献
-
-欢迎提交 Issue 和 Pull Request。
-
-## 许可证
-
-MIT
-
-## 作者
-
-Dirac - [GitHub](https://github.com/1A7432)
+<https://doc.nekro.ai/docs/02_quick_start/adapters/wechatpad.html>

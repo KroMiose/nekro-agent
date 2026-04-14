@@ -5,8 +5,6 @@ import {
   FormControlLabel,
   Switch,
   Stack,
-  IconButton,
-  Button,
   Paper,
 } from '@mui/material'
 import { LoadingButton } from '@mui/lab'
@@ -20,6 +18,8 @@ import {
 } from '@mui/icons-material'
 import { useNotification } from '../../../hooks/useNotification'
 import { copyText } from '../../../utils/clipboard'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 // 格式化时间
 const formatTime = (isoTime: string, locale?: string) => {
@@ -206,7 +206,7 @@ export default function OneBotV11LogsPage() {
   }
 
   return (
-    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <Box sx={{ p: 2, height: '100%', display: 'flex', flexDirection: 'column', gap: 2, boxSizing: 'border-box' }}>
       <Stack spacing={2}>
         <Alert
           severity={status?.running ? 'success' : 'error'}
@@ -244,9 +244,14 @@ export default function OneBotV11LogsPage() {
               action={
                 !isReconnecting &&
                 webuiToken && (
-                  <Button size="small" startIcon={<ContentCopyIcon />} onClick={handleCopyToken}>
+                  <ActionButton
+                    tone="secondary"
+                    size="small"
+                    startIcon={<ContentCopyIcon />}
+                    onClick={handleCopyToken}
+                  >
                     {t('logs.copy')}
-                  </Button>
+                  </ActionButton>
                 )
               }
             >
@@ -267,9 +272,13 @@ export default function OneBotV11LogsPage() {
                 control={<Switch checked={autoScroll} onChange={handleAutoScrollChange} />}
                 label={t('logs.autoScroll')}
               />
-              <IconButton onClick={handleClearLogs} size="small">
+              <IconActionButton
+                onClick={handleClearLogs}
+                size="small"
+                title={t('logs.clearLogs', '清空日志')}
+              >
                 <DeleteIcon />
-              </IconButton>
+              </IconActionButton>
             </Stack>
           </Box>
         </Stack>

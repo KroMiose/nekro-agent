@@ -18,10 +18,14 @@ class PluginBase(BaseModel):
     githubUrl: Optional[str] = None
     cloneUrl: Optional[str] = None
     licenseType: Optional[str] = None
+    createdAt: str
+    updatedAt: str
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
     icon: Optional[str] = None  # 插件图标URL
     isOwner: Optional[bool] = None  # 是否为当前用户上传的插件
+    favoriteCount: Optional[int] = None  # 收藏数量
+    isFavorited: Optional[bool] = None  # 是否已收藏
     minNaVersion: Optional[str] = None  # 最低 NA 版本要求
     maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
 
@@ -90,8 +94,10 @@ class PluginListItem(BaseModel):
     updatedAt: str
     icon: Optional[str] = None  # 插件图标URL
     isOwner: Optional[bool] = None  # 是否为当前用户上传的插件
+    favoriteCount: Optional[int] = None  # 收藏数量
     minNaVersion: Optional[str] = None  # 最低 NA 版本要求
     maxNaVersion: Optional[str] = None  # 最高 NA 版本要求
+    isFavorited: Optional[bool] = None  # 是否已收藏
 
 
 class PluginListData(BaseModel):
@@ -115,6 +121,7 @@ class UserPluginItem(BaseModel):
     id: str
     name: str
     moduleName: str
+    icon: Optional[str] = None
 
 
 class UserPluginListData(BaseModel):

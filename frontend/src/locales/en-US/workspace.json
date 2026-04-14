@@ -70,7 +70,17 @@
     "channelMore": "+{{n}} more",
     "model": "Model",
     "skillMcp": "Skill/MCP",
-    "ccActive": "CC Running"
+    "ccActive": "CC Running",
+    "runtime": {
+      "queued": "Queued",
+      "running": "Running",
+      "responding": "Responding",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled",
+      "queue": "Queue {{count}}",
+      "blocks": "{{count}} blocks"
+    }
   },
   "createDialog": {
     "title": "Create Workspace",
@@ -96,38 +106,69 @@
     "deleteFailed": "Delete failed: {{message}}"
   },
   "ccModels": {
-    "infoAlert": "Manage model preset configurations used by Claude Code (CC) sandbox. Select a preset in the workspace config page to generate the inject config.",
-    "createBtn": "New Preset",
+    "alert": {
+      "providerSupportBefore": "CC model groups work with any Anthropic-compatible provider (e.g. official Anthropic). If you don’t have a provider or want to support us, visit ",
+      "providerSupportLink": "NekroAI Relay",
+      "providerSupportAfter": " to get your dedicated key!"
+    },
+    "createBtn": "New Group",
+    "actions": {
+      "searchPlaceholder": "Search group, endpoint or description",
+      "clearSelection": "Clear selection",
+      "batchTest": "Batch model test ({{count}})"
+    },
     "table": {
       "headers": {
-        "name": "Preset Name",
+        "name": "Group Name",
         "desc": "Description",
         "type": "Type",
         "model": "Model",
         "baseUrl": "Base URL",
+        "usage": "Workspace Usage",
+        "health": "Speed",
         "actions": "Actions"
       },
-      "empty": "No presets yet. Click \"New Preset\" to add one.",
+      "empty": "No matching groups",
       "defaultChip": "Default",
       "typePreset": "Preset",
       "typeManual": "Manual",
       "multiModel": "(multi-model)",
+      "usageBound": "Bound by {{count}}",
+      "usageIdle": "Idle",
       "tooltips": {
         "edit": "Edit",
+        "copy": "Copy",
+        "test": "Test model",
+        "testDisabled": "Complete Base URL, Auth Token, and a testable model first",
         "delete": "Delete",
-        "defaultCannotDelete": "Default preset cannot be deleted"
+        "defaultCannotDelete": "Default group cannot be deleted",
+        "boundCannotDelete": "{{count}} workspaces are still bound"
       }
     },
+    "health": {
+      "notTested": "Not tested",
+      "testing": "Testing",
+      "ok": "{{ms}}ms",
+      "failed": "Failed",
+      "tooltipPassed": "Model test passed",
+      "tooltipFailed": "Model test failed",
+      "tooltipModel": "Actual model: {{model}}",
+      "tooltipLatency": "Latency: {{ms}}ms",
+      "tooltipTokens": "Tokens: input {{input}} / output {{output}}",
+      "tooltipReply": "Reply: {{text}}",
+      "tooltipError": "Error: {{error}}"
+    },
     "dialog": {
-      "titleCreate": "New CC Model Preset",
-      "titleEdit": "Edit CC Model Preset",
-      "name": "Preset Name",
+      "titleCreate": "New CC Model Group",
+      "titleEdit": "Edit CC Model Group",
+      "titleCopy": "Copy CC Model Group",
+      "name": "Group Name",
       "nameReadonly": "Name cannot be changed after creation",
       "desc": "Description",
       "sectionApi": "API Config",
-      "sourcePreset": "Source Preset",
+      "sourcePreset": "Source Template",
       "sourcePresetHint": "Auto-fill a vendor's official Base URL and recommended model mapping, then only enter the API key.",
-      "sourcePresetCustom": "Custom (no preset)",
+      "sourcePresetCustom": "Custom (no template)",
       "timeout": "Timeout (ms)",
       "sectionModel": "Model Config",
       "modelType": "Model Type",
@@ -145,18 +186,24 @@
       "create": "Create"
     },
     "deleteDialog": {
-      "title": "Confirm Delete Preset",
-      "content": "Are you sure you want to delete preset {{name}}? This action cannot be undone.",
+      "title": "Confirm Delete Group",
+      "content": "Are you sure you want to delete group {{name}}? This action cannot be undone.",
+      "boundHint": "{{count}} workspaces are still bound: {{names}}",
       "cancel": "Cancel",
       "delete": "Delete"
     },
     "notifications": {
-      "created": "Preset created",
+      "created": "Group created",
       "createFailed": "Create failed: {{message}}",
-      "saved": "Preset saved",
+      "saved": "Group saved",
       "saveFailed": "Save failed: {{message}}",
-      "deleted": "Preset deleted",
-      "deleteFailed": "Delete failed: {{message}}"
+      "deleted": "Group deleted",
+      "deleteFailed": "Delete failed: {{message}}",
+      "noTestableGroups": "No testable CC model groups in the current selection",
+      "testNoResults": "Model test returned no results. Check the request path.",
+      "testAllPassed": "Model test passed",
+      "testCompleted": "Model test completed. Check the result.",
+      "testFailed": "Model test failed"
     }
   },
   "skills": {
@@ -273,19 +320,95 @@
       "syncFailed": "Sync failed: {{message}}"
     }
   },
+  "mcpServices": {
+    "pageTitle": "MCP Services",
+    "pageDesc": "Manage MCP services auto-injected into new workspaces. These services are automatically added when creating workspaces.",
+    "stats": {
+      "total": "Auto-Inject Total",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "search": {
+      "placeholder": "Search service name or command..."
+    },
+    "filter": {
+      "all": "All",
+      "stdio": "STDIO",
+      "sse": "SSE",
+      "http": "HTTP"
+    },
+    "toolbar": {
+      "fromTemplate": "From Template",
+      "addManual": "Add Manually",
+      "refresh": "Refresh",
+      "cardView": "Card View",
+      "listView": "List View",
+      "clearFilters": "Clear Filters",
+      "jsonView": "JSON View",
+      "jsonViewTitle": "Auto-Inject Config (JSON)",
+      "jsonViewHint": "This view is read-only. It shows the current auto-inject MCP services as JSON, which you can copy to use with Claude Desktop or other tools.",
+      "readOnly": "Read-only",
+      "autoInjectTooltip": "When enabled, this MCP service will be automatically added to new workspaces",
+      "autoInjectOn": "Auto-Inject",
+      "autoInjectOff": "Not Auto-Inject",
+      "autoInject": "Auto-Inject",
+      "addBtn": "Add Service",
+      "importJson": "Import JSON"
+    },
+    "import": {
+      "title": "Import MCP Services from JSON",
+      "hint": "Paste Claude Desktop format MCP config JSON (JSONC comments supported). Servers will be parsed and added to the auto-inject list. Existing servers with the same name will be skipped.",
+      "importBtn": "Import",
+      "parseError": "Failed to parse JSON, please check the format",
+      "formatError": "Invalid format. Expected { mcpServers: { ... } } or { name: { ... } }",
+      "emptyError": "No services found to import",
+      "allLocalFileError": "All STDIO services reference local file paths and cannot be imported. Only package manager commands (npx/uvx) are supported.",
+      "success": "Successfully imported {{count}} services",
+      "successWithSkip": "Imported {{count}} services, skipped {{skipped}} existing"
+    },
+    "empty": {
+      "title": "No auto-inject MCP services",
+      "hint": "Click \"Add Manually\" or \"From Template\" to add the first auto-inject service",
+      "noMatch": "No matching services"
+    },
+    "notifications": {
+      "addSuccess": "MCP service added to auto-inject list",
+      "addFailed": "Failed to add: {{message}}",
+      "updateSuccess": "MCP service updated",
+      "updateFailed": "Failed to update: {{message}}",
+      "deleteSuccess": "MCP service removed from auto-inject list",
+      "deleteFailed": "Failed to remove: {{message}}",
+      "toggleSuccess": "Enabled status updated"
+    },
+    "deleteDialog": {
+      "title": "Remove Auto-Inject Service",
+      "content": "Remove \"{{name}}\" from the auto-inject list? Existing workspace configurations will not be affected."
+    }
+  },
   "detail": {
     "header": {
       "backTooltip": "Back to List",
       "ccWorking": "CC Working",
+      "ccQueued": "Queued",
+      "ccRunning": "Running",
+      "ccResponding": "Responding",
+      "ccCompleted": "Completed",
+      "ccFailed": "Failed",
+      "ccCancelled": "Cancelled",
+      "ccElapsed": "{{seconds}}s",
+      "ccQueuedCount": "Queue {{count}}",
+      "ccBlockCount": "Blocks {{count}}",
       "viewSandboxTooltip": "View Sandbox"
     },
     "tabs": {
       "overview": "Overview",
       "sandbox": "Sandbox",
       "comm": "Comm",
-      "memory": "Memory",
+      "memory": "Memory Graph",
       "extensions": "Extensions",
-      "prompt": "Prompt",
+      "mcp": "MCP Services",
+      "prompt": "Collab Context",
       "config": "Config"
     },
     "overview": {
@@ -591,18 +714,115 @@
         "cancelFailed": "Force cancel failed: {{message}}"
       }
     },
+    "mcp": {
+      "title": "MCP Service Configuration",
+      "empty": "No MCP servers configured. Add from templates to get started.",
+      "fromTemplate": "From Template",
+      "addManual": "Add Manually",
+      "addServer": "Add Server",
+      "switchToJson": "Switch to JSON preview",
+      "switchToCards": "Switch to card view",
+      "switchToList": "Switch to list view",
+      "syncToSandbox": "Sync MCP config to sandbox",
+      "syncSuccess": "MCP config synced to sandbox",
+      "syncFailed": "Sync failed: {{message}}",
+      "save": "Save",
+      "saving": "Saving...",
+      "add": "Add",
+      "adding": "Adding...",
+      "edit": "Edit",
+      "delete": "Delete",
+      "enable": "Enable",
+      "disable": "Disable",
+      "addTitle": "Add MCP Server",
+      "editTitle": "Edit MCP Server",
+      "deleteTitle": "Delete MCP Server",
+      "deleteConfirm": "Are you sure you want to delete MCP server \"{{name}}\"?",
+      "addSuccess": "MCP server added",
+      "addFailed": "Failed to add: {{message}}",
+      "updateSuccess": "MCP server updated",
+      "updateFailed": "Failed to update: {{message}}",
+      "deleteSuccess": "MCP server deleted",
+      "deleteFailed": "Failed to delete: {{message}}",
+      "saveSuccess": "MCP configuration saved",
+      "saveFailed": "Failed to save: {{message}}",
+      "jsonError": "Invalid JSON format",
+      "jsonErrorFix": "Please fix JSON format errors first",
+      "jsonHint": "Supports JSONC format (// and /* */ comments), auto-converted to JSON on save",
+      "form": {
+        "name": "Server Name",
+        "command": "Command",
+        "args": "Arguments",
+        "argsHint": "Separate multiple arguments with spaces",
+        "envLabel": "Environment Variables",
+        "url": "Server URL",
+        "headersLabel": "HTTP Headers",
+        "cancel": "Cancel",
+        "stdioHint": "Only package manager commands (npx / uvx / bunx / pnpx) are supported. Local file paths on the host are not supported.",
+        "stdioCommandError": "Only npx, uvx, bunx, pnpx commands are supported"
+      },
+      "registry": {
+        "title": "Add MCP Server from Template",
+        "search": "Search templates...",
+        "empty": "No matching templates"
+      },
+      "autoInject": "Auto-Inject",
+      "setAutoInject": "Set as Auto-Inject",
+      "removeAutoInject": "Remove Auto-Inject",
+      "autoInjectSuccess": "Auto-inject configuration updated",
+      "autoInjectFailed": "Failed to update auto-inject: {{message}}"
+    },
     "prompt": {
+      "summaryCards": {
+        "naContext": {
+          "title": "Collaboration State",
+          "description": "Current status and latest progress."
+        },
+        "ccRules": {
+          "title": "Execution Rules",
+          "description": "Manage long-lived rules for both CC and NA.",
+          "subtitle": "CC / NA configured separately",
+          "tooltip": "This section contains two layers: execution rules for CC and wording / communication rules visible only to NA."
+        },
+        "sharedFacts": {
+          "title": "Fixed Facts",
+          "description": "Stable facts shared by both sides."
+        }
+      },
       "systemPromptTitle": "System Prompt (Read-only)",
-      "systemPromptHint": "Click to expand and view the full CLAUDE.md content injected into the CC sandbox",
+      "systemPromptHint": "Expand to view the current content",
       "expandTooltip": "Expand preview",
       "collapseTooltip": "Collapse preview",
+      "naContextTitle": "Collaboration State Summary (_na_context)",
+      "naContextHint": "Current status, latest progress, temporary notes",
+      "naContextDesc": "Use this for time-sensitive information. Later tasks may continue updating it.",
+      "naContextPlaceholder": "For example:\n- The current main task is reorganizing workspace guidance\n- A new entry path and key file locations have been confirmed\n- A file for explanation is already available in the shared directory",
+      "sharedFactsTitle": "Shared Fixed Facts",
+      "sharedFactsHint": "Shared by both sides and kept stable",
+      "sharedFactsDesc": "Use this for long-lived facts and constraints. Put anything here that should not be changed automatically.",
+      "sharedFactsPlaceholder": "For example:\n- Frontend checks must be completed before submission\n- Direct pushes to the main branch are forbidden\n- Page copy should stay clear and avoid too many internal terms",
       "extraTitle": "Custom Append Prompt",
-      "extraHint": "Appended to the end of CLAUDE.md and takes effect on each conversation",
+      "extraHint": "Visible only to CC",
+      "ccRulesDesc": "Use this for coding style, delivery preferences, and output format requirements.",
       "extraPlaceholder": "Enter custom instructions here, e.g.:\n\n## Personal Preferences\n\n- Use English for all code comments\n- Prefer Python for problem solving",
+      "naRulesTitle": "NA-only Rules",
+      "naRulesHint": "Visible only to NA",
+      "naRulesDesc": "Use this for wording style, communication boundaries, and response preferences.",
+      "naRulesPlaceholder": "For example:\n- Start with the conclusion before going into detail\n- When mentioning the collaboration summary, remind the user that it may continue to be updated later",
+      "editorGuideTitle": "Editing Guide",
+      "editorGuideItems": [
+        "If you are correcting what the workspace is like right now, write it in the collaboration state summary.",
+        "If you are declaring a stable fact or hard constraint that should continue to hold, write it in shared fixed facts.",
+        "If you only want to constrain CC behavior, write it in execution rules instead of mixing it into _na_context."
+      ],
+      "naContextWarning": "_na_context can be updated automatically by CC. If a piece of information must not be rewritten, move it to Shared Fixed Facts or NA-only Rules.",
       "saveBtn": "Save",
       "notifications": {
         "saveSuccess": "Custom prompt saved",
-        "saveFailed": "Save failed: {{message}}"
+        "saveFailed": "Save failed: {{message}}",
+        "naContextSaveSuccess": "Collaboration state summary saved. Future CC delegations will be reminded to review the latest version first.",
+        "sharedRulesSaveSuccess": "Shared fixed facts saved",
+        "naRulesSaveSuccess": "NA-only rules saved"
       }
     },
     "config": {

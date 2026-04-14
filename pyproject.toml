@@ -229,6 +229,10 @@ help = "运行前端 lint"
 cmd = "bash -c 'cd frontend && pnpm exec eslint src/ --max-warnings 0'"
 
 [tool.poe.tasks.frontend-check]
+help = "运行前端检查（typecheck + lint）"
+cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint src/ --max-warnings 0'"
+
+[tool.poe.tasks.frontend-check-full]
 help = "运行前端检查（typecheck + lint + build）"
 cmd = "bash -c 'cd frontend && pnpm exec tsc --noEmit && pnpm exec eslint src/ --max-warnings 0 && pnpm build'"
 

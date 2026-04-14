@@ -11,6 +11,7 @@
     "group": "群聊",
     "private": "私聊",
     "active": "已激活",
+    "observe": "旁观中",
     "inactive": "未激活"
   },
   "list": {
@@ -35,8 +36,8 @@
   },
   "detail": {
     "selectChat": "请选择一个聊天查看详情",
-    "basicInfo": "基本信息",
-    "messageHistory": "消息历史",
+    "basicInfo": "频道详情",
+    "messageHistory": "实时消息",
     "overrideSettings": "覆盖设置"
   },
   "messages": {
@@ -75,12 +76,14 @@
     "group": "群聊",
     "private": "私聊",
     "activate": "激活",
+    "observe": "旁观",
     "deactivate": "停用",
     "reset": "重置",
+    "resetContext": "重置上下文",
     "tabs": {
-      "basicInfo": "基础信息",
+      "basicInfo": "频道详情",
       "overrideSettings": "覆盖配置",
-      "messageHistory": "消息记录",
+      "messageHistory": "实时消息",
       "pluginData": "插件数据"
     },
     "resetDialog": {
@@ -129,7 +132,10 @@
     "argsPlaceholder": "输入参数...",
     "noArgsNeeded": "该命令无需参数",
     "selectChannelHint": "请先选择一个频道以查看命令输出",
-    "inputPlaceholder": "输入命令，如 help"
+    "inputPlaceholder": "输入命令，如 help",
+    "previewImage": "预览图片",
+    "imageUnavailable": "图片暂不可预览",
+    "fileUnavailable": "文件暂不可访问"
   },
   "pluginData": {
     "filterByPlugin": "按插件筛选",

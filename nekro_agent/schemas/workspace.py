@@ -90,18 +90,63 @@ class AutoInjectSkillsResponse(BaseModel):
     skills: List[str]
 
 
+class AutoInjectMcpUpdate(BaseModel):
+    servers: List[Dict[str, Any]]
+
+
+class AutoInjectMcpResponse(BaseModel):
+    servers: List[Dict[str, Any]]
+
+
 # ── 沙盒通讯日志 ────────────────────────────────────────────────────────────
+
+
+CommDirection = Literal["NA_TO_CC", "CC_TO_NA", "USER_TO_CC", "SYSTEM", "TOOL_CALL", "TOOL_RESULT", "CC_STATUS"]
+
+
+class CommStatusPayload(BaseModel):
+    running: bool
+    started_at: Optional[int] = None
+
+
+class WorkspaceCommQueueTask(BaseModel):
+    task_id: Optional[str] = None
+    source_chat_key: Optional[str] = None
+    started_at: Optional[int] = None
+    enqueued_at: Optional[int] = None
+
+
+class WorkspaceCommQueueResponse(BaseModel):
+    current_task: Optional[WorkspaceCommQueueTask] = None
+    queued_tasks: List[WorkspaceCommQueueTask] = Field(default_factory=list)
+    queue_length: int = 0
 
 
 class CommLogEntry(BaseModel):
     id: int
     workspace_id: int
-    direction: str  # NA_TO_CC | CC_TO_NA | USER_TO_CC | SYSTEM
+    direction: CommDirection
     source_chat_key: str
     content: str
+    extra_data: str = ""
     is_streaming: bool
     task_id: Optional[str]
     create_time: str
+
+    @classmethod
+    def from_orm(cls, log: Any) -> "CommLogEntry":
+        """从 DBWorkspaceCommLog ORM 实例构造 CommLogEntry。"""
+        return cls(
+            id=log.id,
+            workspace_id=log.workspace_id,
+            direction=log.direction,
+            source_chat_key=log.source_chat_key,
+            content=log.content,
+            extra_data=log.extra_data or "",
+            is_streaming=log.is_streaming,
+            task_id=log.task_id,
+            create_time=log.create_time.isoformat(),
+        )
 
 
 class CommHistoryResponse(BaseModel):
@@ -137,6 +182,31 @@ class ClaudeMdResponse(BaseModel):
 
 class ClaudeMdExtraUpdate(BaseModel):
     extra: str
+
+
+class PromptLayerItem(BaseModel):
+    key: str
+    title: str
+    target: Literal["cc", "na", "shared"]
+    maintainer: Literal["manual", "cc", "na", "manual+cc", "manual+na"]
+    content: str
+    description: str = ""
+    editable_by_cc: bool = False
+    auto_inject: bool = True
+    updated_at: Optional[str] = None
+    updated_by: Optional[str] = None
+
+
+class PromptComposerResponse(BaseModel):
+    claude_md_content: str
+    claude_md_extra: str
+    na_context: PromptLayerItem
+    shared_manual_rules: PromptLayerItem
+    na_manual_rules: PromptLayerItem
+
+
+class PromptLayerUpdate(BaseModel):
+    content: str
 
 
 # ── 频道注解 ─────────────────────────────────────────────────────────────────

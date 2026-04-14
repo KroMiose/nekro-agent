@@ -33,9 +33,42 @@
     "tooltipClickHint": "Click to open channel",
     "tooltipNoPreset": "Default Persona"
   },
+  "agentRuntime": {
+    "phase": {
+      "llmGenerating": "LLM generating",
+      "llmRetrying": "LLM retrying",
+      "sandboxRunning": "Sandbox running",
+      "sandboxStopped": "Sandbox stopped",
+      "iterating": "Iterating",
+      "completed": "Completed",
+      "failed": "Generation failed"
+    },
+    "retryBadge": "Retry {{current}}/{{total}}",
+    "iterationBadge": "Iter {{current}}/{{total}}",
+    "tooltipPhase": "Phase",
+    "tooltipSandboxStop": "Stop type",
+    "tooltipModel": "Model",
+    "tooltipRetry": "LLM retry",
+    "tooltipIteration": "Iteration",
+    "tooltipErrorSummary": "Error summary"
+  },
   "workspaceActivity": {
     "tooltipId": "Workspace ID",
-    "tooltipContainer": "Container"
+    "tooltipContainer": "Container",
+    "tooltipPhase": "Phase",
+    "tooltipTool": "Tool",
+    "tooltipBlockSummary": "Block summary",
+    "tooltipBlockCount": "Blocks",
+    "tooltipQueue": "Queue",
+    "queueLength": "Queued {{count}}",
+    "phase": {
+      "queued": "Queued",
+      "running": "Running",
+      "responding": "Responding",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
   },
   "activity": {
     "dismissHint": "Right-click to dismiss"

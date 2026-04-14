@@ -9,6 +9,7 @@ from nekro_agent.schemas.i18n import i18n_text, t
 from nekro_agent.services.command.base import BaseCommand, CommandMetadata, CommandPermission
 from nekro_agent.services.command.ctl import CmdCtl
 from nekro_agent.services.command.schemas import Arg, CommandExecutionContext, CommandResponse
+from nekro_agent.services.model_test import build_model_test_messages, build_openai_model_test_params
 
 
 class ModelTestCommand(BaseCommand):
@@ -18,7 +19,7 @@ class ModelTestCommand(BaseCommand):
     def metadata(self) -> CommandMetadata:
         return CommandMetadata(
             name="model_test",
-            aliases=["model-test"],
+            aliases=[],
             description="测试模型连通性和响应速度",
             i18n_description=i18n_text(zh_CN="测试模型连通性和响应速度", en_US="Test model connectivity and response speed"),
             usage="model_test [model_name] [-g group_name] [--stream] [--use-system] [--detail]",
@@ -157,17 +158,10 @@ class ModelTestCommand(BaseCommand):
 
             try:
                 start_time = time.time()
-                messages: list[dict[str, Any]] = [
-                    {"role": "user", "content": "Repeat the following text without any thinking or explanation: Test"}
-                ]
-                if use_system:
-                    messages.insert(
-                        0,
-                        {"role": "system", "content": "You are a helpful assistant that follows instructions precisely."},
-                    )
+                messages: list[dict[str, Any]] = build_model_test_messages(use_system=use_system)
                 llm_response: OpenAIResponse = await gen_openai_chat_response(
                     messages=messages,
-                    **_build_chat_params(model_group, stream_mode),
+                    **build_openai_model_test_params(model_group, stream_mode),
                 )
                 end_time = time.time()
                 assert llm_response.response_content  # noqa: S101
@@ -214,20 +208,3 @@ class ModelTestCommand(BaseCommand):
             result_lines.append(f"{status} {display_labels[label]}: ({success_label}: {success}, {fail_label}: {fail}){speed_info}")
 
         yield CmdCtl.success("\n".join(result_lines))
-
-
-def _build_chat_params(model_group: Any, stream_mode: bool) -> dict[str, Any]:
-    """构建聊天参数"""
-    return {
-        "model": model_group.CHAT_MODEL,
-        "temperature": model_group.TEMPERATURE,
-        "top_p": model_group.TOP_P,
-        "top_k": model_group.TOP_K,
-        "frequency_penalty": model_group.FREQUENCY_PENALTY,
-        "presence_penalty": model_group.PRESENCE_PENALTY,
-        "extra_body": model_group.EXTRA_BODY,
-        "base_url": model_group.BASE_URL,
-        "api_key": model_group.API_KEY,
-        "stream_mode": stream_mode,
-        "proxy_url": model_group.CHAT_PROXY,
-    }

@@ -116,6 +116,7 @@ class CommandManager:
     ) -> list[dict]:
         """获取所有命令及其状态（用于 WebUI 展示）"""
         from nekro_agent.services.command.registry import command_registry
+        from nekro_agent.services.plugin.collector import plugin_collector
 
         commands = command_registry.list_all_commands()
         channel_state = self._load_channel_state(chat_key) if chat_key else {}
@@ -123,6 +124,11 @@ class CommandManager:
         for meta in commands:
             enabled = self.is_command_enabled(meta.name, chat_key)
             has_channel_override = chat_key is not None and meta.name in channel_state
+            source_display_name = "内置" if meta.source == "built_in" else meta.source
+            if meta.source != "built_in":
+                plugin = plugin_collector.get_plugin(meta.source)
+                if plugin:
+                    source_display_name = plugin.name
 
             result.append({
                 "name": meta.name,
@@ -133,6 +139,7 @@ class CommandManager:
                 "permission": meta.permission.value,
                 "category": meta.category,
                 "source": meta.source,
+                "source_display_name": source_display_name,
                 "enabled": enabled,
                 "has_channel_override": has_channel_override,
                 "params_schema": meta.params_schema,

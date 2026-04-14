@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   Box,
-  Button,
   Card,
   CardContent,
   Typography,
@@ -11,7 +10,6 @@ import {
   Alert,
   Stack,
   Divider,
-  IconButton,
   Tooltip,
   Checkbox,
   Dialog,
@@ -25,8 +23,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ToggleButtonGroup,
-  ToggleButton,
   Drawer,
   alpha,
 } from '@mui/material'
@@ -65,6 +61,9 @@ import { useNotification } from '../../../hooks/useNotification'
 import { CARD_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
 import MarkdownRenderer from '../../../components/common/MarkdownRenderer'
+import SegmentedControl from '../../../components/common/SegmentedControl'
+import ActionButton from '../../../components/common/ActionButton'
+import IconActionButton from '../../../components/common/IconActionButton'
 
 type SourceFilter = 'all' | 'builtin' | 'user' | 'repo'
 
@@ -483,134 +482,6 @@ export default function ExtensionsTab({
     onNavigateToComm(prefillText)
   }
 
-  // ── MCP ──
-  // JSONC 注释剥离（逐字符解析，正确处理字符串内的 //）
-  const stripJsoncComments = (text: string): string => {
-    let result = ''
-    let i = 0
-    let inString = false
-    let escaped = false
-    while (i < text.length) {
-      const ch = text[i]
-      if (escaped) { result += ch; escaped = false; i++; continue }
-      if (ch === '\\' && inString) { result += ch; escaped = true; i++; continue }
-      if (ch === '"') { inString = !inString; result += ch; i++; continue }
-      if (!inString) {
-        if (ch === '/' && text[i + 1] === '/') {
-          while (i < text.length && text[i] !== '\n') i++
-          continue
-        }
-        if (ch === '/' && text[i + 1] === '*') {
-          i += 2
-          while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++
-          i += 2
-          continue
-        }
-      }
-      result += ch; i++
-    }
-    return result
-  }
-
-  const MCP_TEMPLATE = `{
-  "mcpServers": {
-
-    // ── npx 方式：运行 npm 包（Node.js，无需预装）──────────────────────────
-    // 以 GitHub MCP Server 为例，更多官方包见：
-    // https://github.com/modelcontextprotocol/servers
-    // "github": {
-    //   "command": "npx",
-    //   "args": ["-y", "@modelcontextprotocol/server-github"],
-    //   "env": {
-    //     "GITHUB_PERSONAL_ACCESS_TOKEN": "<your-pat>"
-    //   }
-    // },
-
-    // ── uvx 方式：运行 Python 包（uv，无需预装）────────────────────────────
-    // 以 mcp-server-fetch 为例（HTTP 请求与网页抓取）
-    // "fetch": {
-    //   "command": "uvx",
-    //   "args": ["mcp-server-fetch"]
-    // },
-
-    // ── Docker 方式：容器化运行（隔离环境）────────────────────────────────
-    // "my-service": {
-    //   "command": "docker",
-    //   "args": [
-    //     "run", "--rm", "-i",
-    //     "--network", "host",
-    //     "my-mcp-image:latest"
-    //   ]
-    // },
-
-    // ── 远程 SSE/HTTP 方式：连接已部署的远端 MCP 服务器 ──────────────────
-    // "remote-mcp": {
-    //   "url": "https://your-mcp-server.example.com/mcp",
-    //   "headers": {
-    //     "Authorization": "Bearer <your-token>"
-    //   }
-    // },
-
-    // ── 本地脚本方式：直接运行本地文件（node / python）────────────────────
-    // "local-server": {
-    //   "command": "node",
-    //   "args": ["/absolute/path/to/your-mcp-server.js"]
-    // }
-
-  }
-}`
-
-  const [mcpText, setMcpText] = useState('')
-  const [mcpError, setMcpError] = useState<string | null>(null)
-  const [savingMcp, setSavingMcp] = useState(false)
-  const [mcpTemplateOpen, setMcpTemplateOpen] = useState(false)
-
-  const { data: mcpData } = useQuery({
-    queryKey: ['workspace-mcp', workspace.id],
-    queryFn: () => workspaceApi.getMcpConfig(workspace.id),
-  })
-
-  useEffect(() => {
-    if (mcpData !== undefined) setMcpText(JSON.stringify(mcpData, null, 2))
-  }, [mcpData])
-
-  const validateMcpText = (v: string): string | null => {
-    try {
-      JSON.parse(stripJsoncComments(v))
-      return null
-    } catch {
-      return t('detail.extensions.mcpJsonError')
-    }
-  }
-
-  const handleMcpChange = (v: string) => {
-    setMcpText(v)
-    setMcpError(validateMcpText(v))
-  }
-
-  const handleSaveMcp = async () => {
-    const err = validateMcpText(mcpText)
-    if (err) {
-      notification.warning(t('detail.extensions.mcpJsonErrorFix'))
-      return
-    }
-    setSavingMcp(true)
-    try {
-      await workspaceApi.updateMcpConfig(workspace.id, JSON.parse(stripJsoncComments(mcpText)))
-      notification.success(t('detail.extensions.mcpSaveSuccess'))
-    } catch (e) {
-      notification.error(t('detail.extensions.mcpSaveFailed', { message: (e as Error).message }))
-    } finally {
-      setSavingMcp(false)
-    }
-  }
-
-  const handleApplyTemplate = () => {
-    setMcpText(MCP_TEMPLATE)
-    setMcpError(null)
-    setMcpTemplateOpen(false)
-  }
-
   const ROW_SX = {
     display: 'flex',
     alignItems: 'center',
@@ -632,7 +503,7 @@ export default function ExtensionsTab({
               {t('detail.extensions.skillsCardTitle')}
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
-            <Button
+            <ActionButton
               size="small"
               variant={hasUnsavedChanges ? 'contained' : 'outlined'}
               startIcon={syncing ? <CircularProgress size={14} color="inherit" /> : <SyncIcon />}
@@ -640,15 +511,15 @@ export default function ExtensionsTab({
               disabled={syncing}
             >
               {t('detail.extensions.syncBtn')}
-            </Button>
-            <Button
+            </ActionButton>
+            <ActionButton
               size="small"
               variant="outlined"
               startIcon={<AddIcon sx={{ fontSize: 14 }} />}
               onClick={handleOpenAddDialog}
             >
               {t('detail.extensions.addSkillBtn')}
-            </Button>
+            </ActionButton>
           </Box>
 
           {/* 已部署列表 */}
@@ -716,9 +587,9 @@ export default function ExtensionsTab({
                     )}
                   </Box>
                   <Tooltip title={t('detail.extensions.removeTooltip')}>
-                    <IconButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
+                    <IconActionButton size="small" color="error" onClick={() => handleRemoveSkill(skill.name)}>
                       <DeleteIcon sx={{ fontSize: 15 }} />
-                    </IconButton>
+                    </IconActionButton>
                   </Tooltip>
                 </Box>
               ))}
@@ -732,9 +603,9 @@ export default function ExtensionsTab({
             </Typography>
             <Box sx={{ flexGrow: 1 }} />
             <Tooltip title={t('detail.extensions.refreshDynamicTooltip')}>
-              <IconButton size="small" onClick={refreshDynamicSkills}>
+              <IconActionButton size="small" onClick={refreshDynamicSkills}>
                 <RefreshIcon sx={{ fontSize: 14 }} />
-              </IconButton>
+              </IconActionButton>
             </Tooltip>
           </Box>
           {dynamicSkills.length === 0 ? (
@@ -775,14 +646,14 @@ export default function ExtensionsTab({
                     </Box>
                     <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
                       <Tooltip title={t('detail.extensions.viewDetailTooltip')}>
-                        <IconButton size="small" onClick={() => openDynDrawer(skill)}>
+                        <IconActionButton size="small" onClick={() => openDynDrawer(skill)}>
                           <ViewIcon sx={{ fontSize: 15 }} />
-                        </IconButton>
+                        </IconActionButton>
                       </Tooltip>
                       {promoted ? (
                         <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
                               color="success"
                               disabled={promotingDynamic === skill.dir_name}
@@ -793,13 +664,13 @@ export default function ExtensionsTab({
                               ) : (
                                 <UpdateIcon sx={{ fontSize: 15 }} />
                               )}
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       ) : (
                         <Tooltip title={t('detail.extensions.promoteTooltip')}>
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
                               color="primary"
                               disabled={promotingDynamic === skill.dir_name}
@@ -810,13 +681,13 @@ export default function ExtensionsTab({
                               ) : (
                                 <ArrowForwardIcon sx={{ fontSize: 15 }} />
                               )}
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       )}
                       <Tooltip title={t('detail.extensions.deleteTooltip')}>
                         <span>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             color="error"
                             disabled={deletingDynamic === skill.dir_name}
@@ -827,7 +698,7 @@ export default function ExtensionsTab({
                             ) : (
                               <DeleteIcon sx={{ fontSize: 15 }} />
                             )}
-                          </IconButton>
+                          </IconActionButton>
                         </span>
                       </Tooltip>
                     </Box>
@@ -838,74 +709,14 @@ export default function ExtensionsTab({
           )}
 
           <Divider sx={{ my: 1.5 }} />
-          <Button
+          <ActionButton
             variant="outlined"
             size="small"
             startIcon={<ExtensionIcon />}
             onClick={() => setCcDesignOpen(true)}
           >
             {t('detail.extensions.ccDesignBtn')}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* MCP 服务配置 */}
-      <Card sx={CARD_VARIANTS.default.styles}>
-        <CardContent>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, flexGrow: 1 }}>
-              {t('detail.extensions.mcpTitle')}
-            </Typography>
-            <Tooltip title={t('detail.extensions.fillTemplateTooltip')}>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => setMcpTemplateOpen(true)}
-              >
-                {t('detail.extensions.fillTemplateBtn')}
-              </Button>
-            </Tooltip>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={savingMcp ? <CircularProgress size={14} color="inherit" /> : <SaveIcon />}
-              onClick={handleSaveMcp}
-              disabled={savingMcp || !!mcpError}
-            >
-              {t('detail.extensions.mcpSave')}
-            </Button>
-          </Box>
-          {mcpError && <Alert severity="error" sx={{ mb: 1, py: 0 }}>{mcpError}</Alert>}
-          <Box
-            sx={{
-              border: '1px solid',
-              borderColor: mcpError ? 'error.main' : 'divider',
-              borderRadius: 1,
-              overflow: 'hidden',
-            }}
-          >
-            <Editor
-              height="320px"
-              language="jsonc"
-              value={mcpText}
-              onChange={v => handleMcpChange(v ?? '')}
-              theme={theme.palette.mode === 'dark' ? 'vs-dark' : 'vs'}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 13,
-                lineNumbers: 'on',
-                wordWrap: 'off',
-                scrollBeyondLastLine: false,
-                renderLineHighlight: 'none',
-                tabSize: 2,
-                folding: true,
-                formatOnPaste: true,
-              }}
-            />
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-            {t('detail.extensions.mcpFormatHint')}
-          </Typography>
+          </ActionButton>
         </CardContent>
       </Card>
 
@@ -928,18 +739,17 @@ export default function ExtensionsTab({
                 ),
               }}
             />
-            <ToggleButtonGroup
-              size="small"
-              exclusive
+            <SegmentedControl
               value={sourceFilter}
-              onChange={(_, v: SourceFilter | null) => { if (v !== null) setSourceFilter(v) }}
+              options={[
+                { value: 'all', label: t('detail.extensions.addSkillDialog.filterAll') },
+                { value: 'builtin', label: t('detail.extensions.addSkillDialog.filterBuiltin') },
+                { value: 'user', label: t('detail.extensions.addSkillDialog.filterUser') },
+                { value: 'repo', label: t('detail.extensions.addSkillDialog.filterRepo') },
+              ]}
+              onChange={v => setSourceFilter(v)}
               sx={{ flexShrink: 0 }}
-            >
-              <ToggleButton value="all" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterAll')}</ToggleButton>
-              <ToggleButton value="builtin" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterBuiltin')}</ToggleButton>
-              <ToggleButton value="user" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterUser')}</ToggleButton>
-              <ToggleButton value="repo" sx={{ px: 1.5, py: 0.5, fontSize: '0.75rem' }}>{t('detail.extensions.addSkillDialog.filterRepo')}</ToggleButton>
-            </ToggleButtonGroup>
+            />
           </Box>
           {filteredAvailable.length === 0 ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
@@ -1000,10 +810,10 @@ export default function ExtensionsTab({
           <Typography variant="caption" color="text.secondary" sx={{ flexGrow: 1, pl: 2 }}>
             {t('detail.extensions.addSkillDialog.selectedCount', { count: addSelected.size })}
           </Typography>
-          <Button onClick={() => setAddDialogOpen(false)}>{t('detail.extensions.addSkillDialog.cancel')}</Button>
-          <Button variant="contained" onClick={handleConfirmAdd} disabled={addSelected.size === 0}>
+          <ActionButton onClick={() => setAddDialogOpen(false)}>{t('detail.extensions.addSkillDialog.cancel')}</ActionButton>
+          <ActionButton variant="contained" onClick={handleConfirmAdd} disabled={addSelected.size === 0}>
             {t('detail.extensions.addSkillDialog.addBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1019,10 +829,10 @@ export default function ExtensionsTab({
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCcDesignOpen(false)}>{t('detail.extensions.ccDesignDialog.cancel')}</Button>
-          <Button variant="contained" startIcon={<ExtensionIcon />} onClick={handleCCDesignConfirm}>
+          <ActionButton onClick={() => setCcDesignOpen(false)}>{t('detail.extensions.ccDesignDialog.cancel')}</ActionButton>
+          <ActionButton variant="contained" startIcon={<ExtensionIcon />} onClick={handleCCDesignConfirm}>
             {t('detail.extensions.ccDesignDialog.confirmBtn')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1064,33 +874,33 @@ export default function ExtensionsTab({
               {isPromotedToLibrary(drawerDynamic.dir_name) ? (
                 <Tooltip title={t('detail.extensions.updateLibraryTooltip')}>
                   <span>
-                    <IconButton
+                    <IconActionButton
                       size="small"
                       color="success"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name, true)}
                     >
                       {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <UpdateIcon fontSize="small" />}
-                    </IconButton>
+                    </IconActionButton>
                   </span>
                 </Tooltip>
               ) : (
                 <Tooltip title={t('detail.extensions.promoteTooltip')}>
                   <span>
-                    <IconButton
+                    <IconActionButton
                       size="small"
                       color="primary"
                       disabled={promotingDynamic === drawerDynamic.dir_name}
                       onClick={() => handlePromoteDynamic(drawerDynamic.dir_name)}
                     >
                       {promotingDynamic === drawerDynamic.dir_name ? <CircularProgress size={16} /> : <ArrowForwardIcon fontSize="small" />}
-                    </IconButton>
+                    </IconActionButton>
                   </span>
                 </Tooltip>
               )}
-              <IconButton size="small" onClick={closeDynDrawer}>
+              <IconActionButton size="small" onClick={closeDynDrawer}>
                 <CloseIcon fontSize="small" />
-              </IconButton>
+              </IconActionButton>
             </Box>
 
             {/* Drawer body: file tree + content pane */}
@@ -1191,31 +1001,39 @@ export default function ExtensionsTab({
                     )}
 
                     {isTextFile(dynSelectedFile) && (
-                      <ToggleButtonGroup
-                        size="small"
+                      <SegmentedControl
+                        density="tight"
                         value={dynEditing ? 'source' : dynViewMode}
-                        exclusive
-                        onChange={(_, v) => {
+                        options={[
+                          {
+                            value: 'preview',
+                            icon: <PreviewIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.preview'),
+                            ariaLabel: t('skills.drawer.preview'),
+                            iconOnly: true,
+                          },
+                          {
+                            value: 'source',
+                            icon: <CodeIcon sx={{ fontSize: 16 }} />,
+                            tooltip: t('skills.drawer.source_code'),
+                            ariaLabel: t('skills.drawer.source_code'),
+                            iconOnly: true,
+                          },
+                        ]}
+                        onChange={v => {
                           if (v === 'source' || v === 'preview') {
                             setDynViewMode(v)
                             if (v === 'preview') setDynEditing(false)
                           }
                         }}
                         disabled={dynEditing}
-                      >
-                        <ToggleButton value="preview" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.preview')}><PreviewIcon sx={{ fontSize: 16 }} /></Tooltip>
-                        </ToggleButton>
-                        <ToggleButton value="source" sx={{ py: 0.25, px: 0.75 }}>
-                          <Tooltip title={t('skills.drawer.source_code')}><CodeIcon sx={{ fontSize: 16 }} /></Tooltip>
-                        </ToggleButton>
-                      </ToggleButtonGroup>
+                      />
                     )}
 
                     {isTextFile(dynSelectedFile) && (
                       dynEditing ? (
                         <Stack direction="row" spacing={0.5}>
-                          <Button
+                          <ActionButton
                             size="small"
                             variant="contained"
                             startIcon={dynSaving ? <CircularProgress size={12} color="inherit" /> : <SaveIcon sx={{ fontSize: 14 }} />}
@@ -1224,8 +1042,8 @@ export default function ExtensionsTab({
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {dynSaving ? t('skills.drawer.saving') : t('skills.drawer.save')}
-                          </Button>
-                          <Button
+                          </ActionButton>
+                          <ActionButton
                             size="small"
                             variant="outlined"
                             onClick={() => {
@@ -1238,11 +1056,11 @@ export default function ExtensionsTab({
                             sx={{ minWidth: 0, px: 1, py: 0.25, fontSize: '0.7rem' }}
                           >
                             {t('skills.drawer.cancel_edit')}
-                          </Button>
+                          </ActionButton>
                         </Stack>
                       ) : (
                         <Tooltip title={t('skills.drawer.edit')}>
-                          <IconButton
+                          <IconActionButton
                             size="small"
                             onClick={() => {
                               setDynEditing(true)
@@ -1252,7 +1070,7 @@ export default function ExtensionsTab({
                             }}
                           >
                             <EditIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
+                          </IconActionButton>
                         </Tooltip>
                       )
                     )}
@@ -1351,8 +1169,8 @@ export default function ExtensionsTab({
           <DialogContentText>{t('skills.drawer.unsavedConfirm')}</DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</Button>
-          <Button variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</Button>
+          <ActionButton onClick={() => setDynUnsavedTarget(null)}>{t('skills.drawer.keepEditing')}</ActionButton>
+          <ActionButton variant="contained" color="warning" onClick={handleDynDiscardAndSwitch}>{t('skills.drawer.discard')}</ActionButton>
         </DialogActions>
       </Dialog>
 
@@ -1369,36 +1187,17 @@ export default function ExtensionsTab({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmDynamic(null)} disabled={!!deletingDynamic}>
+          <ActionButton onClick={() => setDeleteConfirmDynamic(null)} disabled={!!deletingDynamic}>
             {t('detail.extensions.deleteDynamicDialog.cancel')}
-          </Button>
-          <Button
+          </ActionButton>
+          <ActionButton
             variant="contained"
             color="error"
             onClick={confirmDeleteDynamic}
             disabled={!!deletingDynamic}
           >
             {deletingDynamic ? <CircularProgress size={20} /> : t('detail.extensions.deleteDynamicDialog.delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* MCP 模板确认对话框 */}
-      <Dialog open={mcpTemplateOpen} onClose={() => setMcpTemplateOpen(false)} maxWidth="xs">
-        <DialogTitle>{t('detail.extensions.mcpTemplateDialog.title')}</DialogTitle>
-        <DialogContent>
-          <Alert severity="warning" sx={{ mb: 1.5 }}>
-            {t('detail.extensions.mcpTemplateDialog.warning')}
-          </Alert>
-          <DialogContentText>
-            {t('detail.extensions.mcpTemplateDialog.desc')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMcpTemplateOpen(false)}>{t('detail.extensions.mcpTemplateDialog.cancel')}</Button>
-          <Button variant="contained" color="warning" onClick={handleApplyTemplate}>
-            {t('detail.extensions.mcpTemplateDialog.confirm')}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Stack>

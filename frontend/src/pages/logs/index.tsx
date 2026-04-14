@@ -9,9 +9,7 @@ import {
   Autocomplete,
   MenuItem,
   Alert,
-  Button,
   Tooltip,
-  IconButton,
   useMediaQuery,
   useTheme,
   Stack,
@@ -39,6 +37,8 @@ import { useTranslation } from 'react-i18next'
 import { useNotification } from '../../hooks/useNotification'
 import { copyText } from '../../utils/clipboard'
 import CopyableTextDialog from '../../components/common/CopyableTextDialog'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 const MAX_REALTIME_LOGS = 1000
 const INITIAL_LOGS_COUNT = 500
@@ -404,14 +404,14 @@ export default function LogsPage() {
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Typography variant="subtitle1">{t('filters.title')}</Typography>
         {isMobile && (
-          <IconButton
+          <IconActionButton
             edge="end"
-            color="inherit"
             onClick={() => setFilterDrawerOpen(false)}
             aria-label={t('filters.close')}
+            title={t('filters.close')}
           >
             <CloseIcon />
-          </IconButton>
+          </IconActionButton>
         )}
       </Box>
 
@@ -491,9 +491,8 @@ export default function LogsPage() {
             inputProps: { min: 100, max: 10000 },
           }}
         />
-        <Button
-          variant="contained"
-          color="primary"
+        <ActionButton
+          tone="primary"
           onClick={handleDownloadLogs}
           startIcon={<DownloadIcon />}
           size="small"
@@ -502,18 +501,18 @@ export default function LogsPage() {
           }}
         >
           {t('download.button')}
-        </Button>
+        </ActionButton>
       </Stack>
 
       {isMobile && (
-        <Button
-          variant="contained"
+        <ActionButton
+          tone="primary"
           fullWidth
           onClick={() => setFilterDrawerOpen(false)}
           sx={{ mt: 2 }}
         >
           {t('filters.apply')}
-        </Button>
+        </ActionButton>
       )}
     </Stack>
   )
@@ -636,15 +635,14 @@ export default function LogsPage() {
               />
             </Tooltip>
             <Tooltip title={t('download.tooltip')}>
-              <Button
-                variant="contained"
-                color="primary"
+              <ActionButton
+                tone="primary"
                 onClick={handleDownloadLogs}
                 startIcon={<DownloadIcon />}
                 size="small"
               >
                 {t('download.buttonFull')}
-              </Button>
+              </ActionButton>
             </Tooltip>
           </Box>
         </Box>
@@ -741,25 +739,24 @@ export default function LogsPage() {
         }
         titleActions={
           selectedLog && (
-            <IconButton
+            <IconActionButton
               onClick={() => copyLogContent(selectedLog)}
               size="small"
               title={t('dialog.copyLog')}
               sx={{ mr: 1 }}
             >
               <ContentCopyIcon fontSize="small" />
-            </IconButton>
+            </IconActionButton>
           )
         }
         actions={
-          <Button
+          <ActionButton
+            tone="primary"
             onClick={() => setDialogOpen(false)}
-            variant="contained"
-            color="primary"
             size="small"
           >
             {t('dialog.close')}
-          </Button>
+          </ActionButton>
         }
       >
         {selectedLog && (
@@ -912,10 +909,10 @@ export default function LogsPage() {
         dividers
         actions={
           <>
-            <Button onClick={() => setDownloadConfirmOpen(false)}>{t('download.cancel')}</Button>
-            <Button onClick={confirmDownloadLogs} variant="contained" color="warning">
+            <ActionButton tone="secondary" onClick={() => setDownloadConfirmOpen(false)}>{t('download.cancel')}</ActionButton>
+            <ActionButton tone="danger" onClick={confirmDownloadLogs}>
               {t('download.confirm')}
-            </Button>
+            </ActionButton>
           </>
         }
       >

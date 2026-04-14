@@ -4,7 +4,6 @@ import {
   Card,
   CircularProgress,
   Alert,
-  Tabs,
   Tab,
 } from '@mui/material'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -16,10 +15,9 @@ import {
   streamCommLog,
 } from '../../services/api/workspace'
 import { CARD_VARIANTS } from '../../theme/variants'
-import { useTheme } from '@mui/material/styles'
 import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
-import { useSystemEvents } from '../../hooks/useSystemEvents'
+import { useSystemEventsContext } from '../../contexts/SystemEventsContext'
 import {
   DEFAULT_WORKSPACE_DETAIL_TAB,
   isWorkspaceDetailTab,
@@ -31,6 +29,7 @@ import {
 
 // Components
 import WorkspaceHeader from './components/WorkspaceHeader'
+import { PageTabs } from '../../components/common/NekroTabs'
 
 // Tabs
 import OverviewTab from './tabs/OverviewTab'
@@ -38,6 +37,7 @@ import SandboxTab from './tabs/SandboxTab'
 import CommTab from './tabs/CommTab'
 import MemoryTab from './tabs/MemoryTab'
 import ExtensionsTab from './tabs/ExtensionsTab'
+import MCPTab from './tabs/MCPTab'
 import PromptTab from './tabs/PromptTab'
 import ConfigTab from './tabs/ConfigTab'
 
@@ -48,7 +48,6 @@ export default function WorkspaceDetailPage() {
   const { id, tab } = useParams<{ id: string; tab: string }>()
   const workspaceId = Number(id)
   const navigate = useNavigate()
-  const theme = useTheme()
   const { t } = useTranslation('workspace')
   const queryClient = useQueryClient()
   const [commPrefill, setCommPrefill] = useState('')
@@ -106,8 +105,9 @@ export default function WorkspaceDetailPage() {
   })
 
   // 全局 SSE 实时状态（驱动 status / container_name / host_port）
-  const { workspaceStatuses } = useSystemEvents()
+  const { workspaceStatuses, workspaceCcActive } = useSystemEventsContext()
   const sseSnapshot = workspaceStatuses.get(workspaceId)
+  const globalCcActive = workspaceCcActive.get(workspaceId)
 
   // sandbox/status 轮询：仅用于获取 session_id / cc_version / claude_code_version
   // status/container_name/host_port 已由 SSE 驱动，此处轮询频率大幅降低
@@ -139,10 +139,14 @@ export default function WorkspaceDetailPage() {
     enabled: !!workspace && workspace.status === 'active',
   })
   useEffect(() => {
+    if (globalCcActive?.active) {
+      setCcWorking(true)
+      return
+    }
     if (commQueueStatus !== undefined) {
       setCcWorking((commQueueStatus.current_task ?? null) !== null)
     }
-  }, [commQueueStatus])
+  }, [commQueueStatus, globalCcActive])
 
   // CC 完成时清除工具名
   useEffect(() => {
@@ -219,32 +223,15 @@ export default function WorkspaceDetailPage() {
       {/* Tab 导航 */}
       <Box sx={{ px: 2, pt: 1.5, flexShrink: 0 }}>
         <Card sx={CARD_VARIANTS.default.styles}>
-          <Tabs
+          <PageTabs
             value={activeTab}
             onChange={(_, val: number) => navigateToTab(WORKSPACE_DETAIL_TABS[val])}
             indicatorColor="primary"
             textColor="primary"
             sx={{
-              minHeight: 48,
               px: 2,
               '& .MuiTab-root': {
                 minHeight: 48,
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                textTransform: 'none',
-                transition: 'all 0.2s ease',
-                borderRadius: '8px',
-                mx: 0.5,
-                '&:hover': { backgroundColor: theme.palette.action.hover },
-                '&.Mui-selected': {
-                  color: theme.palette.primary.main,
-                  backgroundColor: theme.palette.primary.main + '10',
-                },
-              },
-              '& .MuiTabs-indicator': {
-                height: 3,
-                borderRadius: '2px',
-                boxShadow: `0 0 8px ${theme.palette.primary.main}`,
               },
             }}
           >
@@ -275,9 +262,10 @@ export default function WorkspaceDetailPage() {
             />
             <Tab label={t('detail.tabs.memory')} />
             <Tab label={t('detail.tabs.extensions')} />
+            <Tab label={t('detail.tabs.mcp')} />
             <Tab label={t('detail.tabs.prompt')} />
             <Tab label={t('detail.tabs.config')} />
-          </Tabs>
+          </PageTabs>
         </Card>
       </Box>
 
@@ -286,7 +274,7 @@ export default function WorkspaceDetailPage() {
         sx={{
           flex: 1,
           minHeight: 0,
-          overflow: activeTab === 1 || activeTab === 3 ? 'hidden' : 'auto',
+          overflow: activeTab === 1 ? 'hidden' : 'auto',
           px: 2,
           py: 1.5,
           display: 'flex',
@@ -303,7 +291,7 @@ export default function WorkspaceDetailPage() {
             display: 'flex',
             flexDirection: 'column',
             minHeight: 0,
-            height: '100%',
+            height: activeTab === 1 || activeTab === 2 ? '100%' : 'auto',
           }}
         >
           {activeTab === 0 && (
@@ -314,6 +302,7 @@ export default function WorkspaceDetailPage() {
               onNavigateToConfig={() => navigateToTab('config')}
               onNavigateToExtensions={() => navigateToTab('extensions')}
               onNavigateToComm={() => handleNavigateToComm('')}
+              onNavigateToMcp={() => navigateToTab('mcp')}
             />
           )}
           {activeTab === 1 && (
@@ -331,8 +320,9 @@ export default function WorkspaceDetailPage() {
           )}
           {activeTab === 3 && <MemoryTab workspace={workspace} />}
           {activeTab === 4 && <ExtensionsTab workspace={workspace} onNavigateToComm={handleNavigateToComm} />}
-          {activeTab === 5 && <PromptTab workspace={workspace} />}
-          {activeTab === 6 && (
+          {activeTab === 5 && <MCPTab workspace={workspace} />}
+          {activeTab === 6 && <PromptTab workspace={workspace} />}
+          {activeTab === 7 && (
             <ConfigTab workspace={workspace} onDeleted={() => navigate(workspaceListPath())} />
           )}
         </motion.div>

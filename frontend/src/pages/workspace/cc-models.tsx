@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Box,
   Paper,
   Typography,
   TextField,
-  Button,
   Stack,
   Table,
   TableBody,
@@ -12,7 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -23,8 +21,10 @@ import {
   CircularProgress,
   Tooltip,
   Alert,
+  Link,
   SxProps,
   Theme,
+  useTheme,
 } from '@mui/material'
 import {
   Add as AddIcon,
@@ -33,6 +33,8 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
   RemoveCircleOutline as RemoveIcon,
+  NetworkCheck as NetworkCheckIcon,
+  ContentCopy as ContentCopyIcon,
 } from '@mui/icons-material'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
@@ -45,9 +47,14 @@ import {
   ccModelPresetApi,
   CCModelPresetInfo,
   CCModelPresetCreate,
+  CCModelPresetTestItem,
 } from '../../services/api/cc-model-preset'
-import { UNIFIED_TABLE_STYLES } from '../../theme/variants'
+import { workspaceApi } from '../../services/api/workspace'
+import { CHIP_VARIANTS, UNIFIED_TABLE_STYLES } from '../../theme/variants'
 import { useNotification } from '../../hooks/useNotification'
+import SearchActionBar from '../../components/common/SearchActionBar'
+import ActionButton from '../../components/common/ActionButton'
+import IconActionButton from '../../components/common/IconActionButton'
 
 interface EnvPair {
   key: string
@@ -124,10 +131,11 @@ interface EditDialogProps {
   open: boolean
   onClose: () => void
   initial?: CCModelPresetInfo
+  isCopy?: boolean
   onSuccess: () => void
 }
 
-function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
+function EditDialog({ open, onClose, initial, isCopy, onSuccess }: EditDialogProps) {
   const [form, setForm] = useState<PresetFormState>(DEFAULT_FORM)
   const [sourcePresetId, setSourcePresetId] = useState('')
   const [showToken, setShowToken] = useState(false)
@@ -161,7 +169,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
     if (open) {
       if (initial) {
         setForm({
-          name: initial.name,
+          name: isCopy ? '' : initial.name,
           description: initial.description,
           base_url: initial.base_url,
           auth_token: initial.auth_token,
@@ -181,7 +189,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       setSourcePresetId('')
       setShowToken(false)
     }
-  }, [open, initial])
+  }, [open, initial, isCopy])
 
   const isPending = createMutation.isPending || updateMutation.isPending
 
@@ -202,7 +210,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
       default_haiku: form.default_haiku,
       extra_env: envPairsToRecord(form.extra_env),
     }
-    if (initial) {
+    if (initial && !isCopy) {
       updateMutation.mutate(body)
     } else {
       createMutation.mutate(body)
@@ -247,7 +255,11 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
   return (
     <Dialog open={open} onClose={() => !isPending && onClose()} maxWidth="md" fullWidth>
       <DialogTitle>
-        {initial ? t('ccModels.dialog.titleEdit') : t('ccModels.dialog.titleCreate')}
+        {isCopy
+          ? t('ccModels.dialog.titleCopy')
+          : initial
+            ? t('ccModels.dialog.titleEdit')
+            : t('ccModels.dialog.titleCreate')}
       </DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ mt: 1 }}>
@@ -260,8 +272,8 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
             required
             size="small"
             autoComplete="off"
-            disabled={!!initial}
-            helperText={initial ? t('ccModels.dialog.nameReadonly') : ''}
+            disabled={!!initial && !isCopy}
+            helperText={initial && !isCopy ? t('ccModels.dialog.nameReadonly') : ''}
           />
           <TextField
             label={t('ccModels.dialog.desc')}
@@ -320,17 +332,16 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
               autoComplete: 'new-password',
               style: !showToken
                 ? ({
-                    '-webkit-text-security': 'disc',
-                    'text-security': 'disc',
+                    WebkitTextSecurity: 'disc',
                   } as React.CSSProperties)
                 : undefined,
             }}
             InputProps={{
               endAdornment: (
                 <InputAdornment position="end">
-                  <IconButton onClick={() => setShowToken(v => !v)} edge="end" size="small">
+                  <IconActionButton onClick={() => setShowToken(v => !v)} edge="end" size="small">
                     {showToken ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                  </IconButton>
+                  </IconActionButton>
                 </InputAdornment>
               ),
             }}
@@ -434,9 +445,9 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
               {t('ccModels.dialog.sectionEnv')}
             </Typography>
-            <Button size="small" startIcon={<AddIcon />} onClick={addEnvPair} sx={{ minWidth: 0 }}>
+            <ActionButton size="small" startIcon={<AddIcon />} onClick={addEnvPair} sx={{ minWidth: 0 }}>
               {t('ccModels.dialog.envAdd')}
-            </Button>
+            </ActionButton>
           </Box>
           {form.extra_env.length === 0 ? (
             <Typography variant="caption" color="text.disabled" sx={{ pl: 0.5 }}>
@@ -464,9 +475,9 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
                     inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.8rem' } }}
                     sx={{ flex: 2 }}
                   />
-                  <IconButton size="small" color="error" onClick={() => removeEnvPair(idx)}>
+                  <IconActionButton size="small" tone="danger" onClick={() => removeEnvPair(idx)}>
                     <RemoveIcon fontSize="small" />
-                  </IconButton>
+                  </IconActionButton>
                 </Stack>
               ))}
             </Stack>
@@ -493,11 +504,11 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
         </Stack>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        <Button onClick={onClose} disabled={isPending}>
+        <ActionButton tone="secondary" onClick={onClose} disabled={isPending}>
           {t('ccModels.dialog.cancel')}
-        </Button>
-        <Button
-          variant="contained"
+        </ActionButton>
+        <ActionButton
+          tone="primary"
           onClick={handleSubmit}
           disabled={isPending || !form.name.trim()}
         >
@@ -508,7 +519,7 @@ function EditDialog({ open, onClose, initial, onSuccess }: EditDialogProps) {
           ) : (
             t('ccModels.dialog.create')
           )}
-        </Button>
+        </ActionButton>
       </DialogActions>
     </Dialog>
   )
@@ -518,15 +529,36 @@ export default function CCModelsPage() {
   const queryClient = useQueryClient()
   const notification = useNotification()
   const { t } = useTranslation('workspace')
+  const theme = useTheme()
 
   const [editOpen, setEditOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<CCModelPresetInfo | undefined>(undefined)
+  const [isCopyMode, setIsCopyMode] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<CCModelPresetInfo | null>(null)
+  const [testingPresetIds, setTestingPresetIds] = useState<Set<number>>(new Set())
+  const [testResults, setTestResults] = useState<Record<number, CCModelPresetTestItem>>({})
+  const [searchText, setSearchText] = useState('')
 
   const { data: presets = [], isLoading } = useQuery({
     queryKey: ['cc-model-presets'],
     queryFn: () => ccModelPresetApi.getList(),
   })
+
+  const { data: workspaces = [] } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: workspaceApi.getList,
+  })
+
+  const usageMap = useMemo(
+    () =>
+      presets.reduce<Record<number, string[]>>((acc, preset) => {
+        acc[preset.id] = workspaces
+          .filter(workspace => workspace.cc_model_preset_name === preset.name)
+          .map(workspace => workspace.name)
+        return acc
+      }, {}),
+    [presets, workspaces]
+  )
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => ccModelPresetApi.delete(id),
@@ -539,12 +571,141 @@ export default function CCModelsPage() {
       notification.error(t('ccModels.notifications.deleteFailed', { message: err.message })),
   })
 
+  const getUsageNames = (preset: CCModelPresetInfo) => usageMap[preset.id] ?? []
+  const getTestModel = (preset: CCModelPresetInfo) => {
+    const manualCandidates = [
+      preset.anthropic_model,
+      preset.default_sonnet,
+      preset.default_opus,
+      preset.default_haiku,
+      preset.small_fast_model,
+    ]
+    const presetCandidates = [...manualCandidates, preset.preset_model]
+    const candidates = preset.model_type === 'manual' ? manualCandidates : presetCandidates
+    return candidates.find(candidate => candidate.trim())?.trim() || ''
+  }
+  const canTestPreset = (preset: CCModelPresetInfo) =>
+    Boolean(preset.base_url.trim() && preset.auth_token.trim() && getTestModel(preset))
+
+  const filteredPresets = useMemo(() => {
+    const keyword = searchText.trim().toLowerCase()
+    if (!keyword) return presets
+    return presets.filter(preset => {
+      return (
+        preset.name.toLowerCase().includes(keyword) ||
+        preset.description.toLowerCase().includes(keyword) ||
+        preset.base_url.toLowerCase().includes(keyword) ||
+        (preset.model_type === 'preset'
+          ? preset.preset_model
+          : preset.anthropic_model || ''
+        )
+          .toLowerCase()
+          .includes(keyword)
+      )
+    })
+  }, [presets, searchText])
+  const runConnectivityTest = async (presetIds: number[]) => {
+    const targets = presetIds.filter(id => {
+      const preset = presets.find(item => item.id === id)
+      return preset ? canTestPreset(preset) : false
+    })
+    if (targets.length === 0) {
+      notification.info(t('ccModels.notifications.noTestableGroups'))
+      return
+    }
+
+    setTestingPresetIds(prev => new Set([...prev, ...targets]))
+    try {
+      const items = await ccModelPresetApi.test(targets)
+      const safeItems = Array.isArray(items) ? items : []
+      setTestResults(prev => {
+        const next = { ...prev }
+        safeItems.forEach(item => {
+          next[item.preset_id] = item
+        })
+        return next
+      })
+      if (safeItems.length === 0) {
+        notification.warning(t('ccModels.notifications.testNoResults'))
+        return
+      }
+      const successCount = safeItems.filter(item => item.success).length
+      const failCount = safeItems.length - successCount
+      if (failCount === 0) {
+        notification.success(t('ccModels.notifications.testAllPassed'))
+      } else {
+        notification.warning(t('ccModels.notifications.testCompleted'))
+      }
+    } catch (err) {
+      notification.error(
+        err instanceof Error ? err.message : t('ccModels.notifications.testFailed')
+      )
+    } finally {
+      setTestingPresetIds(prev => {
+        const next = new Set(prev)
+        targets.forEach(id => next.delete(id))
+        return next
+      })
+    }
+  }
+
+  const renderTestTooltip = (result: CCModelPresetTestItem) => (
+    <Box sx={{ maxWidth: 360 }}>
+      <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, mb: 0.5 }}>
+        {result.success ? t('ccModels.health.tooltipPassed') : t('ccModels.health.tooltipFailed')}
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        {t('ccModels.health.tooltipModel', {
+          model: result.used_model || result.model_name || '-',
+        })}
+      </Typography>
+      <Typography variant="caption" sx={{ display: 'block' }}>
+        {t('ccModels.health.tooltipLatency', { ms: result.latency_ms })}
+      </Typography>
+      {result.success ? (
+        <>
+          <Typography variant="caption" sx={{ display: 'block' }}>
+            {t('ccModels.health.tooltipTokens', {
+              input: result.input_tokens || 0,
+              output: result.output_tokens || 0,
+            })}
+          </Typography>
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+          >
+            {t('ccModels.health.tooltipReply', {
+              text: result.response_text?.trim() || '-',
+            })}
+          </Typography>
+        </>
+      ) : (
+        <Typography
+          variant="caption"
+          sx={{ display: 'block', mt: 0.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+        >
+          {t('ccModels.health.tooltipError', {
+            error: result.error_message || '-',
+          })}
+        </Typography>
+      )}
+    </Box>
+  )
+
   const handleAdd = () => {
+    setIsCopyMode(false)
     setEditTarget(undefined)
     setEditOpen(true)
   }
 
   const handleEdit = (preset: CCModelPresetInfo) => {
+    setIsCopyMode(false)
+    setEditTarget(preset)
+    setEditOpen(true)
+  }
+
+  const handleCopy = (preset: CCModelPresetInfo) => {
+    setIsCopyMode(true)
     setEditTarget(preset)
     setEditOpen(true)
   }
@@ -560,37 +721,49 @@ export default function CCModelsPage() {
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
-        p: 2,
       }}
     >
-      {/* 顶部工具栏 */}
+      {/* 顶部提示 */}
+      <Alert severity="info" sx={{ mb: 1.5, flexShrink: 0 }}>
+        {t('ccModels.alert.providerSupportBefore')}
+        <Link href="https://api.nekro.ai" target="_blank" rel="noopener noreferrer">
+          {t('ccModels.alert.providerSupportLink')}
+        </Link>
+        {t('ccModels.alert.providerSupportAfter')}
+      </Alert>
+
       <Box
         sx={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          mb: 2,
+          mb: 1.5,
           flexShrink: 0,
-          flexWrap: 'wrap',
-          gap: 1,
         }}
       >
-        <Alert severity="info" sx={{ flex: 1 }}>
-          {t('ccModels.infoAlert')}
-        </Alert>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAdd}
-          sx={{ minWidth: 140, minHeight: 40, flexShrink: 0 }}
-        >
-          {t('ccModels.createBtn')}
-        </Button>
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
+          <Box sx={{ flexGrow: 1 }}>
+            <SearchActionBar
+              value={searchText}
+              onChange={setSearchText}
+              placeholder={t('ccModels.actions.searchPlaceholder')}
+              actionLabel="搜索"
+            />
+          </Box>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+            <ActionButton
+              tone="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAdd}
+              size="small"
+              sx={{ height: 40 }}
+            >
+              {t('ccModels.createBtn')}
+            </ActionButton>
+          </Stack>
+        </Stack>
       </Box>
 
       {/* 表格 */}
       <Paper
-        elevation={3}
+        elevation={0}
         sx={{
           flex: 1,
           display: 'flex',
@@ -610,22 +783,28 @@ export default function CCModelsPage() {
           <Table stickyHeader size="medium" sx={{ minWidth: 700 }}>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 80, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   {t('ccModels.table.headers.name')}
                 </TableCell>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   {t('ccModels.table.headers.desc')}
                 </TableCell>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 60, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   {t('ccModels.table.headers.type')}
                 </TableCell>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 80, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   {t('ccModels.table.headers.model')}
                 </TableCell>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
-                  Base URL
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 120, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                  {t('ccModels.table.headers.baseUrl')}
                 </TableCell>
-                <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 60, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                  {t('ccModels.table.headers.usage')}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 60, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
+                  {t('ccModels.table.headers.health')}
+                </TableCell>
+                <TableCell sx={{ whiteSpace: 'nowrap', minWidth: 80, ...(UNIFIED_TABLE_STYLES.header as SxProps<Theme>) }}>
                   {t('ccModels.table.headers.actions')}
                 </TableCell>
               </TableRow>
@@ -633,18 +812,18 @@ export default function CCModelsPage() {
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
                     <CircularProgress size={24} />
                   </TableCell>
                 </TableRow>
-              ) : presets.length === 0 ? (
+              ) : filteredPresets.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center" sx={{ py: 4, color: 'text.secondary' }}>
+                  <TableCell colSpan={8} align="center" sx={{ py: 4, color: 'text.secondary' }}>
                     {t('ccModels.table.empty')}
                   </TableCell>
                 </TableRow>
               ) : (
-                presets.map(preset => (
+                filteredPresets.map(preset => (
                   <TableRow key={preset.id} sx={UNIFIED_TABLE_STYLES.row as SxProps<Theme>}>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Stack direction="row" alignItems="center" spacing={0.5}>
@@ -653,8 +832,7 @@ export default function CCModelsPage() {
                           <Chip
                             label={t('ccModels.table.defaultChip')}
                             size="small"
-                            color="primary"
-                            sx={{ height: 18, fontSize: '0.68rem' }}
+                            sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.primary.main, true)}
                           />
                         )}
                       </Stack>
@@ -667,7 +845,7 @@ export default function CCModelsPage() {
                         color="text.secondary"
                         sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
-                        {preset.description || '—'}
+                        {preset.description || '-'}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
@@ -678,20 +856,72 @@ export default function CCModelsPage() {
                             : t('ccModels.table.typeManual')
                         }
                         size="small"
-                        color={preset.model_type === 'preset' ? 'primary' : 'secondary'}
                         variant="outlined"
-                        sx={{ height: 22, fontSize: '0.72rem' }}
+                        sx={CHIP_VARIANTS.getCustomColorChip(
+                          preset.model_type === 'preset'
+                            ? theme.palette.primary.main
+                            : theme.palette.secondary.main,
+                          false
+                        )}
                       />
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
-                      <Typography
-                        variant="body2"
-                        sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
-                      >
-                        {preset.model_type === 'preset'
-                          ? preset.preset_model
-                          : preset.anthropic_model || t('ccModels.table.multiModel')}
-                      </Typography>
+                      {preset.model_type === 'preset' ? (
+                        <Typography
+                          variant="body2"
+                          sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        >
+                          {preset.preset_model || '-'}
+                        </Typography>
+                      ) : (() => {
+                        const extraModels = [
+                          preset.small_fast_model && `SMALL_FAST: ${preset.small_fast_model}`,
+                          preset.default_sonnet && `SONNET: ${preset.default_sonnet}`,
+                          preset.default_opus && `OPUS: ${preset.default_opus}`,
+                          preset.default_haiku && `HAIKU: ${preset.default_haiku}`,
+                        ].filter(Boolean) as string[]
+                        const primaryModel = preset.anthropic_model
+                        return (
+                          <Stack direction="row" alignItems="center" spacing={0.5}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                            >
+                              {primaryModel || t('ccModels.table.multiModel')}
+                            </Typography>
+                            {extraModels.length > 0 && (
+                              <Tooltip
+                                title={
+                                  <Box>
+                                    {extraModels.map(m => (
+                                      <Typography
+                                        key={m}
+                                        variant="caption"
+                                        sx={{ display: 'block', fontFamily: 'monospace' }}
+                                      >
+                                        {m}
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                }
+                                arrow
+                              >
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color: 'primary.main',
+                                    cursor: 'default',
+                                    fontWeight: 600,
+                                    lineHeight: 1,
+                                  }}
+                                >
+                                  +{extraModels.length}
+                                </Typography>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        )
+                      })()}
                     </TableCell>
                     <TableCell
                       sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>), maxWidth: 200 }}
@@ -713,33 +943,124 @@ export default function CCModelsPage() {
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
+                      {usageMap[preset.id]?.length ? (
+                        <Tooltip title={usageMap[preset.id].join('、')} arrow>
+                          <Chip
+                            size="small"
+                            variant="outlined"
+                            label={t('ccModels.table.usageBound', { count: usageMap[preset.id].length })}
+                            sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.success.main, false)}
+                          />
+                        </Tooltip>
+                      ) : (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          label={t('ccModels.table.usageIdle')}
+                          sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.text.secondary, false)}
+                        />
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
+                      {testingPresetIds.has(preset.id) ? (
+                        <Chip
+                          size="small"
+                          variant="outlined"
+                          icon={<CircularProgress size={12} />}
+                          label={t('ccModels.health.testing')}
+                          sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.info.main, false)}
+                        />
+                      ) : testResults[preset.id] ? (
+                        <Tooltip title={renderTestTooltip(testResults[preset.id])} arrow>
+                          {testResults[preset.id].success ? (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={t('ccModels.health.ok', {
+                                ms: testResults[preset.id].latency_ms,
+                              })}
+                              sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.success.main, false)}
+                            />
+                          ) : (
+                            <Chip
+                              size="small"
+                              variant="outlined"
+                              label={t('ccModels.health.failed')}
+                              sx={CHIP_VARIANTS.getCustomColorChip(theme.palette.error.main, false)}
+                            />
+                          )}
+                        </Tooltip>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          {t('ccModels.health.notTested')}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell sx={{ ...(UNIFIED_TABLE_STYLES.cell as SxProps<Theme>) }}>
                       <Stack direction="row" spacing={0.5}>
                         <Tooltip title={t('ccModels.table.tooltips.edit')} arrow>
-                          <IconButton
+                          <IconActionButton
                             size="small"
-                            color="warning"
+                            sx={{ color: 'warning.main', p: 0.5 }}
                             onClick={() => handleEdit(preset)}
                           >
                             <EditIcon fontSize="small" />
-                          </IconButton>
+                          </IconActionButton>
+                        </Tooltip>
+                        <Tooltip title={t('ccModels.table.tooltips.copy')} arrow>
+                          <IconActionButton
+                            size="small"
+                            tone="subtle"
+                            onClick={() => handleCopy(preset)}
+                            sx={{ p: 0.5 }}
+                          >
+                            <ContentCopyIcon fontSize="small" />
+                          </IconActionButton>
+                        </Tooltip>
+                        <Tooltip
+                          title={
+                            canTestPreset(preset)
+                              ? t('ccModels.table.tooltips.test')
+                              : t('ccModels.table.tooltips.testDisabled')
+                          }
+                          arrow
+                        >
+                          <span>
+                            <IconActionButton
+                              size="small"
+                              tone="primary"
+                              onClick={() => runConnectivityTest([preset.id])}
+                              disabled={!canTestPreset(preset) || testingPresetIds.has(preset.id)}
+                            >
+                              {testingPresetIds.has(preset.id) ? (
+                                <CircularProgress size={18} />
+                              ) : (
+                                <NetworkCheckIcon fontSize="small" />
+                              )}
+                            </IconActionButton>
+                          </span>
                         </Tooltip>
                         <Tooltip
                           title={
                             preset.is_default
                               ? t('ccModels.table.tooltips.defaultCannotDelete')
+                              : getUsageNames(preset).length > 0
+                                ? t('ccModels.table.tooltips.boundCannotDelete', {
+                                    count: getUsageNames(preset).length,
+                                  })
                               : t('ccModels.table.tooltips.delete')
                           }
                           arrow
                         >
                           <span>
-                            <IconButton
+                            <IconActionButton
                               size="small"
-                              color="error"
+                              tone="danger"
                               onClick={() => setDeleteTarget(preset)}
-                              disabled={preset.is_default}
+                              disabled={preset.is_default || getUsageNames(preset).length > 0}
                             >
                               <DeleteIcon fontSize="small" />
-                            </IconButton>
+                            </IconActionButton>
                           </span>
                         </Tooltip>
                       </Stack>
@@ -752,11 +1073,15 @@ export default function CCModelsPage() {
         </TableContainer>
       </Paper>
 
-      {/* 编辑/新建 Dialog */}
+      {/* 编辑/新建/复制 Dialog */}
       <EditDialog
         open={editOpen}
-        onClose={() => setEditOpen(false)}
+        onClose={() => {
+          setEditOpen(false)
+          setIsCopyMode(false)
+        }}
         initial={editTarget}
+        isCopy={isCopyMode}
         onSuccess={handleSuccess}
       />
 
@@ -769,17 +1094,26 @@ export default function CCModelsPage() {
       >
         <DialogTitle>{t('ccModels.deleteDialog.title')}</DialogTitle>
         <DialogContent>
-          <Typography>
-            {t('ccModels.deleteDialog.content', { name: deleteTarget?.name })}
-          </Typography>
+          <Stack spacing={1.25}>
+            <Typography>
+              {t('ccModels.deleteDialog.content', { name: deleteTarget?.name })}
+            </Typography>
+            {deleteTarget && getUsageNames(deleteTarget).length > 0 && (
+              <Alert severity="warning">
+                {t('ccModels.deleteDialog.boundHint', {
+                  count: getUsageNames(deleteTarget).length,
+                  names: getUsageNames(deleteTarget).join('、'),
+                })}
+              </Alert>
+            )}
+          </Stack>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
+          <ActionButton onClick={() => setDeleteTarget(null)} disabled={deleteMutation.isPending}>
             {t('ccModels.deleteDialog.cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
+          </ActionButton>
+          <ActionButton
+            tone="danger"
             onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
             disabled={deleteMutation.isPending}
           >
@@ -788,7 +1122,7 @@ export default function CCModelsPage() {
             ) : (
               t('ccModels.deleteDialog.delete')
             )}
-          </Button>
+          </ActionButton>
         </DialogActions>
       </Dialog>
     </Box>

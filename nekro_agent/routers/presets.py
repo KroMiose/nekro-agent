@@ -175,6 +175,19 @@ async def get_preset_detail(
     return _preset_detail(preset)
 
 
+@router.get("/by-remote/{remote_id}", summary="通过远程ID获取本地人设详情", response_model=PresetDetail)
+@require_role(Role.Admin)
+async def get_preset_detail_by_remote_id(
+    remote_id: str,
+    _current_user: DBUser = Depends(get_current_active_user),
+) -> PresetDetail:
+    preset = await DBPreset.get_or_none(remote_id=remote_id)
+    if not preset:
+        raise NotFoundError(resource="人设")
+
+    return _preset_detail(preset)
+
+
 @router.post("", summary="创建人设", response_model=ActionResponse)
 @require_role(Role.Admin)
 async def create_preset(

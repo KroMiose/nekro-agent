@@ -1,5 +1,5 @@
 import axios from './axios'
-import { createEventStream } from './utils/stream'
+import { createEventStream, createSharedEventStreamManager } from './utils/stream'
 
 export interface ActionResponse {
   ok: boolean
@@ -7,16 +7,41 @@ export interface ActionResponse {
   error?: string
 }
 
+export interface ChatAnnouncementResultItem {
+  chat_key: string
+  channel_name: string | null
+  ok: boolean
+  error: string
+}
+
+export interface ChatAnnouncementResponse {
+  ok: boolean
+  total: number
+  success_count: number
+  failure_count: number
+  results: ChatAnnouncementResultItem[]
+}
+
 export interface ChatChannel {
   id: number
   chat_key: string
   channel_name: string | null
   is_active: boolean
+  status: 'active' | 'observe' | 'disabled'
   chat_type: string
   message_count: number
   create_time: string
   update_time: string
   last_message_time: string | null
+}
+
+export interface ChannelDirectoryEntry {
+  id: number
+  chat_key: string
+  channel_name: string | null
+  is_active: boolean
+  status: 'active' | 'observe' | 'disabled'
+  chat_type: string
 }
 
 export interface ChatChannelDetail extends ChatChannel {
@@ -112,12 +137,26 @@ export interface ChatPluginDataResponse {
   plugin_names: Record<string, string>
 }
 
+export interface ChannelListStreamEvent {
+  event_type: string
+  chat_key: string
+  channel_name?: string | null
+  is_active?: boolean | null
+  status?: string | null
+}
+
+const channelListStreamManager = createSharedEventStreamManager({
+  endpoint: '/chat-channel/list/stream',
+  closeDelayMs: 1500,
+})
+
 export const chatChannelApi = {
   getList: async (params: {
     page: number
     page_size: number
     search?: string
     chat_type?: string
+    status?: 'active' | 'observe' | 'disabled'
     is_active?: boolean
   }): Promise<ChatChannelListResponse> => {
     const response = await axios.get<ChatChannelListResponse>('/chat-channel/list', { params })
@@ -129,9 +168,21 @@ export const chatChannelApi = {
     return response.data
   },
 
+  getDirectory: async (): Promise<ChannelDirectoryEntry[]> => {
+    const response = await axios.get<{ items: ChannelDirectoryEntry[] }>('/chat-channel/directory')
+    return response.data.items
+  },
+
   setActive: async (chatKey: string, isActive: boolean): Promise<ActionResponse> => {
     const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/active`, null, {
       params: { is_active: isActive },
+    })
+    return response.data
+  },
+
+  setStatus: async (chatKey: string, status: 'active' | 'observe' | 'disabled'): Promise<ActionResponse> => {
+    const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/status`, null, {
+      params: { status },
     })
     return response.data
   },
@@ -178,6 +229,17 @@ export const chatChannelApi = {
     const response = await axios.post<ActionResponse>(`/chat-channel/${chatKey}/send`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+    return response.data
+  },
+
+  sendAnnouncementMessage: async (payload: {
+    chat_keys: string[]
+    message: string
+  }): Promise<ChatAnnouncementResponse> => {
+    const response = await axios.post<ChatAnnouncementResponse>(
+      '/chat-channel/announcement/send',
+      payload
+    )
     return response.data
   },
 
@@ -238,15 +300,14 @@ export const chatChannelApi = {
     return response.data
   },
 
-  streamChannels: (onMessage: (event: { event_type: string; chat_key: string; channel_name?: string | null; is_active?: boolean | null }) => void, onError?: (error: Error) => void): (() => void) => {
+  streamChannels: (onMessage: (event: ChannelListStreamEvent) => void, onError?: (error: Error) => void): (() => void) => {
     /**
      * Subscribe to real-time channel list updates using SSE
      * @param onMessage - Callback when a channel event is received (created, updated, deleted, activated, deactivated)
      * @param onError - Optional error callback
      * @returns Cleanup function to unsubscribe
      */
-    return createEventStream({
-      endpoint: '/chat-channel/list/stream',
+    return channelListStreamManager.subscribe({
       onMessage: (data: string) => {
         const trimmedData = data.trim()
         if (!trimmedData || !trimmedData.startsWith('{')) return

@@ -4,14 +4,12 @@ import {
   Box,
   Typography,
   Divider,
-  IconButton,
   CircularProgress,
   Chip,
   Grid,
   Paper,
   useTheme,
   useMediaQuery,
-  Button,
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
@@ -20,6 +18,8 @@ import { getUserDetail } from '../../../services/api/user-manager'
 import { format } from 'date-fns'
 import { CHIP_VARIANTS } from '../../../theme/variants'
 import { useTranslation } from 'react-i18next'
+import IconActionButton from '../../../components/common/IconActionButton'
+import ActionButton from '../../../components/common/ActionButton'
 
 interface UserDetailProps {
   userId: number
@@ -100,15 +100,24 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
         >
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {isMobile && (
-              <IconButton onClick={onClose} size={isSmall ? 'small' : 'medium'} sx={{ mr: 1 }}>
+              <IconActionButton
+                onClick={onClose}
+                size={isSmall ? 'small' : 'medium'}
+                sx={{ mr: 1 }}
+                title={t('actions.cancel', { ns: 'common' })}
+              >
                 <ArrowBackIcon />
-              </IconButton>
+              </IconActionButton>
             )}
             <Typography variant={isSmall ? 'h6' : 'h5'}>{t('detail.title')}</Typography>
           </Box>
-          <IconButton onClick={onClose} size={isSmall ? 'small' : 'medium'}>
+          <IconActionButton
+            onClick={onClose}
+            size={isSmall ? 'small' : 'medium'}
+            title={t('actions.cancel', { ns: 'common' })}
+          >
             <CloseIcon />
-          </IconButton>
+          </IconActionButton>
         </Box>
 
         <Divider sx={{ mb: isSmall ? 1.5 : 2 }} />
@@ -366,9 +375,9 @@ const UserDetail: React.FC<UserDetailProps> = ({ userId, open, onClose }) => {
             mt: 'auto',
           }}
         >
-          <Button variant="contained" fullWidth onClick={onClose} startIcon={<ArrowBackIcon />}>
+          <ActionButton tone="primary" fullWidth onClick={onClose} startIcon={<ArrowBackIcon />}>
             {t('actions.back', { ns: 'common' })}
-          </Button>
+          </ActionButton>
         </Box>
       )}
     </Drawer>

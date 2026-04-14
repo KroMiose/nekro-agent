@@ -3,10 +3,12 @@
 定义命令执行上下文、请求、响应及参数描述符。
 """
 
+import mimetypes
 from enum import Enum
+from pathlib import Path
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from nekro_agent.schemas.i18n import SupportedLang
 
@@ -45,12 +47,54 @@ class CommandResponseStatus(str, Enum):
     WAITING = "waiting"  # 等待用户交互 (CmdCtl.wait)
 
 
+class CommandOutputSegmentType(str, Enum):
+    TEXT = "text"
+    IMAGE = "image"
+    FILE = "file"
+
+
+class CommandOutputSegment(BaseModel):
+    """命令输出段
+
+    `message` 继续作为命令输出摘要使用，`output_segments` 负责承载真正的富媒体内容。
+    对于 `image/file` 段：
+    - `file_path` 给后端发送链路使用
+    - `web_url` 给 WebUI / SSE 直接渲染使用
+    - `file_name/mime_type` 在提供 `file_path` 时可省略，会自动推导
+    """
+
+    type: CommandOutputSegmentType
+    text: str = ""
+    file_path: Optional[str] = None
+    file_name: Optional[str] = None
+    mime_type: Optional[str] = None
+    web_url: Optional[str] = None
+
+    @model_validator(mode="after")
+    def populate_file_metadata(self) -> "CommandOutputSegment":
+        """在提供文件路径时自动补全附件元信息。"""
+        if self.type == CommandOutputSegmentType.TEXT or not self.file_path:
+            return self
+
+        if not self.file_name:
+            resolved_name = Path(self.file_path).name
+            if resolved_name:
+                self.file_name = resolved_name
+
+        if not self.mime_type:
+            guess_target = self.file_name or self.file_path
+            self.mime_type = mimetypes.guess_type(guess_target)[0] or "application/octet-stream"
+
+        return self
+
+
 class CommandResponse(BaseModel):
     """命令响应"""
 
     status: CommandResponseStatus
     message: str
     data: Optional[dict[str, Any]] = None  # 结构化数据 (给 Agent 读取)
+    output_segments: Optional[list[CommandOutputSegment]] = None  # 富媒体输出段
 
     # wait 相关
     callback_cmd: Optional[str] = None  # wait 状态下接收后续输入的命令
