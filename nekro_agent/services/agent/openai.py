@@ -458,12 +458,6 @@ async def gen_openai_chat_response(
         if not delta:
             logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
             return None
-
-        has_content = delta.content
-        has_reasoning = getattr(delta, thought_chain_field_name, None)
-        if not has_content and not has_reasoning:
-            logger.warning(f"OpenAI流式生成: 跳过空响应块 (content={delta.content}, reasoning={has_reasoning})")
-            return None
         return delta
 
     async def _apply_stream_chunk(chunk: ChatCompletionChunk) -> bool:
@@ -505,28 +499,25 @@ async def gen_openai_chat_response(
             return True
         return False
 
-    async def _get_first_valid_stream_chunk(
+    async def _get_first_stream_chunk(
         stream: AsyncStream[ChatCompletionChunk],
         timeout_seconds: Optional[int],
     ) -> Optional[ChatCompletionChunk]:
         stream_iter = stream.__aiter__()
 
-        async def wait_valid_chunk() -> ChatCompletionChunk:
-            while True:
-                try:
-                    chunk = await stream_iter.__anext__()
-                except StopAsyncIteration as exc:
-                    raise ValueError("Stream response ended before the first valid token was received") from exc
-                if _extract_valid_delta(chunk) is not None:
-                    return chunk
+        async def wait_first_chunk() -> ChatCompletionChunk:
+            try:
+                return await stream_iter.__anext__()
+            except StopAsyncIteration as exc:
+                raise ValueError("Stream response ended before the first chunk was received") from exc
 
         if timeout_seconds and timeout_seconds > 0:
             try:
                 async with asyncio.timeout(timeout_seconds):
-                    return await wait_valid_chunk()
+                    return await wait_first_chunk()
             except TimeoutError as exc:
                 raise TimeoutError(f"Stream first token timed out after {timeout_seconds}s") from exc
-        return await wait_valid_chunk()
+        return await wait_first_chunk()
 
     # 使用async with语法创建和管理httpx客户端
     try:
@@ -552,8 +543,10 @@ async def gen_openai_chat_response(
                     **gen_kwargs,   
                     stream=True,
                 )
-                first_valid_chunk = await _get_first_valid_stream_chunk(res_stream, first_token_timeout)
-                if first_valid_chunk and await _apply_stream_chunk(first_valid_chunk):
+                first_chunk = await _get_first_stream_chunk(res_stream, first_token_timeout)
+                if first_chunk and not first_token_time:
+                    first_token_time = time.time()
+                if first_chunk and await _apply_stream_chunk(first_chunk):
                     pass
                 else:
                     async for chunk in res_stream:

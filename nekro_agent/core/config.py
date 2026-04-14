@@ -1590,7 +1590,7 @@ class CoreConfig(ConfigBase):
         description="启用后 AI 会以流式请求方式返回响应，再合并解析，这可能解决某些 LLM 请求异常的问题，但是会丢失准确的 Token 统计信息",
     )
     AI_STREAM_FIRST_TOKEN_TIMEOUT: int = Field(
-        default=30,
+        default=60,
         title="流式首 Token 超时 (秒)",
         json_schema_extra=ExtraField(
             i18n_category=i18n_text(
