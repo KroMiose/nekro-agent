@@ -1174,6 +1174,26 @@ class CoreConfig(ConfigBase):
         ).model_dump(),
         description="AI 大模型生成响应结果的最大等待时间，超过该时间会自动停止生成并报错",
     )
+    AI_STREAM_FIRST_TOKEN_TIMEOUT: int = Field(
+        default=60,
+        title="AI 流式首包超时时间 (秒)",
+        json_schema_extra=ExtraField(
+            i18n_category=i18n_text(
+                zh_CN="聊天配置",
+                en_US="Chat Configuration",
+            ),
+            overridable=True,
+            i18n_title=i18n_text(
+                zh_CN="AI 流式首包超时时间 (秒)",
+                en_US="AI Stream First Token Timeout (seconds)",
+            ),
+            i18n_description=i18n_text(
+                zh_CN="AI 流式请求中，从发起请求到收到首个有效 Token 的最大等待时间，超过该时间会自动终止请求并报错。该超时独立于生成总超时，专门解决连接建立后长期等待首包的挂死问题",
+                en_US="Maximum wait time for the first token in stream mode, will abort if exceeded. Independent of total generation timeout to prevent hangs during initial token wait",
+            ),
+        ).model_dump(),
+        description="AI 流式请求中，从发起请求到收到首个有效 Token 的最大等待时间，超过该时间会自动终止请求并报错",
+    )
     AI_IGNORED_PREFIXES: List[str] = Field(
         default=["#", "＃", "[Debug]", "[Opt Output]", "≡NA≡"],
         title="忽略的消息前缀",

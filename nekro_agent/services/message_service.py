@@ -298,10 +298,10 @@ class MessageService:
             except Exception as _e:
                 logger.warning(f"[message_service] 广播 AgentRuntime 结束事件失败: {_e}")
 
-            # 如果有待处理消息，创建新的任务处理最后一条消息
+            # 如果有待处理消息，重新走 schedule_agent_task 的防抖流程
+            # 避免失败后直接 create_task 重启导致的带病死循环
             if final_message:
-                new_task = asyncio.create_task(self._run_chat_agent_task(chat_key=chat_key, message=final_message, ctx=ctx))
-                self.running_tasks[chat_key] = new_task
+                asyncio.create_task(self.schedule_agent_task(message=final_message, ctx=ctx))
 
     async def push_human_message(
         self,

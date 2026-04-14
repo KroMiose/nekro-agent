@@ -298,7 +298,7 @@ async def run_agent(
                 + (
                     f" This is the last retry. Describe the reason if you can't finish the task. (Iteration times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
                     if i == config.AI_SCRIPT_MAX_RETRY_TIMES - 1
-                    else "(Iteration times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
+                    else f"(Iteration times: {i + 1}/{config.AI_SCRIPT_MAX_RETRY_TIMES})"
                 ),
             ),
         )
@@ -345,6 +345,42 @@ async def run_agent(
             )
             raise
         parsed_code_data = parse_chat_response(llm_response.response_content)
+
+    # 循环结束后，如果前一轮有生成新代码但还没执行，补执行一次
+    # 避免最后一轮 retry 生成的代码"白生成不执行"
+    final_iteration = config.AI_SCRIPT_MAX_RETRY_TIMES + 1
+    if one_time_code in parsed_code_data.code_content:
+        stop_type = ExecStopType.SECURITY
+    else:
+        await publish_runtime_state(
+            phase="sandbox_running",
+            iteration_index=final_iteration,
+            model_name=llm_response.use_model,
+        )
+        sandbox_output, raw_output, stop_type_value = await limited_run_code(
+            code_run_data=parsed_code_data,
+            from_chat_key=chat_key,
+            chat_message=chat_message,
+            llm_response=llm_response,
+            ctx=ctx,
+        )
+        stop_type = ExecStopType(stop_type_value)
+
+    if stop_type == ExecStopType.NORMAL:
+        await publish_runtime_state(
+            phase="completed",
+            iteration_index=final_iteration,
+            model_name=llm_response.use_model,
+        )
+        return
+
+    await publish_runtime_state(
+        phase="sandbox_stopped",
+        iteration_index=final_iteration,
+        model_name=llm_response.use_model,
+        sandbox_stop_type=stop_type.value,
+        error_summary=_summarize_runtime_text(sandbox_output),
+    )
 
 
 async def send_agent_request(

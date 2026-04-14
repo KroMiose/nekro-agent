@@ -307,8 +307,7 @@ async def run_code_in_sandbox(
 async def run_container_with_timeout(container: DockerContainer, timeout: int) -> Tuple[str, ExecStopType]:
     """运行容器并返回输出结果和退出类型"""
     try:
-        task = asyncio.create_task(asyncio.wait_for(container.wait(), timeout=timeout))
-        await asyncio.wait_for(task, timeout=timeout)
+        await asyncio.wait_for(container.wait(), timeout=timeout)
         outputs = await container.log(stdout=True, stderr=True)
         await container.delete()
         logger.info(f"容器 {container.id} 运行结束退出")

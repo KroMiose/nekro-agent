@@ -1,3 +1,4 @@
+import asyncio
 import json
 import time
 from datetime import datetime
@@ -471,13 +472,40 @@ async def gen_openai_chat_response(
                 res_stream: AsyncStream[ChatCompletionChunk] = await client.chat.completions.create(
                     model=model,
                     messages=messages,
-                    **gen_kwargs,   
+                    **gen_kwargs,
                     stream=True,
                 )
 
-                async for chunk in res_stream:
-                    if not first_token_time:
+                # 使用 asyncio.wait_for 真正覆盖“连接建立 → 首 Token”全过程，
+                # 避免仅依赖 httpx read_timeout 导致首包挂死却无法触发超时的问题。
+                _first_token_timeout = config.AI_STREAM_FIRST_TOKEN_TIMEOUT or max_wait_time or 180
+                _chunk_timeout = max_wait_time or 3600
+                stream_aiter = res_stream.__aiter__()
+                _is_first_chunk = True
+
+                while True:
+                    try:
+                        if _is_first_chunk:
+                            chunk = await asyncio.wait_for(stream_aiter.__anext__(), timeout=_first_token_timeout)
+                        else:
+                            chunk = await asyncio.wait_for(stream_aiter.__anext__(), timeout=_chunk_timeout)
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        try:
+                            await res_stream.close()
+                        except Exception:
+                            pass
+                        timeout_stage = "首 Token" if _is_first_chunk else "流式响应"
+                        timeout_val = _first_token_timeout if _is_first_chunk else _chunk_timeout
+                        raise asyncio.TimeoutError(
+                            f"OpenAI {timeout_stage}超时（超过 {timeout_val} 秒）",
+                        ) from None
+
+                    if _is_first_chunk:
+                        _is_first_chunk = False
                         first_token_time = time.time()
+
                     delta = chunk.choices[0].delta if chunk.choices else None
                     if not delta:
                         logger.warning(f"OpenAI流式生成: 空 choices，跳过块 {chunk}")
@@ -726,8 +754,34 @@ async def gen_openai_chat_stream(
                 **gen_kwargs,
             )
 
-            # 直接产生文本片段
-            async for chunk in stream:
+            # 使用 asyncio.wait_for 覆盖首包及后续 chunk 的超时，避免仅依赖 httpx read_timeout
+            _first_token_timeout = config.AI_STREAM_FIRST_TOKEN_TIMEOUT or 60
+            _chunk_timeout = 300
+            stream_aiter = stream.__aiter__()
+            _is_first_chunk = True
+
+            while True:
+                try:
+                    if _is_first_chunk:
+                        chunk = await asyncio.wait_for(stream_aiter.__anext__(), timeout=_first_token_timeout)
+                    else:
+                        chunk = await asyncio.wait_for(stream_aiter.__anext__(), timeout=_chunk_timeout)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    try:
+                        await stream.close()
+                    except Exception:
+                        pass
+                    timeout_stage = "首 Token" if _is_first_chunk else "流式响应"
+                    timeout_val = _first_token_timeout if _is_first_chunk else _chunk_timeout
+                    raise asyncio.TimeoutError(
+                        f"OpenAI 简化流式生成 {timeout_stage}超时（超过 {timeout_val} 秒）",
+                    ) from None
+
+                if _is_first_chunk:
+                    _is_first_chunk = False
+
                 if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     content = chunk.choices[0].delta.content
                     yield content
