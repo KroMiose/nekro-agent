@@ -43,7 +43,7 @@ def _resolve_channel_agent_runtime_status(chat_key: str) -> tuple[str, str]:
     if active_status is not None:
         return t(zh_CN="LLM 生成中", en_US="LLM generating"), "llm_generating"
 
-    return t(zh_CN="无", en_US="None"), "none"
+    return t(zh_CN="闲置中", en_US="Idle"), "none"
 
 
 class NaInfoCommand(BaseCommand):
